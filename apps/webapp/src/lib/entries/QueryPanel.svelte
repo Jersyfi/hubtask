@@ -119,7 +119,7 @@
     })),
   );
 
-  const groups = $derived(offeredByProfile(groupableFields(manifest.value), carried));
+  const groups = $derived(offeredByProfile(groupableFields(manifest.value, custom), carried));
 
   /**
    * The document, rebuilt from the controls.
@@ -131,8 +131,8 @@
     const built = filterOf(manifest.value, conditions, custom);
     onquery({
       filter: kept && built ? { op: 'AND', nodes: [kept, built] } : (kept ?? built),
-      sort: sortField === '' ? undefined : sortOf(manifest.value, sortField, sortDir),
-      group: layout === 'KANBAN' ? groupOf(manifest.value, groupField) : undefined,
+      sort: sortField === '' ? undefined : sortOf(manifest.value, sortField, sortDir, custom),
+      group: layout === 'KANBAN' ? groupOf(manifest.value, groupField, custom) : undefined,
     });
     // The filter's count is its conditions; the order says itself on the *Sort* button.
     oncount?.(conditions.length + (kept ? 1 : 0));
@@ -169,6 +169,7 @@
   // board opened at its own address drew empty columns until a reload.
   $effect(() => {
     void manifest.value;
+    void custom;
     void layout;
     void sortField;
     void sortDir;

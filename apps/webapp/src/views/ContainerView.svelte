@@ -944,7 +944,9 @@
    */
   let sortField = $state('');
   let sortDir = $state<'ASC' | 'DESC'>('ASC');
-  const sortFields = $derived(offeredByProfile(sortableFields(manifest.value), carriedHere).map((field) => field.field));
+  const sortFields = $derived(
+    offeredByProfile(sortableFields(manifest.value, customFieldFilters), carriedHere).map((field) => field.field),
+  );
   const sortMenu = $derived<MenuItem[]>([
     { id: 'field:', label: t('app.query.sort_manual'), icon: sortField === '' ? 'check' : undefined },
     ...sortFields.map((field) => ({ id: `field:${field}`, label: field, icon: sortField === field ? ('check' as const) : undefined })),

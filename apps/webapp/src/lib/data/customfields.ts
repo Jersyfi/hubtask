@@ -15,11 +15,11 @@
  * `custom_fields` document would erase every key it had not loaded.
  *
  * **The comparisons a key takes are the server's, narrowed only where one cannot mean anything.**
- * `core/domain/model/view/Field.go` offers the same six for every kind —
- * `EQ, NEQ, IN, NOT_IN, IS_NULL, CONTAINS` — and says why the ordering comparisons are not among
- * them: "`LT` over a jsonb value would compare a NUMBER as text on one entry and as a number on
- * the next". This narrows that set per kind and never widens it, so nothing offered here can be
- * refused by name; `queryFieldsFor` carries the table.
+ * `core/domain/model/view/Field.go` accepts the equalities, `CONTAINS`, `IS_NULL` and the ranges for
+ * every key, and the use case holds the ranges, the sort and the grouping to the kind
+ * (`CustomShape.go`): they read the typed value, so a number ranges as a number and a date as a
+ * day. This narrows that set per kind and never widens it, so nothing offered here can be refused
+ * by name; `queryFieldsFor` carries the table.
  */
 
 import type { CustomFieldDefinition } from '@hubtask/sync-engine';
@@ -56,6 +56,26 @@ export function takesOptions(kind: string): boolean {
   return kind === 'SELECT' || kind === 'MULTI_SELECT';
 }
 
+/** The kind whose definition names a currency. Every other kind carries none. */
+export function takesCurrency(kind: string): boolean {
+  return kind === 'MONEY';
+}
+
+/** A currency's shape, as the contract's pattern writes it: three capital letters (ISO 4217). */
+export function isValidCurrency(code: string): boolean {
+  return /^[A-Z]{3}$/.test(code);
+}
+
+/** The kinds a value of which is several entries of a list rather than one. */
+function isListKind(kind: string): boolean {
+  return kind === 'MULTI_SELECT' || kind === 'USER_SET';
+}
+
+/** The kinds that travel as a JSON number. */
+function isNumberKind(kind: string): boolean {
+  return kind === 'NUMBER' || kind === 'MONEY' || kind === 'DURATION';
+}
+
 /**
  * A value in the shape the kind asks for, or `null` to clear the key.
  *
@@ -70,7 +90,7 @@ export function takesOptions(kind: string): boolean {
 export function valueFor(kind: string, raw: string | number | boolean | readonly string[] | null): unknown {
   if (raw === null || raw === undefined) return null;
 
-  if (kind === 'MULTI_SELECT') {
+  if (isListKind(kind)) {
     const list = Array.isArray(raw) ? raw : [];
     return list.length === 0 ? null : list;
   }
@@ -78,7 +98,7 @@ export function valueFor(kind: string, raw: string | number | boolean | readonly
 
   if (kind === 'BOOL') return typeof raw === 'boolean' ? raw : String(raw) === 'true';
 
-  if (kind === 'NUMBER') {
+  if (isNumberKind(kind)) {
     if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
     const text = String(raw).trim();
     if (text === '') return null;
@@ -89,6 +109,12 @@ export function valueFor(kind: string, raw: string | number | boolean | readonly
     return Number.isFinite(parsed) ? parsed : text;
   }
 
+  // Formatted text keeps its own line breaks and indentation: Markdown reads them.
+  if (kind === 'RICH_TEXT') {
+    const text = String(raw);
+    return text.trim() === '' ? null : text;
+  }
+
   const text = String(raw).trim();
   return text === '' ? null : text;
 }
@@ -96,18 +122,19 @@ export function valueFor(kind: string, raw: string | number | boolean | readonly
 /**
  * The comparisons this client offers for a kind, and why each set is what it is.
  *
- * The server's set is the same six for every kind, because the kind is not known when a filter is
- * validated — it is the definition's, which is data. Everything below is therefore a **subset**,
- * never an addition:
+ * The server accepts the same set for every key and holds the ranges to the kind once it has read
+ * the definitions (`core/domain/model/view/CustomShape.go`). Everything below is therefore a
+ * **subset**, never an addition:
  *
  * | Kind | Offered | Left out, and why |
  * |---|---|---|
- * | `TEXT`, `URL` | all six | — |
+ * | `TEXT`, `URL` | the equalities, `IS_NULL`, `CONTAINS` | the ranges — an order of words is the server's to give, not a filter anybody asks for |
  * | `SELECT` | `EQ NEQ IN NOT_IN IS_NULL` | `CONTAINS` — a substring of a closed set is a chooser used wrongly |
- * | `MULTI_SELECT` | `CONTAINS IS_NULL` | the four equalities — they compare whole arrays, which is not what "has this option" means |
- * | `NUMBER` | `EQ NEQ IN NOT_IN IS_NULL` | `CONTAINS` — a substring of a number |
+ * | `MULTI_SELECT`, `USER_SET` | `CONTAINS IS_NULL` | the equalities — they compare whole arrays, which is not what "has this one" means |
+ * | `NUMBER`, `MONEY`, `DURATION`, `DATE` | the equalities, `IS_NULL` and `LT LTE GT GTE BETWEEN` | `CONTAINS` — a substring of a number |
+ * | `USER`, `REFERENCE` | `EQ NEQ IN NOT_IN IS_NULL` | the ranges — a person or an entry has no order |
  * | `BOOL` | `EQ NEQ IS_NULL` | `IN`/`NOT_IN` over two values is `EQ`/`NEQ`; `CONTAINS` is meaningless |
- * | `DATE` | `EQ NEQ IN NOT_IN IS_NULL` | `CONTAINS`; the ordering comparisons are the **server's** omission, not this one |
+ * | `RICH_TEXT` | `CONTAINS IS_NULL` | everything that compares a whole value — formatted text is never compared |
  * | anything else | `EQ NEQ IS_NULL` | a kind this client has never met gets what is true of any value |
  *
  * The last row is the rule `domain-model.md` §2 asks for: a newer server's kind is filterable
@@ -118,18 +145,40 @@ export function operatorsFor(kind: string): readonly string[] {
     case 'TEXT':
     case 'URL':
       return ['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_NULL', 'CONTAINS'];
-    case 'SELECT':
     case 'NUMBER':
+    case 'MONEY':
+    case 'DURATION':
     case 'DATE':
+      return ['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_NULL', 'LT', 'LTE', 'GT', 'GTE', 'BETWEEN'];
+    case 'SELECT':
     case 'USER':
+    case 'REFERENCE':
       return ['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_NULL'];
     case 'MULTI_SELECT':
+    case 'USER_SET':
+    case 'RICH_TEXT':
       return ['CONTAINS', 'IS_NULL'];
     case 'BOOL':
       return ['EQ', 'NEQ', 'IS_NULL'];
     default:
       return ['EQ', 'NEQ', 'IS_NULL'];
   }
+}
+
+/**
+ * Whether entries can be put in order by a kind's one value: the server's own answer
+ * (`CustomShape.sorts`). A set, a person, an entry and formatted text have no single order.
+ */
+export function sortsBy(kind: string): boolean {
+  return ['TEXT', 'URL', 'SELECT', 'NUMBER', 'MONEY', 'DURATION', 'DATE', 'BOOL'].includes(kind);
+}
+
+/**
+ * Whether entries can be put in one column per value of a kind (`CustomShape.groups`). A set has
+ * several values and formatted text none worth a column.
+ */
+export function groupsBy(kind: string): boolean {
+  return sortsBy(kind) || kind === 'USER' || kind === 'REFERENCE';
 }
 
 /**
@@ -141,10 +190,10 @@ export function operatorsFor(kind: string): readonly string[] {
  * field's".
  */
 function filterKindOf(kind: string): string {
-  if (kind === 'NUMBER') return 'number';
+  if (isNumberKind(kind)) return 'number';
   if (kind === 'BOOL') return 'boolean';
   if (kind === 'SELECT' || kind === 'MULTI_SELECT') return 'enum';
-  if (kind === 'USER') return 'id';
+  if (kind === 'USER' || kind === 'USER_SET' || kind === 'REFERENCE') return 'id';
   return 'string';
 }
 
@@ -170,9 +219,8 @@ export function queryFieldsFor(
     operators: [...operatorsFor(definition.kind)],
     values: takesOptions(definition.kind) ? [...(definition.options ?? [])] : undefined,
     nullable: true,
-    // Neither, and the server agrees: `custom_fields.<key>` is filterable and is in no sort or
-    // group list. Offering an order over a jsonb value is the same mistake `LT` would be.
-    sortable: false,
-    groupable: false,
+    // By the kind, as the server decides it once it has read the definitions.
+    sortable: sortsBy(definition.kind),
+    groupable: groupsBy(definition.kind),
   }));
 }

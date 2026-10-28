@@ -10,10 +10,12 @@ import {
   FILTER_PREFIX,
   appliesTo,
   definitionsFor,
+  isValidCurrency,
   isValidKey,
   isWorkspaceWide,
   operatorsFor,
   queryFieldsFor,
+  takesCurrency,
   takesOptions,
   valueFor,
 } from './customfields.ts';
@@ -88,20 +90,71 @@ test('an empty value clears the key rather than setting it to nothing', () => {
   assert.equal(valueFor('TEXT', null), null);
 });
 
-test('the comparisons offered are a subset of the six the grammar permits', () => {
-  // `core/domain/model/view/Field.go` offers the same six for every kind, because the kind is not
-  // known when a filter is validated. Nothing here may add to them, or the editor would offer a
-  // row the server refuses by name.
+test('the comparisons offered are a subset of what the grammar permits for the kind', () => {
+  // `core/domain/model/view/Field.go` accepts these for every key; `CustomShape.go` holds the
+  // ranges to the kinds that have an order. Nothing here may add to that, or the editor would
+  // offer a row the server refuses by name.
   const SERVER = new Set(['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_NULL', 'CONTAINS']);
-  for (const kind of ['TEXT', 'NUMBER', 'DATE', 'SELECT', 'MULTI_SELECT', 'BOOL', 'USER', 'URL', 'GEO']) {
+  const RANGES = new Set(['LT', 'LTE', 'GT', 'GTE', 'BETWEEN']);
+  const ORDERED = new Set(['TEXT', 'NUMBER', 'DATE', 'SELECT', 'BOOL', 'URL', 'MONEY', 'DURATION']);
+  const kinds = [
+    'TEXT', 'NUMBER', 'DATE', 'SELECT', 'MULTI_SELECT', 'BOOL', 'USER', 'URL',
+    'MONEY', 'DURATION', 'REFERENCE', 'USER_SET', 'RICH_TEXT', 'GEO',
+  ];
+  for (const kind of kinds) {
     for (const op of operatorsFor(kind)) {
-      assert.ok(SERVER.has(op), `${kind} offers ${op}, which the grammar does not permit`);
+      const permitted = SERVER.has(op) || (RANGES.has(op) && ORDERED.has(kind));
+      assert.ok(permitted, `${kind} offers ${op}, which the grammar does not permit`);
     }
   }
   assert.deepEqual(operatorsFor('BOOL'), ['EQ', 'NEQ', 'IS_NULL']);
   assert.deepEqual(operatorsFor('MULTI_SELECT'), ['CONTAINS', 'IS_NULL']);
+  assert.deepEqual(operatorsFor('USER_SET'), ['CONTAINS', 'IS_NULL']);
+  assert.ok(operatorsFor('MONEY').includes('BETWEEN'));
+  assert.ok(!operatorsFor('REFERENCE').includes('LT'));
   // A kind from a newer server is filterable rather than invisible, on what is true of any value.
   assert.deepEqual(operatorsFor('GEO'), ['EQ', 'NEQ', 'IS_NULL']);
+});
+
+// UC-WRK-17 check 10: a custom field is a sort and a grouping where its kind has one order, and
+// the client says so exactly where the server does (`CustomShape.sorts`, `CustomShape.groups`).
+test('a custom field sorts and groups where its kind has one value with an order', () => {
+  const fields = queryFieldsFor([
+    definition({ key: 'budget', kind: 'MONEY', currency: 'EUR' }),
+    definition({ key: 'owner', kind: 'USER' }),
+    definition({ key: 'tags', kind: 'MULTI_SELECT', options: ['a'] }),
+    definition({ key: 'spec', kind: 'RICH_TEXT' }),
+    definition({ key: 'parent_entry', kind: 'REFERENCE' }),
+  ]);
+  const by = (key: string) => fields.find((field) => field.field === FILTER_PREFIX + key);
+  assert.equal(by('budget')?.sortable, true);
+  assert.equal(by('budget')?.groupable, true);
+  assert.equal(by('owner')?.sortable, false);
+  assert.equal(by('owner')?.groupable, true);
+  assert.equal(by('tags')?.sortable, false);
+  assert.equal(by('tags')?.groupable, false);
+  assert.equal(by('spec')?.groupable, false);
+  assert.equal(by('parent_entry')?.groupable, true);
+  assert.equal(by('parent_entry')?.kind, 'id');
+});
+
+test('the new kinds travel in their contract shape', () => {
+  assert.equal(valueFor('MONEY', '12.5'), 12.5);
+  assert.equal(valueFor('DURATION', 90), 90);
+  assert.deepEqual(valueFor('USER_SET', ['a', 'b']), ['a', 'b']);
+  assert.equal(valueFor('USER_SET', []), null);
+  assert.equal(valueFor('REFERENCE', ' 0192f000-0000-7000-8000-00000000000e '), '0192f000-0000-7000-8000-00000000000e');
+  // Formatted text keeps its leading indentation, which Markdown reads.
+  assert.equal(valueFor('RICH_TEXT', '    code\n'), '    code\n');
+  assert.equal(valueFor('RICH_TEXT', '  '), null);
+});
+
+test('only a MONEY field names a currency, as three capital letters', () => {
+  assert.equal(takesCurrency('MONEY'), true);
+  assert.equal(takesCurrency('NUMBER'), false);
+  assert.equal(isValidCurrency('EUR'), true);
+  assert.equal(isValidCurrency('eur'), false);
+  assert.equal(isValidCurrency('EURO'), false);
 });
 
 test('a definition becomes a filter field under the grammar’s prefix', () => {
@@ -115,9 +168,8 @@ test('a definition becomes a filter field under the grammar’s prefix', () => {
   // `number` is the grammar's own name for a value a definition shapes; a column never has it.
   assert.equal(fields[0]?.kind, 'number');
   assert.deepEqual(fields[1]?.values, ['draft', 'final']);
-  // Filterable and neither sortable nor groupable, which is what the server says too: an order
-  // over a jsonb value is the same mistake `LT` would be.
-  assert.equal(fields[0]?.sortable, false);
-  assert.equal(fields[0]?.groupable, false);
+  // A number has one order, so it is a sort and a grouping as well as a filter.
+  assert.equal(fields[0]?.sortable, true);
+  assert.equal(fields[0]?.groupable, true);
   assert.equal(fields[0]?.nullable, true);
 });

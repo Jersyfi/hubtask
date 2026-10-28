@@ -288,3 +288,21 @@ test('a collection is offered only the fields its profile gives meaning to', () 
   // Without a profile, the installation's answer stands.
   assert.equal(offeredByProfile(fields).length, fields.length);
 });
+
+// UC-WRK-17 check 10: the custom fields in force are offered in the order and grouping menus where
+// their kind has one, and the document sends them.
+test('a custom field with an order is a sort and a grouping', () => {
+  const custom = queryFieldsFor([
+    { id: 'f-1', collection_id: 'c-1', key: 'budget', kind: 'MONEY', currency: 'EUR', options: [], is_required: false, applies_to: ['TASK'], version: 1 },
+    { id: 'f-2', collection_id: 'c-1', key: 'tags', kind: 'MULTI_SELECT', options: ['a'], is_required: false, applies_to: ['TASK'], version: 1 },
+  ] as never);
+
+  assert.ok(sortableFields(today, custom).some((each) => each.field === 'custom_fields.budget'));
+  assert.ok(!sortableFields(today, custom).some((each) => each.field === 'custom_fields.tags'));
+  assert.ok(groupableFields(today, custom).some((each) => each.field === 'custom_fields.budget'));
+  assert.deepEqual(sortOf(today, 'custom_fields.budget', 'DESC', custom), [
+    { field: 'custom_fields.budget', dir: 'DESC', nulls: 'LAST' },
+  ]);
+  assert.equal(sortOf(today, 'custom_fields.tags', 'ASC', custom), undefined);
+  assert.deepEqual(groupOf(today, 'custom_fields.budget', custom), { field: 'custom_fields.budget', limit_per_group: 50 });
+});
