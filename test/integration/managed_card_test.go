@@ -37,7 +37,7 @@ func TestTheSignedOutCardLearnsOfAManagedAccountAtItsHost(t *testing.T) {
 	namesAt := func(slug string) bool {
 		t.Helper()
 		rules, err := card.Execute(ctx, identityservice.GetSignInRulesCommand{
-			Host: slug + ".example.org:8443", TenantSlug: slug,
+			Host: slug + ".example.org:8443",
 		})
 		if err != nil {
 			t.Fatalf("reading the card at %s: %v", slug, err)
@@ -46,6 +46,8 @@ func TestTheSignedOutCardLearnsOfAManagedAccountAtItsHost(t *testing.T) {
 	}
 	slug := "restricted-" + tenant.String()[24:]
 	otherSlug := "restricted-" + other.String()[24:]
+	servedAt(ctx, t, tenant, slug+".example.org")
+	servedAt(ctx, t, other, otherSlug+".example.org")
 
 	if namesAt(slug) {
 		t.Fatal("a workspace without a managed account asked for a sign-in name")

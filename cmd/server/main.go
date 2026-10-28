@@ -2012,8 +2012,9 @@ func run() error {
 		// operation, where the flow began (multi-tenancy.md §3).
 		identity.LocateOidcFlow{
 			Flows:      postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
-			Workspaces: postgres.NewWorkspaceSettingsRepository(), UnitOfWork: unitOfWork,
-			Clock: clockadapter.System{}, BaseURL: cfg.BaseURL, Multi: cfg.Tenancy == envport.TenancyMulti,
+			Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
+			UnitOfWork: unitOfWork,
+			Clock:      clockadapter.System{}, BaseURL: cfg.BaseURL, Multi: cfg.Tenancy == envport.TenancyMulti,
 		}.Descriptor(),
 		identity.CompleteLink{Writer: oidcWriter}.Descriptor(),
 		// Connecting a provider from a signed-in session (ADR-0078 §1).
