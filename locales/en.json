@@ -1571,6 +1571,8 @@
   "capacity.shed": "Hubtask is under heavy load and has postponed this operation. Please try again in {retry_after_seconds} seconds.",
   "admin.tenant_incomplete": "The workspace could not be assembled.",
   "admin.slug_invalid": "A workspace slug is 3-40 characters of lower-case letters, digits and hyphens, starting with a letter or digit.",
+  "admin.slug_reserved": "This short name is reserved for the installation itself. Choose another.",
+  "admin.reserved_short_name_invalid": "{value} cannot be a short name: 3-40 characters of lower-case letters, digits and hyphens, starting with a letter or digit.",
   "admin.display_name_invalid": "A workspace name is 1-200 characters on one line.",
   "admin.locale_invalid": "The default locale is not a valid BCP 47 tag: {value}.",
   "admin.time_zone_invalid": "The default time zone is not an IANA name: {value}.",

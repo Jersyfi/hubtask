@@ -468,7 +468,7 @@
     <Input
       label={t('app.instance.slug_label')}
       hint={t('app.instance.slug_hint')}
-      error={slugTaken ? t('app.instance.slug_taken', { slug: slug.trim() }) : undefined}
+      error={slugTaken ? t('app.instance.slug_taken', { slug: slug.trim() }) : failure?.fields.get('/slug')}
       bind:value={slug}
       autocomplete="off"
       spellcheck={false}
