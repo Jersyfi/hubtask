@@ -340,7 +340,7 @@ the rows and fields under it say nothing about it.
 | `DueDateControl` | `dueDateOnly` (all-day) vs. timed vs. differing `dueTimeZone`; it holds the start and the due together |
 | `RecurrenceEditor` | RRULE, `ON_SCHEDULE` vs. `ON_COMPLETION`. It shows the rule; no client expands an RRULE |
 | `ReminderEditor` | `REL:-PT1H` presets plus free entry, multiple channels |
-| `CustomFieldRenderer` | Eight field kinds from `CustomFieldDefinition` |
+| `CustomFieldRenderer` | The thirteen field kinds from `CustomFieldDefinition` |
 | `CapabilityGate` | A control **with a reason** — `ErrCapabilityNotSupported` never becomes silent ignoring. A refusal the manifest predicts is a client defect; one it could not is rendered as a sentence. **An optional feature the installation does not serve is not rendered at all**; a served feature degraded now is gated with the reason `/meta/health` names. A control that never applies to this reader is absent, not gated |
 | `SourceChip` | Where a value comes from, beside its name — *Set here*, *Default*, *Plan*, *Installation* — the order P-07 resolves; a lock a mark and a word. Pressed, a `Popover` with the value, its source and whom to ask. It knows no levels: the source and the lock are the application's answer |
 | `CommentThread` | Nested, with "removed" as its own state |
