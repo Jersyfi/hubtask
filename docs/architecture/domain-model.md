@@ -28,7 +28,7 @@ graph TD
 ```
 
 The consequence: one table, one repository, one set of use cases, one API resource (`/items`). A
-new level or feature is configuration, not a new schema.
+new feature of an existing type is configuration, not a new schema; a new type is not yet (§2).
 
 ---
 
@@ -209,7 +209,11 @@ history.
 
 **The rule:** setting a field whose capability is not active for the type produces
 `ErrCapabilityNotSupported` (HTTP 422, code `capability_not_supported`) — never silent ignoring. A
-new type such as `MILESTONE` is a profile entry and its child types, no schema or API change.
+new type such as `MILESTONE` is **not** configuration today: the types are the Postgres enum
+`item_type`, `work_item` ties the root level and buckets to `TASK` in two CHECKs, and the contract's
+`ItemType` lists the three values — so a type needs a migration and a contract change. The suite's
+type registry (F-1 in [`backlog/suite/foundation.md`](../backlog/suite/foundation.md)) replaces the
+enum with workspace-defined types by expand and contract; this section changes with it.
 
 ---
 
