@@ -91,7 +91,7 @@ func Check(definition Definition, level Level, above Resolution, entry Entry) er
 		(entry.Hold == HoldRestrict && !definition.Restrictable) || !entry.Hold.Valid() {
 		return ErrNotAllowed(definition.Key)
 	}
-	if entry.Value != nil && definition.Levels[0] != level && !admits(definition, above, entry.Value) {
+	if entry.Value != nil && !admits(definition, level, above, entry.Value) {
 		return ErrNotAllowed(definition.Key)
 	}
 	return nil

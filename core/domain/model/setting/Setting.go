@@ -143,6 +143,17 @@ type Definition struct {
 	// Tightens decides, for MayTighten, whether a proposed value is at least as strict as the one
 	// in force. Nil accepts every value.
 	Tightens func(inForce, proposed any) bool
+	// TightenFrom is the highest level held to Tightens; empty holds every level below the first.
+	// A module is switched freely by the workspace and only narrowed by a hub.
+	TightenFrom Level
+}
+
+// heldToTighten reports whether a level's value must tighten the one in force.
+func (d Definition) heldToTighten(level Level) bool {
+	if d.May != MayTighten || d.Tightens == nil || len(d.Levels) == 0 || level == d.Levels[0] {
+		return false
+	}
+	return d.TightenFrom == "" || level == d.TightenFrom || level.Below(d.TightenFrom)
 }
 
 // DecidedAt reports whether a level may decide the setting.

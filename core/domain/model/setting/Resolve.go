@@ -20,11 +20,6 @@ import "slices"
 // bounds a range can say (a password's maximum age is either off or at least a week).
 func Resolve(definition Definition, layers ...Layer) Resolution {
 	resolution := Resolution{Key: definition.Key, Effective: definition.Default, Source: LevelDefault}
-	top := LevelDefault
-	if len(definition.Levels) > 0 {
-		top = definition.Levels[0]
-	}
-
 	for _, layer := range layers {
 		entry, held := layer.Entries[definition.Key]
 		if !held || !definition.DecidedAt(layer.Level) {
@@ -33,7 +28,7 @@ func Resolve(definition Definition, layers ...Layer) Resolution {
 		if resolution.Locked() {
 			continue
 		}
-		if entry.Value != nil && (layer.Level == top || admits(definition, resolution, entry.Value)) {
+		if entry.Value != nil && admits(definition, layer.Level, resolution, entry.Value) {
 			resolution.Effective = entry.Value
 			resolution.Source = layer.Level
 		}
@@ -54,12 +49,12 @@ func Resolve(definition Definition, layers ...Layer) Resolution {
 	return resolution
 }
 
-// admits reports whether a level below the top may set this value under what is in force.
-func admits(definition Definition, inForce Resolution, value any) bool {
+// admits reports whether a level may set this value under what is in force.
+func admits(definition Definition, level Level, inForce Resolution, value any) bool {
 	if !allows(inForce.Allowed, value) {
 		return false
 	}
-	if definition.May == MayTighten && definition.Tightens != nil {
+	if definition.heldToTighten(level) {
 		return definition.Tightens(inForce.Effective, value)
 	}
 	return true
