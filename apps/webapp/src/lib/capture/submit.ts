@@ -40,6 +40,8 @@ export interface CreateBody {
   readonly assignee_id?: string;
   readonly label_ids?: readonly string[];
   readonly amount?: string;
+  /** The key of the entry's type, absent for its level's own (UC-FLW-01 check 3). */
+  readonly entry_type?: string;
 }
 
 /** One line of a capture, as the target reads it: its chips, its title, its leading amount. */
@@ -75,7 +77,13 @@ export function readLinesOf(
 /** The create request for one read line. Only what the chips say is sent; nothing is guessed. */
 export function bodyOf(
   reading: Reading,
-  place: { readonly collectionId: string; readonly type: string; readonly parentId?: string; readonly bucketId?: string },
+  place: {
+    readonly collectionId: string;
+    readonly type: string;
+    readonly parentId?: string;
+    readonly bucketId?: string;
+    readonly entryTypeKey?: string;
+  },
   clock: { readonly now: number; readonly zone: string },
   amount?: string,
 ): CreateBody {
@@ -93,6 +101,7 @@ export function bodyOf(
     ...(assignee ? { assignee_id: assignee } : {}),
     ...(labels.length > 0 ? { label_ids: labels } : {}),
     ...(amount ? { amount } : {}),
+    ...(place.entryTypeKey ? { entry_type: place.entryTypeKey } : {}),
   };
 }
 

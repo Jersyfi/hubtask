@@ -14,6 +14,8 @@
   // spells them out.
 
   import { untrack } from 'svelte';
+  import { manifest } from '../data/capabilities.svelte.ts';
+  import { entryTypes, rowMarkOf, typesShown } from '../data/entrytypes.svelte.ts';
 
   import {
     Badge,
@@ -303,6 +305,14 @@
   // so an effect that subscribes while tracking that read cancels itself before the answer lands.
   // A subtree is read whole - every level under the root in one query, unfiltered as every child
   // level is: a level per branch would be a request per branch, twice after every write.
+  // The workspace's entry types, read where the workflows module is on: a row marks a type of
+  // the workspace's own (UC-FLW-01 checks 6, 8).
+  const showsTypes = $derived(typesShown(manifest.value));
+  $effect(() => {
+    if (!showsTypes) return;
+    return untrack(() => entryTypes.open());
+  });
+
   $effect(() => {
     const wanted = collectionId;
     const asked = query;
@@ -1405,6 +1415,12 @@
              where the entry's type carries it here (UC-WRK-23 check 4) - an empty cell keeps the
              column's width so the columns stand straight. -->
         <span class="cells">
+          {#if showsTypes}
+            {@const mark = rowMarkOf(entryTypes.all, row.item.type, row.item.entry_type)}
+            {#if mark}
+              <span class="type-mark" data-entry-type={row.item.entry_type}><Icon name={mark.icon} size="sm" /><LabelChip name={mark.name} colorToken={mark.colorToken} /></span>
+            {/if}
+          {/if}
           {#each fields as field (field)}
             <span class="cell" data-field={field}>
               {#if field === 'amount' && row.item.amount}
@@ -1709,6 +1725,7 @@
   .cells { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050) var(--sp-100); }
   .cell { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); min-width: 0; }
   .cell:empty { display: none; }
+  .type-mark { display: inline-flex; align-items: center; gap: var(--sp-050); color: var(--text-secondary); }
 
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
   @media (width >= 905px) {

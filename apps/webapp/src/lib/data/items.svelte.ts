@@ -267,6 +267,8 @@ class Items {
       due_time_zone?: string;
       assignee_id?: string;
       label_ids?: readonly string[];
+      /** The key of the entry's type, absent for its level's own (UC-FLW-01). */
+      entry_type?: string;
     },
     idempotencyKey: string,
   ): Promise<WorkItem> {

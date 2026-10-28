@@ -6255,6 +6255,8 @@
   "app.capture.parent_remove": "Not under {title}",
   "app.capture.kind_key": "Kind:",
   "app.capture.kind_choose": "Choose what kind of entry",
+  "app.capture.type_key": "Type:",
+  "app.capture.type_choose": "Choose the type of entry",
   "app.capture.placeholder_lines": "One entry per line",
   "app.capture.offers_collection": "Collections",
   "app.capture.offers_hub": "Hubs",

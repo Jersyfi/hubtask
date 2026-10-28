@@ -6252,6 +6252,8 @@
   "app.capture.parent_remove": "Nicht unter {title}",
   "app.capture.kind_key": "Art:",
   "app.capture.kind_choose": "Wählen, was für ein Eintrag",
+  "app.capture.type_key": "Typ:",
+  "app.capture.type_choose": "Den Typ des Eintrags wählen",
   "app.capture.placeholder_lines": "Ein Eintrag pro Zeile",
   "app.capture.offers_collection": "Sammlungen",
   "app.capture.offers_hub": "Hubs",

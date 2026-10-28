@@ -40,6 +40,7 @@
   import { containers } from '../data/containers.svelte.ts';
   import { archivalOf } from '../data/containers.ts';
   import { engine } from '../data/engine.ts';
+  import { entryTypes, offeredTypes, typesShown } from '../data/entrytypes.svelte.ts';
   import { itemPath } from '../data/item.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { jumble } from '../data/jumble.svelte.ts';
@@ -71,6 +72,8 @@
   let chosen = $state<string | undefined>(undefined);
   /** The level chosen where the door offers several. */
   let chosenType = $state<string | undefined>(undefined);
+  /** The entry type picked in the type pill, a key; none is the level's own (UC-FLW-01 check 3). */
+  let chosenKind = $state<string | undefined>(undefined);
   /** Whether the entry still goes under the door's entry; its chip takes it out. */
   let isUnderParent = $state(true);
   let mode = $state<Mode>('one');
@@ -210,6 +213,14 @@
   /** The levels the door offers, where it named them: under an entry, its child levels. */
   const doorTypes = $derived(door?.types && door.types.length > 0 && (!door.collectionId || door.collectionId === current) ? door.types : undefined);
   const entryType = $derived(chosenType ?? doorTypes?.[0] ?? topLevelOf(settings, rootTypes()));
+  /** The entry types the level offers, where the workflows module is on (UC-FLW-01 checks 3, 8). */
+  const kinds = $derived(typesShown(manifest.value) && entryType ? offeredTypes(entryTypes.all, entryType) : []);
+  const kind = $derived(kinds.find((each) => each.key === chosenKind) ?? kinds[0]);
+  const kindName = (each: (typeof kinds)[number]) => each.name ?? offerLevelName(each.level);
+  $effect(() => {
+    if (!typesShown(manifest.value)) return;
+    return untrack(() => entryTypes.open());
+  });
   /** The entry it goes under, while the door's collection is still the target. */
   const parentId = $derived(isUnderParent && door?.parentId && door.collectionId === collection?.id ? door.parentId : undefined);
   const bucketId = $derived(door?.bucketId && door.collectionId === collection?.id ? door.bucketId : undefined);
@@ -387,7 +398,7 @@
         return;
       }
       const bodies = lines.map((each) =>
-        bodyOf(each.reading, { collectionId: place.id, type: entryType, parentId, bucketId }, { now, zone: context.zone }, each.amount),
+        bodyOf(each.reading, { collectionId: place.id, type: entryType, parentId, bucketId, entryTypeKey: kind && !kind.system ? kind.key : undefined }, { now, zone: context.zone }, each.amount),
       );
       const outcome = await createAll(writer, bodies, keysFor(text, bodies.length), lines.map((each) => each.line), rest);
       if (outcome.kind !== 'items') return;
@@ -738,6 +749,19 @@
           {#snippet trigger(props)}
             <button type="button" class="pill" data-chip="kind" {...props}>
               <span class="pill-key">{t('app.capture.kind_key')}</span><span class="pill-value">{offerLevelName(entryType ?? '')}</span><span class="pill-more" aria-hidden="true">▾</span>
+            </button>
+          {/snippet}
+        </Menu>
+      {/if}
+      {#if kinds.length > 1 && kind && (mode === 'one' || mode === 'lines')}
+        <Menu
+          label={t('app.capture.type_choose')}
+          items={kinds.map((each) => ({ id: each.key, label: kindName(each) }))}
+          onselect={(key) => (chosenKind = key)}
+        >
+          {#snippet trigger(props)}
+            <button type="button" class="pill" data-chip="entry-type" {...props}>
+              <span class="pill-key">{t('app.capture.type_key')}</span><span class="pill-value">{kindName(kind)}</span><span class="pill-more" aria-hidden="true">▾</span>
             </button>
           {/snippet}
         </Menu>
