@@ -5,9 +5,9 @@ context: admin
 actors: [PE-operator, PE-owner, PE-scripter, PE-member]
 deployments: [D4, D5, D6, D7]
 serves: [P-01, P-02, P-04, P-05, P-07, P-08, P-11, P-16]
-state: specified
+state: partial
 tasks: [CD-01, CD-02, CD-03, CD-05, CD-06]
-checked_by: []
+checked_by: [test/integration/tenant_host_resolution_test.go, core/application/service/identity/LocateOidcFlow_test.go, apps/webapp/src/lib/data/oidc.test.ts]
 ---
 
 # Change a workspace's address
@@ -79,5 +79,4 @@ member gets a mail with the new address.
 * Check 7: not met — the address cannot change.
 * Check 8: not met — there is no mail about a changed address.
 * Check 9: not met — mails other than the invitation link to the installation's host (#1549).
-* Check 10: not met — the provider's return builds the workspace's address from the short name, not from its main address.
 * Check 11: not met — no change of address reaches the trail or the journal.

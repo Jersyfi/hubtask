@@ -1,6 +1,6 @@
 # ADR-0095 — A workspace's address resolves through its hosts
 
-**Status:** proposed, accepted when CD-03 merges · **Date:** 2026-10-27 · **Decided:** the owner's
+**Status:** accepted · **Date:** 2026-10-27 · **Decided:** the owner's
 answers D-1 to D-8 of [decision #1568](https://github.com/Jersyfi/hubtask/issues/1568)
 (2026-10-16); the mechanism below at the cut of milestone CD
 
