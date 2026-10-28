@@ -16,8 +16,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
-// CustomFieldKind is what a value for a field looks like. The eight the schema has carried since
-// `0001_init` (domain-model.md §3.5).
+// CustomFieldKind is what a value for a field looks like: the eight the schema has carried since
+// `0001_init` and the five the suite's field registry adds (domain-model.md §3.5, F-2).
 type CustomFieldKind string
 
 const (
@@ -29,11 +29,26 @@ const (
 	CustomFieldBool        CustomFieldKind = "BOOL"
 	CustomFieldUser        CustomFieldKind = "USER"
 	CustomFieldURL         CustomFieldKind = "URL"
+	// CustomFieldMoney is an amount in the definition's one currency. The currency is the
+	// definition's and never the value's: amounts in one field that could each name their own
+	// currency could not be summed, compared or sorted.
+	CustomFieldMoney CustomFieldKind = "MONEY"
+	// CustomFieldDuration is a span of time in whole minutes - an estimate, a time box.
+	CustomFieldDuration CustomFieldKind = "DURATION"
+	// CustomFieldReference points at another entry of the workspace (P-19).
+	CustomFieldReference CustomFieldKind = "REFERENCE"
+	// CustomFieldUserSet is several people - reviewers, approvers.
+	CustomFieldUserSet CustomFieldKind = "USER_SET"
+	// CustomFieldRichText is formatted text in the notes' Markdown. Never compared, sorted or
+	// grouped: what a person formats is prose, not a value.
+	CustomFieldRichText CustomFieldKind = "RICH_TEXT"
 )
 
 var customFieldKinds = [...]CustomFieldKind{
 	CustomFieldText, CustomFieldNumber, CustomFieldDate, CustomFieldSelect,
 	CustomFieldMultiSelect, CustomFieldBool, CustomFieldUser, CustomFieldURL,
+	CustomFieldMoney, CustomFieldDuration, CustomFieldReference, CustomFieldUserSet,
+	CustomFieldRichText,
 }
 
 // CustomFieldKinds returns every kind, in the order the contract's enum lists them.
@@ -56,6 +71,14 @@ func (k CustomFieldKind) TakesOptions() bool {
 	return k == CustomFieldSelect || k == CustomFieldMultiSelect
 }
 
+// TakesCurrency reports whether the kind's definition names a currency.
+func (k CustomFieldKind) TakesCurrency() bool { return k == CustomFieldMoney }
+
+// IsSet reports whether one value of the kind holds several elements.
+func (k CustomFieldKind) IsSet() bool {
+	return k == CustomFieldMultiSelect || k == CustomFieldUserSet
+}
+
 // The bounds. Code points rather than bytes, for the reason every length in this model is (I-W7):
 // a person counts characters, and a limit in bytes refuses a shorter name in one language than in
 // another.
@@ -75,6 +98,20 @@ const (
 	MaxCustomFieldSelections = 50
 	// MaxCustomFieldURLLength bounds a URL value.
 	MaxCustomFieldURLLength = 2000
+	// MaxCustomFieldRichTextLength bounds a RICH_TEXT value: a few pages, the size of a long note
+	// rather than of a document - a document is a page (M3), not a field.
+	MaxCustomFieldRichTextLength = 20000
+	// MaxCustomFieldMoneyDecimals is the finest fraction an amount may carry. Four places hold
+	// every currency's minor unit (ISO 4217 has none finer) and a unit price beside it.
+	MaxCustomFieldMoneyDecimals = 4
+	// MaxCustomFieldMoneyMagnitude bounds an amount's size: inside it float64 still holds four
+	// decimal places exactly, so what is stored is what was sent.
+	MaxCustomFieldMoneyMagnitude = 1e11
+	// MaxCustomFieldDurationMinutes bounds a DURATION: ten years of minutes.
+	MaxCustomFieldDurationMinutes = 10 * 366 * 24 * 60
+	// MaxCustomFieldPeople bounds one USER_SET value, as MaxCustomFieldSelections bounds a
+	// MULTI_SELECT.
+	MaxCustomFieldPeople = 50
 	// MaxCustomFieldsPerItem bounds how many keys one entry may carry. The column is one jsonb
 	// document that every read of the entry carries, so its size is the entry's size.
 	MaxCustomFieldsPerItem = 100
@@ -104,6 +141,9 @@ type CustomFieldDefinition struct {
 	// Options are the permitted values of a SELECT or a MULTI_SELECT, and empty for every other
 	// kind. Values rather than labels: what a person sees is the client's to render (rule 8).
 	Options []string
+	// Currency is the ISO 4217 code of a MONEY field's amounts, empty for every other kind. Fixed
+	// once defined, like the kind: a changed currency would reinterpret every stored amount.
+	Currency string
 	// IsRequired is enforced when the field is written and never retroactively: making a field
 	// required does not make the entries that predate it invalid, and a rule that did would make
 	// every one of them unsaveable at once.
@@ -128,6 +168,7 @@ type NewCustomFieldInput struct {
 	Key          string
 	Kind         CustomFieldKind
 	Options      []string
+	Currency     string
 	IsRequired   bool
 	AppliesTo    []ItemType
 	Now          time.Time
@@ -158,6 +199,10 @@ func NewCustomFieldDefinition(in NewCustomFieldInput) (CustomFieldDefinition, er
 	if err != nil {
 		return CustomFieldDefinition{}, err
 	}
+	currency, err := customFieldCurrency(in.Kind, in.Currency)
+	if err != nil {
+		return CustomFieldDefinition{}, err
+	}
 	appliesTo, err := customFieldTypes(in.AppliesTo)
 	if err != nil {
 		return CustomFieldDefinition{}, err
@@ -168,7 +213,7 @@ func NewCustomFieldDefinition(in NewCustomFieldInput) (CustomFieldDefinition, er
 
 	return CustomFieldDefinition{
 		ID: in.ID, TenantID: in.TenantID, CollectionID: in.CollectionID,
-		Key: key, Kind: in.Kind, Options: options,
+		Key: key, Kind: in.Kind, Options: options, Currency: currency,
 		IsRequired: in.IsRequired, AppliesTo: appliesTo,
 		CreatedAt: in.Now, UpdatedAt: in.Now, Version: 1,
 	}, nil
@@ -371,6 +416,27 @@ func customFieldOptions(kind CustomFieldKind, raw []string, form text.Normalizer
 	return options, nil
 }
 
+// customFieldCurrency insists a MONEY field names its currency and every other kind names none.
+// The shape is checked, not the list: ISO 4217 changes, and a currency the server's list did not
+// know yet would be one a workspace cannot record.
+func customFieldCurrency(kind CustomFieldKind, raw string) (string, error) {
+	code := strings.TrimSpace(raw)
+	if !kind.TakesCurrency() {
+		if code != "" {
+			return "", customFieldError("/currency", "fields.currency_not_applicable",
+				map[string]string{"kind": string(kind)})
+		}
+		return "", nil
+	}
+	if code == "" {
+		return "", customFieldError("/currency", "fields.currency_required", nil)
+	}
+	if len(code) != 3 || strings.Trim(code, "ABCDEFGHIJKLMNOPQRSTUVWXYZ") != "" {
+		return "", customFieldError("/currency", "fields.currency_malformed", nil)
+	}
+	return code, nil
+}
+
 // customFieldTypes validates which types carry the field. Whether a type carries custom fields at
 // all is the capability matrix's answer and the application's to ask - this only refuses a list
 // that is empty or says the same type twice.
@@ -454,6 +520,16 @@ func (d CustomFieldDefinition) ValidateValue(value any, form text.Normalizer) (a
 		return d.validUser(value)
 	case CustomFieldURL:
 		return d.validURL(value)
+	case CustomFieldMoney:
+		return d.validMoney(value)
+	case CustomFieldDuration:
+		return d.validDuration(value)
+	case CustomFieldReference:
+		return d.validReference(value)
+	case CustomFieldUserSet:
+		return d.validUserSet(value)
+	case CustomFieldRichText:
+		return d.validRichText(value, form)
 	default:
 		// A kind no constructor produces. A defect rather than input (security.md §9).
 		return nil, shared.ErrInternal.WithDetail("fields.kind_unhandled")
@@ -610,6 +686,140 @@ func (d CustomFieldDefinition) validURL(value any) (any, error) {
 		return nil, d.valueError("fields.value_not_a_url", nil)
 	}
 	return text, nil
+}
+
+// validMoney keeps an amount exact to MaxCustomFieldMoneyDecimals places. Finer is refused rather
+// than rounded: a rounding the server chose is a sum nobody can reconcile.
+func (d CustomFieldDefinition) validMoney(value any) (any, error) {
+	amount, ok := value.(float64)
+	if !ok {
+		return nil, d.typeMismatch(value)
+	}
+	if math.IsNaN(amount) || math.IsInf(amount, 0) {
+		return nil, d.valueError("fields.value_not_finite", nil)
+	}
+	if math.Abs(amount) >= MaxCustomFieldMoneyMagnitude {
+		return nil, d.valueError("fields.value_too_large", nil)
+	}
+	scaled := amount * math.Pow10(MaxCustomFieldMoneyDecimals)
+	if math.Abs(scaled-math.Round(scaled)) > 1e-6 {
+		return nil, d.valueError("fields.value_too_precise",
+			map[string]string{"maximum": strconv.Itoa(MaxCustomFieldMoneyDecimals)})
+	}
+	return math.Round(scaled) / math.Pow10(MaxCustomFieldMoneyDecimals), nil
+}
+
+// validDuration takes whole minutes, never negative. Minutes rather than seconds because every
+// estimate and time box a person writes is in them, and an integer because a fraction of a minute
+// is a precision no plan has.
+func (d CustomFieldDefinition) validDuration(value any) (any, error) {
+	minutes, ok := value.(float64)
+	if !ok {
+		return nil, d.typeMismatch(value)
+	}
+	if math.IsNaN(minutes) || math.IsInf(minutes, 0) || minutes != math.Trunc(minutes) {
+		return nil, d.valueError("fields.value_not_whole_minutes", nil)
+	}
+	if minutes < 0 || minutes > MaxCustomFieldDurationMinutes {
+		return nil, d.valueError("fields.value_out_of_range",
+			map[string]string{"maximum": strconv.Itoa(MaxCustomFieldDurationMinutes)})
+	}
+	return minutes, nil
+}
+
+// validReference checks the shape. Whether the entry exists and the writer may see it is the
+// application's question, asked the way USER's is.
+func (d CustomFieldDefinition) validReference(value any) (any, error) {
+	text, ok := value.(string)
+	if !ok {
+		return nil, d.typeMismatch(value)
+	}
+	if _, err := shared.ParseID(text); err != nil {
+		return nil, d.valueError("fields.value_not_an_entry", nil)
+	}
+	return text, nil
+}
+
+// validUserSet is USER's shape check over a list, with MULTI_SELECT's bounds and its rule that the
+// same element twice is one element.
+func (d CustomFieldDefinition) validUserSet(value any) (any, error) {
+	raw, ok := value.([]any)
+	if !ok {
+		return nil, d.typeMismatch(value)
+	}
+	if len(raw) == 0 {
+		return nil, d.emptyOrCleared()
+	}
+	if len(raw) > MaxCustomFieldPeople {
+		return nil, d.valueError("fields.value_too_many",
+			map[string]string{"maximum": strconv.Itoa(MaxCustomFieldPeople)})
+	}
+	chosen := make([]any, 0, len(raw))
+	seen := make([]string, 0, len(raw))
+	for _, element := range raw {
+		text, ok := element.(string)
+		if !ok {
+			return nil, d.typeMismatch(element)
+		}
+		id, err := shared.ParseID(text)
+		if err != nil {
+			return nil, d.valueError("fields.value_not_an_account", nil)
+		}
+		canonical := id.String()
+		if slices.Contains(seen, canonical) {
+			continue
+		}
+		seen = append(seen, canonical)
+		chosen = append(chosen, canonical)
+	}
+	return chosen, nil
+}
+
+// validRichText is TEXT's rule with the larger bound: Markdown in normal form C.
+func (d CustomFieldDefinition) validRichText(value any, form text.Normalizer) (any, error) {
+	raw, ok := value.(string)
+	if !ok {
+		return nil, d.typeMismatch(value)
+	}
+	body, err := shared.NFC(strings.TrimSpace(raw), form)
+	if err != nil {
+		return nil, err
+	}
+	if body == "" {
+		return nil, d.emptyOrCleared()
+	}
+	if utf8.RuneCountInString(body) > MaxCustomFieldRichTextLength {
+		return nil, d.valueError("fields.value_too_long",
+			map[string]string{"maximum": strconv.Itoa(MaxCustomFieldRichTextLength)})
+	}
+	return body, nil
+}
+
+// Accounts returns the accounts a USER or USER_SET value names, for the application's check that
+// each of them can see the entry. Empty for every other kind and for a cleared value.
+func (d CustomFieldDefinition) Accounts(value any) []shared.ID {
+	var texts []string
+	switch typed := value.(type) {
+	case string:
+		if d.Kind == CustomFieldUser {
+			texts = []string{typed}
+		}
+	case []any:
+		if d.Kind == CustomFieldUserSet {
+			for _, element := range typed {
+				if text, ok := element.(string); ok {
+					texts = append(texts, text)
+				}
+			}
+		}
+	}
+	accounts := make([]shared.ID, 0, len(texts))
+	for _, text := range texts {
+		if id, err := shared.ParseID(text); err == nil {
+			accounts = append(accounts, id)
+		}
+	}
+	return accounts
 }
 
 // emptyOrCleared is the one answer for a value that says nothing: clear the key instead. Sending
