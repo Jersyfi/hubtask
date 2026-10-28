@@ -4046,6 +4046,14 @@ func run() error {
 	// the scheduler tries again.
 	applyOperatorsFromEnvironment(ctx, operatorsFromEnvironment)
 
+	// Every workspace's main address, before the first request: a request's host names its
+	// workspace only through a row, and a workspace older than its row has none (ADR-0095 §1).
+	if cfg.Tenancy == envport.TenancyMulti {
+		ensureMainHosts(ctx, identity.EnsureMainHosts{
+			Hosts: postgres.NewTenantHostRepository(), UnitOfWork: unitOfWork, BaseHost: installationHost,
+		})
+	}
+
 	// The first start (UC-INS-01): a process that serves the API, on an installation with no
 	// workspace and nobody in its register, prints a one-time setup code. After the instance file,
 	// so a file's level is in place before the first workspace is set up under it.

@@ -95,3 +95,14 @@ func applyOperatorsFromEnvironment(ctx context.Context, applying adminservice.Op
 			slog.Int("count", len(waiting)))
 	}
 }
+
+// ensureMainHosts gives every workspace without a main address its row. A failure is logged and
+// the next start tries again; until then such a workspace answers through the header only.
+func ensureMainHosts(ctx context.Context, ensuring identity.EnsureMainHosts) {
+	ctx, cancel := context.WithTimeout(ctx, firstStartTimeout)
+	defer cancel()
+	if _, err := ensuring.Apply(ctx); err != nil {
+		slog.ErrorContext(ctx, "the workspaces' main addresses could not be written",
+			slog.String("error", err.Error()))
+	}
+}

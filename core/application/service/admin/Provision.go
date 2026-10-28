@@ -667,17 +667,16 @@ func adminTenantOutput(record adminrepo.TenantRecord) usecase.Output {
 
 // seedHost writes the one host the new workspace answers at.
 //
-// VERIFIED and canonical on arrival: it is the installation's own host with this workspace's slug in
+// ACTIVE and canonical on arrival: it is the installation's own host with this workspace's slug in
 // front of it, so the installation already answers at it and there is nobody to prove anything to.
 // The mark is drawn all the same, through the entropy port (rule 4), so that promoting a custom host
 // to canonical later is one update rather than a column that has to be filled in first.
 //
-// Silent where the store or the host is not wired: nothing resolves a request through this table, so
-// a build without it provisions as if the table did not exist.
+// Silent where the store or the host is not wired: the next start of a multi-mode server writes a
+// missing main row (`ensure_main_hosts`, ADR-0095 §1).
 //
 // Multi mode only. Single mode's whole contract is one workspace and no selection, and its
-// `tenant_host` therefore stays empty - which costs nothing while nothing resolves through it, and
-// has to be filled before anything does. The first start's setup seeds a single-mode workspace
+// `tenant_host` therefore stays empty: nothing resolves through it there. The first start's setup seeds a single-mode workspace
 // through here too, and the installation's own host is often one no workspace host may be
 // (`localhost`), so the mode is asked here rather than assumed from the caller.
 func (h ProvisionTenant) seedHost(

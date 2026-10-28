@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -85,4 +86,35 @@ func hostNamesAnother(
 		return shared.ErrForbidden.WithDetail("access.tenant_mismatch")
 	}
 	return nil
+}
+
+// EnsureMainHosts gives every live workspace without a main address its row under the
+// installation's host, at the start of a multi-mode server and before its first request
+// (migration 0207, ADR-0095 §1). Authorisation is the configuration itself, as for the operators
+// the environment names: nothing here is on a route.
+type EnsureMainHosts struct {
+	Hosts      repository.MainHosts
+	UnitOfWork persistence.UnitOfWork
+	// BaseHost is the installation's own host; every workspace's subdomain is a label under it.
+	BaseHost string
+}
+
+// Apply writes the missing rows and answers how many it wrote.
+func (e EnsureMainHosts) Apply(ctx context.Context) (int, error) {
+	if e.Hosts == nil || domain.RequestHost(e.BaseHost) == "" {
+		return 0, nil
+	}
+	var written int
+	err := e.UnitOfWork.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		count, err := e.Hosts.EnsureMain(ctx, domain.RequestHost(e.BaseHost))
+		written = count
+		return err
+	})
+	if err != nil {
+		return 0, err
+	}
+	if written > 0 {
+		slog.InfoContext(ctx, "workspaces given their main address", slog.Int("count", written))
+	}
+	return written, nil
 }
