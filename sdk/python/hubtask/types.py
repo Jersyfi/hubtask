@@ -908,6 +908,7 @@ class InstanceSettings(TypedDict, total=False):
     ai: dict[str, Any]
     blocklist_file: str
     metering: bool
+    reserved_short_names: list[str]
     source: str
     is_enforced_from_file: bool
     version: int

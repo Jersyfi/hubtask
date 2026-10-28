@@ -19224,6 +19224,13 @@
             "type": "boolean",
             "description": "Whether the use per workspace and day is offered for billing (`GET /admin/usage`). Off by default. The counts are recorded either way; this switch only offers them.\n"
           },
+          "reserved_short_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The operator's own short names no new workspace may take, beside the product's list - each also reserves its plural, and case does not count. Stored trimmed, in lower case, each once; an entry no short name could be is refused (`admin.reserved_short_name_invalid`). A workspace that already carries a name added here keeps it. Provisioning refuses a reserved name at the field with `admin.slug_reserved`.\n"
+          },
           "source": {
             "type": "string",
             "readOnly": true,
@@ -20752,7 +20759,7 @@
           "slug": {
             "type": "string",
             "pattern": "^[a-z0-9][a-z0-9-]{2,39}$",
-            "description": "The subdomain the workspace answers on. Unique across the installation."
+            "description": "The subdomain the workspace answers on. Unique across the installation (`admin.slug_taken`), and none the installation reserves for itself - the product's list or the operator's `reserved_short_names`, each with its plural (`admin.slug_reserved`).\n"
           },
           "display_name": {
             "type": "string",
