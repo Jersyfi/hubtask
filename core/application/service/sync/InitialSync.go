@@ -9,6 +9,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
+	workflowservice "github.com/Jersyfi/hubtask/core/application/service/workflow"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -26,7 +27,7 @@ import (
 // they belong to, exactly as a delta's set change does.
 var walkKinds = []string{
 	entityContainer, entityBucket, entityLabel, entityItem, kindSet,
-	entityComment, entityReminder, entityRecurrence, entityTemplate,
+	entityComment, entityReminder, entityRecurrence, entityTemplate, entityEntryType,
 }
 
 const (
@@ -38,6 +39,8 @@ const (
 	entityReminder   = "reminder"
 	entityRecurrence = "recurrence_rule"
 	entityTemplate   = "template"
+	// entityEntryType is workspace-wide: its records name no container (UC-FLW-01).
+	entityEntryType = "entry_type"
 	// kindSet is the walk's own name for the set element pass. Not an entity: its records are the
 	// entry's.
 	kindSet = "set"
@@ -262,6 +265,19 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 			rows = append(rows, walkRow{
 				entity: entityTemplate, entityID: template.ID, containerID: template.ScopeID,
 				payload: workservice.TemplateSnapshot(template), key: template.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityEntryType:
+		types, err := p.Snapshot.EntryTypes(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(types))
+		for _, entryType := range types {
+			rows = append(rows, walkRow{
+				entity: entityEntryType, entityID: entryType.ID,
+				payload: workflowservice.EntryTypeOutput(entryType), key: entryType.ID.String(),
 			})
 		}
 		return rows, nil

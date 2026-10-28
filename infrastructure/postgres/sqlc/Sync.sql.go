@@ -811,6 +811,61 @@ func (q *Queries) SnapshotContainers(ctx context.Context, arg SnapshotContainers
 	return items, nil
 }
 
+const snapshotEntryTypes = `-- name: SnapshotEntryTypes :many
+SELECT id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
+  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version
+FROM entry_type
+WHERE tenant_id = current_tenant_id() AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotEntryTypesParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+// The workspace's type rows (migration 0209); the system types it never changed are the domain's.
+func (q *Queries) SnapshotEntryTypes(ctx context.Context, arg SnapshotEntryTypesParams) ([]EntryType, error) {
+	rows, err := q.db.Query(ctx, snapshotEntryTypes, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []EntryType{}
+	for rows.Next() {
+		var i EntryType
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Key,
+			&i.Level,
+			&i.System,
+			&i.Name,
+			&i.Icon,
+			&i.ColorToken,
+			&i.Completable,
+			&i.Workflow,
+			&i.Record,
+			&i.Schedulable,
+			&i.Estimable,
+			&i.AllowedChildren,
+			&i.Position,
+			&i.ArchivedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotLabels = `-- name: SnapshotLabels :many
 SELECT
   id, tenant_id, collection_id, name, color_token, description, deleted_at, version

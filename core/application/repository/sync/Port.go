@@ -146,6 +146,8 @@ type Snapshot interface {
 	Recurrences(ctx context.Context, after shared.ID, batch int) ([]InCollection[work.RecurrenceRule], error)
 	// Templates pages every live template.
 	Templates(ctx context.Context, after shared.ID, batch int) ([]work.Template, error)
+	// EntryTypes pages the workspace's type rows (UC-FLW-01).
+	EntryTypes(ctx context.Context, after shared.ID, batch int) ([]work.EntryType, error)
 }
 
 // SetElementKey is where a page of set elements resumes: the primary key of the row.

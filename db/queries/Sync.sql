@@ -238,6 +238,15 @@ WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL AND id > sqlc.arg('
 ORDER BY id
 LIMIT sqlc.arg('batch');
 
+-- name: SnapshotEntryTypes :many
+-- The workspace's type rows (migration 0209); the system types it never changed are the domain's.
+SELECT id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
+  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version
+FROM entry_type
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');
+
 -- The operation log (offline-sync.md §3.2): what a push did with each op_id, kept for the
 -- offline window so that a repeated push takes effect exactly once.
 

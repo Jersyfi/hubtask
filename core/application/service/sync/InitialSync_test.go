@@ -107,6 +107,10 @@ func (s *snapshotStore) Recurrences(
 		after.String(), batch), nil
 }
 
+func (s *snapshotStore) EntryTypes(context.Context, shared.ID, int) ([]work.EntryType, error) {
+	return nil, nil
+}
+
 func (s *snapshotStore) Templates(_ context.Context, after shared.ID, batch int) ([]work.Template, error) {
 	s.reads++
 	return pageAfter(s.templates, func(t work.Template) string { return t.ID.String() }, after.String(), batch), nil

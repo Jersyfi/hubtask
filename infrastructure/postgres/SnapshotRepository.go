@@ -302,6 +302,29 @@ func (SnapshotRepository) Templates(
 	return out, nil
 }
 
+// EntryTypes pages the workspace's type rows.
+func (SnapshotRepository) EntryTypes(ctx context.Context, after shared.ID, batch int) ([]work.EntryType, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotEntryTypes(ctx, sqlc.SnapshotEntryTypesParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("entry types", err)
+	}
+	out := make([]work.EntryType, 0, len(rows))
+	for _, row := range rows {
+		entryType, err := entryTypeFrom(sqlc.EntryType(row))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, entryType)
+	}
+	return out, nil
+}
+
 // snapshotPage is the opening every method shares: the transaction's queries and the page key.
 func snapshotPage(ctx context.Context, after shared.ID) (*sqlc.Queries, pgtype.UUID, error) {
 	queries, err := queriesFrom(ctx)
