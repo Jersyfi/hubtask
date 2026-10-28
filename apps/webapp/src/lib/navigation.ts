@@ -166,6 +166,8 @@ export interface SectionRow {
   readonly path: string;
   /** The route names this row is current for. */
   readonly routes: readonly string[];
+  /** The suite module whose screen this is: the row is drawn only where it is on (UC-INS-21). */
+  readonly module?: string;
 }
 
 export interface SectionGroup {
@@ -202,6 +204,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       { id: 'workspace', icon: 'settings', code: 'app.admin.workspace', path: '/administration/workspace', routes: ['workspace-settings'] },
       { id: 'presets', icon: 'sliders-horizontal', code: 'app.presets.title', path: '/administration/presets', routes: ['presets'] },
       { id: 'modules', icon: 'layout-template', code: 'app.modules.title', path: '/administration/modules', routes: ['modules'] },
+      { id: 'entry-types', icon: 'tag', code: 'app.entry_types.title', path: '/administration/types', routes: ['entry-types'], module: 'WORKFLOWS' },
       // The editor's two routes are the rules' row as well: a reader inside a rule is inside
       // automation, and a column that marked nothing current there would say they are nowhere.
       { id: 'rules', icon: 'automation', code: 'app.admin.rules', path: '/administration/rules', routes: ['rules', 'rule', 'rule-new'] },
@@ -274,10 +277,16 @@ const INSTALLATION_GROUP: SectionGroup = {
 export function administration(options: {
   readonly hasPrivateHubs: boolean;
   readonly withInstallation?: boolean;
+  /** The modules switched on (`modules_on`); a row of a module that is off is not drawn. */
+  readonly modulesOn?: readonly string[];
 }): readonly SectionGroup[] {
-  const groups = options.hasPrivateHubs
-    ? ADMINISTRATION
-    : ADMINISTRATION.map((group) => ({ ...group, rows: group.rows.filter((row) => row.id !== 'private-hubs') }));
+  const on = options.modulesOn ?? [];
+  const groups = ADMINISTRATION.map((group) => ({
+    ...group,
+    rows: group.rows.filter(
+      (row) => (options.hasPrivateHubs || row.id !== 'private-hubs') && (!row.module || on.includes(row.module)),
+    ),
+  }));
   return options.withInstallation ? [...groups, INSTALLATION_GROUP] : groups;
 }
 
@@ -296,9 +305,11 @@ export function administrationFor(options: {
   readonly isInstanceReachable: boolean;
   readonly isAdministrationReachable: boolean;
   readonly isSingleWorkspace: boolean;
+  readonly modulesOn?: readonly string[];
 }): readonly SectionGroup[] {
   return administration({
     hasPrivateHubs: options.isPrivateHubsReadable && (options.hasAnyPrivateHub || options.hasSeveralPeople),
+    modulesOn: options.modulesOn,
     withInstallation:
       installationPlace({
         isInstanceReachable: options.isInstanceReachable,

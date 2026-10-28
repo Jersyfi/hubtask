@@ -54,3 +54,61 @@ export function rowMarkOf(
 export function iconOf(type: Pick<EntryType, 'icon'>): IconName {
   return (ICON_NAMES as readonly string[]).includes(type.icon) ? (type.icon as IconName) : 'tag';
 }
+
+/** The levels a type sits on, in the order the administration lists them. */
+export const TYPE_LEVELS = ['TASK', 'WORK_PACKAGE', 'ACTIVITY'] as const;
+
+/** The icons the administration offers a type, from the design system's set. */
+export const TYPE_ICONS: readonly IconName[] = [
+  'tag', 'task', 'work-package', 'activity', 'square-check', 'star', 'flag', 'zap', 'lightbulb',
+  'rocket', 'wrench', 'hammer', 'code', 'git-branch', 'shield', 'lock', 'key', 'circle-alert',
+  'triangle-alert', 'file-text', 'book-open', 'briefcase', 'calendar', 'mail', 'inbox', 'user',
+  'users', 'globe', 'house', 'heart', 'gift', 'shopping-cart', 'wallet', 'sparkles',
+];
+
+/** Every type of a level as the administration lists it - archived ones included, last. */
+export function levelTypes(types: readonly EntryType[], level: string): readonly EntryType[] {
+  return types
+    .filter((type) => type.level === level)
+    .sort(
+      (a, b) =>
+        Number(a.archived) - Number(b.archived) ||
+        Number(b.system) - Number(a.system) ||
+        a.position - b.position ||
+        a.key.localeCompare(b.key),
+    );
+}
+
+/**
+ * The positions that move a type one place up or down among its level's types that are not
+ * archived: every type of the level numbered anew from 1, and only those whose number changes
+ * returned, so a move writes as few types as it can. The level's own type stays first.
+ */
+export function reorder(
+  types: readonly EntryType[],
+  key: string,
+  by: -1 | 1,
+): readonly { readonly type: EntryType; readonly position: number }[] {
+  const moved = types.find((type) => type.key === key);
+  if (!moved || moved.system || moved.archived) return [];
+  const order = offeredTypes(types, moved.level).filter((type) => !type.system);
+  const at = order.findIndex((type) => type.key === key);
+  const to = at + by;
+  if (to < 0 || to >= order.length) return [];
+  const next = [...order];
+  [next[at], next[to]] = [next[to] as EntryType, next[at] as EntryType];
+  return next
+    .map((type, index) => ({ type, position: index + 1 }))
+    .filter(({ type, position }) => type.position !== position);
+}
+
+/** A key from a name, as the administration proposes it: lower case, words joined by `_`. */
+export function keyFrom(name: string): string {
+  return name
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 50);
+}

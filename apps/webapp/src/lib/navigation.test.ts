@@ -166,7 +166,7 @@ test('the administration is grouped in the suite\u2019s six groups (configuratio
   assert.deepEqual(ADMINISTRATION.map((group) => group.id), ['back', 'how', 'people', 'connections', 'data']);
   const of = (id: string) => ADMINISTRATION.find((group) => group.id === id)?.rows.map((row) => row.id);
   assert.deepEqual(of('back'), ['back', 'overview']);
-  assert.deepEqual(of('how'), ['workspace', 'presets', 'modules', 'rules', 'runs']);
+  assert.deepEqual(of('how'), ['workspace', 'presets', 'modules', 'entry-types', 'rules', 'runs']);
   assert.deepEqual(of('people'), ['people', 'sign-in-settings', 'legal', 'machines']);
   assert.deepEqual(of('connections'), ['mail', 'webhooks', 'voice', 'ai']);
   assert.deepEqual(of('data'), ['private-hubs', 'backup', 'retention', 'restore', 'audit', 'privacy', 'quotas']);
@@ -174,6 +174,15 @@ test('the administration is grouped in the suite\u2019s six groups (configuratio
     if (group.code) assert.ok(group.code in SOURCE, group.code);
     for (const row of group.rows) assert.ok(row.code in SOURCE, row.code);
   }
+});
+
+// UC-FLW-01 check 8, UC-INS-21 check 4: a module's page is drawn only where the module is on.
+test('the types page is drawn only where the workflows module is on', () => {
+  const rows = (modulesOn?: readonly string[]) =>
+    administration({ hasPrivateHubs: true, modulesOn }).flatMap((group) => group.rows.map((row) => row.id));
+  assert.equal(rows().includes('entry-types'), false);
+  assert.equal(rows(['PLANNING']).includes('entry-types'), false);
+  assert.equal(rows(['WORKFLOWS']).includes('entry-types'), true);
 });
 
 test('every row of the section resolves to a route it claims, and every screen is reachable', () => {
@@ -221,7 +230,8 @@ test('the private hubs row is drawn only where a private hub exists (UC-ID-16 ch
   const rowsOf = (groups: typeof ADMINISTRATION) => groups.flatMap((group) => group.rows).map((row) => row.id);
   assert.ok(rowsOf(administration({ hasPrivateHubs: true })).includes('private-hubs'));
   assert.ok(!rowsOf(administration({ hasPrivateHubs: false })).includes('private-hubs'));
-  assert.equal(rowsOf(administration({ hasPrivateHubs: false })).length, rowsOf(ADMINISTRATION).length - 1, 'nothing else goes');
+  const allOn = { modulesOn: ['WORKFLOWS'] };
+  assert.equal(rowsOf(administration({ hasPrivateHubs: false, ...allOn })).length, rowsOf(ADMINISTRATION).length - 1, 'nothing else goes');
 });
 
 test('on a single-workspace installation the installation is the administration\'s last group', () => {

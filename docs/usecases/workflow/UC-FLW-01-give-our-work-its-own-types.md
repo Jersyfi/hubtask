@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-12, P-17]
 state: partial
 tasks: []
-checked_by: [core/domain/model/work/EntryType_test.go, core/application/service/workflow/EntryTypes_test.go, core/application/service/work/SetItemEntryType_test.go, test/integration/entry_type_test.go, apps/webapp/src/lib/data/entrytypes.test.ts, cmd/hubctl/EntryType_test.go]
+checked_by: [core/domain/model/work/EntryType_test.go, core/application/service/workflow/EntryTypes_test.go, core/application/service/work/SetItemEntryType_test.go, test/integration/entry_type_test.go, apps/webapp/src/lib/data/entrytypes.test.ts, apps/webapp/src/lib/navigation.test.ts, cmd/hubctl/EntryType_test.go]
 ---
 
 # Give our work its own types
@@ -49,9 +49,10 @@ works in every view. An agent creating an entry through MCP names the type the s
 
 ## Today
 
-* Check 1: partly met — `GET`/`POST /entry-types` and `PATCH`/`DELETE /entry-types/{key}` (and the
-  same operations over MCP and as rule actions) create, rename, recolour, order and archive types;
-  the administration has no screen for them yet (the suite plan, S-03).
+* Check 1: met — `GET`/`POST /entry-types` and `PATCH`/`DELETE /entry-types/{key}` (and the same
+  operations over MCP and as rule actions) create, rename, recolour, order and archive types, and
+  *How we work → Types* in the administration does the same by level, where the workflows module
+  is on.
 * Check 2: not met — the suite plan, S-04, S-06.
 * Check 3: partly met — capture offers the workspace's types of the level, the level's own first;
   which types one collection offers is not narrowed yet (the suite plan, S-06).

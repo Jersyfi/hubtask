@@ -41,6 +41,7 @@ test('the administration area is exactly these screens, by name', () => {
     'apps',
     'audit',
     'backup',
+    'entry-types',
     'groups',
     'identity-provider',
     'legal',

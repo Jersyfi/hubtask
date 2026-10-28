@@ -10,7 +10,9 @@ import assert from 'node:assert/strict';
 
 import type { Capabilities, EntryType } from '@hubtask/sync-engine';
 
-import { iconOf, offeredTypes, rowMarkOf, typesShown } from './entrytypes.ts';
+import { ICON_NAMES } from '@hubtask/design-system/icons';
+
+import { TYPE_ICONS, iconOf, keyFrom, levelTypes, offeredTypes, reorder, rowMarkOf, typesShown } from './entrytypes.ts';
 
 const base = {
   completable: true, workflow: false, record: false, schedulable: true, estimable: false,
@@ -45,4 +47,27 @@ test('without the workflows module no type is shown', () => {
   assert.equal(typesShown(undefined), false);
   assert.equal(typesShown({ modules_on: [] } as unknown as Capabilities), false);
   assert.equal(typesShown({ modules_on: ['WORKFLOWS'] } as unknown as Capabilities), true);
+});
+
+// UC-FLW-01 check 1: the administration lists a level's types with the archived ones last, orders
+// them by moving one place, and proposes a key from a name.
+test('the administration lists a level\u2019s types, the archived last', () => {
+  assert.deepEqual(levelTypes(types, 'TASK').map((type) => type.key), ['task', 'bug', 'feature', 'old']);
+});
+
+test('moving a type renumbers only the types whose place changes', () => {
+  const moves = reorder(types, 'feature', -1);
+  assert.deepEqual(moves.map(({ type, position }) => [type.key, position]), [['feature', 1], ['bug', 2]]);
+  assert.deepEqual(reorder(types, 'bug', -1), [], 'the first of its own cannot move above the level own');
+  assert.deepEqual(reorder(types, 'task', 1), [], 'the level own type stays first');
+  assert.deepEqual(reorder(types, 'old', 1), [], 'an archived type is not ordered');
+});
+
+test('a key is proposed from the name', () => {
+  assert.equal(keyFrom('Change request'), 'change_request');
+  assert.equal(keyFrom('  Überprüfung!  '), 'uberprufung');
+});
+
+test('every icon offered for a type is in the design system set', () => {
+  for (const icon of TYPE_ICONS) assert.ok((ICON_NAMES as readonly string[]).includes(icon), icon);
 });

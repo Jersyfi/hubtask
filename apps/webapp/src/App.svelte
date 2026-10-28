@@ -56,6 +56,7 @@ import ContainerView from './views/ContainerView.svelte';
   import QuotasView from './views/QuotasView.svelte';
   import PrivateHubsView from './views/PrivateHubsView.svelte';
   import ModulesView from './views/ModulesView.svelte';
+  import EntryTypesView from './views/EntryTypesView.svelte';
   import BackupView from './views/BackupView.svelte';
   import RetentionView from './views/RetentionView.svelte';
   import RestoreView from './views/RestoreView.svelte';
@@ -322,6 +323,8 @@ import ContainerView from './views/ContainerView.svelte';
     <QuotasView />
   {:else if route.name === 'modules'}
     <ModulesView />
+  {:else if route.name === 'entry-types'}
+    <EntryTypesView />
   {:else if route.name === 'private-hubs'}
     <PrivateHubsView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'backup'}

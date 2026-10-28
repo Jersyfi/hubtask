@@ -6,16 +6,34 @@
  * the whole workspace: a type is the workspace's, not a collection's.
  */
 
-import type { EntryType, EntryTypeList, ResourceState } from '@hubtask/sync-engine';
+import type { EntryType, EntryTypeChange, EntryTypeCreate, EntryTypeList, ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { etagFor } from './etag.ts';
 
-export { iconOf, offeredTypes, rowMarkOf, systemKeyOf, typeOf, typesShown } from './entrytypes.ts';
+export {
+  TYPE_ICONS,
+  TYPE_LEVELS,
+  iconOf,
+  keyFrom,
+  levelTypes,
+  offeredTypes,
+  reorder,
+  rowMarkOf,
+  systemKeyOf,
+  typeOf,
+  typesShown,
+} from './entrytypes.ts';
 
 const PATH = '/entry-types';
 
 class EntryTypes {
   #state = $state<ResourceState<EntryTypeList> | undefined>(undefined);
+
+  /** The read itself, for a screen that draws its waiting and its refusal. */
+  get state(): ResourceState<EntryTypeList> | undefined {
+    return this.#state;
+  }
 
   /** Every type, empty until read. */
   get all(): readonly EntryType[] {
@@ -26,6 +44,33 @@ class EntryTypes {
   open(): () => void {
     return engine.subscribe<EntryTypeList>({ path: PATH }, (next) => {
       this.#state = next;
+    });
+  }
+
+  /** Adds a type of the workspace's own (UC-FLW-01 check 1). */
+  create(body: EntryTypeCreate): Promise<EntryType> {
+    return engine.mutate<EntryType>('POST', PATH, body, {
+      idempotencyKey: crypto.randomUUID(),
+      invalidates: [PATH],
+    });
+  }
+
+  /**
+   * Renames, recolours, reorders, archives or changes a type's behaviours. A system type nobody
+   * changed is at version 0 and sends no precondition; its first change gives it its row.
+   */
+  change(type: Pick<EntryType, 'key' | 'version'>, body: EntryTypeChange): Promise<EntryType> {
+    return engine.mutate<EntryType>('PATCH', `${PATH}/${encodeURIComponent(type.key)}`, body, {
+      ...(type.version > 0 ? { ifMatch: etagFor(type.version) } : {}),
+      invalidates: [PATH],
+    });
+  }
+
+  /** Deletes a type nothing uses; one in use is refused and can only be archived (check 5). */
+  async remove(type: Pick<EntryType, 'key' | 'version'>): Promise<void> {
+    await engine.mutate<void>('DELETE', `${PATH}/${encodeURIComponent(type.key)}`, undefined, {
+      ...(type.version > 0 ? { ifMatch: etagFor(type.version) } : {}),
+      invalidates: [PATH],
     });
   }
 }

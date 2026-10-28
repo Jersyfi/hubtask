@@ -109,6 +109,7 @@
     isPrivateHubsReadable: privateHubs.isReadable,
     hasAnyPrivateHub: privateHubs.hasAny,
     hasSeveralPeople: workspace.workspace?.several_people === true,
+    modulesOn: manifest.value?.modules_on,
   });
 
   const pathOf = (container: Container) => ({ hubId: container.parent_id ?? undefined, collectionId: container.id });

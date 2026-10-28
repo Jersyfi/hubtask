@@ -82,6 +82,8 @@ export const ROUTES: readonly Route[] = [
   { name: 'quotas', pattern: '/administration/quotas', area: 'administration' },
   // The suite's modules, switched for the workspace (UC-INS-21).
   { name: 'modules', pattern: '/administration/modules', area: 'administration' },
+  // The workspace's entry types, where the workflows module is on (UC-FLW-01 check 1).
+  { name: 'entry-types', pattern: '/administration/types', area: 'administration' },
   // The private hubs, without their names (UC-ID-16 check 3).
   { name: 'private-hubs', pattern: '/administration/private-hubs', area: 'administration' },
   { name: 'backup', pattern: '/administration/backup', area: 'administration' },

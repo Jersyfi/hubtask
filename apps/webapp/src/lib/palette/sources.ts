@@ -173,6 +173,8 @@ export interface Reach {
   readonly isPrivateHubsReadable: boolean;
   readonly hasAnyPrivateHub: boolean;
   readonly hasSeveralPeople: boolean;
+  /** The modules switched on; a module's page is offered only where it is on. */
+  readonly modulesOn?: readonly string[];
 }
 
 function sectionOffers(groups: readonly SectionGroup[], area: Area, section: string, t: Translate): Offer[] {

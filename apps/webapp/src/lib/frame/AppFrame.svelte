@@ -237,6 +237,7 @@
             isInstanceReachable: manifest.isInstanceReachable,
             isAdministrationReachable,
             isSingleWorkspace: manifest.isSingleTenant,
+            modulesOn: manifest.value?.modules_on,
           }),
         }
       : route.area === 'instance'
