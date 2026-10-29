@@ -21,6 +21,7 @@ import type * as Y from 'yjs';
 
 import type { LiveDocument } from './live.ts';
 import { fromMarkdown, toMarkdown, type DocNode, type ReferenceAttrs } from './markdown.ts';
+import { CommentPassages, passagesKey, selectedWords, type Passage } from './passages.ts';
 
 /** How the application draws a reference: its label, kept current as the resolver answers. */
 export interface ReferenceDrawing {
@@ -140,6 +141,13 @@ export const BlockIds = Extension.create<{ mint: () => string }>({
   },
 });
 
+/** The block the selection stands in, and the words selected inside it. */
+export interface SelectedBlock {
+  readonly id: string;
+  readonly text: string;
+  readonly selected?: string;
+}
+
 export interface PageEditorOptions {
   readonly element: HTMLElement;
   /** The page's body, the content of a read-only editor and the seed of an empty live document. */
@@ -150,8 +158,11 @@ export interface PageEditorOptions {
   readonly drawing?: ReferenceDrawing;
   /** Called after a local change, with the document's Markdown. */
   readonly onChange?: (markdown: string) => void;
-  /** Called when the selection moves, with the block it stands in. */
-  readonly onBlock?: (block: { id: string; text: string } | undefined) => void;
+  /**
+   * Called when the selection moves, with the block it stands in and the words selected in it -
+   * what an inline comment stands at and quotes.
+   */
+  readonly onBlock?: (block: SelectedBlock | undefined) => void;
   /** The words drawn for a reference before it is resolved. */
   readonly fallback?: string;
 }
@@ -172,6 +183,7 @@ export function createPageEditor(options: PageEditorOptions): Editor {
     Reference.configure({ drawing: options.drawing, fallback }),
     ReferenceBlock.configure({ drawing: options.drawing, fallback }),
     BlockIds,
+    CommentPassages,
   ];
   if (options.live) {
     extensions.push(Collaboration.configure({ document: options.live.doc, field: 'default' }) as never);
@@ -202,10 +214,11 @@ export function createPageEditor(options: PageEditorOptions): Editor {
       options.onChange?.(toMarkdown(current.getJSON() as DocNode));
     },
     onSelectionUpdate: ({ editor: current }) => {
-      const { $from } = current.state.selection;
+      const { $from, from, to } = current.state.selection;
       const top = $from.depth > 0 ? $from.node(1) : undefined;
       const id = top?.attrs['blockId'] as string | null | undefined;
-      options.onBlock?.(top && id ? { id, text: top.textContent.slice(0, 500) } : undefined);
+      const selected = selectedWords(current.state.doc, from, to)?.slice(0, 500);
+      options.onBlock?.(top && id ? { id, text: top.textContent.slice(0, 500), ...(selected ? { selected } : {}) } : undefined);
     },
   });
   return editor;
@@ -239,6 +252,24 @@ export function revealBlock(editor: Editor, blockId: string): boolean {
   if (!element) return false;
   element.scrollIntoView({ block: 'center' });
   return true;
+}
+
+/** Marks the passages of the page's open threads in the page. */
+export function setPassages(editor: Editor, passages: readonly Passage[]): void {
+  if (editor.isDestroyed) return;
+  editor.view.dispatch(editor.state.tr.setMeta(passagesKey, passages).setMeta('addToHistory', false));
+}
+
+/**
+ * Where each marked passage starts, as a distance from the top of the viewport - the margin draws
+ * its thread level with it. A passage whose words are gone has none.
+ */
+export function passageTops(editor: Editor): Map<string, number> {
+  const tops = new Map<string, number>();
+  if (editor.isDestroyed) return tops;
+  const ranges = passagesKey.getState(editor.state)?.ranges;
+  for (const [id, range] of ranges ?? []) tops.set(id, editor.view.coordsAtPos(range.from).top);
+  return tops;
 }
 
 export type { Editor };
