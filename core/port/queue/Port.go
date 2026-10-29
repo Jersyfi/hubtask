@@ -460,6 +460,11 @@ const (
 	// an installation job without a tenant, queued in the event's own transaction and again for
 	// each retry and redelivery. A workspace's purge removes its jobs, never these.
 	KindPlatformDeliver Kind = "platform.deliver"
+
+	// KindCmdbConnectorPull is one connector's scheduled pull (research itsm-cmdb-ai C2): one job
+	// per connector, deduplicated by its identifier, rescheduling itself to the connector's next
+	// moment; the write that schedules a connector seeds it.
+	KindCmdbConnectorPull Kind = "cmdb.connector_pull"
 )
 
 func (k Kind) String() string { return string(k) }
