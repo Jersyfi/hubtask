@@ -297,6 +297,17 @@ export type MembershipScope = components['schemas']['MembershipScope'];
 export type Group = components['schemas']['Group'];
 export type GroupPage = components['schemas']['GroupPage'];
 export type GroupDetail = components['schemas']['GroupDetail'];
+/** The permission catalogue, the shipped and the workspace's own roles, and what a person holds (UC-ID-26). */
+export type RoleCatalogue = components['schemas']['RoleCatalogue'];
+export type PermissionEntry = components['schemas']['PermissionEntry'];
+export type ShippedRole = components['schemas']['ShippedRole'];
+export type CustomRole = components['schemas']['CustomRole'];
+export type CustomRoleCreate = components['schemas']['CustomRoleCreate'];
+export type CustomRoleChange = components['schemas']['CustomRoleChange'];
+export type CustomRoleGrant = components['schemas']['CustomRoleGrant'];
+export type CustomRoleGrantCreate = components['schemas']['CustomRoleGrantCreate'];
+export type AccessExplanation = components['schemas']['AccessExplanation'];
+export type AccessSource = components['schemas']['AccessSource'];
 /** What assigning takes, and what adding or removing a member answers. */
 export type Assignment = components['schemas']['Assignment'];
 export type ItemMembers = components['schemas']['ItemMembers'];
