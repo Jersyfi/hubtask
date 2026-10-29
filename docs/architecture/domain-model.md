@@ -452,6 +452,31 @@ itself (`workspace_permissions`, `service.Held`): decided as a request is, recor
 what a client draws the administration and the jumble from rather than probing a route that
 refuses. It is the account's roles; a token's scopes bound it further.
 
+**The permission catalogue and the workspace's own roles** (D-05, UC-ID-26). The seven roles above
+are the shipped scheme. A workspace may define roles of its own (`custom_role`, a lower-case key, a
+name, permissions) from one closed catalogue (`service.PermissionCatalogue`): the eight columns
+above, `COMMENT` and `WRITE_ASSIGNED` (the guest's and the contributor's narrowings spelled as
+permissions), `REQUEST`, and two families that name an object - a restricted field's
+`FIELD_WRITE:<key>` and a workflow step's `TAKE_STEP:<workflow>/<step>`, held by `OWNER` and
+`ADMIN` for every field and step. A custom role is granted at the workspace, a hub or a collection
+(`custom_role_grant`, never at `ITEM`), counts in the same resolution as a membership along the
+path, and decides by the union over what counts: its per-entry reach is the shipped rows spelled as
+permissions (`READ` reads, `WRITE_ITEMS` changes, `WRITE_ASSIGNED` changes what is assigned,
+`COMMENT` comments). It is no rung on the ladder: it never hands out a shipped role and is not the
+form's `actor.role`. **Nobody hands out a permission they do not hold** (`service.MayHandOut`):
+defining, changing (what it adds and takes away), granting, revoking or deleting a custom role
+needs `MANAGE_MEMBERS` and every permission concerned at that place, or is refused with
+`access.permission_above_own` naming what is lacking. *Who may do what* and *view as* read
+`ExplainAccess`: the roles that count at a place, where each is held, what they carry. Each use
+case declares the permission it asks for (`Descriptor.Permission`); the handler still asks it at
+the path. A **requester** (`service.IsRequester`) holds `REQUEST` and not `READ` along the path: the
+portal's principal, refused by every other use case by the ordinary rule.
+
+A **restricted field** (`custom_field_definition.restricted`, UC-ID-27) is written only by holders
+of its `FIELD_WRITE:<key>` along the entry's path, through every door (`FormGate.holdRestricted`);
+changing the flag takes that permission. A **step** limited to roles may name a custom role's key,
+and `TAKE_STEP:<workflow>/<step>` opens it whatever it names.
+
 ### 3.3 `Container` (hub / collection)
 
 | Field | Type | Rules |
