@@ -68,10 +68,12 @@ type EntryType struct {
 	// AllowedChildren are the keys of the types that may sit directly underneath; empty is every
 	// type of the level below.
 	AllowedChildren []string
-	Position        int
-	ArchivedAt      *time.Time
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	// Form is the type's one layout and logic, empty until somebody designs one (Form, P-18).
+	Form       Form
+	Position   int
+	ArchivedAt *time.Time
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 	// Version is zero for a system type without a row.
 	Version int
 }
@@ -98,6 +100,18 @@ func SystemEntryTypes() []EntryType {
 		types = append(types, SystemEntryType(level))
 	}
 	return types
+}
+
+// FieldForm is the field name a change of the form records.
+const FieldForm = "form"
+
+// WithForm gives the type a form already checked by NewForm. A system type takes one too: it is
+// what an entry without a type of its own is, and its form binds those entries.
+func (t EntryType) WithForm(form Form, now time.Time) (EntryType, []FieldChange) {
+	next := t
+	next.Form = form
+	next.UpdatedAt = now
+	return next, []FieldChange{{Field: FieldForm, To: strconv.Itoa(len(form.Fields))}}
 }
 
 // IsArchived reports whether the type is out of use: not offered for new entries, readable on old.
