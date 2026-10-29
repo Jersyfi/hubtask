@@ -342,10 +342,19 @@ see) and ISO/IEC 30111 (what happens inside). The internal half:
 
 The CSAF directory and its provider metadata are **published with the first advisory, not before**:
 an empty feed would claim a publishing process that has never run (the website's rule, *only what
-is true today*). Writing the CSAF and VEX documents is a step of the release that ships a security
-fix — the document per advisory, signed, with the directory's `index.txt` and `changes.csv` — and
-belongs to the release process ([versioning-release.md](./versioning-release.md) §3) until it is
-automated. Until then the GitHub advisory and its CVE are the advisory.
+is true today*). The documents are written, not typed: an advisory is one file
+`security/advisories/HUBTASK-YYYY-NNNN.yaml` - `id`, `title`, `kind` (`advisory` for a flaw of
+Hubtask's, `vex` for a dependency's flaw it does not reach), `cve`, `initial_release`, `summary`,
+`cvss_v3` (`vector`, `score`, `severity`), the `affected`, `fixed` and `not_affected` versions, a VEX
+statement's `component` and `justification` (one of CSAF's five), `remediation`, `references` -
+committed with the fix. `make csaf` (`tools/csaf`) turns them into the directory: one CSAF 2.0
+document per advisory at `<year>/<id>.json` with its `.sha256` and `.sha512`, `index.txt`,
+`changes.csv` newest first, and `provider-metadata.json` (role `csaf_publisher`). `release.yml`
+writes it, signs each document keyless (`.sigstore.json` beside it) and attaches `csaf.tar.gz`;
+`website.yml` writes it into the site's static files, so `/.well-known/csaf/` carries exactly what
+the repository's advisories say. With no file there, both write nothing. A malformed advisory
+fails the release rather than publishing half of it. The GitHub advisory and its CVE stay the
+advisory of record; the CSAF document is its machine-readable form.
 
 ---
 

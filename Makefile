@@ -323,6 +323,13 @@ website:
 	$(PNPM) --filter "@hubtask/website..." build
 	@echo "apps/website/dist is ready to deploy"
 
+## csaf: Write the CSAF 2.0 advisories of security/advisories/ into CSAF_OUT (none, nothing)
+# security.md §14.2; the release attaches the result and the website publishes it.
+CSAF_OUT ?= dist/csaf
+.PHONY: csaf
+csaf:
+	$(GO) run ./tools/csaf security/advisories $(CSAF_OUT)
+
 ## api-client: Regenerate the TypeScript API client from api/openapi.yaml
 # The same source as the Go server types above (ADR-0004): the specification is changed first, and
 # both sides are regenerated from it in the same pull request.

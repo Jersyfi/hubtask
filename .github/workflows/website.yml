@@ -27,6 +27,8 @@ on:
       - "packages/design-system/**"
       - ".github/workflows/website.yml"
       - "pnpm-lock.yaml"
+      - "security/advisories/**"
+      - "tools/csaf/**"
   # A redeploy without a commit: after the webspace was reconfigured, or to publish the current
   # state once the variables above are first set.
   workflow_dispatch:
@@ -61,6 +63,13 @@ jobs:
           key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: pnpm-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.3"
+      # The machine-readable advisories under /.well-known/csaf/ (security.md §14.2), written from
+      # security/advisories/ into the site's static files; with no advisory nothing is written and
+      # the site publishes no feed.
+      - run: make csaf CSAF_OUT=apps/website/static/.well-known/csaf
       # The build runs check-static.js itself: what leaves this job is proven plain static files,
       # or nothing.
       - run: make website

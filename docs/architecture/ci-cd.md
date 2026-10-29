@@ -27,9 +27,9 @@ GitHub-specific; the pipeline may.
 | `after-ci.yml` | A `ci.yml` run ends; every 15 minutes; manual dispatch | A failed run is re-run once; a red `main` opens the issue "CI: main is red" and holds the green pull requests; a green `main` closes it and re-runs the pull requests that waited (§3.5) |
 | `pr-description-rerun.yml` | A pull request's description or title is edited | If the head commit's latest `ci.yml` run failed, re-runs its description job and `CI required` (§3.1) |
 | `nightly.yml` | Schedule (overnight) | Long runs (§9): `deep` (fuzzing, load, resilience), the `matrix-*` cells, the PITR drill (`make gate-pitr`), the image scan, the action pins; the arm64 cell also runs `make gate-privacy-full` and `make gate-selftest`. A failure files an issue |
-| `release.yml` | Tag `v*` | After the `production` environment's approval: the gates again, image, SBOM, signature, provenance, chart, GitHub release ([deployment.md](./deployment.md) §7) |
+| `release.yml` | Tag `v*` | After the `production` environment's approval: the gates again, image, SBOM, signature, provenance, the CSAF advisories, signed, chart, GitHub release ([deployment.md](./deployment.md) §7, [security.md](./security.md) §14.2) |
 | `deploy.yml` | Push to `main`, manual dispatch | Builds, signs and verifies the per-commit image and runs `helm upgrade` into `integration` ([deployment.md](./deployment.md) §3) |
-| `website.yml` | Push to `main` touching `apps/website/`, `packages/design-system/` or the lockfile; manual dispatch | Builds `apps/website/dist` and mirrors it to the webspace (§10). A failure files an issue |
+| `website.yml` | Push to `main` touching `apps/website/`, `packages/design-system/`, `security/advisories/` or the lockfile; manual dispatch | Writes the CSAF advisories into the site (`make csaf`), builds `apps/website/dist` and mirrors it to the webspace (§10). A failure files an issue |
 | `workbench.yml` | Push to `main` touching `packages/design-system/`; manual dispatch | Publishes the component workbench to `workbench.hubtask.eu` (§10) |
 | `scorecard.yml` | Schedule | **Planned, not built.** The OpenSSF supply chain scorecard. The file does not exist; the row stays as the plan |
 

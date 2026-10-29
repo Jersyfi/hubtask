@@ -122,6 +122,16 @@ jobs:
         # this build actually links (ADR-0080, licensing-editions.md).
         run: make licenses
 
+      - name: The machine-readable advisories (CSAF 2.0, VEX)
+        # security.md §14.2: one document per advisory in security/advisories/, each signed keyless
+        # beside its hashes; with no advisory nothing is written and nothing attached.
+        run: |
+          make csaf CSAF_OUT=dist/csaf
+          if [ -d dist/csaf ]; then
+            find dist/csaf -name '*.json' -print0 | xargs -0 -I{} cosign sign-blob --yes --bundle {}.sigstore.json {}
+            tar -czf csaf.tar.gz -C dist csaf
+          fi
+
       - name: Package the Helm chart
         run: |
           .tools/helm package k8s --version "${GITHUB_REF_NAME#v}" --app-version "${GITHUB_REF_NAME#v}" -d dist/
@@ -138,3 +148,4 @@ jobs:
             sbom.cdx.json
             dist/*.tgz
             THIRD-PARTY-LICENSES.md
+            csaf.tar.gz

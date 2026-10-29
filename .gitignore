@@ -66,3 +66,6 @@ coverage.*
 # Python bytecode from running the SDK example or its test
 __pycache__/
 *.pyc
+
+# The CSAF feed the website build writes from security/advisories/ (make csaf); never committed.
+apps/website/static/.well-known/csaf/
