@@ -73,6 +73,10 @@ export function collectionOf(entity: string): string {
       return 'role_grants';
     case 'page':
       return 'pages';
+    case 'cmdb_ci':
+      return 'cis';
+    case 'cmdb_relation':
+      return 'ci_relations';
     default:
       return entity;
   }

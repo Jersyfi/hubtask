@@ -381,6 +381,13 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
     return { ...page, ancestors, writable: false, due_for_review: Number.isFinite(until) && until <= Date.now() };
   }
 
+  // A hub's inventory read while the server is away (M6, offline-sync.md §3): the CIs in the
+  // server's order, a CI with its relations and the protection it inherits computed from the copy
+  // as the server computes it, the impact walked the same way, and the catalogue. Nothing is
+  // writable offline - a CI is written through the reconciliation, which needs the server.
+  const inventory = await cmdbFor(pathname, query, storage);
+  if (inventory !== NOT_CMDB) return inventory;
+
   if (pathname === '/entry-types') {
     // The server's order: by level as the levels run, then position, then key.
     const levels = ['TASK', 'WORK_PACKAGE', 'ACTIVITY'];
@@ -416,6 +423,144 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
   }
 
   return undefined;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The CMDB from the copy (M6).
+// ---------------------------------------------------------------------------------------------
+
+const NOT_CMDB = Symbol('not a CMDB path');
+const LEVELS = ['NORMAL', 'HIGH', 'VERY_HIGH'];
+/** The walk's bound, the server's (`impactDepth`). */
+const IMPACT_DEPTH = 8;
+
+type Protection = { c: string | null; i: string | null; a: string | null };
+
+const higher = (x: unknown, y: unknown): string | null => {
+  const a = LEVELS.indexOf(String(x));
+  const b = LEVELS.indexOf(String(y));
+  const top = Math.max(a, b);
+  return top < 0 ? null : (LEVELS[top] ?? null);
+};
+
+/** The relation types' impact by key, split the way the server's walk reads it. */
+function suffering(catalogue: Document | undefined): { source: Set<string>; target: Set<string> } {
+  const source = new Set<string>();
+  const target = new Set<string>();
+  for (const t of (catalogue?.relation_types ?? []) as Document[]) {
+    if (t.impact === 'SOURCE' || t.impact === 'BOTH') source.add(String(t.key));
+    if (t.impact === 'TARGET' || t.impact === 'BOTH') target.add(String(t.key));
+  }
+  return { source, target };
+}
+
+/**
+ * The CIs an impact reaches, each at its nearest depth, as `WalkCmdbImpact` answers: downstream,
+ * what suffers when the CI fails; upstream, what it suffers from. Breadth first, so the first
+ * depth a CI is reached at is its nearest.
+ */
+export function walkImpact(
+  from: string, downstream: boolean, relations: readonly Document[], catalogue: Document | undefined, depth = IMPACT_DEPTH,
+): { ci: string; depth: number }[] {
+  const { source, target } = suffering(catalogue);
+  const reached = new Map<string, number>([[from, 0]]);
+  let frontier = [from];
+  for (let step = 1; step <= depth && frontier.length > 0; step++) {
+    const next: string[] = [];
+    for (const at of frontier) {
+      for (const r of relations) {
+        const type = String(r.type);
+        const towards = downstream
+          ? (r.target_ci_id === at && source.has(type) ? r.source_ci_id : r.source_ci_id === at && target.has(type) ? r.target_ci_id : undefined)
+          : (r.source_ci_id === at && source.has(type) ? r.target_ci_id : r.target_ci_id === at && target.has(type) ? r.source_ci_id : undefined);
+        if (typeof towards === 'string' && !reached.has(towards)) {
+          reached.set(towards, step);
+          next.push(towards);
+        }
+      }
+    }
+    frontier = next;
+  }
+  reached.delete(from);
+  return [...reached].map(([ci, d]) => ({ ci, depth: d })).sort((a, b) => a.depth - b.depth || (a.ci < b.ci ? -1 : a.ci > b.ci ? 1 : 0));
+}
+
+const active = (ci: Document | undefined) => ci !== undefined && ci.stage !== 'RETIRED' && ci.stage !== 'DISPOSED';
+
+/** The protection a CI inherits by the maximum principle; a dimension fixed keeps its own. */
+export function inheritedProtection(ci: Document, reached: readonly Document[]): Protection {
+  const own = (ci.protection ?? {}) as Document;
+  const effective: Protection = { c: higher(own.c, null), i: higher(own.i, null), a: higher(own.a, null) };
+  for (const other of reached) {
+    if (!active(other)) continue;
+    const p = (other.protection ?? {}) as Document;
+    effective.c = higher(effective.c, p.c);
+    effective.i = higher(effective.i, p.i);
+    effective.a = higher(effective.a, p.a);
+  }
+  for (const d of (own.fixed ?? []) as string[]) {
+    if (d === 'c' || d === 'i' || d === 'a') effective[d] = higher(own[d], null);
+  }
+  return effective;
+}
+
+async function cmdbFor(pathname: string, query: URLSearchParams, storage: Storage): Promise<unknown> {
+  if (pathname === '/cmdb/classes' || pathname === '/cmdb/relation-types') {
+    const catalogue = (await documents(storage, 'cmdb_catalogue'))[0];
+    if (!catalogue) return undefined;
+    return { data: pathname === '/cmdb/classes' ? catalogue.classes : catalogue.relation_types };
+  }
+
+  let match = /^\/hubs\/([^/:]+)\/cis$/.exec(pathname);
+  if (match?.[1]) {
+    const hubId = match[1];
+    const wanted = query.get('class');
+    const withMerged = query.get('include_merged') === 'true';
+    const catalogue = (await documents(storage, 'cmdb_catalogue'))[0];
+    const lineage = new Map(((catalogue?.classes ?? []) as Document[]).map((c) => [String(c.key), (c.lineage ?? []) as string[]]));
+    if (wanted && catalogue && !lineage.has(wanted)) return undefined;
+    const rows = (await documents(storage, 'cis'))
+      .filter((ci) => ci.hub_id === hubId && (withMerged || !ci.merged_into))
+      .filter((ci) => !wanted || ci.class === wanted || (lineage.get(String(ci.class)) ?? []).includes(wanted))
+      .sort((a, b) => (String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0));
+    return { data: rows, next: null };
+  }
+
+  match = /^\/cis\/([^/:]+)(\/impact)?$/.exec(pathname);
+  if (match?.[1]) {
+    const id = match[1];
+    const cis = await documents(storage, 'cis');
+    const byId = new Map(cis.map((ci) => [String(ci.id), ci]));
+    const ci = byId.get(id);
+    if (!ci) return undefined;
+    const relations = await documents(storage, 'ci_relations');
+    const catalogue = (await documents(storage, 'cmdb_catalogue'))[0];
+    if (match[2]) {
+      const downstream = query.get('direction') !== 'UPSTREAM';
+      const asked = Number(query.get('depth'));
+      const depth = asked > 0 && asked <= IMPACT_DEPTH ? asked : IMPACT_DEPTH;
+      const services = new Set(((catalogue?.classes ?? []) as Document[])
+        .filter((c) => ((c.lineage ?? []) as string[]).includes('service')).map((c) => String(c.key)));
+      const reached = walkImpact(id, downstream, relations, catalogue, depth)
+        .map(({ ci: other, depth: d }) => ({ other: byId.get(other), depth: d }))
+        .filter((r): r is { other: Document; depth: number } => r.other !== undefined);
+      return {
+        ci_id: id, direction: downstream ? 'DOWNSTREAM' : 'UPSTREAM',
+        reached: reached.map(({ other, depth: d }) => ({ ci_id: other.id, class: other.class, name: other.name, stage: other.stage, depth: d })),
+        services: reached.filter(({ other }) => services.has(String(other.class)) && active(other)).map(({ other }) => other.id),
+      };
+    }
+    const reached = walkImpact(id, true, relations, catalogue).map((r) => byId.get(r.ci)).filter((r): r is Document => r !== undefined);
+    return {
+      ...ci,
+      effective_protection: inheritedProtection(ci, reached),
+      relations: relations
+        .filter((r) => r.source_ci_id === id || r.target_ci_id === id)
+        .sort((a, b) => String(a.type).localeCompare(String(b.type)) || (String(a.id) < String(b.id) ? -1 : 1)),
+    };
+  }
+
+  return NOT_CMDB;
 }
 
 // ---------------------------------------------------------------------------------------------

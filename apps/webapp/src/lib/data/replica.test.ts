@@ -394,3 +394,45 @@ test('a hub\'s pages and a page are answered from the copy', async () => {
   assert.deepEqual(read.ancestors, [{ id: 'p-root', title: 'Handbook' }]);
   assert.equal(await storeFor({ path: '/pages/p-gone' }, storage), undefined);
 });
+
+// A hub's inventory read while the server is away (UC-AST-01 check 10): the CIs of the hub in the
+// server's order without the merged, narrowed by a class and its descendants; a CI with its
+// relations and the protection it inherits; the impact walked by the catalogue's directions.
+test('a hub\'s configuration items, a CI and its impact are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  await storage.put('cmdb_catalogue', 'w-1', record({
+    id: 'w-1',
+    classes: [
+      { key: 'server', lineage: ['server', 'computer', 'hardware', 'ci'] },
+      { key: 'application_service', lineage: ['application_service', 'service', 'ci'] },
+      { key: 'hardware', lineage: ['hardware', 'ci'] },
+    ],
+    relation_types: [{ key: 'runs_on', impact: 'SOURCE' }, { key: 'connects_to', impact: 'NONE' }],
+  }));
+  const ci = (id: string, fields: Record<string, unknown>) => storage.put('cis', id, record({ id, hub_id: HUB, stage: 'IN_USE', ...fields }));
+  await ci('ci-1', { class: 'server', name: 'web1', protection: { c: null, i: null, a: 'NORMAL', fixed: [] } });
+  await ci('ci-2', { class: 'application_service', name: 'Shop', protection: { c: 'HIGH', i: null, a: 'VERY_HIGH', fixed: [] } });
+  await ci('ci-3', { class: 'server', name: 'old', merged_into: 'ci-1' });
+  await ci('ci-4', { class: 'server', name: 'elsewhere', hub_id: 'h-2' });
+  await storage.put('ci_relations', 'r-1', record({ id: 'r-1', type: 'runs_on', source_ci_id: 'ci-2', target_ci_id: 'ci-1' }));
+  await storage.put('ci_relations', 'r-2', record({ id: 'r-2', type: 'connects_to', source_ci_id: 'ci-1', target_ci_id: 'ci-4' }));
+
+  const all = await storeFor({ path: `/hubs/${HUB}/cis` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(all.data.map((row) => row.id), ['ci-1', 'ci-2']);
+  const hardware = await storeFor({ path: `/hubs/${HUB}/cis?class=hardware` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(hardware.data.map((row) => row.id), ['ci-1'], 'a class narrows to itself and its descendants');
+
+  const read = await storeFor({ path: '/cis/ci-1' }, storage) as Record<string, unknown>;
+  assert.deepEqual((read.relations as Record<string, unknown>[]).map((r) => r.id), ['r-2', 'r-1']);
+  assert.deepEqual(read.effective_protection, { c: 'HIGH', i: null, a: 'VERY_HIGH' }, 'the server inherits what the application on it needs');
+
+  const impact = await storeFor({ path: '/cis/ci-1/impact?direction=DOWNSTREAM' }, storage) as Record<string, unknown>;
+  assert.deepEqual(impact.reached, [{ ci_id: 'ci-2', class: 'application_service', name: 'Shop', stage: 'IN_USE', depth: 1 }]);
+  assert.deepEqual(impact.services, ['ci-2']);
+  const upstream = await storeFor({ path: '/cis/ci-2/impact?direction=UPSTREAM' }, storage) as Record<string, unknown>;
+  assert.deepEqual((upstream.reached as Record<string, unknown>[]).map((r) => r.ci_id), ['ci-1']);
+
+  const classes = await storeFor({ path: '/cmdb/classes' }, storage) as { data: unknown[] };
+  assert.equal(classes.data.length, 3);
+  assert.equal(await storeFor({ path: '/cis/ci-9' }, storage), undefined);
+});
