@@ -324,7 +324,13 @@ func TestOnlyEntitiesThatCanDateAChangeAreDeltas(t *testing.T) {
 			}
 		}
 		switch {
-		case entity.Whole && canDate:
+		case entity.Unmarked && !entity.Whole:
+			t.Errorf("%s loses its deletions without a marker and is written as a delta - an "+
+				"incremental would bring a deleted row back", entity)
+		case entity.Unmarked && !canDate:
+			t.Errorf("%s is marked Unmarked, and %s cannot date a change - plain Whole says it",
+				entity, entity.Table)
+		case entity.Whole && canDate && !entity.Unmarked:
 			t.Errorf("%s is written whole, and %s can date a change - it could be a delta",
 				entity, entity.Table)
 		case !entity.Whole && !canDate:

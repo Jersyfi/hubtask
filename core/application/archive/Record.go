@@ -234,6 +234,10 @@ type Entity struct {
 	// All of them are small by nature - the join tables and the configuration - so writing them
 	// whole costs little, and it is the reading that has to be right.
 	Whole bool
+	// Unmarked marks an entity whose rows can date a change but are deleted without a tombstone.
+	// An incremental learns of such a deletion only from the complete set, so it is Whole although
+	// its table carries a change stamp (backup-restore.md §3: deleted objects would come back).
+	Unmarked bool
 	// Keys are the columns that make up a record's identity, in the order Record.ID joins them
 	// with "/" - the primary key without `tenant_id`, because the tenant comes from the scope a
 	// restore runs in rather than from the archive.
@@ -367,7 +371,7 @@ var entities = []Entity{
 	// The workspace's own roles and where they are held (migration 0219, D-05). Whole: a role and a
 	// grant are removed without a marker. The roles precede their grants.
 	{
-		Name: "custom_roles", Table: "custom_role", Whole: true, Keys: []string{"id"},
+		Name: "custom_roles", Table: "custom_role", Whole: true, Unmarked: true, Keys: []string{"id"},
 	},
 	{
 		Name: "custom_role_grants", Table: "custom_role_grant", Whole: true, Keys: []string{"id"},
@@ -407,7 +411,7 @@ var entities = []Entity{
 	// Whole: a type is deleted only while no entry carries it, and leaves no marker. A duplicate
 	// skips a key the workspace already holds, and its entries then name that type.
 	{
-		Name: "entry_types", Table: "entry_type", Whole: true, Keys: []string{"id"}, Duplicable: true,
+		Name: "entry_types", Table: "entry_type", Whole: true, Unmarked: true, Keys: []string{"id"}, Duplicable: true,
 		Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
 	},
 	{
@@ -543,7 +547,7 @@ var entities = []Entity{
 	// Whole: a workflow and a scheme row go without a marker. The workflows precede the scheme
 	// rows that name them by key; a duplicate skips a key the workspace holds.
 	{
-		Name: "workflows", Table: "workflow", Whole: true, Keys: []string{"id"}, Duplicable: true,
+		Name: "workflows", Table: "workflow", Whole: true, Unmarked: true, Keys: []string{"id"}, Duplicable: true,
 		Unique:     []UniqueField{{Field: "key", Rule: UniqueSkip}},
 		References: []Reference{{Field: "published_by", Table: "account", Clearable: true}},
 	},
@@ -556,7 +560,7 @@ var entities = []Entity{
 	// a link is removed without a marker. The types precede the links that name them by key; a
 	// duplicate skips a key the workspace holds, and its links then name that type.
 	{
-		Name: "link_types", Table: "link_type", Whole: true, Keys: []string{"id"}, Duplicable: true,
+		Name: "link_types", Table: "link_type", Whole: true, Unmarked: true, Keys: []string{"id"}, Duplicable: true,
 		Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
 	},
 	{
@@ -749,7 +753,10 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// avoid. The entries come back and the embedding job re-derives them.
 	// Derived from the notes and comments the archive carries: the restore's write of each rebuilds
 	// it through the triggers of migration 0213.
-	"entry_reference":       "the references texts hold, rebuilt from the notes and comments the archive carries",
+	"entry_reference": "the references texts hold, rebuilt from the notes and comments the archive carries",
+	// Written by the trigger of migration 0211 from the entry's custom fields, which the archive
+	// carries: the restore's write of each entry rebuilds it.
+	"entry_field_value":     "a typed projection of the custom fields the entries carry, rebuilt by the trigger as each entry is restored",
 	"item_embedding":        "a derived vector, re-computed from the entries the archive does carry, and not comparable across models",
 	"sync_device":           "a device registration carries a push token, and §8.4's reasoning covers it",
 	"jumble_intake":         "the intake token's hash is a credential store, and §8.4's reasoning covers it: a restored address would open the inbox to whoever held the old token",
