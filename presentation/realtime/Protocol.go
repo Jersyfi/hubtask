@@ -5,7 +5,7 @@
 // the editors' shared-editing protocol, one connection's read and write loops, and the in-process
 // relay of awareness.
 //
-// The adapter decides nothing (presentation/AGENTS.md): every update it stores and every update it
+// The adapter decides nothing (rule 2): every update it stores and every update it
 // hands out goes through the realtime service, which authorises it.
 package realtime
 
