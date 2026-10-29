@@ -398,3 +398,14 @@ SELECT EXISTS (
   SELECT 1 FROM account_group_member
   WHERE tenant_id = current_tenant_id() AND group_id = sqlc.arg('group_id') AND account_id = sqlc.arg('account_id')
 ) AS member;
+
+-- name: SnapshotPages :many
+-- The workspace's living pages with their bodies (migration 0231), for reading offline; each is
+-- filed under its hub, which decides who is told of it.
+SELECT id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
+       owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
+       created_by, created_at, updated_by, updated_at, version
+FROM page
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after') AND deleted_at IS NULL
+ORDER BY id
+LIMIT sqlc.arg('batch');

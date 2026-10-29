@@ -11,6 +11,7 @@ import (
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
+	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
@@ -354,6 +355,23 @@ func (SnapshotRepository) LinkTypes(ctx context.Context, after shared.ID, batch 
 		return nil, snapshotFailed("link types", err)
 	}
 	return mapRows(rows, linkTypeFrom)
+}
+
+// Pages pages the workspace's living pages with their bodies.
+func (SnapshotRepository) Pages(ctx context.Context, after shared.ID, batch int) ([]knowledge.Page, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotPages(ctx, sqlc.SnapshotPagesParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("pages", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotPagesRow) (knowledge.Page, error) {
+		return pageFrom(sqlc.FindPageRow(row))
+	})
 }
 
 // EntryLinks pages every link between two live entries, with the collection of each end.

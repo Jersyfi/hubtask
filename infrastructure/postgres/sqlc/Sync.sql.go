@@ -1144,6 +1144,87 @@ func (q *Queries) SnapshotOwnRoleGrants(ctx context.Context, arg SnapshotOwnRole
 	return items, nil
 }
 
+const snapshotPages = `-- name: SnapshotPages :many
+SELECT id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
+       owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
+       created_by, created_at, updated_by, updated_at, version
+FROM page
+WHERE tenant_id = current_tenant_id() AND id > $1 AND deleted_at IS NULL
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotPagesParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotPagesRow struct {
+	ID              pgtype.UUID
+	HubID           pgtype.UUID
+	ParentID        pgtype.UUID
+	Title           string
+	Body            string
+	Icon            string
+	OrderKey        string
+	Template        bool
+	ContentLanguage *string
+	OwnerID         pgtype.UUID
+	VerifiedUntil   pgtype.Timestamptz
+	VerifiedAt      pgtype.Timestamptz
+	VerifiedBy      pgtype.UUID
+	ArchivedAt      pgtype.Timestamptz
+	DeletedAt       pgtype.Timestamptz
+	CreatedBy       pgtype.UUID
+	CreatedAt       pgtype.Timestamptz
+	UpdatedBy       pgtype.UUID
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+}
+
+// The workspace's living pages with their bodies (migration 0231), for reading offline; each is
+// filed under its hub, which decides who is told of it.
+func (q *Queries) SnapshotPages(ctx context.Context, arg SnapshotPagesParams) ([]SnapshotPagesRow, error) {
+	rows, err := q.db.Query(ctx, snapshotPages, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotPagesRow{}
+	for rows.Next() {
+		var i SnapshotPagesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HubID,
+			&i.ParentID,
+			&i.Title,
+			&i.Body,
+			&i.Icon,
+			&i.OrderKey,
+			&i.Template,
+			&i.ContentLanguage,
+			&i.OwnerID,
+			&i.VerifiedUntil,
+			&i.VerifiedAt,
+			&i.VerifiedBy,
+			&i.ArchivedAt,
+			&i.DeletedAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedBy,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotRecurrenceRules = `-- name: SnapshotRecurrenceRules :many
 SELECT rr.id, rr.tenant_id, rr.source_item_id, rr.rrule, rr.time_zone, rr.mode, rr.horizon_days,
        rr.ends_at, rr.max_count, rr.last_materialized_at, rr.created_at, rr.updated_at, rr.version,

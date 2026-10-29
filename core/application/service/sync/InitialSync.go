@@ -9,9 +9,11 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
+	knowledgeservice "github.com/Jersyfi/hubtask/core/application/service/knowledge"
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	workflowservice "github.com/Jersyfi/hubtask/core/application/service/workflow"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -29,7 +31,7 @@ import (
 var walkKinds = []string{
 	entityContainer, entityBucket, entityLabel, entityItem, kindSet,
 	entityComment, entityReminder, entityRecurrence, entityTemplate, entityEntryType,
-	entityLinkType, entityWorkflow, entityCustomRole, entityEntryLink, entityRoleGrant,
+	entityLinkType, entityWorkflow, entityCustomRole, entityEntryLink, entityRoleGrant, entityPage,
 }
 
 const (
@@ -51,6 +53,8 @@ const (
 	// entityEntryLink is filed under its source's collection and reaches a reader only when they
 	// may read the target's as well: a link never tells of an entry its reader cannot see.
 	entityEntryLink = "entry_link"
+	// entityPage is a page with its body, filed under its hub: a page is read where its hub is.
+	entityPage = knowledge.DocumentKind
 	// entityRoleGrant is a grant of a custom role, walked for its holder alone: what a device
 	// may predict offline is what its own person holds (offline-sync.md §4.3).
 	entityRoleGrant = identityservice.RoleGrantEntity
@@ -362,6 +366,20 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 			rows = append(rows, walkRow{
 				entity: entityCustomRole, entityID: role.Role.ID,
 				payload: identityservice.CustomRoleOutput(role), key: role.Role.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityPage:
+		pages, err := p.Snapshot.Pages(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		now := p.Stream.Clock.Now()
+		rows := make([]walkRow, 0, len(pages))
+		for _, page := range pages {
+			rows = append(rows, walkRow{
+				entity: entityPage, entityID: page.ID, containerID: page.HubID,
+				payload: knowledgeservice.PageOutput(page, true, now), key: page.ID.String(),
 			})
 		}
 		return rows, nil

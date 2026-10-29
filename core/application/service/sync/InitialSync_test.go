@@ -14,6 +14,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
+	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -34,6 +35,7 @@ type snapshotStore struct {
 	linkTypes   []work.LinkType
 	links       []repository.LinkBetween
 	roles       []identityrepo.CustomRoleRow
+	pages       []knowledge.Page
 	grants      []identityrepo.CustomGrantRow
 	// groups are the groups the reader is in.
 	groups map[shared.ID]bool
