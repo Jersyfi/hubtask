@@ -380,6 +380,9 @@
               {#if reached.entries !== undefined}
                 <li>{t('app.changes.reach_entries', { path: reached.path, count: reached.entries })}</li>
               {/if}
+              {#if reached.hidden_entries !== undefined}
+                <li>{t('app.changes.reach_hidden', { path: reached.path, entries: reached.hidden_entries, values: reached.hidden_values ?? 0 })}</li>
+              {/if}
               {#if reached.accounts !== undefined}
                 <li>{t('app.changes.reach_people', {
                   path: reached.path, accounts: reached.accounts, groups: reached.groups ?? 0,

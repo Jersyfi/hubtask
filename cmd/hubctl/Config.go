@@ -234,6 +234,9 @@ func configPlanTable(plan map[string]any) Table {
 		if entries, held := r["entries"]; held {
 			what = append(what, cellOf(entries)+" entries move")
 		}
+		if hidden, held := r["hidden_entries"]; held {
+			what = append(what, cellOf(hidden)+" entries hidden, "+cellOf(r["hidden_values"])+" with values hidden")
+		}
 		if accounts, held := r["accounts"]; held {
 			what = append(what, cellOf(accounts)+" people, "+cellOf(r["groups"])+" groups")
 		}

@@ -1888,6 +1888,7 @@
   "app.changes.sandbox_discard": "Verwerfen",
   "app.changes.sandbox_discarded": "Die Sandbox ist verworfen.",
   "app.changes.cancel": "Abbrechen",
+  "app.changes.reach_hidden": "{path}: {entries, plural, one {# Eintrag wird} other {# Einträge werden}} nach Ebene ausgeblendet und {values, plural, one {# Eintrag zeigt} other {# Einträge zeigen}} weniger Werte - nichts wird gelöscht",
   "app.changes.reach_entries": "{path}: {count, plural, one {# Eintrag wechselt} other {# Einträge wechseln}} den Status",
   "app.changes.reach_people": "{path}: {accounts, plural, one {# Person} other {# Personen}} und {groups, plural, one {# Gruppe} other {# Gruppen}} erhalten {gained, plural, one {# Berechtigung} other {# Berechtigungen}} und verlieren {lost}",
   "app.changes.compare": "Zwei Versionen vergleichen",

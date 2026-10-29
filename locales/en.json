@@ -1891,6 +1891,7 @@
   "app.changes.sandbox_discard": "Discard",
   "app.changes.sandbox_discarded": "The sandbox is discarded.",
   "app.changes.cancel": "Cancel",
+  "app.changes.reach_hidden": "{path}: {entries, plural, one {# entry is} other {# entries are}} hidden by level and {values, plural, one {# entry shows} other {# entries show}} fewer values - nothing is deleted",
   "app.changes.reach_entries": "{path}: {count, plural, one {# entry moves} other {# entries move}} to another status",
   "app.changes.reach_people": "{path}: {accounts, plural, one {# person} other {# people}} and {groups, plural, one {# group} other {# groups}} gain {gained, plural, one {# permission} other {# permissions}} and lose {lost}",
   "app.changes.compare": "Compare two versions",
