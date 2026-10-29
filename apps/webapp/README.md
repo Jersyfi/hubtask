@@ -23,6 +23,9 @@ against a real server, is in [`docs/evidence/README.md`](../../docs/evidence/REA
 * **`App.svelte`** is the root: the route table for `src/lib/router.ts` (real paths over the
   History API, with the server's `index.html` fallback keeping a deep link alive), and the one
   place the language is applied — above the frame, because the signed-out card is not inside it.
+  Route-level code splitting (F-10): only the work's own screens (today, a place, an entry) and the
+  doors before the frame are in the first bundle; every other screen is a chunk `LazyView` loads
+  when its route is first reached, and says so with a way back when the chunk cannot be fetched.
 * **`src/lib/frame/`** is the shell every signed-in view sits inside: the app bar, the navigation,
   the page head, `SyncLine` (the copy and the server, on every route) and the tour guide.
 * **`src/lib/platform/`** is the seam between the bundle and where it runs. Today it has one

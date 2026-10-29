@@ -11,6 +11,7 @@
   // No sentence is written in this file. `Hubtask` is a name rather than a message, and everything
   // else is a code rendered from `locales/en.json` (ADR-0011).
   import AppFrame from './lib/frame/AppFrame.svelte';
+  import LazyView from './lib/frame/LazyView.svelte';
   import { messages, t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
   import { PLACE_ROUTES, ROUTES, isSettingsRoute, movedTo, paneFor } from './lib/routes.ts';
@@ -21,70 +22,75 @@
   import { live } from './lib/data/live.svelte.ts';
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
-  import AdministrationOverviewView from './views/AdministrationOverviewView.svelte';
-  import ArchiveView from './views/ArchiveView.svelte';
-import ContainerView from './views/ContainerView.svelte';
+  import ContainerView from './views/ContainerView.svelte';
   import TodayView from './views/TodayView.svelte';
   import ItemView from './views/ItemView.svelte';
-  import JumbleView from './views/JumbleView.svelte';
-  import InstallationView from './views/InstallationView.svelte';
-  import InstanceEncryptionView from './views/InstanceEncryptionView.svelte';
-  import InstanceJournalView from './views/InstanceJournalView.svelte';
-  import InstanceOperatorsView from './views/InstanceOperatorsView.svelte';
-  import InstanceOverviewView from './views/InstanceOverviewView.svelte';
-  import InstanceProvidersView from './views/InstanceProvidersView.svelte';
-  import InstanceAiView from './views/InstanceAiView.svelte';
-  import InstanceTargetsView from './views/InstanceTargetsView.svelte';
-  import InstancePlatformView from './views/InstancePlatformView.svelte';
-  import InstancePlanView from './views/InstancePlanView.svelte';
-  import InstancePlansView from './views/InstancePlansView.svelte';
-  import InstanceSettingsView from './views/InstanceSettingsView.svelte';
-  import InstanceWorkspacesView from './views/InstanceWorkspacesView.svelte';
-  import ProfileView from './views/ProfileView.svelte';
-  import AppearanceView from './views/AppearanceView.svelte';
-  import NotificationsView from './views/NotificationsView.svelte';
-  import SecurityView from './views/SecurityView.svelte';
-  import SessionsView from './views/SessionsView.svelte';
-  import DevicesView from './views/DevicesView.svelte';
-  import GrantsView from './views/GrantsView.svelte';
-  import SearchView from './views/SearchView.svelte';
-  import MyTokensView from './views/MyTokensView.svelte';
-  import TrashView from './views/TrashView.svelte';
-  import MachinesView from './views/MachinesView.svelte';
   import ConsentView from './views/ConsentView.svelte';
-  import PeopleView from './views/PeopleView.svelte';
-  import QuotasView from './views/QuotasView.svelte';
-  import PrivateHubsView from './views/PrivateHubsView.svelte';
-  import ModulesView from './views/ModulesView.svelte';
-  import EntryTypesView from './views/EntryTypesView.svelte';
-  import LinkTypesView from './views/LinkTypesView.svelte';
-  import ChangesView from './views/ChangesView.svelte';
-  import WorkflowsView from './views/WorkflowsView.svelte';
-  import BackupView from './views/BackupView.svelte';
-  import RetentionView from './views/RetentionView.svelte';
-  import RestoreView from './views/RestoreView.svelte';
-  import AuditView from './views/AuditView.svelte';
-  import PrivacyView from './views/PrivacyView.svelte';
-  import RulesView from './views/RulesView.svelte';
-  import RuleEditorView from './views/RuleEditorView.svelte';
-  import RunsView from './views/RunsView.svelte';
-  import WebhooksView from './views/WebhooksView.svelte';
-  import VoiceView from './views/VoiceView.svelte';
-  import MailView from './views/MailView.svelte';
-  import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
-  import PresetsView from './views/PresetsView.svelte';
-  import AiSettingsView from './views/AiSettingsView.svelte';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
   import RedeemView from './views/RedeemView.svelte';
   import ResetView from './views/ResetView.svelte';
   import ConfirmAddressView from './views/ConfirmAddressView.svelte';
-  import SignInSettingsView from './views/SignInSettingsView.svelte';
   import SetupView from './views/SetupView.svelte';
   import SignInView from './views/SignInView.svelte';
 
   // The table lives in `lib/routes.ts` so that ADR-0032's areas can be asserted as a set:
   // a rule about which routes belong to the administration area can only be tested where the
   // set can be imported, and a table declared here could only be checked by mounting this.
+  // Route-level code splitting (F-10): every screen but the work's own - today, a place, an entry -
+  // and the doors before the frame is its own chunk, loaded when its route is first reached.
+  const views = {
+    AdministrationOverviewView: () => import('./views/AdministrationOverviewView.svelte'),
+    ArchiveView: () => import('./views/ArchiveView.svelte'),
+    JumbleView: () => import('./views/JumbleView.svelte'),
+    InstallationView: () => import('./views/InstallationView.svelte'),
+    InstanceEncryptionView: () => import('./views/InstanceEncryptionView.svelte'),
+    InstanceJournalView: () => import('./views/InstanceJournalView.svelte'),
+    InstanceOperatorsView: () => import('./views/InstanceOperatorsView.svelte'),
+    InstanceOverviewView: () => import('./views/InstanceOverviewView.svelte'),
+    InstanceProvidersView: () => import('./views/InstanceProvidersView.svelte'),
+    InstanceAiView: () => import('./views/InstanceAiView.svelte'),
+    InstanceTargetsView: () => import('./views/InstanceTargetsView.svelte'),
+    InstancePlatformView: () => import('./views/InstancePlatformView.svelte'),
+    InstancePlanView: () => import('./views/InstancePlanView.svelte'),
+    InstancePlansView: () => import('./views/InstancePlansView.svelte'),
+    InstanceSettingsView: () => import('./views/InstanceSettingsView.svelte'),
+    InstanceWorkspacesView: () => import('./views/InstanceWorkspacesView.svelte'),
+    ProfileView: () => import('./views/ProfileView.svelte'),
+    AppearanceView: () => import('./views/AppearanceView.svelte'),
+    NotificationsView: () => import('./views/NotificationsView.svelte'),
+    SecurityView: () => import('./views/SecurityView.svelte'),
+    SessionsView: () => import('./views/SessionsView.svelte'),
+    DevicesView: () => import('./views/DevicesView.svelte'),
+    GrantsView: () => import('./views/GrantsView.svelte'),
+    SearchView: () => import('./views/SearchView.svelte'),
+    MyTokensView: () => import('./views/MyTokensView.svelte'),
+    TrashView: () => import('./views/TrashView.svelte'),
+    MachinesView: () => import('./views/MachinesView.svelte'),
+    PeopleView: () => import('./views/PeopleView.svelte'),
+    QuotasView: () => import('./views/QuotasView.svelte'),
+    PrivateHubsView: () => import('./views/PrivateHubsView.svelte'),
+    ModulesView: () => import('./views/ModulesView.svelte'),
+    EntryTypesView: () => import('./views/EntryTypesView.svelte'),
+    LinkTypesView: () => import('./views/LinkTypesView.svelte'),
+    ChangesView: () => import('./views/ChangesView.svelte'),
+    WorkflowsView: () => import('./views/WorkflowsView.svelte'),
+    BackupView: () => import('./views/BackupView.svelte'),
+    RetentionView: () => import('./views/RetentionView.svelte'),
+    RestoreView: () => import('./views/RestoreView.svelte'),
+    AuditView: () => import('./views/AuditView.svelte'),
+    PrivacyView: () => import('./views/PrivacyView.svelte'),
+    RulesView: () => import('./views/RulesView.svelte'),
+    RuleEditorView: () => import('./views/RuleEditorView.svelte'),
+    RunsView: () => import('./views/RunsView.svelte'),
+    WebhooksView: () => import('./views/WebhooksView.svelte'),
+    VoiceView: () => import('./views/VoiceView.svelte'),
+    MailView: () => import('./views/MailView.svelte'),
+    WorkspaceSettingsView: () => import('./views/WorkspaceSettingsView.svelte'),
+    PresetsView: () => import('./views/PresetsView.svelte'),
+    AiSettingsView: () => import('./views/AiSettingsView.svelte'),
+    SignInSettingsView: () => import('./views/SignInSettingsView.svelte'),
+  };
+
   const router = new Router(ROUTES);
   let route = $state<Resolution>(router.current);
 
@@ -254,121 +260,118 @@ import ContainerView from './views/ContainerView.svelte';
   {:else if route.name === 'home'}
     <TodayView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'installation'}
-    <InstallationView />
+    <LazyView load={views.InstallationView} />
   {:else if route.name === 'profile'}
-    <ProfileView />
+    <LazyView load={views.ProfileView} />
   {:else if route.name === 'tokens'}
-    <MyTokensView />
+    <LazyView load={views.MyTokensView} />
   {:else if route.name === 'appearance'}
-    <AppearanceView />
+    <LazyView load={views.AppearanceView} />
   {:else if route.name === 'notifications'}
-    <NotificationsView />
+    <LazyView load={views.NotificationsView} />
   {:else if route.name === 'security'}
-    <SecurityView />
+    <LazyView load={views.SecurityView} />
   {:else if route.name === 'sessions'}
-    <SessionsView />
+    <LazyView load={views.SessionsView} />
   {:else if route.name === 'devices'}
-    <DevicesView />
+    <LazyView load={views.DevicesView} />
   {:else if route.name === 'grants'}
-    <GrantsView />
+    <LazyView load={views.GrantsView} />
   {:else if route.name === 'instance'}
     <!-- The level above the workspaces (ADR-0070 §5). Its own area, and its own door: every screen
          here is drawn only while the session is raised, and the hour's end returns the reader to
          the application rather than leaving them looking at numbers nothing will refresh. -->
-    <InstanceOverviewView onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.InstanceOverviewView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'instance-workspaces'}
-    <InstanceWorkspacesView onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.InstanceWorkspacesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'instance-plans'}
-    <InstancePlansView onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.InstancePlansView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'instance-plan'}
     {#key route.params.name}
-      <InstancePlanView name={route.params.name ?? ''} onnavigate={(path) => router.navigate(path)} />
+      <LazyView load={views.InstancePlanView} props={{ name: route.params.name ?? '', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'instance-settings'}
-    <InstanceSettingsView tab={route.query['tab']} onnavigate={(path) => router.navigate(path)} onreplace={(path) => router.replace(path)} />
+    <LazyView load={views.InstanceSettingsView} props={{ tab: route.query['tab'], onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
   {:else if route.name === 'instance-providers'}
-    <InstanceProvidersView onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.InstanceProvidersView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'instance-ai'}
-    <InstanceAiView onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.InstanceAiView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'instance-targets'}
-    <InstanceTargetsView onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.InstanceTargetsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'instance-platform'}
-    <InstancePlatformView onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.InstancePlatformView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'instance-encryption'}
-    <InstanceEncryptionView onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.InstanceEncryptionView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'instance-operators'}
-    <InstanceOperatorsView onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.InstanceOperatorsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'instance-journal'}
-    <InstanceJournalView onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.InstanceJournalView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'administration'}
-    <AdministrationOverviewView />
+    <LazyView load={views.AdministrationOverviewView} />
   {:else if route.name === 'workspace-settings'}
-    <WorkspaceSettingsView />
+    <LazyView load={views.WorkspaceSettingsView} />
   {:else if route.name === 'presets'}
-    <PresetsView />
+    <LazyView load={views.PresetsView} />
   {:else if route.name === 'people'}
-    <PeopleView tab={route.query['tab']} person={route.query['person']} onnavigate={(path) => router.replace(path)} />
+    <LazyView load={views.PeopleView} props={{ tab: route.query['tab'], person: route.query['person'], onnavigate: (path: string) => router.replace(path) }} />
   {:else if route.name === 'machines'}
-    <MachinesView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
+    <LazyView load={views.MachinesView} props={{ tab: route.query['tab'], onnavigate: (path: string) => router.replace(path) }} />
   {:else if route.name === 'rules'}
-    <RulesView onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.RulesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'rule-new'}
-    <RuleEditorView id="new" workflow={route.query['workflow']} step={route.query['step']} onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.RuleEditorView} props={{ id: 'new', workflow: route.query['workflow'], step: route.query['step'], onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'rule'}
     {#key route.params.id}
-      <RuleEditorView id={route.params.id ?? ''} onnavigate={(path) => router.navigate(path)} />
+      <LazyView load={views.RuleEditorView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'runs'}
-    <RunsView />
+    <LazyView load={views.RunsView} />
   {:else if route.name === 'webhooks'}
-    <WebhooksView />
+    <LazyView load={views.WebhooksView} />
   {:else if route.name === 'quotas'}
-    <QuotasView />
+    <LazyView load={views.QuotasView} />
   {:else if route.name === 'modules'}
-    <ModulesView />
+    <LazyView load={views.ModulesView} />
   {:else if route.name === 'entry-types'}
-    <EntryTypesView />
+    <LazyView load={views.EntryTypesView} />
   {:else if route.name === 'link-types'}
-    <LinkTypesView />
+    <LazyView load={views.LinkTypesView} />
   {:else if route.name === 'changes'}
-    <ChangesView />
+    <LazyView load={views.ChangesView} />
   {:else if route.name === 'workflows'}
-    <WorkflowsView onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.WorkflowsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'private-hubs'}
-    <PrivateHubsView onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.PrivateHubsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'backup'}
-    <BackupView />
+    <LazyView load={views.BackupView} />
   {:else if route.name === 'retention'}
-    <RetentionView />
+    <LazyView load={views.RetentionView} />
   {:else if route.name === 'restore'}
-    <RestoreView />
+    <LazyView load={views.RestoreView} />
   {:else if route.name === 'audit'}
-    <AuditView />
+    <LazyView load={views.AuditView} />
   {:else if route.name === 'privacy'}
-    <PrivacyView />
+    <LazyView load={views.PrivacyView} />
   {:else if movedTo(route.name)}
     <!-- Nothing for the moment before the address replaces itself, rather than a not-found. -->
   {:else if route.name === 'sign-in-settings'}
-    <SignInSettingsView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
+    <LazyView load={views.SignInSettingsView} props={{ tab: route.query['tab'], onnavigate: (path: string) => router.replace(path) }} />
   {:else if route.name === 'voice'}
-    <VoiceView />
+    <LazyView load={views.VoiceView} />
   {:else if route.name === 'mail' || route.name === 'mail-oauth'}
-    <MailView
-      providerAnswer={route.name === 'mail-oauth' ? route.query : undefined}
-      onanswered={() => router.replace('/administration/mail')}
-    />
+    <LazyView load={views.MailView} props={{ providerAnswer: route.name === 'mail-oauth' ? route.query : undefined, onanswered: () => router.replace('/administration/mail') }} />
   {:else if route.name === 'legal'}
-    <SignInSettingsView part="legal" />
+    <LazyView load={views.SignInSettingsView} props={{ part: 'legal' }} />
   {:else if route.name === 'ai'}
-    <AiSettingsView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
+    <LazyView load={views.AiSettingsView} props={{ tab: route.query['tab'], onnavigate: (path: string) => router.replace(path) }} />
   {:else if route.name === 'search'}
-    <SearchView query={route.query} onnavigate={(path) => router.replace(path)} />
+    <LazyView load={views.SearchView} props={{ query: route.query, onnavigate: (path: string) => router.replace(path) }} />
   {:else if route.name === 'jumble'}
-    <JumbleView onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.JumbleView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'trash'}
-    <TrashView />
+    <LazyView load={views.TrashView} />
   {:else if route.name === 'archive'}
-    <ArchiveView onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.ArchiveView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'item'}
     {#key route.params.id}
       <ItemView id={route.params.id ?? ''} onnavigate={(path) => router.navigate(path)} />

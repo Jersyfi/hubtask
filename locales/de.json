@@ -1779,6 +1779,7 @@
   "privacy.subject_not_found": "Hier gibt es kein Konto für die Person, die diese Anfrage betrifft.",
   "privacy.due_at_malformed": "Diese Frist ist kein Datum mit Uhrzeit, das diese Installation versteht.",
   "app.back_to_start": "Zurück zum Anfang",
+  "app.view_unavailable": "Diese Ansicht konnte nicht geladen werden. Prüfe die Verbindung und versuche es noch einmal.",
   "app.dismiss": "Schließen",
   "app.toast.undo": "Rückgängig",
   "app.offline.undo_waits": "Rückgängig braucht den Server, und dieses Gerät hat kein Netz. Es geht wieder, sobald das Netz zurück ist.",
