@@ -296,7 +296,13 @@ type plan struct {
 	Reach []reach
 	// Hub is the hub whose own document the plan changes, empty for the workspace's.
 	Hub shared.ID
+	// hiddenFields are the fields the plan removes or hides from readers, by the change's path,
+	// with the identifier their reach is counted by.
+	hiddenFields []hiddenField
 }
+
+// hiddenField is one field a plan removes or hides from readers.
+type hiddenField struct{ Path, ID string }
 
 // planOf compares a desired document, in its mode, with the one in force and checks every change
 // against its section's declaration and the input its use case declares - refusals only, nothing
@@ -385,6 +391,11 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 			}
 			if s.hides != nil && s.hides(change) {
 				p.Flags.HidesData = true
+				if s.name == sectionFields {
+					p.hiddenFields = append(p.hiddenFields, hiddenField{
+						Path: change.Path(), ID: text(now.Rows[s.name][change.Key][s.locateFrom]),
+					})
+				}
 			}
 			if s.permissions {
 				p.Flags.ChangesPermissions = true

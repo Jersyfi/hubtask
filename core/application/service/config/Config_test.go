@@ -53,12 +53,16 @@ type world struct {
 	hub          string
 	hubStructure map[string]any
 	scheme       []any
+	// fields, nil withholding the section, are the workspace's custom fields, and fieldReach what
+	// PreviewCustomFieldReach answers for each.
+	fields     map[string]map[string]any
+	fieldReach int
 }
 
 func (w *world) clone() *world {
 	out := &world{types: map[string]map[string]any{}, roles: map[string]map[string]any{}, failOn: w.failOn,
 		workspace: w.workspace, ai: w.ai, inputs: maps.Clone(w.inputs), workflows: w.workflows, preview: w.preview, previewWithheld: w.previewWithheld, grants: w.grants,
-		hub: w.hub, hubStructure: maps.Clone(w.hubStructure), scheme: w.scheme}
+		hub: w.hub, hubStructure: maps.Clone(w.hubStructure), scheme: w.scheme, fields: w.fields, fieldReach: w.fieldReach}
 	if w.structure != nil {
 		out.structure = maps.Clone(w.structure)
 	}
@@ -94,6 +98,20 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 	switch name {
 	case "ListEntryTypes":
 		return usecase.Output{"data": rowsOf(w.types)}, nil
+	case "ListCustomFields":
+		if w.fields == nil {
+			return nil, shared.ErrValidation.WithDetail("module.off")
+		}
+		return usecase.Output{"data": rowsOf(w.fields)}, nil
+	case "PreviewCustomFieldReach":
+		if w.inputs == nil {
+			w.inputs = map[string][]usecase.Input{}
+		}
+		w.inputs[name] = append(w.inputs[name], in)
+		if w.previewWithheld {
+			return nil, shared.ErrForbidden.WithDetail("access.not_permitted")
+		}
+		return usecase.Output{"field_id": in["field_id"], "entries": w.fieldReach}, nil
 	case "ListRoles":
 		return usecase.Output{"custom": rowsOf(w.roles), "grants": w.grants}, nil
 	case "ListWorkflows":

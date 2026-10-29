@@ -111,3 +111,25 @@ func TestAPlanNamesThePeopleARolesChangeReaches(t *testing.T) {
 		t.Errorf("gained %v, lost %v", gained, lost)
 	}
 }
+
+// S-09's gap: a plan that removes a field, or hides it from readers, says how many entries hold a
+// value under it - what would stop being shown - asked by the field's identifier.
+func TestAPlanCountsTheEntriesAFieldItRemovesHolds(t *testing.T) {
+	f := newFixture()
+	f.world.fields = map[string]map[string]any{
+		"severity": {"id": "0190a8f0-0000-7000-8000-0000000000f1", "key": "severity", "kind": "TEXT", "applies_to": []any{"TASK"}},
+	}
+	f.world.fieldReach = 4
+	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{
+		"document": map[string]any{"fields": map[string]any{}}, "mode": "REPLACE",
+	})
+
+	reached, _ := plan["reach"].([]usecase.Output)
+	if len(reached) != 1 || reached[0]["path"] != "fields.severity" || reached[0]["hidden_values"] != 4 {
+		t.Fatalf("reach %v", reached)
+	}
+	asked := f.world.inputs["PreviewCustomFieldReach"]
+	if len(asked) != 1 || asked[0]["field_id"] != "0190a8f0-0000-7000-8000-0000000000f1" {
+		t.Fatalf("the count was asked %v", asked)
+	}
+}

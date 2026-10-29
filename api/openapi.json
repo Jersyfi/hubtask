@@ -25288,7 +25288,7 @@
           },
           "hidden_values": {
             "type": "integer",
-            "description": "Entries whose field values a hub's new structure would hide."
+            "description": "Entries whose field values a hub's new structure, or a field removed or hidden from readers, would hide."
           },
           "accounts": {
             "type": "integer",

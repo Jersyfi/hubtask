@@ -37,8 +37,9 @@ type reach struct {
 }
 
 const (
-	previewWorkflowPublish = "PreviewWorkflowPublish"
-	listRoles              = "ListRoles"
+	previewWorkflowPublish  = "PreviewWorkflowPublish"
+	listRoles               = "ListRoles"
+	previewCustomFieldReach = "PreviewCustomFieldReach"
 )
 
 // reachOf asks the use cases that know what a change touches, in the plan's read: a workflow's
@@ -168,6 +169,11 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 			return err
 		}
 	}
+	for _, field := range p.hiddenFields {
+		if err := d.fieldReach(ctx, actor, p, field); err != nil {
+			return err
+		}
+	}
 	if len(p.Refusals) > 0 {
 		p.Hash = ""
 	}
@@ -213,6 +219,30 @@ func (d Desk) structureReach(ctx context.Context, actor appshared.ActorContext, 
 	if r.Hides {
 		p.Reach = append(p.Reach, r)
 	}
+	return nil
+}
+
+// fieldReach asks how many entries hold a value under a field the plan removes or hides from
+// readers: what would stop being shown, never deleted.
+func (d Desk) fieldReach(ctx context.Context, actor appshared.ActorContext, p *plan, field hiddenField) error {
+	if field.ID == "" {
+		return nil
+	}
+	answer, err := d.Catalogue.Invoke(ctx, previewCustomFieldReach, actor, usecase.Input{"field_id": field.ID})
+	if err != nil {
+		if withheld(err) {
+			p.Reach = append(p.Reach, reach{Path: field.Path, Withheld: true})
+			return nil
+		}
+		p.Refusals = append(p.Refusals, fieldsOf(err, field.Path)...)
+		return nil
+	}
+	normal, err := normalise(map[string]any(answer))
+	if err != nil {
+		return err
+	}
+	counted, _ := normal.(map[string]any)
+	p.Reach = append(p.Reach, reach{Path: field.Path, Hides: true, HiddenValues: whole(counted["entries"])})
 	return nil
 }
 

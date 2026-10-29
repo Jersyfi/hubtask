@@ -8564,7 +8564,7 @@ type ConfigReach struct {
 	// HiddenEntries Entries a hub's new structure would stop showing by their level - hidden, never deleted.
 	HiddenEntries *int `json:"hidden_entries,omitempty"`
 
-	// HiddenValues Entries whose field values a hub's new structure would hide.
+	// HiddenValues Entries whose field values a hub's new structure, or a field removed or hidden from readers, would hide.
 	HiddenValues *int      `json:"hidden_values,omitempty"`
 	Lost         *[]string `json:"lost,omitempty"`
 
