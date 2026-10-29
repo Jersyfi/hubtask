@@ -55,17 +55,24 @@ const stop = engine.subscribe<Account>({ path: '/accounts/me' }, (state) => {
 `attach(storage, identity)` gives the engine a store — one database per API origin and account,
 opened by the platform seam — and mints the device (a UUIDv7 held in the store, §9.1) and the
 hybrid logical clock (`hlc.ts`: the server's textual form, physical time from the `Clock`, a
-counter, the device; the physical part never moves backwards). `IndexedDbStorage` and
-`MemoryStorage` are held to one contract by `test/storage.test.ts`; nothing under `apps/` touches
-IndexedDB. There is no encryption in the browser store: what must not sit unencrypted on a shared
-machine does not go there at all (ADR-0033 §4), and `clear()` deletes the database rather than
-emptying it (§9.6).
+counter, the device; the physical part never moves backwards). `IndexedDbStorage`,
+`SqliteStorage` and `MemoryStorage` are held to one contract by `test/storage.test.ts`; nothing
+under `apps/` touches IndexedDB. There is no encryption in the browser store: what must not sit
+unencrypted on a shared machine does not go there at all (ADR-0033 §4), and `clear()` deletes the
+database rather than emptying it (§9.6). `SqliteStorage` is the installed apps' copy: the shell
+keeps it in SQLite encrypted under a key in the platform's keystore (`apps/webapp/src-tauri/src/copy.rs`),
+called through a function the platform seam hands in, so this package needs no shell's library;
+a record travels as JSON with its bytes as base64, `clear()` deletes the database and keeps the
+key, and `forget()` - sign-out - removes both.
 
 `listen` takes the **initial synchronisation** when the store holds no cursor (`POST
 /sync:snapshot`, read line by line, its cursor kept from the last line; after a second snapshot
 that ends without one, the engine walks `:pull` from nothing) and the **delta** from the held
 cursor otherwise — on start, on every reconnect and after every push. The cursor advances in the
-store on the frame, so a reload continues where the tab was.
+store on the frame, so a reload continues where the tab was. With `firstSynchronisation: 'pages'`
+— the installed apps' choice — the engine skips the snapshot and walks the pages from the start;
+each page's cursor is held, so a first synchronisation cut short is continued by the next
+catch-up after the last page held rather than begun again (SY-B).
 
 **Applying a record** transcribes a decision the server already took: a whole object replaces the
 stored document, a field updates that field, a set record adds or removes an element in the set

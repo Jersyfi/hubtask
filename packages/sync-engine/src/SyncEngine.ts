@@ -308,6 +308,14 @@ export interface SyncEngineOptions {
    * and holds no file: there a capture without the server is refused, `sync.needs_connection`.
    */
   readonly holdsFiles?: boolean;
+  /**
+   * How a store without a cursor is filled. `snapshot` (the default) reads one response, which a
+   * connection ending early leaves with no cursor - the next start begins again. `pages` walks
+   * `:pull` from nothing and holds each page's cursor, so a walk cut short - the network, the
+   * app closed - resumes after the last page it held (offline-sync.md §3.1, SY-B). The installed
+   * apps walk pages: their copy is the offline promise, and a phone is cut short more often.
+   */
+  readonly firstSynchronisation?: 'snapshot' | 'pages';
 }
 
 /**
@@ -329,6 +337,7 @@ export class SyncEngine {
   readonly #storeFor: ((request: ResourceRequest, storage: Storage) => Promise<unknown>) | undefined;
   readonly #mutationFor: SyncEngineOptions['mutationFor'];
   readonly #holdsFiles: boolean;
+  readonly #snapshotFirst: boolean;
   /** The queue, once a store is attached. */
   #queue: Queue | undefined;
   /** Whether the last call reached the server: the other half of offline-sync.md §1's write rule. */
@@ -359,6 +368,7 @@ export class SyncEngine {
     this.#storeFor = options.storeFor;
     this.#mutationFor = options.mutationFor;
     this.#holdsFiles = options.holdsFiles === true;
+    this.#snapshotFirst = options.firstSynchronisation !== 'pages';
   }
 
   /** Whether a file captured offline waits in this copy (`holdsFiles`). */
@@ -1100,8 +1110,9 @@ export class SyncEngine {
   /**
    * The initial synchronisation: the snapshot, read line by line into the replica, and its
    * cursor kept. A snapshot that ends without its cursor line was cut short and is taken again;
-   * after `SNAPSHOT_ATTEMPTS` such endings the engine walks `:pull` from nothing, page by page,
-   * and keeps the cursor of the last page (offline-sync.md §3.1). The records of a cut-short
+   * after `SNAPSHOT_ATTEMPTS` such endings - or at once, where `firstSynchronisation` is `pages` -
+   * the engine walks `:pull` from nothing, page by page, holding each page's cursor
+   * (offline-sync.md §3.1). The records of a cut-short
    * snapshot stay in the store: they are the server's, and the next attempt writes them again.
    *
    * What follows the synchronisation is `#recover`, not an invalidation of everything: the reads
@@ -1117,7 +1128,7 @@ export class SyncEngine {
     if (!replica) return undefined;
     const body = this.#deviceBody();
 
-    for (let attempt = 0; attempt < SNAPSHOT_ATTEMPTS && !signal.aborted; attempt += 1) {
+    for (let attempt = 0; this.#snapshotFirst && attempt < SNAPSHOT_ATTEMPTS && !signal.aborted; attempt += 1) {
       const lines = await this.#attempt(() => this.#transport.snapshot('/sync:snapshot', body, {
         token: this.#token(),
         connectTimeoutMs: options.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS,
@@ -1141,7 +1152,8 @@ export class SyncEngine {
 
     // The page walk: `:pull` with no cursor, until the server says the walk is over. The cursor
     // a page in the middle carries names the kind and the key it resumes after, and the last
-    // page's is the delta cursor - the same one the snapshot would have ended on.
+    // page's is the delta cursor - the same one the snapshot would have ended on. `#pull` holds
+    // each one, so a walk cut short is continued by the next catch-up's delta, not begun again.
     let cursor: string | undefined;
     for (;;) {
       const page = await this.#pull(cursor ?? null, options);

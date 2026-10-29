@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { Capabilities, MediaObject } from '@hubtask/sync-engine';
+import { TransportError, type Capabilities, type MediaObject } from '@hubtask/sync-engine';
 
 import {
   AVATAR_LIMIT,
@@ -16,6 +16,7 @@ import {
   isReady,
   isUsable,
   isWithinUploadLimit,
+  keepsOffline,
   pictureLimitOf,
   transferTimeoutFor,
   uploadLimitOf,
@@ -105,4 +106,15 @@ test('a picture is bounded by its own limit, or by the installation’s where th
   assert.equal(pictureLimitOf(undefined), AVATAR_LIMIT);
   assert.equal(pictureLimitOf(manifest({ max_upload_bytes: 100 * 1024 * 1024 })), AVATAR_LIMIT);
   assert.equal(pictureLimitOf(manifest({ max_upload_bytes: 1024 })), 1024);
+});
+
+test('an attachment is kept for later only where the copy holds files, and only without the server', () => {
+  const offline = new TransportError('offline');
+  const slow = new TransportError('timeout');
+  const refused = new TransportError('problem', { status: 413, code: 'too_large', detailCode: 'media.too_large' });
+  assert.equal(keepsOffline(offline, true), true, 'the installed apps keep it');
+  assert.equal(keepsOffline(slow, true), true);
+  assert.equal(keepsOffline(offline, false), false, 'the browser does not: sync.needs_connection');
+  assert.equal(keepsOffline(refused, true), false, 'a refusal is the server\'s answer and stays one');
+  assert.equal(keepsOffline(new Error('else'), true), false);
 });

@@ -240,10 +240,11 @@ func oauthConsent(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	var code openapi.OauthCode
+	requested := splitList(*scopes)
 	if err := client.Post(ctx, oauthAuthorize, openapi.OauthAuthorization{
 		ClientId:    app,
 		RedirectUri: *redirect,
-		Scopes:      splitList(*scopes),
+		Scopes:      &requested,
 		// S256 is the only method the contract accepts - `plain` would put the verifier on the
 		// wire twice - so there is nothing to choose here.
 		CodeChallenge:       challengeFor(secretVerifier),

@@ -1402,7 +1402,9 @@ class OauthClientSecret(TypedDict, total=False):
 class OauthAuthorization(TypedDict, total=False):
     client_id: Required[str]
     redirect_uri: Required[str]
-    scopes: Required[list[str]]
+    scopes: list[str]
+    device: str | None
+    platform: Literal["windows", "linux", "android"] | None
     code_challenge: Required[str]
     code_challenge_method: Required[Literal["S256"]]
     state: str | None
@@ -1424,6 +1426,7 @@ class OauthGrant(TypedDict, total=False):
     id: Required[str]
     client_id: Required[str]
     client_name: Required[str]
+    app_platform: Literal["windows", "linux", "android"] | None
     scopes: Required[list[str]]
     created_at: Required[str]
     last_used_at: str | None
@@ -3471,6 +3474,7 @@ class Capabilities(TypedDict, total=False):
     api_version: str
     tenancy_mode: Literal["single", "multi"]
     installation_url: str
+    app_client_id: str
     workspace_hosts: Literal["subdomain", "assigned"]
     item_types: list[dict[str, Any]]
     view_layouts: list[str]

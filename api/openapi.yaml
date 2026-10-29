@@ -16382,17 +16382,35 @@ components:
 
     OauthAuthorization:
       type: object
-      required: [client_id, redirect_uri, scopes, code_challenge, code_challenge_method]
+      required: [client_id, redirect_uri, code_challenge, code_challenge_method]
       properties:
-        client_id: { type: string, format: uuid }
+        client_id:
+          type: string
+          format: uuid
+          description: >
+            A registered client, or the built-in client of the installed apps, which every
+            workspace knows without registering it (`app_client_id` in `/meta/capabilities`).
         redirect_uri: { type: string, format: uri }
         scopes:
           type: array
-          minItems: 1
           items: { type: string }
           description: >
             From this installation's own catalogue - the scopes descriptors already declare, no
-            parallel vocabulary. The issued pair is bounded by them exactly as a PAT's is.
+            parallel vocabulary. The issued pair is bounded by them exactly as a PAT's is. At
+            least one for a registered client; none for the built-in client, whose grant carries
+            a session's scopes.
+        device:
+          type: [string, "null"]
+          maxLength: 120
+          description: >
+            The built-in client only, and required there: the name the device's system gives it,
+            which the consent and the grant list show.
+        platform:
+          type: [string, "null"]
+          enum: [windows, linux, android, null]
+          description: >
+            The built-in client only, and required there: the system the app runs on. The
+            desktop's redirect is a loopback address on any port, Android's `eu.hubtask.app:/oauth`.
         code_challenge:
           type: string
           description: BASE64URL(SHA256(code_verifier)), RFC 7636.
@@ -16444,7 +16462,17 @@ components:
       properties:
         id: { type: string, format: uuid }
         client_id: { type: string, format: uuid }
-        client_name: { type: string }
+        client_name:
+          type: string
+          description: >
+            The registered client's name, or for the built-in client of the installed apps the
+            device's name it consented on.
+        app_platform:
+          type: [string, "null"]
+          enum: [windows, linux, android, null]
+          description: >
+            Set for a grant of the built-in client of the installed apps: the system the app runs
+            on. Null for a registered client.
         scopes:
           type: array
           items: { type: string }
@@ -22475,6 +22503,13 @@ components:
           description: >
             Multi mode only: the installation's own address, where the device's list of workspaces
             is kept and shown. Absent in single mode, which keeps no list.
+        app_client_id:
+          type: string
+          format: uuid
+          description: >
+            The built-in OAuth2 client of the installed apps, the same in every workspace and
+            installation: public, without a secret, redirecting only to a loopback address or
+            `eu.hubtask.app:/oauth`.
         workspace_hosts:
           type: string
           enum: [subdomain, assigned]

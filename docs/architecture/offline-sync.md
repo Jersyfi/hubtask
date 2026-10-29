@@ -30,8 +30,11 @@ conflicts nobody can resolve.
 * The **browser** holds a replica in IndexedDB as a best-effort cache with no encryption of its own,
   deleted whole at sign-out, never the offline promise. It sends no scope: its replica is everything
   the caller may read.
-* The **shells** hold the same replica in SQLite under the platform keystore; the promise lives
-  there.
+* The **shells** hold the same replica in SQLite encrypted at rest (SQLCipher), one database per
+  server and account under a key created once for it and held only in the platform's keystore
+  (`SqliteStorage` over the shell's `copy.rs`); the promise lives there. A reset, a revocation and
+  a purge delete what they delete in the browser; signing out deletes the database and its key. A
+  copy whose key is gone cannot be read by anybody and starts again empty.
 
 **How the browser reads.** From the server while the server answers; the replica answers only a
 read that failed to reach the server (a network failure, not a status), marked as of its last
@@ -101,7 +104,9 @@ page size, answered as `application/x-ndjson` — one `SyncChange` per line in w
 delta cursor as a last record (`{"cursor": …}`) minted from the position read before the first row,
 permission and scope applied by the pages' code. It counts against the streams' caps, with its own
 deadline and byte budget. A connection ending before the last line leaves no cursor: the client
-starts again, and after two such snapshots walks `:pull` instead.
+starts again, and after two such snapshots walks `:pull` instead. The installed apps walk `:pull`
+from the start and hold each page's cursor, so a first synchronisation the network or the system
+cut short resumes after the last page held (§12, SY-B); the browser takes the snapshot.
 
 ### 3.2 `POST /api/v1/sync:push`
 
@@ -297,7 +302,9 @@ invisible from the server, and a cursor past the window cannot be minted from ou
 it). The client half is the engine's conformance runner
 ([sync-engine README](../../packages/sync-engine/README.md#testing)), run against the Compose stack
 on every pull request ([ci-cd.md](./ci-cd.md) §3); 6 is not testable from a browser engine
-(ADR-0033 §4) and 8 holds by construction.
+(ADR-0033 §4) and 8 holds by construction. The installed apps prove 6 in the `shell` lane
+(`apps/webapp/src-tauri/src/copy.rs`: the file unreadable without its key, sign-out removing
+file and key), and both runners' row for it names that evidence.
 
 ---
 
@@ -347,5 +354,5 @@ to QS-27 of [arc42.md](./arc42.md) §10) is filed under `docs/evidence/SY-<date>
 | # | Point | Needed by |
 |---|---|---|
 | SY-A | Character-level merging for long notes (CRDT text) — assess the need after user feedback | After `1.0.0` |
-| SY-B | The default sync scope on a mobile shell (everything vs. subscribed containers). The browser asks for everything (§1): 66,867 entries measured 60 MB (4.1 MB gzipped), 6–11 s, once | The shells |
+| SY-B | The default sync scope on a mobile shell (everything vs. subscribed containers). The browser asks for everything (§1): 66,867 entries measured 60 MB (4.1 MB gzipped), 6–11 s, once. The phone asks for everything too unless a measurement rules it out (F7 Decision 7), and its first synchronisation walks the pages so that an interruption resumes where it stopped (§3.1). Open until the first synchronisation of that workspace is measured on a reference phone - time, storage, memory, a resumption - and filed under `docs/evidence/` | The shells |
 | SY-D | The local cache encryption of a third-party client. First-party clients use SQLite encrypted at rest with the key in the platform keystore ([ADR-0033](../adr/ADR-0033-shared-client-architecture.md)) | Each third-party client |

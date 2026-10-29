@@ -127,9 +127,17 @@ func (c *RestController) AuthorizeOauthClient(w http.ResponseWriter, r *http.Req
 		WriteProblem(w, err, requestID)
 		return
 	}
-	scopes := make([]any, 0, len(body.Scopes))
-	for _, scope := range body.Scopes {
+	var requested []string
+	if body.Scopes != nil {
+		requested = *body.Scopes
+	}
+	scopes := make([]any, 0, len(requested))
+	for _, scope := range requested {
 		scopes = append(scopes, scope)
+	}
+	platform := ""
+	if body.Platform != nil {
+		platform = string(*body.Platform)
 	}
 	out, err := c.UseCases.Invoke(r.Context(), authorizeOauthClientUseCase, actorOf(r), usecase.Input{
 		"client_id":             body.ClientId.String(),
@@ -138,6 +146,8 @@ func (c *RestController) AuthorizeOauthClient(w http.ResponseWriter, r *http.Req
 		"code_challenge":        body.CodeChallenge,
 		"code_challenge_method": string(body.CodeChallengeMethod),
 		"state":                 optionalStringField(body.State),
+		"device":                optionalStringField(body.Device),
+		"platform":              platform,
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)
@@ -204,13 +214,19 @@ func (c *RestController) ListOauthGrants(w http.ResponseWriter, r *http.Request)
 	rows, _ := out["data"].([]usecase.Output)
 	grants := make([]openapi.OauthGrant, 0, len(rows))
 	for _, row := range rows {
+		var platform *openapi.OauthGrantAppPlatform
+		if value := row.String("app_platform"); value != "" {
+			named := openapi.OauthGrantAppPlatform(value)
+			platform = &named
+		}
 		grants = append(grants, openapi.OauthGrant{
-			Id:         uuidValue(row.String("id")),
-			ClientId:   uuidValue(row.String("client_id")),
-			ClientName: row.String("client_name"),
-			Scopes:     scopeList(row["scopes"]),
-			CreatedAt:  timeValue(row["created_at"]),
-			LastUsedAt: optionalTimeField(row["last_used_at"]),
+			AppPlatform: platform,
+			Id:          uuidValue(row.String("id")),
+			ClientId:    uuidValue(row.String("client_id")),
+			ClientName:  row.String("client_name"),
+			Scopes:      scopeList(row["scopes"]),
+			CreatedAt:   timeValue(row["created_at"]),
+			LastUsedAt:  optionalTimeField(row["last_used_at"]),
 		})
 	}
 	writeJSON(w, r, http.StatusOK, grants)

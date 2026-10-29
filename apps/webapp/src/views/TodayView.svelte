@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
+  import { platform } from '../lib/platform/index.ts';
   // *Today*: the page the app opens on (UC-WRK-34), in the overview's place (ADR-0063 decision 1).
   //
   // It answers what is the reader's today across every hub and lets them act on it without going
@@ -200,6 +201,7 @@
     const isMine = item.assignee_id != null && item.assignee_id === actor.account?.id;
     return entryMenu(
       {
+        sendsLinks: platform.sendLink !== undefined,
         surface: 'today',
         item: { title: item.title, isCompleted: isDone(item), hasDue: Boolean(item.due_at) },
         archival: archivalOfItem(item, false),

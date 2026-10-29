@@ -1275,6 +1275,7 @@ type OauthClient struct {
 	CreatedAt    pgtype.Timestamptz
 	CreatedBy    pgtype.UUID
 	Version      int32
+	AppPlatform  *string
 }
 
 type OauthCode struct {

@@ -269,6 +269,7 @@ async function views() {
     ['reset', await load('ResetView'), { onnavigate: noop }],
     ['confirm-address', await load('ConfirmAddressView'), { onnavigate: noop }],
     ['consent', await load('ConsentView'), {}],
+    ['app-passkey', (await import('../src/lib/signin/KeyRelayView.svelte')).default, {}],
   ];
 }
 
@@ -276,10 +277,10 @@ async function views() {
  * The screens that are *not* rendered inside the frame, and therefore bring their own landmark.
  *
  * Signed out there is no shell to bring one: the card is the page. So the rule "one `<main>` per
- * page" is kept from the other side - these three must each render exactly one, and every other
+ * page" is kept from the other side - these must each render exactly one, and every other
  * screen must render none.
  */
-const CARD_SCREENS = new Set(['sign-in', 'redeem', 'reset', 'confirm-address']);
+const CARD_SCREENS = new Set(['sign-in', 'redeem', 'reset', 'confirm-address', 'consent', 'app-passkey']);
 
 test('the route table and this test name the same screens', async () => {
   const { ROUTES, movedTo } = await import('../src/lib/routes.ts');
@@ -317,8 +318,8 @@ test('every screen renders exactly one h1 and one main between it and the frame'
   // two `<h1>` - or none while it loads - would name itself twice or not at all.
   //
   // Since the sign-in work there are two answers to *where* the landmark comes from rather than
-  // one: a framed screen gets it from the frame, and the three screens a signed-out visitor can
-  // reach bring their own, because signed out there is no frame to bring it.
+  // one: a framed screen gets it from the frame, and the screens drawn as a card - what a
+  // signed-out visitor can reach, a consent, an app's passkey - bring their own, having no frame.
   installFetch(false);
   const { render } = await import('svelte/server');
   const stop = await boot();

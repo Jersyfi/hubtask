@@ -3,9 +3,9 @@
 
 /**
  * The server a shell speaks to. In the browser the API is the page's own origin (ADR-0028); a
- * shell is served from inside itself, so its API is the server the person chose (ADR-0031). Until
- * the person is asked for one (ADR-0096), a build names it, and a development build speaks to the
- * local one.
+ * shell is served from inside itself, so its API is the server the person chose (ADR-0031, the
+ * address its sign-in asks for, ADR-0096). Before the first sign-in a build names one, and a
+ * development build speaks to the local one.
  */
 
 /** The server `make run` starts; what a development build of a shell speaks to. */

@@ -140,4 +140,92 @@ export const engine = new SyncEngine({
   // What a write becomes when it has to be queued: the seven mutation kinds, mapped from
   // this application's writes in the same file.
   mutationFor,
+  // A file captured offline waits only in a copy that is encrypted: the shells' (offline-sync.md §1).
+  holdsFiles: platform.holdsFiles,
+  firstSynchronisation: platform.firstSynchronisation,
 });
+
+/**
+ * The installed apps' sign-in speaks to a workspace before the app is signed in to it (ADR-0096):
+ * what the server says about itself, and the exchange of the consent's code. A transport of its own
+ * per address, made here because this file is where a transport is made; no bearer on either call.
+ */
+const SIGN_IN_TIMEOUT_MS = 15_000;
+
+/** The manifest at an address: `undefined` where nothing answered, `null` where something else did. */
+export async function readServerSelf<T>(apiBase: string): Promise<T | null | undefined> {
+  try {
+    const answer = await new FetchTransport({ baseUrl: apiBase }).get<T>('/meta/capabilities', {
+      timeoutMs: SIGN_IN_TIMEOUT_MS,
+    });
+    return typeof answer.body === 'object' && answer.body !== null ? answer.body : null;
+  } catch (cause) {
+    return cause instanceof TransportError && (cause.kind === 'offline' || cause.kind === 'timeout') ? undefined : null;
+  }
+}
+
+/** The code exchange at the workspace's token endpoint, with the verifier only this page held. */
+export async function exchangeAppCode(
+  apiBase: string,
+  request: { readonly code: string; readonly redirectUri: string; readonly clientId: string; readonly verifier: string },
+): Promise<{ readonly access: string; readonly refresh: string }> {
+  const answer = await new FetchTransport({ baseUrl: apiBase }).send<SessionTokens>(
+    'POST',
+    '/oauth/token',
+    {
+      grant_type: 'authorization_code',
+      code: request.code,
+      redirect_uri: request.redirectUri,
+      client_id: request.clientId,
+      code_verifier: request.verifier,
+    },
+    { timeoutMs: SIGN_IN_TIMEOUT_MS },
+  );
+  return { access: answer.body.access_token, refresh: answer.body.refresh_token };
+}
+
+/** One row of `GET /auth/sessions`, as ending the app's own needs it. */
+interface ListedAppSession {
+  readonly id: string;
+  readonly current: boolean;
+}
+
+/**
+ * Ends an installed app's session at its workspace, which withdraws the app's grant (identity.md
+ * §15.3): *Forget this workspace* for a workspace this window may not be open on, so with a
+ * transport of its own and the pair the keystore held. An access token that has expired is
+ * exchanged once first - here, where every exchange is made. `unreachable` where the server could
+ * not be reached or failed; a session the server no longer knows has ended already.
+ */
+export async function endAppSession(
+  server: string,
+  pair: { readonly access: string; readonly refresh: string },
+): Promise<'ended' | 'unreachable'> {
+  const there = new FetchTransport({ baseUrl: `${server}/api/v1` });
+  const options = (token: string) => ({ token, timeoutMs: SIGN_IN_TIMEOUT_MS });
+  // A server that fails withdraws nothing either; the grant is owed until it answers.
+  const unreachable = (cause: unknown) =>
+    cause instanceof TransportError && (cause.kind === 'offline' || cause.kind === 'timeout' || (cause.status ?? 0) >= 500);
+  const end = async (token: string) => {
+    const listed = await there.get<readonly ListedAppSession[]>('/auth/sessions', options(token));
+    const current = listed.body.find((one) => one.current);
+    if (current !== undefined) await there.send('DELETE', `/auth/sessions/${current.id}`, undefined, options(token));
+  };
+  try {
+    await end(pair.access);
+    return 'ended';
+  } catch (cause) {
+    if (unreachable(cause)) return 'unreachable';
+    if (!(cause instanceof TransportError) || cause.status !== 401) return 'ended';
+  }
+  try {
+    const next = await there.send<SessionTokens>('POST', '/auth/sessions:refresh', { refresh_token: pair.refresh }, {
+      timeoutMs: SIGN_IN_TIMEOUT_MS,
+    });
+    await end(next.body.access_token);
+    return 'ended';
+  } catch (cause) {
+    // A refused exchange is a session that is over: nothing is left to withdraw.
+    return unreachable(cause) ? 'unreachable' : 'ended';
+  }
+}

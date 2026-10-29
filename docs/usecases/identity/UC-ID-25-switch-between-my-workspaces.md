@@ -7,7 +7,7 @@ deployments: [D4, D5, D6, D7]
 serves: [P-01, P-02, P-05, P-10, P-12]
 state: partial
 tasks: [CD-09, F7-03]
-checked_by: [core/domain/model/identity/DeviceListEntry_test.go, core/application/service/identity/DeviceList_test.go, infrastructure/security/DeviceListEntry_test.go, test/integration/device_list_test.go, apps/webapp/src/lib/platform/workspaces.test.ts, apps/webapp/src/lib/navigation.test.ts, apps/webapp/e2e/devicelist.test.mjs]
+checked_by: [core/domain/model/identity/DeviceListEntry_test.go, core/application/service/identity/DeviceList_test.go, infrastructure/security/DeviceListEntry_test.go, test/integration/device_list_test.go, apps/webapp/src/lib/platform/workspaces.test.ts, apps/webapp/src/lib/navigation.test.ts, apps/webapp/e2e/devicelist.test.mjs, apps/webapp/src/lib/platform/appWorkspaces.test.ts, apps/webapp/src-tauri/src/signin.rs]
 ---
 
 # Switch between my workspaces on this device
@@ -60,4 +60,4 @@ device* before leaving.
 
 ## Today
 
-* Check 7: not met — there is no installed app (F7-03).
+* Check 7: met in the Windows and Linux apps; the Android app's keystore comes with F7-06. The app lists every workspace it holds, of one installation or several, grouped under each installation's host - in single mode too.

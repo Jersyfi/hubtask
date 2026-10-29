@@ -14,9 +14,9 @@
  * **Where the list lives differs by target**, which is why this sits behind the platform seam. The
  * browser keeps it in the `localStorage` of the installation's own address and hands a copy to a
  * workspace's address whenever it sends the browser there (`#workspaces=`); every change goes
- * through the installation's address, by a redirect there and back. A shell keeps one list per
- * server in its own store and needs no redirect (UC-ID-25 check 7): it implements `DeviceWorkspaces` over the
- * same `readEntry` and `entryList`.
+ * through the installation's address, by a redirect there and back. The installed apps draw a list
+ * of their own instead - every workspace they signed in to, of any installation (`appSession.ts`,
+ * UC-ID-25 check 7) - and keep this one without a switch.
  */
 
 /** One workspace of the list, as a row draws it. */

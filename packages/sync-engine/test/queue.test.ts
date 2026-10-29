@@ -13,10 +13,12 @@ import assert from 'node:assert/strict';
 import { SyncEngine } from '../src/SyncEngine.ts';
 import { TransportError } from '../src/errors.ts';
 import { MemoryStorage } from '../src/storage/MemoryStorage.ts';
+import { SqliteStorage, copyNameFor } from '../src/storage/SqliteStorage.ts';
 import { QUEUE, REJECTED } from '../src/queue.ts';
 import type { ChangeRecord, QueuedWrite, StoredRecord, SyncMutation, SyncMutationResult } from '../src/schema.ts';
-import type { RequestOptions, Response } from '../src/ports.ts';
+import type { RequestOptions, Response, Storage } from '../src/ports.ts';
 import { FakeTransport, FixedClock } from './fakes.ts';
+import { FakeShell } from './fakeShell.ts';
 
 const COLLECTION = '0192f000-0000-7000-8000-0000000000c1';
 const ITEM = '0192f000-0000-7000-8000-000000000001';
@@ -80,7 +82,13 @@ async function settle(turns = 12): Promise<void> {
   for (let i = 0; i < turns; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-async function synced(storage = new MemoryStorage(), clock = new FixedClock(1_700_000_000_000)) {
+/** The stores an engine runs over: the memory store, and the shells' SQLite over a fake shell. */
+const STORES: readonly (readonly [string, () => Storage])[] = [
+  ['memory', () => new MemoryStorage()],
+  ['the shells\' SQLite', () => new SqliteStorage(copyNameFor('https://hubtask.example', 'account-1'), new FakeShell().call)],
+];
+
+async function synced(storage: Storage = new MemoryStorage(), clock = new FixedClock(1_700_000_000_000)) {
   const transport = new PushingTransport().snapshotSessions({ records: WORKSPACE, cursor: 'c-1' }).streamSessions({ open: true });
   transport.answer('/sync:pull', { changes: [], cursor: 'c-1', has_more: false });
   transport.answer(`/items/${ITEM}`, { id: ITEM, title: 'Buy milk', version: 3 });
@@ -92,7 +100,7 @@ async function synced(storage = new MemoryStorage(), clock = new FixedClock(1_70
   return { transport, engine, storage, clock };
 }
 
-const item = (storage: MemoryStorage) => storage.get<StoredRecord<Record<string, unknown>>>('items', ITEM);
+const item = (storage: Storage) => storage.get<StoredRecord<Record<string, unknown>>>('items', ITEM);
 
 test('online with an empty queue, a write goes straight to the server', async () => {
   const { transport, engine, storage } = await synced();
@@ -210,20 +218,23 @@ test('§9.5: a REJECTED result is kept with its code and removed only by dismiss
   assert.equal((await storage.all(REJECTED)).length, 0);
 });
 
-test('§9.3, §7: a sync.gone is discarded, the copy goes, and the local text is offered back', async () => {
-  const { transport, engine, storage } = await synced();
-  // The shape the server answers: the category as `code`, the message code beside it.
-  transport.results = (mutation) => ({ op_id: mutation.op_id, result: 'REJECTED', entity_id: mutation.item_id, error: { code: 'gone', message_code: 'sync.gone' } });
-  transport.down = true;
-  await engine.mutate('PATCH', `/items/${ITEM}`, { notes: 'written to a purged entry' });
-  transport.down = false;
-  await engine.push();
+// Through the port, whichever store is beneath it: the shells' too (F7-04).
+for (const [store, fresh] of STORES) {
+  test(`§9.3, §7: a sync.gone is discarded, the copy goes, and the local text is offered back (${store})`, async () => {
+    const { transport, engine, storage } = await synced(fresh());
+    // The shape the server answers: the category as `code`, the message code beside it.
+    transport.results = (mutation) => ({ op_id: mutation.op_id, result: 'REJECTED', entity_id: mutation.item_id, error: { code: 'gone', message_code: 'sync.gone' } });
+    transport.down = true;
+    await engine.mutate('PATCH', `/items/${ITEM}`, { notes: 'written to a purged entry' });
+    transport.down = false;
+    await engine.push();
 
-  assert.equal(await item(storage), undefined, 'the copy of a purged entry goes');
-  assert.equal(engine.queueState.rejected[0]?.code, 'gone');
-  assert.equal(engine.queueState.rejected[0]?.messageCode, 'sync.gone');
-  assert.deepEqual(engine.queueState.rejected[0]?.local, { notes: 'written to a purged entry' });
-});
+    assert.equal(await item(storage), undefined, 'the copy of a purged entry goes');
+    assert.equal(engine.queueState.rejected[0]?.code, 'gone');
+    assert.equal(engine.queueState.rejected[0]?.messageCode, 'sync.gone');
+    assert.deepEqual(engine.queueState.rejected[0]?.local, { notes: 'written to a purged entry' });
+  });
+}
 
 test('a CONFLICT writes the server\'s state and keeps both values', async () => {
   const { transport, engine, storage } = await synced();

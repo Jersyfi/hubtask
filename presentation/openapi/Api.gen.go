@@ -3135,6 +3135,54 @@ func (e OauthAuthorizationCodeChallengeMethod) Valid() bool {
 	}
 }
 
+// Defines values for OauthAuthorizationPlatform.
+const (
+	OauthAuthorizationPlatformAndroid     OauthAuthorizationPlatform = "android"
+	OauthAuthorizationPlatformLessThannil OauthAuthorizationPlatform = "<nil>"
+	OauthAuthorizationPlatformLinux       OauthAuthorizationPlatform = "linux"
+	OauthAuthorizationPlatformWindows     OauthAuthorizationPlatform = "windows"
+)
+
+// Valid indicates whether the value is a known member of the OauthAuthorizationPlatform enum.
+func (e OauthAuthorizationPlatform) Valid() bool {
+	switch e {
+	case OauthAuthorizationPlatformAndroid:
+		return true
+	case OauthAuthorizationPlatformLessThannil:
+		return true
+	case OauthAuthorizationPlatformLinux:
+		return true
+	case OauthAuthorizationPlatformWindows:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OauthGrantAppPlatform.
+const (
+	OauthGrantAppPlatformAndroid     OauthGrantAppPlatform = "android"
+	OauthGrantAppPlatformLessThannil OauthGrantAppPlatform = "<nil>"
+	OauthGrantAppPlatformLinux       OauthGrantAppPlatform = "linux"
+	OauthGrantAppPlatformWindows     OauthGrantAppPlatform = "windows"
+)
+
+// Valid indicates whether the value is a known member of the OauthGrantAppPlatform enum.
+func (e OauthGrantAppPlatform) Valid() bool {
+	switch e {
+	case OauthGrantAppPlatformAndroid:
+		return true
+	case OauthGrantAppPlatformLessThannil:
+		return true
+	case OauthGrantAppPlatformLinux:
+		return true
+	case OauthGrantAppPlatformWindows:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for OauthTokenRequestGrantType.
 const (
 	AuthorizationCode OauthTokenRequestGrantType = "authorization_code"
@@ -7197,6 +7245,9 @@ type Capabilities struct {
 	AccountLink *string `json:"account_link,omitempty"`
 	ApiVersion  *string `json:"api_version,omitempty"`
 
+	// AppClientId The built-in OAuth2 client of the installed apps, the same in every workspace and installation: public, without a secret, redirecting only to a loopback address or `eu.hubtask.app:/oauth`.
+	AppClientId *openapi_types.UUID `json:"app_client_id,omitempty"`
+
 	// AutoAssignStrategies The values an auto-assign policy's `strategy` may take, for the reason the completion policies are listed.
 	AutoAssignStrategies *[]AutoAssignStrategy `json:"auto_assign_strategies,omitempty"`
 
@@ -9838,15 +9889,22 @@ type NotificationPreferenceUpdate struct {
 
 // OauthAuthorization defines model for OauthAuthorization.
 type OauthAuthorization struct {
+	// ClientId A registered client, or the built-in client of the installed apps, which every workspace knows without registering it (`app_client_id` in `/meta/capabilities`).
 	ClientId openapi_types.UUID `json:"client_id"`
 
 	// CodeChallenge BASE64URL(SHA256(code_verifier)), RFC 7636.
 	CodeChallenge       string                                `json:"code_challenge"`
 	CodeChallengeMethod OauthAuthorizationCodeChallengeMethod `json:"code_challenge_method"`
-	RedirectUri         string                                `json:"redirect_uri"`
 
-	// Scopes From this installation's own catalogue - the scopes descriptors already declare, no parallel vocabulary. The issued pair is bounded by them exactly as a PAT's is.
-	Scopes []string `json:"scopes"`
+	// Device The built-in client only, and required there: the name the device's system gives it, which the consent and the grant list show.
+	Device *string `json:"device,omitempty"`
+
+	// Platform The built-in client only, and required there: the system the app runs on. The desktop's redirect is a loopback address on any port, Android's `eu.hubtask.app:/oauth`.
+	Platform    *OauthAuthorizationPlatform `json:"platform,omitempty"`
+	RedirectUri string                      `json:"redirect_uri"`
+
+	// Scopes From this installation's own catalogue - the scopes descriptors already declare, no parallel vocabulary. The issued pair is bounded by them exactly as a PAT's is. At least one for a registered client; none for the built-in client, whose grant carries a session's scopes.
+	Scopes *[]string `json:"scopes,omitempty"`
 
 	// State Echoed back untouched, for the client's own CSRF binding.
 	State *string `json:"state,omitempty"`
@@ -9854,6 +9912,9 @@ type OauthAuthorization struct {
 
 // OauthAuthorizationCodeChallengeMethod defines model for OauthAuthorization.CodeChallengeMethod.
 type OauthAuthorizationCodeChallengeMethod string
+
+// OauthAuthorizationPlatform The built-in client only, and required there: the system the app runs on. The desktop's redirect is a loopback address on any port, Android's `eu.hubtask.app:/oauth`.
+type OauthAuthorizationPlatform string
 
 // OauthClient defines model for OauthClient.
 type OauthClient struct {
@@ -9905,7 +9966,11 @@ type OauthCode struct {
 
 // OauthGrant defines model for OauthGrant.
 type OauthGrant struct {
-	ClientId   openapi_types.UUID `json:"client_id"`
+	// AppPlatform Set for a grant of the built-in client of the installed apps: the system the app runs on. Null for a registered client.
+	AppPlatform *OauthGrantAppPlatform `json:"app_platform,omitempty"`
+	ClientId    openapi_types.UUID     `json:"client_id"`
+
+	// ClientName The registered client's name, or for the built-in client of the installed apps the device's name it consented on.
 	ClientName string             `json:"client_name"`
 	CreatedAt  time.Time          `json:"created_at"`
 	Id         openapi_types.UUID `json:"id"`
@@ -9914,6 +9979,9 @@ type OauthGrant struct {
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 	Scopes     []string   `json:"scopes"`
 }
+
+// OauthGrantAppPlatform Set for a grant of the built-in client of the installed apps: the system the app runs on. Null for a registered client.
+type OauthGrantAppPlatform string
 
 // OauthStandardTokens defines model for OauthStandardTokens.
 type OauthStandardTokens struct {

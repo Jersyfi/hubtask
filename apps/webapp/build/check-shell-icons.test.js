@@ -11,7 +11,7 @@ const config = JSON.parse(fs.readFileSync(new URL('../src-tauri/tauri.conf.json'
 const scripts = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).scripts;
 const clean = { config, tracked: [], ignored: true, exists: () => true };
 
-test('the shell bundles generated icons only, and they come from the mark (UC-WRK-33 check 5)', () => {
+test('the shell bundles generated icons only, and they come from the mark, Android\'s too (UC-WRK-33 check 5)', () => {
   assert.deepEqual(iconProblems(clean), []);
   assert.match(
     scripts['desktop:icons'],
@@ -25,6 +25,8 @@ test('a committed icon, a missing one or one from elsewhere is refused', () => {
     [{ ...clean, tracked: ['icons/icon.png'] }, /committed/],
     [{ ...clean, ignored: false }, /not ignored/],
     [{ ...clean, exists: (icon) => icon !== 'icons/icon.ico' }, /icons\/icon\.ico was not generated/],
+    [{ ...clean, exists: (icon) => !icon.startsWith('gen/android/') }, /mipmap-xxxhdpi\/ic_launcher\.png was not generated/],
+    [{ ...clean, tracked: ['gen/android/app/src/main/res/mipmap-hdpi/ic_launcher.png'] }, /committed/],
     [{ ...clean, config: { bundle: { icon: ['art/icon.png'] } } }, /not a generated icon/],
     [{ ...clean, config: { bundle: {} } }, /names no icon/],
   ];

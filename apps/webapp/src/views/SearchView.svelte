@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
+  import { platform } from '../lib/platform/index.ts';
   // Search, at its own address — and the term is never in it.
   //
   // `/search` is a `POST` with no `GET` because what somebody is looking for is their content, and
@@ -355,7 +356,7 @@
 
   async function copyLink() {
     const carried = new URLSearchParams(shareable === '' ? {} : { f: shareable }).toString();
-    const link = `${location.origin}/search${carried === '' ? '' : `?${carried}`}`;
+    const link = `${platform.webOrigin}/search${carried === '' ? '' : `?${carried}`}`;
     try {
       await navigator.clipboard.writeText(link);
       copied = true;
@@ -417,6 +418,7 @@
     const change = mayDo(role ?? undefined, 'change', isMine);
     return entryMenu(
       {
+        sendsLinks: platform.sendLink !== undefined,
         surface: 'search',
         item: { title: hit.title, isCompleted: hit.completion?.is_completed ?? false, hasDue: Boolean(hit.due_at) },
         archival: archivalOfItem(hit, false),

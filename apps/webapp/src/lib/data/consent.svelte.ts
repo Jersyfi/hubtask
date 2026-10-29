@@ -37,6 +37,8 @@ export interface Grant {
   readonly scopes: readonly string[];
   readonly created_at: string;
   readonly last_used_at?: string | null;
+  /** Set for the installed apps' grant: the system, and `client_name` is the device. */
+  readonly app_platform?: string | null;
 }
 
 /** The single-use code, as `OauthCode` answers it. */
@@ -88,6 +90,7 @@ class Consent {
         code_challenge: request.challenge,
         code_challenge_method: request.method,
         ...(request.state !== undefined ? { state: request.state } : {}),
+        ...(request.device !== undefined ? { device: request.device, platform: request.platform } : {}),
       },
       { invalidates: [GRANTS] },
     );

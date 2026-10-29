@@ -552,7 +552,11 @@ CREATE TABLE oauth_client (
   created_at    timestamptz NOT NULL,
   created_by    uuid,
   version       integer NOT NULL DEFAULT 1,
-  CHECK (confidential = (secret_hash IS NOT NULL))
+  -- Set on a row of the built-in client of the installed apps, one per consent, named by the
+  -- device (migration 0214, identity.md §15.3); the registry keeps the rows where it is NULL.
+  app_platform  text CHECK (app_platform IN ('windows', 'linux', 'android')),
+  CHECK (confidential = (secret_hash IS NOT NULL)),
+  CONSTRAINT oauth_client_app_public CHECK (app_platform IS NULL OR NOT confidential)
 );
 CREATE UNIQUE INDEX oauth_client_tenant_id_uq ON oauth_client (tenant_id, id);
 

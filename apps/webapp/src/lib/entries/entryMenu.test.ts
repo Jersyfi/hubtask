@@ -179,3 +179,18 @@ test('the entry\'s own page: the same menu without Open and Select, People where
   assert.deepEqual(idsOf(entryMenu(context({ surface: 'page', readsPeople: true, mayChange: false, mayCreate: false }), t)), ['share', 'copy-link']);
   assert.deepEqual(idsOf(entryMenu(context({ surface: 'page', readsPeople: true, archival: 'inherited', mayCreate: false }), t)), ['share', 'copy-link']);
 });
+
+test('in the Android app Send link… follows Copy link wherever the link is offered (UC-SYN-07 check 8)', () => {
+  const sending = (overrides: Partial<EntryMenuContext>) => idsOf(entryMenu(context({ ...overrides, sendsLinks: true }), t));
+  const after = (ids: string[]) => ids[ids.indexOf('copy-link') + 1];
+  for (const overrides of [{}, { mayChange: false }, { mayChange: false, mayCreate: false }, { mayChange: undefined }, { archival: 'inherited' as const }]) {
+    const ids = sending(overrides);
+    assert.equal(after(ids), 'send-link', JSON.stringify(overrides));
+    assert.equal(ids.filter((id) => id === 'send-link').length, 1);
+  }
+  const writer = entryMenu(context({ sendsLinks: true }), t);
+  const send = writer.find((item) => item.id === 'send-link');
+  assert.equal(send?.label, 'app.entry_menu.send_link');
+  assert.equal(send?.hasSeparatorBefore, undefined, 'one group with Copy link');
+  assert.equal(idsOf(entryMenu(context(), t)).includes('send-link'), false, 'the browser and the desktop copy the link only');
+});

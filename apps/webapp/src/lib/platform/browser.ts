@@ -107,6 +107,7 @@ export const platform: Platform = {
 
   // Relative: the bundle and the API come from one origin (ADR-0028), so there is no host to name.
   apiBase: API_PATH,
+  webOrigin: globalThis.location?.origin ?? '',
 
   // Answering `undefined` rather than an empty string is the difference between "no credential"
   // and "a credential that is empty", and only one of those is ever true.
@@ -139,6 +140,12 @@ export const platform: Platform = {
       return undefined;
     }
   },
+
+  // Not encrypted, so it holds no file captured offline (ADR-0033 §4), and has no key to forget:
+  // the engine's reset deletes the database itself.
+  holdsFiles: false,
+  firstSynchronisation: 'snapshot',
+  forgetCopy: async () => {},
 
   rememberAccount: (id) => store.rememberAccount(id),
 

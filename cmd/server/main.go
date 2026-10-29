@@ -1220,7 +1220,8 @@ func run() error {
 		Grants:     postgres.NewOauthGrantRepository(),
 		Codes:      postgres.NewOauthCodeRepository(security.NewOauthCodeHasher(cfg.SecretKey)),
 		Authorizer: authorizer, KnownScopes: catalogue.Scopes(),
-		Text: forms,
+		SessionScopes: catalogue.SessionScopes(),
+		Text:          forms,
 	}
 
 	// The installation's own host, which the canonical host of every new workspace is derived

@@ -67,6 +67,9 @@ type OauthWriter struct {
 	// KnownScopes bounds what a person can consent to: the catalogue's own vocabulary, no
 	// parallel one (identity.md §15.3).
 	KnownScopes []string
+	// SessionScopes are what a grant of the built-in client of the installed apps carries: a
+	// session's (identity.md §15.4), whatever the app asked.
+	SessionScopes []string
 	// Text brings a client's name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
 }
@@ -260,6 +263,9 @@ type AuthorizeOauthClientCommand struct {
 	Challenge   string
 	Method      string
 	State       string
+	// Device and Platform name the installed app's device; the built-in client only.
+	Device   string
+	Platform string
 }
 
 // AuthorizedCode is the single showing of the code.
@@ -289,7 +295,26 @@ func (h AuthorizeOauthClient) Execute(
 	if err := domain.CheckPKCEChallenge(cmd.Challenge); err != nil {
 		return AuthorizedCode{}, err
 	}
-	if err := w.checkScopes(cmd.Scopes); err != nil {
+	// The built-in client of the installed apps (ADR-0096): no registration, a row of its own per
+	// consent, named by the device, and a session's scopes rather than any the app could ask for.
+	var app domain.OauthClient
+	scopes := cmd.Scopes
+	if cmd.ClientID == domain.AppClientID {
+		if len(cmd.Scopes) > 0 {
+			return AuthorizedCode{}, shared.ErrValidation.
+				WithDetail("oauth.app_scopes_fixed").
+				WithFields(shared.FieldError{Path: "/scopes", Code: "oauth.app_scopes_fixed"})
+		}
+		built, err := domain.NewAppClient(domain.NewAppClientInput{
+			ID: w.Session.IDs.NewID(), TenantID: actor.TenantID,
+			Platform: cmd.Platform, Device: cmd.Device, RedirectURI: cmd.RedirectURI,
+			CreatedBy: actor.AccountID, Now: w.Session.Clock.Now(), Text: w.Text,
+		})
+		if err != nil {
+			return AuthorizedCode{}, err
+		}
+		app, scopes = built, w.appScopes()
+	} else if err := w.checkScopes(cmd.Scopes); err != nil {
 		return AuthorizedCode{}, err
 	}
 
@@ -321,11 +346,8 @@ func (h AuthorizeOauthClient) Execute(
 
 	var minted AuthorizedCode
 	err = w.Session.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		client, err := w.Clients.Find(ctx, cmd.ClientID)
+		client, err := w.consentedClient(ctx, cmd.ClientID, app)
 		if err != nil {
-			if errors.Is(err, shared.ErrNotFound) {
-				return shared.ErrValidation.WithDetail("oauth.authorization_failed")
-			}
 			return err
 		}
 		if !client.AllowsRedirect(cmd.RedirectURI) {
@@ -338,7 +360,7 @@ func (h AuthorizeOauthClient) Execute(
 		grantID, err := w.Grants.Upsert(ctx, domain.OauthGrant{
 			ID: w.Session.IDs.NewID(), TenantID: actor.TenantID,
 			AccountID: actor.AccountID, ClientID: client.ID,
-			Scopes: cmd.Scopes, CreatedAt: now.UTC(),
+			Scopes: scopes, CreatedAt: now.UTC(),
 		})
 		if err != nil {
 			return err
@@ -356,7 +378,7 @@ func (h AuthorizeOauthClient) Execute(
 
 		if err := w.recordGrantAudit(ctx, actor.Kind, actor.AccountID, actor.AccountName,
 			actor.TenantID, OauthConsentedAction, grantID, client.ID,
-			strings.Join(cmd.Scopes, " "), now); err != nil {
+			strings.Join(scopes, " "), now); err != nil {
 			return err
 		}
 
@@ -409,14 +431,25 @@ func (h ExchangeOauthCode) Execute(
 		account domain.Account
 		grant   domain.OauthGrant
 	)
+	isApp := cmd.ClientID == domain.AppClientID
 	err = w.Session.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
-		client, err := w.Clients.Find(ctx, cmd.ClientID)
-		if err != nil {
-			if errors.Is(err, shared.ErrNotFound) {
+		// The built-in client has no row of its own: the code names the consent's, read once the
+		// code is burnt. A row of it presented by its own identifier is not a client either.
+		var client domain.OauthClient
+		if !isApp {
+			found, err := w.Clients.Find(ctx, cmd.ClientID)
+			if err != nil {
+				if errors.Is(err, shared.ErrNotFound) {
+					w.Session.failure(ctx, FailureOauth)
+					return exchangeRefused()
+				}
+				return err
+			}
+			if found.IsApp() {
 				w.Session.failure(ctx, FailureOauth)
 				return exchangeRefused()
 			}
-			return err
+			client = found
 		}
 
 		// The client authenticates first: a confidential one with its secret, a public one
@@ -442,7 +475,16 @@ func (h ExchangeOauthCode) Execute(
 		if err != nil {
 			return err
 		}
-		if !consumed || code.ClientID != client.ID || code.RedirectURI != cmd.RedirectURI {
+		if consumed && isApp {
+			found, err := w.Clients.Find(ctx, code.ClientID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			if found.IsApp() {
+				client = found
+			}
+		}
+		if !consumed || client.ID.IsZero() || code.ClientID != client.ID || code.RedirectURI != cmd.RedirectURI {
 			w.Session.failure(ctx, FailureOauth)
 			return exchangeRefused()
 		}
@@ -598,6 +640,42 @@ func (w SessionWriter) openLeashedSession(
 		return SessionPair{}, err
 	}
 	return pair, nil
+}
+
+// consentedClient is the client a consent is for: the built-in client's fresh row, written here,
+// or the registered one.
+func (w OauthWriter) consentedClient(
+	ctx context.Context, clientID shared.ID, app domain.OauthClient,
+) (domain.OauthClient, error) {
+	if app.IsApp() {
+		if err := w.Clients.Insert(ctx, app, domain.Token{}); err != nil {
+			return domain.OauthClient{}, err
+		}
+		return app, nil
+	}
+	client, err := w.Clients.Find(ctx, clientID)
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return domain.OauthClient{}, shared.ErrValidation.WithDetail("oauth.authorization_failed")
+		}
+		return domain.OauthClient{}, err
+	}
+	if client.IsApp() {
+		// A consent's row is not a client an app may name: the built-in identifier is.
+		return domain.OauthClient{}, shared.ErrValidation.WithDetail("oauth.authorization_failed")
+	}
+	return client, nil
+}
+
+// appScopes is a session's scopes as a consent may hand them out.
+func (w OauthWriter) appScopes() []string {
+	scopes := make([]string, 0, len(w.SessionScopes))
+	for _, scope := range w.SessionScopes {
+		if Consentable(scope) {
+			scopes = append(scopes, scope)
+		}
+	}
+	return scopes
 }
 
 // FailureOauth is the metric reason of a refused exchange.
@@ -883,14 +961,19 @@ func (h AuthorizeOauthClient) Descriptor() usecase.Descriptor {
 				Description: "The app asking."},
 			{Name: "redirect_uri", Kind: usecase.KindString, Required: true,
 				Description: "One of the app's registered URIs, exactly."},
-			{Name: "scopes", Kind: usecase.KindList, Required: true,
-				Description: "What the app may do, from the installation's catalogue."},
+			{Name: "scopes", Kind: usecase.KindList,
+				Description: "What the app may do, from the installation's catalogue. None for " +
+					"the built-in client of the installed apps, whose grant carries a session's."},
 			{Name: "code_challenge", Kind: usecase.KindString, Required: true,
 				Description: "BASE64URL(SHA256(code_verifier)), RFC 7636."},
 			{Name: "code_challenge_method", Kind: usecase.KindString, Required: true,
 				Enum: []string{"S256"}, Description: "S256 and nothing else."},
 			{Name: "state", Kind: usecase.KindString,
 				Description: "Echoed back untouched, for the client's own CSRF binding."},
+			{Name: "device", Kind: usecase.KindString,
+				Description: "The built-in client of the installed apps only: the device's name."},
+			{Name: "platform", Kind: usecase.KindString,
+				Description: "The built-in client of the installed apps only: windows, linux or android."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: OauthConsentedAction, TargetType: oauthGrantTarget,
@@ -921,6 +1004,8 @@ func (h AuthorizeOauthClient) invoke(
 		Challenge:   in.String("code_challenge"),
 		Method:      in.String("code_challenge_method"),
 		State:       in.String("state"),
+		Device:      in.String("device"),
+		Platform:    in.String("platform"),
 	})
 	if err != nil {
 		return nil, err
@@ -1030,6 +1115,10 @@ func (h ListOauthGrants) invoke(
 			"scopes":       scopes,
 			"created_at":   listing.Grant.CreatedAt.UTC(),
 			"last_used_at": nil,
+			"app_platform": nil,
+		}
+		if listing.AppPlatform != "" {
+			row["app_platform"] = string(listing.AppPlatform)
 		}
 		if !listing.LastUsedAt.IsZero() {
 			row["last_used_at"] = listing.LastUsedAt.UTC()

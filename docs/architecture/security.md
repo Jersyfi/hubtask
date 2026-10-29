@@ -217,13 +217,13 @@ by store and outcome, as `encryption.resealed` in the workspace's trail when any
 | Measure | Requirement |
 |---|---|
 | Security headers | `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Resource-Policy: same-site`, a minimal `Permissions-Policy`; a `Content-Security-Policy` per origin (below) |
-| CORS | Empty by default; an explicit allowlist; never `*` with credentials |
+| CORS | Empty by default; an explicit allowlist; never `*` with credentials. The installed apps' two webview origins, `tauri://localhost` and `http://tauri.localhost`, pass always, whatever `HUBTASK_CORS_ALLOWED_ORIGINS` says - a person installs the app without an operator - for bearer requests only: no answer carries `Access-Control-Allow-Credentials`, and there is no cookie to send ([ADR-0096](../adr/ADR-0096-the-installed-apps-sign-in-through-the-system-browser.md)) |
 | Rate limits | Per IP (unauthenticated), per token, per tenant; stricter for login, password reset, invitation, search and bulk; `429` with `Retry-After` and `RateLimit-*` |
 | Request sizes | A global body limit (1 MiB by default), a separate upload limit, a header limit |
 | Deadlines | A server-side request timeout; every handler receives a `context` with a deadline |
 | Methods | State changes never over `GET`; `OPTIONS` only for CORS |
 | Error responses | RFC 9457 with a stable `code` and a `request_id`; **no** stack traces, query fragments, versions or paths |
-| Version disclosure | The `Server` header without a version; the version only through the authenticated `/meta` endpoint |
+| Version disclosure | The `Server` header without a version; the version only in `/meta/capabilities`' manifest, which a client reads before it signs in - an installed app refuses a server older than itself by it (F7 Decision 12) |
 
 **Three origins, three policies.** The headers above are the same everywhere; the
 `Content-Security-Policy` is not.

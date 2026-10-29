@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
+  import { platform } from '../platform/index.ts';
   // Calendar subscriptions: making one, seeing which exist, and stopping one.
   //
   // **The address is a credential and is shown once.** "Whoever has the URL reads the view as its
@@ -56,7 +57,7 @@
    * the interface come from one origin (ADR-0028).
    */
   const caldavOf = (feed: CalendarFeed) =>
-    actor.account ? caldavAddressOf(window.location.origin, actor.account.id, feed.id) : undefined;
+    actor.account ? caldavAddressOf(platform.webOrigin, actor.account.id, feed.id) : undefined;
   let revoking = $state<CalendarFeed | undefined>(undefined);
   let isWorking = $state(false);
   let failure = $state<string | undefined>(undefined);

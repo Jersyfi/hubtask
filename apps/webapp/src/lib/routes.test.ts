@@ -167,6 +167,7 @@ test('the addresses this application publishes resolve to their screens', () => 
   // a link somewhere else that stops working, which is what makes them worth naming in a test.
   assert.equal(resolve(ROUTES, '/redeem').name, 'redeem');
   assert.equal(resolve(ROUTES, '/auth/callback').name, 'oidc-callback');
+  assert.equal(resolve(ROUTES, '/app/passkey').name, 'app-passkey');
   assert.equal(resolve(ROUTES, '/auth/callback?code=a&state=b').name, 'oidc-callback');
   assert.equal(resolve(ROUTES, '/administration').name, 'administration');
   assert.equal(resolve(ROUTES, '/administration/workspace').name, 'workspace-settings');

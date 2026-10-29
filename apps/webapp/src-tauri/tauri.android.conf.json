@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "build": {
+    "beforeDevCommand": "pnpm dev:mobile",
+    "beforeBuildCommand": "pnpm build:mobile"
+  },
+  "plugins": {
+    "deep-link": {
+      "mobile": [
+        {
+          "scheme": [
+            "eu.hubtask.app"
+          ],
+          "appLink": false
+        }
+      ]
+    }
+  }
+}

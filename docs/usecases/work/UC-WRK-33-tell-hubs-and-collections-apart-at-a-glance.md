@@ -35,4 +35,4 @@ The person gives "House" raspberry and a house symbol, "Agency" indigo and a bri
 
 ## Today
 
-* Check 5: met for the desktop app (Windows, Linux), whose icons are generated from the mark and checked in the `shell` lane; not met for Android, which F7-06 brings.
+* Check 5: met for the desktop app (Windows, Linux) and the Android app, whose icons - the launcher's included - are generated from the mark and checked in the `shell` lane.

@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
+  import { platform } from '../lib/platform/index.ts';
   // The rule editor: a rule drawn as a path (automation.md §1.5, design-system.md §4).
   //
   // **The view holds one draft**, and everything else draws from it: the head with the name and
@@ -847,7 +848,7 @@
 
       {#if minted && minted.rule_id === stored?.id}
         <OneTimeSecret
-          value={inboundAddressOf(window.location.origin, minted.token)}
+          value={inboundAddressOf(platform.webOrigin, minted.token)}
           label={t('app.rules.inbound_address')}
           hint={t('app.rules.inbound_minted_hint')}
           revealLabel={t('app.jumble.reveal')}

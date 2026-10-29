@@ -8,8 +8,10 @@
   "scripts": {
     "dev": "vite",
     "dev:desktop": "vite --mode desktop",
+    "dev:mobile": "vite --mode mobile",
     "build": "vite build && node build/check-csp.js",
     "build:desktop": "vite build --mode desktop && node build/check-csp.js",
+    "build:mobile": "vite build --mode mobile && node build/check-csp.js && node build/check-mobile-bundle.js",
     "preview": "vite preview",
     "preview:fixture": "node e2e/preview.mjs",
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
@@ -19,7 +21,9 @@
     "test:engines": "node --test \"e2e/*.test.mjs\"",
     "desktop:icons": "tauri icon ../../packages/design-system/dist/mark/app-icon.svg --output src-tauri/icons && node build/check-shell-icons.js",
     "desktop:dev": "tauri dev",
-    "desktop:build": "tauri build"
+    "desktop:build": "tauri build",
+    "android:openssl": "src-tauri/android-openssl.sh",
+    "android:build": "tauri android build"
   },
   "dependencies": {
     "@hubtask/design-system": "workspace:*",

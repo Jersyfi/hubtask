@@ -207,3 +207,41 @@ func TestTheWildcardDoesNotVaryByOrigin(t *testing.T) {
 		t.Errorf("Vary = %q with the wildcard", got)
 	}
 }
+
+// The installed apps' webview origins pass with the allowlist empty, for bearer requests only:
+// never credentials mode, and a look-alike of either is still refused (security.md §9, ADR-0096).
+func TestTheAppOriginsPassWithoutTheAllowlist(t *testing.T) {
+	for _, origin := range []string{"tauri://localhost", "http://tauri.localhost"} {
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/meta/capabilities", nil)
+		request.Header.Set("Origin", origin)
+
+		response := secured(t, env.CORSConfig{}, request)
+		if got := response.Header().Get("Access-Control-Allow-Origin"); got != origin {
+			t.Errorf("%s: Access-Control-Allow-Origin = %q, want it echoed", origin, got)
+		}
+		if got := response.Header().Get("Access-Control-Allow-Credentials"); got != "" {
+			t.Errorf("%s: Access-Control-Allow-Credentials = %q - bearer requests only", origin, got)
+		}
+		if got := response.Header().Get("Vary"); got != "Origin" {
+			t.Errorf("%s: Vary = %q", origin, got)
+		}
+
+		preflight := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/api/v1/oauth/token", nil)
+		preflight.Header.Set("Origin", origin)
+		preflight.Header.Set("Access-Control-Request-Method", http.MethodPost)
+		if got := secured(t, env.CORSConfig{}, preflight).Code; got != http.StatusNoContent {
+			t.Errorf("%s: preflight answered %d", origin, got)
+		}
+	}
+
+	for _, origin := range []string{
+		"https://tauri.localhost", "tauri://localhost.evil.test", "http://tauri.localhost:8080",
+		"http://localhost", "tauri://evil",
+	} {
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/meta/capabilities", nil)
+		request.Header.Set("Origin", origin)
+		if got := secured(t, env.CORSConfig{}, request).Header().Get("Access-Control-Allow-Origin"); got != "" {
+			t.Errorf("%s was allowed as %q", origin, got)
+		}
+	}
+}

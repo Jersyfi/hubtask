@@ -124,7 +124,7 @@ it generates its own types and has no edge to any first-party member.
 **The client's structure** ([ADR-0033](../adr/ADR-0033-shared-client-architecture.md)):
 
 * `apps/webapp` is the one product UI; every target (the browser bundle and the Tauri shells of
-  ADR-0031, at `apps/webapp/src-tauri/` — the desktop one built, Android to follow) builds from
+  ADR-0031, at `apps/webapp/src-tauri/` — the desktop and the Android app) builds from
   it. Platform differences sit behind one seam, `apps/webapp/src/lib/platform/`, chosen at build
   time by the Vite mode; components carry no platform conditionals.
 * `packages/sync-engine` is framework-agnostic TypeScript implementing the client half of offline

@@ -27,7 +27,7 @@ GitHub-specific; the pipeline may.
 | `after-ci.yml` | A `ci.yml` run ends; every 15 minutes; manual dispatch | A failed run is re-run once; a red `main` opens the issue "CI: main is red" and holds the green pull requests; a green `main` closes it and re-runs the pull requests that waited (§3.5) |
 | `pr-description-rerun.yml` | A pull request's description or title is edited | If the head commit's latest `ci.yml` run failed, re-runs its description job and `CI required` (§3.1) |
 | `nightly.yml` | Schedule (overnight) | Long runs (§9): `deep` (fuzzing, load, resilience), the `matrix-*` cells, the PITR drill (`make gate-pitr`), the image scan, the action pins; the arm64 cell also runs `make gate-privacy-full` and `make gate-selftest`. A failure files an issue |
-| `release.yml` | Tag `v*` | After the `production` environment's approval: the gates again, image, SBOM, signature, provenance, chart, GitHub release ([deployment.md](./deployment.md) §7) |
+| `release.yml` | Tag `v*` | The installed apps built without a secret (`apps`: Windows, Linux, Android); after the `production` environment's approval: the gates again, image, SBOM, signature, provenance, chart, the apps signed with the project's keys, one checksum file, GitHub release ([deployment.md](./deployment.md) §7, [versioning-release.md](./versioning-release.md) §8) |
 | `deploy.yml` | Push to `main`, manual dispatch | Builds, signs and verifies the per-commit image and runs `helm upgrade` into `integration` ([deployment.md](./deployment.md) §3) |
 | `website.yml` | Push to `main` touching `apps/website/`, `packages/design-system/` or the lockfile; manual dispatch | Builds `apps/website/dist` and mirrors it to the webspace (§10). A failure files an issue |
 | `workbench.yml` | Push to `main` touching `packages/design-system/`; manual dispatch | Publishes the component workbench to `workbench.hubtask.eu` (§10) |
@@ -66,7 +66,7 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 | `pr-description` | `make gate-pr` over the description and the title read from the API; not for Dependabot's pull requests (§3.1) |
 | `node` | Per affected workspace package: the workspace map lint, build, lint, typecheck, test; for the website `make website` first |
 | `engines` | The built web app in Chromium, Firefox and WebKit through pinned Playwright ([ADR-0048](../adr/ADR-0048-browser-job-driver.md)), asserting [ADR-0044](../adr/ADR-0044-browser-support-row.md)'s feature table; the one job that runs a browser |
-| `shell` | The installed apps' shell (`apps/webapp/src-tauri/`) on Linux and Windows: the icons generated from the mark and checked, a debug build bundled as `.deb` and NSIS; on Linux also `cargo-deny` (licences, sources), `rustfmt`, `clippy` and the Rust tests. Behind the `shell` filter: the web app, the packages it is built from, the workspace manifests |
+| `shell` | The installed apps' shell (`apps/webapp/src-tauri/`) on Linux, Windows and Android: the icons generated from the mark and checked, a debug build bundled as `.deb`, NSIS and an x86_64 APK, each with the `walk` feature; on Linux also `cargo-deny` (licences, sources), `rustfmt`, `clippy` and the Rust tests. Then each leg's smoke walk (UC-SYN-07 check 9, `apps/webapp/e2e/webview/smoke.mjs`): sign in, open a hub, create, edit and complete an entry, sign out, against a server built from the commit on the runner's PostgreSQL, through the engine's own WebDriver - WebKitWebDriver, the runner's msedgedriver, its chromedriver with an API 35 emulator. A failure in one engine fails the lane. Behind the `shell` filter: the web app, the packages it is built from, the workspace manifests |
 | `tokens-drift` | `make tokens`; the committed `LabelTokens.go` must not change |
 | `api-client-drift` | `make api-client`, then the workspace built and typechecked against it; nothing generated may be committed |
 | `ci-required` | The one required check (§3.2); on a pull request its last step waits for a green `main` (§3.5) |
@@ -352,6 +352,8 @@ fixing pull request. Only the govulncheck half of the job is actionable from a b
 | Name | Kind | Used by | Purpose |
 |---|---|---|---|
 | `GITHUB_TOKEN` | Provided | Every workflow | GHCR pushes, the release, issues |
+| `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD` | Secret, environment `production` | `release.yml` | The APK signing key, a PKCS #12 store with the alias `hubtask`, and its password ([versioning-release.md](./versioning-release.md) §8) |
+| `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Secret, environment `production` | `release.yml` | The update key that signs the apps and `latest.json`, and its password ([versioning-release.md](./versioning-release.md) §8) |
 | `KUBE_CONFIG` | Secret, environment `integration` | `deploy.yml` | The deploy identity for the integration cluster, limited to its namespace |
 | `WEBSITE_SFTP_USER`, `WEBSITE_SFTP_PASSWORD` | Secret | `website.yml` | The website's SFTP account |
 | `WORKBENCH_SFTP_USER`, `WORKBENCH_SFTP_PASSWORD` | Secret | `workbench.yml` | The workbench's own, scoped SFTP account |

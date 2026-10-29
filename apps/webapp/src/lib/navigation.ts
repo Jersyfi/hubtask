@@ -37,7 +37,7 @@ export type Group = 'primary' | 'account';
 export type Band = 'places' | 'tree' | 'keeping';
 
 /** The account group's verbs. */
-export type AccountAction = 'help' | 'sign-out' | 'switch-workspace';
+export type AccountAction = 'help' | 'sign-out' | 'switch-workspace' | 'add-workspace';
 
 /**
  * What choosing a destination does: goes somewhere, performs one of the two account verbs, or
@@ -105,6 +105,9 @@ export const DESTINATIONS: readonly Destination[] = [
   // sheet on a phone - rather than the list inside this menu, which would grow with every
   // workspace. Drawn only in multi mode, where there is a list (check 8).
   { id: 'switch-workspace', group: 'account', icon: 'arrow-right-left', code: 'app.workspaces.switch', target: { kind: 'action', action: 'switch-workspace' }, routes: [] },
+  // An installed app adds a workspace by its address, of this installation or another (UC-SYN-07
+  // check 4): a row of its own beside the switch, and the dialog's foot (the approved preview).
+  { id: 'add-workspace', group: 'account', icon: 'plus', code: 'app.app_workspaces.add', target: { kind: 'action', action: 'add-workspace' }, routes: [] },
   { id: 'help', group: 'account', icon: 'compass', code: 'app.help.label', target: { kind: 'action', action: 'help' }, routes: [], startsBand: true },
   // The installation: four facts — the product version, the API version, the tenancy and the
   // languages — that nobody navigates to and everybody quotes when they report a problem. It keeps
@@ -513,6 +516,11 @@ export function account(options: {
   readonly isSingleWorkspace?: boolean;
   /** Whether this device keeps a list of workspaces: multi mode only (UC-ID-25 check 8). */
   readonly hasWorkspaceList?: boolean;
+  /**
+   * Whether this build holds workspaces of its own - an installed app, which lists them in single
+   * mode too, because it may hold workspaces of several installations (UC-ID-25 check 7).
+   */
+  readonly holdsWorkspaces?: boolean;
 }): readonly Destination[] {
   const place = installationPlace({
     isInstanceReachable: options.isInstanceReachable,
@@ -523,7 +531,8 @@ export function account(options: {
     if (destination.group !== 'account') return false;
     if (destination.area === 'administration') return options.isAdministrationReachable;
     if (destination.area === 'instance') return place === 'menu';
-    if (destination.id === 'switch-workspace') return options.hasWorkspaceList === true;
+    if (destination.id === 'switch-workspace') return options.hasWorkspaceList === true || options.holdsWorkspaces === true;
+    if (destination.id === 'add-workspace') return options.holdsWorkspaces === true;
     return true;
   });
 }
@@ -565,4 +574,14 @@ export function firstScreen(groups: readonly SectionGroup[]): string {
   }
   // Unreachable for a section that has a screen; a section that has none has nothing to open.
   return '/';
+}
+
+/**
+ * The area of an account row a build leaves to the web app (ADR-0032, UC-SYN-07 check 7), or
+ * nothing for a row this build draws itself: the Android app keeps the administration's and the
+ * installation's rows where they are, and they open the web app rather than a screen of its own.
+ */
+export function leftToWebApp(id: string, areas: readonly Area[] | undefined): Area | undefined {
+  const area = DESTINATIONS.find((each) => each.id === id)?.area;
+  return area !== undefined && areas?.includes(area) ? area : undefined;
 }

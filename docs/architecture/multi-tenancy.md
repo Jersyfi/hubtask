@@ -262,8 +262,12 @@ Never a path prefix, and never a root-domain workspace beside subdomain workspac
   takes no short name and no host (Decision 7 of milestone CD). The list is checked when it is
   shown: an entry whose host no longer answers says so and offers *Forget* alone. Single mode keeps
   no list and draws none of it. The list's model is the platform seam's
-  (`apps/webapp/src/lib/platform/workspaces.ts`) and the entry the server's, so the shells keep
-  their own list with both.
+  (`apps/webapp/src/lib/platform/workspaces.ts`) and the entry the server's. The installed apps
+  keep a list of their own instead (UC-ID-25 check 7): every workspace the app signed in
+  to, of one installation or several, with its host, its name and its installation's host - added
+  only by a sign-in at that address, so no signed entry is needed, and drawn in single mode too.
+  Each has its own session in the keystore and its own copy; *Forget this workspace* withdraws its
+  grant and deletes both (identity.md §14.4).
 
 * **Reserved short names.** The product keeps a list of the labels an installation or its ingress
   uses for itself (`www`, `api`, `auth`, `admin`, `mail`, `media`, `status`, `docs` and their kin,

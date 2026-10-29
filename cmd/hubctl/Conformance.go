@@ -203,7 +203,9 @@ func (c *conformance) checks(ctx context.Context) {
 	c.checkCursorAndWalk(ctx)
 	c.checkServerDecides(ctx)
 	c.record(6, "Local storage is encrypted and discarded on sign-out", "not-tested",
-		"a client's alone: nothing about it is visible from the server, and this runner does not pretend otherwise")
+		"a client's alone: nothing about it is visible from the server, and this runner does not pretend otherwise. "+
+			"Proven for the installed apps in the shell lane by apps/webapp/src-tauri/src/copy.rs: "+
+			"the copy unreadable without its key from the platform keystore, sign-out removing file and key")
 	c.checkUnknownFields(ctx)
 	c.checkNothingOfTheRightColumn(ctx)
 }

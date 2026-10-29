@@ -11,6 +11,8 @@
   // No sentence is written in this file. `Hubtask` is a name rather than a message, and everything
   // else is a code rendered from `locales/en.json` (ADR-0011).
   import AppFrame from './lib/frame/AppFrame.svelte';
+  import AdministrationArea from './views/AdministrationArea.svelte';
+  import InstanceArea from './views/InstanceArea.svelte';
   import { messages, t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
   import { PLACE_ROUTES, ROUTES, isSettingsRoute, movedTo, paneFor } from './lib/routes.ts';
@@ -22,7 +24,6 @@
   import { deviceList } from './lib/data/devicelist.svelte.ts';
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
-  import AdministrationOverviewView from './views/AdministrationOverviewView.svelte';
   import ArchiveView from './views/ArchiveView.svelte';
 import ContainerView from './views/ContainerView.svelte';
   import TodayView from './views/TodayView.svelte';
@@ -30,18 +31,6 @@ import ContainerView from './views/ContainerView.svelte';
   import JumbleView from './views/JumbleView.svelte';
   import InstallationView from './views/InstallationView.svelte';
   import YourWorkspacesView from './views/YourWorkspacesView.svelte';
-  import InstanceEncryptionView from './views/InstanceEncryptionView.svelte';
-  import InstanceJournalView from './views/InstanceJournalView.svelte';
-  import InstanceOperatorsView from './views/InstanceOperatorsView.svelte';
-  import InstanceOverviewView from './views/InstanceOverviewView.svelte';
-  import InstanceProvidersView from './views/InstanceProvidersView.svelte';
-  import InstanceAiView from './views/InstanceAiView.svelte';
-  import InstanceTargetsView from './views/InstanceTargetsView.svelte';
-  import InstancePlatformView from './views/InstancePlatformView.svelte';
-  import InstancePlanView from './views/InstancePlanView.svelte';
-  import InstancePlansView from './views/InstancePlansView.svelte';
-  import InstanceSettingsView from './views/InstanceSettingsView.svelte';
-  import InstanceWorkspacesView from './views/InstanceWorkspacesView.svelte';
   import ProfileView from './views/ProfileView.svelte';
   import AppearanceView from './views/AppearanceView.svelte';
   import NotificationsView from './views/NotificationsView.svelte';
@@ -52,31 +41,15 @@ import ContainerView from './views/ContainerView.svelte';
   import SearchView from './views/SearchView.svelte';
   import MyTokensView from './views/MyTokensView.svelte';
   import TrashView from './views/TrashView.svelte';
-  import MachinesView from './views/MachinesView.svelte';
   import ConsentView from './views/ConsentView.svelte';
-  import PeopleView from './views/PeopleView.svelte';
-  import QuotasView from './views/QuotasView.svelte';
-  import PrivateHubsView from './views/PrivateHubsView.svelte';
-  import BackupView from './views/BackupView.svelte';
-  import RetentionView from './views/RetentionView.svelte';
-  import RestoreView from './views/RestoreView.svelte';
-  import AuditView from './views/AuditView.svelte';
-  import PrivacyView from './views/PrivacyView.svelte';
-  import RulesView from './views/RulesView.svelte';
-  import RuleEditorView from './views/RuleEditorView.svelte';
-  import RunsView from './views/RunsView.svelte';
-  import WebhooksView from './views/WebhooksView.svelte';
-  import VoiceView from './views/VoiceView.svelte';
-  import MailView from './views/MailView.svelte';
-  import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
-  import WorkspaceAddressView from './views/WorkspaceAddressView.svelte';
-  import PresetsView from './views/PresetsView.svelte';
-  import AiSettingsView from './views/AiSettingsView.svelte';
+  import AppSignInView from './lib/signin/AppSignInView.svelte';
+  import KeyRelayView from './lib/signin/KeyRelayView.svelte';
+  import { appSignIn } from './lib/signin/appsignin.svelte.ts';
+  import { appWorkspaces } from './lib/data/appworkspaces.svelte.ts';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
   import RedeemView from './views/RedeemView.svelte';
   import ResetView from './views/ResetView.svelte';
   import ConfirmAddressView from './views/ConfirmAddressView.svelte';
-  import SignInSettingsView from './views/SignInSettingsView.svelte';
   import SetupView from './views/SetupView.svelte';
   import SignInView from './views/SignInView.svelte';
 
@@ -204,6 +177,16 @@ import ContainerView from './views/ContainerView.svelte';
    * failed account again, each failure is a new state: a loop as tight as the network lets it be,
    * hundreds of reads of `/accounts/me` in the seconds an outage lasts.
    */
+  // An installed app's sign-in, once the account has arrived: the workspace named, the toast said.
+  let welcomed = false;
+  $effect(() => {
+    if (!session.isSignedIn || !actor.account || welcomed || platform.browserSignIn === undefined) return;
+    welcomed = true;
+    void appSignIn.welcome();
+  });
+  // And the grants a workspace forgotten offline still owes, withdrawn once per start.
+  appWorkspaces.settle();
+
   const liveAccountId = $derived(
     // The account from `/accounts/me`, or the one remembered beside the pair when the server
     // cannot be reached: a tab reloading offline still opens its replica.
@@ -232,6 +215,11 @@ import ContainerView from './views/ContainerView.svelte';
        second copy of it mounted inside the frame would find the address already cleaned and
        report a refusal for a sign-in that succeeded. -->
   <OidcCallbackView onnavigate={(path) => router.navigate(path)} />
+{:else if route.name === 'app-passkey'}
+  <!-- An installed app's passkey step-up, in the system browser at the workspace's host
+       (ADR-0096 decision 5). Whether or not this browser is signed in: the proof is for the app's
+       session, and the answer goes back to the app. -->
+  <KeyRelayView />
 {:else if !session.isSignedIn || route.name === 'reset' || route.name === 'redeem' || route.name === 'confirm-address'}
   {#if route.name === 'reset'}
     <!-- Before the sign-in screen, exactly as the invitation is: somebody who arrives with a
@@ -245,6 +233,10 @@ import ContainerView from './views/ContainerView.svelte';
     <!-- Before the sign-in screen: somebody arriving with an invitation has no password yet, and
          asking them for one would be asking for the thing this screen exists to set. -->
     <RedeemView onnavigate={(path) => router.navigate(path)} />
+  {:else if platform.browserSignIn}
+    <!-- An installed app signs in through the system browser at the workspace's own host
+         (ADR-0096), so its card asks which workspace and waits; the sign-in card is the browser's. -->
+    <AppSignInView />
   {:else if manifest.isSetupOpen}
     <!-- A fresh installation: nothing to sign in to yet, so the first start's setup takes the
          sign-in card's place until the first workspace exists (UC-INS-01). -->
@@ -260,16 +252,18 @@ import ContainerView from './views/ContainerView.svelte';
   {:else}
     <SignInView />
   {/if}
+{:else if route.name === 'consent'}
+  <!-- Signed in only: `POST /oauth/authorize` needs a person, never a token, so somebody who
+       arrives here signed out meets the sign-in screen first and lands back on this address. A
+       card like the sign-in's rather than the frame: the question is the workspace's to the
+       person, about an app, and nothing else on the page may be pressed instead (UC-SYN-07/3). -->
+  <ConsentView />
 {:else}
 <AppFrame {route} onnavigate={(path) => router.navigate(path)}>
   {#if reach === undefined}
     <!-- Not yet known whether this reader is inside the level: nothing, rather than a guess. -->
   {:else if reach === false}
     {@render nothingHere()}
-  {:else if route.name === 'consent'}
-    <!-- Signed in only: `POST /oauth/authorize` needs a person, never a token, so somebody who
-         arrives here signed out meets the sign-in screen first and lands back on this address. -->
-    <ConsentView />
   {:else if route.name === 'home'}
     <TodayView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'installation'}
@@ -290,88 +284,12 @@ import ContainerView from './views/ContainerView.svelte';
     <DevicesView />
   {:else if route.name === 'grants'}
     <GrantsView />
-  {:else if route.name === 'instance'}
-    <!-- The level above the workspaces (ADR-0070 §5). Its own area, and its own door: every screen
-         here is drawn only while the session is raised, and the hour's end returns the reader to
-         the application rather than leaving them looking at numbers nothing will refresh. -->
-    <InstanceOverviewView onnavigate={(path) => router.navigate(path)} />
-  {:else if route.name === 'instance-workspaces'}
-    <InstanceWorkspacesView onnavigate={(path) => router.navigate(path)} />
-  {:else if route.name === 'instance-plans'}
-    <InstancePlansView onnavigate={(path) => router.navigate(path)} />
-  {:else if route.name === 'instance-plan'}
-    {#key route.params.name}
-      <InstancePlanView name={route.params.name ?? ''} onnavigate={(path) => router.navigate(path)} />
-    {/key}
-  {:else if route.name === 'instance-settings'}
-    <InstanceSettingsView tab={route.query['tab']} onnavigate={(path) => router.navigate(path)} onreplace={(path) => router.replace(path)} />
-  {:else if route.name === 'instance-providers'}
-    <InstanceProvidersView onnavigate={(path) => router.navigate(path)} />
-  {:else if route.name === 'instance-ai'}
-    <InstanceAiView onnavigate={(path) => router.navigate(path)} />
-  {:else if route.name === 'instance-targets'}
-    <InstanceTargetsView onnavigate={(path) => router.navigate(path)} />
-  {:else if route.name === 'instance-platform'}
-    <InstancePlatformView onnavigate={(path) => router.navigate(path)} />
-  {:else if route.name === 'instance-encryption'}
-    <InstanceEncryptionView onnavigate={(path) => router.navigate(path)} />
-  {:else if route.name === 'instance-operators'}
-    <InstanceOperatorsView onnavigate={(path) => router.navigate(path)} />
-  {:else if route.name === 'instance-journal'}
-    <InstanceJournalView onnavigate={(path) => router.navigate(path)} />
-  {:else if route.name === 'administration'}
-    <AdministrationOverviewView onnavigate={(path) => router.navigate(path)} />
-  {:else if route.name === 'workspace-settings'}
-    <WorkspaceSettingsView />
-  {:else if route.name === 'workspace-address'}
-    <WorkspaceAddressView />
-  {:else if route.name === 'presets'}
-    <PresetsView />
-  {:else if route.name === 'people'}
-    <PeopleView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
-  {:else if route.name === 'machines'}
-    <MachinesView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
-  {:else if route.name === 'rules'}
-    <RulesView onnavigate={(path) => router.navigate(path)} />
-  {:else if route.name === 'rule-new'}
-    <RuleEditorView id="new" onnavigate={(path) => router.navigate(path)} />
-  {:else if route.name === 'rule'}
-    {#key route.params.id}
-      <RuleEditorView id={route.params.id ?? ''} onnavigate={(path) => router.navigate(path)} />
-    {/key}
-  {:else if route.name === 'runs'}
-    <RunsView />
-  {:else if route.name === 'webhooks'}
-    <WebhooksView />
-  {:else if route.name === 'quotas'}
-    <QuotasView />
-  {:else if route.name === 'private-hubs'}
-    <PrivateHubsView onnavigate={(path) => router.navigate(path)} />
-  {:else if route.name === 'backup'}
-    <BackupView />
-  {:else if route.name === 'retention'}
-    <RetentionView />
-  {:else if route.name === 'restore'}
-    <RestoreView />
-  {:else if route.name === 'audit'}
-    <AuditView />
-  {:else if route.name === 'privacy'}
-    <PrivacyView />
   {:else if movedTo(route.name)}
     <!-- Nothing for the moment before the address replaces itself, rather than a not-found. -->
-  {:else if route.name === 'sign-in-settings'}
-    <SignInSettingsView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
-  {:else if route.name === 'voice'}
-    <VoiceView />
-  {:else if route.name === 'mail' || route.name === 'mail-oauth'}
-    <MailView
-      providerAnswer={route.name === 'mail-oauth' ? route.query : undefined}
-      onanswered={() => router.replace('/administration/mail')}
-    />
-  {:else if route.name === 'legal'}
-    <SignInSettingsView part="legal" />
-  {:else if route.name === 'ai'}
-    <AiSettingsView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
+  {:else if route.area === 'instance'}
+    <InstanceArea {route} onnavigate={(path) => router.navigate(path)} onreplace={(path) => router.replace(path)} />
+  {:else if route.area === 'administration'}
+    <AdministrationArea {route} onnavigate={(path) => router.navigate(path)} onreplace={(path) => router.replace(path)} />
   {:else if route.name === 'search'}
     <SearchView query={route.query} onnavigate={(path) => router.replace(path)} />
   {:else if route.name === 'jumble'}

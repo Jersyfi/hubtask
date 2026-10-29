@@ -13,10 +13,12 @@ import assert from 'node:assert/strict';
 import { SyncEngine } from '../src/SyncEngine.ts';
 import { TransportError } from '../src/errors.ts';
 import { MemoryStorage } from '../src/storage/MemoryStorage.ts';
+import { SqliteStorage, copyNameFor } from '../src/storage/SqliteStorage.ts';
 import { FILES, QUEUE } from '../src/queue.ts';
 import type { ChangeRecord, QueuedWrite, StoredRecord, SyncMutation, SyncMutationResult } from '../src/schema.ts';
-import type { RequestOptions, Response } from '../src/ports.ts';
+import type { RequestOptions, Response, Storage } from '../src/ports.ts';
 import { FakeTransport, FixedClock } from './fakes.ts';
+import { FakeShell } from './fakeShell.ts';
 
 const COLLECTION = '0192f000-0000-7000-8000-0000000000c1';
 const ITEM = '0192f000-0000-7000-8000-000000000001';
@@ -69,8 +71,13 @@ async function settle(turns = 12): Promise<void> {
   for (let i = 0; i < turns; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-async function synced(holdsFiles = true) {
-  const storage = new MemoryStorage();
+/** The stores an engine runs over: the memory store, and the shells' SQLite over a fake shell. */
+const STORES: readonly (readonly [string, () => Storage])[] = [
+  ['memory', () => new MemoryStorage()],
+  ['the shells\' SQLite', () => new SqliteStorage(copyNameFor('https://hubtask.example', 'account-1'), new FakeShell().call)],
+];
+
+async function synced(holdsFiles = true, storage: Storage = new MemoryStorage()) {
   const transport = new Server().snapshotSessions({ records: WORKSPACE, cursor: 'c-1' }).streamSessions({ open: true });
   transport.answer('/sync:pull', { changes: [], cursor: 'c-1', has_more: false });
   const engine = new SyncEngine({ transport, clock: new FixedClock(1_700_000_000_000), mutationFor, holdsFiles });
@@ -145,31 +152,34 @@ test('the server answer overwrites a creation\'s prediction, and a template appl
   assert.deepEqual((await storage.all<{ id: string }>('items')).map((held) => held.id), [ITEM], 'the stamp\'s answer is not a document');
 });
 
-test('a file captured offline waits in the copy, is uploaded and attached on reconnect, before what was made after it', async () => {
-  const { transport, engine, storage } = await synced(true);
-  assert.equal(engine.holdsFiles, true);
-  const bytes = new Uint8Array([1, 2, 3, 4]);
-  await engine.capture({ itemId: ITEM, fileName: 'receipt.pdf', contentType: 'application/pdf', size: bytes.length, bytes });
-  await queue(engine, { kind: 'ITEM_PATCH', itemId: ITEM, fields: { title: 'Paid' } });
-  assert.equal(engine.queueState.count, 2);
-  const held = await storage.all<{ bytes: Uint8Array }>(FILES);
-  assert.deepEqual([...(held[0]?.bytes ?? [])], [1, 2, 3, 4], 'the bytes wait in the store');
-  assert.equal((await storage.get<StoredRecord<unknown>>('items', ITEM))?.pending, true);
+// The bytes wait in the shells' encrypted copy as they do in memory, and leave it as bytes (F7-04).
+for (const [store, fresh] of STORES) {
+  test(`a file captured offline waits in the copy, is uploaded and attached on reconnect, before what was made after it (${store})`, async () => {
+    const { transport, engine, storage } = await synced(true, fresh());
+    assert.equal(engine.holdsFiles, true);
+    const bytes = new Uint8Array([1, 2, 3, 4]);
+    await engine.capture({ itemId: ITEM, fileName: 'receipt.pdf', contentType: 'application/pdf', size: bytes.length, bytes });
+    await queue(engine, { kind: 'ITEM_PATCH', itemId: ITEM, fields: { title: 'Paid' } });
+    assert.equal(engine.queueState.count, 2);
+    const held = await storage.all<{ bytes: Uint8Array }>(FILES);
+    assert.deepEqual([...(held[0]?.bytes ?? [])], [1, 2, 3, 4], 'the bytes wait in the store');
+    assert.equal((await storage.get<StoredRecord<unknown>>('items', ITEM))?.pending, true);
 
-  transport.down = false;
-  await engine.push();
-  assert.deepEqual(transport.sent.filter((s) => s !== 'POST /sync:pull'), ['POST /media', `POST /media/${MEDIA}:confirm`, 'POST /sync:push']);
-  assert.equal(transport.transfers.length, 1);
-  assert.equal(transport.transfers[0]!.url, 'https://store.example/put');
-  assert.deepEqual([...(transport.transfers[0]!.body as Uint8Array)], [1, 2, 3, 4]);
-  const pushed = transport.pushes[0]!.mutations;
-  assert.deepEqual(pushed.map((m) => m.kind), ['SET_ADD', 'ITEM_PATCH'], 'the attachment first, then what was made after');
-  assert.equal(pushed[0]!.set, 'attachments');
-  assert.equal(pushed[0]!.element, MEDIA);
-  assert.ok(pushed[0]!.hlc);
-  assert.equal(engine.queueState.count, 0);
-  assert.equal((await storage.all(FILES)).length, 0, 'the bytes left the store');
-});
+    transport.down = false;
+    await engine.push();
+    assert.deepEqual(transport.sent.filter((s) => s !== 'POST /sync:pull'), ['POST /media', `POST /media/${MEDIA}:confirm`, 'POST /sync:push']);
+    assert.equal(transport.transfers.length, 1);
+    assert.equal(transport.transfers[0]!.url, 'https://store.example/put');
+    assert.deepEqual([...(transport.transfers[0]!.body as Uint8Array)], [1, 2, 3, 4]);
+    const pushed = transport.pushes[0]!.mutations;
+    assert.deepEqual(pushed.map((m) => m.kind), ['SET_ADD', 'ITEM_PATCH'], 'the attachment first, then what was made after');
+    assert.equal(pushed[0]!.set, 'attachments');
+    assert.equal(pushed[0]!.element, MEDIA);
+    assert.ok(pushed[0]!.hlc);
+    assert.equal(engine.queueState.count, 0);
+    assert.equal((await storage.all(FILES)).length, 0, 'the bytes left the store');
+  });
+}
 
 test('a capture that cannot reach the server stays queued with its bytes', async () => {
   const { transport, engine, storage } = await synced(true);

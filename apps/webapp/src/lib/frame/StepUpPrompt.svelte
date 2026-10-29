@@ -15,10 +15,16 @@
   // account holds is offered beneath it as one press. The provider is the one way that leaves the
   // page: the person signs in there once more and comes back to where they were. A passkey or
   // security key is a press too: the device answers, and nothing is typed.
+  //
+  // **In an installed app the passkey answers in the system browser** (ADR-0096 decision 5): it
+  // belongs to the workspace's host, which the app's window never is. Where the account holds one it
+  // stays the first way offered, the typed ways beneath it as links (UC-SYN-07/3, ADR-0096), and
+  // the dialog waits while the browser asks.
 
-  import { Banner, Button, CodeField, Dialog, Input, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, CodeField, Dialog, Input, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { canCreatePasskeys } from '../data/passkeys.ts';
+  import { browserKey } from '../signin/browserKey.svelte.ts';
   import { stepUp } from '../data/stepup.svelte.ts';
   import type { StepUpMethod } from '../data/stepup.ts';
   import { t } from '../i18n/i18n.svelte.ts';
@@ -35,18 +41,29 @@
 
   const pending = $derived(stepUp.pending);
   const typed = $derived(ORDER.filter((method) => pending?.methods.includes(method)));
-  // Derived rather than set in an effect: the field has to be in the dialog when it opens, or the
-  // dialog's own first focus lands on *Not now* before an effect could draw it.
-  const chosen = $derived(switched ?? typed[0]);
   const offersProvider = $derived(pending?.methods.includes('PROVIDER') ?? false);
+  /** The installed app's key, which the system browser asks for at the workspace's host. */
+  const offersBrowserKey = $derived((pending?.methods.includes('PASSKEY') ?? false) && browserKey.isAvailable);
   /** A key, where the account holds one and this browser can ask a device. */
-  const offersKey = $derived((pending?.methods.includes('PASSKEY') ?? false) && canCreatePasskeys(globalThis as never));
+  const offersKey = $derived(
+    offersBrowserKey || ((pending?.methods.includes('PASSKEY') ?? false) && canCreatePasskeys(globalThis as never)),
+  );
+  // Derived rather than set in an effect: the field has to be in the dialog when it opens, or the
+  // dialog's own first focus lands on *Not now* before an effect could draw it. In the app a key
+  // comes first, so no field is asked for until the person picks one.
+  const chosen = $derived(switched ?? (offersBrowserKey ? undefined : typed[0]));
+  /** The app's first view: the key first, every other way the account holds beneath it. */
+  const keyFirst = $derived(offersBrowserKey && switched === undefined);
+  /** The way the order below names them: the password, the code, a recovery code (the preview). */
+  const LINK_ORDER: readonly Typed[] = ['PASSWORD', 'TOTP', 'RECOVERY'];
   let keyWaiting = $state(false);
   let keyBox = $state<HTMLElement | undefined>(undefined);
 
   async function useKey(): Promise<void> {
     keyWaiting = true;
-    const ended = await stepUp.proveWithKey((options) => navigator.credentials.get(options));
+    const ended = offersBrowserKey
+      ? await stepUp.proveThrough((options) => browserKey.answer(options))
+      : await stepUp.proveWithKey((options) => navigator.credentials.get(options));
     keyWaiting = false;
     // Closed by the person: nothing said, the focus where it was (P-11).
     if (ended === 'cancelled') keyBox?.querySelector('button')?.focus();
@@ -74,6 +91,12 @@
     }
   });
 
+  /** Closed, or another way chosen: a browser still asking is no longer waited for. */
+  function close(): void {
+    browserKey.stop();
+    stepUp.cancel();
+  }
+
   async function prove(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     if (chosen === 'TOTP') await stepUp.prove({ code: code.trim() });
@@ -94,15 +117,38 @@
   };
 </script>
 
+{#snippet answers()}
+  {#if browserKey.isWaiting}
+    <Button tone="secondary" icon="external-link" onclick={() => browserKey.again()}>{t('app.app_sign_in.open_again')}</Button>
+    <Button tone="subtle" onclick={() => browserKey.stop()}>{t('app.step_up.another_way')}</Button>
+  {:else}
+    <Button tone="subtle" onclick={close}>{t('app.step_up.cancel')}</Button>
+    {#if !cannotProve && chosen}
+      <Button type="submit" form="step-up" tone="primary" isBusy={stepUp.isWorking} busyLabel={t('app.step_up.working')}>
+        {t('app.step_up.submit')}
+      </Button>
+    {:else if !cannotProve && !offersKey}
+      <Button tone="primary" isBusy={stepUp.isWorking} busyLabel={t('app.step_up.working')} onclick={() => stepUp.confirmAtProvider()}>
+        {t('app.step_up.with_provider', { provider })}
+      </Button>
+    {/if}
+  {/if}
+{/snippet}
+
 {#if pending}
   <Dialog
     title={t('app.step_up.title')}
     isOpen
     dismissLabel={t('app.step_up.cancel')}
-    onClose={() => stepUp.cancel()}
+    onClose={close}
+    actions={keyFirst && !browserKey.isWaiting ? undefined : answers}
   >
     <Stack gap="200">
-      <p class="quiet">{t('app.step_up.why')}</p>
+      {#if browserKey.isWaiting}
+        <p class="quiet">{t('app.step_up.browser_opened', { host: browserKey.host })}</p>
+      {:else}
+        <p class="quiet">{t('app.step_up.why')}</p>
+      {/if}
 
       {#if stepUp.failure}
         <!-- The server's own sentence. Which of the two was wrong is not something this client says. -->
@@ -111,8 +157,30 @@
         </Banner>
       {/if}
 
-      {#if cannotProve}
+      {#if browserKey.isWaiting}
+        <p class="waiting" role="status"><Spinner label={t('app.app_sign_in.waiting')} /> <span>{t('app.app_sign_in.waiting')}</span></p>
+      {:else if cannotProve}
         <p>{t('app.step_up.no_method')}</p>
+      {:else if keyFirst}
+        <div class="key" bind:this={keyBox}>
+          <Button tone="primary" icon="key" isBusy={keyWaiting} busyLabel={t('app.sign_in.key_waiting')} onclick={() => void useKey()}>
+            {t('app.step_up.with_key')}
+          </Button>
+          <p class="note">{t('app.step_up.key_in_browser', { host: browserKey.host })}</p>
+        </div>
+        {#if typed.length > 0 || offersProvider}
+          <hr class="rule" />
+          <div class="links">
+            {#each LINK_ORDER.filter((method) => typed.includes(method)) as other (other)}
+              <button type="button" class="link" onclick={() => (switched = other)}>{t(switchLabel[other])}</button>
+            {/each}
+            {#if offersProvider}
+              <button type="button" class="link" onclick={() => void stepUp.confirmAtProvider()}>
+                {t('app.step_up.with_provider', { provider })}
+              </button>
+            {/if}
+          </div>
+        {/if}
       {:else}
         {#if chosen}
           <form id="step-up" onsubmit={prove}>
@@ -184,29 +252,6 @@
       {/if}
     </Stack>
 
-    {#snippet actions()}
-      <Button tone="subtle" onclick={() => stepUp.cancel()}>{t('app.step_up.cancel')}</Button>
-      {#if !cannotProve && chosen}
-        <Button
-          type="submit"
-          form="step-up"
-          tone="primary"
-          isBusy={stepUp.isWorking}
-          busyLabel={t('app.step_up.working')}
-        >
-          {t('app.step_up.submit')}
-        </Button>
-      {:else if !cannotProve && !offersKey}
-        <Button
-          tone="primary"
-          isBusy={stepUp.isWorking}
-          busyLabel={t('app.step_up.working')}
-          onclick={() => stepUp.confirmAtProvider()}
-        >
-          {t('app.step_up.with_provider', { provider })}
-        </Button>
-      {/if}
-    {/snippet}
   </Dialog>
 {/if}
 
@@ -216,7 +261,32 @@
 
   form { margin: 0; }
 
-  .key { display: grid; gap: var(--sp-050); }
+  .key { display: grid; gap: var(--sp-200); }
+
+  .waiting { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-subtle); }
+
+  .rule { margin: 0; border: 0; border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+
+  .links { display: grid; justify-items: start; gap: var(--sp-200); }
+
+  /* The other ways, as links: each switches the dialog, none leaves it. */
+  .link {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-brand);
+    font: inherit;
+    font-weight: var(--fw-medium);
+    cursor: pointer;
+  }
+
+  .link:hover { text-decoration: underline; }
+
+  .link:focus-visible {
+    outline: var(--bw-ring) solid var(--focus-ring);
+    outline-offset: var(--sp-025);
+    border-radius: var(--r-sm);
+  }
 
   .others {
     display: flex;

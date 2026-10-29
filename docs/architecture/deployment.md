@@ -346,19 +346,25 @@ The restore drill's variables (`HUBTASK_DRILL_*`) are set by the chart
 ## 7. What happens during a release
 
 1. The tag `vX.Y.Z` is created (`make release-tag VERSION_TO_TAG=X.Y.Z`).
-2. `release.yml` waits for approval of the `production` environment.
+2. `release.yml` builds the installed apps from the tag (the Windows installer, the AppImage and
+   the `.deb`, the universal APK), without a secret, and waits for approval of the `production`
+   environment.
 3. `make verify` runs again on the tag.
 4. The multi-arch image is built and pushed to `ghcr.io`.
 5. The SBOM is produced, the image is signed keylessly, and provenance is attested.
 6. `THIRD-PARTY-LICENSES.md` is regenerated from what this build links.
 7. The Helm chart is packaged with `version` and `appVersion` from the tag and pushed.
-8. The GitHub release is created with generated notes, the SBOM, the chart and the licence list; a
-   tag with a hyphen is marked as a pre-release.
-9. The operator bumps the tag in its Argo CD Application, and production pulls the published chart
-   and image. Nothing in this workflow touches the cluster (§4).
+8. The APK is signed with the project's key, every app and the update manifest `latest.json` with
+   the update key, each checked against what [versioning-release.md](./versioning-release.md) §8
+   records; one `SHA256SUMS` covers every file the release publishes.
+9. The GitHub release is created with generated notes, the SBOM, the chart, the licence list, the
+   apps with their signatures, `latest.json` and `SHA256SUMS`; a tag with a hyphen is marked as a
+   pre-release.
+10. The operator bumps the tag in its Argo CD Application, and production pulls the published chart
+    and image. Nothing in this workflow touches the cluster (§4).
 
-Every step fails loudly. No path publishes an image without gates, signature or approval, and no
-path deploys from this repository to production.
+Every step fails loudly. No path publishes an image or an app without gates, signature or approval,
+and no path deploys from this repository to production.
 
 ---
 

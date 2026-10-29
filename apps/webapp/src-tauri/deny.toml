@@ -22,6 +22,8 @@ allow = [
   "Apache-2.0 WITH LLVM-exception",
   "BSD-3-Clause",
   "CC0-1.0",
+  # The updater's TLS (ring, rustls-webpki, untrusted): permissive, as the icons' Lucide is.
+  "ISC",
   "MIT",
   "MIT-0",
   "MPL-2.0",
@@ -38,6 +40,13 @@ allow = [
 crate = "r-efi"
 expression = "MIT"
 license-files = []
+
+# The SQLite and SQLCipher sources the encrypted copy builds in (ADR-0033 §4) carry SQLite's
+# public-domain blessing, and the libtomcrypt beside them the WTFPL: both permissive, neither
+# copyleft, and admitted for that crate alone rather than for the graph.
+[[licenses.exceptions]]
+crate = "sqlcipher-src"
+allow = ["blessing", "WTFPL"]
 
 [bans]
 # Several versions of one crate are Tauri's to settle, not ours; a wildcard requirement is ours.

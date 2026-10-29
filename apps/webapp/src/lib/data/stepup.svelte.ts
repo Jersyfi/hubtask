@@ -29,7 +29,7 @@
 import { TransportError, type PasskeyAssertionOptions } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import { ceremonyEndOf, keyAnswerOf, keyRequestOptionsOf, type AssertedCredential } from './passkeys.ts';
+import { ceremonyEndOf, keyAnswerOf, keyRequestOptionsOf, type AssertedCredential, type KeyAnswer } from './passkeys.ts';
 import { messages } from '../i18n/i18n.svelte.ts';
 import { renderProblem, type RenderedProblem } from '../problem.ts';
 import type { Handoff } from './oidc.ts';
@@ -220,6 +220,21 @@ class StepUp {
   async proveWithKey(
     get: (options: CredentialRequestOptions) => Promise<Credential | null>,
   ): Promise<'proved' | 'cancelled' | 'refused'> {
+    return this.proveThrough(async (options) => {
+      const credential = await get(keyRequestOptionsOf(options));
+      return credential === null ? null : keyAnswerOf(credential as unknown as AssertedCredential);
+    });
+  }
+
+  /**
+   * Proves it with a key that answers elsewhere: `answer` takes the options and comes back with the
+   * key's answer, or `null` where nothing came. In the page it is the browser's own ceremony; in an
+   * installed app it is the system browser at the workspace's host (ADR-0096 decision 5), because
+   * a passkey answers only there.
+   */
+  async proveThrough(
+    answer: (options: PasskeyAssertionOptions) => Promise<KeyAnswer | null>,
+  ): Promise<'proved' | 'cancelled' | 'refused'> {
     const waiting = this.#pending;
     if (!waiting) return 'refused';
     this.#working = true;
@@ -238,18 +253,18 @@ class StepUp {
         }
         throw cause;
       }
-      let credential: Credential | null;
+      let given: KeyAnswer | null;
       try {
-        credential = await get(keyRequestOptionsOf(options));
+        given = await answer(options);
       } catch (cause) {
         if (ceremonyEndOf(cause) === 'cancelled') return 'cancelled';
         this.#failure = ownCode('app.sign_in.key_failed');
         return 'refused';
       }
-      if (credential === null) return 'cancelled';
-      const grant = await engine.mutate<Grant>(
-        'POST', STEP_UP, keyAnswerOf(credential as unknown as AssertedCredential), { timeoutMs: TIMEOUT_MS },
-      );
+      if (given === null) return 'cancelled';
+      // The prompt may have been closed while the key was answering elsewhere.
+      if (this.#pending?.settle !== waiting.settle) return 'cancelled';
+      const grant = await engine.mutate<Grant>('POST', STEP_UP, given, { timeoutMs: TIMEOUT_MS });
       this.#pending = undefined;
       waiting.settle(grant.step_up_token);
       return 'proved';

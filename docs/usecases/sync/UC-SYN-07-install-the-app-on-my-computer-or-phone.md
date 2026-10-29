@@ -5,9 +5,9 @@ context: sync
 actors: [PE-person, PE-member, PE-selfhoster, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-05, P-09, P-11, P-13]
-state: specified
+state: partial
 tasks: [F7-02, F7-03, F7-06, F7-08, F7-09, F7-10]
-checked_by: []
+checked_by: [core/application/service/identity/AppClient_test.go, test/integration/app_client_test.go, apps/webapp/src/lib/platform/appSession.test.ts, apps/webapp/src/lib/signin/appSignIn.test.ts, apps/webapp/src/lib/signin/keyRelay.test.ts, apps/webapp/src/lib/signin/keyWait.test.ts, apps/webapp/e2e/apppasskey.test.mjs, apps/webapp/src-tauri/src/signin.rs, apps/webapp/src/lib/platform/appWorkspaces.test.ts, apps/webapp/build/check-mobile-bundle.test.js, apps/webapp/src/lib/platform/target.test.ts, apps/webapp/src/lib/navigation.test.ts, apps/webapp/src/lib/webApp.test.ts, apps/webapp/src/lib/entries/entryMenu.test.ts, apps/webapp/build/release-apps.test.js, apps/webapp/src-tauri/src/update.rs, apps/webapp/src/lib/platform/update.test.ts, apps/webapp/src/lib/frame/appupdate.test.ts, apps/webapp/e2e/webview/smoke.mjs, apps/webapp/src-tauri/src/walk.rs]
 ---
 
 # Install the app on my computer or phone and keep it current
@@ -65,12 +65,12 @@ settings are not in the app, and the menu says they are in the web app, with a l
 
 ## Today
 
-* Check 1: not met — releases publish the server's image and chart only; there is no installed app.
+* Check 1: not met until a release runs — `release.yml` builds, signs and publishes every app with one checksum file, and stops before publishing while the project's two keys are not created and recorded (versioning-release.md §8); the first release with the apps is the acceptance's run.
 * Check 2: not met — the download page says there are no installed apps yet; it offers them with `0.9.5` (#1353).
-* Check 3: not met — there is no installed app, and a passkey cannot be used from a webview's origin.
-* Check 4: not met — there is no installed app.
-* Check 5: not met — there is no updater.
-* Check 6: not met — there is no Android app.
-* Check 7: not met — no build leaves administration out.
-* Check 8: not met — there is no Android app.
-* Check 9: not met — there is no smoke walk in a webview.
+* Check 3: met on the desktop, short of the walk through a password, a provider and a virtual passkey in the built app; a step-up that wants a passkey goes through the system browser too. On Android the session and the copy's key are sealed under the Android Keystore and the code comes back to `eu.hubtask.app:/oauth`, built and not yet walked on a device; a step-up at a provider still leaves the app's window rather than going through the system browser.
+* Check 4: met on the desktop - *Add a workspace* by address, a session per workspace in the keystore and a copy each; the Android app has the same list, as a sheet from the bottom, not yet walked on a device.
+* Check 5: met in the build, short of one updater run from a released version to its successor (`1.0.0` prerequisite 19), which waits for the update key (versioning-release.md §8) — the Windows app and the AppImage look for a newer release at start through `update.json`, check the manifest and then the package under the update key before they offer *Install and restart*, and a manifest or a package with another signature is refused and named (a shell test); the `.deb` names the newer release and opens its download. The key in the shell's configuration is a placeholder a release refuses until the owner records the key.
+* Check 6: met in the build — the Android app reads the release's manifest, names a newer release on *Today* and in *About Hubtask*, and opens the release's page, where the APK stands beside its checksum; not yet walked on a device - the smoke walk of check 9 does not reach the notice.
+* Check 7: met in the build — the Android bundle carries no screen of the administration or the installation's area (a build test), and the account menu names both with the web app's address and opens it there; not yet walked on an emulator - the smoke walk of check 9 does not open the menu's affordance.
+* Check 8: partly met — *Send link…* hands the entry's title and link to the system's share sheet, and the back gesture goes back in the webview's history as the shell's activity does; both are built and not yet walked on an emulator - the smoke walk of check 9 uses neither.
+* Check 9: met in the build, short of the lane's first green run on Windows and Android — the `shell` lane walks each app in its own engine, WebView2, WebKitGTK and Android's system WebView on an emulator, through the engine's WebDriver against a server of the same commit (`apps/webapp/e2e/webview/smoke.mjs`), and reads each write back from the server; the system's browser is stood in for by the walk build's `walk` feature, the consent answered through the API the consent screen calls. A failure in one engine fails the lane. Walked green on WebKitGTK outside CI, at a desktop's and a phone's width; WebView2 and the emulator run only in the lane.

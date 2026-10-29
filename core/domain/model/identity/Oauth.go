@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -66,7 +67,115 @@ type OauthClient struct {
 	RedirectURIs []string
 	CreatedAt    time.Time
 	CreatedBy    shared.ID
+	// AppPlatform marks a row of the built-in client of the installed apps; empty for a
+	// registered client. Such a row is one consent on one device, and Name is that device's.
+	AppPlatform AppPlatform
 }
+
+// AppClientID is the built-in client of the installed apps (identity.md §15.3, ADR-0096): the same
+// identifier in every workspace of every installation, so an app needs nobody to register it.
+const AppClientID shared.ID = "0b5e1a7f-3c2d-4e8a-9f61-7a4c2e9d1b30"
+
+// AppPlatform is the system an installed app runs on, which decides its one kind of redirect.
+type AppPlatform string
+
+const (
+	AppWindows AppPlatform = "windows"
+	AppLinux   AppPlatform = "linux"
+	AppAndroid AppPlatform = "android"
+)
+
+// AppRedirectAndroid is the Android app's redirect, a private-use scheme of the app's own
+// identifier (RFC 8252 §7.1).
+const AppRedirectAndroid = "eu.hubtask.app:/oauth"
+
+// appRedirectPath is the desktop listener's one path.
+const appRedirectPath = "/oauth"
+
+// MaxAppDeviceName bounds the device's name, as the device list bounds it.
+const MaxAppDeviceName = 120
+
+// ParseAppPlatform accepts the three systems the apps ship for, nothing else.
+func ParseAppPlatform(raw string) (AppPlatform, error) {
+	switch platform := AppPlatform(raw); platform {
+	case AppWindows, AppLinux, AppAndroid:
+		return platform, nil
+	}
+	return "", fieldError("/platform", "oauth.app_platform_invalid")
+}
+
+// AllowsAppRedirect is the built-in client's whole redirect rule: on the desktop a loopback
+// address by IP literal on any port with the listener's path (RFC 8252 §7.3) - never `localhost`,
+// which a hosts file can point elsewhere -, on Android exactly AppRedirectAndroid.
+func (p AppPlatform) AllowsAppRedirect(uri string) bool {
+	if p == AppAndroid {
+		return uri == AppRedirectAndroid
+	}
+	parsed, err := url.Parse(uri)
+	if err != nil || parsed.Scheme != "http" || parsed.User != nil ||
+		parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Path != appRedirectPath {
+		return false
+	}
+	host := parsed.Hostname()
+	if host != "127.0.0.1" && host != "::1" {
+		return false
+	}
+	if port := parsed.Port(); port != "" {
+		number, err := strconv.Atoi(port)
+		if err != nil || number < 1 || number > 65535 {
+			return false
+		}
+	}
+	return p == AppWindows || p == AppLinux
+}
+
+// NewAppClientInput is what one consent through the built-in client needs.
+type NewAppClientInput struct {
+	ID          shared.ID
+	TenantID    shared.ID
+	Platform    string
+	Device      string
+	RedirectURI string
+	CreatedBy   shared.ID
+	Now         time.Time
+	Text        text.Normalizer
+}
+
+// NewAppClient is the built-in client's row for one consent: public, the device's name, and the
+// one redirect the consent named, so the exchange's exact match holds as for any client.
+func NewAppClient(in NewAppClientInput) (OauthClient, error) {
+	if in.ID.IsZero() || in.TenantID.IsZero() {
+		return OauthClient{}, shared.ErrInternal.WithDetail("oauth.client_incomplete")
+	}
+	platform, err := ParseAppPlatform(in.Platform)
+	if err != nil {
+		return OauthClient{}, err
+	}
+	device, err := shared.NFC(strings.TrimSpace(in.Device), in.Text)
+	if err != nil {
+		return OauthClient{}, err
+	}
+	switch {
+	case device == "":
+		return OauthClient{}, fieldError("/device", "oauth.app_device_required")
+	case utf8.RuneCountInString(device) > MaxAppDeviceName:
+		return OauthClient{}, fieldError("/device", "oauth.app_device_too_long")
+	}
+	if !platform.AllowsAppRedirect(in.RedirectURI) {
+		return OauthClient{}, shared.ErrValidation.
+			WithDetail("oauth.redirect_uri_mismatch").
+			WithFields(shared.FieldError{Path: "/redirect_uri", Code: "oauth.redirect_uri_mismatch"})
+	}
+	return OauthClient{
+		ID: in.ID, TenantID: in.TenantID, Name: device,
+		RedirectURIs: []string{in.RedirectURI},
+		CreatedAt:    in.Now.UTC(), CreatedBy: in.CreatedBy,
+		AppPlatform: platform,
+	}, nil
+}
+
+// IsApp reports a row of the built-in client.
+func (c OauthClient) IsApp() bool { return c.AppPlatform != "" }
 
 // NewOauthClientInput is what registering one needs.
 type NewOauthClientInput struct {

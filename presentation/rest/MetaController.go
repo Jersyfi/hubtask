@@ -295,6 +295,8 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		installationURL = &address
 	}
 	features := source.Features
+	// The built-in client of the installed apps, which an app reads before it signs in (ADR-0096).
+	appClient := uuidValue(identity.AppClientID.String())
 
 	// The four links, absent rather than empty where the installation set none: a private
 	// installation owes nobody an imprint, and the mapping says so from one place.
@@ -340,6 +342,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		TenancyMode:            &tenancy,
 		WorkspaceHosts:         workspaceHosts,
 		InstallationUrl:        installationURL,
+		AppClientId:            &appClient,
 		ItemTypes:              &itemTypes,
 		QueryFields:            &queryFields,
 		ViewLayouts:            &viewLayouts,
