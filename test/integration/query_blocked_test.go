@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
