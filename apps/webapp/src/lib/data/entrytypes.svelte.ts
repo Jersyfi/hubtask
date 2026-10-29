@@ -6,7 +6,9 @@
  * the whole workspace: a type is the workspace's, not a collection's.
  */
 
-import type { EntryType, EntryTypeChange, EntryTypeCreate, EntryTypeList, ResourceState } from '@hubtask/sync-engine';
+import type {
+  EntryForm, EntryFormDraft, EntryFormState, EntryType, EntryTypeChange, EntryTypeCreate, EntryTypeList, ResourceState,
+} from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
@@ -63,6 +65,27 @@ class EntryTypes {
     return engine.mutate<EntryType>('PATCH', `${PATH}/${encodeURIComponent(type.key)}`, body, {
       ...(type.version > 0 ? { ifMatch: etagFor(type.version) } : {}),
       invalidates: [PATH],
+    });
+  }
+
+  /**
+   * Replaces the type's form (UC-FLW-01 check 2). A system type nobody changed sends no
+   * precondition, as `change` does; its form gives it its row.
+   */
+  setForm(type: Pick<EntryType, 'key' | 'version'>, form: EntryForm): Promise<EntryType> {
+    return engine.mutate<EntryType>('PUT', `${PATH}/${encodeURIComponent(type.key)}/form`, form, {
+      ...(type.version > 0 ? { ifMatch: etagFor(type.version) } : {}),
+      invalidates: [PATH],
+    });
+  }
+
+  /**
+   * How the type's form stands for a draft - which fields are required, read-only or hidden, which
+   * checks fail, whether this door may create the type. Writes nothing, so it invalidates nothing.
+   */
+  evaluate(key: string, draft: EntryFormDraft): Promise<EntryFormState> {
+    return engine.mutate<EntryFormState>('POST', `${PATH}/${encodeURIComponent(key)}/form:evaluate`, draft, {
+      invalidates: [],
     });
   }
 

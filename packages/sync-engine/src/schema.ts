@@ -178,6 +178,12 @@ export type EntryType = components['schemas']['EntryType'];
 export type EntryTypeList = components['schemas']['EntryTypeList'];
 export type EntryTypeCreate = components['schemas']['EntryTypeCreate'];
 export type EntryTypeChange = components['schemas']['EntryTypeChange'];
+/** A type's form - its layout and logic - and how it stands for a draft (UC-FLW-01 check 2). */
+export type EntryForm = components['schemas']['EntryForm'];
+export type EntryFormField = components['schemas']['EntryFormField'];
+export type EntryFormChannel = components['schemas']['EntryFormChannel'];
+export type EntryFormDraft = components['schemas']['EntryFormDraft'];
+export type EntryFormState = components['schemas']['EntryFormState'];
 /** A kind of relation between two entries, with its direction, cardinality and cycle rule (UC-PLN-01). */
 export type LinkType = components['schemas']['LinkType'];
 export type LinkTypeList = components['schemas']['LinkTypeList'];
