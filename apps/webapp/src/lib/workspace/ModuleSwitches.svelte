@@ -20,6 +20,7 @@
 
   import ValueSource from './ValueSource.svelte';
   import ViewAsFile from '../settings/ViewAsFile.svelte';
+  import ViewSectionsAsFile from '../settings/ViewSectionsAsFile.svelte';
   import { asksFirst, isSetHere, moduleCodes, modules, unavailableBecause } from '../data/modules.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -139,7 +140,13 @@
         </li>
       {/each}
     </ul>
-    <Inline gap="150" align="center"><ViewAsFile values={shown} {place} /></Inline>
+    <Inline gap="150" align="center">
+      {#if hubId}
+        <ViewSectionsAsFile sections={['modules', 'structure', 'scheme']} {hubId} />
+      {:else}
+        <ViewAsFile values={shown} {place} />
+      {/if}
+    </Inline>
   {/if}
 </Stack>
 

@@ -34,9 +34,10 @@ class Config {
     return engine.subscribe<ConfigProposalList>({ path: `${PROPOSALS}?state=WAITING` }, onNext);
   }
 
-  /** Reads the document in force. **From `untrack`**. */
-  document(onNext: (state: ResourceState<ConfigExport>) => void): () => void {
-    return engine.subscribe<ConfigExport>({ path: DOCUMENT }, onNext);
+  /** Reads the document in force: the workspace's, or a hub's own. **From `untrack`**. */
+  document(onNext: (state: ResourceState<ConfigExport>) => void, hubId?: string): () => void {
+    const path = hubId ? `${DOCUMENT}?hub_id=${encodeURIComponent(hubId)}` : DOCUMENT;
+    return engine.subscribe<ConfigExport>({ path }, onNext);
   }
 
   /** Reads one version with its document, to compare two. */

@@ -18,16 +18,22 @@
   interface Props {
     /** The document's sections the page configures: `types`, `roles`, … */
     sections: readonly string[];
+    /**
+     * A hub whose own document the page configures. Its settings are drawn only for those who
+     * shape it, so the page's own gate stands for this one.
+     */
+    hubId?: string;
   }
 
-  const { sections }: Props = $props();
+  const { sections, hubId }: Props = $props();
 
-  const mayRead = $derived(holdsHere('STRUCTURE') === true || holdsHere('READ_CONFIGURATION') === true);
+  const mayRead = $derived(hubId !== undefined || holdsHere('STRUCTURE') === true || holdsHere('READ_CONFIGURATION') === true);
   let isOpen = $state(false);
   let current = $state<ResourceState<ConfigExport>>();
   $effect(() => {
     if (!isOpen) return;
-    return untrack(() => config.document((next) => (current = next)));
+    const hub = hubId;
+    return untrack(() => config.document((next) => (current = next), hub));
   });
 
   const file = $derived.by(() => {
