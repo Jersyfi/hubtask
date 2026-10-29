@@ -816,6 +816,31 @@ type ItemTallies interface {
 	TallyFor(ctx context.Context, itemIDs []shared.ID) (map[shared.ID]ItemTally, error)
 }
 
+// ItemAggregates summarises the entries a query keeps: a count and a function over one measure,
+// per group and period (view.Aggregation). Its own interface rather than a method on Items, so the
+// fakes of Items stay whole; the permission on the scope is decided before it runs (rule 2).
+type ItemAggregates interface {
+	Aggregate(ctx context.Context, search ItemSearch, aggregation view.Aggregation, timeZone string) (
+		ItemAggregateResult, error)
+}
+
+// ItemAggregateResult is the answer: its rows in the group's order, then the period's, and whether
+// they were cut at view.MaxAggregateRows.
+type ItemAggregateResult struct {
+	Rows      []ItemAggregateRow
+	Truncated bool
+}
+
+// ItemAggregateRow is one group in one period. Group is empty where nothing groups or the entry has
+// no value; Period is the period's first day, `YYYY-MM-DD`, empty where nothing buckets; Value is
+// the function's result as a decimal string, nil for a plain count or an empty measure.
+type ItemAggregateRow struct {
+	Group  string
+	Period string
+	Count  int64
+	Value  *string
+}
+
 // ItemLabels stores which items carry which labels, and the tags that decide it after a merge.
 //
 // Two tables behind one interface, deliberately. `item_label` is the membership every read goes

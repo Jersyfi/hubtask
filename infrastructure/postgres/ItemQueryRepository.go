@@ -455,3 +455,59 @@ func (r ItemRepository) searchBoundary(cursor string) (query.SearchBoundary, err
 func rankKey(rank float32) string {
 	return strconv.FormatFloat(float64(rank), 'g', -1, 32)
 }
+
+var _ repository.ItemAggregates = ItemRepository{}
+
+// Aggregate answers a summary of the entries the search keeps, one row per group and period.
+func (r ItemRepository) Aggregate(
+	ctx context.Context, search repository.ItemSearch, aggregation view.Aggregation, timeZone string,
+) (repository.ItemAggregateResult, error) {
+	tx, err := FromContext(ctx)
+	if err != nil {
+		return repository.ItemAggregateResult{}, err
+	}
+	statement, err := query.Aggregate(search, aggregation, timeZone, view.MaxAggregateRows+1)
+	if err != nil {
+		return repository.ItemAggregateResult{}, err
+	}
+
+	rows, err := tx.Query(ctx, statement.SQL, statement.Args...)
+	if err != nil {
+		return repository.ItemAggregateResult{}, queryFailed("aggregating the query's rows", err)
+	}
+	defer rows.Close()
+
+	var result repository.ItemAggregateResult
+	for rows.Next() {
+		var group, period *string
+		var value pgtype.Numeric
+		var row repository.ItemAggregateRow
+		if err := rows.Scan(&group, &period, &row.Count, &value); err != nil {
+			return repository.ItemAggregateResult{}, queryFailed("reading an aggregate row", err)
+		}
+		if group != nil {
+			row.Group = *group
+		}
+		if period != nil {
+			row.Period = *period
+		}
+		if value.Valid {
+			text, err := value.Value()
+			if err != nil {
+				return repository.ItemAggregateResult{}, queryFailed("reading an aggregate value", err)
+			}
+			if spelled, ok := text.(string); ok {
+				row.Value = &spelled
+			}
+		}
+		if len(result.Rows) == view.MaxAggregateRows {
+			result.Truncated = true
+			break
+		}
+		result.Rows = append(result.Rows, row)
+	}
+	if err := rows.Err(); err != nil {
+		return repository.ItemAggregateResult{}, queryFailed("aggregating the query's rows", err)
+	}
+	return result, nil
+}
