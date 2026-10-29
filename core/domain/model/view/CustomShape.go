@@ -196,6 +196,9 @@ func shapedNode(node Node, shapeFor func(Field) (Field, bool), path string) (Nod
 		return node, nil
 	}
 	node.Field = field
+	if node.Op == OpContainsAny || node.Op == OpContainsAll || node.Op == OpStartsWith {
+		return typedOperator(node, path)
+	}
 	if !isRange(node.Op) {
 		return node, nil
 	}
@@ -213,6 +216,30 @@ func shapedNode(node Node, shapeFor func(Field) (Field, bool), path string) (Nod
 		values = append(values, typed)
 	}
 	node.Values = values
+	return node, nil
+}
+
+// typedOperator holds a set or prefix operator to the shape it means something over: a set for
+// CONTAINS_ANY and CONTAINS_ALL, text for STARTS_WITH, whose value is text too. An undefined key
+// passes, and matches nothing, as every other operator on it does.
+func typedOperator(node Node, path string) (Node, error) {
+	shape := node.Field.Custom
+	fits := !shape.Defined
+	if shape.Defined && !shape.Ambiguous {
+		if node.Op == OpStartsWith {
+			fits = !shape.Set && shape.Column == CustomText
+		} else {
+			fits = shape.Set
+		}
+	}
+	if !fits {
+		return Node{}, fieldError(path+"/op", "query.operator_unsupported", map[string]string{
+			"field": node.Field.Name, "operator": string(node.Op),
+		})
+	}
+	if node.Op == OpStartsWith && node.Values[0].Kind != KindString {
+		return Node{}, fieldError(path+"/value", "query.value_type_invalid", nil)
+	}
 	return node, nil
 }
 

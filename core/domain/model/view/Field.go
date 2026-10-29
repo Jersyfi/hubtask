@@ -138,9 +138,12 @@ const (
 // The kind is not known when the filter is parsed - it is the definition's, which is data - so the
 // ordering comparisons are accepted here by shape and held to the kind once the use case has read
 // the definitions (Spec.Shaped): they compare the typed value of the side table (F-2), a NUMBER as
-// a number and a DATE as a day, never the jsonb document's text.
+// a number and a DATE as a day, never the jsonb document's text. The set and prefix operators
+// (S-11) are held the same way: CONTAINS_ANY and CONTAINS_ALL to a field holding several values,
+// STARTS_WITH to one holding text.
 var customFieldOperators = []Operator{
 	OpEq, OpNeq, OpIn, OpNotIn, OpIsNull, OpContains, OpLt, OpLte, OpGt, OpGte, OpBetween,
+	OpContainsAny, OpContainsAll, OpStartsWith,
 }
 
 // CustomField reports whether the name belongs to the family, and answers with the key.

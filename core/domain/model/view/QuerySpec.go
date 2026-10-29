@@ -59,6 +59,25 @@ type Scope struct {
 	// IncludeDescendants searches the whole subtree rather than one level. True unless the caller
 	// said otherwise, because the whole subtree is what a view usually means.
 	IncludeDescendants bool
+	// Workspace is the whole workspace, narrowed inside the statement to the collections the
+	// actor reads. Only a summary takes it (ParseSummaryScope): a count across hubs is one bound
+	// list of collections, where a page of rows across them would be a permission question per row.
+	Workspace bool
+}
+
+// ParseSummaryScope reads an aggregation's anchor: ParseScope's, or the whole workspace named
+// explicitly. Explicit rather than the absence of an anchor, so that a client that forgot its
+// anchor is still refused rather than handed a workspace's numbers.
+func ParseSummaryScope(
+	containerID, itemID shared.ID, includeDescendants, workspace bool, path string,
+) (Scope, error) {
+	if !workspace {
+		return ParseScope(containerID, itemID, includeDescendants, path)
+	}
+	if !containerID.IsZero() || !itemID.IsZero() {
+		return Scope{}, fieldError(path, "query.scope_ambiguous", nil)
+	}
+	return Scope{Workspace: true, IncludeDescendants: true}, nil
 }
 
 // SortTerm is one ordering, most significant first.

@@ -28,6 +28,31 @@ const (
 	BucketMonth TimeBucket = "month"
 )
 
+// WeekStart is the day a weekly bucket begins on. Monday is ISO 8601's and the default; Sunday is
+// the other week a calendar draws.
+type WeekStart string
+
+const (
+	WeekMonday WeekStart = "monday"
+	WeekSunday WeekStart = "sunday"
+)
+
+// Quantity is a measure every entry carries without a definition: a span between two of its own
+// stamps, in whole minutes. A closed vocabulary like the functions; the compiler writes one
+// constant expression per quantity.
+type Quantity string
+
+const (
+	// QuantityLeadTime is creation to completion - what a flow metric calls lead time. An open
+	// entry holds none.
+	QuantityLeadTime Quantity = "lead_time"
+	// QuantityScheduledSpan is start to due. An entry missing either holds none.
+	QuantityScheduledSpan Quantity = "scheduled_span"
+)
+
+// Quantities lists the built-in measures, for a door that offers them.
+func Quantities() []Quantity { return []Quantity{QuantityLeadTime, QuantityScheduledSpan} }
+
 // MaxAggregateRows bounds the rows one aggregation answers: groups times buckets. A year of days
 // over a dozen statuses fits; past it the answer says it was cut rather than growing without end.
 const MaxAggregateRows = 5000
@@ -40,13 +65,17 @@ const MaxAggregateRows = 5000
 type Aggregation struct {
 	Function AggregateFunction
 	// Measure is the summed field - a custom field holding a number, money or a duration. Zero for
-	// COUNT.
+	// COUNT and for a built-in quantity.
 	Measure Field
+	// Quantity is the built-in measure instead of a custom field; empty otherwise.
+	Quantity Quantity
 	// GroupBy is the field the rows are split by; zero for one total.
 	GroupBy Field
 	// Bucket and BucketField cut the rows by period; both or neither.
 	Bucket      TimeBucket
 	BucketField Field
+	// WeekStart is the first day of a weekly bucket; empty for every other period.
+	WeekStart WeekStart
 }
 
 // IsGrouped reports whether the aggregation is split by a field.
@@ -55,7 +84,8 @@ func (a Aggregation) IsGrouped() bool { return a.GroupBy.Name != "" }
 // IsBucketed reports whether the aggregation is split by period.
 func (a Aggregation) IsBucketed() bool { return a.Bucket != "" }
 
-// ParseAggregation reads `{function, field?, group_by?, bucket?: {field, period}}`.
+// ParseAggregation reads `{function, field?, group_by?, bucket?: {field, period, week_start?}}`.
+// The field is a custom field or a built-in Quantity.
 func ParseAggregation(raw any, path string) (Aggregation, error) {
 	document, ok := raw.(map[string]any)
 	if !ok {
@@ -74,6 +104,8 @@ func ParseAggregation(raw any, path string) (Aggregation, error) {
 	switch {
 	case function == AggregateCount && present && measure != nil:
 		return Aggregation{}, fieldError(path+"/field", "query.aggregate_field_unexpected", nil)
+	case function != AggregateCount && slices.Contains(Quantities(), Quantity(stringOf(measure))):
+		result.Quantity = Quantity(stringOf(measure))
 	case function != AggregateCount:
 		target, err := field(stringOf(measure), path+"/field")
 		if err != nil {
@@ -118,6 +150,19 @@ func ParseAggregation(raw any, path string) (Aggregation, error) {
 				map[string]string{"field": target.Name})
 		}
 		result.Bucket, result.BucketField = period, target
+		start, present := bucket["week_start"]
+		switch {
+		case !present || start == nil:
+			if period == BucketWeek {
+				result.WeekStart = WeekMonday
+			}
+		case period != BucketWeek:
+			return Aggregation{}, fieldError(path+"/bucket/week_start", "query.week_start_unexpected", nil)
+		case !slices.Contains([]WeekStart{WeekMonday, WeekSunday}, WeekStart(stringOf(start))):
+			return Aggregation{}, fieldError(path+"/bucket/week_start", "query.week_start_unknown", nil)
+		default:
+			result.WeekStart = WeekStart(stringOf(start))
+		}
 	}
 	return result, nil
 }
