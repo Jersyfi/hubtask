@@ -88,7 +88,10 @@ func (m *memory) StoreSnapshot(_ context.Context, _ domain.Ref, snapshot domain.
 	return true, nil
 }
 
-func (m *memory) Erase(context.Context, domain.Ref) error { m.updates, m.snapshots = nil, nil; return nil }
+func (m *memory) Erase(context.Context, domain.Ref) error {
+	m.updates, m.snapshots = nil, nil
+	return nil
+}
 
 // gate answers by permission: what the reader holds at the document's place.
 type gate struct {
