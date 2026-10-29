@@ -18,12 +18,14 @@ const (
 	PurposeSLA           Purpose = "SLA"
 	PurposeApproval      Purpose = "APPROVAL"
 	PurposeEffectiveness Purpose = "EFFECTIVENESS_CHECK"
+	// PurposePageReview counts down to the end of a page's verification (UC-DOC-12 check 4).
+	PurposePageReview Purpose = "PAGE_REVIEW"
 )
 
 // Valid answers whether the purpose is one of the set.
 func (p Purpose) Valid() bool {
 	switch p {
-	case PurposeSLA, PurposeApproval, PurposeEffectiveness:
+	case PurposeSLA, PurposeApproval, PurposeEffectiveness, PurposePageReview:
 		return true
 	}
 	return false

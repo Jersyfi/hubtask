@@ -270,3 +270,20 @@ func TestARoleGivenNamesTheGrantAndIsNotTheTrashedHub(t *testing.T) {
 		t.Errorf("a grant beside an entry was accepted: %v", err)
 	}
 }
+
+// A page due for review is a reminder about a page (UC-DOC-12 check 4): one subject, kept.
+func TestAPageReviewNamesThePageAlone(t *testing.T) {
+	page := shared.ID("01936f2a-7c1e-7000-8000-00000000000b")
+	in := notification.NewInput{
+		ID: shared.ID("01936f2a-7c1e-7000-8000-000000000001"), TenantID: tenant, RecipientID: recipient,
+		Category: notification.CategoryReminder, Channel: notification.ChannelEmail, PageID: page,
+	}
+	written, err := notification.New(in)
+	if err != nil || written.PageID != page {
+		t.Fatalf("the page was not kept: %+v, %v", written, err)
+	}
+	in.ItemID = item
+	if _, err := notification.New(in); err == nil || !strings.Contains(err.Error(), "notifications.subject_ambiguous") {
+		t.Errorf("a page beside an entry was accepted: %v", err)
+	}
+}

@@ -115,6 +115,14 @@ const (
 	// RoleGrantedAttempts is that job's attempt budget, EmergencyAccessAttempts' for its reason.
 	RoleGrantedAttempts = 20
 
+	// KindPageReviewEmail sends one REMINDER notification about a page due for review (UC-DOC-12
+	// check 4), under its own kind for the same rolling update: a process of the previous release
+	// does not know the record's page and would send a reminder about nothing.
+	KindPageReviewEmail Kind = "notification.page_review"
+
+	// PageReviewAttempts is that job's attempt budget, EmergencyAccessAttempts' for its reason.
+	PageReviewAttempts = 20
+
 	// EmergencyAccessAttempts is that job's attempt budget: more than the default, because a
 	// rollout's old processes may claim and return it a few times before a new one runs it, and
 	// each claim spends an attempt.

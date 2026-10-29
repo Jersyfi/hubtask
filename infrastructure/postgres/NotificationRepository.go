@@ -80,6 +80,10 @@ func (r NotificationRepository) Insert(
 	if err != nil {
 		return false, err
 	}
+	pageID, err := optionalUUID(record.PageID)
+	if err != nil {
+		return false, err
+	}
 
 	written, err := queries.InsertNotification(ctx, sqlc.InsertNotificationParams{
 		ID:                 id,
@@ -94,6 +98,7 @@ func (r NotificationRepository) Insert(
 		SubscriptionID:     subscriptionID,
 		PrivateHubAccessID: accessID,
 		MembershipID:       membershipID,
+		PageID:             pageID,
 		ActorID:            actorID,
 		CreatedAt:          timestampOf(record.CreatedAt),
 	})
@@ -338,6 +343,10 @@ func notificationFrom(row sqlc.Notification) (domain.Notification, error) {
 	if err != nil {
 		return domain.Notification{}, err
 	}
+	pageID, err := optionalID(row.PageID)
+	if err != nil {
+		return domain.Notification{}, err
+	}
 
 	var reason string
 	if row.Reason != nil {
@@ -357,6 +366,7 @@ func notificationFrom(row sqlc.Notification) (domain.Notification, error) {
 		SubscriptionID:     subscriptionID,
 		PrivateHubAccessID: accessID,
 		MembershipID:       membershipID,
+		PageID:             pageID,
 		ActorID:            actorID,
 		CreatedAt:          row.CreatedAt.Time.UTC(),
 		SentAt:             optionalTime(row.SentAt),

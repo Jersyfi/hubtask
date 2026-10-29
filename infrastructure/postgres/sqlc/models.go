@@ -1422,6 +1422,7 @@ type Notification struct {
 	SubscriptionID     pgtype.UUID
 	PrivateHubAccessID pgtype.UUID
 	MembershipID       pgtype.UUID
+	PageID             pgtype.UUID
 }
 
 type NotificationPreference struct {

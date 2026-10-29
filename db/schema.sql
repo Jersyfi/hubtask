@@ -1456,7 +1456,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON work_item_announcement, work_item_flow, 
 CREATE TABLE durable_timer (
   id               uuid PRIMARY KEY,
   tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  purpose          text NOT NULL CHECK (purpose IN ('SLA', 'APPROVAL', 'EFFECTIVENESS_CHECK')),
+  purpose          text NOT NULL CHECK (purpose IN ('SLA', 'APPROVAL', 'EFFECTIVENESS_CHECK', 'PAGE_REVIEW')),
   subject_id       uuid NOT NULL,
   name             text NOT NULL CHECK (name ~ '^[a-z][a-z0-9_]{0,49}$'),
   calendar         jsonb NOT NULL,   -- the calendar it was armed on
@@ -2484,6 +2484,9 @@ CREATE TABLE notification (
   -- The role somebody was given (migrations 0144, 0145, UC-NOT-01 check 9): the mail reads the role,
   -- the scope and the place's name from the grant at delivery, and a revoked grant takes it along.
   membership_id uuid,
+  -- The page whose review fell due (migration 0232, UC-DOC-12 check 4): the mail reads its title at
+  -- delivery, and a purged page takes it along.
+  page_id uuid,
 
   CONSTRAINT notification_recipient_id_fkey
     FOREIGN KEY (tenant_id, recipient_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE,
@@ -2499,10 +2502,13 @@ CREATE TABLE notification (
   CONSTRAINT notification_private_hub_access_id_fkey
     FOREIGN KEY (tenant_id, private_hub_access_id) REFERENCES private_hub_access (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT notification_one_subject_check
-    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id) <= 1),
+    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id, page_id) <= 1),
   CONSTRAINT notification_membership_id_fkey
-    FOREIGN KEY (tenant_id, membership_id) REFERENCES membership (tenant_id, id) ON DELETE CASCADE
+    FOREIGN KEY (tenant_id, membership_id) REFERENCES membership (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT notification_page_id_fkey
+    FOREIGN KEY (tenant_id, page_id) REFERENCES page (tenant_id, id) ON DELETE CASCADE
 );
+CREATE INDEX notification_page_idx ON notification (tenant_id, page_id) WHERE page_id IS NOT NULL;
 -- Partial: the invitation carries no event, and NULLs are all distinct to a unique index.
 CREATE UNIQUE INDEX notification_event_recipient_idx
   ON notification (tenant_id, event_id, recipient_id, channel)

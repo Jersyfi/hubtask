@@ -200,6 +200,9 @@ type Notification struct {
 	// MembershipID is the role the recipient was given (UC-NOT-01 check 9): the message reads the
 	// role, the scope and the place's name from the grant when it is rendered.
 	MembershipID shared.ID
+	// PageID is the page whose review fell due (UC-DOC-12 check 4): the message reads its title
+	// when it is rendered.
+	PageID shared.ID
 	// ActorID is who caused it, zero where nobody did: the automatic assignment acts for the system
 	// rather than for a person.
 	ActorID   shared.ID
@@ -220,13 +223,14 @@ type NewInput struct {
 	Channel     Channel
 	EventID     shared.ID
 	ItemID      shared.ID
-	// RuleID, SubscriptionID, PrivateHubAccessID or MembershipID instead of ItemID for a message
-	// about a rule, a subscription, an emergency access or a role given; naming two subjects is
-	// refused.
+	// RuleID, SubscriptionID, PrivateHubAccessID, MembershipID or PageID instead of ItemID for a
+	// message about a rule, a subscription, an emergency access, a role given or a page; naming two
+	// subjects is refused.
 	RuleID             shared.ID
 	SubscriptionID     shared.ID
 	PrivateHubAccessID shared.ID
 	MembershipID       shared.ID
+	PageID             shared.ID
 	ActorID            shared.ID
 	At                 time.Time
 }
@@ -270,6 +274,7 @@ func New(in NewInput) (Notification, error) {
 		SubscriptionID:     in.SubscriptionID,
 		PrivateHubAccessID: in.PrivateHubAccessID,
 		MembershipID:       in.MembershipID,
+		PageID:             in.PageID,
 		ActorID:            in.ActorID,
 		CreatedAt:          in.At,
 	}, nil
@@ -277,7 +282,7 @@ func New(in NewInput) (Notification, error) {
 
 func subjectsNamed(in NewInput) int {
 	named := 0
-	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID, in.MembershipID} {
+	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID, in.MembershipID, in.PageID} {
 		if !id.IsZero() {
 			named++
 		}
