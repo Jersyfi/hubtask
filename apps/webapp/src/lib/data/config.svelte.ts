@@ -9,7 +9,8 @@
  */
 
 import type {
-  ConfigApplyResult, ConfigExport, ConfigPlan, ConfigProposalList, ConfigVersion, ConfigVersionList, ResourceState,
+  ConfigApplyResult, ConfigExport, ConfigPlan, ConfigProposalList, ConfigTemplateList, ConfigTemplatePlan, ConfigVersion,
+  ConfigVersionList, ResourceState,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
@@ -17,8 +18,9 @@ import { engine } from './engine.ts';
 const VERSIONS = '/config/versions';
 const PROPOSALS = '/config/proposals';
 const DOCUMENT = '/config';
+const TEMPLATES = '/config/templates';
 // What an apply can change: every block of the document, and what the capabilities answer of it.
-const TOUCHED = ['/config', '/tenant', '/tenant/modules', '/entry-types', '/link-types', '/workflows', '/custom-fields', '/roles', '/meta/capabilities'];
+const TOUCHED = ['/config', TEMPLATES, '/tenant', '/tenant/modules', '/entry-types', '/link-types', '/workflows', '/custom-fields', '/roles', '/meta/capabilities'];
 
 class Config {
   /** Reads the versions, newest first. **From `untrack`**. */
@@ -52,6 +54,26 @@ class Config {
       idempotencyKey: crypto.randomUUID(),
       invalidates: TOUCHED,
     });
+  }
+
+  /** Reads the templates the reader may take, the newest version of each. **From `untrack`**. */
+  templates(onNext: (state: ResourceState<ConfigTemplateList>) => void): () => void {
+    return engine.subscribe<ConfigTemplateList>({ path: TEMPLATES }, onNext);
+  }
+
+  /**
+   * Plans taking a template, or upgrading to its newer version: `take` names the upgrade's changes
+   * to take, omitted taking every one the workspace did not change itself. Writes nothing.
+   */
+  async planTemplate(key: string, take?: readonly string[]): Promise<ConfigTemplatePlan> {
+    return engine.mutate<ConfigTemplatePlan>('POST', `${TEMPLATES}/${encodeURIComponent(key)}:plan`, take ? { take: [...take] } : {});
+  }
+
+  /** Applies a template's plan by its hash, recording the template's provenance. */
+  async applyTemplate(plan: ConfigTemplatePlan, acknowledge: boolean): Promise<ConfigApplyResult> {
+    return engine.mutate<ConfigApplyResult>('POST', '/config:apply', {
+      document: plan.document, mode: plan.mode, plan_hash: plan.plan_hash ?? '', template: plan.template, acknowledge,
+    }, { idempotencyKey: crypto.randomUUID(), invalidates: TOUCHED });
   }
 
   /** Applies or declines a proposal. */

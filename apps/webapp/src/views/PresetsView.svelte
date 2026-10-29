@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The workspace's *Presets* (UC-WRK-30 checks 3, 4): its saved presets - renamed and withdrawn
+  // The workspace's *Templates* (configuration/ui.md §4): the gallery of every template by origin,
+  // above the presets it holds as their structure part (UC-WRK-30 checks 3, 4): its saved presets - renamed and withdrawn
   // here, changed from a collection's *Save as preset* -, the preset a new hub starts from, and the
   // settings locked for every hub and collection.
   //
@@ -28,6 +29,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import TemplatesGallery from '../lib/settings/TemplatesGallery.svelte';
   import { SETTINGS } from '../lib/workspace/structureDraft.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
 
@@ -145,6 +147,8 @@
 
     <WorkspaceGate permission="STRUCTURE">
       <Stack gap="400">
+        <TemplatesGallery />
+
         <section class="block" aria-labelledby="presets-saved" data-presets-saved>
           <h2 id="presets-saved">{t('app.presets.saved_title')}</h2>
           <p class="quiet">{t('app.presets.saved_about')}</p>
