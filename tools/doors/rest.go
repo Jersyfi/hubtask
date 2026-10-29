@@ -38,6 +38,9 @@ type RESTDoor struct {
 	ETag string
 	// BodyAs is the input the whole body reaches the use case as; empty spreads its members.
 	BodyAs string
+	// AnswerBy is the adapter's shared mapper that draws the answer (an entry is drawn by one
+	// mapper wherever it is answered); empty passes the output through the answer's type.
+	AnswerBy string
 }
 
 type pathArg struct{ Input, Value string }
@@ -48,6 +51,7 @@ type restOperation struct {
 	IfMatchAs   string            `yaml:"x-hubtask-rest-if-match"`
 	PathAs      map[string]string `yaml:"x-hubtask-rest-path"`
 	BodyAs      string            `yaml:"x-hubtask-rest-body"`
+	AnswerBy    string            `yaml:"x-hubtask-rest-answer"`
 	ETagFrom    string      `yaml:"x-hubtask-rest-etag"`
 	Parameters  []parameter `yaml:"parameters"`
 	RequestBody *struct {
@@ -107,7 +111,7 @@ func restDoor(
 	signatures map[string][]*ast.Field, bodies, texts map[string]bool,
 ) (RESTDoor, error) {
 	name := upperFirst(op.OperationID)
-	door := RESTDoor{OperationID: op.OperationID, UseCase: name, Method: strings.ToUpper(method), Path: path, IfMatchAs: op.IfMatchAs, BodyAs: op.BodyAs}
+	door := RESTDoor{OperationID: op.OperationID, UseCase: name, Method: strings.ToUpper(method), Path: path, IfMatchAs: op.IfMatchAs, BodyAs: op.BodyAs, AnswerBy: op.AnswerBy}
 	signature, ok := signatures[name]
 	if !ok {
 		return door, fmt.Errorf("the ServerInterface has no method %s; run oapi-codegen first", name)
@@ -302,7 +306,10 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 			fmt.Fprintf(&b, "\tvar body %s\n", d.BodyType)
 			body = "&body"
 		}
-		if d.AnswerType != "" {
+		switch {
+		case d.AnswerBy != "":
+			answer = "answerBy(" + d.AnswerBy + ")"
+		case d.AnswerType != "":
 			fmt.Fprintf(&b, "\tvar answer %s\n", d.AnswerType)
 			answer = "&answer"
 		}

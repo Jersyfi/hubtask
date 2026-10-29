@@ -59,8 +59,10 @@ var restDoors = map[string]restDoor{
 	"saveWorkflowDraft":      {UseCase: "SaveWorkflowDraft", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: ""},
 	"setConfigPolicy":        {UseCase: "SetConfigPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: ""},
 	"setEntryTypeForm":       {UseCase: "SetEntryTypeForm", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "form"},
+	"setItemEntryType":       {UseCase: "SetItemEntryType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: ""},
 	"setModule":              {UseCase: "SetModule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: ""},
 	"setWorkflowScheme":      {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: ""},
+	"takeStep":               {UseCase: "TakeStep", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: ""},
 	"tryWorkflowStep":        {UseCase: "TryWorkflowStep", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: ""},
 	"unlinkEntries":          {UseCase: "UnlinkEntries", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: ""},
 	"validateConfig":         {UseCase: "ValidateConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: ""},
@@ -361,6 +363,12 @@ func (c *RestController) SetEntryTypeForm(w http.ResponseWriter, r *http.Request
 	c.door(w, r, restDoors["setEntryTypeForm"], usecase.Input{"key": key}, params, &body, &answer)
 }
 
+// SetItemEntryType answers PUT /items/{itemId}/entry-type by the generated mapping.
+func (c *RestController) SetItemEntryType(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.SetItemEntryTypeParams) {
+	var body openapi.SetItemEntryTypeJSONRequestBody
+	c.door(w, r, restDoors["setItemEntryType"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(workItemResponse))
+}
+
 // SetModule answers PUT /tenant/modules/{module} by the generated mapping.
 func (c *RestController) SetModule(w http.ResponseWriter, r *http.Request, module openapi.Module) {
 	var body openapi.SetModuleJSONRequestBody
@@ -373,6 +381,12 @@ func (c *RestController) SetWorkflowScheme(w http.ResponseWriter, r *http.Reques
 	var body openapi.SetWorkflowSchemeJSONRequestBody
 	var answer openapi.WorkflowSchemeResult
 	c.door(w, r, restDoors["setWorkflowScheme"], usecase.Input{}, nil, &body, &answer)
+}
+
+// TakeStep answers POST /items/{itemId}:step by the generated mapping.
+func (c *RestController) TakeStep(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.TakeStepParams) {
+	var body openapi.TakeStepJSONRequestBody
+	c.door(w, r, restDoors["takeStep"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(workItemResponse))
 }
 
 // TryWorkflowStep answers POST /workflows/{key}/steps/{step}:try by the generated mapping.

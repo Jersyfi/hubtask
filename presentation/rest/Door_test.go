@@ -317,3 +317,23 @@ func TestAFormIsHandedOnWhole(t *testing.T) {
 		t.Errorf("%s %v", registry.name, registry.in)
 	}
 }
+
+// An entry is drawn by the one mapper every entry answer uses (x-hubtask-rest-answer).
+func TestTakingAStepAnswersTheEntry(t *testing.T) {
+	item := "0192f000-0000-7000-8000-000000000011"
+	registry := &catalogue{out: usecase.Output{"id": item, "type": "TASK", "title": "Buy milk", "status": "done", "version": 5}}
+	recorder := callDoor(t, registry, http.MethodPost, "/items/"+item+":step", `{"step":"finish"}`,
+		map[string]string{"Content-Type": "application/json", "If-Match": `"4"`})
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "TakeStep" || registry.in["item_id"] != item || registry.in["step"] != "finish" || registry.in["expected_version"] != 4 {
+		t.Errorf("%s %v", registry.name, registry.in)
+	}
+	if tag := recorder.Header().Get("ETag"); tag != `"5"` {
+		t.Errorf("ETag %q", tag)
+	}
+	if !strings.Contains(recorder.Body.String(), `"title":"Buy milk"`) {
+		t.Errorf("the answer is %s", recorder.Body)
+	}
+}

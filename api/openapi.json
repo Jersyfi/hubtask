@@ -12156,6 +12156,8 @@
         ],
         "operationId": "takeStep",
         "x-hubtask-cli": "item step",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "workItemResponse",
         "summary": "Move an entry on by one step",
         "description": "Takes a step of the workflow the entry's collection runs for its type - by `step`, or the first step to `to_status` the person may take. Refused with `workflows.step_not_offered`, `workflows.step_not_allowed`, or `workflows.step_refused` naming each empty required field and each failing check in `fields`. Into a done status it completes the entry, out of one it reopens it.\n",
         "parameters": [
@@ -12218,6 +12220,8 @@
           "items"
         ],
         "operationId": "setItemEntryType",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "workItemResponse",
         "summary": "Change an entry's type",
         "description": "Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first.\n",
         "parameters": [

@@ -9482,6 +9482,8 @@ paths:
       tags: [items]
       operationId: takeStep
       x-hubtask-cli: "item step"
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
       summary: Move an entry on by one step
       description: >
         Takes a step of the workflow the entry's collection runs for its type - by `step`, or the
@@ -9519,6 +9521,8 @@ paths:
     put:
       tags: [items]
       operationId: setItemEntryType
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
       summary: Change an entry's type
       description: >
         Gives the entry another type of its level; `task`, `work_package` or `activity` gives it

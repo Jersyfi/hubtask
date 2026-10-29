@@ -115,7 +115,9 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 		return
 	}
 	var written any = out
-	if answer != nil {
+	if draw, ok := answer.(answerer); ok {
+		written = draw(out)
+	} else if answer != nil {
 		if err := remarshal(out, answer); err != nil {
 			WriteProblem(w, err, requestID)
 			return
@@ -156,4 +158,11 @@ func remarshal(from any, into any) error {
 		return shared.ErrInternal.WithDetail("request.response_unwritable").WithCause(err)
 	}
 	return nil
+}
+
+// answerer draws an answer with one of the adapter's shared mappers (x-hubtask-rest-answer).
+type answerer func(usecase.Output) any
+
+func answerBy[T any](draw func(usecase.Output) T) answerer {
+	return func(out usecase.Output) any { return draw(out) }
 }
