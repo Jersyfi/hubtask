@@ -5,7 +5,7 @@ context: workflow
 actors: [PE-admin]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-03, P-04, P-06, P-11]
-state: partial
+state: built
 tasks: []
 checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/TakeStep_test.go, core/application/service/workflow/Workflows_test.go, core/application/service/sync/Patch_test.go, test/integration/workflow_test.go, apps/webapp/src/lib/data/workflows.test.ts]
 ---
@@ -37,12 +37,3 @@ into each entry's history as a workflow change, and the trail names who publishe
 ## Where it ends
 
 * No version history of workflows beyond the trail; no rollback other than publishing the old shape.
-
-## Today
-
-* Check 1: met — a draft beside the shape in force (`SaveWorkflowDraft`).
-* Check 2: met on the API — `PreviewWorkflowPublish` lists removed statuses with their counts; `PublishWorkflow` refuses `workflows.mapping_required` per removed status in use; the screen is open.
-* Check 3: met — the moves run in the publish's transaction.
-* Check 4: met — `item.workflow_changed` in each moved entry's history, from which status to which.
-* Check 5: met — `workflow.published` in the trail with who and the counts, no entry title.
-* Check 6: met — a publish moves statuses only, on the same side of completion, and runs no condition or action.

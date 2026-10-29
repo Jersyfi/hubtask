@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-11, P-12]
 state: partial
 tasks: []
-checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/TakeStep_test.go, core/application/service/workflow/Workflows_test.go, core/application/service/sync/Patch_test.go, test/integration/workflow_test.go, apps/webapp/src/lib/data/workflows.test.ts]
+checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/TakeStep_test.go, core/application/service/workflow/Workflows_test.go, core/application/service/sync/Patch_test.go, test/integration/workflow_test.go, apps/webapp/src/lib/data/workflows.test.ts, core/domain/model/work/Form_test.go]
 ---
 
 # Ask for what a step needs, and act when it is taken
@@ -44,9 +44,6 @@ against a sample entry, and sees which condition would fail and why.
 
 ## Today
 
-* Check 1: partly met — a step is limited by role, a person field of the entry or a condition; by group comes with roles (S-08).
-* Check 2: met — required fields and checks with one message the team writes; a message per language is open.
-* Check 3: met — a step's `asks`; the panel opens a small form for asked custom fields before taking the step.
-* Check 4: not met — a step announces `item.updated` with the status and the step, so an EVENT rule on it runs after the step; a rule designed inside the step and run in the same change is open.
-* Check 5: met on the API — `TryWorkflowStep` judges a step (of the draft too) against an entry without changing it; its screen is open.
-* Check 6: met — conditions are CEL in the form's environment with the entry's status (`WorkflowEnvironment`).
+* Check 1: not met — a step limited by group comes with groups in roles, the suite plan's S-08.
+* Check 2: not met — a check's message is one text, not one per language; the suite plan's gaps table.
+* Check 4: not met — a step's actions are rules on the step's `item.updated` and run after it; a `STEP_TAKEN` trigger designed inside the step and run in the step's own change is open, the suite plan's gaps table.

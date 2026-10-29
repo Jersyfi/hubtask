@@ -5,7 +5,7 @@ context: workflow
 actors: [PE-admin, PE-member]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-03, P-04, P-05, P-06, P-11, P-13, P-17]
-state: partial
+state: built
 tasks: []
 checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/TakeStep_test.go, core/application/service/workflow/Workflows_test.go, core/application/service/sync/Patch_test.go, test/integration/workflow_test.go, apps/webapp/src/lib/data/workflows.test.ts]
 ---
@@ -46,14 +46,3 @@ publishes; the board now shows one column per status.
 * One workflow per type per collection; no parallel statuses.
 * Steps with conditions, required fields and actions: [UC-FLW-04](./UC-FLW-04-ask-for-what-a-step-needs.md).
 * Changing a workflow in use: [UC-FLW-05](./UC-FLW-05-change-a-workflow-in-use.md).
-
-## Today
-
-* Check 1: met — `work.Workflow`, `NewWorkflowShape` (statuses in four categories with a label colour token, steps from some or any status to one); `Workflow_test.go`, `workflow_test.go`.
-* Check 2: not met — the designer screen (diagram and keyboard list) is open; the data layer's draft edits exist (`workflows.ts`, list operations tested). The suite plan, S-07's rest.
-* Check 3: met on every door but the screen — `SaveWorkflowDraft` keeps the shape in force until `PublishWorkflow`; `Workflows_test.go`.
-* Check 4: met on the API — `PreviewWorkflowScheme` answers every group's status and the columns, `SetWorkflowScheme` refuses without `confirm`; the screen that shows it is open.
-* Check 5: partly met — `GET /workflows` answers the scheme and the client resolves it (`workflowFor`); the collection's settings do not show or link it yet.
-* Check 6: met — a step into or out of a done status completes or reopens the entry, and completing or reopening in a workflow collection takes such a step; the history records the status with who (`TakeStep_test.go`).
-* Check 7: met — the shipped workflow `default` (To do, In progress, Done) works unedited and gains its row when first used.
-* Check 8: met on the API — every shaping use case asks STRUCTURE; the designer that would hide itself is open.
