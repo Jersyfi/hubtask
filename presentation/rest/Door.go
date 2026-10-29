@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -45,6 +46,9 @@ type restDoor struct {
 	// NullClears passes a member sent as null as the empty text: the use cases that read
 	// OptionalString take "" as "clear it" and an absent or null member as "leave it".
 	NullClears bool
+	// Integers are the body's integer members, handed on as Go integers rather than JSON's
+	// float64, as a typed body hands them.
+	Integers []string
 }
 
 // door answers one generated operation. in holds the path's parameters; params is the generated
@@ -93,6 +97,9 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 				if _, taken := in[name]; !taken {
 					if value == nil && d.NullClears {
 						value = ""
+					}
+					if number, ok := value.(float64); ok && number == float64(int(number)) && slices.Contains(d.Integers, name) {
+						value = int(number)
 					}
 					in[name] = value
 				}

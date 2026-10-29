@@ -15439,6 +15439,11 @@
           "structure"
         ],
         "operationId": "listBuckets",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "containerId": "collection_id"
+        },
+        "x-hubtask-rest-answer": "bucketResponse",
         "responses": {
           "200": {
             "description": "The collection's buckets",
@@ -15463,6 +15468,12 @@
           "structure"
         ],
         "operationId": "createBucket",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "containerId": "collection_id"
+        },
+        "x-hubtask-rest-answer": "bucketResponse",
+        "x-hubtask-rest-location": "/containers/{collection_id}/buckets/{id}",
         "requestBody": {
           "required": true,
           "content": {
@@ -15548,6 +15559,10 @@
           "structure"
         ],
         "operationId": "deleteBucket",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "containerId": ""
+        },
         "description": "Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered.\n",
         "parameters": [
           {
@@ -15585,6 +15600,11 @@
           "structure"
         ],
         "operationId": "reorderBucket",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "containerId": ""
+        },
+        "x-hubtask-rest-answer": "bucketResponse",
         "description": "Moves a column along its board. An absent before_bucket_id moves it to the right hand end.\n",
         "parameters": [
           {

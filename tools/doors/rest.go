@@ -49,6 +49,9 @@ type RESTDoor struct {
 	// NullClears passes a member sent as null as the empty text, which is how the use case reads
 	// "clear it" (`x-hubtask-rest-null: empty`).
 	NullClears bool
+	// Integers are the body's members the contract types as integers, handed on as Go integers
+	// as a hand-written handler's typed body did.
+	Integers []string
 }
 
 type pathArg struct{ Input, Value string }
@@ -65,7 +68,8 @@ type restOperation struct {
 	ETagFrom    string      `yaml:"x-hubtask-rest-etag"`
 	Parameters  []parameter `yaml:"parameters"`
 	RequestBody *struct {
-		Required bool `yaml:"required"`
+		Required bool                 `yaml:"required"`
+		Content  map[string]mediaType `yaml:"content"`
 	} `yaml:"requestBody"`
 	Responses map[string]struct {
 		Content map[string]mediaType `yaml:"content"`
@@ -185,6 +189,14 @@ func restDoor(
 
 	if op.RequestBody != nil {
 		door.BodyRequired = op.RequestBody.Required
+		for _, content := range op.RequestBody.Content {
+			for name, property := range doc.resolve(content.Schema).Properties {
+				if doc.kind(property) == "integer" {
+					door.Integers = append(door.Integers, name)
+				}
+			}
+		}
+		sort.Strings(door.Integers)
 		for _, suffix := range []string{"JSONRequestBody", "ApplicationMergePatchPlusJSONRequestBody"} {
 			if bodies[name+suffix] {
 				door.BodyType = "openapi." + name + suffix
@@ -311,8 +323,8 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 	b.WriteString("// restDoors is every operation answered by the generated mapping, by operationId.\n")
 	b.WriteString("var restDoors = map[string]restDoor{\n")
 	for _, d := range doors {
-		fmt.Fprintf(&b, "\t%q: {UseCase: %q, Status: %d, Query: %#v, IfMatch: %t, IfMatchAs: %q, StepUp: %t, BodyRequired: %t, ETag: %q, BodyAs: %q, Location: %q, NullClears: %t},\n",
-			d.OperationID, d.UseCase, d.Status, d.Query, d.IfMatch, d.IfMatchAs, d.StepUp, d.BodyRequired, d.ETag, d.BodyAs, d.Location, d.NullClears)
+		fmt.Fprintf(&b, "\t%q: {UseCase: %q, Status: %d, Query: %#v, IfMatch: %t, IfMatchAs: %q, StepUp: %t, BodyRequired: %t, ETag: %q, BodyAs: %q, Location: %q, NullClears: %t, Integers: %#v},\n",
+			d.OperationID, d.UseCase, d.Status, d.Query, d.IfMatch, d.IfMatchAs, d.StepUp, d.BodyRequired, d.ETag, d.BodyAs, d.Location, d.NullClears, d.Integers)
 	}
 	b.WriteString("}\n")
 	for _, d := range doors {
