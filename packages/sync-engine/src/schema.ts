@@ -178,6 +178,20 @@ export type EntryType = components['schemas']['EntryType'];
 export type EntryTypeList = components['schemas']['EntryTypeList'];
 export type EntryTypeCreate = components['schemas']['EntryTypeCreate'];
 export type EntryTypeChange = components['schemas']['EntryTypeChange'];
+/** How the workspace's work moves: statuses in categories, steps, the scheme, the preview of a change (UC-FLW-02 … 05). */
+export type Workflow = components['schemas']['Workflow'];
+export type WorkflowList = components['schemas']['WorkflowList'];
+export type WorkflowShape = components['schemas']['WorkflowShape'];
+export type WorkflowStatus = components['schemas']['WorkflowStatus'];
+export type WorkflowStep = components['schemas']['WorkflowStep'];
+export type WorkflowCreate = components['schemas']['WorkflowCreate'];
+export type WorkflowDraft = components['schemas']['WorkflowDraft'];
+export type WorkflowPublish = components['schemas']['WorkflowPublish'];
+export type WorkflowPreview = components['schemas']['WorkflowPreview'];
+export type WorkflowSchemeChange = components['schemas']['WorkflowSchemeChange'];
+export type WorkflowSchemeResult = components['schemas']['WorkflowSchemeResult'];
+export type StepVerdict = components['schemas']['StepVerdict'];
+export type EntrySteps = components['schemas']['EntrySteps'];
 /** A type's form - its layout and logic - and how it stands for a draft (UC-FLW-01 check 2). */
 export type EntryForm = components['schemas']['EntryForm'];
 export type EntryFormField = components['schemas']['EntryFormField'];
