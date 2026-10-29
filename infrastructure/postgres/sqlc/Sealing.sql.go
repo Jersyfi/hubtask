@@ -88,6 +88,8 @@ FROM (
     AND state IN ('PENDING', 'RUNNING')
     AND payload #>> '{secret_header_sealed,key_id}' IS NOT NULL
   UNION ALL
+  SELECT 'cmdb_connector', credential_key_id FROM cmdb_connector WHERE credential_key_id IS NOT NULL
+  UNION ALL
   -- An archive still at its target: a successful run its retention has not expired. The manifest
   -- copy names the master key the archive's own key was derived from.
   SELECT 'backup_archive', manifest #>> '{encryption,key_id}'
@@ -106,10 +108,10 @@ type CountSealedValuesByStoreAndKeyRow struct {
 }
 
 // The census a rotation ends on (ADR-0045, security.md §8.1): how many stored values still name
-// each master key, by the kind of value. Eight places hold a sealed value - the seventh an
+// each master key, by the kind of value. Nine places hold a sealed value - the seventh an
 // authenticator's replacement waiting to be confirmed, the eighth an HTTP call's header secret
-// while its job may still run - and a rotation is only finished when none of them names the key
-// that is about to leave the ring. Beside them, the backup archives this installation keeps name
+// while its job may still run, the ninth a CMDB connector's credential - and a rotation is only
+// finished when none of them names the key that is about to leave the ring. Beside them, the backup archives this installation keeps name
 // the key they were written under; nothing re-seals an archive, so that count falls only as the
 // archives expire.
 //

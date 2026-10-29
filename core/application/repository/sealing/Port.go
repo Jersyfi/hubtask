@@ -34,13 +34,15 @@ const (
 	// key its manifest names (backup-restore.md §4). Re-sealing cannot move it; it drains as the
 	// archives expire, and until then retiring the key would leave them unreadable.
 	StoreBackupArchive = "backup_archive"
+	// StoreCmdbConnector is a CMDB connector's credential or an alert intake's secret.
+	StoreCmdbConnector = "cmdb_connector"
 )
 
 // Stores is the closed set as one list, which a test holds to the contract's enum and to the
 // messages that name each store.
 var Stores = []string{
 	StoreAccountMfa, StoreIdentityProvider, StoreWebhookSubscription, StoreBackupTarget,
-	StoreAiProvider, StoreAutomationRule, StoreAutomationHTTPJob, StoreBackupArchive,
+	StoreAiProvider, StoreAutomationRule, StoreAutomationHTTPJob, StoreBackupArchive, StoreCmdbConnector,
 }
 
 // Counts is a census: for every key a stored value names, how many values of each store name it.
