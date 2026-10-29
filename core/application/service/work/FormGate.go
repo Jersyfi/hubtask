@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -20,6 +21,9 @@ import (
 // authorisation service's RoleAlong; inside a writer's transaction it joins it.
 type FormRoles interface {
 	RoleAlong(ctx context.Context, actor appshared.ActorContext, path []identity.Scope) (identity.Role, bool, error)
+	// HeldAlong answers every role key (built-in and custom) and every permission the actor
+	// holds along a path, for a step limited by role and a field or step permission.
+	HeldAlong(ctx context.Context, actor appshared.ActorContext, path []identity.Scope) (access.Held, error)
 }
 
 // FormGate holds every write of an entry to its type's form (P-18, D-13): asked inside each

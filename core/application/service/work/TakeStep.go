@@ -109,7 +109,7 @@ func (h TakeStep) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 		}
 		shape := workflow.Published
 		status := StatusOf(shape, item)
-		step, err := h.choose(ctx, actor, collection, item, shape, status, cmd)
+		step, err := h.choose(ctx, actor, collection, item, workflow.Key, shape, status, cmd)
 		if err != nil {
 			return err
 		}
@@ -198,7 +198,7 @@ func (h TakeStep) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 // requires and its checks.
 func (h TakeStep) choose(
 	ctx context.Context, actor appshared.ActorContext, collection domain.Container, item domain.WorkItem,
-	shape domain.WorkflowShape, status string, cmd TakeStepCommand,
+	workflowKey string, shape domain.WorkflowShape, status string, cmd TakeStepCommand,
 ) (*domain.WorkflowStep, error) {
 	gate := h.Completion.Workflow
 	var candidates []domain.WorkflowStep
@@ -222,7 +222,7 @@ func (h TakeStep) choose(
 	}
 	var refusal error
 	for _, step := range candidates {
-		verdict, err := gate.Judge(ctx, actor, collection, item, status, step)
+		verdict, err := gate.Judge(ctx, actor, collection, item, workflowKey, status, step)
 		if err != nil {
 			return nil, err
 		}
@@ -368,7 +368,7 @@ func (h ListEntrySteps) Execute(ctx context.Context, actor appshared.ActorContex
 		if !mayChange {
 			return nil
 		}
-		out.Offered, err = w.Workflow.Offered(ctx, actor, collection, subject, workflow.Published)
+		out.Offered, err = w.Workflow.Offered(ctx, actor, collection, subject, workflow.Key, workflow.Published)
 		return err
 	})
 	return out, err

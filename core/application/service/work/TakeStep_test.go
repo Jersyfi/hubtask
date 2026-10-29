@@ -6,16 +6,19 @@ package work
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 )
 
 // workflowStore is an in-memory Workflows: rows and scheme, and the moves asked of it.
@@ -60,10 +63,22 @@ func (s *workflowStore) MoveStatuses(_ context.Context, move domain.StatusMove, 
 }
 
 // roleOf answers one role for everybody.
-type roleOf struct{ role identity.Role }
+type roleOf struct {
+	role        identity.Role
+	custom      []string
+	permissions []service.Permission
+}
 
 func (r roleOf) RoleAlong(context.Context, appshared.ActorContext, []identity.Scope) (identity.Role, bool, error) {
 	return r.role, r.role != "", nil
+}
+
+func (r roleOf) HeldAlong(context.Context, appshared.ActorContext, []identity.Scope) (access.Held, error) {
+	roles := append([]string{}, r.custom...)
+	if r.role != "" {
+		roles = append(roles, string(r.role))
+	}
+	return access.Held{Roles: roles, Permissions: r.permissions}, nil
 }
 
 func reviewWorkflow() domain.Workflow {
@@ -96,7 +111,7 @@ func workflowHarness(t *testing.T) (*completionHarness, *workflowStore) {
 		rows:    []domain.Workflow{reviewWorkflow()},
 		schemes: []domain.WorkflowScheme{{ContainerID: hubID, WorkflowKey: "review"}},
 	}
-	h.writer.Workflow = WorkflowGate{Workflows: store, Compiler: &answers{of: map[string]bool{}}, Roles: roleOf{identity.RoleMember}}
+	h.writer.Workflow = WorkflowGate{Workflows: store, Compiler: &answers{of: map[string]bool{}}, Roles: roleOf{role: identity.RoleMember}}
 	task := h.items.stored[taskID]
 	task.Status = "review"
 	h.items.stored[taskID] = task
@@ -338,5 +353,38 @@ func TestAStepRunsItsRulesInItsOwnChange(t *testing.T) {
 	h.items.stored[taskID] = task
 	if _, err := take.Execute(t.Context(), actorFixture(), TakeStepCommand{ItemID: taskID, Step: "back"}); !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("a rule that cannot run refuses the step with it: %v", err)
+	}
+}
+
+// UC-FLW-04 check 1 with custom roles (UC-ID-26): a step limited to a custom role is offered to
+// its holder, and a step permission from the catalogue opens a step whatever its who names.
+func TestAStepIsOpenedByACustomRoleAndByAStepPermission(t *testing.T) {
+	h, _ := workflowHarness(t)
+	workflow := reviewWorkflow()
+	workflow.Published.Steps[3].Who = domain.StepWho{Roles: []string{"OWNER", "change_manager"}}
+	h.writer.Workflow.Workflows = &workflowStore{
+		rows:    []domain.Workflow{workflow},
+		schemes: []domain.WorkflowScheme{{ContainerID: hubID, WorkflowKey: "review"}},
+	}
+	offered := func(roles roleOf) []string {
+		h.writer.Workflow.Roles = roles
+		steps, err := ListEntrySteps{Completion: h.writer}.Execute(t.Context(), actorFixture(), taskID)
+		if err != nil {
+			t.Fatalf("listing: %v", err)
+		}
+		var keys []string
+		for _, verdict := range steps.Offered {
+			keys = append(keys, verdict.Step.Key)
+		}
+		return keys
+	}
+	if keys := offered(roleOf{role: identity.RoleMember}); slices.Contains(keys, "reject") {
+		t.Fatalf("a member is offered the change manager's step: %v", keys)
+	}
+	if keys := offered(roleOf{role: identity.RoleMember, custom: []string{"change_manager"}}); !slices.Contains(keys, "reject") {
+		t.Fatalf("the custom role's holder is not offered its step: %v", keys)
+	}
+	if keys := offered(roleOf{role: identity.RoleMember, permissions: []service.Permission{service.TakeStep("review", "reject")}}); !slices.Contains(keys, "reject") {
+		t.Fatalf("the step permission does not open the step: %v", keys)
 	}
 }

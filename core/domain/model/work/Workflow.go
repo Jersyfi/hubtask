@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
@@ -497,7 +498,9 @@ var stepRoles = []string{"OWNER", "ADMIN", "MEMBER", "CONTRIBUTOR", "GUEST"}
 func newStepWho(who StepWho, at string) (StepWho, error) {
 	roles := []string{}
 	for _, role := range who.Roles {
-		if !slices.Contains(stepRoles, role) {
+		// A custom role's key is lower case and cannot be mistaken for a built-in one; whether the
+		// workspace defines it is the use case's question, which reads the roles.
+		if !slices.Contains(stepRoles, role) && !identity.ValidCustomRoleKey(role) {
 			return StepWho{}, workflowInvalid(at+"/roles", "workflows.role_unknown", map[string]string{"role": role})
 		}
 		if !slices.Contains(roles, role) {

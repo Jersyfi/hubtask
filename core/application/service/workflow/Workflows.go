@@ -1061,7 +1061,7 @@ func (h TryWorkflowStep) Descriptor() usecase.Descriptor {
 					return err
 				}
 				status := workservice.StatusOf(shape, item)
-				verdict, err := h.Desk.Gate.Judge(ctx, actor, collection, item, status, step)
+				verdict, err := h.Desk.Gate.Judge(ctx, actor, collection, item, w.Key, status, step)
 				if err != nil {
 					return err
 				}

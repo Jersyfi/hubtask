@@ -11,10 +11,12 @@ import (
 
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/expression"
 )
@@ -101,14 +103,14 @@ func (v StepVerdict) Refusal() error {
 // Judge answers how a step stands for the actor and the entry, changing nothing.
 func (g WorkflowGate) Judge(
 	ctx context.Context, actor appshared.ActorContext, collection domain.Container, item domain.WorkItem,
-	status string, step domain.WorkflowStep,
+	workflowKey, status string, step domain.WorkflowStep,
 ) (StepVerdict, error) {
 	verdict := StepVerdict{Step: step, Checks: map[string]bool{}}
 	activation, err := g.activation(ctx, actor, collection, item, status, step)
 	if err != nil {
 		return StepVerdict{}, err
 	}
-	verdict.Allowed, err = g.allowed(ctx, actor, item, step, activation)
+	verdict.Allowed, err = g.allowed(ctx, actor, collection, item, workflowKey, step, activation)
 	if err != nil {
 		return StepVerdict{}, err
 	}
@@ -124,18 +126,30 @@ func (g WorkflowGate) Judge(
 }
 
 func (g WorkflowGate) allowed(
-	ctx context.Context, actor appshared.ActorContext, item domain.WorkItem, step domain.WorkflowStep,
-	activation formActivation,
+	ctx context.Context, actor appshared.ActorContext, collection domain.Container, item domain.WorkItem,
+	workflowKey string, step domain.WorkflowStep, activation formActivation,
 ) (bool, error) {
 	who := step.Who
 	if who.IsOpen() {
 		return true, nil
 	}
+	held := access.Held{}
+	if g.Roles != nil {
+		var err error
+		if held, err = g.Roles.HeldAlong(ctx, actor, containerPath(collection)); err != nil {
+			return false, err
+		}
+	}
+	// A step permission from the catalogue opens the step whatever its who names (UC-FLW-04).
+	if workflowKey != "" && slices.Contains(held.Permissions, service.TakeStep(workflowKey, step.Key)) {
+		return true, nil
+	}
 	if len(who.Roles) > 0 || len(who.PersonFields) > 0 {
 		met := false
-		role, _ := activation.values["actor"].(map[string]any)["role"].(string)
-		if slices.Contains(who.Roles, role) {
-			met = true
+		for _, role := range who.Roles {
+			if slices.Contains(held.Roles, role) {
+				met = true
+			}
 		}
 		for _, field := range who.PersonFields {
 			if namesPerson(item, field, actor.AccountID) {
@@ -243,12 +257,12 @@ func WorkflowEnvironment() expression.Environment {
 // order (UC-FLW-03 check 1): a step the person may not take is not offered at all.
 func (g WorkflowGate) Offered(
 	ctx context.Context, actor appshared.ActorContext, collection domain.Container, item domain.WorkItem,
-	shape domain.WorkflowShape,
+	workflowKey string, shape domain.WorkflowShape,
 ) ([]StepVerdict, error) {
 	status := StatusOf(shape, item)
 	var offered []StepVerdict
 	for _, step := range shape.StepsFrom(status) {
-		verdict, err := g.Judge(ctx, actor, collection, item, status, step)
+		verdict, err := g.Judge(ctx, actor, collection, item, workflowKey, status, step)
 		if err != nil {
 			return nil, err
 		}
@@ -278,7 +292,7 @@ func (g WorkflowGate) completionStep(
 		if shape.Completes(step.To) != completing {
 			continue
 		}
-		verdict, err := g.Judge(ctx, actor, collection, item, status, step)
+		verdict, err := g.Judge(ctx, actor, collection, item, workflow.Key, status, step)
 		if err != nil {
 			return nil, err
 		}
