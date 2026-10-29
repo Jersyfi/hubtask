@@ -6,7 +6,10 @@ package postgres
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func TestQueryNameIsTheSqlcNameOrDynamic(t *testing.T) {
@@ -33,5 +36,28 @@ func TestQueryOutcomeTellsACancelFromAFailure(t *testing.T) {
 	}
 	if got := queryOutcome(errors.New("23505")); got != "error" {
 		t.Errorf("failure: %q", got)
+	}
+}
+
+// hubtask_db_errors_total's kind (observability-reliability.md §4.2): read from the SQLSTATE class
+// and the driver's own errors, never the message.
+func TestErrorKindTellsWhyAStatementFailed(t *testing.T) {
+	for _, tc := range []struct {
+		err  error
+		want string
+	}{
+		{context.DeadlineExceeded, "timeout"},
+		{&pgconn.PgError{Code: "57014"}, "timeout"},
+		{fmt.Errorf("wrapped: %w", &pgconn.PgError{Code: "40001"}), "serialization"},
+		{&pgconn.PgError{Code: "40P01"}, "serialization"},
+		{&pgconn.PgError{Code: "08006"}, "connection"},
+		{&pgconn.PgError{Code: "57P01"}, "connection"},
+		{&pgconn.PgError{Code: "23505"}, "constraint"},
+		{&pgconn.PgError{Code: "42P01"}, "other"},
+		{errors.New("unknown"), "other"},
+	} {
+		if got := ErrorKind(tc.err); got != tc.want {
+			t.Errorf("ErrorKind(%v) = %q, want %q", tc.err, got, tc.want)
+		}
 	}
 }

@@ -101,9 +101,8 @@ label is a deliberate cardinality decision. What must hold for it:
   visible.
 * A counter an alert reads is written even when its value is zero: a counter never written has no
   series, and an alert on it reads "no data" and is believed.
-* **Not built:** `hubtask_db_errors_total` by `timeout`/`serialization`/`connection` (§4.2 counts
-  an `error` outcome without its kind); the outbox backlog is a field of `/meta/health`, not a
-  series, and A-05 alerts on the lag.
+* **Not built:** the outbox backlog is a field of `/meta/health`, not a series, and A-05 alerts on
+  the lag.
 
 ### 4.1 The `result` label
 
@@ -122,7 +121,11 @@ sum(rate(hubtask_usecase_total{result=~"internal|unavailable"}[5m])) by (use_cas
 Every statement a pool runs is measured by the driver's tracer (`infrastructure/postgres/QueryTracer.go`,
 F-10): `hubtask_db_query_duration_seconds{pool, outcome}` with `outcome` `ok`, `error` or
 `canceled` (a deadline or cancel, rule 7), and `hubtask_db_slow_queries_total{pool, query}` for a
-statement of 250 ms or more. `query` is the sqlc name from the statement's `-- name:` header, or
+statement of 250 ms or more. A failed statement is counted once more in
+`hubtask_db_errors_total{pool, kind}`, `kind` read from the SQLSTATE class and the driver's own
+errors (`postgres.ErrorKind`): `timeout` (a deadline or cancel, a statement or lock timeout),
+`serialization` (a serialization failure or deadlock - retryable), `connection`, `constraint`,
+`other`. `query` is the sqlc name from the statement's `-- name:` header, or
 `dynamic` for the query compiler's SQL - a closed set compiled into the binary, never statement
 text. Only the slow counter carries the name: a histogram per name would be thousands of series,
 while the slow ones are the handful an operator asks about. The pools are named as their connection

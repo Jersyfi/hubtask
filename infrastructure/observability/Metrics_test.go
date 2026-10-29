@@ -224,8 +224,9 @@ var allowedLabels = map[string]bool{
 	"job_type": true, "attempt_class": true,
 	// hubtask_build_info
 	"version": true, "commit": true, "go_version": true,
-	// hubtask_db_pool_connections, hubtask_db_query_duration_seconds, hubtask_db_slow_queries_total
-	"pool": true, "state": true, "outcome": true, "query": true,
+	// hubtask_db_pool_connections, hubtask_db_query_duration_seconds, hubtask_db_slow_queries_total,
+	// hubtask_db_errors_total
+	"pool": true, "state": true, "outcome": true, "query": true, "kind": true,
 	// hubtask_rule_runs_total, hubtask_rule_disabled_total
 	"trigger_type": true, "reason": true,
 	// Only with HUBTASK_METRICS_TENANT_LABEL, and covered by its own test.
@@ -261,6 +262,7 @@ func exerciseEveryInstrument(m *Metrics) {
 	m.PoolConnections(ctx, "api", 4, 6, 10)
 	m.DBQuery(ctx, "api", "ClaimJobs", "ok", 0.002)
 	m.DBQuery(ctx, "background", "dynamic", "canceled", 1.2)
+	m.DBError(ctx, "api", "serialization")
 	m.MigrationVersion(ctx, 68)
 	m.RuleRun(ctx, "succeeded", "event")
 	m.RuleDisabled(ctx, "consecutive_failures")

@@ -83,6 +83,7 @@ type Metrics struct {
 	poolConnections   metric.Int64Gauge
 	dbQueryDuration   metric.Float64Histogram
 	dbSlowQueries     metric.Int64Counter
+	dbErrors          metric.Int64Counter
 	migrationVersion  metric.Int64Gauge
 	ruleRuns          metric.Int64Counter
 	ruleDisabled      metric.Int64Counter
@@ -265,6 +266,13 @@ func (m *Metrics) instruments(meter metric.Meter) error {
 			"(dynamic for the query compiler's own SQL)."),
 	); err != nil {
 		return fmt.Errorf("slow query counter: %w", err)
+	}
+	if m.dbErrors, err = meter.Int64Counter(
+		namespace+"_db_errors_total",
+		metric.WithDescription("Statements that failed, by pool and kind (timeout, serialization, "+
+			"connection, constraint, other)."),
+	); err != nil {
+		return fmt.Errorf("database error counter: %w", err)
 	}
 	if m.migrationVersion, err = meter.Int64Gauge(
 		namespace+"_migration_version",
@@ -1173,6 +1181,11 @@ func (m *Metrics) DBQuery(ctx context.Context, pool, name, outcome string, secon
 		m.dbSlowQueries.Add(ctx, 1, metric.WithAttributes(
 			attribute.String("pool", pool), attribute.String("query", name)))
 	}
+}
+
+// DBError counts one failed statement by its kind (postgres.ErrorKind), a closed set.
+func (m *Metrics) DBError(ctx context.Context, pool, kind string) {
+	m.dbErrors.Add(ctx, 1, metric.WithAttributes(attribute.String("pool", pool), attribute.String("kind", kind)))
 }
 
 // MigrationVersion publishes the migration this build embeds, once at startup. It deliberately

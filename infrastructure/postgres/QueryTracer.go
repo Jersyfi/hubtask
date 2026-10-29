@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // QueryObserver receives one call per statement a pool ran (F-10, observability-reliability.md
@@ -18,6 +19,8 @@ import (
 // (rule 9) but would still be a label nobody bounded.
 type QueryObserver interface {
 	DBQuery(ctx context.Context, pool, name, outcome string, seconds float64)
+	// DBError counts a statement that failed, by ErrorKind.
+	DBError(ctx context.Context, pool, kind string)
 }
 
 // The names a statement without a `-- name:` header is filed under.
@@ -48,6 +51,41 @@ func (t queryTracer) TraceQueryEnd(ctx context.Context, _ *pgx.Conn, data pgx.Tr
 		return
 	}
 	t.observer.DBQuery(ctx, t.pool, start.name, queryOutcome(data.Err), time.Since(start.at).Seconds())
+	if data.Err != nil {
+		t.observer.DBError(ctx, t.pool, ErrorKind(data.Err))
+	}
+}
+
+// ErrorKind names why a statement failed, as the operator acts on it: `timeout` (a deadline, a
+// cancel, Postgres's statement or lock timeout), `serialization` (a serialization failure or a
+// deadlock - retryable), `connection` (the connection broke or could not be made), `constraint` (an
+// integrity rule refused the write) and `other`. SQLSTATE classes, never the message.
+func ErrorKind(err error) string {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return "timeout"
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch {
+		case pgErr.Code == "57014", pgErr.Code == "55P03":
+			return "timeout"
+		case pgErr.Code == "40001", pgErr.Code == "40P01":
+			return "serialization"
+		case strings.HasPrefix(pgErr.Code, "08"), pgErr.Code == "57P01", pgErr.Code == "57P02", pgErr.Code == "57P03":
+			return "connection"
+		case strings.HasPrefix(pgErr.Code, "23"):
+			return "constraint"
+		}
+		return "other"
+	}
+	var connectErr *pgconn.ConnectError
+	if errors.As(err, &connectErr) || pgconn.SafeToRetry(err) || pgconn.Timeout(err) {
+		if pgconn.Timeout(err) {
+			return "timeout"
+		}
+		return "connection"
+	}
+	return "other"
 }
 
 // QueryName is the sqlc name in a statement's first line (`-- name: ClaimJobs :many`), and
