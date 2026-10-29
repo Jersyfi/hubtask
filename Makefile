@@ -244,8 +244,9 @@ generate:
 	$(GO) run ./tools/openapijson api/openapi.yaml api/openapi.json
 	@# The deprecated request fields, announced by the REST adapter (versioning-release.md §5).
 	$(GO) run ./tools/deprecations api/openapi.yaml presentation/rest/Deprecations.gen.go
-	@# hubctl's commands the contract names with x-hubtask-cli (F-7).
-	$(GO) run ./tools/doors api/openapi.yaml cmd/hubctl/Doors.gen.go
+	@# hubctl's commands (x-hubtask-cli) and the REST adapter's generated mapping
+	@# (x-hubtask-rest), from the contract and the generated router (F-7).
+	$(GO) run ./tools/doors api/openapi.yaml presentation/openapi/Api.gen.go cmd/hubctl/Doors.gen.go presentation/rest/Doors.gen.go
 	@$(MAKE) --no-print-directory sdk-go
 	@$(MAKE) --no-print-directory sdk
 

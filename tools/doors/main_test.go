@@ -141,3 +141,42 @@ func TestTheCommittedTableIsTheContracts(t *testing.T) {
 		t.Fatal("cmd/hubctl/Doors.gen.go is not what api/openapi.yaml generates; run make generate")
 	}
 }
+
+// The committed REST mapping is what the contract and the generated router produce now.
+func TestTheCommittedMappingIsTheContracts(t *testing.T) {
+	raw, err := os.ReadFile("../../api/openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := os.ReadFile("../../presentation/openapi/Api.gen.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	doors, err := restTable(raw, server)
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, err := renderREST(doors)
+	if err != nil {
+		t.Fatal(err)
+	}
+	committed, err := os.ReadFile("../../presentation/rest/Doors.gen.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(committed) != string(source) {
+		t.Fatal("presentation/rest/Doors.gen.go is not what api/openapi.yaml generates; run make generate")
+	}
+}
+
+// An operation that takes a step-up proof stays hand-written: where the proof goes is a rule.
+func TestAStepUpOperationIsNotMapped(t *testing.T) {
+	marked := strings.Replace(contract, `      x-hubtask-cli: "thing set"`, `      x-hubtask-cli: "thing set"
+      x-hubtask-rest: generated`, 1)
+	marked = strings.Replace(marked, `        - $ref: "#/components/parameters/IfMatch"`, `        - $ref: "#/components/parameters/IfMatch"
+        - { name: X-Hubtask-Step-Up, in: header, schema: { type: string } }`, 1)
+	server := []byte("package openapi\ntype ServerInterface interface {\n\tChangeThing(w http.ResponseWriter, r *http.Request, thingId string)\n}\n")
+	if _, err := restTable([]byte(marked), server); err == nil || !strings.Contains(err.Error(), "step-up") {
+		t.Fatalf("a step-up operation was mapped: %v", err)
+	}
+}

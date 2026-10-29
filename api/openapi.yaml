@@ -8661,6 +8661,7 @@ paths:
     get:
       tags: [identity]
       operationId: listRoles
+      x-hubtask-rest: generated
       x-hubtask-cli: "role ls"
       summary: The permission catalogue and the roles
       description: |
@@ -8682,6 +8683,7 @@ paths:
     post:
       tags: [identity]
       operationId: createRole
+      x-hubtask-rest: generated
       x-hubtask-cli: "role create"
       summary: Define a role of the workspace's own
       description: |
@@ -8716,6 +8718,7 @@ paths:
     patch:
       tags: [identity]
       operationId: changeRole
+      x-hubtask-rest: generated
       x-hubtask-cli: "role set"
       summary: Change a role of the workspace's own
       description: |
@@ -8742,6 +8745,7 @@ paths:
     delete:
       tags: [identity]
       operationId: deleteRole
+      x-hubtask-rest: generated
       x-hubtask-cli: "role rm"
       summary: Delete a role of the workspace's own
       description: |
@@ -8758,6 +8762,7 @@ paths:
     post:
       tags: [identity]
       operationId: grantRole
+      x-hubtask-rest: generated
       x-hubtask-cli: "role grant"
       summary: Give a role of the workspace's own at a place
       description: |
@@ -8791,6 +8796,7 @@ paths:
     delete:
       tags: [identity]
       operationId: revokeRoleGrant
+      x-hubtask-rest: generated
       x-hubtask-cli: "role revoke"
       summary: Take a role of the workspace's own away
       description: Takes effect on the next request; needs what giving it needed.
@@ -8804,6 +8810,7 @@ paths:
     get:
       tags: [identity]
       operationId: explainAccess
+      x-hubtask-rest: generated
       x-hubtask-cli: "role explain"
       summary: What a person holds at a place, and why
       description: |
@@ -9527,6 +9534,7 @@ paths:
     get:
       tags: [items]
       operationId: listLinkTypes
+      x-hubtask-rest: generated
       x-hubtask-cli: "link-type ls"
       summary: The workspace's link types
       description: >
@@ -9547,6 +9555,7 @@ paths:
     post:
       tags: [items]
       operationId: createLinkType
+      x-hubtask-rest: generated
       x-hubtask-cli: "link-type create"
       summary: Add a link type
       description: >
@@ -9579,6 +9588,7 @@ paths:
     patch:
       tags: [items]
       operationId: changeLinkType
+      x-hubtask-rest: generated
       x-hubtask-cli: "link-type set"
       summary: Change a link type
       description: >
@@ -9605,6 +9615,7 @@ paths:
     delete:
       tags: [items]
       operationId: deleteLinkType
+      x-hubtask-rest: generated
       x-hubtask-cli: "link-type rm"
       summary: Delete an unused link type
       description: >
@@ -9622,6 +9633,7 @@ paths:
     get:
       tags: [items]
       operationId: listEntryLinks
+      x-hubtask-rest: generated
       x-hubtask-cli: "link ls"
       summary: An entry's links and backlinks
       description: >
@@ -9641,6 +9653,7 @@ paths:
     post:
       tags: [items]
       operationId: linkEntries
+      x-hubtask-rest: generated
       x-hubtask-cli: "link add"
       summary: Link the entry to another
       description: >
@@ -9674,6 +9687,7 @@ paths:
     delete:
       tags: [items]
       operationId: unlinkEntries
+      x-hubtask-rest: generated
       x-hubtask-cli: "link rm"
       summary: Remove a link
       description: Removes a link between two entries. Whoever may change either end may remove it.
@@ -9687,6 +9701,7 @@ paths:
     post:
       tags: [items]
       operationId: listLinksAmong
+      x-hubtask-rest: generated
       x-hubtask-cli: "link among"
       summary: The links between the entries a view shows
       description: >
@@ -9720,6 +9735,7 @@ paths:
     post:
       tags: [items]
       operationId: resolveReferences
+      x-hubtask-rest: generated
       x-hubtask-cli: "link resolve"
       summary: Resolve references for the caller
       description: >

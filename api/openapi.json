@@ -10955,6 +10955,7 @@
           "identity"
         ],
         "operationId": "listRoles",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "role ls",
         "summary": "The permission catalogue and the roles",
         "description": "The closed catalogue of permissions a role is built from, the seven shipped roles with\nwhat each carries, the workspace's own roles, and where its own roles are held. The\nfamilies `FIELD_WRITE:*`, `FIELD_READ:*` and `TAKE_STEP:*` stand for the permission of\nevery restricted field and every workflow step; the owner and the administrators hold all of them. What the\nroles screen and the who-may-do-what matrix are drawn from. Needs `MANAGE_MEMBERS` or\n`READ_CONFIGURATION` at the workspace.\n",
@@ -10979,6 +10980,7 @@
           "identity"
         ],
         "operationId": "createRole",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "role create",
         "summary": "Define a role of the workspace's own",
         "description": "A lower-case key that never spells a shipped role, a name, and permissions from the\ncatalogue. Nobody hands out a permission they do not hold: the caller needs\n`MANAGE_MEMBERS` and every permission the role carries at the workspace, or is refused\nwith `access.permission_above_own` naming what they lack.\n",
@@ -11031,6 +11033,7 @@
           "identity"
         ],
         "operationId": "changeRole",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "role set",
         "summary": "Change a role of the workspace's own",
         "description": "Renames the role and replaces what it carries; everybody who holds it holds the new set\nfrom the next request. Every permission added or taken away must be one the caller holds\nat the workspace.\n",
@@ -11070,6 +11073,7 @@
           "identity"
         ],
         "operationId": "deleteRole",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "role rm",
         "summary": "Delete a role of the workspace's own",
         "description": "Removes the role and every grant of it; whoever held it loses what it carried on the next\nrequest, and their devices are told. Nothing anybody wrote is touched. Needs what defining\nthe role needed.\n",
@@ -11089,6 +11093,7 @@
           "identity"
         ],
         "operationId": "grantRole",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "role grant",
         "summary": "Give a role of the workspace's own at a place",
         "description": "To an account or to a group, at the workspace, a hub or a collection; it applies downwards\nas a shipped role does. The caller needs `MANAGE_MEMBERS` there and every permission the\nrole carries. A group is refused a role inside a private hub.\n",
@@ -11141,6 +11146,7 @@
           "identity"
         ],
         "operationId": "revokeRoleGrant",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "role revoke",
         "summary": "Take a role of the workspace's own away",
         "description": "Takes effect on the next request; needs what giving it needed.",
@@ -11160,6 +11166,7 @@
           "identity"
         ],
         "operationId": "explainAccess",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "role explain",
         "summary": "What a person holds at a place, and why",
         "description": "The roles that count for the person at the workspace, a hub or a collection, where each is\nheld, and every permission they carry. Given `permission`, also whether the person holds\nit and through which role - the answer behind \"view as\" and \"why may this person do\nthat\". A person may always ask about themselves; about somebody else it takes\n`MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub or a collection,\n`READ` at that place - a place the caller does not reach answers not found.\n",
@@ -12240,6 +12247,7 @@
           "items"
         ],
         "operationId": "listLinkTypes",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "link-type ls",
         "summary": "The workspace's link types",
         "description": "Every link type of the workspace: the six every workspace has (`blocks`, `depends_on`, `duplicates`, `runs_on`, `affects`, `implements`) and its own, each with its direction, cardinality, cycle rule and which end waits for the other. A shipped type answers null names, which a client fills with its own words for the key. Archived types are included and marked. Needs a signed-in member of the workspace.\n",
@@ -12264,6 +12272,7 @@
           "items"
         ],
         "operationId": "createLinkType",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "link-type create",
         "summary": "Add a link type",
         "description": "Adds a link type of the workspace's own with a key free in the workspace and its two names. What it means - its direction, cardinality, cycle rule and which end waits - is fixed once it is made. A symmetric type has no waiting end and no limit of one; a type an end waits on forbids loops. Needs STRUCTURE at the workspace.\n",
@@ -12311,6 +12320,7 @@
           "items"
         ],
         "operationId": "changeLinkType",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "link-type set",
         "summary": "Change a link type",
         "description": "Renames, reorders, archives or restores one of the workspace's own link types. An archived type draws no new link and the links that stand stay readable. A shipped type does not change (`link_types.system_fixed`). Needs STRUCTURE at the workspace.\n",
@@ -12350,6 +12360,7 @@
           "items"
         ],
         "operationId": "deleteLinkType",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "link-type rm",
         "summary": "Delete an unused link type",
         "description": "Deletes one of the workspace's own link types that no link names. A type in use is refused with `link_types.in_use` and can only be archived. Needs STRUCTURE at the workspace.\n",
@@ -12374,6 +12385,7 @@
           "items"
         ],
         "operationId": "listEntryLinks",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "link ls",
         "summary": "An entry's links and backlinks",
         "description": "The entry's links from both ends, each with the far end as the reader may see it - its title, key and state, or only its identifier and `available: false` - and its backlinks: the notes and comments that point at it, from entries the reader may see. Needs READ on the entry.\n",
@@ -12398,6 +12410,7 @@
           "items"
         ],
         "operationId": "linkEntries",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "link add",
         "summary": "Link the entry to another",
         "description": "Draws a link of a type from this entry to another. Needs WRITE_ITEMS on this entry and sight of the other; one out of sight is not found, as a missing one is. A link that would close a loop of a type that forbids loops is refused with `links.cycle` - for a dependency, judged over every type one end waits on; a second link of a type of one per entry with `links.cardinality`; one already drawn with `links.exists`.\n",
@@ -12445,6 +12458,7 @@
           "items"
         ],
         "operationId": "unlinkEntries",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "link rm",
         "summary": "Remove a link",
         "description": "Removes a link between two entries. Whoever may change either end may remove it.",
@@ -12464,6 +12478,7 @@
           "items"
         ],
         "operationId": "listLinksAmong",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "link among",
         "summary": "The links between the entries a view shows",
         "description": "The links with both ends among the given entries, at most 500 of them, each with which end waits for the other - what a timeline draws as dependencies. A `POST` because the list of entries is a body rather than a query string. A link with an end the caller may not see is left out.\n",
@@ -12513,6 +12528,7 @@
           "items"
         ],
         "operationId": "resolveReferences",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "link resolve",
         "summary": "Resolve references for the caller",
         "description": "Resolves up to 100 references to what a mention, a card or a live view shows of each: the title, key and state the caller may see. One the caller may not see, one that is not there, and one of a module that does not exist yet all answer only their address and `available: false` - never a title. Text writes a reference as a Markdown link to `hubtask:<kind>/<id>#<anchor>`; an image of the link draws a card or a live view.\n",

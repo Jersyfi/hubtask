@@ -15,7 +15,11 @@
 // **A mark it cannot honour fails it**: an unknown group without a summary, a command named twice,
 // or a body that is not a JSON object stops `make generate` rather than going unsaid.
 //
-// Usage: doors <openapi.yaml> <out.go>
+// The same operation may also say `x-hubtask-rest: generated`: the REST adapter then answers it
+// by the generated mapping in presentation/rest/Doors.gen.go (rest.go) instead of a hand-written
+// handler.
+//
+// Usage: doors <openapi.yaml> <Api.gen.go> <hubctl Doors.gen.go> <rest Doors.gen.go>
 package main
 
 import (
@@ -119,8 +123,8 @@ type Param struct {
 var methods = []string{"get", "put", "post", "patch", "delete"}
 
 func main() {
-	if len(os.Args) != 3 {
-		fmt.Fprintln(os.Stderr, "usage: doors <openapi.yaml> <out.go>")
+	if len(os.Args) != 5 {
+		fmt.Fprintln(os.Stderr, "usage: doors <openapi.yaml> <Api.gen.go> <hubctl out.go> <rest out.go>")
 		os.Exit(2)
 	}
 	raw, err := os.ReadFile(os.Args[1]) //nolint:gosec // G703: the file the Makefile names; reading it is the job
@@ -135,7 +139,21 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	if err := os.WriteFile(os.Args[2], source, 0o644); err != nil { //nolint:gosec // G306,G703: a committed source file
+	if err := os.WriteFile(os.Args[3], source, 0o644); err != nil { //nolint:gosec // G306,G703: a committed source file
+		fail(err)
+	}
+	server, err := os.ReadFile(os.Args[2]) //nolint:gosec // G703: the file the Makefile names
+	if err != nil {
+		fail(err)
+	}
+	doors, err := restTable(raw, server)
+	if err != nil {
+		fail(err)
+	}
+	if source, err = renderREST(doors); err != nil {
+		fail(err)
+	}
+	if err := os.WriteFile(os.Args[4], source, 0o644); err != nil { //nolint:gosec // G306,G703: a committed source file
 		fail(err)
 	}
 }
