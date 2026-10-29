@@ -113,6 +113,11 @@ type Variable struct {
 	// display text, like a use case's summary - it never reaches an end user's screen as prose the
 	// backend wrote (ADR-0011).
 	Description string
+	// Fields types a map: the names an expression may select from it with a dot, each with its
+	// own kind (a map's own Fields typing it in turn). Empty leaves the map open - a rule's `item`
+	// keeps compiling when a field is added. A form's environment types the entry per type
+	// (domain-model.md §2.4), so `entry.custom_fields.severty` is refused when it is written.
+	Fields []Variable
 }
 
 // Activation is the values an evaluation reads, resolved when the expression asks for them.

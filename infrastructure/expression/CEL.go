@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"cel.dev/cel-go/cel"
+	celast "cel.dev/cel-go/common/ast"
 	"cel.dev/cel-go/common/types"
 	"cel.dev/cel-go/common/types/ref"
 	"cel.dev/cel-go/interpreter"
@@ -101,6 +102,9 @@ func compileNow(text string, environment port.Environment, want port.Result) (po
 	// wrong every time they run - CEL knows the answer after the check, so the mistake is
 	// answerable to whoever wrote it.
 	if err := producesWhatWasAsked(ast.OutputType(), want); err != nil {
+		return nil, err
+	}
+	if err := selectsDeclaredFields(ast, environment); err != nil {
 		return nil, err
 	}
 
@@ -454,3 +458,54 @@ func itoa(n int) string {
 // unused keeps the ref import honest while the value mapping is the standard one; CEL's own
 // conversion handles the map and scalar kinds this environment declares.
 var _ ref.Val = types.Bool(false)
+
+// selectsDeclaredFields refuses a dot-selection of a name a typed map does not declare
+// (port.Variable.Fields). CEL types such a map as map(string, dyn), so its checker cannot; the walk
+// over the checked tree can, and a misspelt field is then a mistake answered where it is written
+// rather than a condition that never holds.
+func selectsDeclaredFields(ast *cel.Ast, environment port.Environment) error {
+	declared := map[string]port.Variable{}
+	for _, variable := range environment.Variables {
+		declared[variable.Name] = variable
+	}
+	var refusal error
+	celast.PostOrderVisit(ast.NativeRep().Expr(), celast.NewExprVisitor(func(e celast.Expr) {
+		if refusal != nil || e.Kind() != celast.SelectKind {
+			return
+		}
+		selection := e.AsSelect()
+		owner, typed := typedOwner(selection.Operand(), declared)
+		if !typed || len(owner.Fields) == 0 {
+			return
+		}
+		for _, field := range owner.Fields {
+			if field.Name == selection.FieldName() {
+				return
+			}
+		}
+		refusal = port.Refusal{Code: port.CodeUnknownName, Message: "undefined field " + selection.FieldName()}.Error()
+	}))
+	return refusal
+}
+
+// typedOwner answers the declaration of what a selection reads from: a variable, or a declared
+// field of one, followed down the chain of dots.
+func typedOwner(e celast.Expr, declared map[string]port.Variable) (port.Variable, bool) {
+	switch e.Kind() {
+	case celast.IdentKind:
+		variable, found := declared[e.AsIdent()]
+		return variable, found
+	case celast.SelectKind:
+		selection := e.AsSelect()
+		owner, found := typedOwner(selection.Operand(), declared)
+		if !found {
+			return port.Variable{}, false
+		}
+		for _, field := range owner.Fields {
+			if field.Name == selection.FieldName() {
+				return field, true
+			}
+		}
+	}
+	return port.Variable{}, false
+}

@@ -680,3 +680,35 @@ func TestAFormulaProducesANumber(t *testing.T) {
 		}
 	})
 }
+
+// A typed map refuses a field it does not declare, at any depth, and leaves an open map open.
+func TestCompileRefusesAnUndeclaredFieldOfATypedMap(t *testing.T) {
+	env := port.Environment{Variables: []port.Variable{
+		{Name: "entry", Kind: port.KindMap, Fields: []port.Variable{
+			{Name: "title", Kind: port.KindString},
+			{Name: "custom_fields", Kind: port.KindMap, Fields: []port.Variable{{Name: "severity", Kind: port.KindString}}},
+			{Name: "extra", Kind: port.KindMap},
+		}},
+		{Name: "channel", Kind: port.KindString},
+	}}
+	cases := []struct {
+		text  string
+		known bool
+	}{
+		{`entry.title == "x"`, true},
+		{`entry.custom_fields.severity == "high"`, true},
+		{`entry.extra.anything == 1`, true},
+		{`channel == "APP" && has(entry.custom_fields.severity)`, true},
+		{`entry.titel == "x"`, false},
+		{`entry.custom_fields.severty == "high"`, false},
+	}
+	for _, c := range cases {
+		_, err := expression.New().Compile(c.text, env, port.Boolean)
+		if c.known && err != nil {
+			t.Errorf("%s: refused: %v", c.text, err)
+		}
+		if !c.known && (err == nil || !strings.Contains(err.Error(), port.CodeUnknownName)) {
+			t.Errorf("%s: want %s, got %v", c.text, port.CodeUnknownName, err)
+		}
+	}
+}
