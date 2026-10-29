@@ -63,15 +63,19 @@ func NewItemUpdated(id shared.ID, item work.WorkItem, changes []work.FieldChange
 		changeSet[change.Field] = map[string]any{"from": change.From, "to": change.To}
 	}
 
+	payload := map[string]any{
+		"id":            item.ID.String(),
+		"type":          string(item.Type),
+		"collection_id": item.CollectionID.String(),
+		"updated_at":    item.UpdatedAt.UTC(),
+		"version":       item.Version,
+		"change_set":    changeSet,
+	}
+	if item.EntryType != "" {
+		payload["entry_type"] = item.EntryType
+	}
 	return NewEnvelope(id, ItemUpdated, item.TenantID,
-		ItemSubject(item.ID), actor, occurredAt, cause, map[string]any{
-			"id":            item.ID.String(),
-			"type":          string(item.Type),
-			"collection_id": item.CollectionID.String(),
-			"updated_at":    item.UpdatedAt.UTC(),
-			"version":       item.Version,
-			"change_set":    changeSet,
-		})
+		ItemSubject(item.ID), actor, occurredAt, cause, payload)
 }
 
 // NewItemCompleted announces that an item is done.
@@ -205,6 +209,11 @@ func itemPayload(item work.WorkItem) map[string]any {
 	}
 	if item.Amount != "" {
 		payload["amount"] = item.Amount
+	}
+	// The entry's type beside its level, so a subscriber tells a bug from a feature (UC-FLW-01);
+	// absent for the level's system type, as the REST answer leaves it out.
+	if item.EntryType != "" {
+		payload["entry_type"] = item.EntryType
 	}
 	return payload
 }

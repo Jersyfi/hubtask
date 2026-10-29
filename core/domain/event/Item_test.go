@@ -725,3 +725,25 @@ func TestTheInstantiationEventNamesTheTemplateAndItsRoot(t *testing.T) {
 		t.Error("an instantiation with no template was announced")
 	}
 }
+
+// S-03's gap: an entry's type travels beside its level, so a webhook subscriber tells a bug from
+// a feature; the level's system type is left out, as the REST answer leaves it out (UC-FLW-01).
+func TestAnItemEventCarriesTheEntrysType(t *testing.T) {
+	item := task()
+	if _, carried := announce(t, item).Payload["entry_type"]; carried {
+		t.Error("the system type was announced")
+	}
+
+	item.EntryType = "bug"
+	if got := announce(t, item).Payload["entry_type"]; got != "bug" {
+		t.Errorf("entry_type = %v on the created event", got)
+	}
+	updated, err := NewItemUpdated(eventID, item, []work.FieldChange{{Field: "title", From: "a", To: "b"}},
+		Actor{Kind: shared.ActorUser, ID: eventAuthor}, occurred, Cause{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := updated.Payload["entry_type"]; got != "bug" {
+		t.Errorf("entry_type = %v on the updated event", got)
+	}
+}
