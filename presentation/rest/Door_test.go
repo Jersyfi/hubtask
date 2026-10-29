@@ -249,3 +249,21 @@ func TestTheExportAnswersItsHashAsTheETag(t *testing.T) {
 		t.Errorf("ETag %q", tag)
 	}
 }
+
+// A module switched for a hub: the module from the path as its text, the switch and the hub from
+// the body; an unlocked module's answer carries no lock.
+func TestSwitchingAModuleReachesItsUseCase(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"modules": []usecase.Output{{"module": "WORKFLOWS", "on": true, "source": "HUB"}}}}
+	hub := "0192f000-0000-7000-8000-0000000000c1"
+	recorder := callDoor(t, registry, http.MethodPut, "/tenant/modules/WORKFLOWS", `{"switch":"ON","hub_id":"`+hub+`"}`,
+		map[string]string{"Content-Type": "application/json"})
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "SetModule" || registry.in["module"] != "WORKFLOWS" || registry.in["switch"] != "ON" || registry.in["hub_id"] != hub {
+		t.Errorf("%s %v", registry.name, registry.in)
+	}
+	if strings.Contains(recorder.Body.String(), "locked_by") {
+		t.Errorf("an unlocked module answers a lock: %s", recorder.Body)
+	}
+}

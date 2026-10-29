@@ -9785,6 +9785,7 @@ paths:
     get:
       tags: [meta]
       operationId: readSettingsCatalogue
+      x-hubtask-rest: generated
       x-hubtask-cli: "setting catalogue"
       summary: Every setting the product declares
       description: >
@@ -10246,6 +10247,7 @@ paths:
     get:
       tags: [meta]
       operationId: listModules
+      x-hubtask-rest: generated
       summary: The modules of the suite at the workspace or one hub
       description: >
         Every module with whether it is on at the workspace - or at one hub, with `hub_id` - which
@@ -10271,6 +10273,7 @@ paths:
     put:
       tags: [meta]
       operationId: setModule
+      x-hubtask-rest: generated
       summary: Switch a module on or off
       description: >
         Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it

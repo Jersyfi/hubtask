@@ -59,7 +59,7 @@ func restTable(raw, server []byte) ([]RESTDoor, error) {
 	if err := yaml.Unmarshal(raw, &doc); err != nil {
 		return nil, err
 	}
-	signatures, bodies, err := serverInterface(server)
+	signatures, bodies, texts, err := serverTypes(server)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func restTable(raw, server []byte) ([]RESTDoor, error) {
 			default:
 				return nil, fmt.Errorf("%s: x-hubtask-rest %q is not \"generated\"", op.OperationID, op.REST)
 			}
-			door, err := restDoor(doc, path, method, shared, op, signatures, bodies)
+			door, err := restDoor(doc, path, method, shared, op, signatures, bodies, texts)
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", op.OperationID, err)
 			}
@@ -100,7 +100,7 @@ func restTable(raw, server []byte) ([]RESTDoor, error) {
 
 func restDoor(
 	doc document, path, method string, shared []parameter, op restOperation,
-	signatures map[string][]*ast.Field, bodies map[string]bool,
+	signatures map[string][]*ast.Field, bodies, texts map[string]bool,
 ) (RESTDoor, error) {
 	name := upperFirst(op.OperationID)
 	door := RESTDoor{OperationID: op.OperationID, UseCase: name, Method: strings.ToUpper(method), Path: path, IfMatchAs: op.IfMatchAs}
@@ -138,7 +138,11 @@ func restDoor(
 			// A text or a number reaches the use case as it is; an identifier as its text, which is
 			// what the descriptor's KindID reads.
 			value := ident.Name
-			if typ != "string" && typ != "int" {
+			switch {
+			case typ == "string" || typ == "int":
+			case texts[typ]:
+				value = "string(" + value + ")"
+			default:
 				value += ".String()"
 			}
 			door.PathArgs = append(door.PathArgs, pathArg{Input: snake(ident.Name), Value: value})
@@ -189,14 +193,16 @@ func restDoor(
 	return door, nil
 }
 
-// serverInterface reads the generated router's method signatures and every generated type's name.
-func serverInterface(source []byte) (map[string][]*ast.Field, map[string]bool, error) {
+// serverTypes reads the generated router's method signatures, every generated type's name, and
+// the types that are text (`type Module string`).
+func serverTypes(source []byte) (map[string][]*ast.Field, map[string]bool, map[string]bool, error) {
 	file, err := parser.ParseFile(token.NewFileSet(), "Api.gen.go", source, parser.SkipObjectResolution)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	signatures := map[string][]*ast.Field{}
 	bodies := map[string]bool{}
+	texts := map[string]bool{}
 	for _, decl := range file.Decls {
 		gen, ok := decl.(*ast.GenDecl)
 		if !ok || gen.Tok != token.TYPE {
@@ -205,6 +211,9 @@ func serverInterface(source []byte) (map[string][]*ast.Field, map[string]bool, e
 		for _, spec := range gen.Specs {
 			typeSpec := spec.(*ast.TypeSpec)
 			bodies[typeSpec.Name.Name] = true
+			if ident, ok := typeSpec.Type.(*ast.Ident); ok && ident.Name == "string" {
+				texts["openapi."+typeSpec.Name.Name] = true
+			}
 			iface, ok := typeSpec.Type.(*ast.InterfaceType)
 			if !ok || typeSpec.Name.Name != "ServerInterface" {
 				continue
@@ -219,7 +228,7 @@ func serverInterface(source []byte) (map[string][]*ast.Field, map[string]bool, e
 			}
 		}
 	}
-	return signatures, bodies, nil
+	return signatures, bodies, texts, nil
 }
 
 // qualified names a generated type from the rest package: `ItemId` is `openapi.ItemId`.

@@ -12598,6 +12598,7 @@
           "meta"
         ],
         "operationId": "readSettingsCatalogue",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "setting catalogue",
         "summary": "Every setting the product declares",
         "description": "The one catalogue of settings: for every setting its key, the shape of its value, its bounds or options, the levels that may decide it (`INSTANCE`, `PLAN`, `WORKSPACE`, `HUB`, `COLLECTION`, `PERSON`), whether a level may lock or restrict it, the permission a writer needs at each level, and the operation that previews a change of it, where one does. It holds no value of any place: a place's values are read where they are written. A client draws settings screens, the settings search and the configuration file's sections from it. Needs a signed-in caller.\n",
@@ -13257,6 +13258,7 @@
           "meta"
         ],
         "operationId": "listModules",
+        "x-hubtask-rest": "generated",
         "summary": "The modules of the suite at the workspace or one hub",
         "description": "Every module with whether it is on at the workspace - or at one hub, with `hub_id` - which level decided it (`source`: `DEFAULT`, `INSTANCE`, `PLAN`, `WORKSPACE`, `HUB`) and which level locked it, if one did. A new workspace has every module off. Needs the right to change the workspace's shape, or to read its configuration.\n",
         "parameters": [
@@ -13293,6 +13295,7 @@
           "meta"
         ],
         "operationId": "setModule",
+        "x-hubtask-rest": "generated",
         "summary": "Switch a module on or off",
         "description": "Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.\n",
         "parameters": [

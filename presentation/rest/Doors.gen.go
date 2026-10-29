@@ -35,6 +35,7 @@ var restDoors = map[string]restDoor{
 	"listEntrySteps":         {UseCase: "ListEntrySteps", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
 	"listLinkTypes":          {UseCase: "ListLinkTypes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
 	"listLinksAmong":         {UseCase: "ListLinksAmong", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
+	"listModules":            {UseCase: "ListModules", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
 	"listRoles":              {UseCase: "ListRoles", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
 	"listWorkflows":          {UseCase: "ListWorkflows", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
 	"planConfig":             {UseCase: "PlanConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
@@ -47,10 +48,12 @@ var restDoors = map[string]restDoor{
 	"readConfigSandbox":      {UseCase: "ReadConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
 	"readConfigSchema":       {UseCase: "ReadConfigSchema", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
 	"readConfigVersion":      {UseCase: "ReadConfigVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version"},
+	"readSettingsCatalogue":  {UseCase: "ReadSettingsCatalogue", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
 	"resolveReferences":      {UseCase: "ResolveReferences", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
 	"revokeRoleGrant":        {UseCase: "RevokeRoleGrant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
 	"saveWorkflowDraft":      {UseCase: "SaveWorkflowDraft", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version"},
 	"setConfigPolicy":        {UseCase: "SetConfigPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
+	"setModule":              {UseCase: "SetModule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
 	"setWorkflowScheme":      {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
 	"tryWorkflowStep":        {UseCase: "TryWorkflowStep", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
 	"unlinkEntries":          {UseCase: "UnlinkEntries", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
@@ -197,6 +200,12 @@ func (c *RestController) ListLinksAmong(w http.ResponseWriter, r *http.Request) 
 	c.door(w, r, restDoors["listLinksAmong"], usecase.Input{}, nil, &body, &answer)
 }
 
+// ListModules answers GET /tenant/modules by the generated mapping.
+func (c *RestController) ListModules(w http.ResponseWriter, r *http.Request, params openapi.ListModulesParams) {
+	var answer openapi.ModuleList
+	c.door(w, r, restDoors["listModules"], usecase.Input{}, params, nil, &answer)
+}
+
 // ListRoles answers GET /roles by the generated mapping.
 func (c *RestController) ListRoles(w http.ResponseWriter, r *http.Request) {
 	var answer openapi.RoleCatalogue
@@ -276,6 +285,12 @@ func (c *RestController) ReadConfigVersion(w http.ResponseWriter, r *http.Reques
 	c.door(w, r, restDoors["readConfigVersion"], usecase.Input{"version": version}, nil, nil, &answer)
 }
 
+// ReadSettingsCatalogue answers GET /settings/catalogue by the generated mapping.
+func (c *RestController) ReadSettingsCatalogue(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.SettingsCatalogue
+	c.door(w, r, restDoors["readSettingsCatalogue"], usecase.Input{}, nil, nil, &answer)
+}
+
 // ResolveReferences answers POST /references:resolve by the generated mapping.
 func (c *RestController) ResolveReferences(w http.ResponseWriter, r *http.Request) {
 	var body openapi.ResolveReferencesJSONRequestBody
@@ -299,6 +314,13 @@ func (c *RestController) SetConfigPolicy(w http.ResponseWriter, r *http.Request)
 	var body openapi.SetConfigPolicyJSONRequestBody
 	var answer openapi.ConfigPolicy
 	c.door(w, r, restDoors["setConfigPolicy"], usecase.Input{}, nil, &body, &answer)
+}
+
+// SetModule answers PUT /tenant/modules/{module} by the generated mapping.
+func (c *RestController) SetModule(w http.ResponseWriter, r *http.Request, module openapi.Module) {
+	var body openapi.SetModuleJSONRequestBody
+	var answer openapi.ModuleList
+	c.door(w, r, restDoors["setModule"], usecase.Input{"module": string(module)}, nil, &body, &answer)
 }
 
 // SetWorkflowScheme answers PUT /workflow-scheme by the generated mapping.
