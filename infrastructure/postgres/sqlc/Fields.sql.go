@@ -11,6 +11,35 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countEntriesHoldingCustomField = `-- name: CountEntriesHoldingCustomField :one
+SELECT count(*)::bigint
+FROM work_item wi
+WHERE wi.deleted_at IS NULL
+  AND wi.custom_fields ? $1::text
+  AND (CASE WHEN $2::uuid IS NULL
+         THEN NOT EXISTS (SELECT 1 FROM custom_field_definition own
+                          WHERE own.deleted_at IS NULL AND own.key = $1::text
+                            AND own.collection_id = wi.collection_id)
+         ELSE wi.collection_id = $2::uuid
+       END)
+`
+
+type CountEntriesHoldingCustomFieldParams struct {
+	Key          string
+	CollectionID pgtype.UUID
+}
+
+// The live entries that hold a value under a definition's key where the definition is in force:
+// its collection, or for a workspace-wide one every collection that does not define the key
+// itself. What removing the definition or hiding it from readers would stop showing - a count,
+// never a value (rule 10).
+func (q *Queries) CountEntriesHoldingCustomField(ctx context.Context, arg CountEntriesHoldingCustomFieldParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countEntriesHoldingCustomField, arg.Key, arg.CollectionID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const findCustomField = `-- name: FindCustomField :one
 SELECT id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
        created_at, updated_at, deleted_at, version, restricted, read_restricted

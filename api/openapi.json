@@ -16301,6 +16301,37 @@
         }
       }
     },
+    "/custom-fields/{fieldId}/reach": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/CustomFieldId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "previewCustomFieldReach",
+        "x-hubtask-rest": "generated",
+        "summary": "What removing or hiding a field would stop showing",
+        "description": "How many entries hold a value under the definition where it is in force - its collection, or for a workspace-wide one every collection that does not define the key itself: what deleting the definition, or hiding it from readers, would stop showing. A count, never a value; a definition already out of use answers 0. Needs what changing the definition needs.\n",
+        "responses": {
+          "200": {
+            "description": "The count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomFieldReach"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/items/{itemId}/custom-fields/{key}": {
       "parameters": [
         {
@@ -25282,6 +25313,23 @@
           "withheld": {
             "type": "boolean",
             "description": "True where the reach was not counted because the reader may not see what the change touches - a token without the scope the preview needs, or a module that is off. The plan still holds; only the counts are missing.\n"
+          }
+        }
+      },
+      "CustomFieldReach": {
+        "type": "object",
+        "required": [
+          "field_id",
+          "entries"
+        ],
+        "properties": {
+          "field_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "entries": {
+            "type": "integer",
+            "description": "Entries holding a value under the definition where it is in force."
           }
         }
       },

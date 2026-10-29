@@ -9009,6 +9009,13 @@ type CustomFieldDefinitionUpdate struct {
 // CustomFieldKind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`.
 type CustomFieldKind string
 
+// CustomFieldReach defines model for CustomFieldReach.
+type CustomFieldReach struct {
+	// Entries Entries holding a value under the definition where it is in force.
+	Entries int                `json:"entries"`
+	FieldId openapi_types.UUID `json:"field_id"`
+}
+
 // CustomFieldValue One value for one key. `value` is required and may be null, which clears the key - the two are different requests, and a body that left the field out would be neither.
 type CustomFieldValue struct {
 	// Value The value, shaped by the definition's kind: a string for TEXT, SELECT, URL and RICH_TEXT, a number for NUMBER, a number with at most four decimal places for MONEY, a whole number of minutes for DURATION, a boolean for BOOL, an ISO-8601 date for DATE, an account identifier for USER, an entry identifier for REFERENCE, an array of strings for MULTI_SELECT and an array of account identifiers for USER_SET. Null clears the key.
@@ -21133,6 +21140,13 @@ type ClientInterface interface {
 	// Changes what a definition permits. A field that is not sent is left alone. The key and the kind are not among them: a key that moved would orphan every value stored under it, and a kind that changed would reinterpret them - both are a new definition rather than an edit. Narrowing the options of a SELECT does not rewrite the entries that hold a value which is no longer offered; they keep it until somebody sets the field again.
 	UpdateCustomFieldWithApplicationMergePatchPlusJSONBody(ctx context.Context, fieldId CustomFieldId, params *UpdateCustomFieldParams, body UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PreviewCustomFieldReach What removing or hiding a field would stop showing
+	//
+	// How many entries hold a value under the definition where it is in force - its collection, or for a workspace-wide one every collection that does not define the key itself: what deleting the definition, or hiding it from readers, would stop showing. A count, never a value; a definition already out of use answers 0. Needs what changing the definition needs.
+	//
+	// Corresponds with GET /custom-fields/{fieldId}/reach (the `PreviewCustomFieldReach` operationId).
+	PreviewCustomFieldReach(ctx context.Context, fieldId CustomFieldId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListEntryTypes The workspace's entry types
 	//
 	// Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
@@ -30642,6 +30656,23 @@ func (c *Client) UpdateCustomFieldWithBody(ctx context.Context, fieldId CustomFi
 // Changes what a definition permits. A field that is not sent is left alone. The key and the kind are not among them: a key that moved would orphan every value stored under it, and a kind that changed would reinterpret them - both are a new definition rather than an edit. Narrowing the options of a SELECT does not rewrite the entries that hold a value which is no longer offered; they keep it until somebody sets the field again.
 func (c *Client) UpdateCustomFieldWithApplicationMergePatchPlusJSONBody(ctx context.Context, fieldId CustomFieldId, params *UpdateCustomFieldParams, body UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateCustomFieldRequestWithApplicationMergePatchPlusJSONBody(c.Server, fieldId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PreviewCustomFieldReach What removing or hiding a field would stop showing
+//
+// How many entries hold a value under the definition where it is in force - its collection, or for a workspace-wide one every collection that does not define the key itself: what deleting the definition, or hiding it from readers, would stop showing. A count, never a value; a definition already out of use answers 0. Needs what changing the definition needs.
+//
+// Corresponds with GET /custom-fields/{fieldId}/reach (the `PreviewCustomFieldReach` operationId).
+func (c *Client) PreviewCustomFieldReach(ctx context.Context, fieldId CustomFieldId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPreviewCustomFieldReachRequest(c.Server, fieldId)
 	if err != nil {
 		return nil, err
 	}
@@ -47058,6 +47089,40 @@ func NewUpdateCustomFieldRequestWithBody(server string, fieldId CustomFieldId, p
 	return req, nil
 }
 
+// NewPreviewCustomFieldReachRequest constructs an http.Request for the PreviewCustomFieldReach method
+func NewPreviewCustomFieldReachRequest(server string, fieldId CustomFieldId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "fieldId", fieldId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/custom-fields/%s/reach", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListEntryTypesRequest constructs an http.Request for the ListEntryTypes method
 func NewListEntryTypesRequest(server string) (*http.Request, error) {
 	var err error
@@ -61750,6 +61815,15 @@ type ClientWithResponsesInterface interface {
 	// Changes what a definition permits. A field that is not sent is left alone. The key and the kind are not among them: a key that moved would orphan every value stored under it, and a kind that changed would reinterpret them - both are a new definition rather than an edit. Narrowing the options of a SELECT does not rewrite the entries that hold a value which is no longer offered; they keep it until somebody sets the field again.
 	UpdateCustomFieldWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, fieldId CustomFieldId, params *UpdateCustomFieldParams, body UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCustomFieldResult, error)
 
+	// PreviewCustomFieldReachWithResponse What removing or hiding a field would stop showing
+	//
+	// How many entries hold a value under the definition where it is in force - its collection, or for a workspace-wide one every collection that does not define the key itself: what deleting the definition, or hiding it from readers, would stop showing. A count, never a value; a definition already out of use answers 0. Needs what changing the definition needs.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /custom-fields/{fieldId}/reach (the `PreviewCustomFieldReach` operationId).
+	PreviewCustomFieldReachWithResponse(ctx context.Context, fieldId CustomFieldId, reqEditors ...RequestEditorFn) (*PreviewCustomFieldReachResult, error)
+
 	// ListEntryTypesWithResponse The workspace's entry types
 	//
 	// Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
@@ -75640,6 +75714,54 @@ func (r UpdateCustomFieldResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateCustomFieldResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PreviewCustomFieldReachResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CustomFieldReach
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PreviewCustomFieldReachResult) GetJSON200() *CustomFieldReach {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PreviewCustomFieldReachResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PreviewCustomFieldReachResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PreviewCustomFieldReachResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PreviewCustomFieldReachResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PreviewCustomFieldReachResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -92470,6 +92592,21 @@ func (c *ClientWithResponses) UpdateCustomFieldWithApplicationMergePatchPlusJSON
 	return ParseUpdateCustomFieldResult(rsp)
 }
 
+// PreviewCustomFieldReachWithResponse What removing or hiding a field would stop showing
+//
+// How many entries hold a value under the definition where it is in force - its collection, or for a workspace-wide one every collection that does not define the key itself: what deleting the definition, or hiding it from readers, would stop showing. A count, never a value; a definition already out of use answers 0. Needs what changing the definition needs.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /custom-fields/{fieldId}/reach (the `PreviewCustomFieldReach` operationId).
+func (c *ClientWithResponses) PreviewCustomFieldReachWithResponse(ctx context.Context, fieldId CustomFieldId, reqEditors ...RequestEditorFn) (*PreviewCustomFieldReachResult, error) {
+	rsp, err := c.PreviewCustomFieldReach(ctx, fieldId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePreviewCustomFieldReachResult(rsp)
+}
+
 // ListEntryTypesWithResponse The workspace's entry types
 //
 // Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
@@ -105401,6 +105538,39 @@ func ParseUpdateCustomFieldResult(rsp *http.Response) (*UpdateCustomFieldResult,
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParsePreviewCustomFieldReachResult parses an HTTP response from a PreviewCustomFieldReachWithResponse call
+func ParsePreviewCustomFieldReachResult(rsp *http.Response) (*PreviewCustomFieldReachResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PreviewCustomFieldReachResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CustomFieldReach
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

@@ -2683,6 +2683,7 @@ func run() error {
 		}.Descriptor(),
 		work.UpdateCustomField{Writer: customFieldWriter}.Descriptor(),
 		work.DeleteCustomField{Writer: customFieldWriter}.Descriptor(),
+		work.PreviewCustomFieldReach{Writer: customFieldWriter, Counts: customFields}.Descriptor(),
 		work.CreateSavedView{
 			Views: savedViews, Containers: containers, Authorizer: authorizer,
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,

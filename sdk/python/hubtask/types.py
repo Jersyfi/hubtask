@@ -1564,6 +1564,10 @@ class ConfigReach(TypedDict, total=False):
     lost: list[str]
     withheld: bool
 
+class CustomFieldReach(TypedDict, total=False):
+    field_id: Required[str]
+    entries: Required[int]
+
 class ConfigCounts(TypedDict, total=False):
     added: Required[int]
     changed: Required[int]

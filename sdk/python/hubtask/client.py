@@ -1791,6 +1791,10 @@ class Client:
         """DELETE /custom-fields/{fieldId}"""
         return self._call("DELETE", "/custom-fields/{fieldId}", {"fieldId": field_id}, None, {"If-Match": if_match}, None, "none", None, "void")
 
+    def preview_custom_field_reach(self, field_id: str) -> "CustomFieldReach":
+        """What removing or hiding a field would stop showing"""
+        return self._call("GET", "/custom-fields/{fieldId}/reach", {"fieldId": field_id}, None, {}, None, "none", None, "json")
+
     def set_custom_field(self, item_id: str, key: str, body: "CustomFieldValue", *, if_match: str | None = None) -> "WorkItem":
         """PUT /items/{itemId}/custom-fields/{key}"""
         return self._call("PUT", "/items/{itemId}/custom-fields/{key}", {"itemId": item_id, "key": key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")

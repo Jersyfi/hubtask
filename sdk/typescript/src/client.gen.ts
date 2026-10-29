@@ -2252,6 +2252,11 @@ export class HubtaskClient {
     return this.call("DELETE", "/custom-fields/{fieldId}", { "fieldId": fieldId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** What removing or hiding a field would stop showing */
+  previewCustomFieldReach(fieldId: string, options: CallOptions = {}): Promise<operations["previewCustomFieldReach"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/custom-fields/{fieldId}/reach", { "fieldId": fieldId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** PUT /items/{itemId}/custom-fields/{key} */
   setCustomField(itemId: string, key: string, body: NonNullable<operations["setCustomField"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setCustomField"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/items/{itemId}/custom-fields/{key}", { "itemId": itemId, "key": key }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);

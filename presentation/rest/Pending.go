@@ -1731,6 +1731,10 @@ func (pending) EvaluateEntryForm(w http.ResponseWriter, r *http.Request, _ strin
 	notAvailable(w, r)
 }
 
+func (pending) PreviewCustomFieldReach(w http.ResponseWriter, r *http.Request, _ openapi.CustomFieldId) {
+	notAvailable(w, r)
+}
+
 func (pending) SetItemEntryType(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.SetItemEntryTypeParams) {
 	notAvailable(w, r)
 }

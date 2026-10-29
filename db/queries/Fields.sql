@@ -105,3 +105,19 @@ SELECT key, collection_id, kind, formula
 FROM custom_field_definition
 WHERE deleted_at IS NULL AND kind IN ('CALCULATED', 'NUMBER', 'MONEY', 'DURATION', 'BOOL')
 ORDER BY key, collection_id NULLS FIRST;
+
+-- name: CountEntriesHoldingCustomField :one
+-- The live entries that hold a value under a definition's key where the definition is in force:
+-- its collection, or for a workspace-wide one every collection that does not define the key
+-- itself. What removing the definition or hiding it from readers would stop showing - a count,
+-- never a value (rule 10).
+SELECT count(*)::bigint
+FROM work_item wi
+WHERE wi.deleted_at IS NULL
+  AND wi.custom_fields ? sqlc.arg('key')::text
+  AND (CASE WHEN sqlc.narg('collection_id')::uuid IS NULL
+         THEN NOT EXISTS (SELECT 1 FROM custom_field_definition own
+                          WHERE own.deleted_at IS NULL AND own.key = sqlc.arg('key')::text
+                            AND own.collection_id = wi.collection_id)
+         ELSE wi.collection_id = sqlc.narg('collection_id')::uuid
+       END);

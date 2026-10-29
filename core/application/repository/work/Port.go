@@ -1230,6 +1230,12 @@ type FieldHidings interface {
 	ReadFormulas(ctx context.Context) ([]FieldFormula, error)
 }
 
+// FieldValueCounts answers how many entries hold a value under a definition where it is in force:
+// what removing it or hiding it from readers would stop showing. A count, never a value.
+type FieldValueCounts interface {
+	EntriesHolding(ctx context.Context, definition work.CustomFieldDefinition) (int, error)
+}
+
 // FieldFormula is one definition a formula concerns: a CALCULATED one with its formula, or one
 // whose kind a formula may read; the collection it is defined for, zero for the whole workspace.
 type FieldFormula struct {

@@ -404,3 +404,25 @@ func (r CustomFieldRepository) ReadFormulas(ctx context.Context) ([]repository.F
 	}
 	return formulas, nil
 }
+
+// EntriesHolding counts the live entries holding a value under the definition where it is in
+// force.
+func (r CustomFieldRepository) EntriesHolding(ctx context.Context, definition work.CustomFieldDefinition) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	collection, err := optionalUUID(definition.CollectionID)
+	if err != nil {
+		return 0, err
+	}
+	count, err := queries.CountEntriesHoldingCustomField(ctx, sqlc.CountEntriesHoldingCustomFieldParams{
+		Key: definition.Key, CollectionID: collection,
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the entries holding a custom field: %w", err))
+	}
+	return int(count), nil
+}

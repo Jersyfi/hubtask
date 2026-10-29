@@ -469,3 +469,44 @@ func TestTheFormulaFieldsAreAnsweredOnlyInTheirWorkspace(t *testing.T) {
 		t.Fatal("tenant B was answered tenant A's formula fields")
 	}
 }
+
+// The cross-tenant negative test for EntriesHolding, a plan's reach for a field it removes or
+// hides: A's entry holding a value counts for A's field, and B, asking about the same key, counts
+// nothing of A's.
+func TestEntriesHoldingCountsOnlyTheCallersEntries(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	task := seedTask(ctx, t, tenantA, authorA, collection)
+	key := "reach_" + shortSuffix(t)
+	defined := definedField(ctx, t, tenantA, collection, key, work.CustomFieldText)
+
+	item := findItem(ctx, t, tenantA, task)
+	written, _ := item.WithCustomField(key, "high", changedAt)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemRepo().SetCustomField(ctx, written, key, defined.ID, item.Version)
+	}); err != nil {
+		t.Fatalf("writing the value: %v", err)
+	}
+
+	var inA, inB int
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		inA, err = fieldRepo().EntriesHolding(ctx, defined)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	foreign := defined
+	foreign.TenantID, foreign.CollectionID = tenantB, ""
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		inB, err = fieldRepo().EntriesHolding(ctx, foreign)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if inA != 1 || inB != 0 {
+		t.Fatalf("A counts %d, B counts %d", inA, inB)
+	}
+}

@@ -601,6 +601,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `custom_field.defined` | DefineCustomField | `custom_field` | INFO | Every time |
 | `custom_field.deleted` | DeleteCustomField | `custom_field` | INFO | Every time |
+| `custom_field.reach_previewed` | PreviewCustomFieldReach | `custom_field` | INFO | When refused |
 | `custom_field.read` | ListCustomFields | `custom_field` | INFO | When refused |
 | `custom_field.updated` | UpdateCustomField | `custom_field` | INFO | Every time |
 

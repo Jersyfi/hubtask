@@ -9003,6 +9003,13 @@ type CustomFieldDefinitionUpdate struct {
 // CustomFieldKind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`.
 type CustomFieldKind string
 
+// CustomFieldReach defines model for CustomFieldReach.
+type CustomFieldReach struct {
+	// Entries Entries holding a value under the definition where it is in force.
+	Entries int                `json:"entries"`
+	FieldId openapi_types.UUID `json:"field_id"`
+}
+
 // CustomFieldValue One value for one key. `value` is required and may be null, which clears the key - the two are different requests, and a body that left the field out would be neither.
 type CustomFieldValue struct {
 	// Value The value, shaped by the definition's kind: a string for TEXT, SELECT, URL and RICH_TEXT, a number for NUMBER, a number with at most four decimal places for MONEY, a whole number of minutes for DURATION, a boolean for BOOL, an ISO-8601 date for DATE, an account identifier for USER, an entry identifier for REFERENCE, an array of strings for MULTI_SELECT and an array of account identifiers for USER_SET. Null clears the key.
@@ -18529,6 +18536,9 @@ type ServerInterface interface {
 
 	// (PATCH /custom-fields/{fieldId})
 	UpdateCustomField(w http.ResponseWriter, r *http.Request, fieldId CustomFieldId, params UpdateCustomFieldParams)
+	// PreviewCustomFieldReach What removing or hiding a field would stop showing
+	// (GET /custom-fields/{fieldId}/reach)
+	PreviewCustomFieldReach(w http.ResponseWriter, r *http.Request, fieldId CustomFieldId)
 	// ListEntryTypes The workspace's entry types
 	// (GET /entry-types)
 	ListEntryTypes(w http.ResponseWriter, r *http.Request)
@@ -26094,6 +26104,32 @@ func (siw *ServerInterfaceWrapper) UpdateCustomField(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateCustomField(w, r, fieldId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PreviewCustomFieldReach operation middleware
+func (siw *ServerInterfaceWrapper) PreviewCustomFieldReach(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "fieldId" -------------
+	var fieldId CustomFieldId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "fieldId", r.PathValue("fieldId"), &fieldId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "fieldId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewCustomFieldReach(w, r, fieldId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -35033,6 +35069,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/custom-fields", wrapper.DefineCustomField)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/custom-fields/{fieldId}", wrapper.DeleteCustomField)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/custom-fields/{fieldId}", wrapper.UpdateCustomField)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/custom-fields/{fieldId}/reach", wrapper.PreviewCustomFieldReach)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/custom-fields/{key}", wrapper.SetCustomField)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/cover", wrapper.ClearCover)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/cover", wrapper.SetCover)
