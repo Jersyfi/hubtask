@@ -746,7 +746,7 @@ func (h VerifyPage) Execute(ctx context.Context, actor appshared.ActorContext, c
 		}
 		next.Version = current.Version + 1
 		page = next
-		if err := armReview(ctx, h.Space.Reviews, next, now); err != nil {
+		if err := armReview(ctx, h.Space.Reviews, actor.TenantID, next, now); err != nil {
 			return err
 		}
 		return h.Space.record(ctx, actor, PageVerifiedAction, pageTarget, next.ID, []audit.Change{

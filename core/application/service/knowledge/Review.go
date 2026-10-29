@@ -35,7 +35,7 @@ type ReviewNotifier interface {
 // armReview replaces the page's review clock by one running to its new verification date. The
 // date is wall time, so the calendar is continuous; a date beyond a timer's bound is reached in
 // legs, the handler arming the next one when a leg elapses early.
-func armReview(ctx context.Context, timers ReviewTimers, page domain.Page, now time.Time) error {
+func armReview(ctx context.Context, timers ReviewTimers, tenant shared.ID, page domain.Page, now time.Time) error {
 	if timers == nil {
 		return nil
 	}
@@ -50,7 +50,7 @@ func armReview(ctx context.Context, timers ReviewTimers, page domain.Page, now t
 	if budget < time.Second {
 		return nil
 	}
-	_, err := timers.Arm(ctx, page.TenantID, calendar.PurposePageReview, page.ID, reviewTimer,
+	_, err := timers.Arm(ctx, tenant, calendar.PurposePageReview, page.ID, reviewTimer,
 		calendar.Continuous(), budget)
 	return err
 }
@@ -77,9 +77,11 @@ func (h PageReviewElapsed) Elapsed(ctx context.Context, _ appshared.ActorContext
 	if page.IsTrashed() || page.VerifiedUntil == nil {
 		return nil
 	}
+	// A page read back names no tenant; the timer's is the page's.
+	page.TenantID = timer.TenantID
 	now := h.Clock.Now()
 	if !page.DueForReview(now) {
-		return armReview(ctx, h.Timers, page, now)
+		return armReview(ctx, h.Timers, timer.TenantID, page, now)
 	}
 	if h.Notify == nil {
 		return nil

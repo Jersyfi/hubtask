@@ -41,10 +41,11 @@ func (c *clocks) Stop(_ context.Context, _ calendar.Purpose, subject shared.ID, 
 	return timer, nil
 }
 
-type told struct{ pages []shared.ID }
+type told struct{ pages, tenants []shared.ID }
 
 func (t *told) PageReviewDue(_ context.Context, page domain.Page) error {
 	t.pages = append(t.pages, page.ID)
+	t.tenants = append(t.tenants, page.TenantID)
 	return nil
 }
 
@@ -67,7 +68,7 @@ func TestAPagesOwnerIsRemindedWhenItFallsDue(t *testing.T) {
 	threeMonths := start.AddDate(0, 3, 0)
 	verify(&threeMonths)
 	timer, ok := timers.live[page.ID]
-	if !ok || timer.Purpose != calendar.PurposePageReview || timer.DueAt == nil || !timer.DueAt.Equal(threeMonths) {
+	if !ok || timer.Purpose != calendar.PurposePageReview || timer.TenantID != tenant || timer.DueAt == nil || !timer.DueAt.Equal(threeMonths) {
 		t.Fatalf("the clock is %+v (armed %v), want one due %v", timer, ok, threeMonths)
 	}
 	later := start.AddDate(0, 6, 0)
@@ -80,18 +81,18 @@ func TestAPagesOwnerIsRemindedWhenItFallsDue(t *testing.T) {
 	elapsed := PageReviewElapsed{Pages: f.store, Timers: timers, Notify: notified, Clock: f.clock}
 	f.clock.at = later
 	delete(timers.live, page.ID)
-	if err := elapsed.Elapsed(context.Background(), as(anna), calendar.Timer{SubjectID: page.ID}); err != nil {
+	if err := elapsed.Elapsed(context.Background(), as(anna), calendar.Timer{TenantID: tenant, SubjectID: page.ID}); err != nil {
 		t.Fatalf("Elapsed: %v", err)
 	}
-	if len(notified.pages) != 1 || notified.pages[0] != page.ID {
-		t.Fatalf("told %v, want the page", notified.pages)
+	if len(notified.pages) != 1 || notified.pages[0] != page.ID || notified.tenants[0] != tenant {
+		t.Fatalf("told %v in %v, want the page in its tenant", notified.pages, notified.tenants)
 	}
 
 	verify(nil)
 	if _, ok := timers.live[page.ID]; ok {
 		t.Fatal("taking the verification away left the clock running")
 	}
-	if err := elapsed.Elapsed(context.Background(), as(anna), calendar.Timer{SubjectID: page.ID}); err != nil || len(notified.pages) != 1 {
+	if err := elapsed.Elapsed(context.Background(), as(anna), calendar.Timer{TenantID: tenant, SubjectID: page.ID}); err != nil || len(notified.pages) != 1 {
 		t.Fatalf("an unverified page was told again: %v, %v", notified.pages, err)
 	}
 }
@@ -115,7 +116,7 @@ func TestAReviewBeyondAYearIsReachedInLegs(t *testing.T) {
 	notified := &told{}
 	f.clock.at = start.Add(calendar.MaxBudget)
 	elapsed := PageReviewElapsed{Pages: f.store, Timers: timers, Notify: notified, Clock: f.clock}
-	if err := elapsed.Elapsed(context.Background(), as(anna), calendar.Timer{SubjectID: page.ID}); err != nil {
+	if err := elapsed.Elapsed(context.Background(), as(anna), calendar.Timer{TenantID: tenant, SubjectID: page.ID}); err != nil {
 		t.Fatalf("Elapsed: %v", err)
 	}
 	if len(notified.pages) != 0 {
