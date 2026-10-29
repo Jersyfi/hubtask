@@ -174,6 +174,34 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `backup.target_tested` | TestBackupTarget | `backup_target` | INFO | Every time |
 | `backup.verified` | VerifyBackup | `backup_run` | INFO | Every time |
 
+## Cmdb
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `cmdb.ci_changed` | SetCiCompliance | `cmdb_ci` | INFO | Every time |
+| `cmdb.ci_changed` | UpdateCi | `cmdb_ci` | INFO | When refused |
+| `cmdb.ci_created` | CreateCi | `cmdb_ci` | INFO | Every time |
+| `cmdb.ci_read` | ListCiDuplicates | `cmdb_ci` | INFO | When refused |
+| `cmdb.ci_read` | ListCiHolds | `cmdb_run` | INFO | When refused |
+| `cmdb.ci_read` | ListCiRuns | `cmdb_run` | INFO | When refused |
+| `cmdb.ci_read` | ListCis | `cmdb_ci` | INFO | When refused |
+| `cmdb.ci_read` | ReadCi | `cmdb_ci` | INFO | When refused |
+| `cmdb.ci_read` | ReadCiImpact | `cmdb_ci` | INFO | When refused |
+| `cmdb.ci_read` | ReadCiRun | `cmdb_run` | INFO | When refused |
+| `cmdb.ci_read` | ReadCmdbHealth | `cmdb_ci` | INFO | When refused |
+| `cmdb.class_defined` | DefineCiClass | `cmdb_class` | INFO | Every time |
+| `cmdb.configuration_read` | ListCiClasses | `cmdb_class` | INFO | When refused |
+| `cmdb.configuration_read` | ListCiRelationTypes | `cmdb_relation_type` | INFO | When refused |
+| `cmdb.configuration_read` | ListCiSources | `cmdb_source` | INFO | When refused |
+| `cmdb.duplicate_resolved` | ResolveCiDuplicate | `cmdb_ci` | INFO | Every time |
+| `cmdb.hold_dismissed` | DismissCiHold | `cmdb_run` | INFO | Every time |
+| `cmdb.reconciled` | ImportCiFile | `cmdb_run` | INFO | When refused |
+| `cmdb.reconciled` | ReconcileCis | `cmdb_run` | INFO | When refused |
+| `cmdb.related` | RelateCis | `cmdb_relation` | INFO | Every time |
+| `cmdb.relation_type_defined` | DefineCiRelationType | `cmdb_relation_type` | INFO | Every time |
+| `cmdb.source_defined` | DefineCiSource | `cmdb_source` | INFO | Every time |
+| `cmdb.unrelated` | UnrelateCis | `cmdb_relation` | INFO | Every time |
+
 ## Config
 
 | Action | Use case | Target | Severity | Recorded |

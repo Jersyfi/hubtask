@@ -42,6 +42,7 @@ import (
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	calendarservice "github.com/Jersyfi/hubtask/core/application/service/calendar"
+	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
 	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
@@ -1812,6 +1813,12 @@ func run() error {
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		Texts: pageSpace.Pages, Entries: entryLinks, Reader: authorizer, Media: mediaObjects,
 	}
+	// The assets and configuration module (M6): a hub's CIs, judged at the hub; every write of a CI
+	// goes through the inventory's reconciliation.
+	inventory := cmdbservice.Inventory{
+		Store: postgres.NewCmdbRepository(), Containers: containers, Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
 	useCases, err := usecase.NewRegistry(
 		settingservice.ModuleGate{Modules: modules}.Wrap(entitlementGate.Wrap(observer.Registry())),
 		knowledgeservice.CreatePage{Space: pageSpace}.Descriptor(),
@@ -1846,6 +1853,29 @@ func run() error {
 		whiteboardservice.NameWhiteboardVersion{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.ListWhiteboardBacklinks{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.AttachWhiteboardMedia{Studio: boardStudio}.Descriptor(),
+		cmdbservice.ListCiClasses{Inventory: inventory}.Descriptor(),
+		cmdbservice.DefineCiClass{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiRelationTypes{Inventory: inventory}.Descriptor(),
+		cmdbservice.DefineCiRelationType{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiSources{Inventory: inventory}.Descriptor(),
+		cmdbservice.DefineCiSource{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCis{Inventory: inventory}.Descriptor(),
+		cmdbservice.ReadCi{Inventory: inventory}.Descriptor(),
+		cmdbservice.CreateCi{Inventory: inventory}.Descriptor(),
+		cmdbservice.UpdateCi{Inventory: inventory}.Descriptor(),
+		cmdbservice.SetCiCompliance{Inventory: inventory}.Descriptor(),
+		cmdbservice.RelateCis{Inventory: inventory}.Descriptor(),
+		cmdbservice.UnrelateCis{Inventory: inventory}.Descriptor(),
+		cmdbservice.ReconcileCis{Inventory: inventory}.Descriptor(),
+		cmdbservice.ImportCiFile{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiRuns{Inventory: inventory}.Descriptor(),
+		cmdbservice.ReadCiRun{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiHolds{Inventory: inventory}.Descriptor(),
+		cmdbservice.DismissCiHold{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiDuplicates{Inventory: inventory}.Descriptor(),
+		cmdbservice.ResolveCiDuplicate{Inventory: inventory}.Descriptor(),
+		cmdbservice.ReadCmdbHealth{Inventory: inventory}.Descriptor(),
+		cmdbservice.ReadCiImpact{Inventory: inventory}.Descriptor(),
 		work.ListLinkTypes{Registry: linkTypeRegistry}.Descriptor(),
 		work.CreateLinkType{Registry: linkTypeRegistry}.Descriptor(),
 		work.ChangeLinkType{Registry: linkTypeRegistry}.Descriptor(),

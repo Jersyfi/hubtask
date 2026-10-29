@@ -26,6 +26,7 @@ import (
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
+	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
 	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	importservice "github.com/Jersyfi/hubtask/core/application/service/importer"
@@ -113,6 +114,29 @@ func Descriptors() []usecase.Descriptor {
 		whiteboardservice.NameWhiteboardVersion{}.Descriptor(),
 		whiteboardservice.ListWhiteboardBacklinks{}.Descriptor(),
 		whiteboardservice.AttachWhiteboardMedia{}.Descriptor(),
+		cmdbservice.ListCiClasses{}.Descriptor(),
+		cmdbservice.DefineCiClass{}.Descriptor(),
+		cmdbservice.ListCiRelationTypes{}.Descriptor(),
+		cmdbservice.DefineCiRelationType{}.Descriptor(),
+		cmdbservice.ListCiSources{}.Descriptor(),
+		cmdbservice.DefineCiSource{}.Descriptor(),
+		cmdbservice.ListCis{}.Descriptor(),
+		cmdbservice.ReadCi{}.Descriptor(),
+		cmdbservice.CreateCi{}.Descriptor(),
+		cmdbservice.UpdateCi{}.Descriptor(),
+		cmdbservice.SetCiCompliance{}.Descriptor(),
+		cmdbservice.RelateCis{}.Descriptor(),
+		cmdbservice.UnrelateCis{}.Descriptor(),
+		cmdbservice.ReconcileCis{}.Descriptor(),
+		cmdbservice.ImportCiFile{}.Descriptor(),
+		cmdbservice.ListCiRuns{}.Descriptor(),
+		cmdbservice.ReadCiRun{}.Descriptor(),
+		cmdbservice.ListCiHolds{}.Descriptor(),
+		cmdbservice.DismissCiHold{}.Descriptor(),
+		cmdbservice.ListCiDuplicates{}.Descriptor(),
+		cmdbservice.ResolveCiDuplicate{}.Descriptor(),
+		cmdbservice.ReadCmdbHealth{}.Descriptor(),
+		cmdbservice.ReadCiImpact{}.Descriptor(),
 		work.ListLinkTypes{}.Descriptor(),
 		work.CreateLinkType{}.Descriptor(),
 		work.ChangeLinkType{}.Descriptor(),
