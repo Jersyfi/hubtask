@@ -24,13 +24,45 @@ export function whatOf(kind: MutationKind, mutation?: SyncMutation): string {
     }
     return t('app.sync.what.patch.fields', { count: fields.length });
   }
+  if (mutation?.entity && (kind === 'ENTITY_UPSERT' || kind === 'ENTITY_PATCH' || kind === 'ENTITY_DELETE')) {
+    return t(`app.sync.what.entity.${mutation.entity}.${kind === 'ENTITY_DELETE' ? 'delete' : 'write'}`);
+  }
   return t(`app.sync.what.${kind.toLowerCase()}`);
 }
 
-/** The entry's title from the copy, or its identifier where the copy has none. */
-async function whereOf(itemId: string): Promise<string> {
+/** Where a vocabulary entry is shown, and the replica's collection of it (offline-sync.md §4.4). */
+const VOCABULARY: Readonly<Record<string, { collection: string; href: string }>> = {
+  entry_type: { collection: 'entry_types', href: '/administration/types' },
+  link_type: { collection: 'link_types', href: '/administration/link-types' },
+  workflow: { collection: 'workflows', href: '/administration/workflows' },
+  custom_role: { collection: 'custom_roles', href: '/administration/people?tab=permissions' },
+};
+
+/** The source entry a link mutation draws from, where it names one. */
+const linkSourceOf = (mutation?: SyncMutation): string | undefined =>
+  mutation?.entity === 'entry_link' && typeof mutation.payload?.item_id === 'string' ? mutation.payload.item_id : undefined;
+
+/**
+ * The entry's title from the copy, or its identifier where the copy has none; for the
+ * vocabulary, the name of what was written, or its key.
+ */
+async function whereOf(itemId: string, mutation?: SyncMutation): Promise<string> {
+  const vocabulary = mutation?.entity ? VOCABULARY[mutation.entity] : undefined;
+  if (vocabulary) {
+    const held = await engine.storage?.get<StoredRecord<{ name?: string }>>(vocabulary.collection, itemId);
+    return held?.document.name ?? String(mutation?.entity_key ?? itemId);
+  }
+  const source = linkSourceOf(mutation);
+  if (mutation?.entity === 'entry_link') return source ? whereOf(source) : String(mutation.entity_key ?? itemId);
   const held = await engine.storage?.get<StoredRecord<{ title?: string }>>('items', itemId);
   return held?.document.title ?? itemId;
+}
+
+/** Where a queued change is opened: its entry, or the screen of the vocabulary it writes. */
+function hrefOf(itemId: string, mutation?: SyncMutation): string {
+  const vocabulary = mutation?.entity ? VOCABULARY[mutation.entity] : undefined;
+  if (vocabulary) return vocabulary.href;
+  return `/items/${linkSourceOf(mutation) ?? itemId}`;
 }
 
 export interface ListedChange {
@@ -98,7 +130,10 @@ class QueueView {
     const pending = storage ? await storage.all<{ id: string; seq: number; kind: MutationKind; itemId: string; mutation: SyncMutation }>('queue') : [];
     const listed: ListedChange[] = [];
     for (const change of [...pending].sort((a, b) => a.seq - b.seq)) {
-      listed.push({ id: change.id, what: whatOf(change.kind, change.mutation), where: await whereOf(change.itemId), href: `/items/${change.itemId}` });
+      listed.push({
+        id: change.id, what: whatOf(change.kind, change.mutation),
+        where: await whereOf(change.itemId, change.mutation), href: hrefOf(change.itemId, change.mutation),
+      });
     }
     const refused: ListedRefusal[] = [];
     for (const record of state.rejected) {
