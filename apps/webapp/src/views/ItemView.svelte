@@ -25,6 +25,7 @@
   // `lib/data/accounts.svelte.ts`. The reader is still "You", and an actor whose name did not
   // resolve is named by its kind.
 
+  import LazyView from '../lib/frame/LazyView.svelte';
   import { untrack } from 'svelte';
 
   import {
@@ -101,7 +102,6 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { device } from '../lib/device.svelte.ts';
   import DuePanel from '../lib/entries/DuePanel.svelte';
-  import RecurrencePanel from '../lib/entries/RecurrencePanel.svelte';
   import LanguagePicker from '../lib/entries/LanguagePicker.svelte';
   import ConflictStrip from '../lib/entries/ConflictStrip.svelte';
   import AiAsk from '../lib/entries/AiAsk.svelte';
@@ -111,9 +111,7 @@
   import { buckets } from '../lib/data/buckets.svelte.ts';
   import { entryAsks } from '../lib/data/entryasks.svelte.ts';
   import { hasChoices, suggestionsPath } from '../lib/data/suggestions.ts';
-  import ReminderPanel from '../lib/entries/ReminderPanel.svelte';
   import AttachmentPanel from '../lib/media/AttachmentPanel.svelte';
-  import CoverPanel from '../lib/media/CoverPanel.svelte';
   import AssigneePanel from '../lib/people/AssigneePanel.svelte';
   import CommentPanel from '../lib/people/CommentPanel.svelte';
   import EntryActions from '../lib/entries/EntryActions.svelte';
@@ -131,6 +129,14 @@
   import { renderProblem } from '../lib/problem.ts';
   import { actionsOfHead } from '../lib/palette/actions.ts';
   import { commands } from '../lib/palette/commands.svelte.ts';
+
+  // The editors an entry opens on demand are chunks of their own (F-10): an entry's first paint
+  // carries none of them.
+  const entryParts = {
+    RecurrencePanel: () => import('../lib/entries/RecurrencePanel.svelte'),
+    ReminderPanel: () => import('../lib/entries/ReminderPanel.svelte'),
+    CoverPanel: () => import('../lib/media/CoverPanel.svelte'),
+  };
 
   interface Props {
     id: string;
@@ -1433,12 +1439,12 @@
             {/if}
             {#if carries('REMINDER')}
               <DetailRow id="reminders" label={t('app.reminders.title')} value={reminderCount > 0 ? t('app.item.reminders_count', { count: String(reminderCount) }) : undefined} isReadOnly={!isWritable}>
-                <ReminderPanel {item} path={peoplePath} />
+                <LazyView load={entryParts.ReminderPanel} props={{ item, path: peoplePath }} />
               </DetailRow>
             {/if}
             {#if carries('RECURRENCE')}
               <DetailRow id="recurrence" label={t('app.recurrence.title')} value={repeatValue} isReadOnly={!isWritable}>
-                <RecurrencePanel {item} />
+                <LazyView load={entryParts.RecurrencePanel} props={{ item }} />
               </DetailRow>
             {/if}
             {#if itemType && typeChoices.length > 1}
@@ -1469,7 +1475,7 @@
             </DetailRow>
             {#if carries('COVER')}
               <DetailRow id="cover" label={t('app.media.cover')} value={item.cover ? t(`app.item.cover_${item.cover.kind}`) : undefined} isReadOnly={!isWritable}>
-                <CoverPanel {item} />
+                <LazyView load={entryParts.CoverPanel} props={{ item }} />
               </DetailRow>
             {/if}
             {#if carries('ATTACHMENTS') && (isWritable || attachmentCount)}
