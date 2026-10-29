@@ -107,10 +107,11 @@ linter can be reconfigured in a pull request and a red test is visible in review
 The JavaScript half points inwards too, towards what is shared:
 
 ```
-apps/webapp  → packages/design-system, packages/sync-engine
+apps/webapp  → packages/design-system, packages/sync-engine, packages/expression
 apps/website → packages/design-system, packages/api-client (the document, at build time)
 packages/*   → other packages/* only, acyclically (ADR-0033)
              sync-engine → api-client, and nothing else new
+             expression → api-client (its types) and the accepted CEL evaluator for the browser
              n8n-nodes-hubtask, zapier-app → api-client (the document, at build time)
 sdk/*        → nothing in the workspace, and nothing in the workspace → sdk/*
 ```
@@ -133,6 +134,9 @@ it generates its own types and has no edge to any first-party member.
 * **The engine never merges.** Merging is the server's ([offline-sync.md](./offline-sync.md) §4);
   the engine queues, pushes, applies the server's answer and surfaces `conflict`/`rejected`. A merge
   rule in the package is a defect.
+* `packages/expression` evaluates a type's form and a calculated field in the browser while the
+  server cannot be reached, over the names the server's environments declare; online the server's
+  answer is the one drawn, and every write is judged by the server again (foundation.md F-4).
 * **The engine is product-agnostic.** Which paths a record makes stale, which reads the local copy
   answers and which writes are which mutation kind come from `apps/webapp/src/lib/data/`
   (`pathsFor`, `storeFor`, `mutationFor`); the engine never learns what a hub is.

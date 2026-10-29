@@ -136,6 +136,22 @@ importers:
         specifier: ^8.3.4
         version: 8.3.4(@types/node@24.19.2)
 
+  packages/expression:
+    dependencies:
+      '@hubtask/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+      '@marcbachmann/cel-js':
+        specifier: ^8.0.0
+        version: 8.0.0
+    devDependencies:
+      '@types/node':
+        specifier: ^24.19.2
+        version: 24.19.2
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   packages/n8n-nodes-hubtask:
     devDependencies:
       '@hubtask/api-client':
@@ -354,6 +370,11 @@ packages:
     engines: {node: '>=10.0'}
     peerDependencies:
       tslib: '2'
+
+  '@marcbachmann/cel-js@8.0.0':
+    resolution: {integrity: sha512-oaTrAziGr3zDLFiMt/yLU3nZuRMawyWQB5X1a0I7s9eGy3JYzX9l8ZXXHyMd64nzbeVFZTewuUShwsZQdK6UCA==}
+    engines: {node: '>=20.19.0'}
+    hasBin: true
 
   '@oxc-project/types@0.153.0':
     resolution: {integrity: sha512-jSNrRIyvPVLL5E1z/tS5zLAprosGz/FuI1PWwEOz59j3E4TTTzSpqKb/RDGqJhhW0QHYISGXxq582wGx6T11Tw==}
@@ -1416,6 +1437,8 @@ snapshots:
       '@jsonjoy.com/buffers': 17.67.0(tslib@2.8.1)
       '@jsonjoy.com/codegen': 17.67.0(tslib@2.8.1)
       tslib: 2.8.1
+
+  '@marcbachmann/cel-js@8.0.0': {}
 
   '@oxc-project/types@0.153.0': {}
 
