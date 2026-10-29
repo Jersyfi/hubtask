@@ -5273,5 +5273,95 @@ CREATE POLICY tenant_isolation ON cmdb_duplicate
 GRANT SELECT, INSERT, UPDATE, DELETE ON cmdb_class, cmdb_relation_type, cmdb_source, cmdb_ci,
   cmdb_ci_identifier, cmdb_relation, cmdb_run, cmdb_hold, cmdb_duplicate TO hubtask_app;
 
+-- The connectors, their alerts and the signed deliveries seen (migration 0238).
+CREATE TABLE cmdb_connector (
+  id                    uuid PRIMARY KEY,
+  tenant_id             uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id                uuid NOT NULL,
+  key                   text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  kind                  text NOT NULL CHECK (kind IN
+                          ('GLPI', 'NETBOX', 'INTUNE', 'ENTRA', 'HETZNER', 'OPENSTACK',
+                           'ALERTMANAGER', 'ZABBIX', 'CHECKMK')),
+  source_key            text NOT NULL,
+  base_url              text NOT NULL DEFAULT '',
+  settings              jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(settings) = 'object'),
+  allowed_hosts         text[] NOT NULL DEFAULT '{}',
+  every_minutes         integer NOT NULL DEFAULT 0 CHECK (every_minutes = 0 OR every_minutes BETWEEN 15 AND 10080),
+  enabled               boolean NOT NULL DEFAULT true,
+  collection_id         uuid,
+  run_as                uuid NOT NULL,
+  credential_enc        bytea,
+  credential_key_id     text,
+  cursor                text NOT NULL DEFAULT '',
+  next_run_at           timestamptz,
+  last_run_at           timestamptz,
+  last_run_id           uuid,
+  last_outcome          text NOT NULL DEFAULT '' CHECK (last_outcome IN ('', 'OK', 'EMPTY', 'FAILED')),
+  last_error            text NOT NULL DEFAULT '',
+  failures              integer NOT NULL DEFAULT 0,
+  created_at            timestamptz NOT NULL,
+  updated_at            timestamptz NOT NULL,
+  version               integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, key),
+  CONSTRAINT cmdb_connector_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT cmdb_connector_credential_whole CHECK ((credential_enc IS NULL) = (credential_key_id IS NULL))
+);
+CREATE INDEX cmdb_connector_hub_idx ON cmdb_connector (tenant_id, hub_id, key);
+CREATE INDEX cmdb_connector_due_idx ON cmdb_connector (tenant_id, next_run_at)
+  WHERE enabled AND next_run_at IS NOT NULL;
+
+CREATE TABLE cmdb_alert (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL,
+  hub_id        uuid NOT NULL,
+  connector_id  uuid NOT NULL,
+  dedup_key     text NOT NULL CHECK (char_length(dedup_key) BETWEEN 1 AND 200),
+  status        text NOT NULL CHECK (status IN ('FIRING', 'RESOLVED')),
+  severity      text NOT NULL DEFAULT '' CHECK (char_length(severity) <= 30),
+  title         text NOT NULL DEFAULT '' CHECK (char_length(title) <= 300),
+  ci_id         uuid,
+  entry_id      uuid,
+  first_at      timestamptz NOT NULL,
+  last_at       timestamptz NOT NULL,
+  resolved_at   timestamptz,
+  count         integer NOT NULL DEFAULT 1 CHECK (count >= 1),
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, connector_id, dedup_key),
+  CONSTRAINT cmdb_alert_connector_fkey FOREIGN KEY (tenant_id, connector_id)
+    REFERENCES cmdb_connector (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX cmdb_alert_hub_idx ON cmdb_alert (tenant_id, hub_id, last_at DESC);
+
+CREATE TABLE cmdb_intake_seen (
+  tenant_id     uuid NOT NULL,
+  connector_id  uuid NOT NULL,
+  digest        bytea NOT NULL,
+  seen_at       timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, connector_id, digest),
+  CONSTRAINT cmdb_intake_seen_connector_fkey FOREIGN KEY (tenant_id, connector_id)
+    REFERENCES cmdb_connector (tenant_id, id) ON DELETE CASCADE
+);
+
+ALTER TABLE cmdb_connector ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_connector FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_connector
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE cmdb_alert ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_alert FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_alert
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE cmdb_intake_seen ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_intake_seen FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_intake_seen
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+-- DELETE is the replacing restore's and the expired signatures'; no use case deletes a connector
+-- or an alert.
+GRANT SELECT, INSERT, UPDATE, DELETE ON cmdb_connector, cmdb_alert, cmdb_intake_seen TO hubtask_app;
+
 
 COMMIT;

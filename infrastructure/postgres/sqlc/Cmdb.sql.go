@@ -22,6 +22,17 @@ func (q *Queries) CountCmdbCis(ctx context.Context, hubID pgtype.UUID) (int32, e
 	return column_1, err
 }
 
+const countCmdbConnectors = `-- name: CountCmdbConnectors :one
+SELECT count(*) FROM cmdb_connector WHERE tenant_id = current_tenant_id() AND hub_id = $1
+`
+
+func (q *Queries) CountCmdbConnectors(ctx context.Context, hubID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countCmdbConnectors, hubID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteCmdbCiIdentifiers = `-- name: DeleteCmdbCiIdentifiers :exec
 DELETE FROM cmdb_ci_identifier
 WHERE tenant_id = current_tenant_id() AND ci_id = $1 AND name NOT LIKE 'source:%'
@@ -61,6 +72,56 @@ WHERE tenant_id = current_tenant_id() AND (source_ci_id = $1 OR target_ci_id = $
 func (q *Queries) DropCmdbRelationsOfCi(ctx context.Context, ciID pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, dropCmdbRelationsOfCi, ciID)
 	return err
+}
+
+const findCmdbAlert = `-- name: FindCmdbAlert :one
+SELECT id, hub_id, connector_id, dedup_key, status, severity, title, ci_id, entry_id, first_at, last_at,
+  resolved_at, count
+FROM cmdb_alert
+WHERE tenant_id = current_tenant_id() AND connector_id = $1 AND dedup_key = $2
+FOR UPDATE
+`
+
+type FindCmdbAlertParams struct {
+	ConnectorID pgtype.UUID
+	DedupKey    string
+}
+
+type FindCmdbAlertRow struct {
+	ID          pgtype.UUID
+	HubID       pgtype.UUID
+	ConnectorID pgtype.UUID
+	DedupKey    string
+	Status      string
+	Severity    string
+	Title       string
+	CiID        pgtype.UUID
+	EntryID     pgtype.UUID
+	FirstAt     pgtype.Timestamptz
+	LastAt      pgtype.Timestamptz
+	ResolvedAt  pgtype.Timestamptz
+	Count       int32
+}
+
+func (q *Queries) FindCmdbAlert(ctx context.Context, arg FindCmdbAlertParams) (FindCmdbAlertRow, error) {
+	row := q.db.QueryRow(ctx, findCmdbAlert, arg.ConnectorID, arg.DedupKey)
+	var i FindCmdbAlertRow
+	err := row.Scan(
+		&i.ID,
+		&i.HubID,
+		&i.ConnectorID,
+		&i.DedupKey,
+		&i.Status,
+		&i.Severity,
+		&i.Title,
+		&i.CiID,
+		&i.EntryID,
+		&i.FirstAt,
+		&i.LastAt,
+		&i.ResolvedAt,
+		&i.Count,
+	)
+	return i, err
 }
 
 const findCmdbCi = `-- name: FindCmdbCi :one
@@ -178,6 +239,71 @@ func (q *Queries) FindCmdbCiForUpdate(ctx context.Context, id pgtype.UUID) (Find
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedBy,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
+const findCmdbConnector = `-- name: FindCmdbConnector :one
+SELECT id, hub_id, key, kind, source_key, base_url, settings, allowed_hosts, every_minutes, enabled,
+  collection_id, run_as, (credential_enc IS NOT NULL)::boolean AS has_credential, cursor, next_run_at,
+  last_run_at, last_run_id, last_outcome, last_error, failures, created_at, updated_at, version
+FROM cmdb_connector
+WHERE tenant_id = current_tenant_id() AND id = $1
+`
+
+type FindCmdbConnectorRow struct {
+	ID            pgtype.UUID
+	HubID         pgtype.UUID
+	Key           string
+	Kind          string
+	SourceKey     string
+	BaseUrl       string
+	Settings      []byte
+	AllowedHosts  []string
+	EveryMinutes  int32
+	Enabled       bool
+	CollectionID  pgtype.UUID
+	RunAs         pgtype.UUID
+	HasCredential bool
+	Cursor        string
+	NextRunAt     pgtype.Timestamptz
+	LastRunAt     pgtype.Timestamptz
+	LastRunID     pgtype.UUID
+	LastOutcome   string
+	LastError     string
+	Failures      int32
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
+}
+
+func (q *Queries) FindCmdbConnector(ctx context.Context, id pgtype.UUID) (FindCmdbConnectorRow, error) {
+	row := q.db.QueryRow(ctx, findCmdbConnector, id)
+	var i FindCmdbConnectorRow
+	err := row.Scan(
+		&i.ID,
+		&i.HubID,
+		&i.Key,
+		&i.Kind,
+		&i.SourceKey,
+		&i.BaseUrl,
+		&i.Settings,
+		&i.AllowedHosts,
+		&i.EveryMinutes,
+		&i.Enabled,
+		&i.CollectionID,
+		&i.RunAs,
+		&i.HasCredential,
+		&i.Cursor,
+		&i.NextRunAt,
+		&i.LastRunAt,
+		&i.LastRunID,
+		&i.LastOutcome,
+		&i.LastError,
+		&i.Failures,
+		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
 	)
@@ -363,6 +489,21 @@ func (q *Queries) FindCmdbRun(ctx context.Context, id pgtype.UUID) (FindCmdbRunR
 	return i, err
 }
 
+const forgetCmdbIntakeDigests = `-- name: ForgetCmdbIntakeDigests :exec
+DELETE FROM cmdb_intake_seen
+WHERE tenant_id = current_tenant_id() AND connector_id = $1 AND seen_at < $2
+`
+
+type ForgetCmdbIntakeDigestsParams struct {
+	ConnectorID pgtype.UUID
+	Before      pgtype.Timestamptz
+}
+
+func (q *Queries) ForgetCmdbIntakeDigests(ctx context.Context, arg ForgetCmdbIntakeDigestsParams) error {
+	_, err := q.db.Exec(ctx, forgetCmdbIntakeDigests, arg.ConnectorID, arg.Before)
+	return err
+}
+
 const insertCmdbCi = `-- name: InsertCmdbCi :exec
 INSERT INTO cmdb_ci (id, tenant_id, hub_id, class_key, name, stage, status, attributes, provenance,
   owner_account_id, owner_group_id, location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
@@ -475,6 +616,72 @@ func (q *Queries) InsertCmdbRun(ctx context.Context, arg InsertCmdbRunParams) er
 		arg.Decisions,
 	)
 	return err
+}
+
+const listCmdbAlerts = `-- name: ListCmdbAlerts :many
+SELECT id, hub_id, connector_id, dedup_key, status, severity, title, ci_id, entry_id, first_at, last_at,
+  resolved_at, count
+FROM cmdb_alert
+WHERE tenant_id = current_tenant_id() AND hub_id = $1
+  AND ($2::text IS NULL OR status = $2)
+ORDER BY last_at DESC, id
+LIMIT $3
+`
+
+type ListCmdbAlertsParams struct {
+	HubID   pgtype.UUID
+	Status  *string
+	MaxRows int32
+}
+
+type ListCmdbAlertsRow struct {
+	ID          pgtype.UUID
+	HubID       pgtype.UUID
+	ConnectorID pgtype.UUID
+	DedupKey    string
+	Status      string
+	Severity    string
+	Title       string
+	CiID        pgtype.UUID
+	EntryID     pgtype.UUID
+	FirstAt     pgtype.Timestamptz
+	LastAt      pgtype.Timestamptz
+	ResolvedAt  pgtype.Timestamptz
+	Count       int32
+}
+
+func (q *Queries) ListCmdbAlerts(ctx context.Context, arg ListCmdbAlertsParams) ([]ListCmdbAlertsRow, error) {
+	rows, err := q.db.Query(ctx, listCmdbAlerts, arg.HubID, arg.Status, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCmdbAlertsRow{}
+	for rows.Next() {
+		var i ListCmdbAlertsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HubID,
+			&i.ConnectorID,
+			&i.DedupKey,
+			&i.Status,
+			&i.Severity,
+			&i.Title,
+			&i.CiID,
+			&i.EntryID,
+			&i.FirstAt,
+			&i.LastAt,
+			&i.ResolvedAt,
+			&i.Count,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listCmdbCis = `-- name: ListCmdbCis :many
@@ -689,6 +896,85 @@ func (q *Queries) ListCmdbClasses(ctx context.Context) ([]ListCmdbClassesRow, er
 			&i.Required,
 			&i.StalenessDays,
 			&i.ArchivedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCmdbConnectors = `-- name: ListCmdbConnectors :many
+SELECT id, hub_id, key, kind, source_key, base_url, settings, allowed_hosts, every_minutes, enabled,
+  collection_id, run_as, (credential_enc IS NOT NULL)::boolean AS has_credential, cursor, next_run_at,
+  last_run_at, last_run_id, last_outcome, last_error, failures, created_at, updated_at, version
+FROM cmdb_connector
+WHERE tenant_id = current_tenant_id() AND ($1::uuid IS NULL OR hub_id = $1)
+ORDER BY key
+`
+
+type ListCmdbConnectorsRow struct {
+	ID            pgtype.UUID
+	HubID         pgtype.UUID
+	Key           string
+	Kind          string
+	SourceKey     string
+	BaseUrl       string
+	Settings      []byte
+	AllowedHosts  []string
+	EveryMinutes  int32
+	Enabled       bool
+	CollectionID  pgtype.UUID
+	RunAs         pgtype.UUID
+	HasCredential bool
+	Cursor        string
+	NextRunAt     pgtype.Timestamptz
+	LastRunAt     pgtype.Timestamptz
+	LastRunID     pgtype.UUID
+	LastOutcome   string
+	LastError     string
+	Failures      int32
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
+}
+
+func (q *Queries) ListCmdbConnectors(ctx context.Context, hubID pgtype.UUID) ([]ListCmdbConnectorsRow, error) {
+	rows, err := q.db.Query(ctx, listCmdbConnectors, hubID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCmdbConnectorsRow{}
+	for rows.Next() {
+		var i ListCmdbConnectorsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HubID,
+			&i.Key,
+			&i.Kind,
+			&i.SourceKey,
+			&i.BaseUrl,
+			&i.Settings,
+			&i.AllowedHosts,
+			&i.EveryMinutes,
+			&i.Enabled,
+			&i.CollectionID,
+			&i.RunAs,
+			&i.HasCredential,
+			&i.Cursor,
+			&i.NextRunAt,
+			&i.LastRunAt,
+			&i.LastRunID,
+			&i.LastOutcome,
+			&i.LastError,
+			&i.Failures,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
@@ -1065,6 +1351,104 @@ func (q *Queries) ListCmdbSources(ctx context.Context) ([]ListCmdbSourcesRow, er
 	return items, nil
 }
 
+const listSealedCmdbConnectorCredentials = `-- name: ListSealedCmdbConnectorCredentials :many
+SELECT id, credential_enc, credential_key_id FROM cmdb_connector
+WHERE tenant_id = current_tenant_id() AND credential_enc IS NOT NULL AND credential_key_id <> $1
+ORDER BY id
+`
+
+type ListSealedCmdbConnectorCredentialsRow struct {
+	ID              pgtype.UUID
+	CredentialEnc   []byte
+	CredentialKeyID *string
+}
+
+func (q *Queries) ListSealedCmdbConnectorCredentials(ctx context.Context, currentKeyID *string) ([]ListSealedCmdbConnectorCredentialsRow, error) {
+	rows, err := q.db.Query(ctx, listSealedCmdbConnectorCredentials, currentKeyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSealedCmdbConnectorCredentialsRow{}
+	for rows.Next() {
+		var i ListSealedCmdbConnectorCredentialsRow
+		if err := rows.Scan(&i.ID, &i.CredentialEnc, &i.CredentialKeyID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockCmdbConnector = `-- name: LockCmdbConnector :one
+SELECT id, hub_id, key, kind, source_key, base_url, settings, allowed_hosts, every_minutes, enabled,
+  collection_id, run_as, (credential_enc IS NOT NULL)::boolean AS has_credential, cursor, next_run_at,
+  last_run_at, last_run_id, last_outcome, last_error, failures, created_at, updated_at, version
+FROM cmdb_connector
+WHERE tenant_id = current_tenant_id() AND id = $1
+FOR UPDATE
+`
+
+type LockCmdbConnectorRow struct {
+	ID            pgtype.UUID
+	HubID         pgtype.UUID
+	Key           string
+	Kind          string
+	SourceKey     string
+	BaseUrl       string
+	Settings      []byte
+	AllowedHosts  []string
+	EveryMinutes  int32
+	Enabled       bool
+	CollectionID  pgtype.UUID
+	RunAs         pgtype.UUID
+	HasCredential bool
+	Cursor        string
+	NextRunAt     pgtype.Timestamptz
+	LastRunAt     pgtype.Timestamptz
+	LastRunID     pgtype.UUID
+	LastOutcome   string
+	LastError     string
+	Failures      int32
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
+}
+
+func (q *Queries) LockCmdbConnector(ctx context.Context, id pgtype.UUID) (LockCmdbConnectorRow, error) {
+	row := q.db.QueryRow(ctx, lockCmdbConnector, id)
+	var i LockCmdbConnectorRow
+	err := row.Scan(
+		&i.ID,
+		&i.HubID,
+		&i.Key,
+		&i.Kind,
+		&i.SourceKey,
+		&i.BaseUrl,
+		&i.Settings,
+		&i.AllowedHosts,
+		&i.EveryMinutes,
+		&i.Enabled,
+		&i.CollectionID,
+		&i.RunAs,
+		&i.HasCredential,
+		&i.Cursor,
+		&i.NextRunAt,
+		&i.LastRunAt,
+		&i.LastRunID,
+		&i.LastOutcome,
+		&i.LastError,
+		&i.Failures,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
 const moveCmdbNativeKeys = `-- name: MoveCmdbNativeKeys :exec
 UPDATE cmdb_ci_identifier d SET ci_id = $1
 WHERE d.tenant_id = current_tenant_id() AND d.ci_id = $2 AND d.name LIKE 'source:%'
@@ -1141,6 +1525,52 @@ func (q *Queries) OpenCmdbDuplicate(ctx context.Context, arg OpenCmdbDuplicatePa
 	return result.RowsAffected(), nil
 }
 
+const putCmdbAlert = `-- name: PutCmdbAlert :exec
+INSERT INTO cmdb_alert (id, tenant_id, hub_id, connector_id, dedup_key, status, severity, title, ci_id, entry_id,
+  first_at, last_at, resolved_at, count)
+VALUES ($1, current_tenant_id(), $2, $3, $4,
+  $5, $6, $7, $8, $9,
+  $10, $11, $12, $13)
+ON CONFLICT (tenant_id, connector_id, dedup_key) DO UPDATE SET
+  status = excluded.status, severity = excluded.severity, title = excluded.title, ci_id = excluded.ci_id,
+  entry_id = excluded.entry_id, last_at = excluded.last_at, resolved_at = excluded.resolved_at, count = excluded.count
+`
+
+type PutCmdbAlertParams struct {
+	ID          pgtype.UUID
+	HubID       pgtype.UUID
+	ConnectorID pgtype.UUID
+	DedupKey    string
+	Status      string
+	Severity    string
+	Title       string
+	CiID        pgtype.UUID
+	EntryID     pgtype.UUID
+	FirstAt     pgtype.Timestamptz
+	LastAt      pgtype.Timestamptz
+	ResolvedAt  pgtype.Timestamptz
+	Count       int32
+}
+
+func (q *Queries) PutCmdbAlert(ctx context.Context, arg PutCmdbAlertParams) error {
+	_, err := q.db.Exec(ctx, putCmdbAlert,
+		arg.ID,
+		arg.HubID,
+		arg.ConnectorID,
+		arg.DedupKey,
+		arg.Status,
+		arg.Severity,
+		arg.Title,
+		arg.CiID,
+		arg.EntryID,
+		arg.FirstAt,
+		arg.LastAt,
+		arg.ResolvedAt,
+		arg.Count,
+	)
+	return err
+}
+
 const putCmdbCiIdentifiers = `-- name: PutCmdbCiIdentifiers :exec
 INSERT INTO cmdb_ci_identifier (tenant_id, ci_id, hub_id, name, value)
 SELECT current_tenant_id(), $1, $2,
@@ -1209,6 +1639,73 @@ func (q *Queries) PutCmdbRelation(ctx context.Context, arg PutCmdbRelationParams
 	return i, err
 }
 
+const readCmdbConnectorCredential = `-- name: ReadCmdbConnectorCredential :one
+SELECT credential_enc, credential_key_id FROM cmdb_connector
+WHERE tenant_id = current_tenant_id() AND id = $1 AND credential_enc IS NOT NULL
+`
+
+type ReadCmdbConnectorCredentialRow struct {
+	CredentialEnc   []byte
+	CredentialKeyID *string
+}
+
+func (q *Queries) ReadCmdbConnectorCredential(ctx context.Context, id pgtype.UUID) (ReadCmdbConnectorCredentialRow, error) {
+	row := q.db.QueryRow(ctx, readCmdbConnectorCredential, id)
+	var i ReadCmdbConnectorCredentialRow
+	err := row.Scan(&i.CredentialEnc, &i.CredentialKeyID)
+	return i, err
+}
+
+const recordCmdbConnectorRun = `-- name: RecordCmdbConnectorRun :exec
+UPDATE cmdb_connector SET cursor = $1, next_run_at = $2,
+  last_run_at = $3, last_run_id = $4, last_outcome = $5,
+  last_error = $6, failures = $7, enabled = $8
+WHERE tenant_id = current_tenant_id() AND id = $9
+`
+
+type RecordCmdbConnectorRunParams struct {
+	Cursor      string
+	NextRunAt   pgtype.Timestamptz
+	LastRunAt   pgtype.Timestamptz
+	LastRunID   pgtype.UUID
+	LastOutcome string
+	LastError   string
+	Failures    int32
+	Enabled     bool
+	ID          pgtype.UUID
+}
+
+func (q *Queries) RecordCmdbConnectorRun(ctx context.Context, arg RecordCmdbConnectorRunParams) error {
+	_, err := q.db.Exec(ctx, recordCmdbConnectorRun,
+		arg.Cursor,
+		arg.NextRunAt,
+		arg.LastRunAt,
+		arg.LastRunID,
+		arg.LastOutcome,
+		arg.LastError,
+		arg.Failures,
+		arg.Enabled,
+		arg.ID,
+	)
+	return err
+}
+
+const resealCmdbConnectorCredential = `-- name: ResealCmdbConnectorCredential :exec
+UPDATE cmdb_connector SET credential_enc = $1, credential_key_id = $2
+WHERE tenant_id = current_tenant_id() AND id = $3
+`
+
+type ResealCmdbConnectorCredentialParams struct {
+	CredentialEnc   []byte
+	CredentialKeyID *string
+	ID              pgtype.UUID
+}
+
+func (q *Queries) ResealCmdbConnectorCredential(ctx context.Context, arg ResealCmdbConnectorCredentialParams) error {
+	_, err := q.db.Exec(ctx, resealCmdbConnectorCredential, arg.CredentialEnc, arg.CredentialKeyID, arg.ID)
+	return err
+}
+
 const resolveCmdbDuplicate = `-- name: ResolveCmdbDuplicate :execrows
 UPDATE cmdb_duplicate SET resolved_at = $1, resolved_by = $2, survivor_id = $3
 WHERE tenant_id = current_tenant_id() AND id = $4 AND resolved_at IS NULL
@@ -1247,6 +1744,52 @@ type ResolveCmdbHoldParams struct {
 
 func (q *Queries) ResolveCmdbHold(ctx context.Context, arg ResolveCmdbHoldParams) (int64, error) {
 	result, err := q.db.Exec(ctx, resolveCmdbHold, arg.At, arg.By, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const seeCmdbIntakeDigest = `-- name: SeeCmdbIntakeDigest :execrows
+INSERT INTO cmdb_intake_seen (tenant_id, connector_id, digest, seen_at)
+VALUES (current_tenant_id(), $1, $2, $3)
+ON CONFLICT DO NOTHING
+`
+
+type SeeCmdbIntakeDigestParams struct {
+	ConnectorID pgtype.UUID
+	Digest      []byte
+	At          pgtype.Timestamptz
+}
+
+func (q *Queries) SeeCmdbIntakeDigest(ctx context.Context, arg SeeCmdbIntakeDigestParams) (int64, error) {
+	result, err := q.db.Exec(ctx, seeCmdbIntakeDigest, arg.ConnectorID, arg.Digest, arg.At)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setCmdbConnectorCredential = `-- name: SetCmdbConnectorCredential :execrows
+UPDATE cmdb_connector SET credential_enc = $1, credential_key_id = $2,
+  updated_at = $3, version = version + 1
+WHERE tenant_id = current_tenant_id() AND id = $4
+`
+
+type SetCmdbConnectorCredentialParams struct {
+	CredentialEnc   []byte
+	CredentialKeyID *string
+	At              pgtype.Timestamptz
+	ID              pgtype.UUID
+}
+
+func (q *Queries) SetCmdbConnectorCredential(ctx context.Context, arg SetCmdbConnectorCredentialParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setCmdbConnectorCredential,
+		arg.CredentialEnc,
+		arg.CredentialKeyID,
+		arg.At,
+		arg.ID,
+	)
 	if err != nil {
 		return 0, err
 	}
@@ -1373,6 +1916,65 @@ func (q *Queries) UpsertCmdbClass(ctx context.Context, arg UpsertCmdbClassParams
 		arg.Required,
 		arg.StalenessDays,
 		arg.ArchivedAt,
+		arg.At,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const upsertCmdbConnector = `-- name: UpsertCmdbConnector :execrows
+INSERT INTO cmdb_connector (id, tenant_id, hub_id, key, kind, source_key, base_url, settings, allowed_hosts,
+  every_minutes, enabled, collection_id, run_as, next_run_at, failures, created_at, updated_at, version)
+VALUES ($1, current_tenant_id(), $2, $3, $4,
+  $5, $6, $7, $8::text[],
+  $9, $10, $11, $12,
+  $13, $14, $15, $15, 1)
+ON CONFLICT (tenant_id, key) DO UPDATE SET
+  source_key = excluded.source_key, base_url = excluded.base_url, settings = excluded.settings,
+  allowed_hosts = excluded.allowed_hosts, every_minutes = excluded.every_minutes, enabled = excluded.enabled,
+  collection_id = excluded.collection_id, run_as = excluded.run_as, next_run_at = excluded.next_run_at,
+  failures = excluded.failures, updated_at = excluded.updated_at, version = cmdb_connector.version + 1
+WHERE cmdb_connector.version = $16 AND cmdb_connector.id = excluded.id
+`
+
+type UpsertCmdbConnectorParams struct {
+	ID              pgtype.UUID
+	HubID           pgtype.UUID
+	Key             string
+	Kind            string
+	SourceKey       string
+	BaseUrl         string
+	Settings        []byte
+	AllowedHosts    []string
+	EveryMinutes    int32
+	Enabled         bool
+	CollectionID    pgtype.UUID
+	RunAs           pgtype.UUID
+	NextRunAt       pgtype.Timestamptz
+	Failures        int32
+	At              pgtype.Timestamptz
+	ExpectedVersion int32
+}
+
+func (q *Queries) UpsertCmdbConnector(ctx context.Context, arg UpsertCmdbConnectorParams) (int64, error) {
+	result, err := q.db.Exec(ctx, upsertCmdbConnector,
+		arg.ID,
+		arg.HubID,
+		arg.Key,
+		arg.Kind,
+		arg.SourceKey,
+		arg.BaseUrl,
+		arg.Settings,
+		arg.AllowedHosts,
+		arg.EveryMinutes,
+		arg.Enabled,
+		arg.CollectionID,
+		arg.RunAs,
+		arg.NextRunAt,
+		arg.Failures,
 		arg.At,
 		arg.ExpectedVersion,
 	)

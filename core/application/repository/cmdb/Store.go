@@ -69,3 +69,40 @@ type Store interface {
 	FindDuplicate(ctx context.Context, id shared.ID) (cmdb.Duplicate, error)
 	ResolveDuplicate(ctx context.Context, id shared.ID, at time.Time, by, survivor shared.ID) error
 }
+
+// Credential is a connector's sealed credential as stored.
+type Credential struct {
+	ConnectorID shared.ID
+	Ciphertext  []byte
+	KeyID       string
+}
+
+// Connectors keeps a workspace's connectors, their sealed credentials and the alerts they took
+// in. Another workspace's rows are not found.
+type Connectors interface {
+	// ListConnectors answers the connectors of a hub, or of the workspace when hubID is zero.
+	ListConnectors(ctx context.Context, hubID shared.ID) ([]cmdb.Connector, error)
+	// FindConnector answers one; lock holds its row for the transaction (a write's transaction).
+	FindConnector(ctx context.Context, id shared.ID, lock bool) (cmdb.Connector, error)
+	CountConnectors(ctx context.Context, hubID shared.ID) (int, error)
+	// PutConnector writes a connector at the version expected; zero expects a new key.
+	PutConnector(ctx context.Context, c cmdb.Connector, expected int) error
+	SetCredential(ctx context.Context, id shared.ID, ciphertext []byte, keyID string, at time.Time) error
+	// Credential answers the sealed credential; not found when none was set.
+	Credential(ctx context.Context, id shared.ID) (Credential, error)
+	// RecordRun writes what a run changed: cursor, schedule, outcome, failures, switch.
+	RecordRun(ctx context.Context, c cmdb.Connector) error
+	// SealedNotUnder answers the credentials sealed under another key than the current one.
+	SealedNotUnder(ctx context.Context, keyID string) ([]Credential, error)
+	Reseal(ctx context.Context, c Credential) error
+
+	// FindAlert answers the alert of a connector's key, held for the transaction; not found when
+	// there is none.
+	FindAlert(ctx context.Context, connectorID shared.ID, key string) (cmdb.Alert, error)
+	PutAlert(ctx context.Context, a cmdb.Alert) error
+	// ListAlerts answers a hub's alerts, the latest first, narrowed to a status when given.
+	ListAlerts(ctx context.Context, hubID shared.ID, status cmdb.AlertStatus, limit int) ([]cmdb.Alert, error)
+	// SeeDigest records a signed delivery's digest and answers false when it was seen already;
+	// digests older than before are forgotten.
+	SeeDigest(ctx context.Context, connectorID shared.ID, digest []byte, at, before time.Time) (bool, error)
+}

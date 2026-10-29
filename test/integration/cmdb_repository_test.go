@@ -170,3 +170,71 @@ func TestTheInventoryWalkStaysInItsWorkspace(t *testing.T) {
 		t.Errorf("the workspace next door walked %v and %d relations", next, nextRelations)
 	}
 }
+
+// A connector, its sealed credential, its run record and its alerts are kept in its workspace
+// (migration 0238); the workspace next door finds none of them and cannot write them.
+func TestAConnectorAndItsAlertsStayInTheirWorkspace(t *testing.T) {
+	ctx := context.Background()
+	hub, _, vm := seedCIs(ctx, t)
+	repo := postgres.NewCmdbConnectorRepository()
+	at := time.Date(2026, 10, 29, 11, 0, 0, 0, time.UTC)
+	conn := cmdb.Connector{ID: freshID(t), HubID: hub, Key: "am_" + freshName(t)[:8], Kind: cmdb.ConnectorAlertmanager,
+		Source: "alerts", Settings: map[string]string{}, Enabled: true, RunAs: authorA, CreatedAt: at, UpdatedAt: at, Version: 1}
+	alert := cmdb.Alert{ID: freshID(t), HubID: hub, Connector: conn.ID, Key: "disk", Status: cmdb.AlertFiring,
+		Title: "disk full", CI: vm, FirstAt: at, LastAt: at, Count: 1}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := repo.PutConnector(ctx, conn, 0); err != nil {
+			return err
+		}
+		if err := repo.SetCredential(ctx, conn.ID, []byte("sealed"), "k1", at); err != nil {
+			return err
+		}
+		if err := repo.PutAlert(ctx, alert); err != nil {
+			return err
+		}
+		seen, err := repo.SeeDigest(ctx, conn.ID, []byte("d1"), at, at.Add(-10*time.Minute))
+		if err != nil || !seen {
+			t.Errorf("a first delivery is new: %v %v", seen, err)
+		}
+		if again, _ := repo.SeeDigest(ctx, conn.ID, []byte("d1"), at, at.Add(-10*time.Minute)); again {
+			t.Error("a replayed delivery was taken as new")
+		}
+		read, err := repo.FindConnector(ctx, conn.ID, true)
+		if err != nil || !read.HasCredential || read.Version != 2 {
+			t.Errorf("connector %+v, %v", read, err)
+		}
+		found, err := repo.FindAlert(ctx, conn.ID, "disk")
+		if err != nil || found.CI != vm || found.Title != "disk full" {
+			t.Errorf("alert %+v, %v", found, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if _, err := repo.FindConnector(ctx, conn.ID, false); err == nil {
+			t.Error("the workspace next door found the connector")
+		}
+		if _, err := repo.Credential(ctx, conn.ID); err == nil {
+			t.Error("the workspace next door read the sealed credential")
+		}
+		if err := repo.SetCredential(ctx, conn.ID, []byte("x"), "k2", at); err == nil {
+			t.Error("the workspace next door replaced the credential")
+		}
+		if list, _ := repo.ListConnectors(ctx, ""); len(list) != 0 {
+			t.Error("the workspace next door listed the connectors")
+		}
+		if list, _ := repo.ListAlerts(ctx, hub, "", 10); len(list) != 0 {
+			t.Error("the workspace next door listed the alerts")
+		}
+		if _, err := repo.FindAlert(ctx, conn.ID, "disk"); err == nil {
+			t.Error("the workspace next door found the alert")
+		}
+		if sealed, _ := repo.SealedNotUnder(ctx, "k9"); len(sealed) != 0 {
+			t.Error("the workspace next door saw the sealed credentials")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

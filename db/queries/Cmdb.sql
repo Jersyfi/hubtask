@@ -279,3 +279,102 @@ FROM cmdb_duplicate WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id'
 -- name: ResolveCmdbDuplicate :execrows
 UPDATE cmdb_duplicate SET resolved_at = sqlc.arg('at'), resolved_by = sqlc.arg('by'), survivor_id = sqlc.narg('survivor_id')
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id') AND resolved_at IS NULL;
+
+-- name: ListCmdbConnectors :many
+SELECT id, hub_id, key, kind, source_key, base_url, settings, allowed_hosts, every_minutes, enabled,
+  collection_id, run_as, (credential_enc IS NOT NULL)::boolean AS has_credential, cursor, next_run_at,
+  last_run_at, last_run_id, last_outcome, last_error, failures, created_at, updated_at, version
+FROM cmdb_connector
+WHERE tenant_id = current_tenant_id() AND (sqlc.narg('hub_id')::uuid IS NULL OR hub_id = sqlc.narg('hub_id'))
+ORDER BY key;
+
+-- name: FindCmdbConnector :one
+SELECT id, hub_id, key, kind, source_key, base_url, settings, allowed_hosts, every_minutes, enabled,
+  collection_id, run_as, (credential_enc IS NOT NULL)::boolean AS has_credential, cursor, next_run_at,
+  last_run_at, last_run_id, last_outcome, last_error, failures, created_at, updated_at, version
+FROM cmdb_connector
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id');
+
+-- name: LockCmdbConnector :one
+SELECT id, hub_id, key, kind, source_key, base_url, settings, allowed_hosts, every_minutes, enabled,
+  collection_id, run_as, (credential_enc IS NOT NULL)::boolean AS has_credential, cursor, next_run_at,
+  last_run_at, last_run_id, last_outcome, last_error, failures, created_at, updated_at, version
+FROM cmdb_connector
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')
+FOR UPDATE;
+
+-- name: CountCmdbConnectors :one
+SELECT count(*) FROM cmdb_connector WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id');
+
+-- name: UpsertCmdbConnector :execrows
+INSERT INTO cmdb_connector (id, tenant_id, hub_id, key, kind, source_key, base_url, settings, allowed_hosts,
+  every_minutes, enabled, collection_id, run_as, next_run_at, failures, created_at, updated_at, version)
+VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('hub_id'), sqlc.arg('key'), sqlc.arg('kind'),
+  sqlc.arg('source_key'), sqlc.arg('base_url'), sqlc.arg('settings'), sqlc.arg('allowed_hosts')::text[],
+  sqlc.arg('every_minutes'), sqlc.arg('enabled'), sqlc.narg('collection_id'), sqlc.arg('run_as'),
+  sqlc.narg('next_run_at'), sqlc.arg('failures'), sqlc.arg('at'), sqlc.arg('at'), 1)
+ON CONFLICT (tenant_id, key) DO UPDATE SET
+  source_key = excluded.source_key, base_url = excluded.base_url, settings = excluded.settings,
+  allowed_hosts = excluded.allowed_hosts, every_minutes = excluded.every_minutes, enabled = excluded.enabled,
+  collection_id = excluded.collection_id, run_as = excluded.run_as, next_run_at = excluded.next_run_at,
+  failures = excluded.failures, updated_at = excluded.updated_at, version = cmdb_connector.version + 1
+WHERE cmdb_connector.version = sqlc.arg('expected_version') AND cmdb_connector.id = excluded.id;
+
+-- name: SetCmdbConnectorCredential :execrows
+UPDATE cmdb_connector SET credential_enc = sqlc.arg('credential_enc'), credential_key_id = sqlc.arg('credential_key_id'),
+  updated_at = sqlc.arg('at'), version = version + 1
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id');
+
+-- name: ReadCmdbConnectorCredential :one
+SELECT credential_enc, credential_key_id FROM cmdb_connector
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id') AND credential_enc IS NOT NULL;
+
+-- name: RecordCmdbConnectorRun :exec
+UPDATE cmdb_connector SET cursor = sqlc.arg('cursor'), next_run_at = sqlc.narg('next_run_at'),
+  last_run_at = sqlc.narg('last_run_at'), last_run_id = sqlc.narg('last_run_id'), last_outcome = sqlc.arg('last_outcome'),
+  last_error = sqlc.arg('last_error'), failures = sqlc.arg('failures'), enabled = sqlc.arg('enabled')
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id');
+
+-- name: ListSealedCmdbConnectorCredentials :many
+SELECT id, credential_enc, credential_key_id FROM cmdb_connector
+WHERE tenant_id = current_tenant_id() AND credential_enc IS NOT NULL AND credential_key_id <> sqlc.arg('current_key_id')
+ORDER BY id;
+
+-- name: ResealCmdbConnectorCredential :exec
+UPDATE cmdb_connector SET credential_enc = sqlc.arg('credential_enc'), credential_key_id = sqlc.arg('credential_key_id')
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id');
+
+-- name: FindCmdbAlert :one
+SELECT id, hub_id, connector_id, dedup_key, status, severity, title, ci_id, entry_id, first_at, last_at,
+  resolved_at, count
+FROM cmdb_alert
+WHERE tenant_id = current_tenant_id() AND connector_id = sqlc.arg('connector_id') AND dedup_key = sqlc.arg('dedup_key')
+FOR UPDATE;
+
+-- name: PutCmdbAlert :exec
+INSERT INTO cmdb_alert (id, tenant_id, hub_id, connector_id, dedup_key, status, severity, title, ci_id, entry_id,
+  first_at, last_at, resolved_at, count)
+VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('hub_id'), sqlc.arg('connector_id'), sqlc.arg('dedup_key'),
+  sqlc.arg('status'), sqlc.arg('severity'), sqlc.arg('title'), sqlc.narg('ci_id'), sqlc.narg('entry_id'),
+  sqlc.arg('first_at'), sqlc.arg('last_at'), sqlc.narg('resolved_at'), sqlc.arg('count'))
+ON CONFLICT (tenant_id, connector_id, dedup_key) DO UPDATE SET
+  status = excluded.status, severity = excluded.severity, title = excluded.title, ci_id = excluded.ci_id,
+  entry_id = excluded.entry_id, last_at = excluded.last_at, resolved_at = excluded.resolved_at, count = excluded.count;
+
+-- name: ListCmdbAlerts :many
+SELECT id, hub_id, connector_id, dedup_key, status, severity, title, ci_id, entry_id, first_at, last_at,
+  resolved_at, count
+FROM cmdb_alert
+WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id')
+  AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status'))
+ORDER BY last_at DESC, id
+LIMIT sqlc.arg('max_rows');
+
+-- name: SeeCmdbIntakeDigest :execrows
+INSERT INTO cmdb_intake_seen (tenant_id, connector_id, digest, seen_at)
+VALUES (current_tenant_id(), sqlc.arg('connector_id'), sqlc.arg('digest'), sqlc.arg('at'))
+ON CONFLICT DO NOTHING;
+
+-- name: ForgetCmdbIntakeDigests :exec
+DELETE FROM cmdb_intake_seen
+WHERE tenant_id = current_tenant_id() AND connector_id = sqlc.arg('connector_id') AND seen_at < sqlc.arg('before');

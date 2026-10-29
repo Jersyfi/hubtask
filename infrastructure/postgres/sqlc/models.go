@@ -781,6 +781,23 @@ type ChangeLogDefault struct {
 	Payload     []byte
 }
 
+type CmdbAlert struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	HubID       pgtype.UUID
+	ConnectorID pgtype.UUID
+	DedupKey    string
+	Status      string
+	Severity    string
+	Title       string
+	CiID        pgtype.UUID
+	EntryID     pgtype.UUID
+	FirstAt     pgtype.Timestamptz
+	LastAt      pgtype.Timestamptz
+	ResolvedAt  pgtype.Timestamptz
+	Count       int32
+}
+
 type CmdbCi struct {
 	ID             pgtype.UUID
 	TenantID       pgtype.UUID
@@ -832,6 +849,34 @@ type CmdbClass struct {
 	Version       int32
 }
 
+type CmdbConnector struct {
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	HubID           pgtype.UUID
+	Key             string
+	Kind            string
+	SourceKey       string
+	BaseUrl         string
+	Settings        []byte
+	AllowedHosts    []string
+	EveryMinutes    int32
+	Enabled         bool
+	CollectionID    pgtype.UUID
+	RunAs           pgtype.UUID
+	CredentialEnc   []byte
+	CredentialKeyID *string
+	Cursor          string
+	NextRunAt       pgtype.Timestamptz
+	LastRunAt       pgtype.Timestamptz
+	LastRunID       pgtype.UUID
+	LastOutcome     string
+	LastError       string
+	Failures        int32
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+}
+
 type CmdbDuplicate struct {
 	ID         pgtype.UUID
 	TenantID   pgtype.UUID
@@ -855,6 +900,13 @@ type CmdbHold struct {
 	CreatedAt  pgtype.Timestamptz
 	ResolvedAt pgtype.Timestamptz
 	ResolvedBy pgtype.UUID
+}
+
+type CmdbIntakeSeen struct {
+	TenantID    pgtype.UUID
+	ConnectorID pgtype.UUID
+	Digest      []byte
+	SeenAt      pgtype.Timestamptz
 }
 
 type CmdbRelation struct {
