@@ -44,6 +44,7 @@ import (
 	suggestionservice "github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	voiceservice "github.com/Jersyfi/hubtask/core/application/service/voice"
+	whiteboardservice "github.com/Jersyfi/hubtask/core/application/service/whiteboard"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	workflowservice "github.com/Jersyfi/hubtask/core/application/service/workflow"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -100,6 +101,13 @@ func Descriptors() []usecase.Descriptor {
 		knowledgeservice.SearchPages{}.Descriptor(),
 		knowledgeservice.ListPageBacklinks{}.Descriptor(),
 		knowledgeservice.ExportPage{}.Descriptor(),
+		whiteboardservice.CreateWhiteboard{}.Descriptor(),
+		whiteboardservice.ReadWhiteboard{}.Descriptor(),
+		whiteboardservice.ListWhiteboards{}.Descriptor(),
+		whiteboardservice.UpdateWhiteboard{}.Descriptor(),
+		whiteboardservice.TrashWhiteboard{}.Descriptor(),
+		whiteboardservice.RestoreWhiteboard{}.Descriptor(),
+		whiteboardservice.ExportWhiteboard{}.Descriptor(),
 		work.ListLinkTypes{}.Descriptor(),
 		work.CreateLinkType{}.Descriptor(),
 		work.ChangeLinkType{}.Descriptor(),

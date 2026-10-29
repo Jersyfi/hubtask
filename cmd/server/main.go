@@ -64,6 +64,7 @@ import (
 	suggestionservice "github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	voiceservice "github.com/Jersyfi/hubtask/core/application/service/voice"
+	whiteboardservice "github.com/Jersyfi/hubtask/core/application/service/whiteboard"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	workflowservice "github.com/Jersyfi/hubtask/core/application/service/workflow"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -75,6 +76,7 @@ import (
 	knowledgedomain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	realtimedomain "github.com/Jersyfi/hubtask/core/domain/model/realtime"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	whiteboarddomain "github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
 	providerport "github.com/Jersyfi/hubtask/core/port/ai"
 	clockport "github.com/Jersyfi/hubtask/core/port/clock"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
@@ -1804,6 +1806,11 @@ func run() error {
 		Authorizer: authorizer, Reader: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Text: forms, Reviews: reviewClocks, Changes: changes, HLC: hybrid,
 	}
+	// The whiteboard module's boards (M4): a hub's boards, judged at the hub as its pages are.
+	boardStudio := whiteboardservice.Studio{
+		Boards: postgres.NewWhiteboardRepository(), Containers: containers, Authorizer: authorizer,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+	}
 	useCases, err := usecase.NewRegistry(
 		settingservice.ModuleGate{Modules: modules}.Wrap(entitlementGate.Wrap(observer.Registry())),
 		knowledgeservice.CreatePage{Space: pageSpace}.Descriptor(),
@@ -1826,6 +1833,13 @@ func run() error {
 		knowledgeservice.SearchPages{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ListPageBacklinks{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ExportPage{Space: pageSpace}.Descriptor(),
+		whiteboardservice.CreateWhiteboard{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.ReadWhiteboard{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.ListWhiteboards{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.UpdateWhiteboard{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.TrashWhiteboard{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.RestoreWhiteboard{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.ExportWhiteboard{Studio: boardStudio}.Descriptor(),
 		work.ListLinkTypes{Registry: linkTypeRegistry}.Descriptor(),
 		work.CreateLinkType{Registry: linkTypeRegistry}.Descriptor(),
 		work.ChangeLinkType{Registry: linkTypeRegistry}.Descriptor(),
@@ -3055,7 +3069,8 @@ func run() error {
 			Handler: realtimeadapter.Handler{
 				Documents: realtimeservice.Documents{
 					Store: postgres.NewRealtimeRepository(), Kinds: map[realtimedomain.Kind]realtimeservice.Locator{
-						knowledgedomain.DocumentKind: knowledgeservice.Locator{Space: pageSpace},
+						knowledgedomain.DocumentKind:  knowledgeservice.Locator{Space: pageSpace},
+						whiteboarddomain.DocumentKind: whiteboardservice.Locator{Studio: boardStudio},
 					},
 					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 				},
