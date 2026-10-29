@@ -51,7 +51,8 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
   with the same `404`.
 * The configuration document is `/config` (its export, the hash as `ETag`) with the actions
   `:validate`, `:plan`, `:propose` and `:apply`; an apply names the plan's `plan_hash` and is refused
-  `409 config.version_conflict` when the configuration moved since, through any door. Every refusal
+  `409 config.version_conflict` when the configuration moved since, through any door; a plan that
+  says `step_up` (it changes the sign-in rule) is applied with `X-Hubtask-Step-Up`. Every refusal
   of a plan is a message code with the key path (`types.incident.level`), never prose. The same use
   cases are MCP tools by the registry's names (`plan_config`, `apply_config`, …) and `hubctl config`.
 * `/mcp` (streamable HTTP, [ai-first.md](./ai-first.md)) and `/caldav/` (WebDAV, §7) are outside the

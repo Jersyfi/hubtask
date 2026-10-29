@@ -327,8 +327,12 @@ hub, a collection and a person (migration 0208).
 **The configuration document** (F-6, D-15 … D-17; packages `core/domain/model/config` and
 `core/application/service/config`). A workspace's configuration as one document of sections -
 `modules`, `roles`, `fields`, `link_types`, `types` (with their forms), `structure` (one block per
-structure setting the workspace decides itself, set and reset through `SetWorkspaceStructure`),
-`workflows`, `settings` - each
+structure setting the workspace decides itself, set and reset through `SetWorkspaceStructure`, plus
+`locks` - the workspace's whole set of locks - and `default_preset`, a Hubtask preset's key or a
+workspace preset's `preset_id`, which a published template leaves out), `workflows`, `settings` (the
+catalogue settings the workspace decided itself by their catalogue key: the sign-in switches and
+legal links, the localisation, the AI narrowing and opt-out, `config.agent_apply`; a value left to
+the level above has no block but is explained) - each
 block named by a stable key (`types.incident`), never by an identifier, and holding no content and no
 secret. A section is declared by the use cases that read and write it (its list, create, change and
 remove), so a document is read and applied through the registry like every other door (P-18), and
@@ -338,7 +342,9 @@ section stated whole; a rollback). A plan (`PlanConfig`) is the diff by key path
 it runs, the refusals (a message code and the key path, machine-readable), two flags a person must
 acknowledge - *hides data* (a field or type removed, a field turned read-restricted) and *changes
 permissions* (a role) - and a plan hash over the hash of the document in force and the document it
-leads to. `ApplyConfig` re-exports, refuses `config.version_conflict` where the configuration moved
+leads to. A plan changing the sign-in rule says `step_up`: its sign-in and legal changes run as
+one `UpdateWorkspace` call that carries the apply's fresh proof (`X-Hubtask-Step-Up`), so only a
+person's session applies it. `ApplyConfig` re-exports, refuses `config.version_conflict` where the configuration moved
 through any door, runs every operation in one transaction and writes a `config_revision` (the
 document after, who applied it, who proposed it, the counts) and one trail entry with counts only
 (rule 10). A rollback is a `REPLACE` plan of an earlier version's document. An agent's apply
