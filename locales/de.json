@@ -5746,6 +5746,7 @@
   "app.fields.pick_entry": "Auf welchen Eintrag dieses Feld zeigt",
   "app.fields.pick_entry_none": "Keiner",
   "app.fields.pick_entry_elsewhere": "Ein Eintrag außerhalb dieser Sammlung",
+  "app.fields.pick_entry_search": "In einer anderen Sammlung suchen",
   "app.fields.saved_announced": "Feld gespeichert.",
   "app.fields.defined_announced": "Feld definiert.",
   "app.fields.removed_announced": "Feld außer Gebrauch genommen.",

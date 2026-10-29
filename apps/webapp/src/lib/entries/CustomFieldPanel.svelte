@@ -20,10 +20,12 @@
   //
   // **`USER` and `USER_SET` are the member picker, handed into the renderer's slot for it.** Who may
   // be named is the memberships along the entry's path, which is the same list the assignee picker
-  // offers. **`REFERENCE` chooses among the collection's entries** this replica holds; the server
-  // holds the choice to what the writer may see (`fields.value_not_an_entry`).
+  // offers. **`REFERENCE` chooses among the collection's entries** this replica holds, or one found
+  // across every collection by search (UC-PLN-01's picker); the server holds the choice to what the
+  // writer may see (`fields.value_not_an_entry`). A value outside the replica is named by resolving
+  // it for the reader, so one out of their sight says only that (UC-PLN-01 check 4).
 
-  import { AssigneeControl, Select, Stack, CustomFieldRenderer } from '@hubtask/design-system/components';
+  import { AssigneeControl, Button, Select, Stack, CustomFieldRenderer } from '@hubtask/design-system/components';
   import type { FieldValue } from '@hubtask/design-system/components';
   import type { CustomFieldDefinition, WorkItem } from '@hubtask/sync-engine';
 
@@ -37,6 +39,8 @@
   import { decimalSeparatorOf, formatDecimal, parseDecimal } from '../i18n/number.ts';
   import { formatDuration, parseDuration } from '../i18n/duration.ts';
   import { items } from '../data/items.svelte.ts';
+  import { resolved, targetLabel } from '../data/links.svelte.ts';
+  import EntryPicker from './EntryPicker.svelte';
   import { renderProblem } from '../problem.ts';
 
   interface Props {
@@ -76,12 +80,29 @@
       { value: '', label: t('app.fields.pick_entry_none') },
       ...referable.map((each) => ({ value: each.id, label: each.title })),
     ];
-    // A value pointing outside what this replica holds stays chosen, and says so.
+    // A value pointing outside what this replica holds stays chosen, named as the reader may see it.
     if (typeof value === 'string' && value !== '' && !referable.some((each) => each.id === value)) {
-      options.push({ value, label: t('app.fields.pick_entry_elsewhere') });
+      const at = elsewhere.indexOf(value);
+      const target = at < 0 ? undefined : named.targets[at];
+      const label = target === undefined
+        ? t('app.fields.pick_entry_elsewhere')
+        : (targetLabel(target) ?? t('app.links.unavailable'));
+      options.push({ value, label });
     }
     return options;
   }
+
+  /** The chosen references this replica does not hold, resolved for the reader. */
+  const elsewhere = $derived(
+    Object.values((item.custom_fields ?? {}) as Record<string, unknown>).filter(
+      (value): value is string =>
+        typeof value === 'string' && /^[0-9a-f-]{36}$/i.test(value) && !referable.some((each) => each.id === value),
+    ),
+  );
+  const named = resolved(() => elsewhere.map((id) => ({ kind: 'ENTRY' as const, id })));
+
+  /** The field whose search across collections is open. */
+  let searchingKey = $state<string | undefined>(undefined);
 
 
   const applicable = $derived(
@@ -210,6 +231,20 @@
                 value={typeof value === 'string' ? value : ''}
                 onchange={(event) => write(definition, (event.currentTarget as HTMLSelectElement).value || null)}
               />
+              {#if searchingKey === definition.key}
+                <EntryPicker
+                  excluded={new Set([item.id])}
+                  onchoose={(found) => {
+                    if (!found) return;
+                    searchingKey = undefined;
+                    write(definition, found.id);
+                  }}
+                />
+              {:else}
+                <Button size="sm" tone="subtle" icon="search" data-reference-search={definition.key} onclick={() => (searchingKey = definition.key)}>
+                  {t('app.fields.pick_entry_search')}
+                </Button>
+              {/if}
             {/snippet}
           </CustomFieldRenderer>
           {#if failedKey === definition.key && failure}

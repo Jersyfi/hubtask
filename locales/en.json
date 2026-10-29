@@ -5749,6 +5749,7 @@
   "app.fields.pick_entry": "Which entry this field points at",
   "app.fields.pick_entry_none": "None",
   "app.fields.pick_entry_elsewhere": "An entry outside this collection",
+  "app.fields.pick_entry_search": "Find one in another collection",
   "app.fields.saved_announced": "Field saved.",
   "app.fields.defined_announced": "Field defined.",
   "app.fields.removed_announced": "Field taken out of use.",
