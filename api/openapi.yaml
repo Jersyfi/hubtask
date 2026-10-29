@@ -3513,6 +3513,8 @@ paths:
     get:
       tags: [identity]
       operationId: getOwnAccount
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: accountResponse
       summary: The account the caller is signed in as
       description: |
         Who am I, and how does this product speak to me. A client needs the answer before it can
@@ -3540,6 +3542,8 @@ paths:
     patch:
       tags: [identity]
       operationId: updateOwnAccount
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: accountResponse
       summary: Change what the caller is called
       description: |
         The display name a person gives themselves: what the other members of the workspace see
@@ -3569,6 +3573,8 @@ paths:
     put:
       tags: [identity]
       operationId: setOwnAvatar
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: accountResponse
       summary: Show a picture of one's own beside one's name
       description: |
         Makes an uploaded picture the caller's avatar: what every member of the workspace sees
@@ -3599,6 +3605,8 @@ paths:
     delete:
       tags: [identity]
       operationId: removeOwnAvatar
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: accountResponse
       summary: Go back to the initials
       description: |
         Takes the caller's picture away: the others see the initials of the name again. Idempotent -
@@ -3620,6 +3628,8 @@ paths:
     get:
       tags: [identity]
       operationId: getAccount
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: accountSummaryResponse
       summary: The name behind an account identifier
       description: |
         Every record that says *who* — an `ActivityEntry.actor`, an assignee, a member row — carries
@@ -3698,6 +3708,8 @@ paths:
     post:
       tags: [identity]
       operationId: requestAddress
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: addressRequestedResponse
       summary: Give a managed account a mail address
       description: |
         Sends a confirmation link to the address. Nothing on the account changes until somebody
@@ -3767,6 +3779,8 @@ paths:
     get:
       tags: [identity]
       operationId: listNotificationPreferences
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: notificationPreferenceListResponse
       summary: What an account wants to be told about
       description: |
         One row per category and channel this installation knows, with the effective value — a
@@ -3800,6 +3814,8 @@ paths:
     put:
       tags: [identity]
       operationId: setNotificationPreference
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: notificationPreferenceResponse
       summary: Say what to be told about, and whether the title travels
       description: |
         Writes one pair whole: `enabled` and `include_title` both, because a row is a statement
@@ -8780,6 +8796,9 @@ paths:
     post:
       tags: [identity]
       operationId: grantMembership
+      x-hubtask-rest: generated
+      x-hubtask-rest-location: /memberships/{id}
+      x-hubtask-rest-answer: membershipResponse
       summary: Grant a role at a scope
       description: |
         To an account or to a group, never both. The role applies downwards from the scope:
@@ -8820,6 +8839,7 @@ paths:
     delete:
       tags: [identity]
       operationId: revokeMembership
+      x-hubtask-rest: generated
       summary: Take a role away
       description: |
         Takes effect on the next request. What the account holds through a group is unaffected —
@@ -9033,6 +9053,8 @@ paths:
     get:
       tags: [identity]
       operationId: listGroups
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: groupResponse
       summary: The workspace's groups
       description: |
         Every group of the workspace, by name. Any member may read it, for the reason any member
@@ -9055,6 +9077,9 @@ paths:
     post:
       tags: [identity]
       operationId: createGroup
+      x-hubtask-rest: generated
+      x-hubtask-rest-location: /groups/{id}
+      x-hubtask-rest-answer: groupResponse
       summary: Create a group
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -9083,6 +9108,8 @@ paths:
     get:
       tags: [identity]
       operationId: getGroup
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: groupDetailResponse
       summary: One group, with who is in it
       description: |
         The group and the identifiers of its members. Any member of the workspace may read it —
@@ -9102,6 +9129,8 @@ paths:
     patch:
       tags: [identity]
       operationId: updateGroup
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: groupResponse
       summary: Rename a group or change its description
       description: |
         `members`, when sent, is the complete membership afterwards. A changed member list of a
@@ -9132,6 +9161,7 @@ paths:
     delete:
       tags: [identity]
       operationId: deleteGroup
+      x-hubtask-rest: generated
       summary: Delete a group
       description: |
         Its memberships go with it: what the group granted, nobody holds afterwards. Members of

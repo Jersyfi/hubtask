@@ -4832,6 +4832,8 @@
           "identity"
         ],
         "operationId": "getOwnAccount",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "accountResponse",
         "summary": "The account the caller is signed in as",
         "description": "Who am I, and how does this product speak to me. A client needs the answer before it can\nrender anything: `locale`, `time_zone` and `week_start` are the second link of the\nresolution chain request → account → tenant → installation, and there\nis no other way to learn them — `/accounts/{accountId}/preferences` writes to an id the\nclient never receives.\n\nA service account gets the same document rather than a refusal. It has an `Account` row\nwith `kind: SERVICE_ACCOUNT`, and answering \"you are a machine, and here is which one\" is\nmore useful to a caller than a 403 it has to special-case.\n\n`me` is a **reserved segment**: no account identifier is ever the string `me`, because\nidentifiers are UUIDs. The two paths cannot collide, and this is written down because a\nreader looking at `/accounts/{accountId}` beside it will otherwise wonder.\n",
         "responses": {
@@ -4855,6 +4857,8 @@
           "identity"
         ],
         "operationId": "updateOwnAccount",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "accountResponse",
         "summary": "Change what the caller is called",
         "description": "The display name a person gives themselves: what the other members of the workspace see\nbeside everything they do, and what the audit trail records next to their actions. Only\none's own - there is no account identifier in the path, so there is nothing to authorise\nbeyond being signed in as a person. A service account is named by whoever administers it\nand is refused here.\n\nThe name is trimmed and must keep at least one character; it is at most 200.\n",
         "requestBody": {
@@ -4890,6 +4894,8 @@
           "identity"
         ],
         "operationId": "setOwnAvatar",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "accountResponse",
         "summary": "Show a picture of one's own beside one's name",
         "description": "Makes an uploaded picture the caller's avatar: what every member of the workspace sees\nwherever the person appears, in place of the initials of the name. The picture is staged\nand confirmed like any other upload (`POST /media` with usage `AVATAR`, the bytes, then\n`POST /media/{mediaId}:confirm`), and only by the caller themselves.\n\nRefused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for\none staged for something else, `media.avatar_not_an_image` for bytes that are not a PNG,\nJPEG, GIF or WebP image, `media.not_found` for an object somebody else uploaded, and\n`accounts.picture_needs_a_person` for a service account. A picture already set is replaced;\nthe one it replaces is removed once nothing points at it.\n",
         "requestBody": {
@@ -4923,6 +4929,8 @@
           "identity"
         ],
         "operationId": "removeOwnAvatar",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "accountResponse",
         "summary": "Go back to the initials",
         "description": "Takes the caller's picture away: the others see the initials of the name again. Idempotent -\nan account without a picture answers as it is. The picture itself is removed once nothing\npoints at it.\n",
         "responses": {
@@ -4953,6 +4961,8 @@
           "identity"
         ],
         "operationId": "getAccount",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "accountSummaryResponse",
         "summary": "The name behind an account identifier",
         "description": "Every record that says *who* — an `ActivityEntry.actor`, an assignee, a member row — carries\nan identifier and no label, and says why: \"the account is one request away and this record\nis deleted with its entry, so there is nothing for a copy of somebody's name to outlive\".\nThis is that request.\n\n**What comes back is deliberately less than `/accounts/me`.** The display name and the kind,\nand not the email, the locale, the time zone or the first day of the week. Those are the\ncaller's own business or an administrator's; a name is what a workspace has to show to be\nreadable at all. What the other members of a workspace see of a profile is kept minimal -\nthe display name and the avatar - and this is that minimum. The avatar is the initials of\nthe name, or the picture the person set (`avatar_media_id`), which any member may read.\n\nAny member of the tenant may make it. There is nothing narrower to authorise against: the\nidentifiers a client holds arrived in records it was already allowed to read, and row level\nsecurity bounds the answer to the caller's own tenant, so an identifier from elsewhere does\nnot resolve here rather than being refused here.\n\nAn erased account answers with the marker its erasure wrote where the name was, because that\nis what the row holds — the reading is not special-cased, and there is nothing left to leak.\n",
         "responses": {
@@ -5018,6 +5028,8 @@
           "identity"
         ],
         "operationId": "requestAddress",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "addressRequestedResponse",
         "summary": "Give a managed account a mail address",
         "description": "Sends a confirmation link to the address. Nothing on the account changes until somebody\nholding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an\nordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second\nidentifier.\n\nThe person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.\nFor somebody else's account the address is a way into it, so the request is held to the role\nceiling: an owner asks for anybody, an administrator only for an account whose roles are all\nat or below their own - otherwise `403 access.role_above_own` with the `role`.\nOnly a managed account - a sign-in name and no address - takes one: any other is refused\nwith `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,\nan address would take the person's one way in, and the request is refused with\n`409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten\nminutes of the last is `429 accounts.address_requested_recently` with\n`retry_after_seconds`.\n\nWhether the address already belongs to somebody here is not said: the confirmation answers\nthat, to whoever holds the mailbox.\n",
         "requestBody": {
@@ -5098,6 +5110,8 @@
           "identity"
         ],
         "operationId": "listNotificationPreferences",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "notificationPreferenceListResponse",
         "summary": "What an account wants to be told about",
         "description": "One row per category and channel this installation knows, with the effective value — a\npair nobody has written is answered with the default and `is_default: true`, because \"not\nstored\" and \"off\" are different facts. The categories are `notification_categories` in\n`/meta/capabilities`; a client renders the form from that list rather than compiling it in.\n\nThe caller's own are read with the token scope alone; somebody else's asks for the member\nmanagement permission, the reason `PATCH /accounts/{accountId}/preferences` gives.\n",
         "responses": {
@@ -5144,6 +5158,8 @@
           "identity"
         ],
         "operationId": "setNotificationPreference",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "notificationPreferenceResponse",
         "summary": "Say what to be told about, and whether the title travels",
         "description": "Writes one pair whole: `enabled` and `include_title` both, because a row is a statement\nabout a category rather than two switches that could drift. Switching a category off makes\nthe next notification of that category `SUPPRESSED`, with the record saying why; the\ninvitation is the one category no preference can switch off, and a write against it is\nstored and never consulted. `include_title: false` produces an email that says something\nconcerns you without saying what. An unknown category or channel\nis refused by name.\n",
         "requestBody": {
@@ -11076,6 +11092,9 @@
           "identity"
         ],
         "operationId": "grantMembership",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-location": "/memberships/{id}",
+        "x-hubtask-rest-answer": "membershipResponse",
         "summary": "Grant a role at a scope",
         "description": "To an account or to a group, never both. The role applies downwards from the scope:\na role at a hub applies to its collections and their items. A subject holds a role at a\nscope once: granting it again changes nothing and answers the membership already there.\n\nNobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a\nrole along its path at least as strong as the one granted - an owner gives any role, an\nadministrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),\nbefore any step-up is asked. `GET /memberships` answers the roles the caller may grant at\na scope as `grantable_roles`.\n\nGranting `OWNER` is a privileged action: it demands a fresh step-up,\npresented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`\nwithout one.\n",
         "parameters": [
@@ -11124,6 +11143,7 @@
           "identity"
         ],
         "operationId": "revokeMembership",
+        "x-hubtask-rest": "generated",
         "summary": "Take a role away",
         "description": "Takes effect on the next request. What the account holds through a group is unaffected —\nthat is the group's membership, revoked separately.\n\nRevoking an `OWNER` membership is changing the `OWNER` role, and demands a fresh step-up\nin the `X-Hubtask-Step-Up` header. Revoking the last way a person who can act holds `OWNER`\non the workspace is refused with `409 memberships.last_owner`: the workspace keeps an owner.\n",
         "parameters": [
@@ -11430,6 +11450,8 @@
           "identity"
         ],
         "operationId": "listGroups",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "groupResponse",
         "summary": "The workspace's groups",
         "description": "Every group of the workspace, by name. Any member may read it, for the reason any member\nmay resolve an account identifier to a name: a membership granted to a group is unreadable\nuntil the group can be shown as the people it reaches, and a member scoped to one hub holds\nnothing at the workspace to be judged against. What a group discloses is its name and its\nmembers' identifiers, and the identifiers resolve through the same minimal read.\n",
         "parameters": [
@@ -11461,6 +11483,9 @@
           "identity"
         ],
         "operationId": "createGroup",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-location": "/groups/{id}",
+        "x-hubtask-rest-answer": "groupResponse",
         "summary": "Create a group",
         "parameters": [
           {
@@ -11512,6 +11537,8 @@
           "identity"
         ],
         "operationId": "getGroup",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "groupDetailResponse",
         "summary": "One group, with who is in it",
         "description": "The group and the identifiers of its members. Any member of the workspace may read it —\nsee `GET /groups`. The `ETag` is the version a `PATCH` presents in `If-Match`.\n",
         "responses": {
@@ -11542,6 +11569,8 @@
           "identity"
         ],
         "operationId": "updateGroup",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "groupResponse",
         "summary": "Rename a group or change its description",
         "description": "`members`, when sent, is the complete membership afterwards. A changed member list of a\ngroup that holds `OWNER` anywhere places or takes that role, so it demands a fresh step-up\nin the `X-Hubtask-Step-Up` header, as granting or revoking `OWNER` does. A change that would\nleave the workspace without an owner is refused with `409 memberships.last_owner`.\n",
         "parameters": [
@@ -11590,6 +11619,7 @@
           "identity"
         ],
         "operationId": "deleteGroup",
+        "x-hubtask-rest": "generated",
         "summary": "Delete a group",
         "description": "Its memberships go with it: what the group granted, nobody holds afterwards. Members of\nthe group keep whatever they hold in their own right.\n\nDeleting a group that holds `OWNER` anywhere takes that role away, so it demands a fresh\nstep-up in the `X-Hubtask-Step-Up` header. A deletion that would leave the workspace without\nan owner is refused with `409 memberships.last_owner`.\n",
         "parameters": [
