@@ -69,6 +69,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	calendardomain "github.com/Jersyfi/hubtask/core/domain/model/calendar"
 	importdomain "github.com/Jersyfi/hubtask/core/domain/model/importer"
 	integrationmodel "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	knowledgedomain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
@@ -1793,10 +1794,15 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid, Activity: journal,
 	}
 	// The knowledge module's pages (M3): a hub's space, judged at the hub.
+	// A verified page's review clock (UC-DOC-12 check 4): a durable timer, its firing told to the
+	// page's owner by the timer pass below.
+	reviewClocks := calendarservice.Clocks{
+		Timers: postgres.NewTimerRepository(), Jobs: jobs, Clock: clockadapter.System{}, IDs: ids,
+	}
 	pageSpace := knowledgeservice.Space{
 		Pages: postgres.NewPageRepository(), Containers: containers, Entries: entryLinks,
 		Authorizer: authorizer, Reader: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		Clock: clockadapter.System{}, IDs: ids, Text: forms, Reviews: reviewClocks,
 	}
 	useCases, err := usecase.NewRegistry(
 		settingservice.ModuleGate{Modules: modules}.Wrap(entitlementGate.Wrap(observer.Registry())),
@@ -3614,6 +3620,8 @@ func run() error {
 			Accesses: postgres.NewEmergencyAccessRepository(),
 			// The role somebody was given, and the hub or collection it is on.
 			Grants: grants, Places: containers,
+			// The page whose review fell due.
+			Pages: postgres.NewPageRepository(),
 			// The entry's ticket key on the intake's address as Reply-To, so an answer becomes a
 			// comment (ADR-0094).
 			Replies: mailservice.Replies{Writer: mailWriter},
@@ -3954,12 +3962,21 @@ func run() error {
 		},
 		Progress: jobs,
 	}
-	// Durable timers on business calendars (domain-model.md §3.7). No purpose registers a handler
-	// yet: the SLA, approval and effectiveness steps each add theirs to Elapsed.
+	// Durable timers on business calendars (domain-model.md §3.7). A page's review registers its
+	// handler; the SLA, approval and effectiveness steps each add theirs to Elapsed.
 	timerFiring := worker.TimerFiring{
 		Firing: calendarservice.FireTimers{
 			Timers: postgres.NewTimerRepository(), Clock: clockadapter.System{},
 			BatchSize: calendarservice.DefaultTimerBatch,
+			Elapsed: map[calendardomain.Purpose]calendarservice.TimerElapsed{
+				calendardomain.PurposePageReview: knowledgeservice.PageReviewElapsed{
+					Pages: postgres.NewPageRepository(), Timers: reviewClocks, Clock: clockadapter.System{},
+					Notify: notification.RecordPageReview{
+						Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+						Jobs: jobs, Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+					},
+				},
+			},
 		},
 		Queue: jobs, Clock: clockadapter.System{},
 		Continuation: cfg.Queue.OutboxMinInterval,
@@ -4025,13 +4042,15 @@ func run() error {
 		queueport.KindEmergencyAccessEmail: notificationDelivery,
 		// And under the role's own kind, for the same reason (queue.KindRoleGrantedEmail).
 		queueport.KindRoleGrantedEmail: notificationDelivery,
-		queueport.KindWebhookDeliver:   webhookDelivery,
-		queueport.KindPlatformSweep:    worker.PlatformSweep{Sweep: platformSweep},
-		queueport.KindPlatformDeliver:  platformDelivery,
-		queueport.KindAutomationRun:    automationRun,
-		queueport.KindAutomationHTTP:   outboundCall,
-		queueport.KindBackupRun:        backupRun,
-		queueport.KindBackupVerify:     worker.BackupVerify{Performer: backupPerformer},
+		// And under a page review's (queue.KindPageReviewEmail).
+		queueport.KindPageReviewEmail: notificationDelivery,
+		queueport.KindWebhookDeliver:  webhookDelivery,
+		queueport.KindPlatformSweep:   worker.PlatformSweep{Sweep: platformSweep},
+		queueport.KindPlatformDeliver: platformDelivery,
+		queueport.KindAutomationRun:   automationRun,
+		queueport.KindAutomationHTTP:  outboundCall,
+		queueport.KindBackupRun:       backupRun,
+		queueport.KindBackupVerify:    worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{
 			Applier: backupApplier, Progress: jobs,
 		},

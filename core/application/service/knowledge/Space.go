@@ -91,6 +91,8 @@ type Space struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	Text       text.Normalizer
+	// Reviews arms the clock of a page's review when it is verified; nil arms none.
+	Reviews ReviewTimers
 }
 
 func hubPath(hubID shared.ID) []identity.Scope {

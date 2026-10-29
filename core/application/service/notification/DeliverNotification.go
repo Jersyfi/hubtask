@@ -15,6 +15,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -66,6 +67,10 @@ const (
 	bodyRoleGranted             = "email.role_granted.body"
 	subjectRoleGrantedWorkspace = "email.role_granted.workspace.subject"
 	bodyRoleGrantedWorkspace    = "email.role_granted.workspace.body"
+	// A page whose verification ran out, told to its owner (UC-DOC-12 check 4): REMINDER's
+	// category, its own sentence - nobody asked for this reminder, the page's verification did.
+	subjectPageReview = "email.page_review.subject"
+	bodyPageReview    = "email.page_review.body"
 	// rolePrefix and placePrefix name a role and a kind of place in the catalogue.
 	rolePrefix  = "email.role."
 	placePrefix = "email.role_granted.place."
@@ -108,6 +113,8 @@ type DeliverNotification struct {
 	// membership's withheld sentence; Places nil leaves the place's name out.
 	Grants GrantReader
 	Places PlaceReader
+	// Pages names the page whose review fell due. Optional: nil leaves its title out.
+	Pages PageReader
 	// Replies answers the address of the entry a message is about, so an answer by mail becomes a
 	// comment there (ADR-0092 decision 8). Optional: nil, or an installation without a receiving
 	// domain, sends no Reply-To.
@@ -158,6 +165,11 @@ type GrantReader interface {
 // PlaceReader answers a hub or a collection by its identifier - the container repository's Find.
 type PlaceReader interface {
 	Find(ctx context.Context, id shared.ID) (work.Container, error)
+}
+
+// PageReader answers a page by its identifier - the knowledge repository's Find.
+type PageReader interface {
+	Find(ctx context.Context, id shared.ID) (knowledge.Page, error)
 }
 
 // RedemptionMinter is the identity service's seam. The empty secret means the account is no
@@ -342,6 +354,12 @@ func (d DeliverNotification) load(
 				return err
 			}
 			loaded.title = title
+		case !record.PageID.IsZero() && d.Pages != nil:
+			page, err := d.Pages.Find(ctx, record.PageID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.title = page.Title
 		case !record.ItemID.IsZero():
 			item, err := d.Items.Find(ctx, record.ItemID)
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
@@ -438,6 +456,9 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 	if !loaded.record.RuleID.IsZero() {
 		subjectCode, bodyCode = subjectRuleDisabled, bodyRuleDisabled
 	}
+	if !loaded.record.PageID.IsZero() {
+		subjectCode, bodyCode = subjectPageReview, bodyPageReview
+	}
 
 	message := domain.Message{
 		SubjectCode: subjectCode,
@@ -523,6 +544,8 @@ func link(base string, record domain.Notification) string {
 		return base + "/administration/webhooks"
 	case !record.ItemID.IsZero():
 		return base + "/items/" + url.PathEscape(record.ItemID.String())
+	case !record.PageID.IsZero():
+		return base + "/pages/" + url.PathEscape(record.PageID.String())
 	case !record.MembershipID.IsZero():
 		// The place the role is on; compose has the grant and names it.
 		return base

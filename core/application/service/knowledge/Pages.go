@@ -746,6 +746,9 @@ func (h VerifyPage) Execute(ctx context.Context, actor appshared.ActorContext, c
 		}
 		next.Version = current.Version + 1
 		page = next
+		if err := armReview(ctx, h.Space.Reviews, next, now); err != nil {
+			return err
+		}
 		return h.Space.record(ctx, actor, PageVerifiedAction, pageTarget, next.ID, []audit.Change{
 			{Field: "verified_until", Classification: audit.Open, To: timeOrNil(next.VerifiedUntil)},
 			{Field: "owner_id", Classification: audit.Open, To: idOrNil(next.OwnerID)},
