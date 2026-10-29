@@ -93,6 +93,9 @@ func DefaultPolicies() []Policy {
 		// Idempotency keys. One day, the data catalogue's promise, and the day is the lower
 		// bound: api-guidelines.md §5 promises a replay for at least that long.
 		{DataKind: KindIdempotencyKey, RetainDays: 1, MinDays: 1},
+		// A live document's compacted history, thirty days (offline-sync.md §13). No lower bound:
+		// what goes is already merged into the snapshot that stays.
+		{DataKind: KindDocumentHistory, RetainDays: 30},
 	}
 }
 

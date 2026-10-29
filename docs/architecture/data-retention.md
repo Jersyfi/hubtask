@@ -84,6 +84,7 @@ into both, needs no engine change, and needs something that removes it.
 | `RULE_RUN` | `started_at` | 30 days | The leader, as month partitions | Automation log |
 | `WEBHOOK_DELIVERY` | `created_at` | 30 days | The sweep | A pending attempt a living `webhook.deliver` job still names is never due; a hold on the workspace keeps the log. No lower bound |
 | `MAIL_RECEIPT` | `created_at` (the arrival, `received_at`) | 30 days | The sweep | The mail intake's log (ADR-0094): when a message arrived, from whom, what it became and why. A hold on the workspace keeps it. No lower bound |
+| `DOCUMENT_HISTORY` | `compacted_at` (an update a snapshot covers; a snapshot's `superseded_at`) | 30 days | The sweep | A live document's history behind its snapshot (offline-sync.md §13): the updates a writer's snapshot merged and the snapshots a newer one replaced. The document - the newest snapshot and the updates after it - is never touched. A hold on the workspace keeps it. No lower bound |
 | `OUTBOX_EVENT` | `occurred_at` | 7 days | The sweep; whole months fall as partitions | ([ADR-0007](../adr/ADR-0007-events-outbox-cloudevents.md)). An event nobody has consumed is never due. A polling trigger's cursor older than this is refused, not restarted ([automation.md](./automation.md) §3.2) |
 | `SESSION` | `last_seen_at` | 30 days | The sweep | No marking phase |
 | `DEVICE` | `last_seen_at` | 30 days | The sweep | A silent device's session is revoked before its row goes ([offline-sync.md](./offline-sync.md) §6). No marking phase |

@@ -3703,6 +3703,8 @@ func run() error {
 			Deliveries: postgres.NewWebhookDeliveryRepository(),
 			// The mail intake's log, thirty days (ADR-0094).
 			MailReceipts: postgres.NewMailIntakeRepository(),
+			// A live document's compacted history, thirty days (offline-sync.md §13).
+			DocumentHistory: postgres.NewRealtimeRepository(),
 			// The SESSION kind: expired and revoked sessions age out through the engine,
 			// not a second sweeper.
 			Sessions: postgres.NewSessionRepository(),

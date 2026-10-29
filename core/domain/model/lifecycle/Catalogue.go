@@ -22,6 +22,7 @@ const (
 	AnchorOccurredAt  Anchor = "occurred_at"
 	AnchorStartedAt   Anchor = "started_at"
 	AnchorLastSeenAt  Anchor = "last_seen_at"
+	AnchorCompactedAt Anchor = "compacted_at"
 )
 
 // Action is what a rule does when the period is up (data-retention.md §2).
@@ -288,6 +289,16 @@ var catalogue = []Kind{
 		// so that configuring one is refused honestly.
 		Name: KindAudit, Anchor: AnchorOccurredAt, DefaultDays: 400,
 	},
+	{
+		// The history behind a live document's snapshot (offline-sync.md §13): the updates a
+		// snapshot covers and the snapshots it replaced. Thirty days, so that a writer's snapshot
+		// that turns out wrong can still be rebuilt from the updates for a month; the document
+		// itself is the snapshot and the updates after it, which no period touches. A tenant-wide
+		// hold keeps it; no lower bound, because what goes is already merged into what stays.
+		Name: KindDocumentHistory, Anchor: AnchorCompactedAt, DefaultDays: 30,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
 	{Name: KindMediaOrphan, Anchor: AnchorCreatedAt, DefaultDays: 7},
 	{Name: KindDeletedAccountResidue, Anchor: AnchorDeletedAt, DefaultDays: 30},
 }
@@ -315,6 +326,7 @@ const (
 	KindIdempotencyKey        DataKind = "IDEMPOTENCY_KEY"
 	KindAudit                 DataKind = "AUDIT"
 	KindMediaOrphan           DataKind = "MEDIA_ORPHAN"
+	KindDocumentHistory       DataKind = "DOCUMENT_HISTORY"
 	KindDeletedAccountResidue DataKind = "DELETED_ACCOUNT_RESIDUE"
 )
 

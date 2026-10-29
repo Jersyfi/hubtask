@@ -7103,6 +7103,7 @@
   "app.entries.ticket_key": "Copy the key {key}",
   "app.entries.ticket_key_copied": "{key} copied.",
   "app.retention.kind.MAIL_RECEIPT": "Mail intake log",
+  "app.retention.kind.DOCUMENT_HISTORY": "Live document history",
   "mail.place_required": "Name the collection whose handle changes.",
   "mail.routes_unreadable": "The mail intake's sender rules could not be read. Save them again.",
   "mail.handle_invalid": "A handle starts with a letter and has two to twenty letters and digits, no hyphen.",
