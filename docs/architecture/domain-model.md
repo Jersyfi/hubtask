@@ -726,6 +726,25 @@ continuous calendar (in legs of at most a timer's bound), and when it fires the 
 one, the verifier - gets a `REMINDER` notification naming the page. Trash takes a page with the pages under it at
 one moment and brings them back together.
 
+### 3.9 Whiteboards (context: Whiteboard, M4)
+
+A hub holds `Board`s (at most 1,000 outside the trash), judged at the hub as its pages are: READ to
+read, WRITE_ITEMS to draw. A board's `Scene` is its objects in drawing order, at most 5,000:
+`STICKY` notes, `SHAPE`s (rectangle, rounded, ellipse, diamond, parallelogram, triangle - the basic
+and the flowchart set), `TEXT`, `CONNECTOR`s, `FRAME`s and `CARD`s. Each object has an identifier
+unique on the board and shaped as a reference's anchor, so `hubtask:whiteboard/<id>#<frame>` names
+a frame. A connector is attached to the objects at its ends (`from`, `to`) and follows them; an end
+attached to nothing is a point. A colour is a label token's name, never a value (rule 15). A card
+names an entry by identifier and draws it as each reader may see it (P-19); it is never a copy.
+While several people draw, the live document (kind `whiteboard`, §13 of `offline-sync.md`) holds
+their CRDT; the client saves the scene beside it, and the scene is what references
+(`whiteboard_reference`, kept by trigger from the cards and the links in the objects' words, read
+by an entry's `whiteboard_backlinks`), export and the archive read. A sticky note becomes an entry
+through the ordinary creation of an entry, held to the type's form, and is then replaced by the
+entry's card. Export writes the native document (`hubtask.whiteboard`, version 1) that making a
+board reads back; pictures are drawn by the client, which holds the colours. Trash keeps a board
+whole and brings it back; nothing removes one but its hub's or its workspace's deletion.
+
 ## 4. Domain events
 
 Named `de.hubtask.<context>.<entity>.<action>.v1`, every event carries `tenantId`,
