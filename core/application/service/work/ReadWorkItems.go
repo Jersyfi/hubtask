@@ -123,7 +123,11 @@ func (h GetWorkItem) Execute(
 		}
 		item = shownInCalendar(item, marks[item.ID])
 	}
-	return item, nil
+	narrowed, err := h.Gate.narrow(ctx, h.UnitOfWork, actor, []domain.WorkItem{item})
+	if err != nil {
+		return domain.WorkItem{}, err
+	}
+	return narrowed[0], nil
 }
 
 // labelsOf reads the labels a page of entries carries, or nothing when the caller did not ask.
@@ -318,6 +322,9 @@ func (h ListWorkItems) Execute(
 		return err
 	})
 	if err != nil {
+		return repository.ItemPage{}, err
+	}
+	if page.Items, err = h.Gate.narrow(ctx, h.UnitOfWork, actor, page.Items); err != nil {
 		return repository.ItemPage{}, err
 	}
 	return page, nil

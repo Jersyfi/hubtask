@@ -166,6 +166,11 @@ func (h SearchItems) Execute(
 		}
 	}
 
+	lens, err := h.lens(ctx, actor, request)
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
+
 	var page repository.ItemHitPage
 	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		shaped, err := shapeCustomFields(ctx, h.Fields,
@@ -189,6 +194,63 @@ func (h SearchItems) Execute(
 			return repository.ItemHitPage{}, err
 		}
 	}
+	return h.narrowed(ctx, lens, page)
+}
+
+// lens starts the narrowing of the hits, and refuses a search that filters or sorts by a field
+// hidden from the reader (UC-ID-27 check 3): over the container named, or the workspace.
+func (h SearchItems) lens(ctx context.Context, actor appshared.ActorContext, request view.Search) (*FieldLens, error) {
+	if !h.Gate.Sight.Wired() {
+		return nil, nil
+	}
+	lens, err := h.Gate.Sight.Lens(ctx, h.UnitOfWork, actor)
+	if err != nil {
+		return nil, err
+	}
+	keys := view.Spec{Filter: request.Filter, Sort: request.Sort}.CustomKeys()
+	if lens.Empty() || len(keys) == 0 {
+		return lens, nil
+	}
+	path := []identity.Scope{identity.TenantScope()}
+	if !request.ContainerID.IsZero() {
+		var container domain.Container
+		err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			container, err = h.Containers.Find(ctx, request.ContainerID)
+			return err
+		})
+		if err != nil {
+			return nil, err
+		}
+		path = containerPath(container)
+	}
+	hidden, err := lens.HiddenFrom(ctx, path, keys)
+	if err != nil {
+		return nil, err
+	}
+	return lens, refuseHidden(hidden)
+}
+
+// narrowed takes the hidden fields out of every hit.
+func (h SearchItems) narrowed(
+	ctx context.Context, lens *FieldLens, page repository.ItemHitPage,
+) (repository.ItemHitPage, error) {
+	if lens.Empty() || len(page.Hits) == 0 {
+		return page, nil
+	}
+	items := make([]domain.WorkItem, len(page.Hits))
+	for i, hit := range page.Hits {
+		items[i] = hit.Item
+	}
+	items, err := lens.Items(ctx, h.UnitOfWork, items)
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
+	hits := make([]repository.ItemHit, len(page.Hits))
+	for i, hit := range page.Hits {
+		hit.Item = items[i]
+		hits[i] = hit
+	}
+	page.Hits = hits
 	return page, nil
 }
 

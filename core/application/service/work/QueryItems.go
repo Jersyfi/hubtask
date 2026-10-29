@@ -80,6 +80,10 @@ func (h QueryItems) Execute(
 	}); err != nil {
 		return repository.ItemQueryResult{}, err
 	}
+	lens, err := h.lens(ctx, actor, container, resolved)
+	if err != nil {
+		return repository.ItemQueryResult{}, err
+	}
 
 	var result repository.ItemQueryResult
 	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -103,6 +107,47 @@ func (h QueryItems) Execute(
 	if err != nil {
 		return repository.ItemQueryResult{}, err
 	}
+	return h.narrowed(ctx, lens, result)
+}
+
+// lens starts the narrowing of the answer, and refuses a query that ranges, sorts or groups over
+// a field hidden from the reader (UC-ID-27 check 3).
+func (h QueryItems) lens(
+	ctx context.Context, actor appshared.ActorContext, anchor domain.Container, spec view.Spec,
+) (*FieldLens, error) {
+	if !h.Gate.Sight.Wired() {
+		return nil, nil
+	}
+	lens, err := h.Gate.Sight.Lens(ctx, h.UnitOfWork, actor)
+	if err != nil {
+		return nil, err
+	}
+	hidden, err := lens.HiddenFrom(ctx, containerPath(anchor), spec.CustomKeys())
+	if err != nil {
+		return nil, err
+	}
+	return lens, refuseHidden(hidden)
+}
+
+// narrowed takes the hidden fields out of every entry of the answer, grouped or not.
+func (h QueryItems) narrowed(
+	ctx context.Context, lens *FieldLens, result repository.ItemQueryResult,
+) (repository.ItemQueryResult, error) {
+	if lens.Empty() {
+		return result, nil
+	}
+	var err error
+	if result.Items, err = lens.Items(ctx, h.UnitOfWork, result.Items); err != nil {
+		return repository.ItemQueryResult{}, err
+	}
+	groups := make([]repository.ItemGroup, len(result.Groups))
+	for i, group := range result.Groups {
+		if group.Items, err = lens.Items(ctx, h.UnitOfWork, group.Items); err != nil {
+			return repository.ItemQueryResult{}, err
+		}
+		groups[i] = group
+	}
+	result.Groups = groups
 	return result, nil
 }
 

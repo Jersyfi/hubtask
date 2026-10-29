@@ -32,6 +32,23 @@ type EntryGate struct {
 	// Forms holds every write to the entry's type's form (FormGate). Optional, for the reason
 	// EntryTypes is.
 	Forms FormGate
+	// Sight takes the fields hidden from a reader out of every read and every answer (UC-ID-27
+	// check 3). Optional, for the reason EntryTypes is.
+	Sight FieldSight
+}
+
+// narrow takes from entries the fields hidden from the reader.
+func (g EntryGate) narrow(
+	ctx context.Context, uow persistence.UnitOfWork, actor appshared.ActorContext, items []domain.WorkItem,
+) ([]domain.WorkItem, error) {
+	if !g.Sight.Wired() || len(items) == 0 {
+		return items, nil
+	}
+	lens, err := g.Sight.Lens(ctx, uow, actor)
+	if err != nil {
+		return nil, err
+	}
+	return lens.Items(ctx, uow, items)
 }
 
 // Wired reports whether the gate has what it needs.
@@ -177,7 +194,11 @@ func (g EntryGate) Answer(
 	if err != nil {
 		return nil, err
 	}
-	return withHidden(ItemOutput(item), marks, item.ID), nil
+	narrowed, err := g.narrow(ctx, uow, actor, []domain.WorkItem{item})
+	if err != nil {
+		return nil, err
+	}
+	return withHidden(ItemOutput(narrowed[0]), marks, item.ID), nil
 }
 
 // withHidden puts an entry's mark into its projection, where one was answered.
