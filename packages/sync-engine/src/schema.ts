@@ -170,6 +170,14 @@ export type PrivateHubAccess = components['schemas']['PrivateHubAccess'];
 export type ModuleList = components['schemas']['ModuleList'];
 export type ModuleState = components['schemas']['ModuleState'];
 export type ModuleSwitch = components['schemas']['ModuleSwitch'];
+/** The configuration document and its plans, versions and proposals (F-6). */
+export type ConfigExport = components['schemas']['ConfigExport'];
+export type ConfigPlan = components['schemas']['ConfigPlan'];
+export type ConfigApplyResult = components['schemas']['ConfigApplyResult'];
+export type ConfigVersion = components['schemas']['ConfigVersion'];
+export type ConfigVersionList = components['schemas']['ConfigVersionList'];
+export type ConfigProposal = components['schemas']['ConfigProposal'];
+export type ConfigProposalList = components['schemas']['ConfigProposalList'];
 /** Every setting the product declares, with its levels and writers - no place's value. */
 export type SettingsCatalogue = components['schemas']['SettingsCatalogue'];
 export type SettingDefinition = components['schemas']['SettingDefinition'];
