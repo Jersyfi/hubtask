@@ -29,7 +29,7 @@ SBOM, cosign, provenance); message codes, tokens, no content in logs; hexagonal 
 | A-7 | Fixed roles, 8 permissions in a map | `core/domain/service/Authorization.go` |
 | A-8 | Sync: 7 item-centric mutation kinds, hand-wired per entity; no realtime document channel (SSE only) | `core/domain/model/sync/Mutation.go`, `InitialSync.go` |
 | A-9 | Query DSL: one entity, one container scope, no aggregation, no traversal; search covers item title and notes only | `QuerySpec.go`, ADR-0034 |
-| A-10 | `work_item` has ~57 columns and ~20 indexes; capacity measured at 5,000 items; no per-tenant job fairness; no durable timers; frontend imports every view statically | `observability-reliability.md` §13.2, `App.svelte` |
+| A-10 | `work_item` has ~57 columns and ~20 indexes; capacity measured at 5,000 items; job fairness per tenant within one claim only (corrected by S-12: the claim was already round-robin per tenant; across workers it was not); no durable timers; frontend imports every view statically | `observability-reliability.md` §13.2, `App.svelte` |
 
 ## 2. The target — thirteen foundation changes
 
