@@ -161,6 +161,9 @@ func (p *pass) create(ctx context.Context, item domain.Item, class domain.Resolv
 	if err := p.s.Store.PutIdentifiers(ctx, ci, p.identifiers(ci, class, item)); err != nil {
 		return d, err
 	}
+	if err := p.s.announce(ctx, p.actor, ci); err != nil {
+		return d, err
+	}
 	return d, p.s.recordCI(ctx, p.actor, CICreatedAction, ci, append([]string{domain.FieldClass}, taken...))
 }
 
@@ -209,7 +212,12 @@ func (p *pass) update(ctx context.Context, ci domain.CI, item domain.Item, d dom
 		return d, err
 	}
 	if len(taken) == 0 {
+		// Only the sighting moved; a device's copy keeps the last sighting it was told of.
 		return d, nil
+	}
+	next.Version = ci.Version + 1
+	if err := p.s.announce(ctx, p.actor, next); err != nil {
+		return d, err
 	}
 	return d, p.s.recordCI(ctx, p.actor, CIChangedAction, next, taken)
 }
@@ -249,19 +257,21 @@ func (p *pass) relation(ctx context.Context, r domain.RelationItem) error {
 		p.run.Counts.RelationsSeen++
 		return nil
 	}
-	_, inserted, err := p.s.Store.PutRelation(ctx, domain.Relation{
+	rel := domain.Relation{
 		ID: p.s.IDs.NewID(), HubID: p.hubID, Type: t.Key, SourceCI: from, TargetCI: to, DataSource: p.source.Key,
 		FirstSeen: p.run.StartedAt, LastSeen: p.run.StartedAt, CreatedBy: p.actor.AccountID,
-	})
+	}
+	stored, inserted, err := p.s.Store.PutRelation(ctx, rel)
 	if err != nil {
 		return err
 	}
-	if inserted {
-		p.run.Counts.RelationsAdded++
-	} else {
+	if !inserted {
 		p.run.Counts.RelationsSeen++
+		return nil
 	}
-	return nil
+	p.run.Counts.RelationsAdded++
+	rel.ID = stored
+	return p.s.announceRelations(ctx, p.actor, rel)
 }
 
 // reconcile runs a payload through the one write path inside the caller's transaction and

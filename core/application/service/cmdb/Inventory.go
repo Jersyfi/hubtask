@@ -19,6 +19,7 @@ import (
 	"strconv"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/cmdb"
+	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -86,6 +87,66 @@ type Inventory struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Changes and HLC tell offline devices of a CI or a relation written, so that a hub's
+	// inventory can be read without the server (offline-sync.md §13). A nil Changes records
+	// nothing, a test's convenience.
+	Changes changelog.ChangeLog
+	HLC     clock.HLCSource
+}
+
+// The change log's entities: a CI and a relation, each filed under its hub.
+const (
+	CIEntity       = "cmdb_ci"
+	RelationEntity = "cmdb_relation"
+)
+
+// announce records each CI as it now stands, filed under its hub. The protection it inherits is
+// left out: it is a walk over the hub's relations, which a device computes from its own copy.
+func (s Inventory) announce(ctx context.Context, actor appshared.ActorContext, cis ...domain.CI) error {
+	if s.Changes == nil {
+		return nil
+	}
+	for _, ci := range cis {
+		if err := s.Changes.Record(ctx, changelog.Change{
+			TenantID: actor.TenantID, Entity: CIEntity, EntityID: ci.ID, Op: changelog.Upsert,
+			ContainerID: ci.HubID, ActorID: actor.AccountID, HLC: s.HLC.Next(), Payload: CIOutput(ci, nil),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// announceRelations records relations as they now stand, filed under their hub.
+func (s Inventory) announceRelations(ctx context.Context, actor appshared.ActorContext, rs ...domain.Relation) error {
+	if s.Changes == nil {
+		return nil
+	}
+	for _, r := range rs {
+		if err := s.Changes.Record(ctx, changelog.Change{
+			TenantID: actor.TenantID, Entity: RelationEntity, EntityID: r.ID, Op: changelog.Upsert,
+			ContainerID: r.HubID, ActorID: actor.AccountID, HLC: s.HLC.Next(), Payload: RelationOutput(r),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// announceUnrelated records relations removed: a tombstone names the relation and its hub only.
+func (s Inventory) announceUnrelated(ctx context.Context, actor appshared.ActorContext, rs ...domain.Relation) error {
+	if s.Changes == nil {
+		return nil
+	}
+	for _, r := range rs {
+		if err := s.Changes.Record(ctx, changelog.Change{
+			TenantID: actor.TenantID, Entity: RelationEntity, EntityID: r.ID, Op: changelog.Delete,
+			ContainerID: r.HubID, ActorID: actor.AccountID, HLC: s.HLC.Next(),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func hubPath(hubID shared.ID) []identity.Scope {

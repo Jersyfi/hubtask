@@ -385,6 +385,9 @@ func (h SetCiCompliance) Descriptor() usecase.Descriptor {
 				}
 				next.Version++
 				out = CIOutput(next, nil)
+				if err := h.Inventory.announce(ctx, actor, next); err != nil {
+					return err
+				}
 				return h.Inventory.recordCI(ctx, actor, CIChangedAction, next, fields)
 			})
 			return out, err
@@ -544,6 +547,9 @@ func (h RelateCis) Descriptor() usecase.Descriptor {
 					return err
 				}
 				out = RelationOutput(r)
+				if err := h.Inventory.announceRelations(ctx, actor, r); err != nil {
+					return err
+				}
 				return h.Inventory.record(ctx, actor, RelatedAction, relationTarget, r.ID,
 					audit.Change{Field: "type", Classification: audit.Open, To: r.Type})
 			})
@@ -580,6 +586,9 @@ func (h UnrelateCis) Descriptor() usecase.Descriptor {
 			}
 			err = h.Inventory.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 				if err := h.Inventory.Store.DeleteRelation(ctx, id); err != nil {
+					return err
+				}
+				if err := h.Inventory.announceUnrelated(ctx, actor, r); err != nil {
 					return err
 				}
 				return h.Inventory.record(ctx, actor, UnrelatedAction, relationTarget, id,

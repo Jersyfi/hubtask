@@ -494,10 +494,23 @@ func (s Inventory) merge(ctx context.Context, actor appshared.ActorContext, surv
 		}
 		var merged domain.CI
 		survivor, merged = domain.Merge(survivor, dup, now, actor.AccountID)
+		// The duplicate's relations move or are dropped: a device is told of every one as gone,
+		// and of the survivor's as they stand once all are merged.
+		moving, err := s.Store.RelationsOf(ctx, other)
+		if err != nil {
+			return domain.CI{}, err
+		}
+		if err := s.announceUnrelated(ctx, actor, moving...); err != nil {
+			return domain.CI{}, err
+		}
 		if err := s.Store.MergeInto(ctx, survivorID, other); err != nil {
 			return domain.CI{}, err
 		}
 		if err := s.Store.UpdateCI(ctx, merged, dup.Version); err != nil {
+			return domain.CI{}, err
+		}
+		merged.Version = dup.Version + 1
+		if err := s.announce(ctx, actor, merged); err != nil {
 			return domain.CI{}, err
 		}
 		if err := s.recordCI(ctx, actor, CIMergedAction, merged, []string{"merged_into"}); err != nil {
@@ -511,5 +524,15 @@ func (s Inventory) merge(ctx context.Context, actor appshared.ActorContext, surv
 		return domain.CI{}, err
 	}
 	survivor.Version = expected + 1
+	kept, err := s.Store.RelationsOf(ctx, survivorID)
+	if err != nil {
+		return domain.CI{}, err
+	}
+	if err := s.announce(ctx, actor, survivor); err != nil {
+		return domain.CI{}, err
+	}
+	if err := s.announceRelations(ctx, actor, kept...); err != nil {
+		return domain.CI{}, err
+	}
 	return survivor, s.recordCI(ctx, actor, CIChangedAction, survivor, []string{"attributes"})
 }

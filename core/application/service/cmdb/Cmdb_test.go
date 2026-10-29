@@ -205,6 +205,10 @@ func (m *memory) PutRelation(_ context.Context, r domain.Relation) (shared.ID, b
 func (m *memory) FindRelation(_ context.Context, id shared.ID) (domain.Relation, error) {
 	return m.relations[id], nil
 }
+func (m *memory) DeleteRelation(_ context.Context, id shared.ID) error {
+	delete(m.relations, id)
+	return nil
+}
 func (m *memory) RelationsOf(_ context.Context, ci shared.ID) ([]domain.Relation, error) {
 	var out []domain.Relation
 	for _, r := range m.relations {
