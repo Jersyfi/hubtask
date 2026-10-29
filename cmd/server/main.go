@@ -846,8 +846,13 @@ func run() error {
 	// Both directions of completion share one dependency set. The two operations are the same walk in
 	// opposite directions, and wiring them separately would be two places to get one of eleven fields
 	// wrong (work.CompletionWriter).
+	// The workflows in force (UC-FLW-02 … 05): one gate for the step a completion, a board's drop,
+	// the status control and a device's push take.
+	workflows := postgres.NewWorkflowRepository()
+	workflowGate := work.WorkflowGate{Workflows: workflows, Compiler: celexpression.New(), Roles: authorizer}
 	completion := work.CompletionWriter{
-		Gate:  entryGate,
+		Workflow: workflowGate,
+		Gate:     entryGate,
 		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal, Jobs: jobs,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
@@ -1735,6 +1740,13 @@ func run() error {
 		Types: entryTypes, Authorizer: authorizer, Changes: changes, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 	}
+	// The workflows' designer, publish and scheme (UC-FLW-02, UC-FLW-04 check 5, UC-FLW-05).
+	workflowDesk := workflowservice.Desk{
+		Workflows: workflows, Containers: containers, Items: items,
+		Mover: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid},
+		Gate:  workflowGate, Compiler: celexpression.New(), Authorizer: authorizer, Changes: changes,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
+	}
 	linkTypeRegistry := work.LinkTypeRegistry{
 		Types: postgres.NewLinkTypeRepository(), Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
@@ -1769,6 +1781,17 @@ func run() error {
 		work.EvaluateEntryForm{
 			Items: items, Containers: containers, Gate: entryGate, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		workflowservice.ListWorkflows{Desk: workflowDesk}.Descriptor(),
+		workflowservice.CreateWorkflow{Desk: workflowDesk}.Descriptor(),
+		workflowservice.SaveWorkflowDraft{Desk: workflowDesk}.Descriptor(),
+		workflowservice.PreviewWorkflowPublish{Desk: workflowDesk}.Descriptor(),
+		workflowservice.PublishWorkflow{Desk: workflowDesk}.Descriptor(),
+		workflowservice.DeleteWorkflow{Desk: workflowDesk}.Descriptor(),
+		workflowservice.PreviewWorkflowScheme{Desk: workflowDesk}.Descriptor(),
+		workflowservice.SetWorkflowScheme{Desk: workflowDesk}.Descriptor(),
+		workflowservice.TryWorkflowStep{Desk: workflowDesk}.Descriptor(),
+		work.TakeStep{Completion: completion}.Descriptor(),
+		work.ListEntrySteps{Completion: completion}.Descriptor(),
 		work.SetItemEntryType{
 			Gate:  entryGate,
 			Items: items, Containers: containers, Profiles: profiles, EntryTypes: entryTypes,
@@ -2207,6 +2230,7 @@ func run() error {
 			Renderer:    renderer,
 		}.Descriptor(),
 		work.CreateWorkItem{
+			Workflow:     workflowGate,
 			Gate:         entryGate,
 			Items:        items,
 			Quota:        quotaGuard,
