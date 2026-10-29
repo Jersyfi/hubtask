@@ -18,9 +18,6 @@ import (
 const (
 	listTenantsUseCase           = "ListTenants"
 	provisionTenantUseCase       = "ProvisionTenant"
-	suspendTenantUseCase         = "SuspendTenant"
-	resumeTenantUseCase          = "ResumeTenant"
-	cancelTenantDeletionUseCase  = "CancelTenantDeletion"
 	requestTenantDeletionUseCase = "RequestTenantDeletion"
 	exportTenantUseCase          = "ExportTenant"
 	openTenantPasswordUseCase    = "OpenTenantPassword"
@@ -95,46 +92,6 @@ func (c *RestController) ProvisionTenant(
 	}
 	w.Header().Set("Location", APIBasePath+"/admin/tenants")
 	writeJSON(w, r, http.StatusCreated, provisioned)
-}
-
-// SuspendTenant answers POST /admin/tenants/{tenantId}:suspend.
-func (c *RestController) SuspendTenant(
-	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId,
-) {
-	c.lifecycleShift(w, r, suspendTenantUseCase, tenantID)
-}
-
-// ResumeTenant answers POST /admin/tenants/{tenantId}:resume.
-func (c *RestController) ResumeTenant(
-	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId,
-) {
-	c.lifecycleShift(w, r, resumeTenantUseCase, tenantID)
-}
-
-// CancelTenantDeletion answers POST /admin/tenants/{tenantId}:cancel-deletion.
-func (c *RestController) CancelTenantDeletion(
-	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId,
-) {
-	c.lifecycleShift(w, r, cancelTenantDeletionUseCase, tenantID)
-}
-
-func (c *RestController) lifecycleShift(
-	w http.ResponseWriter, r *http.Request, useCase string, tenantID openapi.AdminTenantId,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	_, err := c.UseCases.Invoke(r.Context(), useCase, actorOf(r), usecase.Input{
-		"tenant_id": tenantID.String(),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 func adminTenantResponse(row usecase.Output) openapi.AdminTenant {

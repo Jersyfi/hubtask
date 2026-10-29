@@ -22,6 +22,7 @@ var restDoors = map[string]restDoor{
 	"assignWorkItem":            {UseCase: "AssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"autoAssignWorkItem":        {UseCase: "AutoAssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"cancelJob":                 {UseCase: "CancelJob", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"cancelTenantDeletion":      {UseCase: "CancelTenantDeletion", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"changeEntryType":           {UseCase: "ChangeEntryType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"changeLinkType":            {UseCase: "ChangeLinkType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"changeRole":                {UseCase: "ChangeRole", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -98,6 +99,7 @@ var restDoors = map[string]restDoor{
 	"restoreContainer":          {UseCase: "RestoreContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"restoreLabel":              {UseCase: "RestoreLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"restoreWorkItem":           {UseCase: "RestoreWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"resumeTenant":              {UseCase: "ResumeTenant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"revokeRoleGrant":           {UseCase: "RevokeRoleGrant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"saveWorkflowDraft":         {UseCase: "SaveWorkflowDraft", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setConfigPolicy":           {UseCase: "SetConfigPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -107,6 +109,7 @@ var restDoors = map[string]restDoor{
 	"setItemEntryType":          {UseCase: "SetItemEntryType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setModule":                 {UseCase: "SetModule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setWorkflowScheme":         {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"suspendTenant":             {UseCase: "SuspendTenant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"takeBackKudos":             {UseCase: "TakeBackKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"takeStep":                  {UseCase: "TakeStep", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"trashContainer":            {UseCase: "TrashContainer", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -169,6 +172,11 @@ func (c *RestController) AutoAssignWorkItem(w http.ResponseWriter, r *http.Reque
 // CancelJob answers POST /jobs/{jobId}:cancel by the generated mapping.
 func (c *RestController) CancelJob(w http.ResponseWriter, r *http.Request, jobId openapi.JobId, params openapi.CancelJobParams) {
 	c.door(w, r, restDoors["cancelJob"], usecase.Input{"job_id": jobId.String()}, params, nil, answerBy(jobResponse))
+}
+
+// CancelTenantDeletion answers POST /admin/tenants/{tenantId}:cancel-deletion by the generated mapping.
+func (c *RestController) CancelTenantDeletion(w http.ResponseWriter, r *http.Request, tenantId openapi.AdminTenantId) {
+	c.door(w, r, restDoors["cancelTenantDeletion"], usecase.Input{"tenant_id": tenantId.String()}, nil, nil, nil)
 }
 
 // ChangeEntryType answers PATCH /entry-types/{key} by the generated mapping.
@@ -619,6 +627,11 @@ func (c *RestController) RestoreWorkItem(w http.ResponseWriter, r *http.Request,
 	c.door(w, r, restDoors["restoreWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
 }
 
+// ResumeTenant answers POST /admin/tenants/{tenantId}:resume by the generated mapping.
+func (c *RestController) ResumeTenant(w http.ResponseWriter, r *http.Request, tenantId openapi.AdminTenantId) {
+	c.door(w, r, restDoors["resumeTenant"], usecase.Input{"tenant_id": tenantId.String()}, nil, nil, nil)
+}
+
 // RevokeRoleGrant answers DELETE /role-grants/{grantId} by the generated mapping.
 func (c *RestController) RevokeRoleGrant(w http.ResponseWriter, r *http.Request, grantId openapi_types.UUID) {
 	c.door(w, r, restDoors["revokeRoleGrant"], usecase.Input{"grant_id": grantId.String()}, nil, nil, nil)
@@ -675,6 +688,11 @@ func (c *RestController) SetWorkflowScheme(w http.ResponseWriter, r *http.Reques
 	var body openapi.SetWorkflowSchemeJSONRequestBody
 	var answer openapi.WorkflowSchemeResult
 	c.door(w, r, restDoors["setWorkflowScheme"], usecase.Input{}, nil, &body, &answer)
+}
+
+// SuspendTenant answers POST /admin/tenants/{tenantId}:suspend by the generated mapping.
+func (c *RestController) SuspendTenant(w http.ResponseWriter, r *http.Request, tenantId openapi.AdminTenantId) {
+	c.door(w, r, restDoors["suspendTenant"], usecase.Input{"tenant_id": tenantId.String()}, nil, nil, nil)
 }
 
 // TakeBackKudos answers DELETE /items/{itemId}/kudos by the generated mapping.

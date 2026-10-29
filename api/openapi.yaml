@@ -5262,6 +5262,7 @@ paths:
     post:
       tags: [admin]
       operationId: suspendTenant
+      x-hubtask-rest: generated
       summary: Suspend a workspace
       description: >
         Flips the middleware: every API call of the tenant's own people answers
@@ -5282,6 +5283,7 @@ paths:
     post:
       tags: [admin]
       operationId: resumeTenant
+      x-hubtask-rest: generated
       summary: Reactivate a workspace
       description: >
         One write. The next request of the tenant's people works again.
@@ -5298,6 +5300,7 @@ paths:
     post:
       tags: [admin]
       operationId: cancelTenantDeletion
+      x-hubtask-rest: generated
       summary: Call off a workspace's pending deletion
       description: >
         Returns a workspace pending deletion to where it stood when the deletion was requested -

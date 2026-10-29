@@ -6670,6 +6670,7 @@
           "admin"
         ],
         "operationId": "suspendTenant",
+        "x-hubtask-rest": "generated",
         "summary": "Suspend a workspace",
         "description": "Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "responses": {
@@ -6693,6 +6694,7 @@
           "admin"
         ],
         "operationId": "resumeTenant",
+        "x-hubtask-rest": "generated",
         "summary": "Reactivate a workspace",
         "description": "One write. The next request of the tenant's people works again. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "responses": {
@@ -6716,6 +6718,7 @@
           "admin"
         ],
         "operationId": "cancelTenantDeletion",
+        "x-hubtask-rest": "generated",
         "summary": "Call off a workspace's pending deletion",
         "description": "Returns a workspace pending deletion to where it stood when the deletion was requested - active or suspended; suspended where that is not known - and clears the deadline. The automation rules the request switched off are switched back on, a schedule from now on, without the occurrences it missed. Possible until the hard delete begins, also past the deadline while a legal hold keeps the workspace; refused with `admin.tenant_deletion_underway` once it has begun (`purge_started_at` on the listing). Cancelling a workspace that is not pending changes nothing. Legal holds stay as they are.\n",
         "responses": {
