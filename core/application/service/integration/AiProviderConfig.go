@@ -331,7 +331,8 @@ func aiProviderOutput(configured domain.AiProvider) usecase.Output {
 
 func (h ConfigureAiProvider) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ConfigureAiProviderName,
+		Permission: service.PermissionStructure,
+		Name:       ConfigureAiProviderName,
 		Summary: "Points this workspace at the AI provider its suggestions come from, or switches " +
 			"AI off: the adapter kind, the endpoint, the models, the jurisdiction the provider " +
 			"operates in, the key, and whether this workspace's content may be sent at all. A " +
@@ -425,7 +426,8 @@ func (h ReadAiProvider) invoke(
 
 func (h RemoveAiProvider) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RemoveAiProviderName,
+		Permission: service.PermissionStructure,
+		Name:       RemoveAiProviderName,
 		Summary: "Removes the workspace's AI provider and its sealed key. The workspace falls " +
 			"back to the installation's default, which calls nothing. No suggestion anybody " +
 			"already accepted is undone: accepting one was that person's own write.",

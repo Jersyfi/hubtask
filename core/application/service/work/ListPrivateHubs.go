@@ -180,7 +180,8 @@ func trashDays(policy lifecycle.Policy) int {
 // Descriptor is the catalogue entry.
 func (h ListPrivateHubs) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListPrivateHubsName,
+		Permission: service.PermissionManageMembers,
+		Name:       ListPrivateHubsName,
 		Summary: "Lists the workspace's private hubs without their names: per hub its owners, how " +
 			"many collections and entries it holds, the bytes of its attachments, when it was " +
 			"created and, while it is in the trash, the day it goes for good. For running the " +

@@ -798,7 +798,8 @@ func (h ListDataSubjectRequests) invoke(
 // Descriptor registers moving a case along.
 func (h UpdateDataSubjectRequest) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateDataSubjectRequestName,
+		Permission: service.PermissionManageMembers,
+		Name:       UpdateDataSubjectRequestName,
 		Summary: "Assigns a case, notes something on it, or moves it: to `IN_PROGRESS`, which is " +
 			"what starts the work, to `COMPLETED`, or to `REJECTED` with the reason that makes " +
 			"a refusal an answer. An illegitimate step is refused by name rather than ignored.",

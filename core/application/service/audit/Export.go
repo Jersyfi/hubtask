@@ -11,6 +11,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	port "github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -179,7 +180,8 @@ func (h ExportAuditTrail) Execute(
 // Descriptor registers the export in all three channels.
 func (h ExportAuditTrail) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ExportAuditTrailName,
+		Permission: service.PermissionAuditRead,
+		Name:       ExportAuditTrailName,
 		Summary: "Writes a period of the audit trail to a backup target as an archive: the " +
 			"entries as JSON Lines or CSV, a manifest naming the period and the stretch of the " +
 			"chain it covers, a checksum per member, and a signature where the installation " +

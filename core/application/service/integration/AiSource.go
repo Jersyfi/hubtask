@@ -483,7 +483,8 @@ func (h ReadAiSource) invoke(ctx context.Context, actor appshared.ActorContext, 
 
 func (h ChooseAiSource) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ChooseAiSourceName,
+		Permission: service.PermissionStructure,
+		Name:       ChooseAiSourceName,
 		Summary: "Chooses which AI answers this workspace. Choosing a model the installation " +
 			"offers is this workspace's consent to send its content to it; choosing its own model " +
 			"or none withdraws that consent. No AI is always allowed; the others only where the " +

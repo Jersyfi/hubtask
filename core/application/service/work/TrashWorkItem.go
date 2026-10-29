@@ -15,6 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
@@ -140,7 +141,8 @@ func ensureSomewhereToComeBackTo(
 // Descriptor is the catalogue entry.
 func (h TrashWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: TrashWorkItemName,
+		Permission: service.PermissionWriteItems,
+		Name:       TrashWorkItemName,
 		Summary: "Moves a task, work package or activity and everything under it into the trash. A " +
 			"soft delete: the entries stay for the tenant's retention period and can be restored as " +
 			"one act until the retention job removes them for good. An entry already in the trash " +
@@ -165,7 +167,8 @@ func (h TrashWorkItem) Descriptor() usecase.Descriptor {
 
 func (h RestoreWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RestoreWorkItemName,
+		Permission: service.PermissionWriteItems,
+		Name:       RestoreWorkItemName,
 		Summary: "Takes one deletion back out of the trash, whole. Exactly the entries that went in " +
 			"together come back: a separate, younger deletion inside the same subtree stays where it " +
 			"is. An entry that was archived when it was deleted comes back archived - restoring " +
