@@ -62,7 +62,7 @@ type objects struct {
 	avatars map[shared.ID]bool
 	// boards are the hubs of the boards drawing each object.
 	boards map[shared.ID][]shared.ID
-	marked  []shared.ID
+	marked []shared.ID
 	// pages is what ListForItem answers, and asked records the page it was asked for - which is
 	// how a test says that the size was clamped rather than passed through.
 	pages    map[shared.ID]repository.ObjectPage

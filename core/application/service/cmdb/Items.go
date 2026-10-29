@@ -112,8 +112,8 @@ func (h ReadCi) Descriptor() usecase.Descriptor {
 			"relations both ways and the protection need it inherits from everything that suffers when it " +
 			"fails (the maximum principle; a dimension fixed with a reason keeps its own).",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
-		Input:       []usecase.Field{{Name: "ci_id", Kind: usecase.KindID, Required: true, Description: "The configuration item."}},
-		Audit:       usecase.AuditDeclaration{Action: CIReadAction, TargetType: ciTarget, Severity: audit.SeverityInfo},
+		Input: []usecase.Field{{Name: "ci_id", Kind: usecase.KindID, Required: true, Description: "The configuration item."}},
+		Audit: usecase.AuditDeclaration{Action: CIReadAction, TargetType: ciTarget, Severity: audit.SeverityInfo},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			id, err := in.ID("ci_id")
 			if err != nil {
@@ -565,7 +565,7 @@ type UnrelateCis struct{ Inventory Inventory }
 func (h UnrelateCis) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: UnrelateCisName, Permission: service.PermissionWriteItems,
-		Summary: "Removes a relation between two configuration items. A source that reports it again makes it again.",
+		Summary:     "Removes a relation between two configuration items. A source that reports it again makes it again.",
 		SideEffects: "Removes the relation and writes an audit entry.", TokenScope: cisWrite, Destructive: true,
 		Input: []usecase.Field{{Name: "relation_id", Kind: usecase.KindID, Required: true, Description: "The relation."}},
 		Audit: usecase.AuditDeclaration{Action: UnrelatedAction, TargetType: relationTarget, Severity: audit.SeverityInfo, Required: true},

@@ -47,7 +47,7 @@ func (s Inventory) newPass(ctx context.Context, actor appshared.ActorContext, hu
 	return &pass{
 		s: s, actor: actor, hubID: hubID, reg: reg, source: source, dry: dry, count: count,
 		refs: map[string]shared.ID{}, written: map[shared.ID]bool{},
-		run:  domain.Run{ID: s.IDs.NewID(), HubID: hubID, Source: sourceKey, ActorID: actor.AccountID, StartedAt: s.Clock.Now()},
+		run: domain.Run{ID: s.IDs.NewID(), HubID: hubID, Source: sourceKey, ActorID: actor.AccountID, StartedAt: s.Clock.Now()},
 	}, nil
 }
 

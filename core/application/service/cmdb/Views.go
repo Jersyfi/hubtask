@@ -73,8 +73,8 @@ func (h ReadCmdbHealth) Descriptor() usecase.Descriptor {
 			"the relations a program reported and no longer confirms; each service's score over the CIs it rests " +
 			"on; and each source's conflict rate over the hub's latest twenty runs.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
-		Input:       []usecase.Field{{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub."}},
-		Audit:       usecase.AuditDeclaration{Action: CIReadAction, TargetType: ciTarget, Severity: audit.SeverityInfo},
+		Input: []usecase.Field{{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub."}},
+		Audit: usecase.AuditDeclaration{Action: CIReadAction, TargetType: ciTarget, Severity: audit.SeverityInfo},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			hub, err := in.ID("hub_id")
 			if err != nil {

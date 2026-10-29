@@ -66,7 +66,7 @@ func TestAPictureIsPlacedOnABoard(t *testing.T) {
 	}
 	_, err = UpdateWhiteboard{Studio: s}.Descriptor().Handler.Invoke(context.Background(), actor(anna), usecase.Input{
 		"whiteboard_id": board.ID.String(),
-		"elements": []any{map[string]any{"id": "i1", "kind": "IMAGE", "width": 320.0, "height": 200.0, "media_id": annasPicture.String()}},
+		"elements":      []any{map[string]any{"id": "i1", "kind": "IMAGE", "width": 320.0, "height": 200.0, "media_id": annasPicture.String()}},
 	})
 	if err != nil {
 		t.Fatal(err)

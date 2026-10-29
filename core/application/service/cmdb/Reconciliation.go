@@ -246,8 +246,8 @@ func (h ReadCiRun) Descriptor() usecase.Descriptor {
 			"identifier rule that matched, the attributes taken and those kept and by which source, the " +
 			"candidates of a duplicate and the reason of a hold or refusal - by attribute name, never value.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
-		Input:       []usecase.Field{{Name: "run_id", Kind: usecase.KindID, Required: true, Description: "The run."}},
-		Audit:       usecase.AuditDeclaration{Action: CIReadAction, TargetType: runTarget, Severity: audit.SeverityInfo},
+		Input: []usecase.Field{{Name: "run_id", Kind: usecase.KindID, Required: true, Description: "The run."}},
+		Audit: usecase.AuditDeclaration{Action: CIReadAction, TargetType: runTarget, Severity: audit.SeverityInfo},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			id, err := in.ID("run_id")
 			if err != nil {
@@ -276,7 +276,7 @@ func HoldOutput(h domain.Hold) usecase.Output {
 	}
 	return usecase.Output{
 		"id": h.ID.String(), "hub_id": h.HubID.String(), "run_id": h.Run.String(), "source": h.Source, "reason": h.Reason,
-		"item": usecase.Output{"ref": h.Item.Ref, "class": h.Item.Class, "name": h.Item.Name, "native_key": h.Item.NativeKey, "attributes": attrs},
+		"item":       usecase.Output{"ref": h.Item.Ref, "class": h.Item.Class, "name": h.Item.Name, "native_key": h.Item.NativeKey, "attributes": attrs},
 		"created_at": h.CreatedAt,
 	}
 }

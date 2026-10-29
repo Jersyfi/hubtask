@@ -225,8 +225,8 @@ func (h ListCiBacklinks) Descriptor() usecase.Descriptor {
 			"whiteboards that mention it (`hubtask:ci/<id>`), show it as a card or draw it, each with its title - " +
 			"only those the reader may see.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
-		Input:       []usecase.Field{{Name: "ci_id", Kind: usecase.KindID, Required: true, Description: "The configuration item."}},
-		Audit:       usecase.AuditDeclaration{Action: CIReadAction, TargetType: ciTarget, Severity: audit.SeverityInfo},
+		Input: []usecase.Field{{Name: "ci_id", Kind: usecase.KindID, Required: true, Description: "The configuration item."}},
+		Audit: usecase.AuditDeclaration{Action: CIReadAction, TargetType: ciTarget, Severity: audit.SeverityInfo},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			id, err := in.ID("ci_id")
 			if err != nil {
