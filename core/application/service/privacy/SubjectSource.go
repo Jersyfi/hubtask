@@ -57,6 +57,16 @@ var subjectColumns = map[string][]string{
 	"legal_hold":       {"placed_by", "released_by"},
 	// The emergency accesses they opened, with the reason they wrote (ADR-0073 §4).
 	"private_hub_access": {"opened_by"},
+	// The workspace's own roles they hold, and their own settings: a person's level of the settings
+	// catalogue is the one whose scope is their account.
+	"custom_role_grant": {"account_id"},
+	"setting_value":     {"scope_id"},
+	// The configuration they published, linked, proposed, decided or wrote a template of.
+	"workflow":        {"published_by"},
+	"entry_link":      {"created_by"},
+	"config_revision": {"actor_id", "proposed_by"},
+	"config_proposal": {"proposed_by", "decided_by"},
+	"config_template": {"created_by"},
 	// The trail's own entries about them. An access request that left these out would be
 	// incomplete: they are personal data, and they are the record of what was done with the
 	// person's data.
@@ -93,6 +103,11 @@ var notThePersons = map[string]string{
 	"retention_policy":        "the workspace's periods",
 	"webhook_subscription":    "an integration of the workspace's",
 	"container_milestone":     "the moment a collection or hub was finished, which names nobody",
+	"custom_role":             "a role of the workspace's own is its vocabulary of permissions; whom it is granted to is in the map above",
+	"entry_type":              "the workspace's own kinds of entries",
+	"workflow_scheme":         "which workflow a hub or collection runs for a type, which names nobody",
+	"link_type":               "the workspace's vocabulary of links",
+	"config_template_use":     "which template the workspace took at which version, which names nobody",
 }
 
 // SubjectTables answers which tables a subject export reads and which it deliberately leaves out,
