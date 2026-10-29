@@ -111,6 +111,12 @@ var fixedResources = []FixedResource{
 		Title:       "Configuration history",
 		Description: "The configuration's versions, newest first, with who applied each and the counts.",
 	},
+	{
+		URI: Scheme + "config/sandbox", UseCase: "ReadConfigSandbox", Name: "config-sandbox",
+		Title: "Configuration sandbox",
+		Description: "The sandbox: a copy of the configuration where changes run nothing, and the " +
+			"plan of promoting what it changed.",
+	},
 }
 
 // FixedResources answers the table.

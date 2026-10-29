@@ -321,3 +321,22 @@ func TestTheConfigurationInForceIsAResource(t *testing.T) {
 		t.Error("the resource was not read through ExportConfig")
 	}
 }
+
+// The sandbox is a resource too: an agent reads what it changed there and what promoting it plans.
+func TestTheSandboxIsAResource(t *testing.T) {
+	store := listCatalogue()
+	store.outs["ReadConfigSandbox"] = usecase.Output{"exists": true}
+	answer := rpc(t, serverWith(store),
+		`{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"hubtask://config/sandbox"}}`, true)
+	result, _ := answer["result"].(map[string]any)
+	if contents, _ := result["contents"].([]any); len(contents) != 1 {
+		t.Fatalf("the read answered %v", answer)
+	}
+	var read bool
+	for _, call := range store.calls {
+		read = read || call.name == "ReadConfigSandbox"
+	}
+	if !read {
+		t.Error("the resource was not read through ReadConfigSandbox")
+	}
+}
