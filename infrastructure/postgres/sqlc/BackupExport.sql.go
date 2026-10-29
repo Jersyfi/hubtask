@@ -1634,6 +1634,163 @@ func (q *Queries) ExportPrivateHubAccesses(ctx context.Context, arg ExportPrivat
 	return items, nil
 }
 
+const exportRealtimeDocuments = `-- name: ExportRealtimeDocuments :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (d.document_id::text || '/' || d.kind)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(d) - 'tenant_id')::jsonb AS payload,
+         d.document_id AS key_1,
+         d.kind AS key_2
+  FROM realtime_document d
+) s
+  WHERE (s.key_1, s.key_2) > ($1::uuid, $2::text)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportRealtimeDocumentsParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond string
+	Batch       int32
+}
+
+type ExportRealtimeDocumentsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+// Live documents (migration 0230): the head, the log and the snapshots, written whole - an update
+// removed by retention leaves no marker.
+func (q *Queries) ExportRealtimeDocuments(ctx context.Context, arg ExportRealtimeDocumentsParams) ([]ExportRealtimeDocumentsRow, error) {
+	rows, err := q.db.Query(ctx, exportRealtimeDocuments, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportRealtimeDocumentsRow{}
+	for rows.Next() {
+		var i ExportRealtimeDocumentsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportRealtimeSnapshots = `-- name: ExportRealtimeSnapshots :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.document_id::text || '/' || r.kind || '/' || r.up_to_seq::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.document_id AS key_1,
+         r.kind AS key_2,
+         r.up_to_seq AS key_3
+  FROM realtime_snapshot r
+) s
+  WHERE (s.key_1, s.key_2, s.key_3) > ($1::uuid, $2::text, $3::bigint)
+  ORDER BY s.key_1, s.key_2, s.key_3
+  LIMIT $4::int
+`
+
+type ExportRealtimeSnapshotsParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond string
+	AfterThird  int64
+	Batch       int32
+}
+
+type ExportRealtimeSnapshotsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportRealtimeSnapshots(ctx context.Context, arg ExportRealtimeSnapshotsParams) ([]ExportRealtimeSnapshotsRow, error) {
+	rows, err := q.db.Query(ctx, exportRealtimeSnapshots,
+		arg.AfterID,
+		arg.AfterSecond,
+		arg.AfterThird,
+		arg.Batch,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportRealtimeSnapshotsRow{}
+	for rows.Next() {
+		var i ExportRealtimeSnapshotsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportRealtimeUpdates = `-- name: ExportRealtimeUpdates :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (u.document_id::text || '/' || u.kind || '/' || u.seq::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(u) - 'tenant_id')::jsonb AS payload,
+         u.document_id AS key_1,
+         u.kind AS key_2,
+         u.seq AS key_3
+  FROM realtime_update u
+) s
+  WHERE (s.key_1, s.key_2, s.key_3) > ($1::uuid, $2::text, $3::bigint)
+  ORDER BY s.key_1, s.key_2, s.key_3
+  LIMIT $4::int
+`
+
+type ExportRealtimeUpdatesParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond string
+	AfterThird  int64
+	Batch       int32
+}
+
+type ExportRealtimeUpdatesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportRealtimeUpdates(ctx context.Context, arg ExportRealtimeUpdatesParams) ([]ExportRealtimeUpdatesRow, error) {
+	rows, err := q.db.Query(ctx, exportRealtimeUpdates,
+		arg.AfterID,
+		arg.AfterSecond,
+		arg.AfterThird,
+		arg.Batch,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportRealtimeUpdatesRow{}
+	for rows.Next() {
+		var i ExportRealtimeUpdatesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportRecurrenceRules = `-- name: ExportRecurrenceRules :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

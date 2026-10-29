@@ -1478,6 +1478,56 @@ CREATE UNIQUE INDEX durable_timer_live_uq ON durable_timer (tenant_id, purpose, 
 CREATE INDEX durable_timer_due_idx ON durable_timer (tenant_id, due_at) WHERE state = 'RUNNING';
 GRANT SELECT, INSERT, UPDATE, DELETE ON durable_timer TO hubtask_app;
 
+-- Live documents (migration 0230, F-8): a document's CRDT update log, its snapshots and its head.
+-- The updates are the editor's bytes and never read here; what a snapshot covers is marked, and
+-- removed by the DOCUMENT_HISTORY retention kind.
+CREATE TABLE realtime_document (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  kind         text NOT NULL CHECK (kind ~ '^[a-z][a-z_]{1,31}$'),
+  document_id  uuid NOT NULL,
+  head_seq     bigint NOT NULL DEFAULT 0 CHECK (head_seq >= 0),
+  snapshot_seq bigint NOT NULL DEFAULT 0 CHECK (snapshot_seq >= 0 AND snapshot_seq <= head_seq),
+  created_at   timestamptz NOT NULL,
+  updated_at   timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, kind, document_id)
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON realtime_document TO hubtask_app;
+
+CREATE TABLE realtime_update (
+  tenant_id    uuid NOT NULL,
+  kind         text NOT NULL,
+  document_id  uuid NOT NULL,
+  seq          bigint NOT NULL CHECK (seq > 0),
+  data         bytea NOT NULL CHECK (octet_length(data) BETWEEN 1 AND 1048576),
+  author_id    uuid,
+  created_at   timestamptz NOT NULL,
+  compacted_at timestamptz,
+  PRIMARY KEY (tenant_id, kind, document_id, seq),
+  CONSTRAINT realtime_update_document_fkey FOREIGN KEY (tenant_id, kind, document_id)
+    REFERENCES realtime_document (tenant_id, kind, document_id) ON DELETE CASCADE,
+  CONSTRAINT realtime_update_author_fkey FOREIGN KEY (tenant_id, author_id)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (author_id)
+);
+CREATE INDEX realtime_update_compacted_idx ON realtime_update (tenant_id, compacted_at)
+  WHERE compacted_at IS NOT NULL;
+GRANT SELECT, INSERT, UPDATE, DELETE ON realtime_update TO hubtask_app;
+
+CREATE TABLE realtime_snapshot (
+  tenant_id     uuid NOT NULL,
+  kind          text NOT NULL,
+  document_id   uuid NOT NULL,
+  up_to_seq     bigint NOT NULL CHECK (up_to_seq > 0),
+  state         bytea NOT NULL CHECK (octet_length(state) BETWEEN 1 AND 16777216),
+  created_at    timestamptz NOT NULL,
+  superseded_at timestamptz,
+  PRIMARY KEY (tenant_id, kind, document_id, up_to_seq),
+  CONSTRAINT realtime_snapshot_document_fkey FOREIGN KEY (tenant_id, kind, document_id)
+    REFERENCES realtime_document (tenant_id, kind, document_id) ON DELETE CASCADE
+);
+CREATE INDEX realtime_snapshot_superseded_idx ON realtime_snapshot (tenant_id, superseded_at)
+  WHERE superseded_at IS NOT NULL;
+GRANT SELECT, INSERT, UPDATE, DELETE ON realtime_snapshot TO hubtask_app;
+
 -- Links and references (migration 0213, F-3). The six shipped link types have no row.
 CREATE TABLE link_type (
   id           uuid PRIMARY KEY,
@@ -2974,6 +3024,11 @@ CREATE TRIGGER change_log_notify
   AFTER INSERT ON change_log
   FOR EACH ROW EXECUTE FUNCTION hubtask_notify_change();
 
+-- A live document's update wakes the connections on every process (migration 0230).
+CREATE TRIGGER realtime_update_notify
+  AFTER INSERT ON realtime_update
+  FOR EACH ROW EXECUTE FUNCTION hubtask_notify_change();
+
 -- The wake-up for the dispatcher (ADR-0007). The queue rather than outbox_event: an event is
 -- written together with its dispatch job in one transaction, so the row the worker waits for is the
 -- job. No payload - `job` has no tenant column and none is needed, and an empty payload is what
@@ -3237,7 +3292,8 @@ BEGIN
     'custom_role','custom_role_grant',
     'config_revision','config_proposal','config_template','config_template_use',
     'config_sandbox',
-    'work_item_announcement','work_item_flow','work_item_retention','durable_timer'
+    'work_item_announcement','work_item_flow','work_item_retention','durable_timer',
+    'realtime_document','realtime_update','realtime_snapshot'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);

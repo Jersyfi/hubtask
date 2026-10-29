@@ -160,7 +160,10 @@ re-mints identities must rewrite exactly these).
 | 42 | `config_proposals` | `config_proposal` | `id` | — (agents' plans kept for a person, and how each was decided) |
 | 43 | `config_templates` | `config_template` | `id` | — (the workspace's template versions; one the workspace holds by identity or by key and version is kept) |
 | 44 | `config_template_uses` | `config_template_use` | `template_key` | — (the template version a workspace took, the base of a three-way upgrade) |
-| 45 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
+| 45 | `realtime_documents` | `realtime_document` | `document_id/kind` | — (a live document's head, migration 0230; `document_id` names what its `kind` belongs to - a page, a whiteboard - without a foreign key) |
+| 46 | `realtime_updates` | `realtime_update` | `document_id/kind/seq` | `author_id`→accounts (the editor's CRDT updates as sent, `data` as hex; what retention removed after a snapshot is not there) |
+| 47 | `realtime_snapshots` | `realtime_snapshot` | `document_id/kind/up_to_seq` | — (a writer's merged state up to an update, `state` as hex) |
+| 48 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a
 reply's comment) are ordered within the file: the referenced row comes first.

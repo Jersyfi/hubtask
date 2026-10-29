@@ -276,6 +276,50 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"realtime_document": {
+		delta: false,
+		keys:  2,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportRealtimeDocuments(ctx, sqlc.ExportRealtimeDocumentsParams{
+				AfterID:     cursorUUID(page.After, 0),
+				AfterSecond: cursorText(page.After, 1),
+				Batch:       page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportRealtimeDocumentsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"realtime_update": {
+		delta: false,
+		keys:  3,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportRealtimeUpdates(ctx, sqlc.ExportRealtimeUpdatesParams{
+				AfterID:     cursorUUID(page.After, 0),
+				AfterSecond: cursorText(page.After, 1),
+				AfterThird:  cursorNumber(page.After, 2),
+				Batch:       page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportRealtimeUpdatesRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"realtime_snapshot": {
+		delta: false,
+		keys:  3,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportRealtimeSnapshots(ctx, sqlc.ExportRealtimeSnapshotsParams{
+				AfterID:     cursorUUID(page.After, 0),
+				AfterSecond: cursorText(page.After, 1),
+				AfterThird:  cursorNumber(page.After, 2),
+				Batch:       page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportRealtimeSnapshotsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"setting_value": {
 		delta: true,
 		keys:  1,

@@ -578,6 +578,22 @@ var entities = []Entity{
 	{Name: "config_proposals", Table: "config_proposal", Whole: true, Later: true, Keys: []string{"id"}},
 	{Name: "config_templates", Table: "config_template", Whole: true, Later: true, Keys: []string{"id"}},
 	{Name: "config_template_uses", Table: "config_template_use", Whole: true, Later: true, Keys: []string{"template_key"}},
+	// Live documents (migration 0230, F-8): the head, the update log and the snapshots. Whole: no
+	// row says when it changed, and retention removes compacted history without a marker. The head
+	// precedes what names it; an author erased since is cleared.
+	{
+		Name: "realtime_documents", Table: "realtime_document", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"document_id", "kind"},
+	},
+	{
+		Name: "realtime_updates", Table: "realtime_update", Whole: true, Later: true,
+		Keys:       []string{"document_id", "kind", "seq"},
+		References: []Reference{{Field: "author_id", Table: "account", Clearable: true}},
+	},
+	{
+		Name: "realtime_snapshots", Table: "realtime_snapshot", Whole: true, Later: true,
+		Keys: []string{"document_id", "kind", "up_to_seq"},
+	},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a

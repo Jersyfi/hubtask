@@ -689,3 +689,49 @@ FROM (
   WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::text)
   ORDER BY s.key_1, s.key_2
   LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportRealtimeDocuments :many
+-- Live documents (migration 0230): the head, the log and the snapshots, written whole - an update
+-- removed by retention leaves no marker.
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (d.document_id::text || '/' || d.kind)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(d) - 'tenant_id')::jsonb AS payload,
+         d.document_id AS key_1,
+         d.kind AS key_2
+  FROM realtime_document d
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::text)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportRealtimeUpdates :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (u.document_id::text || '/' || u.kind || '/' || u.seq::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(u) - 'tenant_id')::jsonb AS payload,
+         u.document_id AS key_1,
+         u.kind AS key_2,
+         u.seq AS key_3
+  FROM realtime_update u
+) s
+  WHERE (s.key_1, s.key_2, s.key_3) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::text, sqlc.arg('after_third')::bigint)
+  ORDER BY s.key_1, s.key_2, s.key_3
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportRealtimeSnapshots :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.document_id::text || '/' || r.kind || '/' || r.up_to_seq::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.document_id AS key_1,
+         r.kind AS key_2,
+         r.up_to_seq AS key_3
+  FROM realtime_snapshot r
+) s
+  WHERE (s.key_1, s.key_2, s.key_3) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::text, sqlc.arg('after_third')::bigint)
+  ORDER BY s.key_1, s.key_2, s.key_3
+  LIMIT sqlc.arg('batch')::int;

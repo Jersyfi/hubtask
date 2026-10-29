@@ -1606,6 +1606,37 @@ type QuotaReached struct {
 	ReachedAt pgtype.Timestamptz
 }
 
+type RealtimeDocument struct {
+	TenantID    pgtype.UUID
+	Kind        string
+	DocumentID  pgtype.UUID
+	HeadSeq     int64
+	SnapshotSeq int64
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type RealtimeSnapshot struct {
+	TenantID     pgtype.UUID
+	Kind         string
+	DocumentID   pgtype.UUID
+	UpToSeq      int64
+	State        []byte
+	CreatedAt    pgtype.Timestamptz
+	SupersededAt pgtype.Timestamptz
+}
+
+type RealtimeUpdate struct {
+	TenantID    pgtype.UUID
+	Kind        string
+	DocumentID  pgtype.UUID
+	Seq         int64
+	Data        []byte
+	AuthorID    pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	CompactedAt pgtype.Timestamptz
+}
+
 type RecurrenceRule struct {
 	ID                 pgtype.UUID
 	TenantID           pgtype.UUID
