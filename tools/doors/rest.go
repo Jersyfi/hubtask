@@ -129,8 +129,10 @@ func restDoor(
 				door.ParamsArg = ident.Name
 				continue
 			}
+			// A text or a number reaches the use case as it is; an identifier as its text, which is
+			// what the descriptor's KindID reads.
 			value := ident.Name
-			if typ != "string" {
+			if typ != "string" && typ != "int" {
 				value += ".String()"
 			}
 			door.PathArgs = append(door.PathArgs, pathArg{Input: snake(ident.Name), Value: value})

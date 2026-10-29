@@ -9809,6 +9809,7 @@ paths:
     get:
       tags: [meta]
       operationId: readConfigSchema
+      x-hubtask-rest: generated
       summary: The configuration document's JSON Schema
       description: >
         The JSON Schema of the workspace's configuration document: every section, the stable keys
@@ -9855,6 +9856,7 @@ paths:
     get:
       tags: [structure]
       operationId: explainConfig
+      x-hubtask-rest: generated
       summary: Explain one key of the configuration
       description: >
         One key path of the document - `types.incident`, `modules.workflows`,
@@ -9880,6 +9882,7 @@ paths:
     post:
       tags: [structure]
       operationId: validateConfig
+      x-hubtask-rest: generated
       summary: Check a configuration document
       description: >
         Answers what a document refuses - a message code, the key path and its parameters - and
@@ -9904,6 +9907,7 @@ paths:
     post:
       tags: [structure]
       operationId: planConfig
+      x-hubtask-rest: generated
       summary: Plan a configuration change or a rollback
       description: >
         Plans a document - or, with `to_version`, a rollback to an earlier version stated whole -
@@ -9930,6 +9934,7 @@ paths:
     post:
       tags: [structure]
       operationId: proposeConfig
+      x-hubtask-rest: generated
       summary: Propose a planned change for a person to decide
       description: >
         Keeps a planned change for a person to apply or decline; it appears in the
@@ -9985,6 +9990,7 @@ paths:
     get:
       tags: [structure]
       operationId: listConfigVersions
+      x-hubtask-rest: generated
       summary: The configuration's versions
       description: >
         Every applied version, newest first: who applied it, whose proposal it was, the counts, the
@@ -10014,6 +10020,7 @@ paths:
     get:
       tags: [structure]
       operationId: readConfigVersion
+      x-hubtask-rest: generated
       summary: One configuration version with its document
       description: The document as it was in force after that version's apply, so two versions are compared.
       responses:
@@ -10030,6 +10037,7 @@ paths:
     get:
       tags: [structure]
       operationId: listConfigProposals
+      x-hubtask-rest: generated
       summary: The proposed configuration changes
       description: Proposals newest first, in one state or every state.
       parameters:
@@ -10084,6 +10092,7 @@ paths:
     put:
       tags: [structure]
       operationId: setConfigPolicy
+      x-hubtask-rest: generated
       summary: Set what an agent's apply does
       description: >
         `APPROVAL` (the default) keeps an agent's apply for a person, `ALLOWED` applies it, `NEVER`
@@ -10108,6 +10117,7 @@ paths:
     get:
       tags: [structure]
       operationId: listConfigTemplates
+      x-hubtask-rest: generated
       summary: The workspace's templates
       description: >
         Each template's newest version, the version the workspace took and whether an update is
@@ -10124,6 +10134,7 @@ paths:
     post:
       tags: [structure]
       operationId: publishConfigTemplate
+      x-hubtask-rest: generated
       summary: Publish a template's next version
       description: >
         A configuration document in MERGE form that taking the template applies, checked before it
@@ -10154,6 +10165,7 @@ paths:
     post:
       tags: [structure]
       operationId: planConfigTemplate
+      x-hubtask-rest: generated
       summary: Plan taking or upgrading a template
       description: >
         Plans taking a template version or, for one the workspace took, upgrading to it by a
@@ -10180,6 +10192,7 @@ paths:
     get:
       tags: [structure]
       operationId: readConfigSandbox
+      x-hubtask-rest: generated
       summary: The configuration sandbox and what promoting it would do
       description: >
         The sandbox is a copy of the configuration without content where changes run nothing.
@@ -10198,6 +10211,7 @@ paths:
     post:
       tags: [structure]
       operationId: writeConfigSandbox
+      x-hubtask-rest: generated
       summary: Change, copy afresh or discard the sandbox
       description: >
         Changes the sandbox by a document read against it, as a plan would read it; nothing runs,

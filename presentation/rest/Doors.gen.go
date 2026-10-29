@@ -22,23 +22,37 @@ var restDoors = map[string]restDoor{
 	"deleteRole":             {UseCase: "DeleteRole", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
 	"deleteWorkflow":         {UseCase: "DeleteWorkflow", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
 	"explainAccess":          {UseCase: "ExplainAccess", Status: 200, Query: []string{"account_id", "permission", "scope_id", "scope_type"}, IfMatch: false, BodyRequired: false, ETag: false},
+	"explainConfig":          {UseCase: "ExplainConfig", Status: 200, Query: []string{"hub_id", "key"}, IfMatch: false, BodyRequired: false, ETag: false},
 	"grantRole":              {UseCase: "GrantRole", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
 	"linkEntries":            {UseCase: "LinkEntries", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
+	"listConfigProposals":    {UseCase: "ListConfigProposals", Status: 200, Query: []string{"state"}, IfMatch: false, BodyRequired: false, ETag: false},
+	"listConfigTemplates":    {UseCase: "ListConfigTemplates", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
+	"listConfigVersions":     {UseCase: "ListConfigVersions", Status: 200, Query: []string{"before", "hub_id"}, IfMatch: false, BodyRequired: false, ETag: false},
 	"listEntryLinks":         {UseCase: "ListEntryLinks", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
 	"listEntrySteps":         {UseCase: "ListEntrySteps", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
 	"listLinkTypes":          {UseCase: "ListLinkTypes", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
 	"listLinksAmong":         {UseCase: "ListLinksAmong", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
 	"listRoles":              {UseCase: "ListRoles", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
 	"listWorkflows":          {UseCase: "ListWorkflows", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
+	"planConfig":             {UseCase: "PlanConfig", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
+	"planConfigTemplate":     {UseCase: "PlanConfigTemplate", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
 	"previewWorkflowPublish": {UseCase: "PreviewWorkflowPublish", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
 	"previewWorkflowScheme":  {UseCase: "PreviewWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
+	"proposeConfig":          {UseCase: "ProposeConfig", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: true},
+	"publishConfigTemplate":  {UseCase: "PublishConfigTemplate", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: true},
 	"publishWorkflow":        {UseCase: "PublishWorkflow", Status: 200, Query: []string(nil), IfMatch: true, BodyRequired: false, ETag: true},
+	"readConfigSandbox":      {UseCase: "ReadConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
+	"readConfigSchema":       {UseCase: "ReadConfigSchema", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
+	"readConfigVersion":      {UseCase: "ReadConfigVersion", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: true},
 	"resolveReferences":      {UseCase: "ResolveReferences", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
 	"revokeRoleGrant":        {UseCase: "RevokeRoleGrant", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
 	"saveWorkflowDraft":      {UseCase: "SaveWorkflowDraft", Status: 200, Query: []string(nil), IfMatch: true, BodyRequired: true, ETag: true},
+	"setConfigPolicy":        {UseCase: "SetConfigPolicy", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
 	"setWorkflowScheme":      {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
 	"tryWorkflowStep":        {UseCase: "TryWorkflowStep", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
 	"unlinkEntries":          {UseCase: "UnlinkEntries", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
+	"validateConfig":         {UseCase: "ValidateConfig", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
+	"writeConfigSandbox":     {UseCase: "WriteConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
 }
 
 // ChangeLinkType answers PATCH /link-types/{key} by the generated mapping.
@@ -97,6 +111,12 @@ func (c *RestController) ExplainAccess(w http.ResponseWriter, r *http.Request, p
 	c.door(w, r, restDoors["explainAccess"], usecase.Input{}, params, nil, &answer)
 }
 
+// ExplainConfig answers GET /config/explain by the generated mapping.
+func (c *RestController) ExplainConfig(w http.ResponseWriter, r *http.Request, params openapi.ExplainConfigParams) {
+	var answer openapi.ConfigExplanation
+	c.door(w, r, restDoors["explainConfig"], usecase.Input{}, params, nil, &answer)
+}
+
 // GrantRole answers POST /role-grants by the generated mapping.
 func (c *RestController) GrantRole(w http.ResponseWriter, r *http.Request, params openapi.GrantRoleParams) {
 	var body openapi.GrantRoleJSONRequestBody
@@ -109,6 +129,24 @@ func (c *RestController) LinkEntries(w http.ResponseWriter, r *http.Request, ite
 	var body openapi.LinkEntriesJSONRequestBody
 	var answer openapi.EntryLink
 	c.door(w, r, restDoors["linkEntries"], usecase.Input{"item_id": itemId.String()}, nil, &body, &answer)
+}
+
+// ListConfigProposals answers GET /config/proposals by the generated mapping.
+func (c *RestController) ListConfigProposals(w http.ResponseWriter, r *http.Request, params openapi.ListConfigProposalsParams) {
+	var answer openapi.ConfigProposalList
+	c.door(w, r, restDoors["listConfigProposals"], usecase.Input{}, params, nil, &answer)
+}
+
+// ListConfigTemplates answers GET /config/templates by the generated mapping.
+func (c *RestController) ListConfigTemplates(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.ConfigTemplateList
+	c.door(w, r, restDoors["listConfigTemplates"], usecase.Input{}, nil, nil, &answer)
+}
+
+// ListConfigVersions answers GET /config/versions by the generated mapping.
+func (c *RestController) ListConfigVersions(w http.ResponseWriter, r *http.Request, params openapi.ListConfigVersionsParams) {
+	var answer openapi.ConfigVersionList
+	c.door(w, r, restDoors["listConfigVersions"], usecase.Input{}, params, nil, &answer)
 }
 
 // ListEntryLinks answers GET /items/{itemId}/links by the generated mapping.
@@ -148,6 +186,20 @@ func (c *RestController) ListWorkflows(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["listWorkflows"], usecase.Input{}, nil, nil, &answer)
 }
 
+// PlanConfig answers POST /config:plan by the generated mapping.
+func (c *RestController) PlanConfig(w http.ResponseWriter, r *http.Request) {
+	var body openapi.PlanConfigJSONRequestBody
+	var answer openapi.ConfigPlan
+	c.door(w, r, restDoors["planConfig"], usecase.Input{}, nil, &body, &answer)
+}
+
+// PlanConfigTemplate answers POST /config/templates/{key}:plan by the generated mapping.
+func (c *RestController) PlanConfigTemplate(w http.ResponseWriter, r *http.Request, key string) {
+	var body openapi.PlanConfigTemplateJSONRequestBody
+	var answer openapi.ConfigTemplatePlan
+	c.door(w, r, restDoors["planConfigTemplate"], usecase.Input{"key": key}, nil, &body, &answer)
+}
+
 // PreviewWorkflowPublish answers POST /workflows/{key}:preview-publish by the generated mapping.
 func (c *RestController) PreviewWorkflowPublish(w http.ResponseWriter, r *http.Request, key string) {
 	var body openapi.PreviewWorkflowPublishJSONRequestBody
@@ -162,11 +214,43 @@ func (c *RestController) PreviewWorkflowScheme(w http.ResponseWriter, r *http.Re
 	c.door(w, r, restDoors["previewWorkflowScheme"], usecase.Input{}, nil, &body, &answer)
 }
 
+// ProposeConfig answers POST /config:propose by the generated mapping.
+func (c *RestController) ProposeConfig(w http.ResponseWriter, r *http.Request) {
+	var body openapi.ProposeConfigJSONRequestBody
+	var answer openapi.ConfigApplyResult
+	c.door(w, r, restDoors["proposeConfig"], usecase.Input{}, nil, &body, &answer)
+}
+
+// PublishConfigTemplate answers POST /config/templates by the generated mapping.
+func (c *RestController) PublishConfigTemplate(w http.ResponseWriter, r *http.Request) {
+	var body openapi.PublishConfigTemplateJSONRequestBody
+	var answer openapi.ConfigTemplate
+	c.door(w, r, restDoors["publishConfigTemplate"], usecase.Input{}, nil, &body, &answer)
+}
+
 // PublishWorkflow answers POST /workflows/{key}:publish by the generated mapping.
 func (c *RestController) PublishWorkflow(w http.ResponseWriter, r *http.Request, key string, params openapi.PublishWorkflowParams) {
 	var body openapi.PublishWorkflowJSONRequestBody
 	var answer openapi.Workflow
 	c.door(w, r, restDoors["publishWorkflow"], usecase.Input{"key": key}, params, &body, &answer)
+}
+
+// ReadConfigSandbox answers GET /config/sandbox by the generated mapping.
+func (c *RestController) ReadConfigSandbox(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.ConfigSandbox
+	c.door(w, r, restDoors["readConfigSandbox"], usecase.Input{}, nil, nil, &answer)
+}
+
+// ReadConfigSchema answers GET /meta/config-schema by the generated mapping.
+func (c *RestController) ReadConfigSchema(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.ConfigSchema
+	c.door(w, r, restDoors["readConfigSchema"], usecase.Input{}, nil, nil, &answer)
+}
+
+// ReadConfigVersion answers GET /config/versions/{version} by the generated mapping.
+func (c *RestController) ReadConfigVersion(w http.ResponseWriter, r *http.Request, version int) {
+	var answer openapi.ConfigVersion
+	c.door(w, r, restDoors["readConfigVersion"], usecase.Input{"version": version}, nil, nil, &answer)
 }
 
 // ResolveReferences answers POST /references:resolve by the generated mapping.
@@ -187,6 +271,13 @@ func (c *RestController) SaveWorkflowDraft(w http.ResponseWriter, r *http.Reques
 	c.door(w, r, restDoors["saveWorkflowDraft"], usecase.Input{"key": key}, params, &body, &answer)
 }
 
+// SetConfigPolicy answers PUT /config/policy by the generated mapping.
+func (c *RestController) SetConfigPolicy(w http.ResponseWriter, r *http.Request) {
+	var body openapi.SetConfigPolicyJSONRequestBody
+	var answer openapi.ConfigPolicy
+	c.door(w, r, restDoors["setConfigPolicy"], usecase.Input{}, nil, &body, &answer)
+}
+
 // SetWorkflowScheme answers PUT /workflow-scheme by the generated mapping.
 func (c *RestController) SetWorkflowScheme(w http.ResponseWriter, r *http.Request) {
 	var body openapi.SetWorkflowSchemeJSONRequestBody
@@ -204,4 +295,18 @@ func (c *RestController) TryWorkflowStep(w http.ResponseWriter, r *http.Request,
 // UnlinkEntries answers DELETE /links/{linkId} by the generated mapping.
 func (c *RestController) UnlinkEntries(w http.ResponseWriter, r *http.Request, linkId openapi_types.UUID) {
 	c.door(w, r, restDoors["unlinkEntries"], usecase.Input{"link_id": linkId.String()}, nil, nil, nil)
+}
+
+// ValidateConfig answers POST /config:validate by the generated mapping.
+func (c *RestController) ValidateConfig(w http.ResponseWriter, r *http.Request) {
+	var body openapi.ValidateConfigJSONRequestBody
+	var answer openapi.ConfigValidation
+	c.door(w, r, restDoors["validateConfig"], usecase.Input{}, nil, &body, &answer)
+}
+
+// WriteConfigSandbox answers POST /config/sandbox by the generated mapping.
+func (c *RestController) WriteConfigSandbox(w http.ResponseWriter, r *http.Request) {
+	var body openapi.WriteConfigSandboxJSONRequestBody
+	var answer openapi.ConfigSandbox
+	c.door(w, r, restDoors["writeConfigSandbox"], usecase.Input{}, nil, &body, &answer)
 }

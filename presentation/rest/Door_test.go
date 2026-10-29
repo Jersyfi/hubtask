@@ -180,3 +180,37 @@ func TestAGeneratedActionTakesAnOptionalBody(t *testing.T) {
 		t.Errorf("%s %v", registry.name, registry.in)
 	}
 }
+
+// The configuration document's verbs: a version named by number in the path, a hub by the query,
+// and a document handed on as it was sent.
+func TestTheConfigurationVerbsReachTheirUseCases(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"version": 7, "hash": "h", "plan_hash": "p", "actor_kind": "USER",
+		"added": 0, "changed": 1, "removed": 0, "created_at": "2026-10-29T09:00:00Z"}}
+	if recorder := callDoor(t, registry, http.MethodGet, "/config/versions/7", "", nil); recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "ReadConfigVersion" || registry.in["version"] != 7 {
+		t.Errorf("%s %v", registry.name, registry.in)
+	}
+
+	hub := "0192f000-0000-7000-8000-0000000000c1"
+	registry.out = usecase.Output{"data": []usecase.Output{}}
+	if recorder := callDoor(t, registry, http.MethodGet, "/config/versions?hub_id="+hub, "", nil); recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "ListConfigVersions" || registry.in["hub_id"] != hub {
+		t.Errorf("%s %v", registry.name, registry.in)
+	}
+
+	registry.out = usecase.Output{"base_hash": "b", "changes": []any{}, "refusals": []any{}, "operations": []any{},
+		"counts": map[string]any{"added": 0, "changed": 0, "removed": 0}, "flags": map[string]any{}}
+	recorder := callDoor(t, registry, http.MethodPost, "/config:plan", `{"document":{"modules":{"workflows":{"on":true}}}}`,
+		map[string]string{"Content-Type": "application/json"})
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	document, _ := registry.in["document"].(map[string]any)
+	if registry.name != "PlanConfig" || document["modules"] == nil {
+		t.Errorf("%s %v", registry.name, registry.in)
+	}
+}

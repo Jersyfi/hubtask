@@ -12624,6 +12624,7 @@
           "meta"
         ],
         "operationId": "readConfigSchema",
+        "x-hubtask-rest": "generated",
         "summary": "The configuration document's JSON Schema",
         "description": "The JSON Schema of the workspace's configuration document: every section, the stable keys its blocks are named by, and each attribute's type, allowed values and description, taken from the operations that write it. Needs a signed-in caller.\n",
         "responses": {
@@ -12686,6 +12687,7 @@
           "structure"
         ],
         "operationId": "explainConfig",
+        "x-hubtask-rest": "generated",
         "summary": "Explain one key of the configuration",
         "description": "One key path of the document - `types.incident`, `modules.workflows`, `settings.config.agent_apply`: its value, the level it comes from and which level locked it, the permission a person needs to change it and the operation that does.\n",
         "parameters": [
@@ -12725,6 +12727,7 @@
           "structure"
         ],
         "operationId": "validateConfig",
+        "x-hubtask-rest": "generated",
         "summary": "Check a configuration document",
         "description": "Answers what a document refuses - a message code, the key path and its parameters - and nothing else. Writes nothing.\n",
         "requestBody": {
@@ -12760,6 +12763,7 @@
           "structure"
         ],
         "operationId": "planConfig",
+        "x-hubtask-rest": "generated",
         "summary": "Plan a configuration change or a rollback",
         "description": "Plans a document - or, with `to_version`, a rollback to an earlier version stated whole - against the configuration in force: each change by key path with before and after, the operations it runs, what it refuses and why, whether it hides data or changes permissions, and the plan hash to apply it by. Writes nothing.\n",
         "requestBody": {
@@ -12795,6 +12799,7 @@
           "structure"
         ],
         "operationId": "proposeConfig",
+        "x-hubtask-rest": "generated",
         "summary": "Propose a planned change for a person to decide",
         "description": "Keeps a planned change for a person to apply or decline; it appears in the administration's Changes as proposed. How an agent with the read and plan scopes brings a change to the workspace.\n",
         "requestBody": {
@@ -12873,6 +12878,7 @@
           "structure"
         ],
         "operationId": "listConfigVersions",
+        "x-hubtask-rest": "generated",
         "summary": "The configuration's versions",
         "description": "Every applied version, newest first: who applied it, whose proposal it was, the counts, the template it took and the version a rollback went back to.\n",
         "parameters": [
@@ -12923,6 +12929,7 @@
           "structure"
         ],
         "operationId": "readConfigVersion",
+        "x-hubtask-rest": "generated",
         "summary": "One configuration version with its document",
         "description": "The document as it was in force after that version's apply, so two versions are compared.",
         "responses": {
@@ -12948,6 +12955,7 @@
           "structure"
         ],
         "operationId": "listConfigProposals",
+        "x-hubtask-rest": "generated",
         "summary": "The proposed configuration changes",
         "description": "Proposals newest first, in one state or every state.",
         "parameters": [
@@ -13039,6 +13047,7 @@
           "structure"
         ],
         "operationId": "setConfigPolicy",
+        "x-hubtask-rest": "generated",
         "summary": "Set what an agent's apply does",
         "description": "`APPROVAL` (the default) keeps an agent's apply for a person, `ALLOWED` applies it, `NEVER` refuses it. The installation or a plan may lock it; the workspace may only tighten it.\n",
         "requestBody": {
@@ -13074,6 +13083,7 @@
           "structure"
         ],
         "operationId": "listConfigTemplates",
+        "x-hubtask-rest": "generated",
         "summary": "The workspace's templates",
         "description": "Each template's newest version, the version the workspace took and whether an update is available.\n",
         "responses": {
@@ -13097,6 +13107,7 @@
           "structure"
         ],
         "operationId": "publishConfigTemplate",
+        "x-hubtask-rest": "generated",
         "summary": "Publish a template's next version",
         "description": "A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A version never changes once published.\n",
         "requestBody": {
@@ -13143,6 +13154,7 @@
           "structure"
         ],
         "operationId": "planConfigTemplate",
+        "x-hubtask-rest": "generated",
         "summary": "Plan taking or upgrading a template",
         "description": "Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan.\n",
         "requestBody": {
@@ -13178,6 +13190,7 @@
           "structure"
         ],
         "operationId": "readConfigSandbox",
+        "x-hubtask-rest": "generated",
         "summary": "The configuration sandbox and what promoting it would do",
         "description": "The sandbox is a copy of the configuration without content where changes run nothing. Answers its document, the configuration it was copied from, and `promotion` - the plan of what it changed since, against the configuration in force. `exists` is false where the workspace has none.\n",
         "responses": {
@@ -13201,6 +13214,7 @@
           "structure"
         ],
         "operationId": "writeConfigSandbox",
+        "x-hubtask-rest": "generated",
         "summary": "Change, copy afresh or discard the sandbox",
         "description": "Changes the sandbox by a document read against it, as a plan would read it; nothing runs, so the plan scope is enough and no approval holds it back. `reset` copies the configuration in force afresh first; `discard` throws the sandbox away. A document the workspace would refuse is refused with the same refusals. Promoting is `POST /config:plan` and `/config:apply` with `from_sandbox`.\n",
         "requestBody": {
