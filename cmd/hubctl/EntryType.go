@@ -260,7 +260,7 @@ func entryTypeDelete(ctx context.Context, cli *CLI, args []string) error {
 }
 
 func entryTypeAssign(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "type assign <item-id> <key> [--expect-version <n>]"
+	const usage = "type assign <item-id> <key> [--drop-values] [--expect-version <n>]"
 	item, rest, err := cli.takeID(args, usage)
 	if err != nil {
 		return err
@@ -269,8 +269,9 @@ func entryTypeAssign(ctx context.Context, cli *CLI, args []string) error {
 	if err != nil {
 		return err
 	}
-	flags := commandFlags(cli, "type", "assign", "<item-id> <key> [--expect-version <n>]")
+	flags := commandFlags(cli, "type", "assign", "<item-id> <key> [--drop-values] [--expect-version <n>]")
 	expected := flags.Int("expect-version", 0, "refuse unless the entry is still at this version")
+	drop := flags.Bool("drop-values", false, "clear the values a refusal named that the new type does not carry")
 	if err := parseOnlyFlags(flags, rest, usage); err != nil {
 		return err
 	}
@@ -280,6 +281,9 @@ func entryTypeAssign(ctx context.Context, cli *CLI, args []string) error {
 	}
 	var changed openapi.WorkItem
 	body := openapi.SetItemEntryTypeJSONBody{EntryType: key}
+	if *drop {
+		body.DropValues = drop
+	}
 	if err := client.PutVersioned(ctx, itemsPath+"/"+item.String()+"/entry-type", body, versionTag(*expected), &changed); err != nil {
 		return err
 	}
