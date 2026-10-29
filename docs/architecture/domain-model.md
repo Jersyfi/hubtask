@@ -698,7 +698,7 @@ deadline and a change's effectiveness check.
   change cuts away counts nothing, a 25-hour night counts 25 hours. `Continuous()` is the clock
   that never stops.
 * **`Timer`**: a budget of working time on a calendar, for one purpose (`SLA`, `APPROVAL`,
-  `EFFECTIVENESS_CHECK`), one subject and a name (the goal it measures). It runs, pauses (what was
+  `EFFECTIVENESS_CHECK`, `PAGE_REVIEW`), one subject and a name (the goal it measures). It runs, pauses (what was
   spent is kept, there is no due moment), resumes, stops, and fires once when its due moment has
   come. It keeps a copy of the calendar it was armed on, so a calendar changed later moves no
   clock already running. Durable: a row in `durable_timer`, fired by the `timer.fire` job of its
@@ -721,7 +721,9 @@ what search (a trigger-kept `search_document` in the page's language), history a
 restored version is its own. `PageComment` stands on the page or inline on a block (`anchor`) with
 the words it was about (`quote`); replies are one level deep, a thread resolves on its first
 comment. A page may be a template of its space, and carries a verification (`owner_id`,
-`verified_until`) after which it is due for review. Trash takes a page with the pages under it at
+`verified_until`) after which it is due for review: verifying arms a `PAGE_REVIEW` timer on the
+continuous calendar (in legs of at most a timer's bound), and when it fires the owner - or, without
+one, the verifier - gets a `REMINDER` notification naming the page. Trash takes a page with the pages under it at
 one moment and brings them back together.
 
 ## 4. Domain events

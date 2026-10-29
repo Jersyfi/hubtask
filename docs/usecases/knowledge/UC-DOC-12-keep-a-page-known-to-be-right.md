@@ -5,9 +5,9 @@ context: knowledge
 actors: [PE-member, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/knowledge/Page_test.go, core/application/service/knowledge/Pages_test.go]
+checked_by: [core/domain/model/knowledge/Page_test.go, core/application/service/knowledge/Pages_test.go, core/application/service/knowledge/Review_test.go, core/application/service/notification/RecordPageReview_test.go]
 ---
 
 # Keep a page known to be right
@@ -30,7 +30,3 @@ The IT team verifies its "VPN setup" page for three months with Carla as its own
 ## Where it ends
 
 * No approval workflow before publication in this release.
-
-## Today
-
-* Check 4: not met - the reminder needs a durable timer purpose; a later S-14 part.
