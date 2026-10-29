@@ -248,10 +248,10 @@
     const isRtl = canvas !== null && getComputedStyle(canvas).direction === 'rtl';
     const bar = (id: string) => {
       const cells = list?.querySelectorAll<HTMLElement>(`[data-row="${CSS.escape(id)}"] .cell[data-filled]`);
-      if (!cells || cells.length === 0) return undefined;
-      const first = cells[0].getBoundingClientRect();
-      const last = cells[cells.length - 1].getBoundingClientRect();
-      return { first, last };
+      const head = cells?.item(0);
+      const tail = cells?.item(cells.length - 1);
+      if (!head || !tail) return undefined;
+      return { first: head.getBoundingClientRect(), last: tail.getBoundingClientRect() };
     };
     const next: { id: string; d: string; isEarly: boolean }[] = [];
     for (const dependency of drawn) {
