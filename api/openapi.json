@@ -37042,13 +37042,39 @@
               "SET_ADD",
               "SET_REMOVE",
               "MOVE",
-              "COMMENT_ADD"
+              "COMMENT_ADD",
+              "ENTITY_UPSERT",
+              "ENTITY_PATCH",
+              "ENTITY_DELETE"
             ]
           },
           "item_id": {
             "type": "string",
             "format": "uuid",
             "description": "Assigned by the client (UUIDv7), including on CREATE"
+          },
+          "entity": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "entry_type",
+              "link_type",
+              "entry_link",
+              "workflow",
+              "custom_role",
+              null
+            ],
+            "description": "What an `ENTITY_*` mutation is about, named as the change log names it. Each entity has\none merge rule. `entry_type`, `link_type`, `workflow` and `custom_role` are versioned: a\nmutation carrying `base_version` is applied only on that version and is otherwise\nrejected with the entity's own version conflict, and the device adopts the server's copy\nfrom the next pull; an upsert of one that exists changes it and keeps what can only be\nset at creation. A workflow is written to its draft; publishing it stays online.\n`entry_link` is a presence: drawn or not, never patched, and deleting one already gone\nis applied.\n"
+          },
+          "entity_key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64,
+            "description": "The entity an `ENTITY_*` mutation names: its key, or for an `entry_link` the identifier the client assigned (UUIDv7).\n"
           },
           "base_version": {
             "type": [

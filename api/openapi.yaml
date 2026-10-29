@@ -24580,8 +24580,26 @@ components:
             The idempotency key. The server keeps it for the maximum offline window - the
             `tombstone_window_days` a pull answers, 90 days by default - so a mutation pushed again
             within that window takes effect exactly once.
-        kind: { type: string, enum: [ITEM_CREATE, ITEM_PATCH, ITEM_DELETE, SET_ADD, SET_REMOVE, MOVE, COMMENT_ADD] }
+        kind: { type: string, enum: [ITEM_CREATE, ITEM_PATCH, ITEM_DELETE, SET_ADD, SET_REMOVE, MOVE, COMMENT_ADD, ENTITY_UPSERT, ENTITY_PATCH, ENTITY_DELETE] }
         item_id: { type: string, format: uuid, description: "Assigned by the client (UUIDv7), including on CREATE" }
+        entity:
+          type: [string, "null"]
+          enum: [entry_type, link_type, entry_link, workflow, custom_role, null]
+          description: |
+            What an `ENTITY_*` mutation is about, named as the change log names it. Each entity has
+            one merge rule. `entry_type`, `link_type`, `workflow` and `custom_role` are versioned: a
+            mutation carrying `base_version` is applied only on that version and is otherwise
+            rejected with the entity's own version conflict, and the device adopts the server's copy
+            from the next pull; an upsert of one that exists changes it and keeps what can only be
+            set at creation. A workflow is written to its draft; publishing it stays online.
+            `entry_link` is a presence: drawn or not, never patched, and deleting one already gone
+            is applied.
+        entity_key:
+          type: [string, "null"]
+          maxLength: 64
+          description: >
+            The entity an `ENTITY_*` mutation names: its key, or for an `entry_link` the identifier
+            the client assigned (UUIDv7).
         base_version: { type: [integer, "null"] }
         fields:
           type: object

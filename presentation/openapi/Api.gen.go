@@ -5931,21 +5931,60 @@ func (e SyncChangeOp) Valid() bool {
 	}
 }
 
+// Defines values for SyncMutationEntity.
+const (
+	SyncMutationEntityCustomRole  SyncMutationEntity = "custom_role"
+	SyncMutationEntityEntryLink   SyncMutationEntity = "entry_link"
+	SyncMutationEntityEntryType   SyncMutationEntity = "entry_type"
+	SyncMutationEntityLessThannil SyncMutationEntity = "<nil>"
+	SyncMutationEntityLinkType    SyncMutationEntity = "link_type"
+	SyncMutationEntityWorkflow    SyncMutationEntity = "workflow"
+)
+
+// Valid indicates whether the value is a known member of the SyncMutationEntity enum.
+func (e SyncMutationEntity) Valid() bool {
+	switch e {
+	case SyncMutationEntityCustomRole:
+		return true
+	case SyncMutationEntityEntryLink:
+		return true
+	case SyncMutationEntityEntryType:
+		return true
+	case SyncMutationEntityLessThannil:
+		return true
+	case SyncMutationEntityLinkType:
+		return true
+	case SyncMutationEntityWorkflow:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SyncMutationKind.
 const (
-	COMMENTADD SyncMutationKind = "COMMENT_ADD"
-	ITEMCREATE SyncMutationKind = "ITEM_CREATE"
-	ITEMDELETE SyncMutationKind = "ITEM_DELETE"
-	ITEMPATCH  SyncMutationKind = "ITEM_PATCH"
-	MOVE       SyncMutationKind = "MOVE"
-	SETADD     SyncMutationKind = "SET_ADD"
-	SETREMOVE  SyncMutationKind = "SET_REMOVE"
+	COMMENTADD   SyncMutationKind = "COMMENT_ADD"
+	ENTITYDELETE SyncMutationKind = "ENTITY_DELETE"
+	ENTITYPATCH  SyncMutationKind = "ENTITY_PATCH"
+	ENTITYUPSERT SyncMutationKind = "ENTITY_UPSERT"
+	ITEMCREATE   SyncMutationKind = "ITEM_CREATE"
+	ITEMDELETE   SyncMutationKind = "ITEM_DELETE"
+	ITEMPATCH    SyncMutationKind = "ITEM_PATCH"
+	MOVE         SyncMutationKind = "MOVE"
+	SETADD       SyncMutationKind = "SET_ADD"
+	SETREMOVE    SyncMutationKind = "SET_REMOVE"
 )
 
 // Valid indicates whether the value is a known member of the SyncMutationKind enum.
 func (e SyncMutationKind) Valid() bool {
 	switch e {
 	case COMMENTADD:
+		return true
+	case ENTITYDELETE:
+		return true
+	case ENTITYPATCH:
+		return true
+	case ENTITYUPSERT:
 		return true
 	case ITEMCREATE:
 		return true
@@ -14237,6 +14276,19 @@ type SyncMutation struct {
 	BaseVersion *int                `json:"base_version,omitempty"`
 	Element     *openapi_types.UUID `json:"element,omitempty"`
 
+	// Entity What an `ENTITY_*` mutation is about, named as the change log names it. Each entity has
+	// one merge rule. `entry_type`, `link_type`, `workflow` and `custom_role` are versioned: a
+	// mutation carrying `base_version` is applied only on that version and is otherwise
+	// rejected with the entity's own version conflict, and the device adopts the server's copy
+	// from the next pull; an upsert of one that exists changes it and keeps what can only be
+	// set at creation. A workflow is written to its draft; publishing it stays online.
+	// `entry_link` is a presence: drawn or not, never patched, and deleting one already gone
+	// is applied.
+	Entity *SyncMutationEntity `json:"entity,omitempty"`
+
+	// EntityKey The entity an `ENTITY_*` mutation names: its key, or for an `entry_link` the identifier the client assigned (UUIDv7).
+	EntityKey *string `json:"entity_key,omitempty"`
+
 	// Fields Per-field changes, each field with its own HLC.
 	Fields *map[string]struct {
 		Hlc   *string     `json:"hlc,omitempty"`
@@ -14258,6 +14310,16 @@ type SyncMutation struct {
 	// is answered `sync.set_unavailable` until a use case writes a watcher.
 	Set *SyncMutationSet `json:"set,omitempty"`
 }
+
+// SyncMutationEntity What an `ENTITY_*` mutation is about, named as the change log names it. Each entity has
+// one merge rule. `entry_type`, `link_type`, `workflow` and `custom_role` are versioned: a
+// mutation carrying `base_version` is applied only on that version and is otherwise
+// rejected with the entity's own version conflict, and the device adopts the server's copy
+// from the next pull; an upsert of one that exists changes it and keeps what can only be
+// set at creation. A workflow is written to its draft; publishing it stays online.
+// `entry_link` is a presence: drawn or not, never patched, and deleting one already gone
+// is applied.
+type SyncMutationEntity string
 
 // SyncMutationKind defines model for SyncMutation.Kind.
 type SyncMutationKind string
