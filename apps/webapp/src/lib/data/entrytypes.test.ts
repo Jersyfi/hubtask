@@ -12,7 +12,7 @@ import type { Capabilities, EntryType } from '@hubtask/sync-engine';
 
 import { ICON_NAMES } from '@hubtask/design-system/icons';
 
-import { TYPE_ICONS, entryTypesOffered, iconOf, keyFrom, levelTypes, offeredTypes, reorder, rowMarkOf, typesShown } from './entrytypes.ts';
+import { TYPE_ICONS, entryTypesOffered, iconOf, keyFrom, levelTypes, offeredTypes, reorder, rowMarkOf, typeOrder, typesShown } from './entrytypes.ts';
 
 const base = {
   completable: true, workflow: false, record: false, schedulable: true, estimable: false,
@@ -78,4 +78,8 @@ test('a key is proposed from the name', () => {
 
 test('every icon offered for a type is in the design system set', () => {
   for (const icon of TYPE_ICONS) assert.ok((ICON_NAMES as readonly string[]).includes(icon), icon);
+});
+
+test('a list groups and a filter offers the types by level, each level own first, archived last', () => {
+  assert.deepEqual(typeOrder(types).map((type) => type.key), ['task', 'bug', 'feature', 'old', 'subtask']);
 });

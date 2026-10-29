@@ -127,3 +127,12 @@ export function keyFrom(name: string): string {
     .replace(/^_+|_+$/g, '')
     .slice(0, 50);
 }
+
+/**
+ * Every type in the order a list groups by and a filter offers them (S-03): by level as the
+ * administration lists them, each level's own type first, archived ones last - an archived type
+ * still marks the entries that keep it, so it is still a value to group or filter by.
+ */
+export function typeOrder(types: readonly EntryType[]): readonly EntryType[] {
+  return TYPE_LEVELS.flatMap((level) => levelTypes(types, level));
+}

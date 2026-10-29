@@ -15,7 +15,7 @@
 
   import { untrack } from 'svelte';
   import { manifest } from '../data/capabilities.svelte.ts';
-  import { entryTypes, rowMarkOf, typesShown } from '../data/entrytypes.svelte.ts';
+  import { entryTypes, iconOf, rowMarkOf, typeOf, typeOrder, typesShown } from '../data/entrytypes.svelte.ts';
 
   import {
     Badge,
@@ -546,6 +546,8 @@
     const labelOrder = available.map((label) => label.id);
     const keyOf = (row: Row): string | null => {
       switch (arrangement.grouping) {
+        case 'type':
+          return typeOf(entryTypes.all, row.item.type, row.item.entry_type)?.key ?? row.item.entry_type ?? null;
         case 'column':
           return row.item.bucket_id ?? null;
         case 'assignee':
@@ -565,7 +567,9 @@
           ? labelOrder
           : arrangement.grouping === 'due'
             ? [...DUE_BANDS]
-            : [];
+            : arrangement.grouping === 'type'
+              ? typeOrder(entryTypes.all).map((type) => type.key)
+              : [];
     return groupRows(rows, {
       depthOf: (row) => row.depth,
       keyOf,
@@ -584,6 +588,8 @@
   /** A group's heading: the value it is grouped by, in words. */
   function groupName(key: string | null): string {
     switch (arrangement?.grouping) {
+      case 'type':
+        return key === null ? t('app.list.type_none') : typeName(key);
       case 'column':
         return key === null ? t('app.board.unbucketed') : (buckets.of(collectionId).find((bucket) => bucket.id === key)?.name ?? key);
       case 'assignee':
@@ -595,6 +601,13 @@
       default:
         return '';
     }
+  }
+
+  /** A type's name: its own, a level's own type named after its level, an unread key as itself. */
+  function typeName(key: string): string {
+    const type = entryTypes.all.find((each) => each.key === key);
+    if (!type) return key;
+    return type.name ?? t('app.entry_types.level', { level: type.level });
   }
 
   /** A category's heading: its label's name, or the words for the entries that carry none. */
@@ -1415,7 +1428,7 @@
              where the entry's type carries it here (UC-WRK-23 check 4) - an empty cell keeps the
              column's width so the columns stand straight. -->
         <span class="cells">
-          {#if showsTypes}
+          {#if showsTypes && !fields.includes('type')}
             {@const mark = rowMarkOf(entryTypes.all, row.item.type, row.item.entry_type)}
             {#if mark}
               <span class="type-mark" data-entry-type={row.item.entry_type}><Icon name={mark.icon} size="sm" /><LabelChip name={mark.name} colorToken={mark.colorToken} /></span>
@@ -1423,7 +1436,14 @@
           {/if}
           {#each fields as field (field)}
             <span class="cell" data-field={field}>
-              {#if field === 'amount' && row.item.amount}
+              {#if field === 'type'}
+                <!-- The type as a column (S-03): every row's, the level's own included, so the
+                     column reads as a value rather than as a mark only some rows carry. -->
+                {@const type = typeOf(entryTypes.all, row.item.type, row.item.entry_type)}
+                {#if type}
+                  <span class="type-mark" data-entry-type={type.key}><Icon name={iconOf(type)} size="sm" /><LabelChip name={typeName(type.key)} colorToken={type.color_token} /></span>
+                {/if}
+              {:else if field === 'amount' && row.item.amount}
                 <span class="amount">{row.item.amount}</span>
               {:else if field === 'column' && row.item.bucket_id}
                 {@const column = buckets.of(collectionId).find((bucket) => bucket.id === row.item.bucket_id)}
@@ -1732,6 +1752,7 @@
     .cells { flex-wrap: nowrap; }
     .cell { flex: none; flex-wrap: nowrap; overflow: hidden; }
     .cell:empty { display: inline-flex; }
+    .cell[data-field='type'] { inline-size: calc(var(--sp-1000) * 2); }
     .cell[data-field='amount'] { inline-size: var(--sp-1000); }
     .cell[data-field='column'] { inline-size: calc(var(--sp-1000) * 1.5); }
     .cell[data-field='due'] { inline-size: calc(var(--sp-1000) * 2.5); }

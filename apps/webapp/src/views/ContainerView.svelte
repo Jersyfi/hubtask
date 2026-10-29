@@ -75,6 +75,7 @@
   import { items } from '../lib/data/items.svelte.ts';
   import { changeRefusalCode, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { typesShown } from '../lib/data/entrytypes.ts';
   import HandleField from '../lib/mail/HandleField.svelte';
   import { offeredByProfile, sortableFields } from '../lib/data/query.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
@@ -425,6 +426,7 @@
       carriesDue: carriedHere('DUE_DATE'),
       carriesPeople: carriedHere('ASSIGNMENT') || carriedHere('MEMBERS'),
       carriesLabels: carriedHere('LABELS'),
+      showsTypes: typesShown(manifest.value),
     };
   });
   /** The arrangement in force: what the device kept for this collection, else the template's. */

@@ -80,3 +80,16 @@ test('a date falls in its band on the reader\'s day', () => {
   assert.equal(dueBandOf('2026-11-12', '2026-10-24', '2026-10-30'), 'later');
   assert.equal(dueBandOf(undefined, '2026-10-24', '2026-10-30'), null);
 });
+
+test('the entry type is a column and a grouping only where the workspace shows types', () => {
+  const typed: ListOffer = { ...project, showsTypes: true };
+  assert.deepEqual(offeredFields(typed), ['type', 'column', 'due', 'people', 'labels', 'progress']);
+  assert.deepEqual(offeredGroupings(typed), ['none', 'type', 'category', 'column', 'assignee', 'due']);
+  assert.equal(offeredFields(project).includes('type'), false);
+  assert.equal(offeredGroupings(project).includes('type'), false);
+  assert.deepEqual(toggleField(['due'], 'type'), ['type', 'due']);
+  const store = memory();
+  rememberArrangement(store, 'anna', 'kitchen', { fields: ['type'], grouping: 'type', done: 'inline' });
+  assert.deepEqual(openingArrangement({ store, accountId: 'anna', collectionId: 'kitchen', offer: typed }), { fields: ['type'], grouping: 'type', done: 'inline' });
+  assert.deepEqual(openingArrangement({ store, accountId: 'anna', collectionId: 'kitchen', offer: project }), { fields: [], grouping: 'none', done: 'inline' }, 'without the workflows module the type falls back');
+});
