@@ -134,6 +134,10 @@
           // A board with a saved scene and no live document yet: the first writer seeds it.
           if (writable) model.seed(saved);
           changed();
+          // An address naming a frame (`/whiteboards/<id>#<frame>`, a page's embed) opens on it.
+          const named = decodeURIComponent(location.hash.slice(1));
+          const target = named ? model.get(named) : undefined;
+          if (target?.kind === 'FRAME') { view = fit(view, box(target)); selected = [target.id]; }
         },
       });
       const live = connection;

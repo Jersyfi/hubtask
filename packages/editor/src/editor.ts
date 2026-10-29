@@ -32,6 +32,12 @@ export interface ReferenceDrawing {
   open?(ref: ReferenceAttrs): void;
   /** Subscribes to label changes; answers the unsubscribe. */
   subscribe(listener: () => void): () => void;
+  /**
+   * Draws a live view in a block - a whiteboard, or one frame of it - into the block's element;
+   * answers how to take it down, or nothing where the application draws no live view of that kind
+   * and the block shows its label.
+   */
+  mount?(ref: ReferenceAttrs, into: HTMLElement): (() => void) | undefined;
 }
 
 const referenceAttributes = {
@@ -46,13 +52,18 @@ function drawReference(dom: HTMLElement, ref: ReferenceAttrs, drawing: Reference
   dom.dataset['id'] = ref.id;
 }
 
-function referenceView(className: string, tag: string, fallback: string) {
+function referenceView(className: string, tag: string, fallback: string, live = false) {
   return ({ node, extension }: { node: { attrs: Record<string, unknown> }; extension: { options: { drawing?: ReferenceDrawing } } }) => {
     const dom = document.createElement(tag);
     dom.className = className;
     dom.setAttribute('contenteditable', 'false');
     const ref = { kind: String(node.attrs['kind']), id: String(node.attrs['id']), anchor: (node.attrs['anchor'] as string | null) ?? null };
     const drawing = extension.options.drawing;
+    const unmount = live ? drawing?.mount?.(ref, dom) : undefined;
+    if (unmount) {
+      dom.classList.add(`${className}--live`);
+      return { dom, stopEvent: () => true, ignoreMutation: () => true, destroy: () => unmount() };
+    }
     drawReference(dom, ref, drawing, fallback);
     const stop = drawing?.subscribe(() => drawReference(dom, ref, drawing, fallback));
     dom.addEventListener('click', () => drawing?.open?.(ref));
@@ -88,7 +99,7 @@ export const ReferenceBlock = Node.create<{ drawing?: ReferenceDrawing; fallback
   parseHTML: () => [{ tag: 'div[data-reference-block]' }],
   renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes({ 'data-reference-block': '' }, HTMLAttributes)],
   addNodeView() {
-    return referenceView('page-card', 'div', this.options.fallback) as never;
+    return referenceView('page-card', 'div', this.options.fallback, true) as never;
   },
 });
 

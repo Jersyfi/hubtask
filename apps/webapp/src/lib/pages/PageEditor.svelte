@@ -16,7 +16,7 @@
   //
   // A reader's editor is not connected: what they read is the body as last saved.
 
-  import { untrack } from 'svelte';
+  import { mount, unmount, untrack } from 'svelte';
   import { Button, Inline, Toolbar } from '@hubtask/design-system/components';
   import {
     Doc, LiveDocument, createPageEditor, insertReference, linkLineToEntry, markdownOf, mirrorCompletion, parseAddress, passageTops,
@@ -32,6 +32,7 @@
   import { caretOf, pages } from '../data/pages.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import MentionDialog from '../entries/MentionDialog.svelte';
+  import BoardView from '../whiteboards/BoardView.svelte';
   import { t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { messages } from '../i18n/i18n.svelte.ts';
@@ -96,6 +97,12 @@
     subscribe: (listener: () => void) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    // A whiteboard, or one frame of it, is drawn live where the page embeds it (research §4.5).
+    mount: (ref: ReferenceAttrs, into: HTMLElement) => {
+      if (ref.kind.toUpperCase() !== 'WHITEBOARD') return undefined;
+      const view = mount(BoardView, { target: into, props: { boardId: ref.id, frame: ref.anchor, onopen: onnavigate } });
+      return () => void unmount(view);
     },
   };
 
@@ -410,6 +417,7 @@
   .editor :global(.page-card[data-kind='view']),
   .editor :global(.page-card[data-kind='dashboard']),
   .editor :global(.page-card[data-kind='whiteboard']) { min-block-size: var(--sp-1000); }
+  .editor :global(.page-card--live) { padding: 0; border: none; background: none; cursor: default; }
   .editor :global(.page-passage) {
     background: var(--label-amber-bg);
     border-block-end: var(--bw-thick) solid var(--label-amber-fg);
