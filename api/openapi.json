@@ -25114,7 +25114,8 @@
         "required": [
           "links",
           "backlinks",
-          "page_backlinks"
+          "page_backlinks",
+          "whiteboard_backlinks"
         ],
         "properties": {
           "links": {
@@ -25202,12 +25203,31 @@
                 }
               }
             }
+          },
+          "whiteboard_backlinks": {
+            "type": "array",
+            "description": "The whiteboards that draw the entry as a card or link to it, from hubs whose boards the reader may read.",
+            "items": {
+              "type": "object",
+              "required": [
+                "strength",
+                "whiteboard"
+              ],
+              "properties": {
+                "strength": {
+                  "$ref": "#/components/schemas/ReferenceStrength"
+                },
+                "whiteboard": {
+                  "$ref": "#/components/schemas/ReferenceTarget"
+                }
+              }
+            }
           }
         }
       },
       "ReferenceKind": {
         "type": "string",
-        "description": "What a reference points at. PAGE, WHITEBOARD, DASHBOARD, GOAL and SPRINT resolve once their modules exist.",
+        "description": "What a reference points at. DASHBOARD, GOAL and SPRINT resolve once their modules exist.",
         "enum": [
           "ENTRY",
           "HUB",
@@ -25331,7 +25351,7 @@
           "hub_id": {
             "type": "string",
             "format": "uuid",
-            "description": "The hub whose space a page is in."
+            "description": "The hub a page or a whiteboard is in."
           },
           "icon": {
             "type": [
@@ -25343,6 +25363,10 @@
           "due_for_review": {
             "type": "boolean",
             "description": "A page whose verification has run out."
+          },
+          "element_count": {
+            "type": "integer",
+            "description": "How many objects a whiteboard holds."
           }
         }
       },

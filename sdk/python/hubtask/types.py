@@ -1267,6 +1267,7 @@ class EntryLinks(TypedDict, total=False):
     links: Required[list["EntryLink"]]
     backlinks: Required[list[dict[str, Any]]]
     page_backlinks: Required[list[dict[str, Any]]]
+    whiteboard_backlinks: Required[list[dict[str, Any]]]
 
 ReferenceKind = Literal["ENTRY", "HUB", "COLLECTION", "VIEW", "PAGE", "WHITEBOARD", "DASHBOARD", "GOAL", "SPRINT"]
 
@@ -1297,6 +1298,7 @@ class ReferenceTarget(TypedDict, total=False):
     hub_id: str
     icon: str | None
     due_for_review: bool
+    element_count: int
 
 class WorkflowStatus(TypedDict, total=False):
     key: Required[str]

@@ -1790,7 +1790,7 @@ func run() error {
 	}
 	linking := work.Linking{
 		Items: items, Containers: containers, Types: linkTypeRegistry.Types, Links: entryLinks,
-		References: entryLinks, Views: savedViews, Pages: postgres.NewPageRepository(),
+		References: entryLinks, Views: savedViews, Pages: postgres.NewPageRepository(), Boards: postgres.NewWhiteboardRepository(),
 		Authorizer: authorizer, Reader: authorizer,
 		Permits: authorizer, Events: outbox, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid, Activity: journal,

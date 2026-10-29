@@ -9854,6 +9854,15 @@ type EntryLinks struct {
 		// Strength How a reference is drawn where it stands - inline, as a card, or as a live view.
 		Strength ReferenceStrength `json:"strength"`
 	} `json:"page_backlinks"`
+
+	// WhiteboardBacklinks The whiteboards that draw the entry as a card or link to it, from hubs whose boards the reader may read.
+	WhiteboardBacklinks []struct {
+		// Strength How a reference is drawn where it stands - inline, as a card, or as a live view.
+		Strength ReferenceStrength `json:"strength"`
+
+		// Whiteboard What a reference shows the reader. Where the reader may not see the object, or it is not there, only `kind`, `id`, `anchor` and `available: false` are present.
+		Whiteboard ReferenceTarget `json:"whiteboard"`
+	} `json:"whiteboard_backlinks"`
 }
 
 // EntryLinksBacklinksSourceKind An entry's notes, or one of its comments.
@@ -13555,11 +13564,11 @@ type Reference struct {
 	Anchor *string            `json:"anchor,omitempty"`
 	Id     openapi_types.UUID `json:"id"`
 
-	// Kind What a reference points at. PAGE, WHITEBOARD, DASHBOARD, GOAL and SPRINT resolve once their modules exist.
+	// Kind What a reference points at. DASHBOARD, GOAL and SPRINT resolve once their modules exist.
 	Kind ReferenceKind `json:"kind"`
 }
 
-// ReferenceKind What a reference points at. PAGE, WHITEBOARD, DASHBOARD, GOAL and SPRINT resolve once their modules exist.
+// ReferenceKind What a reference points at. DASHBOARD, GOAL and SPRINT resolve once their modules exist.
 type ReferenceKind string
 
 // ReferenceStrength How a reference is drawn where it stands - inline, as a card, or as a live view.
@@ -13575,10 +13584,13 @@ type ReferenceTarget struct {
 	DueAt        *time.Time          `json:"due_at,omitempty"`
 
 	// DueForReview A page whose verification has run out.
-	DueForReview *bool   `json:"due_for_review,omitempty"`
+	DueForReview *bool `json:"due_for_review,omitempty"`
+
+	// ElementCount How many objects a whiteboard holds.
+	ElementCount *int    `json:"element_count,omitempty"`
 	EntryType    *string `json:"entry_type,omitempty"`
 
-	// HubId The hub whose space a page is in.
+	// HubId The hub a page or a whiteboard is in.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 
 	// Icon A page's icon.
@@ -13588,7 +13600,7 @@ type ReferenceTarget struct {
 	// Key The entry's key (`sup-128`) or the container's handle, where it has one.
 	Key *string `json:"key,omitempty"`
 
-	// Kind What a reference points at. PAGE, WHITEBOARD, DASHBOARD, GOAL and SPRINT resolve once their modules exist.
+	// Kind What a reference points at. DASHBOARD, GOAL and SPRINT resolve once their modules exist.
 	Kind ReferenceKind `json:"kind"`
 
 	// Layout A view's layout.

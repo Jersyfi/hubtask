@@ -63,7 +63,10 @@ type Linking struct {
 	References repository.References
 	Views      viewrepo.SavedViews
 	// Pages resolves a reference to a page (M3); nil resolves none, until the module is wired.
-	Pages      PageSummaries
+	Pages PageSummaries
+	// Boards resolves a reference to a whiteboard and finds the boards an entry is drawn on (M4);
+	// nil resolves none.
+	Boards     BoardSummaries
 	Authorizer Authorizer
 	// Reader filters a page by what the reader may see, and Permits answers one question, both
 	// without writing a refusal: a reference out of reach is not somebody trying anything.
@@ -554,6 +557,9 @@ type EntryLinks struct {
 	Sources map[shared.ID]repository.EntrySummary
 	// PageBacklinks are the pages pointing at the entry, each in a hub the reader may read (M3).
 	PageBacklinks []PageBacklink
+	// BoardBacklinks are the whiteboards drawing or mentioning the entry, each in a hub the reader
+	// may read (M4).
+	BoardBacklinks []BoardBacklink
 }
 
 // PageBacklink is a page that points at an entry, and how strongly.
@@ -600,6 +606,9 @@ func (h ListEntryLinks) Execute(ctx context.Context, actor appshared.ActorContex
 		return EntryLinks{}, err
 	}
 	if result.PageBacklinks, err = h.pageBacklinks(ctx, actor, item.ID); err != nil {
+		return EntryLinks{}, err
+	}
+	if result.BoardBacklinks, err = h.boardBacklinks(ctx, actor, item.ID); err != nil {
 		return EntryLinks{}, err
 	}
 	others := make([]shared.ID, 0, len(result.Links))
@@ -710,7 +719,15 @@ func (r EntryLinks) Output(itemID shared.ID) usecase.Output {
 			"strength": string(backlink.Strength), "page": pageTarget(backlink.Page, nil),
 		})
 	}
-	return usecase.Output{"links": links, "backlinks": backlinks, "page_backlinks": pageBacklinks}
+	boardBacklinks := make([]usecase.Output, 0, len(r.BoardBacklinks))
+	for _, backlink := range r.BoardBacklinks {
+		boardBacklinks = append(boardBacklinks, usecase.Output{
+			"strength": string(backlink.Strength), "whiteboard": boardTarget(backlink.ID, backlink.HubID, backlink.Title, nil),
+		})
+	}
+	return usecase.Output{
+		"links": links, "backlinks": backlinks, "page_backlinks": pageBacklinks, "whiteboard_backlinks": boardBacklinks,
+	}
 }
 
 // Descriptor is the catalogue entry.
@@ -864,7 +881,7 @@ func (h ResolveReferences) Execute(ctx context.Context, actor appshared.ActorCon
 		return nil, shared.ErrValidation.WithDetail("references.too_many").
 			WithParams(map[string]string{"maximum": strconv.Itoa(maxReferencesAsked)})
 	}
-	var entries, containers, pages []shared.ID
+	var entries, containers, pages, boards []shared.ID
 	for _, ref := range refs {
 		switch ref.Kind {
 		case reference.KindEntry:
@@ -873,7 +890,13 @@ func (h ResolveReferences) Execute(ctx context.Context, actor appshared.ActorCon
 			containers = append(containers, ref.ID)
 		case reference.KindPage:
 			pages = append(pages, ref.ID)
+		case reference.KindWhiteboard:
+			boards = append(boards, ref.ID)
 		}
+	}
+	visibleBoards, err := h.Linking.visibleBoards(ctx, actor, boards, ReferencesResolveAction)
+	if err != nil {
+		return nil, err
 	}
 	visiblePages, err := h.Linking.visiblePages(ctx, actor, pages, ReferencesResolveAction)
 	if err != nil {
@@ -905,6 +928,14 @@ func (h ResolveReferences) Execute(ctx context.Context, actor appshared.ActorCon
 					resolved["key"] = summary.Handle
 				}
 				out = append(out, resolved)
+				continue
+			}
+		case reference.KindWhiteboard:
+			if summary, ok := visibleBoards[ref.ID]; ok {
+				elements := summary.Elements
+				target := boardTarget(summary.Board.ID, summary.Board.HubID, summary.Board.Title, &elements)
+				target["anchor"] = anchorOrNil(ref.Anchor)
+				out = append(out, target)
 				continue
 			}
 		case reference.KindPage:
