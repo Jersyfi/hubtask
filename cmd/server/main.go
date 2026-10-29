@@ -737,9 +737,12 @@ func run() error {
 	// entry says in it.
 	customFields := postgres.NewCustomFieldRepository()
 	// A type's form holds every writer of its entries (P-18, D-13), through the one gate.
+	// What a reader may not see of an entry's fields (UC-ID-27 check 3): every read and every
+	// answer, the change stream included, narrows through it.
+	fieldSight := work.FieldSight{Hidings: customFields, Containers: containers, Roles: authorizer}
 	entryGate := work.EntryGate{Structure: structures, Types: items, EntryTypes: entryTypes, Forms: work.FormGate{
 		Types: entryTypes, Fields: customFields, Compiler: celexpression.New(), Roles: authorizer,
-	}}
+	}, Sight: fieldSight}
 	// The bookmark shelf: stored queries, interpreted by nobody on this side of a client.
 	savedViews := postgres.NewSavedViewRepository()
 	// The subscriptions over those bookmarks. Its own hasher, derived from the
@@ -2926,7 +2929,7 @@ func run() error {
 		// call. The listener is the wake-up; without it the stream still works, at its idle
 		// poll interval.
 		changeStream := syncservice.StreamChanges{
-			Changes: changes, Containers: containers, Authorizer: authorizer,
+			Changes: changes, Containers: containers, Authorizer: authorizer, Fields: fieldSight,
 			UnitOfWork: unitOfWork, Cursors: streamCursors,
 			// The workspace's synchronisation epoch: a restore advances it, and a cursor
 			// minted before is refused.

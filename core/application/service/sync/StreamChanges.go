@@ -19,6 +19,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
+	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -122,6 +123,9 @@ type StreamChanges struct {
 	// minimum tombstone period (offline-sync.md §7). Beyond it the log no longer holds everything
 	// that happened, so a delta would be silently wrong.
 	Window time.Duration
+	// Fields takes from an entry's record the fields hidden from the reader (UC-ID-27 check 3).
+	// Optional: a build without it narrows nothing.
+	Fields workservice.FieldSight
 	// Batch is how many entries one round reads. A bound rather than a tuning knob: a round is a
 	// read inside one transaction, and an unbounded one would hold it open across a backlog.
 	Batch int
@@ -257,6 +261,7 @@ func (s StreamChanges) page(
 	// membership resolutions for one answer. The judgement is still per record: every record is
 	// checked, and what is cached is the answer to the question it asks.
 	resolved := map[shared.ID]visibility{}
+	var lens *workservice.FieldLens
 	records := make([]Record, 0, len(entries))
 	for _, entry := range entries {
 		if entry.Op == repository.AccessRevoked {
@@ -280,6 +285,9 @@ func (s StreamChanges) page(
 		if keep != nil && !keep(seen.container) {
 			continue
 		}
+		if entry.Payload, err = s.narrowed(ctx, actor, &lens, entry.Entity, seen, entry.Payload); err != nil {
+			return Batch{}, err
+		}
 		records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq, from.Epoch)})
 	}
 
@@ -291,6 +299,30 @@ func (s StreamChanges) page(
 		Cursor: s.at(last, from.Epoch),
 		More:   len(entries) == batch,
 	}, nil
+}
+
+// narrowed takes from an entry's record the fields hidden from the reader in its collection; the
+// lens is started on the first entry a page meets, and a record of anything else passes as it is.
+// ForACopy, for the reason mayRead asks so: what passes here lands in a replica.
+func (s StreamChanges) narrowed(
+	ctx context.Context, actor appshared.ActorContext, lens **workservice.FieldLens, entity string,
+	seen visibility, payload map[string]any,
+) (map[string]any, error) {
+	if entity != entityItem || payload == nil || !s.Fields.Wired() || seen.container.ID.IsZero() {
+		return payload, nil
+	}
+	if *lens == nil {
+		started, err := s.Fields.Lens(ctx, s.UnitOfWork, actor.ForACopy())
+		if err != nil {
+			return nil, err
+		}
+		*lens = started
+	}
+	keys, err := (*lens).HiddenIn(ctx, seen.container)
+	if err != nil {
+		return nil, err
+	}
+	return workservice.PayloadWithout(payload, keys), nil
 }
 
 // visibility is what one container lookup settles for the rest of a page: whether the actor may

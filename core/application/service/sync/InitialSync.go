@@ -75,6 +75,7 @@ func (p PullChanges) walk(
 	}
 
 	resolved := map[shared.ID]visibility{}
+	var lens *workservice.FieldLens
 	records := make([]Record, 0, limit)
 	position := from
 	for kind < len(walkKinds) {
@@ -92,6 +93,9 @@ func (p PullChanges) walk(
 			}
 			if !seen.allowed || (keep != nil && !keep(seen.container)) {
 				continue
+			}
+			if row.payload, err = p.Stream.narrowed(ctx, actor, &lens, row.entity, seen, row.payload); err != nil {
+				return Batch{}, err
 			}
 			records = append(records, Record{
 				Recorded: repository.Recorded{
