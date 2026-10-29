@@ -4,6 +4,7 @@
 package view
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -315,3 +316,43 @@ func TestTheDeclaredLayoutsAreTheFour(t *testing.T) {
 }
 
 func viewText(value string) *string { return &value }
+
+// A summary view stores its aggregation, read by the summary's grammar, and only a summary may
+// name the whole workspace instead of an anchor (S-11).
+func TestASummaryViewStoresItsAggregation(t *testing.T) {
+	collection := "0192f000-0000-7000-8000-0000000000c0"
+	tests := []struct {
+		name  string
+		query map[string]any
+		code  string
+	}{
+		{"a summary of a collection", map[string]any{"scope_container_id": collection,
+			"aggregate": map[string]any{"function": "COUNT", "group_by": "status"}}, ""},
+		{"a summary of the workspace", map[string]any{"scope_workspace": true,
+			"aggregate": map[string]any{"function": "SUM", "field": "lead_time"}}, ""},
+		{"a workspace list", map[string]any{"scope_workspace": true}, "views.workspace_needs_aggregate"},
+		{"a malformed summary", map[string]any{"scope_container_id": collection,
+			"aggregate": map[string]any{"function": "MEDIAN"}}, "query.aggregate_function_unknown"},
+		{"a workspace summary with an anchor", map[string]any{"scope_workspace": true,
+			"scope_container_id": collection, "aggregate": map[string]any{"function": "COUNT"}},
+			"query.scope_ambiguous"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := ValidatedViewQuery(test.query)
+			if test.code == "" {
+				if err != nil {
+					t.Fatalf("refused: %v", err)
+				}
+				if !(SavedView{Query: test.query}).IsSummary() {
+					t.Error("a stored aggregation is not a summary")
+				}
+				return
+			}
+			var refusal *shared.Error
+			if !errors.As(err, &refusal) || refusal.DetailCode != test.code {
+				t.Fatalf("got %v, want %s", err, test.code)
+			}
+		})
+	}
+}

@@ -364,7 +364,20 @@ func ValidatedViewQuery(raw map[string]any) (map[string]any, error) {
 			return nil, err
 		}
 	}
+	// A summary view (S-11): the aggregation `POST /views/{id}:aggregate` runs, read by the
+	// grammar `POST /items:aggregate` reads it with.
+	if rawAggregate, present := raw["aggregate"]; present && rawAggregate != nil {
+		if _, err := ParseAggregation(rawAggregate, "/query/aggregate"); err != nil {
+			return nil, err
+		}
+	}
 	return raw, nil
+}
+
+// IsSummary reports whether the view stores an aggregation.
+func (v SavedView) IsSummary() bool {
+	raw, present := v.Query["aggregate"]
+	return present && raw != nil
 }
 
 // validatedQueryScope checks the document's anchor, parsed by the rule the execution applies.
@@ -394,7 +407,12 @@ func validatedQueryScope(document map[string]any) error {
 		include, _ = raw.(bool)
 	}
 
-	_, err = ParseScope(containerID, itemID, include, "/query")
+	// The whole workspace is a summary's scope only: a view that lists rows needs an anchor.
+	workspace, _ := document["scope_workspace"].(bool)
+	if aggregate, present := document["aggregate"]; workspace && (!present || aggregate == nil) {
+		return fieldError("/query/scope_workspace", "views.workspace_needs_aggregate", nil)
+	}
+	_, err = ParseSummaryScope(containerID, itemID, include, workspace, "/query")
 	return err
 }
 
