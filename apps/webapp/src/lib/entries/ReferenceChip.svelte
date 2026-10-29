@@ -28,7 +28,11 @@
         ? `/items/${target.id}`
         : target.kind === 'COLLECTION'
           ? `/collections/${target.id}`
-          : undefined,
+          : target.kind === 'PAGE'
+            ? `/pages/${target.id}`
+            : target.kind === 'HUB'
+              ? `/hubs/${target.id}`
+              : undefined,
   );
 </script>
 

@@ -7650,5 +7650,6 @@
   "app.pages.template.retro.lead": "Looking back together to do better next time.",
   "app.pages.template.retro.well": "What went well",
   "app.pages.template.retro.better": "What could have gone better",
-  "app.pages.template.retro.try": "What we try next"
+  "app.pages.template.retro.try": "What we try next",
+  "app.links.page_backlinks": "Pages pointing here"
 }

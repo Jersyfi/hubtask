@@ -7647,5 +7647,6 @@
   "app.pages.template.retro.lead": "Gemeinsam zurückschauen, um es beim nächsten Mal besser zu machen.",
   "app.pages.template.retro.well": "Was gut lief",
   "app.pages.template.retro.better": "Was besser hätte laufen können",
-  "app.pages.template.retro.try": "Was wir als Nächstes versuchen"
+  "app.pages.template.retro.try": "Was wir als Nächstes versuchen",
+  "app.links.page_backlinks": "Seiten, die hierher verweisen"
 }

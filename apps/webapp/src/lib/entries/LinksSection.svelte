@@ -40,6 +40,8 @@
   const answer = $derived(read.state.status === 'ready' ? read.state.data : undefined);
   const groups = $derived(answer ? groupLinks(answer.links, linkTypes.all, t) : []);
   const backlinks = $derived(answer?.backlinks ?? []);
+  // The pages that point at the entry, from hubs whose pages the reader may read (M3).
+  const pageBacklinks = $derived(answer?.page_backlinks ?? []);
   const failure = $derived(read.state.status === 'failed' ? renderProblem(read.state.error, messages) : undefined);
 
   // What the notes mention, resolved for the reader, in the order the text holds them.
@@ -109,7 +111,7 @@
   {:else if !answer}
     <div aria-busy="true"><Skeleton lines={2} /></div>
   {:else}
-    {#if groups.length === 0 && backlinks.length === 0 && mentioned.length === 0}
+    {#if groups.length === 0 && backlinks.length === 0 && pageBacklinks.length === 0 && mentioned.length === 0}
       <p class="quiet">{t('app.links.none')}</p>
     {/if}
     {#each groups as group (group.name)}
@@ -142,6 +144,18 @@
                 <ReferenceChip target={backlink.entry} strength={backlink.strength} />
                 {#if backlink.source_kind === 'COMMENT'}<span class="quiet">{t('app.links.backlink_comment')}</span>{/if}
               </span>
+            </li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
+    {#if pageBacklinks.length > 0}
+      <div class="group">
+        <h3 class="relation">{t('app.links.page_backlinks')}</h3>
+        <ul class="rows">
+          {#each pageBacklinks as backlink (backlink.page.id)}
+            <li class="row" data-page-backlink={backlink.page.id}>
+              <ReferenceChip target={backlink.page} strength={backlink.strength} />
             </li>
           {/each}
         </ul>
