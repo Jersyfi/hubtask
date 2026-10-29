@@ -2465,6 +2465,14 @@ func run() error {
 			Items: items, ItemLabels: itemLabels, Tallies: postgres.NewItemTallyRepository(), Containers: containers, Fields: customFields,
 			Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		work.AggregateItems{
+			Query: work.QueryItems{
+				Gate:  entryGate,
+				Items: items, Containers: containers, Fields: customFields,
+				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			},
+			Aggregates: items,
+		}.Descriptor(),
 		// The authorisation service under three names, because a search asks the question in three
 		// shapes: about a hub the client named, about how far the caller reaches into a collection,
 		// and about each row of an unanchored page (SearchItems.reach).

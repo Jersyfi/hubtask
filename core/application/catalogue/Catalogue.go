@@ -153,6 +153,7 @@ func Descriptors() []usecase.Descriptor {
 		work.GetWorkItem{}.Descriptor(),
 		work.ListWorkItems{}.Descriptor(),
 		work.QueryItems{}.Descriptor(),
+		work.AggregateItems{}.Descriptor(),
 		work.SearchItems{}.Descriptor(),
 		work.ReindexSearch{}.Descriptor(),
 		work.ListActivity{}.Descriptor(),
