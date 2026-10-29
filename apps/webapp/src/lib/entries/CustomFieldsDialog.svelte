@@ -35,7 +35,7 @@
   import { holds, offerIn, typesWith } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
-  import { isValidCurrency, isValidKey, isWorkspaceWide, takesCurrency, takesOptions } from '../data/customfields.ts';
+  import { isCalculated, isValidCurrency, isValidKey, isWorkspaceWide, takesCurrency, takesOptions } from '../data/customfields.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -60,16 +60,17 @@
 
   const existing = $derived(customFields.of(collectionId));
 
-  /** The thirteen the contract declares, in the contract's own order. */
+  /** The fourteen the contract declares, in the contract's own order. */
   const KINDS = [
     'TEXT', 'NUMBER', 'DATE', 'SELECT', 'MULTI_SELECT', 'BOOL', 'USER', 'URL',
-    'MONEY', 'DURATION', 'REFERENCE', 'USER_SET', 'RICH_TEXT',
+    'MONEY', 'DURATION', 'REFERENCE', 'USER_SET', 'RICH_TEXT', 'CALCULATED',
   ];
 
   let key = $state('');
   let kind = $state('TEXT');
   let options = $state('');
   let currency = $state('');
+  let formula = $state('');
   let isRequired = $state(false);
   let chosen = $state<string[]>([]);
   let editing = $state<CustomFieldDefinition | undefined>(undefined);
@@ -97,6 +98,7 @@
     kind = 'TEXT';
     options = '';
     currency = '';
+    formula = '';
     isRequired = false;
     // The default is what the column's default is — every carrier rather than a guess at one.
     chosen = [...carriers];
@@ -112,6 +114,7 @@
     kind = definition.kind;
     options = (definition.options ?? []).join('\n');
     currency = definition.currency ?? '';
+    formula = definition.formula ?? '';
     isRequired = definition.is_required ?? false;
     chosen = [...((definition.applies_to ?? []) as readonly string[])];
     failure = undefined;
@@ -151,6 +154,10 @@
         kind: 'field', key: 'currency', code: 'app.fields.currency_required',
         isFilled: editing !== undefined || !takesCurrency(kind) || currency !== '',
       },
+      {
+        kind: 'field', key: 'formula', code: 'fields.formula_required',
+        isFilled: editing !== undefined || !isCalculated(kind) || formula.trim() !== '',
+      },
     ]);
     if (!isComplete(missing)) {
       queueMicrotask(() => focusFirst(form));
@@ -178,7 +185,8 @@
             kind: kind as never,
             options: takesOptions(kind) ? optionList() : [],
             ...(takesCurrency(kind) ? { currency } : {}),
-            is_required: isRequired,
+            ...(isCalculated(kind) ? { formula } : {}),
+            is_required: isCalculated(kind) ? false : isRequired,
             applies_to: chosen as never,
           },
           crypto.randomUUID(),
@@ -274,6 +282,18 @@
           />
         {/if}
 
+        {#if isCalculated(editing?.kind ?? kind)}
+          <Textarea
+            label={t('app.fields.formula')}
+            hint={t('app.fields.formula_hint')}
+            bind:value={formula}
+            rows={2}
+            oninput={() => (missing = without(missing, 'formula'))}
+            error={missing.formula ? t(missing.formula) : undefined}
+            disabledReason={editing ? t('app.fields.formula_immutable') : undefined}
+          />
+        {/if}
+
         {#if takesOptions(editing?.kind ?? kind)}
           <Textarea
             label={t('app.fields.options')}
@@ -283,7 +303,9 @@
           />
         {/if}
 
-        <Checkbox label={t('app.fields.required')} bind:checked={isRequired} />
+        {#if !isCalculated(editing?.kind ?? kind)}
+          <Checkbox label={t('app.fields.required')} bind:checked={isRequired} />
+        {/if}
 
         {#if carriers.length === 0}
           <fieldset class="types">

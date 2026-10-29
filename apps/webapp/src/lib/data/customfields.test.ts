@@ -10,10 +10,12 @@ import {
   FILTER_PREFIX,
   appliesTo,
   definitionsFor,
+  isCalculated,
   isValidCurrency,
   isValidKey,
   isWorkspaceWide,
   operatorsFor,
+  sortsBy,
   queryFieldsFor,
   takesCurrency,
   takesOptions,
@@ -192,4 +194,11 @@ test('a stored value reads the way the reader reads it, people and entries by na
   assert.equal(valueText({ kind: 'RICH_TEXT' }, '\n# Scope\nmore', reading), '# Scope');
   assert.equal(valueText({ kind: 'USER_SET' }, [], reading), undefined);
   assert.equal(valueText({ kind: 'TEXT' }, '', reading), undefined);
+});
+
+test('a calculated field reads, sorts and filters as a number, and is nobody to fill in', () => {
+  assert.equal(isCalculated('CALCULATED'), true);
+  assert.equal(isCalculated('NUMBER'), false);
+  assert.equal(sortsBy('CALCULATED'), true);
+  assert.ok(operatorsFor('CALCULATED').includes('BETWEEN'));
 });

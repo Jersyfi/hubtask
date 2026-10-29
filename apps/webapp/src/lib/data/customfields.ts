@@ -61,6 +61,11 @@ export function takesCurrency(kind: string): boolean {
   return kind === 'MONEY';
 }
 
+/** The kind the server computes with a formula: nobody fills it in, and it is never required. */
+export function isCalculated(kind: string): boolean {
+  return kind === 'CALCULATED';
+}
+
 /** A currency's shape, as the contract's pattern writes it: three capital letters (ISO 4217). */
 export function isValidCurrency(code: string): boolean {
   return /^[A-Z]{3}$/.test(code);
@@ -73,7 +78,7 @@ function isListKind(kind: string): boolean {
 
 /** The kinds that travel as a JSON number. */
 function isNumberKind(kind: string): boolean {
-  return kind === 'NUMBER' || kind === 'MONEY' || kind === 'DURATION';
+  return kind === 'NUMBER' || kind === 'MONEY' || kind === 'DURATION' || kind === 'CALCULATED';
 }
 
 /**
@@ -148,6 +153,7 @@ export function operatorsFor(kind: string): readonly string[] {
     case 'NUMBER':
     case 'MONEY':
     case 'DURATION':
+    case 'CALCULATED':
     case 'DATE':
       return ['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_NULL', 'LT', 'LTE', 'GT', 'GTE', 'BETWEEN'];
     case 'SELECT':
@@ -170,7 +176,7 @@ export function operatorsFor(kind: string): readonly string[] {
  * (`CustomShape.sorts`). A set, a person, an entry and formatted text have no single order.
  */
 export function sortsBy(kind: string): boolean {
-  return ['TEXT', 'URL', 'SELECT', 'NUMBER', 'MONEY', 'DURATION', 'DATE', 'BOOL'].includes(kind);
+  return ['TEXT', 'URL', 'SELECT', 'NUMBER', 'MONEY', 'DURATION', 'CALCULATED', 'DATE', 'BOOL'].includes(kind);
 }
 
 /**
@@ -254,6 +260,7 @@ export function valueText(
   const kind = definition.kind as string;
   switch (kind) {
     case 'NUMBER':
+    case 'CALCULATED':
       return typeof held === 'number' ? reading.number(held) : String(held);
     case 'MONEY':
       return typeof held === 'number' ? reading.amount(held, definition.currency ?? '') : String(held);

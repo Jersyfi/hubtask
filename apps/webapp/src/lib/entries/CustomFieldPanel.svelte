@@ -31,7 +31,7 @@
 
   import { accounts } from '../data/accounts.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
-  import { definitionsFor, valueFor } from '../data/customfields.ts';
+  import { definitionsFor, isCalculated, valueFor } from '../data/customfields.ts';
   import { people, type Path } from '../data/people.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { announcer } from '../announce.svelte.ts';
@@ -194,6 +194,15 @@
       <p class="quiet">{t('app.fields.values_none')}</p>
     {:else}
       {#each applicable as definition (definition.id)}
+        {@const held = values[definition.key]}
+        {#if isCalculated(definition.kind as string)}
+          <!-- The server computes it from the entry's other fields: shown, never an input (UC-WRK-12). -->
+          <div class="calculated" data-calculated={definition.key}>
+            <span class="label">{definition.key}</span>
+            <output>{typeof held === 'number' ? numbers.format(held) : t('app.fields.calculated_empty')}</output>
+            <p class="quiet">{t('app.fields.calculated_hint')}</p>
+          </div>
+        {:else}
         <div>
           <CustomFieldRenderer
             definition={drawn(definition)}
@@ -251,12 +260,17 @@
             <p class="failure" role="alert">{failure}</p>
           {/if}
         </div>
+        {/if}
       {/each}
     {/if}
   </Stack>
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); }
+
+  .calculated { display: grid; gap: var(--sp-050); }
+  .calculated .label { font-size: var(--fs-075); color: var(--text-secondary); }
+  .calculated output { font-variant-numeric: tabular-nums; }
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
 </style>
