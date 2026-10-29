@@ -1413,6 +1413,459 @@ func (e CapabilitiesWorkspacePermissions) Valid() bool {
 	}
 }
 
+// Defines values for CiAttributeKind.
+const (
+	CiAttributeKindACCOUNT CiAttributeKind = "ACCOUNT"
+	CiAttributeKindBOOLEAN CiAttributeKind = "BOOLEAN"
+	CiAttributeKindCHOICE  CiAttributeKind = "CHOICE"
+	CiAttributeKindDATE    CiAttributeKind = "DATE"
+	CiAttributeKindGROUP   CiAttributeKind = "GROUP"
+	CiAttributeKindNUMBER  CiAttributeKind = "NUMBER"
+	CiAttributeKindTEXT    CiAttributeKind = "TEXT"
+	CiAttributeKindURL     CiAttributeKind = "URL"
+)
+
+// Valid indicates whether the value is a known member of the CiAttributeKind enum.
+func (e CiAttributeKind) Valid() bool {
+	switch e {
+	case CiAttributeKindACCOUNT:
+		return true
+	case CiAttributeKindBOOLEAN:
+		return true
+	case CiAttributeKindCHOICE:
+		return true
+	case CiAttributeKindDATE:
+		return true
+	case CiAttributeKindGROUP:
+		return true
+	case CiAttributeKindNUMBER:
+		return true
+	case CiAttributeKindTEXT:
+		return true
+	case CiAttributeKindURL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiAttributeNeed.
+const (
+	OPTIONAL    CiAttributeNeed = "OPTIONAL"
+	RECOMMENDED CiAttributeNeed = "RECOMMENDED"
+	REQUIRED    CiAttributeNeed = "REQUIRED"
+)
+
+// Valid indicates whether the value is a known member of the CiAttributeNeed enum.
+func (e CiAttributeNeed) Valid() bool {
+	switch e {
+	case OPTIONAL:
+		return true
+	case RECOMMENDED:
+		return true
+	case REQUIRED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiComplianceStage.
+const (
+	CiComplianceStageDISPOSED    CiComplianceStage = "DISPOSED"
+	CiComplianceStageINSTOCK     CiComplianceStage = "IN_STOCK"
+	CiComplianceStageINUSE       CiComplianceStage = "IN_USE"
+	CiComplianceStageMAINTENANCE CiComplianceStage = "MAINTENANCE"
+	CiComplianceStageORDERED     CiComplianceStage = "ORDERED"
+	CiComplianceStagePLANNED     CiComplianceStage = "PLANNED"
+	CiComplianceStageRETIRED     CiComplianceStage = "RETIRED"
+)
+
+// Valid indicates whether the value is a known member of the CiComplianceStage enum.
+func (e CiComplianceStage) Valid() bool {
+	switch e {
+	case CiComplianceStageDISPOSED:
+		return true
+	case CiComplianceStageINSTOCK:
+		return true
+	case CiComplianceStageINUSE:
+		return true
+	case CiComplianceStageMAINTENANCE:
+		return true
+	case CiComplianceStageORDERED:
+		return true
+	case CiComplianceStagePLANNED:
+		return true
+	case CiComplianceStageRETIRED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiComplianceStatus.
+const (
+	CiComplianceStatusBLOCKED CiComplianceStatus = "BLOCKED"
+	CiComplianceStatusOK      CiComplianceStatus = "OK"
+	CiComplianceStatusPENDING CiComplianceStatus = "PENDING"
+)
+
+// Valid indicates whether the value is a known member of the CiComplianceStatus enum.
+func (e CiComplianceStatus) Valid() bool {
+	switch e {
+	case CiComplianceStatusBLOCKED:
+		return true
+	case CiComplianceStatusOK:
+		return true
+	case CiComplianceStatusPENDING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiDecisionOutcome.
+const (
+	CiDecisionOutcomeCREATE    CiDecisionOutcome = "CREATE"
+	CiDecisionOutcomeDUPLICATE CiDecisionOutcome = "DUPLICATE"
+	CiDecisionOutcomeHOLD      CiDecisionOutcome = "HOLD"
+	CiDecisionOutcomeREFUSED   CiDecisionOutcome = "REFUSED"
+	CiDecisionOutcomeUNCHANGED CiDecisionOutcome = "UNCHANGED"
+	CiDecisionOutcomeUPDATE    CiDecisionOutcome = "UPDATE"
+)
+
+// Valid indicates whether the value is a known member of the CiDecisionOutcome enum.
+func (e CiDecisionOutcome) Valid() bool {
+	switch e {
+	case CiDecisionOutcomeCREATE:
+		return true
+	case CiDecisionOutcomeDUPLICATE:
+		return true
+	case CiDecisionOutcomeHOLD:
+		return true
+	case CiDecisionOutcomeREFUSED:
+		return true
+	case CiDecisionOutcomeUNCHANGED:
+		return true
+	case CiDecisionOutcomeUPDATE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiFileImportFormat.
+const (
+	CiFileImportFormatCSV       CiFileImportFormat = "CSV"
+	CiFileImportFormatCYCLONEDX CiFileImportFormat = "CYCLONEDX"
+	CiFileImportFormatJSON      CiFileImportFormat = "JSON"
+	CiFileImportFormatSPDX      CiFileImportFormat = "SPDX"
+)
+
+// Valid indicates whether the value is a known member of the CiFileImportFormat enum.
+func (e CiFileImportFormat) Valid() bool {
+	switch e {
+	case CiFileImportFormatCSV:
+		return true
+	case CiFileImportFormatCYCLONEDX:
+		return true
+	case CiFileImportFormatJSON:
+		return true
+	case CiFileImportFormatSPDX:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiImpactDirection.
+const (
+	CiImpactDirectionDOWNSTREAM CiImpactDirection = "DOWNSTREAM"
+	CiImpactDirectionUPSTREAM   CiImpactDirection = "UPSTREAM"
+)
+
+// Valid indicates whether the value is a known member of the CiImpactDirection enum.
+func (e CiImpactDirection) Valid() bool {
+	switch e {
+	case CiImpactDirectionDOWNSTREAM:
+		return true
+	case CiImpactDirectionUPSTREAM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiOwnProtectionA.
+const (
+	CiOwnProtectionAHIGH     CiOwnProtectionA = "HIGH"
+	CiOwnProtectionANORMAL   CiOwnProtectionA = "NORMAL"
+	CiOwnProtectionAVERYHIGH CiOwnProtectionA = "VERY_HIGH"
+)
+
+// Valid indicates whether the value is a known member of the CiOwnProtectionA enum.
+func (e CiOwnProtectionA) Valid() bool {
+	switch e {
+	case CiOwnProtectionAHIGH:
+		return true
+	case CiOwnProtectionANORMAL:
+		return true
+	case CiOwnProtectionAVERYHIGH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiOwnProtectionC.
+const (
+	CiOwnProtectionCHIGH     CiOwnProtectionC = "HIGH"
+	CiOwnProtectionCNORMAL   CiOwnProtectionC = "NORMAL"
+	CiOwnProtectionCVERYHIGH CiOwnProtectionC = "VERY_HIGH"
+)
+
+// Valid indicates whether the value is a known member of the CiOwnProtectionC enum.
+func (e CiOwnProtectionC) Valid() bool {
+	switch e {
+	case CiOwnProtectionCHIGH:
+		return true
+	case CiOwnProtectionCNORMAL:
+		return true
+	case CiOwnProtectionCVERYHIGH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiOwnProtectionFixed.
+const (
+	A CiOwnProtectionFixed = "a"
+	C CiOwnProtectionFixed = "c"
+	I CiOwnProtectionFixed = "i"
+)
+
+// Valid indicates whether the value is a known member of the CiOwnProtectionFixed enum.
+func (e CiOwnProtectionFixed) Valid() bool {
+	switch e {
+	case A:
+		return true
+	case C:
+		return true
+	case I:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiOwnProtectionI.
+const (
+	CiOwnProtectionIHIGH     CiOwnProtectionI = "HIGH"
+	CiOwnProtectionINORMAL   CiOwnProtectionI = "NORMAL"
+	CiOwnProtectionIVERYHIGH CiOwnProtectionI = "VERY_HIGH"
+)
+
+// Valid indicates whether the value is a known member of the CiOwnProtectionI enum.
+func (e CiOwnProtectionI) Valid() bool {
+	switch e {
+	case CiOwnProtectionIHIGH:
+		return true
+	case CiOwnProtectionINORMAL:
+		return true
+	case CiOwnProtectionIVERYHIGH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiProtectionA.
+const (
+	CiProtectionAHIGH     CiProtectionA = "HIGH"
+	CiProtectionANORMAL   CiProtectionA = "NORMAL"
+	CiProtectionAVERYHIGH CiProtectionA = "VERY_HIGH"
+)
+
+// Valid indicates whether the value is a known member of the CiProtectionA enum.
+func (e CiProtectionA) Valid() bool {
+	switch e {
+	case CiProtectionAHIGH:
+		return true
+	case CiProtectionANORMAL:
+		return true
+	case CiProtectionAVERYHIGH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiProtectionC.
+const (
+	CiProtectionCHIGH     CiProtectionC = "HIGH"
+	CiProtectionCNORMAL   CiProtectionC = "NORMAL"
+	CiProtectionCVERYHIGH CiProtectionC = "VERY_HIGH"
+)
+
+// Valid indicates whether the value is a known member of the CiProtectionC enum.
+func (e CiProtectionC) Valid() bool {
+	switch e {
+	case CiProtectionCHIGH:
+		return true
+	case CiProtectionCNORMAL:
+		return true
+	case CiProtectionCVERYHIGH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiProtectionI.
+const (
+	CiProtectionIHIGH     CiProtectionI = "HIGH"
+	CiProtectionINORMAL   CiProtectionI = "NORMAL"
+	CiProtectionIVERYHIGH CiProtectionI = "VERY_HIGH"
+)
+
+// Valid indicates whether the value is a known member of the CiProtectionI enum.
+func (e CiProtectionI) Valid() bool {
+	switch e {
+	case CiProtectionIHIGH:
+		return true
+	case CiProtectionINORMAL:
+		return true
+	case CiProtectionIVERYHIGH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiRelationTypeImpact.
+const (
+	CiRelationTypeImpactBOTH   CiRelationTypeImpact = "BOTH"
+	CiRelationTypeImpactNONE   CiRelationTypeImpact = "NONE"
+	CiRelationTypeImpactSOURCE CiRelationTypeImpact = "SOURCE"
+	CiRelationTypeImpactTARGET CiRelationTypeImpact = "TARGET"
+)
+
+// Valid indicates whether the value is a known member of the CiRelationTypeImpact enum.
+func (e CiRelationTypeImpact) Valid() bool {
+	switch e {
+	case CiRelationTypeImpactBOTH:
+		return true
+	case CiRelationTypeImpactNONE:
+		return true
+	case CiRelationTypeImpactSOURCE:
+		return true
+	case CiRelationTypeImpactTARGET:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiRelationTypeDefineImpact.
+const (
+	CiRelationTypeDefineImpactBOTH   CiRelationTypeDefineImpact = "BOTH"
+	CiRelationTypeDefineImpactNONE   CiRelationTypeDefineImpact = "NONE"
+	CiRelationTypeDefineImpactSOURCE CiRelationTypeDefineImpact = "SOURCE"
+	CiRelationTypeDefineImpactTARGET CiRelationTypeDefineImpact = "TARGET"
+)
+
+// Valid indicates whether the value is a known member of the CiRelationTypeDefineImpact enum.
+func (e CiRelationTypeDefineImpact) Valid() bool {
+	switch e {
+	case CiRelationTypeDefineImpactBOTH:
+		return true
+	case CiRelationTypeDefineImpactNONE:
+		return true
+	case CiRelationTypeDefineImpactSOURCE:
+		return true
+	case CiRelationTypeDefineImpactTARGET:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiSourceKind.
+const (
+	CiSourceKindAPI       CiSourceKind = "API"
+	CiSourceKindCONNECTOR CiSourceKind = "CONNECTOR"
+	CiSourceKindFILE      CiSourceKind = "FILE"
+	CiSourceKindMANUAL    CiSourceKind = "MANUAL"
+)
+
+// Valid indicates whether the value is a known member of the CiSourceKind enum.
+func (e CiSourceKind) Valid() bool {
+	switch e {
+	case CiSourceKindAPI:
+		return true
+	case CiSourceKindCONNECTOR:
+		return true
+	case CiSourceKindFILE:
+		return true
+	case CiSourceKindMANUAL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiSourceDefineKind.
+const (
+	CiSourceDefineKindAPI       CiSourceDefineKind = "API"
+	CiSourceDefineKindCONNECTOR CiSourceDefineKind = "CONNECTOR"
+	CiSourceDefineKindFILE      CiSourceDefineKind = "FILE"
+)
+
+// Valid indicates whether the value is a known member of the CiSourceDefineKind enum.
+func (e CiSourceDefineKind) Valid() bool {
+	switch e {
+	case CiSourceDefineKindAPI:
+		return true
+	case CiSourceDefineKindCONNECTOR:
+		return true
+	case CiSourceDefineKindFILE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CmdbHealthProblemsKinds.
+const (
+	CmdbHealthProblemsKindsDUPLICATE     CmdbHealthProblemsKinds = "DUPLICATE"
+	CmdbHealthProblemsKindsINCOMPLETE    CmdbHealthProblemsKinds = "INCOMPLETE"
+	CmdbHealthProblemsKindsNOOWNER       CmdbHealthProblemsKinds = "NO_OWNER"
+	CmdbHealthProblemsKindsORPHAN        CmdbHealthProblemsKinds = "ORPHAN"
+	CmdbHealthProblemsKindsREVIEWOVERDUE CmdbHealthProblemsKinds = "REVIEW_OVERDUE"
+	CmdbHealthProblemsKindsSTALE         CmdbHealthProblemsKinds = "STALE"
+)
+
+// Valid indicates whether the value is a known member of the CmdbHealthProblemsKinds enum.
+func (e CmdbHealthProblemsKinds) Valid() bool {
+	switch e {
+	case CmdbHealthProblemsKindsDUPLICATE:
+		return true
+	case CmdbHealthProblemsKindsINCOMPLETE:
+		return true
+	case CmdbHealthProblemsKindsNOOWNER:
+		return true
+	case CmdbHealthProblemsKindsORPHAN:
+		return true
+	case CmdbHealthProblemsKindsREVIEWOVERDUE:
+		return true
+	case CmdbHealthProblemsKindsSTALE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CollectionFigureKind.
 const (
 	CollectionFigureKindDUE      CollectionFigureKind = "DUE"
@@ -1725,6 +2178,63 @@ func (e ConfigUpgradeChangeState) Valid() bool {
 	case ConfigUpgradeChangeStateCONFLICT:
 		return true
 	case ConfigUpgradeChangeStateTAKE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigurationItemStage.
+const (
+	ConfigurationItemStageDISPOSED    ConfigurationItemStage = "DISPOSED"
+	ConfigurationItemStageINSTOCK     ConfigurationItemStage = "IN_STOCK"
+	ConfigurationItemStageINUSE       ConfigurationItemStage = "IN_USE"
+	ConfigurationItemStageMAINTENANCE ConfigurationItemStage = "MAINTENANCE"
+	ConfigurationItemStageORDERED     ConfigurationItemStage = "ORDERED"
+	ConfigurationItemStagePLANNED     ConfigurationItemStage = "PLANNED"
+	ConfigurationItemStageRETIRED     ConfigurationItemStage = "RETIRED"
+)
+
+// Valid indicates whether the value is a known member of the ConfigurationItemStage enum.
+func (e ConfigurationItemStage) Valid() bool {
+	switch e {
+	case ConfigurationItemStageDISPOSED:
+		return true
+	case ConfigurationItemStageINSTOCK:
+		return true
+	case ConfigurationItemStageINUSE:
+		return true
+	case ConfigurationItemStageMAINTENANCE:
+		return true
+	case ConfigurationItemStageORDERED:
+		return true
+	case ConfigurationItemStagePLANNED:
+		return true
+	case ConfigurationItemStageRETIRED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigurationItemStatus.
+const (
+	ConfigurationItemStatusBLOCKED ConfigurationItemStatus = "BLOCKED"
+	ConfigurationItemStatusMERGED  ConfigurationItemStatus = "MERGED"
+	ConfigurationItemStatusOK      ConfigurationItemStatus = "OK"
+	ConfigurationItemStatusPENDING ConfigurationItemStatus = "PENDING"
+)
+
+// Valid indicates whether the value is a known member of the ConfigurationItemStatus enum.
+func (e ConfigurationItemStatus) Valid() bool {
+	switch e {
+	case ConfigurationItemStatusBLOCKED:
+		return true
+	case ConfigurationItemStatusMERGED:
+		return true
+	case ConfigurationItemStatusOK:
+		return true
+	case ConfigurationItemStatusPENDING:
 		return true
 	default:
 		return false
@@ -7071,6 +7581,24 @@ func (e ListRuleRunsParamsTrigger) Valid() bool {
 	}
 }
 
+// Defines values for ReadCiImpactParamsDirection.
+const (
+	ReadCiImpactParamsDirectionDOWNSTREAM ReadCiImpactParamsDirection = "DOWNSTREAM"
+	ReadCiImpactParamsDirectionUPSTREAM   ReadCiImpactParamsDirection = "UPSTREAM"
+)
+
+// Valid indicates whether the value is a known member of the ReadCiImpactParamsDirection enum.
+func (e ReadCiImpactParamsDirection) Valid() bool {
+	switch e {
+	case ReadCiImpactParamsDirectionDOWNSTREAM:
+		return true
+	case ReadCiImpactParamsDirectionUPSTREAM:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListConfigProposalsParamsState.
 const (
 	ListConfigProposalsParamsStateAPPLIED  ListConfigProposalsParamsState = "APPLIED"
@@ -8614,6 +9142,439 @@ type CapabilitiesTenancyMode string
 // CapabilitiesWorkspacePermissions defines model for Capabilities.WorkspacePermissions.
 type CapabilitiesWorkspacePermissions string
 
+// CiAttribute defines model for CiAttribute.
+type CiAttribute struct {
+	Identifier *bool            `json:"identifier,omitempty"`
+	Key        string           `json:"key"`
+	Kind       CiAttributeKind  `json:"kind"`
+	Need       *CiAttributeNeed `json:"need,omitempty"`
+	Options    *[]string        `json:"options,omitempty"`
+}
+
+// CiAttributeKind defines model for CiAttribute.Kind.
+type CiAttributeKind string
+
+// CiAttributeNeed defines model for CiAttribute.Need.
+type CiAttributeNeed string
+
+// CiClass A configuration item class. A shipped class has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits.
+type CiClass struct {
+	Abstract          *bool                `json:"abstract,omitempty"`
+	AllAttributes     []CiAttribute        `json:"all_attributes"`
+	Archived          *bool                `json:"archived,omitempty"`
+	Attributes        []CiAttribute        `json:"attributes"`
+	Icon              *string              `json:"icon,omitempty"`
+	IdentifierRules   []CiIdentifierRule   `json:"identifier_rules"`
+	Key               string               `json:"key"`
+	Lineage           []string             `json:"lineage"`
+	Name              *string              `json:"name,omitempty"`
+	Parent            string               `json:"parent"`
+	RequiredRelations []CiRequiredRelation `json:"required_relations"`
+	StalenessDays     int                  `json:"staleness_days"`
+	System            bool                 `json:"system"`
+	Version           int                  `json:"version"`
+}
+
+// CiClassDefine defines model for CiClassDefine.
+type CiClassDefine struct {
+	Abstract          *bool                 `json:"abstract,omitempty"`
+	Archived          *bool                 `json:"archived,omitempty"`
+	Attributes        *[]CiAttribute        `json:"attributes,omitempty"`
+	Icon              *string               `json:"icon,omitempty"`
+	IdentifierRules   *[]CiIdentifierRule   `json:"identifier_rules,omitempty"`
+	Name              string                `json:"name"`
+	Parent            string                `json:"parent"`
+	RequiredRelations *[]CiRequiredRelation `json:"required_relations,omitempty"`
+	StalenessDays     *int                  `json:"staleness_days,omitempty"`
+}
+
+// CiClassList defines model for CiClassList.
+type CiClassList struct {
+	Data []CiClass `json:"data"`
+}
+
+// CiClassPair defines model for CiClassPair.
+type CiClassPair struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+// CiCompliance defines model for CiCompliance.
+type CiCompliance struct {
+	LocationId     *openapi_types.UUID `json:"location_id,omitempty"`
+	OwnerAccountId *openapi_types.UUID `json:"owner_account_id,omitempty"`
+	OwnerGroupId   *openapi_types.UUID `json:"owner_group_id,omitempty"`
+
+	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+	Protection *CiOwnProtection    `json:"protection,omitempty"`
+	Quantity   *int                `json:"quantity,omitempty"`
+	ReviewDue  *openapi_types.Date `json:"review_due,omitempty"`
+	Stage      *CiComplianceStage  `json:"stage,omitempty"`
+	Status     *CiComplianceStatus `json:"status,omitempty"`
+}
+
+// CiComplianceStage defines model for CiCompliance.Stage.
+type CiComplianceStage string
+
+// CiComplianceStatus defines model for CiCompliance.Status.
+type CiComplianceStatus string
+
+// CiDecision What the reconciliation did with one item and why: the rule that matched, the attributes taken, those kept and by which source, a duplicate's candidates, a hold's or refusal's reason as a message code. It names attributes, never values.
+type CiDecision struct {
+	Candidates *[]openapi_types.UUID `json:"candidates,omitempty"`
+	CiId       *openapi_types.UUID   `json:"ci_id,omitempty"`
+	Class      *string               `json:"class,omitempty"`
+	Kept       *[]struct {
+		Attribute string `json:"attribute"`
+		By        string `json:"by"`
+	} `json:"kept,omitempty"`
+	Outcome CiDecisionOutcome `json:"outcome"`
+	Reason  *string           `json:"reason,omitempty"`
+	Ref     string            `json:"ref"`
+	Rule    *string           `json:"rule,omitempty"`
+	Taken   *[]string         `json:"taken,omitempty"`
+}
+
+// CiDecisionOutcome defines model for CiDecision.Outcome.
+type CiDecisionOutcome string
+
+// CiDuplicate defines model for CiDuplicate.
+type CiDuplicate struct {
+	CiIds     []openapi_types.UUID `json:"ci_ids"`
+	CreatedAt time.Time            `json:"created_at"`
+	HubId     openapi_types.UUID   `json:"hub_id"`
+	Id        openapi_types.UUID   `json:"id"`
+	Rule      string               `json:"rule"`
+}
+
+// CiDuplicateList defines model for CiDuplicateList.
+type CiDuplicateList struct {
+	Data []CiDuplicate `json:"data"`
+}
+
+// CiDuplicateResolve defines model for CiDuplicateResolve.
+type CiDuplicateResolve struct {
+	// SurvivorId The CI that stays; absent says the CIs are distinct.
+	SurvivorId *openapi_types.UUID `json:"survivor_id,omitempty"`
+}
+
+// CiDuplicateResolved The survivor after a merge, or the duplicate's identifier when the CIs are distinct.
+type CiDuplicateResolved struct {
+	Class   *string             `json:"class,omitempty"`
+	HubId   *openapi_types.UUID `json:"hub_id,omitempty"`
+	Id      openapi_types.UUID  `json:"id"`
+	Merged  bool                `json:"merged"`
+	Name    *string             `json:"name,omitempty"`
+	Version *int                `json:"version,omitempty"`
+}
+
+// CiFileImport defines model for CiFileImport.
+type CiFileImport struct {
+	Content string             `json:"content"`
+	DryRun  *bool              `json:"dry_run,omitempty"`
+	Format  CiFileImportFormat `json:"format"`
+
+	// Mapping How a CSV table's or a JSON array's columns become a configuration item.
+	Mapping *CiFileMapping `json:"mapping,omitempty"`
+	Source  string         `json:"source"`
+}
+
+// CiFileImportFormat defines model for CiFileImport.Format.
+type CiFileImportFormat string
+
+// CiFileMapping How a CSV table's or a JSON array's columns become a configuration item.
+type CiFileMapping struct {
+	Class           string             `json:"class"`
+	ClassColumn     *string            `json:"class_column,omitempty"`
+	Columns         *map[string]string `json:"columns,omitempty"`
+	Defaults        *map[string]string `json:"defaults,omitempty"`
+	NameColumn      string             `json:"name_column"`
+	NativeKeyColumn *string            `json:"native_key_column,omitempty"`
+}
+
+// CiHold defines model for CiHold.
+type CiHold struct {
+	CreatedAt time.Time          `json:"created_at"`
+	HubId     openapi_types.UUID `json:"hub_id"`
+	Id        openapi_types.UUID `json:"id"`
+	Item      CiPayloadItem      `json:"item"`
+	Reason    string             `json:"reason"`
+	RunId     openapi_types.UUID `json:"run_id"`
+	Source    string             `json:"source"`
+}
+
+// CiHoldDismissed defines model for CiHoldDismissed.
+type CiHoldDismissed struct {
+	Dismissed bool               `json:"dismissed"`
+	Id        openapi_types.UUID `json:"id"`
+}
+
+// CiHoldList defines model for CiHoldList.
+type CiHoldList struct {
+	Data []CiHold `json:"data"`
+}
+
+// CiIdentifierRule defines model for CiIdentifierRule.
+type CiIdentifierRule struct {
+	Attributes []string `json:"attributes"`
+
+	// Class The class that declared the rule.
+	Class *string `json:"class,omitempty"`
+}
+
+// CiImpact defines model for CiImpact.
+type CiImpact struct {
+	CiId      openapi_types.UUID `json:"ci_id"`
+	Direction CiImpactDirection  `json:"direction"`
+	Reached   []CiReached        `json:"reached"`
+
+	// Services The active services and offerings among them.
+	Services []openapi_types.UUID `json:"services"`
+}
+
+// CiImpactDirection defines model for CiImpact.Direction.
+type CiImpactDirection string
+
+// CiOwnProtection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+type CiOwnProtection struct {
+	A      *CiOwnProtectionA       `json:"a,omitempty"`
+	C      *CiOwnProtectionC       `json:"c,omitempty"`
+	Fixed  *[]CiOwnProtectionFixed `json:"fixed,omitempty"`
+	I      *CiOwnProtectionI       `json:"i,omitempty"`
+	Reason *string                 `json:"reason,omitempty"`
+}
+
+// CiOwnProtectionA defines model for CiOwnProtection.A.
+type CiOwnProtectionA string
+
+// CiOwnProtectionC defines model for CiOwnProtection.C.
+type CiOwnProtectionC string
+
+// CiOwnProtectionFixed defines model for CiOwnProtection.Fixed.
+type CiOwnProtectionFixed string
+
+// CiOwnProtectionI defines model for CiOwnProtection.I.
+type CiOwnProtectionI string
+
+// CiPayload defines model for CiPayload.
+type CiPayload struct {
+	DryRun    *bool                `json:"dry_run,omitempty"`
+	Items     []CiPayloadItem      `json:"items"`
+	Relations *[]CiPayloadRelation `json:"relations,omitempty"`
+	Source    string               `json:"source"`
+}
+
+// CiPayloadItem defines model for CiPayloadItem.
+type CiPayloadItem struct {
+	Attributes *map[string]interface{} `json:"attributes,omitempty"`
+	Class      string                  `json:"class"`
+	Name       *string                 `json:"name,omitempty"`
+	NativeKey  *string                 `json:"native_key,omitempty"`
+	Ref        *string                 `json:"ref,omitempty"`
+}
+
+// CiPayloadRelation defines model for CiPayloadRelation.
+type CiPayloadRelation struct {
+	// From An item's ref.
+	From   *string             `json:"from,omitempty"`
+	FromId *openapi_types.UUID `json:"from_id,omitempty"`
+
+	// To An item's ref.
+	To   *string             `json:"to,omitempty"`
+	ToId *openapi_types.UUID `json:"to_id,omitempty"`
+	Type string              `json:"type"`
+}
+
+// CiProtection A protection need per confidentiality, integrity and availability.
+type CiProtection struct {
+	A *CiProtectionA `json:"a,omitempty"`
+	C *CiProtectionC `json:"c,omitempty"`
+	I *CiProtectionI `json:"i,omitempty"`
+}
+
+// CiProtectionA defines model for CiProtection.A.
+type CiProtectionA string
+
+// CiProtectionC defines model for CiProtection.C.
+type CiProtectionC string
+
+// CiProtectionI defines model for CiProtection.I.
+type CiProtectionI string
+
+// CiProvenance defines model for CiProvenance.
+type CiProvenance struct {
+	At     time.Time           `json:"at"`
+	RunId  *openapi_types.UUID `json:"run_id,omitempty"`
+	Source string              `json:"source"`
+}
+
+// CiReached defines model for CiReached.
+type CiReached struct {
+	CiId  openapi_types.UUID `json:"ci_id"`
+	Class string             `json:"class"`
+	Depth int                `json:"depth"`
+	Name  string             `json:"name"`
+	Stage string             `json:"stage"`
+}
+
+// CiRelate defines model for CiRelate.
+type CiRelate struct {
+	SourceCiId openapi_types.UUID `json:"source_ci_id"`
+	TargetCiId openapi_types.UUID `json:"target_ci_id"`
+	Type       string             `json:"type"`
+}
+
+// CiRelation defines model for CiRelation.
+type CiRelation struct {
+	DataSource string             `json:"data_source"`
+	FirstSeen  time.Time          `json:"first_seen"`
+	Id         openapi_types.UUID `json:"id"`
+	LastSeen   time.Time          `json:"last_seen"`
+	SourceCiId openapi_types.UUID `json:"source_ci_id"`
+	TargetCiId openapi_types.UUID `json:"target_ci_id"`
+	Type       string             `json:"type"`
+}
+
+// CiRelationRemoved defines model for CiRelationRemoved.
+type CiRelationRemoved struct {
+	Id      openapi_types.UUID `json:"id"`
+	Removed bool               `json:"removed"`
+}
+
+// CiRelationType A relation type; `impact` says which end suffers when the other fails.
+type CiRelationType struct {
+	Archived    *bool                `json:"archived,omitempty"`
+	Impact      CiRelationTypeImpact `json:"impact"`
+	Key         string               `json:"key"`
+	Name        *string              `json:"name,omitempty"`
+	Pairs       []CiClassPair        `json:"pairs"`
+	ReverseName *string              `json:"reverse_name,omitempty"`
+	System      bool                 `json:"system"`
+	Version     int                  `json:"version"`
+}
+
+// CiRelationTypeImpact defines model for CiRelationType.Impact.
+type CiRelationTypeImpact string
+
+// CiRelationTypeDefine defines model for CiRelationTypeDefine.
+type CiRelationTypeDefine struct {
+	Archived    *bool                      `json:"archived,omitempty"`
+	Impact      CiRelationTypeDefineImpact `json:"impact"`
+	Name        string                     `json:"name"`
+	Pairs       *[]CiClassPair             `json:"pairs,omitempty"`
+	ReverseName string                     `json:"reverse_name"`
+}
+
+// CiRelationTypeDefineImpact defines model for CiRelationTypeDefine.Impact.
+type CiRelationTypeDefineImpact string
+
+// CiRelationTypeList defines model for CiRelationTypeList.
+type CiRelationTypeList struct {
+	Data []CiRelationType `json:"data"`
+}
+
+// CiRequiredRelation defines model for CiRequiredRelation.
+type CiRequiredRelation struct {
+	Outgoing bool     `json:"outgoing"`
+	Types    []string `json:"types"`
+}
+
+// CiRun A reconciliation run; a dry run has no `id` and was not stored.
+type CiRun struct {
+	ActorId     *openapi_types.UUID `json:"actor_id,omitempty"`
+	Counts      CiRunCounts         `json:"counts"`
+	Decisions   *[]CiDecision       `json:"decisions,omitempty"`
+	DryRun      bool                `json:"dry_run"`
+	HubId       openapi_types.UUID  `json:"hub_id"`
+	Id          *openapi_types.UUID `json:"id,omitempty"`
+	SkippedRows *[]int              `json:"skipped_rows,omitempty"`
+	Source      string              `json:"source"`
+	StartedAt   time.Time           `json:"started_at"`
+}
+
+// CiRunCounts defines model for CiRunCounts.
+type CiRunCounts struct {
+	Created          int  `json:"created"`
+	Duplicates       int  `json:"duplicates"`
+	Held             int  `json:"held"`
+	Items            int  `json:"items"`
+	Refused          int  `json:"refused"`
+	RelationsAdded   *int `json:"relations_added,omitempty"`
+	RelationsRefused *int `json:"relations_refused,omitempty"`
+	RelationsSeen    *int `json:"relations_seen,omitempty"`
+	Unchanged        int  `json:"unchanged"`
+	Updated          int  `json:"updated"`
+}
+
+// CiRunList defines model for CiRunList.
+type CiRunList struct {
+	Data []CiRun `json:"data"`
+}
+
+// CiSource defines model for CiSource.
+type CiSource struct {
+	Classes   []string       `json:"classes"`
+	Key       string         `json:"key"`
+	Kind      CiSourceKind   `json:"kind"`
+	LastRunAt *time.Time     `json:"last_run_at,omitempty"`
+	Mapping   *CiFileMapping `json:"mapping,omitempty"`
+	MayCreate bool           `json:"may_create"`
+	Rank      int            `json:"rank"`
+	System    bool           `json:"system"`
+	Version   int            `json:"version"`
+}
+
+// CiSourceKind defines model for CiSource.Kind.
+type CiSourceKind string
+
+// CiSourceDefine defines model for CiSourceDefine.
+type CiSourceDefine struct {
+	Classes *[]string          `json:"classes,omitempty"`
+	Kind    CiSourceDefineKind `json:"kind"`
+
+	// Mapping How a CSV table's or a JSON array's columns become a configuration item.
+	Mapping   *CiFileMapping `json:"mapping,omitempty"`
+	MayCreate *bool          `json:"may_create,omitempty"`
+	Rank      int            `json:"rank"`
+}
+
+// CiSourceDefineKind defines model for CiSourceDefine.Kind.
+type CiSourceDefineKind string
+
+// CiSourceList defines model for CiSourceList.
+type CiSourceList struct {
+	Data []CiSource `json:"data"`
+}
+
+// CmdbHealth A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem.
+type CmdbHealth struct {
+	Classes []struct {
+		Class        string  `json:"class"`
+		Completeness float32 `json:"completeness"`
+		Duplicates   int     `json:"duplicates"`
+		Orphans      int     `json:"orphans"`
+		Stale        int     `json:"stale"`
+		Total        int     `json:"total"`
+	} `json:"classes"`
+	Completeness float32 `json:"completeness"`
+	Correctness  float32 `json:"correctness"`
+	Duplicates   int     `json:"duplicates"`
+	Orphans      int     `json:"orphans"`
+	Problems     []struct {
+		CiId    openapi_types.UUID        `json:"ci_id"`
+		Class   string                    `json:"class"`
+		Kinds   []CmdbHealthProblemsKinds `json:"kinds"`
+		Missing *[]string                 `json:"missing,omitempty"`
+	} `json:"problems"`
+	ReviewOverdue int `json:"review_overdue"`
+	Stale         int `json:"stale"`
+	Total         int `json:"total"`
+	WithoutOwner  int `json:"without_owner"`
+}
+
+// CmdbHealthProblemsKinds defines model for CmdbHealth.Problems.Kinds.
+type CmdbHealthProblemsKinds string
+
 // CollectionFigure What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered.
 type CollectionFigure struct {
 	// AverageSeconds FLOW - the average time those entries took from their first column to their last: from the moment each was created to the moment it was completed, in seconds. Null where none was completed.
@@ -9104,6 +10065,66 @@ type ConfigVersion struct {
 // ConfigVersionList defines model for ConfigVersionList.
 type ConfigVersionList struct {
 	Data []ConfigVersion `json:"data"`
+}
+
+// ConfigurationItem A configuration item in a hub. `attributes` hold its class's typed values; `provenance` names per attribute the source that last wrote it. `effective_protection` is given on a single read: the need it inherits from everything that suffers when it fails.
+type ConfigurationItem struct {
+	Attributes map[string]interface{} `json:"attributes"`
+	Class      string                 `json:"class"`
+	CreatedAt  time.Time              `json:"created_at"`
+	CreatedBy  *openapi_types.UUID    `json:"created_by,omitempty"`
+
+	// Decision What the reconciliation did with one item and why: the rule that matched, the attributes taken, those kept and by which source, a duplicate's candidates, a hold's or refusal's reason as a message code. It names attributes, never values.
+	Decision *CiDecision `json:"decision,omitempty"`
+
+	// EffectiveProtection A protection need per confidentiality, integrity and availability.
+	EffectiveProtection *CiProtection       `json:"effective_protection,omitempty"`
+	HubId               openapi_types.UUID  `json:"hub_id"`
+	Id                  openapi_types.UUID  `json:"id"`
+	LastSeenAt          *time.Time          `json:"last_seen_at,omitempty"`
+	LocationId          *openapi_types.UUID `json:"location_id,omitempty"`
+	MergedInto          *openapi_types.UUID `json:"merged_into,omitempty"`
+	Name                string              `json:"name"`
+	OwnerAccountId      *openapi_types.UUID `json:"owner_account_id,omitempty"`
+	OwnerGroupId        *openapi_types.UUID `json:"owner_group_id,omitempty"`
+
+	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+	Protection CiOwnProtection         `json:"protection"`
+	Provenance map[string]CiProvenance `json:"provenance"`
+	Quantity   int                     `json:"quantity"`
+	Relations  *[]CiRelation           `json:"relations,omitempty"`
+	ReviewDue  *openapi_types.Date     `json:"review_due,omitempty"`
+	Stage      ConfigurationItemStage  `json:"stage"`
+	Status     ConfigurationItemStatus `json:"status"`
+	UpdatedAt  time.Time               `json:"updated_at"`
+	UpdatedBy  *openapi_types.UUID     `json:"updated_by,omitempty"`
+	Version    int                     `json:"version"`
+}
+
+// ConfigurationItemStage defines model for ConfigurationItem.Stage.
+type ConfigurationItemStage string
+
+// ConfigurationItemStatus defines model for ConfigurationItem.Status.
+type ConfigurationItemStatus string
+
+// ConfigurationItemCreate defines model for ConfigurationItemCreate.
+type ConfigurationItemCreate struct {
+	Attributes *map[string]interface{} `json:"attributes,omitempty"`
+	Class      string                  `json:"class"`
+	Name       string                  `json:"name"`
+}
+
+// ConfigurationItemList defines model for ConfigurationItemList.
+type ConfigurationItemList struct {
+	Data []ConfigurationItem `json:"data"`
+	Next *openapi_types.UUID `json:"next,omitempty"`
+}
+
+// ConfigurationItemUpdate defines model for ConfigurationItemUpdate.
+type ConfigurationItemUpdate struct {
+	Attributes *map[string]interface{} `json:"attributes,omitempty"`
+	Class      *string                 `json:"class,omitempty"`
+	Name       *string                 `json:"name,omitempty"`
 }
 
 // ConnectedIdentity One provider identity connected to the caller's account.
@@ -17099,6 +18120,45 @@ type ListBackupsAtTargetParams struct {
 	Refresh *bool `form:"refresh,omitempty" json:"refresh,omitempty"`
 }
 
+// UpdateCiParams defines parameters for UpdateCi.
+type UpdateCiParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// SetCiComplianceParams defines parameters for SetCiCompliance.
+type SetCiComplianceParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ReadCiImpactParams defines parameters for ReadCiImpact.
+type ReadCiImpactParams struct {
+	Direction *ReadCiImpactParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+	Depth     *int                         `form:"depth,omitempty" json:"depth,omitempty"`
+}
+
+// ReadCiImpactParamsDirection defines parameters for ReadCiImpact.
+type ReadCiImpactParamsDirection string
+
+// DefineCiClassParams defines parameters for DefineCiClass.
+type DefineCiClassParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// DefineCiRelationTypeParams defines parameters for DefineCiRelationType.
+type DefineCiRelationTypeParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// DefineCiSourceParams defines parameters for DefineCiSource.
+type DefineCiSourceParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // SetCollectionHandleParams defines parameters for SetCollectionHandle.
 type SetCollectionHandleParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -17367,6 +18427,29 @@ type UpdateGroupParams struct {
 
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ListCiDuplicatesParams defines parameters for ListCiDuplicates.
+type ListCiDuplicatesParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListCiHoldsParams defines parameters for ListCiHolds.
+type ListCiHoldsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListCiRunsParams defines parameters for ListCiRuns.
+type ListCiRunsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListCisParams defines parameters for ListCis.
+type ListCisParams struct {
+	Class         *string             `form:"class,omitempty" json:"class,omitempty"`
+	After         *openapi_types.UUID `form:"after,omitempty" json:"after,omitempty"`
+	Limit         *int                `form:"limit,omitempty" json:"limit,omitempty"`
+	IncludeMerged *bool               `form:"include_merged,omitempty" json:"include_merged,omitempty"`
 }
 
 // ListPagesParams defines parameters for ListPages.
@@ -18517,6 +19600,27 @@ type CreateBackupTargetJSONRequestBody = BackupTargetCreate
 // StartBackupJSONRequestBody defines body for StartBackup for application/json ContentType.
 type StartBackupJSONRequestBody = BackupStart
 
+// ResolveCiDuplicateJSONRequestBody defines body for ResolveCiDuplicate for application/json ContentType.
+type ResolveCiDuplicateJSONRequestBody = CiDuplicateResolve
+
+// RelateCisJSONRequestBody defines body for RelateCis for application/json ContentType.
+type RelateCisJSONRequestBody = CiRelate
+
+// UpdateCiJSONRequestBody defines body for UpdateCi for application/json ContentType.
+type UpdateCiJSONRequestBody = ConfigurationItemUpdate
+
+// SetCiComplianceJSONRequestBody defines body for SetCiCompliance for application/json ContentType.
+type SetCiComplianceJSONRequestBody = CiCompliance
+
+// DefineCiClassJSONRequestBody defines body for DefineCiClass for application/json ContentType.
+type DefineCiClassJSONRequestBody = CiClassDefine
+
+// DefineCiRelationTypeJSONRequestBody defines body for DefineCiRelationType for application/json ContentType.
+type DefineCiRelationTypeJSONRequestBody = CiRelationTypeDefine
+
+// DefineCiSourceJSONRequestBody defines body for DefineCiSource for application/json ContentType.
+type DefineCiSourceJSONRequestBody = CiSourceDefine
+
 // SetCollectionHandleJSONRequestBody defines body for SetCollectionHandle for application/json ContentType.
 type SetCollectionHandleJSONRequestBody = CollectionHandle
 
@@ -18615,6 +19719,15 @@ type CreateGroupJSONRequestBody = GroupCreate
 
 // UpdateGroupApplicationMergePatchPlusJSONRequestBody defines body for UpdateGroup for application/merge-patch+json ContentType.
 type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
+
+// CreateCiJSONRequestBody defines body for CreateCi for application/json ContentType.
+type CreateCiJSONRequestBody = ConfigurationItemCreate
+
+// ImportCiFileJSONRequestBody defines body for ImportCiFile for application/json ContentType.
+type ImportCiFileJSONRequestBody = CiFileImport
+
+// ReconcileCisJSONRequestBody defines body for ReconcileCis for application/json ContentType.
+type ReconcileCisJSONRequestBody = CiPayload
 
 // CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
 type CreatePageJSONRequestBody = PageCreate
@@ -21694,6 +22807,188 @@ type ClientInterface interface {
 	// An unknown token, a revoked one, a feed whose view has been deleted and a feed whose owner has lost the view all answer the same 404 with the same body. Distinguishing them would answer questions to whoever is trying tokens.
 	GetCalendarFeedDocument(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ResolveCiDuplicateWithBody Merge a duplicate or call it distinct
+	//
+	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /ci-duplicates/{duplicateId}:resolve (the `ResolveCiDuplicate` operationId).
+	ResolveCiDuplicateWithBody(ctx context.Context, duplicateId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ResolveCiDuplicate Merge a duplicate or call it distinct
+	//
+	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /ci-duplicates/{duplicateId}:resolve (the `ResolveCiDuplicate` operationId).
+	ResolveCiDuplicate(ctx context.Context, duplicateId openapi_types.UUID, body ResolveCiDuplicateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DismissCiHold Close a held item
+	//
+	// The hold stays on record with who closed it. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with POST /ci-holds/{holdId}:dismiss (the `DismissCiHold` operationId).
+	DismissCiHold(ctx context.Context, holdId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RelateCisWithBody Join two configuration items
+	//
+	// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /ci-relations (the `RelateCis` operationId).
+	RelateCisWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RelateCis Join two configuration items
+	//
+	// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /ci-relations (the `RelateCis` operationId).
+	RelateCis(ctx context.Context, body RelateCisJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UnrelateCis Remove a relation
+	//
+	// A source that reports it again makes it again. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with DELETE /ci-relations/{relationId} (the `UnrelateCis` operationId).
+	UnrelateCis(ctx context.Context, relationId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadCiRun One reconciliation run with its decisions
+	//
+	// Every item's outcome, CI, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
+	//
+	// Corresponds with GET /ci-runs/{runId} (the `ReadCiRun` operationId).
+	ReadCiRun(ctx context.Context, runId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadCi Read a configuration item
+	//
+	// With its relations both ways and the protection need it inherits from everything that suffers when it fails. Needs READ on the hub.
+	//
+	// Corresponds with GET /cis/{ciId} (the `ReadCi` operationId).
+	ReadCi(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateCiWithBody Change a configuration item by hand
+	//
+	// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
+	UpdateCiWithBody(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateCi Change a configuration item by hand
+	//
+	// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
+	UpdateCi(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, body UpdateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetCiComplianceWithBody Set a configuration item's lifecycle and compliance fields
+	//
+	// Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
+	SetCiComplianceWithBody(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetCiCompliance Set a configuration item's lifecycle and compliance fields
+	//
+	// Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
+	SetCiCompliance(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, body SetCiComplianceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadCiImpact What a configuration item's failure reaches
+	//
+	// DOWNSTREAM, everything that suffers when it fails, with the services among them; UPSTREAM, everything whose failure it suffers. Needs READ on the hub.
+	//
+	// Corresponds with GET /cis/{ciId}/impact (the `ReadCiImpact` operationId).
+	ReadCiImpact(ctx context.Context, ciId openapi_types.UUID, params *ReadCiImpactParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCiClasses The configuration item classes
+	//
+	// The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations a CI of it needs. Needs READ in the workspace and the assets module switched on.
+	//
+	// Corresponds with GET /cmdb/classes (the `ListCiClasses` operationId).
+	ListCiClasses(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineCiClassWithBody Add or change a class of the workspace's own
+	//
+	// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /cmdb/classes/{classKey} (the `DefineCiClass` operationId).
+	DefineCiClassWithBody(ctx context.Context, classKey string, params *DefineCiClassParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineCiClass Add or change a class of the workspace's own
+	//
+	// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /cmdb/classes/{classKey} (the `DefineCiClass` operationId).
+	DefineCiClass(ctx context.Context, classKey string, params *DefineCiClassParams, body DefineCiClassJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCiRelationTypes The relation types between configuration items
+	//
+	// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the class pairs it may join.
+	//
+	// Corresponds with GET /cmdb/relation-types (the `ListCiRelationTypes` operationId).
+	ListCiRelationTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineCiRelationTypeWithBody Add or change a relation type of the workspace's own
+	//
+	// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /cmdb/relation-types/{typeKey} (the `DefineCiRelationType` operationId).
+	DefineCiRelationTypeWithBody(ctx context.Context, typeKey string, params *DefineCiRelationTypeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineCiRelationType Add or change a relation type of the workspace's own
+	//
+	// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /cmdb/relation-types/{typeKey} (the `DefineCiRelationType` operationId).
+	DefineCiRelationType(ctx context.Context, typeKey string, params *DefineCiRelationTypeParams, body DefineCiRelationTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCiSources The sources configuration items come from
+	//
+	// People (`manual`), files, programs and connectors by precedence, a lower rank first.
+	//
+	// Corresponds with GET /cmdb/sources (the `ListCiSources` operationId).
+	ListCiSources(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineCiSourceWithBody Add or change a source
+	//
+	// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /cmdb/sources/{sourceKey} (the `DefineCiSource` operationId).
+	DefineCiSourceWithBody(ctx context.Context, sourceKey string, params *DefineCiSourceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineCiSource Add or change a source
+	//
+	// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /cmdb/sources/{sourceKey} (the `DefineCiSource` operationId).
+	DefineCiSource(ctx context.Context, sourceKey string, params *DefineCiSourceParams, body DefineCiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// SetCollectionHandleWithBody Give a collection another handle
 	//
 	// The short name a mail subject (`#einkauf`), an address and the collection's ticket keys (`EINKAUF-42`) use. Unique in the workspace, trashed collections included; mail to the old handle no longer arrives here.
@@ -22361,6 +23656,95 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
 	UpdateGroupWithApplicationMergePatchPlusJSONBody(ctx context.Context, groupId GroupId, params *UpdateGroupParams, body UpdateGroupApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCiDuplicates Open duplicates
+	//
+	// Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/ci-duplicates (the `ListCiDuplicates` operationId).
+	ListCiDuplicates(ctx context.Context, hubId openapi_types.UUID, params *ListCiDuplicatesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCiHolds Items held for review
+	//
+	// What the reconciliation held instead of making a CI, newest first. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/ci-holds (the `ListCiHolds` operationId).
+	ListCiHolds(ctx context.Context, hubId openapi_types.UUID, params *ListCiHoldsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCiRuns A hub's reconciliation runs
+	//
+	// The newest first, with their figures and without their decisions. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/ci-runs (the `ListCiRuns` operationId).
+	ListCiRuns(ctx context.Context, hubId openapi_types.UUID, params *ListCiRunsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCis A hub's configuration items
+	//
+	// A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/cis (the `ListCis` operationId).
+	ListCis(ctx context.Context, hubId openapi_types.UUID, params *ListCisParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateCiWithBody Make a configuration item by hand
+	//
+	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/cis (the `CreateCi` operationId).
+	CreateCiWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateCi Make a configuration item by hand
+	//
+	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/cis (the `CreateCi` operationId).
+	CreateCi(ctx context.Context, hubId openapi_types.UUID, body CreateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ImportCiFileWithBody Import a file of configuration items
+	//
+	// A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/cis:import (the `ImportCiFile` operationId).
+	ImportCiFileWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ImportCiFile Import a file of configuration items
+	//
+	// A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/cis:import (the `ImportCiFile` operationId).
+	ImportCiFile(ctx context.Context, hubId openapi_types.UUID, body ImportCiFileJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReconcileCisWithBody Reconcile a source's payload
+	//
+	// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/cis:reconcile (the `ReconcileCis` operationId).
+	ReconcileCisWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReconcileCis Reconcile a source's payload
+	//
+	// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/cis:reconcile (the `ReconcileCis` operationId).
+	ReconcileCis(ctx context.Context, hubId openapi_types.UUID, body ReconcileCisJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadCmdbHealth A hub's inventory judged
+	//
+	// Completeness, correctness (stale, orphaned, duplicate), CIs without an owner and reviews overdue, per class and in all, with the CIs found wanting. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/cmdb-health (the `ReadCmdbHealth` operationId).
+	ReadCmdbHealth(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPages A hub's pages
 	//
@@ -30883,6 +32267,408 @@ func (c *Client) GetCalendarFeedDocument(ctx context.Context, token string, reqE
 	return c.Client.Do(req)
 }
 
+// ResolveCiDuplicateWithBody Merge a duplicate or call it distinct
+//
+// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /ci-duplicates/{duplicateId}:resolve (the `ResolveCiDuplicate` operationId).
+func (c *Client) ResolveCiDuplicateWithBody(ctx context.Context, duplicateId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResolveCiDuplicateRequestWithBody(c.Server, duplicateId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ResolveCiDuplicate Merge a duplicate or call it distinct
+//
+// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /ci-duplicates/{duplicateId}:resolve (the `ResolveCiDuplicate` operationId).
+func (c *Client) ResolveCiDuplicate(ctx context.Context, duplicateId openapi_types.UUID, body ResolveCiDuplicateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResolveCiDuplicateRequest(c.Server, duplicateId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DismissCiHold Close a held item
+//
+// The hold stays on record with who closed it. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with POST /ci-holds/{holdId}:dismiss (the `DismissCiHold` operationId).
+func (c *Client) DismissCiHold(ctx context.Context, holdId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDismissCiHoldRequest(c.Server, holdId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RelateCisWithBody Join two configuration items
+//
+// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /ci-relations (the `RelateCis` operationId).
+func (c *Client) RelateCisWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRelateCisRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RelateCis Join two configuration items
+//
+// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /ci-relations (the `RelateCis` operationId).
+func (c *Client) RelateCis(ctx context.Context, body RelateCisJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRelateCisRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UnrelateCis Remove a relation
+//
+// A source that reports it again makes it again. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with DELETE /ci-relations/{relationId} (the `UnrelateCis` operationId).
+func (c *Client) UnrelateCis(ctx context.Context, relationId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUnrelateCisRequest(c.Server, relationId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadCiRun One reconciliation run with its decisions
+//
+// Every item's outcome, CI, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
+//
+// Corresponds with GET /ci-runs/{runId} (the `ReadCiRun` operationId).
+func (c *Client) ReadCiRun(ctx context.Context, runId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadCiRunRequest(c.Server, runId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadCi Read a configuration item
+//
+// With its relations both ways and the protection need it inherits from everything that suffers when it fails. Needs READ on the hub.
+//
+// Corresponds with GET /cis/{ciId} (the `ReadCi` operationId).
+func (c *Client) ReadCi(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadCiRequest(c.Server, ciId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateCiWithBody Change a configuration item by hand
+//
+// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
+func (c *Client) UpdateCiWithBody(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateCiRequestWithBody(c.Server, ciId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateCi Change a configuration item by hand
+//
+// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
+func (c *Client) UpdateCi(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, body UpdateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateCiRequest(c.Server, ciId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetCiComplianceWithBody Set a configuration item's lifecycle and compliance fields
+//
+// Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
+func (c *Client) SetCiComplianceWithBody(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetCiComplianceRequestWithBody(c.Server, ciId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetCiCompliance Set a configuration item's lifecycle and compliance fields
+//
+// Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
+func (c *Client) SetCiCompliance(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, body SetCiComplianceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetCiComplianceRequest(c.Server, ciId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadCiImpact What a configuration item's failure reaches
+//
+// DOWNSTREAM, everything that suffers when it fails, with the services among them; UPSTREAM, everything whose failure it suffers. Needs READ on the hub.
+//
+// Corresponds with GET /cis/{ciId}/impact (the `ReadCiImpact` operationId).
+func (c *Client) ReadCiImpact(ctx context.Context, ciId openapi_types.UUID, params *ReadCiImpactParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadCiImpactRequest(c.Server, ciId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCiClasses The configuration item classes
+//
+// The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations a CI of it needs. Needs READ in the workspace and the assets module switched on.
+//
+// Corresponds with GET /cmdb/classes (the `ListCiClasses` operationId).
+func (c *Client) ListCiClasses(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiClassesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineCiClassWithBody Add or change a class of the workspace's own
+//
+// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /cmdb/classes/{classKey} (the `DefineCiClass` operationId).
+func (c *Client) DefineCiClassWithBody(ctx context.Context, classKey string, params *DefineCiClassParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineCiClassRequestWithBody(c.Server, classKey, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineCiClass Add or change a class of the workspace's own
+//
+// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /cmdb/classes/{classKey} (the `DefineCiClass` operationId).
+func (c *Client) DefineCiClass(ctx context.Context, classKey string, params *DefineCiClassParams, body DefineCiClassJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineCiClassRequest(c.Server, classKey, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCiRelationTypes The relation types between configuration items
+//
+// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the class pairs it may join.
+//
+// Corresponds with GET /cmdb/relation-types (the `ListCiRelationTypes` operationId).
+func (c *Client) ListCiRelationTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiRelationTypesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineCiRelationTypeWithBody Add or change a relation type of the workspace's own
+//
+// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /cmdb/relation-types/{typeKey} (the `DefineCiRelationType` operationId).
+func (c *Client) DefineCiRelationTypeWithBody(ctx context.Context, typeKey string, params *DefineCiRelationTypeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineCiRelationTypeRequestWithBody(c.Server, typeKey, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineCiRelationType Add or change a relation type of the workspace's own
+//
+// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /cmdb/relation-types/{typeKey} (the `DefineCiRelationType` operationId).
+func (c *Client) DefineCiRelationType(ctx context.Context, typeKey string, params *DefineCiRelationTypeParams, body DefineCiRelationTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineCiRelationTypeRequest(c.Server, typeKey, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCiSources The sources configuration items come from
+//
+// People (`manual`), files, programs and connectors by precedence, a lower rank first.
+//
+// Corresponds with GET /cmdb/sources (the `ListCiSources` operationId).
+func (c *Client) ListCiSources(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiSourcesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineCiSourceWithBody Add or change a source
+//
+// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /cmdb/sources/{sourceKey} (the `DefineCiSource` operationId).
+func (c *Client) DefineCiSourceWithBody(ctx context.Context, sourceKey string, params *DefineCiSourceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineCiSourceRequestWithBody(c.Server, sourceKey, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineCiSource Add or change a source
+//
+// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /cmdb/sources/{sourceKey} (the `DefineCiSource` operationId).
+func (c *Client) DefineCiSource(ctx context.Context, sourceKey string, params *DefineCiSourceParams, body DefineCiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineCiSourceRequest(c.Server, sourceKey, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // SetCollectionHandleWithBody Give a collection another handle
 //
 // The short name a mail subject (`#einkauf`), an address and the collection's ticket keys (`EINKAUF-42`) use. Unique in the workspace, trashed collections included; mail to the old handle no longer arrives here.
@@ -32461,6 +34247,205 @@ func (c *Client) UpdateGroupWithBody(ctx context.Context, groupId GroupId, param
 // Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
 func (c *Client) UpdateGroupWithApplicationMergePatchPlusJSONBody(ctx context.Context, groupId GroupId, params *UpdateGroupParams, body UpdateGroupApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateGroupRequestWithApplicationMergePatchPlusJSONBody(c.Server, groupId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCiDuplicates Open duplicates
+//
+// Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/ci-duplicates (the `ListCiDuplicates` operationId).
+func (c *Client) ListCiDuplicates(ctx context.Context, hubId openapi_types.UUID, params *ListCiDuplicatesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiDuplicatesRequest(c.Server, hubId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCiHolds Items held for review
+//
+// What the reconciliation held instead of making a CI, newest first. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/ci-holds (the `ListCiHolds` operationId).
+func (c *Client) ListCiHolds(ctx context.Context, hubId openapi_types.UUID, params *ListCiHoldsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiHoldsRequest(c.Server, hubId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCiRuns A hub's reconciliation runs
+//
+// The newest first, with their figures and without their decisions. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/ci-runs (the `ListCiRuns` operationId).
+func (c *Client) ListCiRuns(ctx context.Context, hubId openapi_types.UUID, params *ListCiRunsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiRunsRequest(c.Server, hubId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCis A hub's configuration items
+//
+// A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/cis (the `ListCis` operationId).
+func (c *Client) ListCis(ctx context.Context, hubId openapi_types.UUID, params *ListCisParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCisRequest(c.Server, hubId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateCiWithBody Make a configuration item by hand
+//
+// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /hubs/{hubId}/cis (the `CreateCi` operationId).
+func (c *Client) CreateCiWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateCiRequestWithBody(c.Server, hubId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateCi Make a configuration item by hand
+//
+// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /hubs/{hubId}/cis (the `CreateCi` operationId).
+func (c *Client) CreateCi(ctx context.Context, hubId openapi_types.UUID, body CreateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateCiRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ImportCiFileWithBody Import a file of configuration items
+//
+// A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /hubs/{hubId}/cis:import (the `ImportCiFile` operationId).
+func (c *Client) ImportCiFileWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewImportCiFileRequestWithBody(c.Server, hubId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ImportCiFile Import a file of configuration items
+//
+// A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /hubs/{hubId}/cis:import (the `ImportCiFile` operationId).
+func (c *Client) ImportCiFile(ctx context.Context, hubId openapi_types.UUID, body ImportCiFileJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewImportCiFileRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReconcileCisWithBody Reconcile a source's payload
+//
+// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /hubs/{hubId}/cis:reconcile (the `ReconcileCis` operationId).
+func (c *Client) ReconcileCisWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReconcileCisRequestWithBody(c.Server, hubId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReconcileCis Reconcile a source's payload
+//
+// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /hubs/{hubId}/cis:reconcile (the `ReconcileCis` operationId).
+func (c *Client) ReconcileCis(ctx context.Context, hubId openapi_types.UUID, body ReconcileCisJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReconcileCisRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadCmdbHealth A hub's inventory judged
+//
+// Completeness, correctness (stale, orphaned, duplicate), CIs without an owner and reviews overdue, per class and in all, with the CIs found wanting. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/cmdb-health (the `ReadCmdbHealth` operationId).
+func (c *Client) ReadCmdbHealth(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadCmdbHealthRequest(c.Server, hubId)
 	if err != nil {
 		return nil, err
 	}
@@ -46901,6 +48886,693 @@ func NewGetCalendarFeedDocumentRequest(server string, token string) (*http.Reque
 	return req, nil
 }
 
+// NewResolveCiDuplicateRequest calls the generic ResolveCiDuplicate builder with application/json body
+func NewResolveCiDuplicateRequest(server string, duplicateId openapi_types.UUID, body ResolveCiDuplicateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewResolveCiDuplicateRequestWithBody(server, duplicateId, "application/json", bodyReader)
+}
+
+// NewResolveCiDuplicateRequestWithBody constructs an http.Request for the ResolveCiDuplicate method, with any body, and a specified content type
+func NewResolveCiDuplicateRequestWithBody(server string, duplicateId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "duplicateId", duplicateId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ci-duplicates/%s:resolve", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDismissCiHoldRequest constructs an http.Request for the DismissCiHold method
+func NewDismissCiHoldRequest(server string, holdId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "holdId", holdId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ci-holds/%s:dismiss", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRelateCisRequest calls the generic RelateCis builder with application/json body
+func NewRelateCisRequest(server string, body RelateCisJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRelateCisRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewRelateCisRequestWithBody constructs an http.Request for the RelateCis method, with any body, and a specified content type
+func NewRelateCisRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ci-relations")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewUnrelateCisRequest constructs an http.Request for the UnrelateCis method
+func NewUnrelateCisRequest(server string, relationId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "relationId", relationId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ci-relations/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadCiRunRequest constructs an http.Request for the ReadCiRun method
+func NewReadCiRunRequest(server string, runId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "runId", runId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ci-runs/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadCiRequest constructs an http.Request for the ReadCi method
+func NewReadCiRequest(server string, ciId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateCiRequest calls the generic UpdateCi builder with application/json body
+func NewUpdateCiRequest(server string, ciId openapi_types.UUID, params *UpdateCiParams, body UpdateCiJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateCiRequestWithBody(server, ciId, params, "application/json", bodyReader)
+}
+
+// NewUpdateCiRequestWithBody constructs an http.Request for the UpdateCi method, with any body, and a specified content type
+func NewUpdateCiRequestWithBody(server string, ciId openapi_types.UUID, params *UpdateCiParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewSetCiComplianceRequest calls the generic SetCiCompliance builder with application/json body
+func NewSetCiComplianceRequest(server string, ciId openapi_types.UUID, params *SetCiComplianceParams, body SetCiComplianceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetCiComplianceRequestWithBody(server, ciId, params, "application/json", bodyReader)
+}
+
+// NewSetCiComplianceRequestWithBody constructs an http.Request for the SetCiCompliance method, with any body, and a specified content type
+func NewSetCiComplianceRequestWithBody(server string, ciId openapi_types.UUID, params *SetCiComplianceParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s/compliance", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewReadCiImpactRequest constructs an http.Request for the ReadCiImpact method
+func NewReadCiImpactRequest(server string, ciId openapi_types.UUID, params *ReadCiImpactParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s/impact", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Depth != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "depth", *params.Depth, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListCiClassesRequest constructs an http.Request for the ListCiClasses method
+func NewListCiClassesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cmdb/classes")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDefineCiClassRequest calls the generic DefineCiClass builder with application/json body
+func NewDefineCiClassRequest(server string, classKey string, params *DefineCiClassParams, body DefineCiClassJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDefineCiClassRequestWithBody(server, classKey, params, "application/json", bodyReader)
+}
+
+// NewDefineCiClassRequestWithBody constructs an http.Request for the DefineCiClass method, with any body, and a specified content type
+func NewDefineCiClassRequestWithBody(server string, classKey string, params *DefineCiClassParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "classKey", classKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cmdb/classes/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListCiRelationTypesRequest constructs an http.Request for the ListCiRelationTypes method
+func NewListCiRelationTypesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cmdb/relation-types")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDefineCiRelationTypeRequest calls the generic DefineCiRelationType builder with application/json body
+func NewDefineCiRelationTypeRequest(server string, typeKey string, params *DefineCiRelationTypeParams, body DefineCiRelationTypeJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDefineCiRelationTypeRequestWithBody(server, typeKey, params, "application/json", bodyReader)
+}
+
+// NewDefineCiRelationTypeRequestWithBody constructs an http.Request for the DefineCiRelationType method, with any body, and a specified content type
+func NewDefineCiRelationTypeRequestWithBody(server string, typeKey string, params *DefineCiRelationTypeParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "typeKey", typeKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cmdb/relation-types/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListCiSourcesRequest constructs an http.Request for the ListCiSources method
+func NewListCiSourcesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cmdb/sources")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDefineCiSourceRequest calls the generic DefineCiSource builder with application/json body
+func NewDefineCiSourceRequest(server string, sourceKey string, params *DefineCiSourceParams, body DefineCiSourceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDefineCiSourceRequestWithBody(server, sourceKey, params, "application/json", bodyReader)
+}
+
+// NewDefineCiSourceRequestWithBody constructs an http.Request for the DefineCiSource method, with any body, and a specified content type
+func NewDefineCiSourceRequestWithBody(server string, sourceKey string, params *DefineCiSourceParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "sourceKey", sourceKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cmdb/sources/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewSetCollectionHandleRequest calls the generic SetCollectionHandle builder with application/json body
 func NewSetCollectionHandleRequest(server string, collectionId openapi_types.UUID, params *SetCollectionHandleParams, body SetCollectionHandleJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -50023,6 +52695,461 @@ func NewUpdateGroupRequestWithBody(server string, groupId GroupId, params *Updat
 			req.Header.Set("X-Hubtask-Step-Up", headerParam1)
 		}
 
+	}
+
+	return req, nil
+}
+
+// NewListCiDuplicatesRequest constructs an http.Request for the ListCiDuplicates method
+func NewListCiDuplicatesRequest(server string, hubId openapi_types.UUID, params *ListCiDuplicatesParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/ci-duplicates", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListCiHoldsRequest constructs an http.Request for the ListCiHolds method
+func NewListCiHoldsRequest(server string, hubId openapi_types.UUID, params *ListCiHoldsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/ci-holds", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListCiRunsRequest constructs an http.Request for the ListCiRuns method
+func NewListCiRunsRequest(server string, hubId openapi_types.UUID, params *ListCiRunsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/ci-runs", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListCisRequest constructs an http.Request for the ListCis method
+func NewListCisRequest(server string, hubId openapi_types.UUID, params *ListCisParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/cis", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Class != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "class", *params.Class, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.After != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "after", *params.After, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.IncludeMerged != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include_merged", *params.IncludeMerged, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateCiRequest calls the generic CreateCi builder with application/json body
+func NewCreateCiRequest(server string, hubId openapi_types.UUID, body CreateCiJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateCiRequestWithBody(server, hubId, "application/json", bodyReader)
+}
+
+// NewCreateCiRequestWithBody constructs an http.Request for the CreateCi method, with any body, and a specified content type
+func NewCreateCiRequestWithBody(server string, hubId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/cis", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewImportCiFileRequest calls the generic ImportCiFile builder with application/json body
+func NewImportCiFileRequest(server string, hubId openapi_types.UUID, body ImportCiFileJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewImportCiFileRequestWithBody(server, hubId, "application/json", bodyReader)
+}
+
+// NewImportCiFileRequestWithBody constructs an http.Request for the ImportCiFile method, with any body, and a specified content type
+func NewImportCiFileRequestWithBody(server string, hubId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/cis:import", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReconcileCisRequest calls the generic ReconcileCis builder with application/json body
+func NewReconcileCisRequest(server string, hubId openapi_types.UUID, body ReconcileCisJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReconcileCisRequestWithBody(server, hubId, "application/json", bodyReader)
+}
+
+// NewReconcileCisRequestWithBody constructs an http.Request for the ReconcileCis method, with any body, and a specified content type
+func NewReconcileCisRequestWithBody(server string, hubId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/cis:reconcile", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadCmdbHealthRequest constructs an http.Request for the ReadCmdbHealth method
+func NewReadCmdbHealthRequest(server string, hubId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/cmdb-health", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
 	}
 
 	return req, nil
@@ -65225,6 +68352,204 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	GetCalendarFeedDocumentWithResponse(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*GetCalendarFeedDocumentResult, error)
 
+	// ResolveCiDuplicateWithBodyWithResponse Merge a duplicate or call it distinct
+	//
+	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /ci-duplicates/{duplicateId}:resolve (the `ResolveCiDuplicate` operationId).
+	ResolveCiDuplicateWithBodyWithResponse(ctx context.Context, duplicateId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ResolveCiDuplicateResult, error)
+
+	// ResolveCiDuplicateWithResponse Merge a duplicate or call it distinct
+	//
+	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /ci-duplicates/{duplicateId}:resolve (the `ResolveCiDuplicate` operationId).
+	ResolveCiDuplicateWithResponse(ctx context.Context, duplicateId openapi_types.UUID, body ResolveCiDuplicateJSONRequestBody, reqEditors ...RequestEditorFn) (*ResolveCiDuplicateResult, error)
+
+	// DismissCiHoldWithResponse Close a held item
+	//
+	// The hold stays on record with who closed it. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /ci-holds/{holdId}:dismiss (the `DismissCiHold` operationId).
+	DismissCiHoldWithResponse(ctx context.Context, holdId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DismissCiHoldResult, error)
+
+	// RelateCisWithBodyWithResponse Join two configuration items
+	//
+	// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /ci-relations (the `RelateCis` operationId).
+	RelateCisWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RelateCisResult, error)
+
+	// RelateCisWithResponse Join two configuration items
+	//
+	// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /ci-relations (the `RelateCis` operationId).
+	RelateCisWithResponse(ctx context.Context, body RelateCisJSONRequestBody, reqEditors ...RequestEditorFn) (*RelateCisResult, error)
+
+	// UnrelateCisWithResponse Remove a relation
+	//
+	// A source that reports it again makes it again. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /ci-relations/{relationId} (the `UnrelateCis` operationId).
+	UnrelateCisWithResponse(ctx context.Context, relationId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnrelateCisResult, error)
+
+	// ReadCiRunWithResponse One reconciliation run with its decisions
+	//
+	// Every item's outcome, CI, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /ci-runs/{runId} (the `ReadCiRun` operationId).
+	ReadCiRunWithResponse(ctx context.Context, runId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCiRunResult, error)
+
+	// ReadCiWithResponse Read a configuration item
+	//
+	// With its relations both ways and the protection need it inherits from everything that suffers when it fails. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /cis/{ciId} (the `ReadCi` operationId).
+	ReadCiWithResponse(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCiResult, error)
+
+	// UpdateCiWithBodyWithResponse Change a configuration item by hand
+	//
+	// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
+	UpdateCiWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateCiResult, error)
+
+	// UpdateCiWithResponse Change a configuration item by hand
+	//
+	// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
+	UpdateCiWithResponse(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, body UpdateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCiResult, error)
+
+	// SetCiComplianceWithBodyWithResponse Set a configuration item's lifecycle and compliance fields
+	//
+	// Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
+	SetCiComplianceWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetCiComplianceResult, error)
+
+	// SetCiComplianceWithResponse Set a configuration item's lifecycle and compliance fields
+	//
+	// Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
+	SetCiComplianceWithResponse(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, body SetCiComplianceJSONRequestBody, reqEditors ...RequestEditorFn) (*SetCiComplianceResult, error)
+
+	// ReadCiImpactWithResponse What a configuration item's failure reaches
+	//
+	// DOWNSTREAM, everything that suffers when it fails, with the services among them; UPSTREAM, everything whose failure it suffers. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /cis/{ciId}/impact (the `ReadCiImpact` operationId).
+	ReadCiImpactWithResponse(ctx context.Context, ciId openapi_types.UUID, params *ReadCiImpactParams, reqEditors ...RequestEditorFn) (*ReadCiImpactResult, error)
+
+	// ListCiClassesWithResponse The configuration item classes
+	//
+	// The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations a CI of it needs. Needs READ in the workspace and the assets module switched on.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /cmdb/classes (the `ListCiClasses` operationId).
+	ListCiClassesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListCiClassesResult, error)
+
+	// DefineCiClassWithBodyWithResponse Add or change a class of the workspace's own
+	//
+	// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /cmdb/classes/{classKey} (the `DefineCiClass` operationId).
+	DefineCiClassWithBodyWithResponse(ctx context.Context, classKey string, params *DefineCiClassParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineCiClassResult, error)
+
+	// DefineCiClassWithResponse Add or change a class of the workspace's own
+	//
+	// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /cmdb/classes/{classKey} (the `DefineCiClass` operationId).
+	DefineCiClassWithResponse(ctx context.Context, classKey string, params *DefineCiClassParams, body DefineCiClassJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCiClassResult, error)
+
+	// ListCiRelationTypesWithResponse The relation types between configuration items
+	//
+	// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the class pairs it may join.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /cmdb/relation-types (the `ListCiRelationTypes` operationId).
+	ListCiRelationTypesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListCiRelationTypesResult, error)
+
+	// DefineCiRelationTypeWithBodyWithResponse Add or change a relation type of the workspace's own
+	//
+	// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /cmdb/relation-types/{typeKey} (the `DefineCiRelationType` operationId).
+	DefineCiRelationTypeWithBodyWithResponse(ctx context.Context, typeKey string, params *DefineCiRelationTypeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineCiRelationTypeResult, error)
+
+	// DefineCiRelationTypeWithResponse Add or change a relation type of the workspace's own
+	//
+	// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /cmdb/relation-types/{typeKey} (the `DefineCiRelationType` operationId).
+	DefineCiRelationTypeWithResponse(ctx context.Context, typeKey string, params *DefineCiRelationTypeParams, body DefineCiRelationTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCiRelationTypeResult, error)
+
+	// ListCiSourcesWithResponse The sources configuration items come from
+	//
+	// People (`manual`), files, programs and connectors by precedence, a lower rank first.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /cmdb/sources (the `ListCiSources` operationId).
+	ListCiSourcesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListCiSourcesResult, error)
+
+	// DefineCiSourceWithBodyWithResponse Add or change a source
+	//
+	// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /cmdb/sources/{sourceKey} (the `DefineCiSource` operationId).
+	DefineCiSourceWithBodyWithResponse(ctx context.Context, sourceKey string, params *DefineCiSourceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineCiSourceResult, error)
+
+	// DefineCiSourceWithResponse Add or change a source
+	//
+	// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /cmdb/sources/{sourceKey} (the `DefineCiSource` operationId).
+	DefineCiSourceWithResponse(ctx context.Context, sourceKey string, params *DefineCiSourceParams, body DefineCiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCiSourceResult, error)
+
 	// SetCollectionHandleWithBodyWithResponse Give a collection another handle
 	//
 	// The short name a mail subject (`#einkauf`), an address and the collection's ticket keys (`EINKAUF-42`) use. Unique in the workspace, trashed collections included; mail to the old handle no longer arrives here.
@@ -65974,6 +69299,105 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
 	UpdateGroupWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, groupId GroupId, params *UpdateGroupParams, body UpdateGroupApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateGroupResult, error)
+
+	// ListCiDuplicatesWithResponse Open duplicates
+	//
+	// Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/ci-duplicates (the `ListCiDuplicates` operationId).
+	ListCiDuplicatesWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiDuplicatesParams, reqEditors ...RequestEditorFn) (*ListCiDuplicatesResult, error)
+
+	// ListCiHoldsWithResponse Items held for review
+	//
+	// What the reconciliation held instead of making a CI, newest first. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/ci-holds (the `ListCiHolds` operationId).
+	ListCiHoldsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiHoldsParams, reqEditors ...RequestEditorFn) (*ListCiHoldsResult, error)
+
+	// ListCiRunsWithResponse A hub's reconciliation runs
+	//
+	// The newest first, with their figures and without their decisions. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/ci-runs (the `ListCiRuns` operationId).
+	ListCiRunsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiRunsParams, reqEditors ...RequestEditorFn) (*ListCiRunsResult, error)
+
+	// ListCisWithResponse A hub's configuration items
+	//
+	// A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/cis (the `ListCis` operationId).
+	ListCisWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCisParams, reqEditors ...RequestEditorFn) (*ListCisResult, error)
+
+	// CreateCiWithBodyWithResponse Make a configuration item by hand
+	//
+	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/cis (the `CreateCi` operationId).
+	CreateCiWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateCiResult, error)
+
+	// CreateCiWithResponse Make a configuration item by hand
+	//
+	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/cis (the `CreateCi` operationId).
+	CreateCiWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateCiResult, error)
+
+	// ImportCiFileWithBodyWithResponse Import a file of configuration items
+	//
+	// A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/cis:import (the `ImportCiFile` operationId).
+	ImportCiFileWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportCiFileResult, error)
+
+	// ImportCiFileWithResponse Import a file of configuration items
+	//
+	// A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/cis:import (the `ImportCiFile` operationId).
+	ImportCiFileWithResponse(ctx context.Context, hubId openapi_types.UUID, body ImportCiFileJSONRequestBody, reqEditors ...RequestEditorFn) (*ImportCiFileResult, error)
+
+	// ReconcileCisWithBodyWithResponse Reconcile a source's payload
+	//
+	// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/cis:reconcile (the `ReconcileCis` operationId).
+	ReconcileCisWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReconcileCisResult, error)
+
+	// ReconcileCisWithResponse Reconcile a source's payload
+	//
+	// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/cis:reconcile (the `ReconcileCis` operationId).
+	ReconcileCisWithResponse(ctx context.Context, hubId openapi_types.UUID, body ReconcileCisJSONRequestBody, reqEditors ...RequestEditorFn) (*ReconcileCisResult, error)
+
+	// ReadCmdbHealthWithResponse A hub's inventory judged
+	//
+	// Completeness, correctness (stale, orphaned, duplicate), CIs without an owner and reviews overdue, per class and in all, with the CIs found wanting. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/cmdb-health (the `ReadCmdbHealth` operationId).
+	ReadCmdbHealthWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCmdbHealthResult, error)
 
 	// ListPagesWithResponse A hub's pages
 	//
@@ -77758,6 +81182,726 @@ func (r GetCalendarFeedDocumentResult) ContentType() string {
 	return ""
 }
 
+type ResolveCiDuplicateResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiDuplicateResolved
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ResolveCiDuplicateResult) GetJSON200() *CiDuplicateResolved {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ResolveCiDuplicateResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ResolveCiDuplicateResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ResolveCiDuplicateResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ResolveCiDuplicateResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ResolveCiDuplicateResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DismissCiHoldResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiHoldDismissed
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DismissCiHoldResult) GetJSON200() *CiHoldDismissed {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DismissCiHoldResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DismissCiHoldResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DismissCiHoldResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DismissCiHoldResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DismissCiHoldResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RelateCisResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiRelation
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RelateCisResult) GetJSON200() *CiRelation {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RelateCisResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RelateCisResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RelateCisResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RelateCisResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RelateCisResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UnrelateCisResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiRelationRemoved
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UnrelateCisResult) GetJSON200() *CiRelationRemoved {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UnrelateCisResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UnrelateCisResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UnrelateCisResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UnrelateCisResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UnrelateCisResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadCiRunResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiRun
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadCiRunResult) GetJSON200() *CiRun {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadCiRunResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadCiRunResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadCiRunResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadCiRunResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadCiRunResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadCiResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigurationItem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadCiResult) GetJSON200() *ConfigurationItem {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadCiResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadCiResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadCiResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadCiResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadCiResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateCiResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigurationItem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateCiResult) GetJSON200() *ConfigurationItem {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UpdateCiResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateCiResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateCiResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateCiResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateCiResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetCiComplianceResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigurationItem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetCiComplianceResult) GetJSON200() *ConfigurationItem {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetCiComplianceResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetCiComplianceResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetCiComplianceResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetCiComplianceResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetCiComplianceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadCiImpactResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiImpact
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadCiImpactResult) GetJSON200() *CiImpact {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadCiImpactResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadCiImpactResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadCiImpactResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadCiImpactResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadCiImpactResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListCiClassesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiClassList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiClassesResult) GetJSON200() *CiClassList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiClassesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiClassesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiClassesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiClassesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiClassesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DefineCiClassResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiClass
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DefineCiClassResult) GetJSON200() *CiClass {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DefineCiClassResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DefineCiClassResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DefineCiClassResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DefineCiClassResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DefineCiClassResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListCiRelationTypesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiRelationTypeList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiRelationTypesResult) GetJSON200() *CiRelationTypeList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiRelationTypesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiRelationTypesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiRelationTypesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiRelationTypesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiRelationTypesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DefineCiRelationTypeResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiRelationType
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DefineCiRelationTypeResult) GetJSON200() *CiRelationType {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DefineCiRelationTypeResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DefineCiRelationTypeResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DefineCiRelationTypeResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DefineCiRelationTypeResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DefineCiRelationTypeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListCiSourcesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiSourceList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiSourcesResult) GetJSON200() *CiSourceList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiSourcesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiSourcesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiSourcesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiSourcesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiSourcesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DefineCiSourceResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiSource
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DefineCiSourceResult) GetJSON200() *CiSource {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DefineCiSourceResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DefineCiSourceResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DefineCiSourceResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DefineCiSourceResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DefineCiSourceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type SetCollectionHandleResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -80724,6 +84868,390 @@ func (r UpdateGroupResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateGroupResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListCiDuplicatesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiDuplicateList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiDuplicatesResult) GetJSON200() *CiDuplicateList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiDuplicatesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiDuplicatesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiDuplicatesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiDuplicatesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiDuplicatesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListCiHoldsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiHoldList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiHoldsResult) GetJSON200() *CiHoldList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiHoldsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiHoldsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiHoldsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiHoldsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiHoldsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListCiRunsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiRunList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiRunsResult) GetJSON200() *CiRunList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiRunsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiRunsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiRunsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiRunsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiRunsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListCisResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigurationItemList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCisResult) GetJSON200() *ConfigurationItemList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCisResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCisResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCisResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCisResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCisResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateCiResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *ConfigurationItem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateCiResult) GetJSON201() *ConfigurationItem {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateCiResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateCiResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateCiResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateCiResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateCiResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ImportCiFileResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiRun
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ImportCiFileResult) GetJSON200() *CiRun {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ImportCiFileResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ImportCiFileResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ImportCiFileResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ImportCiFileResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ImportCiFileResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReconcileCisResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiRun
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReconcileCisResult) GetJSON200() *CiRun {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReconcileCisResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReconcileCisResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReconcileCisResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReconcileCisResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReconcileCisResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadCmdbHealthResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CmdbHealth
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadCmdbHealthResult) GetJSON200() *CmdbHealth {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadCmdbHealthResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadCmdbHealthResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadCmdbHealthResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadCmdbHealthResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadCmdbHealthResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -97624,6 +102152,336 @@ func (c *ClientWithResponses) GetCalendarFeedDocumentWithResponse(ctx context.Co
 	return ParseGetCalendarFeedDocumentResult(rsp)
 }
 
+// ResolveCiDuplicateWithBodyWithResponse Merge a duplicate or call it distinct
+//
+// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /ci-duplicates/{duplicateId}:resolve (the `ResolveCiDuplicate` operationId).
+func (c *ClientWithResponses) ResolveCiDuplicateWithBodyWithResponse(ctx context.Context, duplicateId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ResolveCiDuplicateResult, error) {
+	rsp, err := c.ResolveCiDuplicateWithBody(ctx, duplicateId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseResolveCiDuplicateResult(rsp)
+}
+
+// ResolveCiDuplicateWithResponse Merge a duplicate or call it distinct
+//
+// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /ci-duplicates/{duplicateId}:resolve (the `ResolveCiDuplicate` operationId).
+func (c *ClientWithResponses) ResolveCiDuplicateWithResponse(ctx context.Context, duplicateId openapi_types.UUID, body ResolveCiDuplicateJSONRequestBody, reqEditors ...RequestEditorFn) (*ResolveCiDuplicateResult, error) {
+	rsp, err := c.ResolveCiDuplicate(ctx, duplicateId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseResolveCiDuplicateResult(rsp)
+}
+
+// DismissCiHoldWithResponse Close a held item
+//
+// The hold stays on record with who closed it. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /ci-holds/{holdId}:dismiss (the `DismissCiHold` operationId).
+func (c *ClientWithResponses) DismissCiHoldWithResponse(ctx context.Context, holdId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DismissCiHoldResult, error) {
+	rsp, err := c.DismissCiHold(ctx, holdId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDismissCiHoldResult(rsp)
+}
+
+// RelateCisWithBodyWithResponse Join two configuration items
+//
+// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /ci-relations (the `RelateCis` operationId).
+func (c *ClientWithResponses) RelateCisWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RelateCisResult, error) {
+	rsp, err := c.RelateCisWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRelateCisResult(rsp)
+}
+
+// RelateCisWithResponse Join two configuration items
+//
+// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /ci-relations (the `RelateCis` operationId).
+func (c *ClientWithResponses) RelateCisWithResponse(ctx context.Context, body RelateCisJSONRequestBody, reqEditors ...RequestEditorFn) (*RelateCisResult, error) {
+	rsp, err := c.RelateCis(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRelateCisResult(rsp)
+}
+
+// UnrelateCisWithResponse Remove a relation
+//
+// A source that reports it again makes it again. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /ci-relations/{relationId} (the `UnrelateCis` operationId).
+func (c *ClientWithResponses) UnrelateCisWithResponse(ctx context.Context, relationId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnrelateCisResult, error) {
+	rsp, err := c.UnrelateCis(ctx, relationId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUnrelateCisResult(rsp)
+}
+
+// ReadCiRunWithResponse One reconciliation run with its decisions
+//
+// Every item's outcome, CI, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /ci-runs/{runId} (the `ReadCiRun` operationId).
+func (c *ClientWithResponses) ReadCiRunWithResponse(ctx context.Context, runId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCiRunResult, error) {
+	rsp, err := c.ReadCiRun(ctx, runId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadCiRunResult(rsp)
+}
+
+// ReadCiWithResponse Read a configuration item
+//
+// With its relations both ways and the protection need it inherits from everything that suffers when it fails. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /cis/{ciId} (the `ReadCi` operationId).
+func (c *ClientWithResponses) ReadCiWithResponse(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCiResult, error) {
+	rsp, err := c.ReadCi(ctx, ciId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadCiResult(rsp)
+}
+
+// UpdateCiWithBodyWithResponse Change a configuration item by hand
+//
+// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
+func (c *ClientWithResponses) UpdateCiWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateCiResult, error) {
+	rsp, err := c.UpdateCiWithBody(ctx, ciId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateCiResult(rsp)
+}
+
+// UpdateCiWithResponse Change a configuration item by hand
+//
+// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
+func (c *ClientWithResponses) UpdateCiWithResponse(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, body UpdateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCiResult, error) {
+	rsp, err := c.UpdateCi(ctx, ciId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateCiResult(rsp)
+}
+
+// SetCiComplianceWithBodyWithResponse Set a configuration item's lifecycle and compliance fields
+//
+// Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
+func (c *ClientWithResponses) SetCiComplianceWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetCiComplianceResult, error) {
+	rsp, err := c.SetCiComplianceWithBody(ctx, ciId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetCiComplianceResult(rsp)
+}
+
+// SetCiComplianceWithResponse Set a configuration item's lifecycle and compliance fields
+//
+// Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
+func (c *ClientWithResponses) SetCiComplianceWithResponse(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, body SetCiComplianceJSONRequestBody, reqEditors ...RequestEditorFn) (*SetCiComplianceResult, error) {
+	rsp, err := c.SetCiCompliance(ctx, ciId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetCiComplianceResult(rsp)
+}
+
+// ReadCiImpactWithResponse What a configuration item's failure reaches
+//
+// DOWNSTREAM, everything that suffers when it fails, with the services among them; UPSTREAM, everything whose failure it suffers. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /cis/{ciId}/impact (the `ReadCiImpact` operationId).
+func (c *ClientWithResponses) ReadCiImpactWithResponse(ctx context.Context, ciId openapi_types.UUID, params *ReadCiImpactParams, reqEditors ...RequestEditorFn) (*ReadCiImpactResult, error) {
+	rsp, err := c.ReadCiImpact(ctx, ciId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadCiImpactResult(rsp)
+}
+
+// ListCiClassesWithResponse The configuration item classes
+//
+// The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations a CI of it needs. Needs READ in the workspace and the assets module switched on.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /cmdb/classes (the `ListCiClasses` operationId).
+func (c *ClientWithResponses) ListCiClassesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListCiClassesResult, error) {
+	rsp, err := c.ListCiClasses(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiClassesResult(rsp)
+}
+
+// DefineCiClassWithBodyWithResponse Add or change a class of the workspace's own
+//
+// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /cmdb/classes/{classKey} (the `DefineCiClass` operationId).
+func (c *ClientWithResponses) DefineCiClassWithBodyWithResponse(ctx context.Context, classKey string, params *DefineCiClassParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineCiClassResult, error) {
+	rsp, err := c.DefineCiClassWithBody(ctx, classKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineCiClassResult(rsp)
+}
+
+// DefineCiClassWithResponse Add or change a class of the workspace's own
+//
+// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /cmdb/classes/{classKey} (the `DefineCiClass` operationId).
+func (c *ClientWithResponses) DefineCiClassWithResponse(ctx context.Context, classKey string, params *DefineCiClassParams, body DefineCiClassJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCiClassResult, error) {
+	rsp, err := c.DefineCiClass(ctx, classKey, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineCiClassResult(rsp)
+}
+
+// ListCiRelationTypesWithResponse The relation types between configuration items
+//
+// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the class pairs it may join.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /cmdb/relation-types (the `ListCiRelationTypes` operationId).
+func (c *ClientWithResponses) ListCiRelationTypesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListCiRelationTypesResult, error) {
+	rsp, err := c.ListCiRelationTypes(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiRelationTypesResult(rsp)
+}
+
+// DefineCiRelationTypeWithBodyWithResponse Add or change a relation type of the workspace's own
+//
+// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /cmdb/relation-types/{typeKey} (the `DefineCiRelationType` operationId).
+func (c *ClientWithResponses) DefineCiRelationTypeWithBodyWithResponse(ctx context.Context, typeKey string, params *DefineCiRelationTypeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineCiRelationTypeResult, error) {
+	rsp, err := c.DefineCiRelationTypeWithBody(ctx, typeKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineCiRelationTypeResult(rsp)
+}
+
+// DefineCiRelationTypeWithResponse Add or change a relation type of the workspace's own
+//
+// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /cmdb/relation-types/{typeKey} (the `DefineCiRelationType` operationId).
+func (c *ClientWithResponses) DefineCiRelationTypeWithResponse(ctx context.Context, typeKey string, params *DefineCiRelationTypeParams, body DefineCiRelationTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCiRelationTypeResult, error) {
+	rsp, err := c.DefineCiRelationType(ctx, typeKey, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineCiRelationTypeResult(rsp)
+}
+
+// ListCiSourcesWithResponse The sources configuration items come from
+//
+// People (`manual`), files, programs and connectors by precedence, a lower rank first.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /cmdb/sources (the `ListCiSources` operationId).
+func (c *ClientWithResponses) ListCiSourcesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListCiSourcesResult, error) {
+	rsp, err := c.ListCiSources(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiSourcesResult(rsp)
+}
+
+// DefineCiSourceWithBodyWithResponse Add or change a source
+//
+// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /cmdb/sources/{sourceKey} (the `DefineCiSource` operationId).
+func (c *ClientWithResponses) DefineCiSourceWithBodyWithResponse(ctx context.Context, sourceKey string, params *DefineCiSourceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineCiSourceResult, error) {
+	rsp, err := c.DefineCiSourceWithBody(ctx, sourceKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineCiSourceResult(rsp)
+}
+
+// DefineCiSourceWithResponse Add or change a source
+//
+// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /cmdb/sources/{sourceKey} (the `DefineCiSource` operationId).
+func (c *ClientWithResponses) DefineCiSourceWithResponse(ctx context.Context, sourceKey string, params *DefineCiSourceParams, body DefineCiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCiSourceResult, error) {
+	rsp, err := c.DefineCiSource(ctx, sourceKey, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineCiSourceResult(rsp)
+}
+
 // SetCollectionHandleWithBodyWithResponse Give a collection another handle
 //
 // The short name a mail subject (`#einkauf`), an address and the collection's ticket keys (`EINKAUF-42`) use. Unique in the workspace, trashed collections included; mail to the old handle no longer arrives here.
@@ -98924,6 +103782,171 @@ func (c *ClientWithResponses) UpdateGroupWithApplicationMergePatchPlusJSONBodyWi
 		return nil, err
 	}
 	return ParseUpdateGroupResult(rsp)
+}
+
+// ListCiDuplicatesWithResponse Open duplicates
+//
+// Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/ci-duplicates (the `ListCiDuplicates` operationId).
+func (c *ClientWithResponses) ListCiDuplicatesWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiDuplicatesParams, reqEditors ...RequestEditorFn) (*ListCiDuplicatesResult, error) {
+	rsp, err := c.ListCiDuplicates(ctx, hubId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiDuplicatesResult(rsp)
+}
+
+// ListCiHoldsWithResponse Items held for review
+//
+// What the reconciliation held instead of making a CI, newest first. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/ci-holds (the `ListCiHolds` operationId).
+func (c *ClientWithResponses) ListCiHoldsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiHoldsParams, reqEditors ...RequestEditorFn) (*ListCiHoldsResult, error) {
+	rsp, err := c.ListCiHolds(ctx, hubId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiHoldsResult(rsp)
+}
+
+// ListCiRunsWithResponse A hub's reconciliation runs
+//
+// The newest first, with their figures and without their decisions. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/ci-runs (the `ListCiRuns` operationId).
+func (c *ClientWithResponses) ListCiRunsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiRunsParams, reqEditors ...RequestEditorFn) (*ListCiRunsResult, error) {
+	rsp, err := c.ListCiRuns(ctx, hubId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiRunsResult(rsp)
+}
+
+// ListCisWithResponse A hub's configuration items
+//
+// A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/cis (the `ListCis` operationId).
+func (c *ClientWithResponses) ListCisWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCisParams, reqEditors ...RequestEditorFn) (*ListCisResult, error) {
+	rsp, err := c.ListCis(ctx, hubId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCisResult(rsp)
+}
+
+// CreateCiWithBodyWithResponse Make a configuration item by hand
+//
+// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/cis (the `CreateCi` operationId).
+func (c *ClientWithResponses) CreateCiWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateCiResult, error) {
+	rsp, err := c.CreateCiWithBody(ctx, hubId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateCiResult(rsp)
+}
+
+// CreateCiWithResponse Make a configuration item by hand
+//
+// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/cis (the `CreateCi` operationId).
+func (c *ClientWithResponses) CreateCiWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateCiResult, error) {
+	rsp, err := c.CreateCi(ctx, hubId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateCiResult(rsp)
+}
+
+// ImportCiFileWithBodyWithResponse Import a file of configuration items
+//
+// A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/cis:import (the `ImportCiFile` operationId).
+func (c *ClientWithResponses) ImportCiFileWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportCiFileResult, error) {
+	rsp, err := c.ImportCiFileWithBody(ctx, hubId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseImportCiFileResult(rsp)
+}
+
+// ImportCiFileWithResponse Import a file of configuration items
+//
+// A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/cis:import (the `ImportCiFile` operationId).
+func (c *ClientWithResponses) ImportCiFileWithResponse(ctx context.Context, hubId openapi_types.UUID, body ImportCiFileJSONRequestBody, reqEditors ...RequestEditorFn) (*ImportCiFileResult, error) {
+	rsp, err := c.ImportCiFile(ctx, hubId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseImportCiFileResult(rsp)
+}
+
+// ReconcileCisWithBodyWithResponse Reconcile a source's payload
+//
+// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/cis:reconcile (the `ReconcileCis` operationId).
+func (c *ClientWithResponses) ReconcileCisWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReconcileCisResult, error) {
+	rsp, err := c.ReconcileCisWithBody(ctx, hubId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReconcileCisResult(rsp)
+}
+
+// ReconcileCisWithResponse Reconcile a source's payload
+//
+// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/cis:reconcile (the `ReconcileCis` operationId).
+func (c *ClientWithResponses) ReconcileCisWithResponse(ctx context.Context, hubId openapi_types.UUID, body ReconcileCisJSONRequestBody, reqEditors ...RequestEditorFn) (*ReconcileCisResult, error) {
+	rsp, err := c.ReconcileCis(ctx, hubId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReconcileCisResult(rsp)
+}
+
+// ReadCmdbHealthWithResponse A hub's inventory judged
+//
+// Completeness, correctness (stale, orphaned, duplicate), CIs without an owner and reviews overdue, per class and in all, with the CIs found wanting. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/cmdb-health (the `ReadCmdbHealth` operationId).
+func (c *ClientWithResponses) ReadCmdbHealthWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCmdbHealthResult, error) {
+	rsp, err := c.ReadCmdbHealth(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadCmdbHealthResult(rsp)
 }
 
 // ListPagesWithResponse A hub's pages
@@ -110523,6 +115546,501 @@ func ParseGetCalendarFeedDocumentResult(rsp *http.Response) (*GetCalendarFeedDoc
 	return response, nil
 }
 
+// ParseResolveCiDuplicateResult parses an HTTP response from a ResolveCiDuplicateWithResponse call
+func ParseResolveCiDuplicateResult(rsp *http.Response) (*ResolveCiDuplicateResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ResolveCiDuplicateResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiDuplicateResolved
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDismissCiHoldResult parses an HTTP response from a DismissCiHoldWithResponse call
+func ParseDismissCiHoldResult(rsp *http.Response) (*DismissCiHoldResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DismissCiHoldResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiHoldDismissed
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRelateCisResult parses an HTTP response from a RelateCisWithResponse call
+func ParseRelateCisResult(rsp *http.Response) (*RelateCisResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RelateCisResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiRelation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUnrelateCisResult parses an HTTP response from a UnrelateCisWithResponse call
+func ParseUnrelateCisResult(rsp *http.Response) (*UnrelateCisResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UnrelateCisResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiRelationRemoved
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadCiRunResult parses an HTTP response from a ReadCiRunWithResponse call
+func ParseReadCiRunResult(rsp *http.Response) (*ReadCiRunResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadCiRunResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiRun
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadCiResult parses an HTTP response from a ReadCiWithResponse call
+func ParseReadCiResult(rsp *http.Response) (*ReadCiResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadCiResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigurationItem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateCiResult parses an HTTP response from a UpdateCiWithResponse call
+func ParseUpdateCiResult(rsp *http.Response) (*UpdateCiResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateCiResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigurationItem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetCiComplianceResult parses an HTTP response from a SetCiComplianceWithResponse call
+func ParseSetCiComplianceResult(rsp *http.Response) (*SetCiComplianceResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetCiComplianceResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigurationItem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadCiImpactResult parses an HTTP response from a ReadCiImpactWithResponse call
+func ParseReadCiImpactResult(rsp *http.Response) (*ReadCiImpactResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadCiImpactResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiImpact
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCiClassesResult parses an HTTP response from a ListCiClassesWithResponse call
+func ParseListCiClassesResult(rsp *http.Response) (*ListCiClassesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiClassesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiClassList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDefineCiClassResult parses an HTTP response from a DefineCiClassWithResponse call
+func ParseDefineCiClassResult(rsp *http.Response) (*DefineCiClassResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DefineCiClassResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiClass
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCiRelationTypesResult parses an HTTP response from a ListCiRelationTypesWithResponse call
+func ParseListCiRelationTypesResult(rsp *http.Response) (*ListCiRelationTypesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiRelationTypesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiRelationTypeList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDefineCiRelationTypeResult parses an HTTP response from a DefineCiRelationTypeWithResponse call
+func ParseDefineCiRelationTypeResult(rsp *http.Response) (*DefineCiRelationTypeResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DefineCiRelationTypeResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiRelationType
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCiSourcesResult parses an HTTP response from a ListCiSourcesWithResponse call
+func ParseListCiSourcesResult(rsp *http.Response) (*ListCiSourcesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiSourcesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiSourceList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDefineCiSourceResult parses an HTTP response from a DefineCiSourceWithResponse call
+func ParseDefineCiSourceResult(rsp *http.Response) (*DefineCiSourceResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DefineCiSourceResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiSource
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseSetCollectionHandleResult parses an HTTP response from a SetCollectionHandleWithResponse call
 func ParseSetCollectionHandleResult(rsp *http.Response) (*SetCollectionHandleResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -112752,6 +118270,270 @@ func ParseUpdateGroupResult(rsp *http.Response) (*UpdateGroupResult, error) {
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseListCiDuplicatesResult parses an HTTP response from a ListCiDuplicatesWithResponse call
+func ParseListCiDuplicatesResult(rsp *http.Response) (*ListCiDuplicatesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiDuplicatesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiDuplicateList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCiHoldsResult parses an HTTP response from a ListCiHoldsWithResponse call
+func ParseListCiHoldsResult(rsp *http.Response) (*ListCiHoldsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiHoldsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiHoldList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCiRunsResult parses an HTTP response from a ListCiRunsWithResponse call
+func ParseListCiRunsResult(rsp *http.Response) (*ListCiRunsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiRunsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiRunList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCisResult parses an HTTP response from a ListCisWithResponse call
+func ParseListCisResult(rsp *http.Response) (*ListCisResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCisResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigurationItemList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateCiResult parses an HTTP response from a CreateCiWithResponse call
+func ParseCreateCiResult(rsp *http.Response) (*CreateCiResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateCiResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ConfigurationItem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseImportCiFileResult parses an HTTP response from a ImportCiFileWithResponse call
+func ParseImportCiFileResult(rsp *http.Response) (*ImportCiFileResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ImportCiFileResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiRun
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReconcileCisResult parses an HTTP response from a ReconcileCisWithResponse call
+func ParseReconcileCisResult(rsp *http.Response) (*ReconcileCisResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReconcileCisResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiRun
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadCmdbHealthResult parses an HTTP response from a ReadCmdbHealthWithResponse call
+func ParseReadCmdbHealthResult(rsp *http.Response) (*ReadCmdbHealthResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadCmdbHealthResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CmdbHealth
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

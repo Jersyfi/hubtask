@@ -4230,6 +4230,332 @@ class WhiteboardRead(TypedDict, total=False):
     version: Required[int]
     writable: Required[bool]
 
+class CiAttribute(TypedDict, total=False):
+    key: Required[str]
+    kind: Required[Literal["TEXT", "NUMBER", "BOOLEAN", "DATE", "CHOICE", "URL", "GROUP", "ACCOUNT"]]
+    need: Literal["OPTIONAL", "RECOMMENDED", "REQUIRED"]
+    identifier: bool
+    options: list[str]
+
+CiIdentifierRule = TypedDict("CiIdentifierRule", {
+    "attributes": Required[list[str]],
+    "class": str,
+}, total=False)
+
+class CiRequiredRelation(TypedDict, total=False):
+    types: Required[list[str]]
+    outgoing: Required[bool]
+
+class CiClass(TypedDict, total=False):
+    """A configuration item class. A shipped class has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits."""
+    key: Required[str]
+    parent: Required[str]
+    name: str
+    icon: str
+    abstract: bool
+    system: Required[bool]
+    attributes: Required[list["CiAttribute"]]
+    all_attributes: Required[list["CiAttribute"]]
+    identifier_rules: Required[list["CiIdentifierRule"]]
+    required_relations: Required[list["CiRequiredRelation"]]
+    staleness_days: Required[int]
+    lineage: Required[list[str]]
+    archived: bool
+    version: Required[int]
+
+class CiClassList(TypedDict, total=False):
+    data: Required[list["CiClass"]]
+
+class CiClassDefine(TypedDict, total=False):
+    parent: Required[str]
+    name: Required[str]
+    icon: str
+    abstract: bool
+    attributes: list["CiAttribute"]
+    identifier_rules: list["CiIdentifierRule"]
+    required_relations: list["CiRequiredRelation"]
+    staleness_days: int
+    archived: bool
+
+CiClassPair = TypedDict("CiClassPair", {
+    "from": Required[str],
+    "to": Required[str],
+}, total=False)
+
+class CiRelationType(TypedDict, total=False):
+    """A relation type; `impact` says which end suffers when the other fails."""
+    key: Required[str]
+    name: str
+    reverse_name: str
+    impact: Required[Literal["NONE", "SOURCE", "TARGET", "BOTH"]]
+    pairs: Required[list["CiClassPair"]]
+    system: Required[bool]
+    archived: bool
+    version: Required[int]
+
+class CiRelationTypeList(TypedDict, total=False):
+    data: Required[list["CiRelationType"]]
+
+class CiRelationTypeDefine(TypedDict, total=False):
+    name: Required[str]
+    reverse_name: Required[str]
+    impact: Required[Literal["NONE", "SOURCE", "TARGET", "BOTH"]]
+    pairs: list["CiClassPair"]
+    archived: bool
+
+CiFileMapping = TypedDict("CiFileMapping", {
+    "class": Required[str],
+    "class_column": str,
+    "name_column": Required[str],
+    "native_key_column": str,
+    "columns": dict[str, Any],
+    "defaults": dict[str, Any],
+}, total=False)
+
+class CiSource(TypedDict, total=False):
+    key: Required[str]
+    kind: Required[Literal["MANUAL", "FILE", "API", "CONNECTOR"]]
+    rank: Required[int]
+    classes: Required[list[str]]
+    may_create: Required[bool]
+    mapping: "CiFileMapping"
+    system: Required[bool]
+    last_run_at: str | None
+    version: Required[int]
+
+class CiSourceList(TypedDict, total=False):
+    data: Required[list["CiSource"]]
+
+class CiSourceDefine(TypedDict, total=False):
+    kind: Required[Literal["FILE", "API", "CONNECTOR"]]
+    rank: Required[int]
+    classes: list[str]
+    may_create: bool
+    mapping: "CiFileMapping"
+
+class CiProtection(TypedDict, total=False):
+    """A protection need per confidentiality, integrity and availability."""
+    c: Literal["NORMAL", "HIGH", "VERY_HIGH"] | None
+    i: Literal["NORMAL", "HIGH", "VERY_HIGH"] | None
+    a: Literal["NORMAL", "HIGH", "VERY_HIGH"] | None
+
+class CiOwnProtection(TypedDict, total=False):
+    """The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`."""
+    c: Literal["NORMAL", "HIGH", "VERY_HIGH"] | None
+    i: Literal["NORMAL", "HIGH", "VERY_HIGH"] | None
+    a: Literal["NORMAL", "HIGH", "VERY_HIGH"] | None
+    fixed: list[Literal["c", "i", "a"]]
+    reason: str
+
+class CiProvenance(TypedDict, total=False):
+    source: Required[str]
+    run_id: str | None
+    at: Required[str]
+
+class CiRelation(TypedDict, total=False):
+    id: Required[str]
+    type: Required[str]
+    source_ci_id: Required[str]
+    target_ci_id: Required[str]
+    data_source: Required[str]
+    first_seen: Required[str]
+    last_seen: Required[str]
+
+CiDecision = TypedDict("CiDecision", {
+    "ref": Required[str],
+    "outcome": Required[Literal["CREATE", "UPDATE", "UNCHANGED", "HOLD", "DUPLICATE", "REFUSED"]],
+    "ci_id": str | None,
+    "class": str,
+    "rule": str,
+    "taken": list[str],
+    "kept": list[dict[str, Any]],
+    "candidates": list[str],
+    "reason": str,
+}, total=False)
+
+ConfigurationItem = TypedDict("ConfigurationItem", {
+    "id": Required[str],
+    "hub_id": Required[str],
+    "class": Required[str],
+    "name": Required[str],
+    "stage": Required[Literal["PLANNED", "ORDERED", "IN_STOCK", "IN_USE", "MAINTENANCE", "RETIRED", "DISPOSED"]],
+    "status": Required[Literal["OK", "PENDING", "BLOCKED", "MERGED"]],
+    "attributes": Required[dict[str, Any]],
+    "provenance": Required[dict[str, Any]],
+    "owner_account_id": str | None,
+    "owner_group_id": str | None,
+    "location_id": str | None,
+    "protection": Required["CiOwnProtection"],
+    "effective_protection": "CiProtection",
+    "review_due": str | None,
+    "quantity": Required[int],
+    "last_seen_at": str | None,
+    "merged_into": str | None,
+    "relations": list["CiRelation"],
+    "decision": "CiDecision",
+    "created_by": str,
+    "created_at": Required[str],
+    "updated_by": str,
+    "updated_at": Required[str],
+    "version": Required[int],
+}, total=False)
+
+class ConfigurationItemList(TypedDict, total=False):
+    data: Required[list["ConfigurationItem"]]
+    next: str | None
+
+ConfigurationItemCreate = TypedDict("ConfigurationItemCreate", {
+    "class": Required[str],
+    "name": Required[str],
+    "attributes": dict[str, Any],
+}, total=False)
+
+ConfigurationItemUpdate = TypedDict("ConfigurationItemUpdate", {
+    "name": str,
+    "class": str,
+    "attributes": dict[str, Any],
+}, total=False)
+
+class CiCompliance(TypedDict, total=False):
+    stage: Literal["PLANNED", "ORDERED", "IN_STOCK", "IN_USE", "MAINTENANCE", "RETIRED", "DISPOSED"]
+    status: Literal["OK", "PENDING", "BLOCKED"]
+    owner_account_id: str | None
+    owner_group_id: str | None
+    location_id: str | None
+    protection: "CiOwnProtection"
+    review_due: str | None
+    quantity: int
+
+CiPayloadItem = TypedDict("CiPayloadItem", {
+    "ref": str,
+    "class": Required[str],
+    "name": str,
+    "native_key": str,
+    "attributes": dict[str, Any],
+}, total=False)
+
+CiPayloadRelation = TypedDict("CiPayloadRelation", {
+    "type": Required[str],
+    "from": str,
+    "to": str,
+    "from_id": str,
+    "to_id": str,
+}, total=False)
+
+class CiPayload(TypedDict, total=False):
+    source: Required[str]
+    items: Required[list["CiPayloadItem"]]
+    relations: list["CiPayloadRelation"]
+    dry_run: bool
+
+class CiFileImport(TypedDict, total=False):
+    source: Required[str]
+    format: Required[Literal["CSV", "JSON", "CYCLONEDX", "SPDX"]]
+    content: Required[str]
+    mapping: "CiFileMapping"
+    dry_run: bool
+
+class CiRunCounts(TypedDict, total=False):
+    items: Required[int]
+    created: Required[int]
+    updated: Required[int]
+    unchanged: Required[int]
+    held: Required[int]
+    duplicates: Required[int]
+    refused: Required[int]
+    relations_added: int
+    relations_seen: int
+    relations_refused: int
+
+class CiRun(TypedDict, total=False):
+    """A reconciliation run; a dry run has no `id` and was not stored."""
+    id: str | None
+    hub_id: Required[str]
+    source: Required[str]
+    actor_id: str
+    started_at: Required[str]
+    dry_run: Required[bool]
+    counts: Required["CiRunCounts"]
+    decisions: list["CiDecision"]
+    skipped_rows: list[int]
+
+class CiRunList(TypedDict, total=False):
+    data: Required[list["CiRun"]]
+
+class CiHold(TypedDict, total=False):
+    id: Required[str]
+    hub_id: Required[str]
+    run_id: Required[str]
+    source: Required[str]
+    reason: Required[str]
+    item: Required["CiPayloadItem"]
+    created_at: Required[str]
+
+class CiHoldList(TypedDict, total=False):
+    data: Required[list["CiHold"]]
+
+class CiHoldDismissed(TypedDict, total=False):
+    id: Required[str]
+    dismissed: Required[bool]
+
+class CiDuplicate(TypedDict, total=False):
+    id: Required[str]
+    hub_id: Required[str]
+    ci_ids: Required[list[str]]
+    rule: Required[str]
+    created_at: Required[str]
+
+class CiDuplicateList(TypedDict, total=False):
+    data: Required[list["CiDuplicate"]]
+
+class CiDuplicateResolve(TypedDict, total=False):
+    survivor_id: str
+
+CiDuplicateResolved = TypedDict("CiDuplicateResolved", {
+    "id": Required[str],
+    "merged": Required[bool],
+    "hub_id": str,
+    "class": str,
+    "name": str,
+    "version": int,
+}, total=False)
+
+class CiRelate(TypedDict, total=False):
+    source_ci_id: Required[str]
+    target_ci_id: Required[str]
+    type: Required[str]
+
+class CiRelationRemoved(TypedDict, total=False):
+    id: Required[str]
+    removed: Required[bool]
+
+CiReached = TypedDict("CiReached", {
+    "ci_id": Required[str],
+    "class": Required[str],
+    "name": Required[str],
+    "stage": Required[str],
+    "depth": Required[int],
+}, total=False)
+
+class CiImpact(TypedDict, total=False):
+    ci_id: Required[str]
+    direction: Required[Literal["DOWNSTREAM", "UPSTREAM"]]
+    reached: Required[list["CiReached"]]
+    services: Required[list[str]]
+
+class CmdbHealth(TypedDict, total=False):
+    """A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem."""
+    total: Required[int]
+    completeness: Required[float]
+    correctness: Required[float]
+    stale: Required[int]
+    orphans: Required[int]
+    duplicates: Required[int]
+    without_owner: Required[int]
+    review_overdue: Required[int]
+    classes: Required[list[dict[str, Any]]]
+    problems: Required[list[dict[str, Any]]]
+
 class WhiteboardList(TypedDict, total=False):
     data: Required[list["Whiteboard"]]
 

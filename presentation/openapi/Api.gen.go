@@ -1407,6 +1407,459 @@ func (e CapabilitiesWorkspacePermissions) Valid() bool {
 	}
 }
 
+// Defines values for CiAttributeKind.
+const (
+	CiAttributeKindACCOUNT CiAttributeKind = "ACCOUNT"
+	CiAttributeKindBOOLEAN CiAttributeKind = "BOOLEAN"
+	CiAttributeKindCHOICE  CiAttributeKind = "CHOICE"
+	CiAttributeKindDATE    CiAttributeKind = "DATE"
+	CiAttributeKindGROUP   CiAttributeKind = "GROUP"
+	CiAttributeKindNUMBER  CiAttributeKind = "NUMBER"
+	CiAttributeKindTEXT    CiAttributeKind = "TEXT"
+	CiAttributeKindURL     CiAttributeKind = "URL"
+)
+
+// Valid indicates whether the value is a known member of the CiAttributeKind enum.
+func (e CiAttributeKind) Valid() bool {
+	switch e {
+	case CiAttributeKindACCOUNT:
+		return true
+	case CiAttributeKindBOOLEAN:
+		return true
+	case CiAttributeKindCHOICE:
+		return true
+	case CiAttributeKindDATE:
+		return true
+	case CiAttributeKindGROUP:
+		return true
+	case CiAttributeKindNUMBER:
+		return true
+	case CiAttributeKindTEXT:
+		return true
+	case CiAttributeKindURL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiAttributeNeed.
+const (
+	OPTIONAL    CiAttributeNeed = "OPTIONAL"
+	RECOMMENDED CiAttributeNeed = "RECOMMENDED"
+	REQUIRED    CiAttributeNeed = "REQUIRED"
+)
+
+// Valid indicates whether the value is a known member of the CiAttributeNeed enum.
+func (e CiAttributeNeed) Valid() bool {
+	switch e {
+	case OPTIONAL:
+		return true
+	case RECOMMENDED:
+		return true
+	case REQUIRED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiComplianceStage.
+const (
+	CiComplianceStageDISPOSED    CiComplianceStage = "DISPOSED"
+	CiComplianceStageINSTOCK     CiComplianceStage = "IN_STOCK"
+	CiComplianceStageINUSE       CiComplianceStage = "IN_USE"
+	CiComplianceStageMAINTENANCE CiComplianceStage = "MAINTENANCE"
+	CiComplianceStageORDERED     CiComplianceStage = "ORDERED"
+	CiComplianceStagePLANNED     CiComplianceStage = "PLANNED"
+	CiComplianceStageRETIRED     CiComplianceStage = "RETIRED"
+)
+
+// Valid indicates whether the value is a known member of the CiComplianceStage enum.
+func (e CiComplianceStage) Valid() bool {
+	switch e {
+	case CiComplianceStageDISPOSED:
+		return true
+	case CiComplianceStageINSTOCK:
+		return true
+	case CiComplianceStageINUSE:
+		return true
+	case CiComplianceStageMAINTENANCE:
+		return true
+	case CiComplianceStageORDERED:
+		return true
+	case CiComplianceStagePLANNED:
+		return true
+	case CiComplianceStageRETIRED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiComplianceStatus.
+const (
+	CiComplianceStatusBLOCKED CiComplianceStatus = "BLOCKED"
+	CiComplianceStatusOK      CiComplianceStatus = "OK"
+	CiComplianceStatusPENDING CiComplianceStatus = "PENDING"
+)
+
+// Valid indicates whether the value is a known member of the CiComplianceStatus enum.
+func (e CiComplianceStatus) Valid() bool {
+	switch e {
+	case CiComplianceStatusBLOCKED:
+		return true
+	case CiComplianceStatusOK:
+		return true
+	case CiComplianceStatusPENDING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiDecisionOutcome.
+const (
+	CiDecisionOutcomeCREATE    CiDecisionOutcome = "CREATE"
+	CiDecisionOutcomeDUPLICATE CiDecisionOutcome = "DUPLICATE"
+	CiDecisionOutcomeHOLD      CiDecisionOutcome = "HOLD"
+	CiDecisionOutcomeREFUSED   CiDecisionOutcome = "REFUSED"
+	CiDecisionOutcomeUNCHANGED CiDecisionOutcome = "UNCHANGED"
+	CiDecisionOutcomeUPDATE    CiDecisionOutcome = "UPDATE"
+)
+
+// Valid indicates whether the value is a known member of the CiDecisionOutcome enum.
+func (e CiDecisionOutcome) Valid() bool {
+	switch e {
+	case CiDecisionOutcomeCREATE:
+		return true
+	case CiDecisionOutcomeDUPLICATE:
+		return true
+	case CiDecisionOutcomeHOLD:
+		return true
+	case CiDecisionOutcomeREFUSED:
+		return true
+	case CiDecisionOutcomeUNCHANGED:
+		return true
+	case CiDecisionOutcomeUPDATE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiFileImportFormat.
+const (
+	CiFileImportFormatCSV       CiFileImportFormat = "CSV"
+	CiFileImportFormatCYCLONEDX CiFileImportFormat = "CYCLONEDX"
+	CiFileImportFormatJSON      CiFileImportFormat = "JSON"
+	CiFileImportFormatSPDX      CiFileImportFormat = "SPDX"
+)
+
+// Valid indicates whether the value is a known member of the CiFileImportFormat enum.
+func (e CiFileImportFormat) Valid() bool {
+	switch e {
+	case CiFileImportFormatCSV:
+		return true
+	case CiFileImportFormatCYCLONEDX:
+		return true
+	case CiFileImportFormatJSON:
+		return true
+	case CiFileImportFormatSPDX:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiImpactDirection.
+const (
+	CiImpactDirectionDOWNSTREAM CiImpactDirection = "DOWNSTREAM"
+	CiImpactDirectionUPSTREAM   CiImpactDirection = "UPSTREAM"
+)
+
+// Valid indicates whether the value is a known member of the CiImpactDirection enum.
+func (e CiImpactDirection) Valid() bool {
+	switch e {
+	case CiImpactDirectionDOWNSTREAM:
+		return true
+	case CiImpactDirectionUPSTREAM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiOwnProtectionA.
+const (
+	CiOwnProtectionAHIGH     CiOwnProtectionA = "HIGH"
+	CiOwnProtectionANORMAL   CiOwnProtectionA = "NORMAL"
+	CiOwnProtectionAVERYHIGH CiOwnProtectionA = "VERY_HIGH"
+)
+
+// Valid indicates whether the value is a known member of the CiOwnProtectionA enum.
+func (e CiOwnProtectionA) Valid() bool {
+	switch e {
+	case CiOwnProtectionAHIGH:
+		return true
+	case CiOwnProtectionANORMAL:
+		return true
+	case CiOwnProtectionAVERYHIGH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiOwnProtectionC.
+const (
+	CiOwnProtectionCHIGH     CiOwnProtectionC = "HIGH"
+	CiOwnProtectionCNORMAL   CiOwnProtectionC = "NORMAL"
+	CiOwnProtectionCVERYHIGH CiOwnProtectionC = "VERY_HIGH"
+)
+
+// Valid indicates whether the value is a known member of the CiOwnProtectionC enum.
+func (e CiOwnProtectionC) Valid() bool {
+	switch e {
+	case CiOwnProtectionCHIGH:
+		return true
+	case CiOwnProtectionCNORMAL:
+		return true
+	case CiOwnProtectionCVERYHIGH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiOwnProtectionFixed.
+const (
+	A CiOwnProtectionFixed = "a"
+	C CiOwnProtectionFixed = "c"
+	I CiOwnProtectionFixed = "i"
+)
+
+// Valid indicates whether the value is a known member of the CiOwnProtectionFixed enum.
+func (e CiOwnProtectionFixed) Valid() bool {
+	switch e {
+	case A:
+		return true
+	case C:
+		return true
+	case I:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiOwnProtectionI.
+const (
+	CiOwnProtectionIHIGH     CiOwnProtectionI = "HIGH"
+	CiOwnProtectionINORMAL   CiOwnProtectionI = "NORMAL"
+	CiOwnProtectionIVERYHIGH CiOwnProtectionI = "VERY_HIGH"
+)
+
+// Valid indicates whether the value is a known member of the CiOwnProtectionI enum.
+func (e CiOwnProtectionI) Valid() bool {
+	switch e {
+	case CiOwnProtectionIHIGH:
+		return true
+	case CiOwnProtectionINORMAL:
+		return true
+	case CiOwnProtectionIVERYHIGH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiProtectionA.
+const (
+	CiProtectionAHIGH     CiProtectionA = "HIGH"
+	CiProtectionANORMAL   CiProtectionA = "NORMAL"
+	CiProtectionAVERYHIGH CiProtectionA = "VERY_HIGH"
+)
+
+// Valid indicates whether the value is a known member of the CiProtectionA enum.
+func (e CiProtectionA) Valid() bool {
+	switch e {
+	case CiProtectionAHIGH:
+		return true
+	case CiProtectionANORMAL:
+		return true
+	case CiProtectionAVERYHIGH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiProtectionC.
+const (
+	CiProtectionCHIGH     CiProtectionC = "HIGH"
+	CiProtectionCNORMAL   CiProtectionC = "NORMAL"
+	CiProtectionCVERYHIGH CiProtectionC = "VERY_HIGH"
+)
+
+// Valid indicates whether the value is a known member of the CiProtectionC enum.
+func (e CiProtectionC) Valid() bool {
+	switch e {
+	case CiProtectionCHIGH:
+		return true
+	case CiProtectionCNORMAL:
+		return true
+	case CiProtectionCVERYHIGH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiProtectionI.
+const (
+	CiProtectionIHIGH     CiProtectionI = "HIGH"
+	CiProtectionINORMAL   CiProtectionI = "NORMAL"
+	CiProtectionIVERYHIGH CiProtectionI = "VERY_HIGH"
+)
+
+// Valid indicates whether the value is a known member of the CiProtectionI enum.
+func (e CiProtectionI) Valid() bool {
+	switch e {
+	case CiProtectionIHIGH:
+		return true
+	case CiProtectionINORMAL:
+		return true
+	case CiProtectionIVERYHIGH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiRelationTypeImpact.
+const (
+	CiRelationTypeImpactBOTH   CiRelationTypeImpact = "BOTH"
+	CiRelationTypeImpactNONE   CiRelationTypeImpact = "NONE"
+	CiRelationTypeImpactSOURCE CiRelationTypeImpact = "SOURCE"
+	CiRelationTypeImpactTARGET CiRelationTypeImpact = "TARGET"
+)
+
+// Valid indicates whether the value is a known member of the CiRelationTypeImpact enum.
+func (e CiRelationTypeImpact) Valid() bool {
+	switch e {
+	case CiRelationTypeImpactBOTH:
+		return true
+	case CiRelationTypeImpactNONE:
+		return true
+	case CiRelationTypeImpactSOURCE:
+		return true
+	case CiRelationTypeImpactTARGET:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiRelationTypeDefineImpact.
+const (
+	CiRelationTypeDefineImpactBOTH   CiRelationTypeDefineImpact = "BOTH"
+	CiRelationTypeDefineImpactNONE   CiRelationTypeDefineImpact = "NONE"
+	CiRelationTypeDefineImpactSOURCE CiRelationTypeDefineImpact = "SOURCE"
+	CiRelationTypeDefineImpactTARGET CiRelationTypeDefineImpact = "TARGET"
+)
+
+// Valid indicates whether the value is a known member of the CiRelationTypeDefineImpact enum.
+func (e CiRelationTypeDefineImpact) Valid() bool {
+	switch e {
+	case CiRelationTypeDefineImpactBOTH:
+		return true
+	case CiRelationTypeDefineImpactNONE:
+		return true
+	case CiRelationTypeDefineImpactSOURCE:
+		return true
+	case CiRelationTypeDefineImpactTARGET:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiSourceKind.
+const (
+	CiSourceKindAPI       CiSourceKind = "API"
+	CiSourceKindCONNECTOR CiSourceKind = "CONNECTOR"
+	CiSourceKindFILE      CiSourceKind = "FILE"
+	CiSourceKindMANUAL    CiSourceKind = "MANUAL"
+)
+
+// Valid indicates whether the value is a known member of the CiSourceKind enum.
+func (e CiSourceKind) Valid() bool {
+	switch e {
+	case CiSourceKindAPI:
+		return true
+	case CiSourceKindCONNECTOR:
+		return true
+	case CiSourceKindFILE:
+		return true
+	case CiSourceKindMANUAL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiSourceDefineKind.
+const (
+	CiSourceDefineKindAPI       CiSourceDefineKind = "API"
+	CiSourceDefineKindCONNECTOR CiSourceDefineKind = "CONNECTOR"
+	CiSourceDefineKindFILE      CiSourceDefineKind = "FILE"
+)
+
+// Valid indicates whether the value is a known member of the CiSourceDefineKind enum.
+func (e CiSourceDefineKind) Valid() bool {
+	switch e {
+	case CiSourceDefineKindAPI:
+		return true
+	case CiSourceDefineKindCONNECTOR:
+		return true
+	case CiSourceDefineKindFILE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CmdbHealthProblemsKinds.
+const (
+	CmdbHealthProblemsKindsDUPLICATE     CmdbHealthProblemsKinds = "DUPLICATE"
+	CmdbHealthProblemsKindsINCOMPLETE    CmdbHealthProblemsKinds = "INCOMPLETE"
+	CmdbHealthProblemsKindsNOOWNER       CmdbHealthProblemsKinds = "NO_OWNER"
+	CmdbHealthProblemsKindsORPHAN        CmdbHealthProblemsKinds = "ORPHAN"
+	CmdbHealthProblemsKindsREVIEWOVERDUE CmdbHealthProblemsKinds = "REVIEW_OVERDUE"
+	CmdbHealthProblemsKindsSTALE         CmdbHealthProblemsKinds = "STALE"
+)
+
+// Valid indicates whether the value is a known member of the CmdbHealthProblemsKinds enum.
+func (e CmdbHealthProblemsKinds) Valid() bool {
+	switch e {
+	case CmdbHealthProblemsKindsDUPLICATE:
+		return true
+	case CmdbHealthProblemsKindsINCOMPLETE:
+		return true
+	case CmdbHealthProblemsKindsNOOWNER:
+		return true
+	case CmdbHealthProblemsKindsORPHAN:
+		return true
+	case CmdbHealthProblemsKindsREVIEWOVERDUE:
+		return true
+	case CmdbHealthProblemsKindsSTALE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CollectionFigureKind.
 const (
 	CollectionFigureKindDUE      CollectionFigureKind = "DUE"
@@ -1719,6 +2172,63 @@ func (e ConfigUpgradeChangeState) Valid() bool {
 	case ConfigUpgradeChangeStateCONFLICT:
 		return true
 	case ConfigUpgradeChangeStateTAKE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigurationItemStage.
+const (
+	ConfigurationItemStageDISPOSED    ConfigurationItemStage = "DISPOSED"
+	ConfigurationItemStageINSTOCK     ConfigurationItemStage = "IN_STOCK"
+	ConfigurationItemStageINUSE       ConfigurationItemStage = "IN_USE"
+	ConfigurationItemStageMAINTENANCE ConfigurationItemStage = "MAINTENANCE"
+	ConfigurationItemStageORDERED     ConfigurationItemStage = "ORDERED"
+	ConfigurationItemStagePLANNED     ConfigurationItemStage = "PLANNED"
+	ConfigurationItemStageRETIRED     ConfigurationItemStage = "RETIRED"
+)
+
+// Valid indicates whether the value is a known member of the ConfigurationItemStage enum.
+func (e ConfigurationItemStage) Valid() bool {
+	switch e {
+	case ConfigurationItemStageDISPOSED:
+		return true
+	case ConfigurationItemStageINSTOCK:
+		return true
+	case ConfigurationItemStageINUSE:
+		return true
+	case ConfigurationItemStageMAINTENANCE:
+		return true
+	case ConfigurationItemStageORDERED:
+		return true
+	case ConfigurationItemStagePLANNED:
+		return true
+	case ConfigurationItemStageRETIRED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigurationItemStatus.
+const (
+	ConfigurationItemStatusBLOCKED ConfigurationItemStatus = "BLOCKED"
+	ConfigurationItemStatusMERGED  ConfigurationItemStatus = "MERGED"
+	ConfigurationItemStatusOK      ConfigurationItemStatus = "OK"
+	ConfigurationItemStatusPENDING ConfigurationItemStatus = "PENDING"
+)
+
+// Valid indicates whether the value is a known member of the ConfigurationItemStatus enum.
+func (e ConfigurationItemStatus) Valid() bool {
+	switch e {
+	case ConfigurationItemStatusBLOCKED:
+		return true
+	case ConfigurationItemStatusMERGED:
+		return true
+	case ConfigurationItemStatusOK:
+		return true
+	case ConfigurationItemStatusPENDING:
 		return true
 	default:
 		return false
@@ -7065,6 +7575,24 @@ func (e ListRuleRunsParamsTrigger) Valid() bool {
 	}
 }
 
+// Defines values for ReadCiImpactParamsDirection.
+const (
+	ReadCiImpactParamsDirectionDOWNSTREAM ReadCiImpactParamsDirection = "DOWNSTREAM"
+	ReadCiImpactParamsDirectionUPSTREAM   ReadCiImpactParamsDirection = "UPSTREAM"
+)
+
+// Valid indicates whether the value is a known member of the ReadCiImpactParamsDirection enum.
+func (e ReadCiImpactParamsDirection) Valid() bool {
+	switch e {
+	case ReadCiImpactParamsDirectionDOWNSTREAM:
+		return true
+	case ReadCiImpactParamsDirectionUPSTREAM:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListConfigProposalsParamsState.
 const (
 	ListConfigProposalsParamsStateAPPLIED  ListConfigProposalsParamsState = "APPLIED"
@@ -8608,6 +9136,439 @@ type CapabilitiesTenancyMode string
 // CapabilitiesWorkspacePermissions defines model for Capabilities.WorkspacePermissions.
 type CapabilitiesWorkspacePermissions string
 
+// CiAttribute defines model for CiAttribute.
+type CiAttribute struct {
+	Identifier *bool            `json:"identifier,omitempty"`
+	Key        string           `json:"key"`
+	Kind       CiAttributeKind  `json:"kind"`
+	Need       *CiAttributeNeed `json:"need,omitempty"`
+	Options    *[]string        `json:"options,omitempty"`
+}
+
+// CiAttributeKind defines model for CiAttribute.Kind.
+type CiAttributeKind string
+
+// CiAttributeNeed defines model for CiAttribute.Need.
+type CiAttributeNeed string
+
+// CiClass A configuration item class. A shipped class has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits.
+type CiClass struct {
+	Abstract          *bool                `json:"abstract,omitempty"`
+	AllAttributes     []CiAttribute        `json:"all_attributes"`
+	Archived          *bool                `json:"archived,omitempty"`
+	Attributes        []CiAttribute        `json:"attributes"`
+	Icon              *string              `json:"icon,omitempty"`
+	IdentifierRules   []CiIdentifierRule   `json:"identifier_rules"`
+	Key               string               `json:"key"`
+	Lineage           []string             `json:"lineage"`
+	Name              *string              `json:"name,omitempty"`
+	Parent            string               `json:"parent"`
+	RequiredRelations []CiRequiredRelation `json:"required_relations"`
+	StalenessDays     int                  `json:"staleness_days"`
+	System            bool                 `json:"system"`
+	Version           int                  `json:"version"`
+}
+
+// CiClassDefine defines model for CiClassDefine.
+type CiClassDefine struct {
+	Abstract          *bool                 `json:"abstract,omitempty"`
+	Archived          *bool                 `json:"archived,omitempty"`
+	Attributes        *[]CiAttribute        `json:"attributes,omitempty"`
+	Icon              *string               `json:"icon,omitempty"`
+	IdentifierRules   *[]CiIdentifierRule   `json:"identifier_rules,omitempty"`
+	Name              string                `json:"name"`
+	Parent            string                `json:"parent"`
+	RequiredRelations *[]CiRequiredRelation `json:"required_relations,omitempty"`
+	StalenessDays     *int                  `json:"staleness_days,omitempty"`
+}
+
+// CiClassList defines model for CiClassList.
+type CiClassList struct {
+	Data []CiClass `json:"data"`
+}
+
+// CiClassPair defines model for CiClassPair.
+type CiClassPair struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+// CiCompliance defines model for CiCompliance.
+type CiCompliance struct {
+	LocationId     *openapi_types.UUID `json:"location_id,omitempty"`
+	OwnerAccountId *openapi_types.UUID `json:"owner_account_id,omitempty"`
+	OwnerGroupId   *openapi_types.UUID `json:"owner_group_id,omitempty"`
+
+	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+	Protection *CiOwnProtection    `json:"protection,omitempty"`
+	Quantity   *int                `json:"quantity,omitempty"`
+	ReviewDue  *openapi_types.Date `json:"review_due,omitempty"`
+	Stage      *CiComplianceStage  `json:"stage,omitempty"`
+	Status     *CiComplianceStatus `json:"status,omitempty"`
+}
+
+// CiComplianceStage defines model for CiCompliance.Stage.
+type CiComplianceStage string
+
+// CiComplianceStatus defines model for CiCompliance.Status.
+type CiComplianceStatus string
+
+// CiDecision What the reconciliation did with one item and why: the rule that matched, the attributes taken, those kept and by which source, a duplicate's candidates, a hold's or refusal's reason as a message code. It names attributes, never values.
+type CiDecision struct {
+	Candidates *[]openapi_types.UUID `json:"candidates,omitempty"`
+	CiId       *openapi_types.UUID   `json:"ci_id,omitempty"`
+	Class      *string               `json:"class,omitempty"`
+	Kept       *[]struct {
+		Attribute string `json:"attribute"`
+		By        string `json:"by"`
+	} `json:"kept,omitempty"`
+	Outcome CiDecisionOutcome `json:"outcome"`
+	Reason  *string           `json:"reason,omitempty"`
+	Ref     string            `json:"ref"`
+	Rule    *string           `json:"rule,omitempty"`
+	Taken   *[]string         `json:"taken,omitempty"`
+}
+
+// CiDecisionOutcome defines model for CiDecision.Outcome.
+type CiDecisionOutcome string
+
+// CiDuplicate defines model for CiDuplicate.
+type CiDuplicate struct {
+	CiIds     []openapi_types.UUID `json:"ci_ids"`
+	CreatedAt time.Time            `json:"created_at"`
+	HubId     openapi_types.UUID   `json:"hub_id"`
+	Id        openapi_types.UUID   `json:"id"`
+	Rule      string               `json:"rule"`
+}
+
+// CiDuplicateList defines model for CiDuplicateList.
+type CiDuplicateList struct {
+	Data []CiDuplicate `json:"data"`
+}
+
+// CiDuplicateResolve defines model for CiDuplicateResolve.
+type CiDuplicateResolve struct {
+	// SurvivorId The CI that stays; absent says the CIs are distinct.
+	SurvivorId *openapi_types.UUID `json:"survivor_id,omitempty"`
+}
+
+// CiDuplicateResolved The survivor after a merge, or the duplicate's identifier when the CIs are distinct.
+type CiDuplicateResolved struct {
+	Class   *string             `json:"class,omitempty"`
+	HubId   *openapi_types.UUID `json:"hub_id,omitempty"`
+	Id      openapi_types.UUID  `json:"id"`
+	Merged  bool                `json:"merged"`
+	Name    *string             `json:"name,omitempty"`
+	Version *int                `json:"version,omitempty"`
+}
+
+// CiFileImport defines model for CiFileImport.
+type CiFileImport struct {
+	Content string             `json:"content"`
+	DryRun  *bool              `json:"dry_run,omitempty"`
+	Format  CiFileImportFormat `json:"format"`
+
+	// Mapping How a CSV table's or a JSON array's columns become a configuration item.
+	Mapping *CiFileMapping `json:"mapping,omitempty"`
+	Source  string         `json:"source"`
+}
+
+// CiFileImportFormat defines model for CiFileImport.Format.
+type CiFileImportFormat string
+
+// CiFileMapping How a CSV table's or a JSON array's columns become a configuration item.
+type CiFileMapping struct {
+	Class           string             `json:"class"`
+	ClassColumn     *string            `json:"class_column,omitempty"`
+	Columns         *map[string]string `json:"columns,omitempty"`
+	Defaults        *map[string]string `json:"defaults,omitempty"`
+	NameColumn      string             `json:"name_column"`
+	NativeKeyColumn *string            `json:"native_key_column,omitempty"`
+}
+
+// CiHold defines model for CiHold.
+type CiHold struct {
+	CreatedAt time.Time          `json:"created_at"`
+	HubId     openapi_types.UUID `json:"hub_id"`
+	Id        openapi_types.UUID `json:"id"`
+	Item      CiPayloadItem      `json:"item"`
+	Reason    string             `json:"reason"`
+	RunId     openapi_types.UUID `json:"run_id"`
+	Source    string             `json:"source"`
+}
+
+// CiHoldDismissed defines model for CiHoldDismissed.
+type CiHoldDismissed struct {
+	Dismissed bool               `json:"dismissed"`
+	Id        openapi_types.UUID `json:"id"`
+}
+
+// CiHoldList defines model for CiHoldList.
+type CiHoldList struct {
+	Data []CiHold `json:"data"`
+}
+
+// CiIdentifierRule defines model for CiIdentifierRule.
+type CiIdentifierRule struct {
+	Attributes []string `json:"attributes"`
+
+	// Class The class that declared the rule.
+	Class *string `json:"class,omitempty"`
+}
+
+// CiImpact defines model for CiImpact.
+type CiImpact struct {
+	CiId      openapi_types.UUID `json:"ci_id"`
+	Direction CiImpactDirection  `json:"direction"`
+	Reached   []CiReached        `json:"reached"`
+
+	// Services The active services and offerings among them.
+	Services []openapi_types.UUID `json:"services"`
+}
+
+// CiImpactDirection defines model for CiImpact.Direction.
+type CiImpactDirection string
+
+// CiOwnProtection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+type CiOwnProtection struct {
+	A      *CiOwnProtectionA       `json:"a,omitempty"`
+	C      *CiOwnProtectionC       `json:"c,omitempty"`
+	Fixed  *[]CiOwnProtectionFixed `json:"fixed,omitempty"`
+	I      *CiOwnProtectionI       `json:"i,omitempty"`
+	Reason *string                 `json:"reason,omitempty"`
+}
+
+// CiOwnProtectionA defines model for CiOwnProtection.A.
+type CiOwnProtectionA string
+
+// CiOwnProtectionC defines model for CiOwnProtection.C.
+type CiOwnProtectionC string
+
+// CiOwnProtectionFixed defines model for CiOwnProtection.Fixed.
+type CiOwnProtectionFixed string
+
+// CiOwnProtectionI defines model for CiOwnProtection.I.
+type CiOwnProtectionI string
+
+// CiPayload defines model for CiPayload.
+type CiPayload struct {
+	DryRun    *bool                `json:"dry_run,omitempty"`
+	Items     []CiPayloadItem      `json:"items"`
+	Relations *[]CiPayloadRelation `json:"relations,omitempty"`
+	Source    string               `json:"source"`
+}
+
+// CiPayloadItem defines model for CiPayloadItem.
+type CiPayloadItem struct {
+	Attributes *map[string]interface{} `json:"attributes,omitempty"`
+	Class      string                  `json:"class"`
+	Name       *string                 `json:"name,omitempty"`
+	NativeKey  *string                 `json:"native_key,omitempty"`
+	Ref        *string                 `json:"ref,omitempty"`
+}
+
+// CiPayloadRelation defines model for CiPayloadRelation.
+type CiPayloadRelation struct {
+	// From An item's ref.
+	From   *string             `json:"from,omitempty"`
+	FromId *openapi_types.UUID `json:"from_id,omitempty"`
+
+	// To An item's ref.
+	To   *string             `json:"to,omitempty"`
+	ToId *openapi_types.UUID `json:"to_id,omitempty"`
+	Type string              `json:"type"`
+}
+
+// CiProtection A protection need per confidentiality, integrity and availability.
+type CiProtection struct {
+	A *CiProtectionA `json:"a,omitempty"`
+	C *CiProtectionC `json:"c,omitempty"`
+	I *CiProtectionI `json:"i,omitempty"`
+}
+
+// CiProtectionA defines model for CiProtection.A.
+type CiProtectionA string
+
+// CiProtectionC defines model for CiProtection.C.
+type CiProtectionC string
+
+// CiProtectionI defines model for CiProtection.I.
+type CiProtectionI string
+
+// CiProvenance defines model for CiProvenance.
+type CiProvenance struct {
+	At     time.Time           `json:"at"`
+	RunId  *openapi_types.UUID `json:"run_id,omitempty"`
+	Source string              `json:"source"`
+}
+
+// CiReached defines model for CiReached.
+type CiReached struct {
+	CiId  openapi_types.UUID `json:"ci_id"`
+	Class string             `json:"class"`
+	Depth int                `json:"depth"`
+	Name  string             `json:"name"`
+	Stage string             `json:"stage"`
+}
+
+// CiRelate defines model for CiRelate.
+type CiRelate struct {
+	SourceCiId openapi_types.UUID `json:"source_ci_id"`
+	TargetCiId openapi_types.UUID `json:"target_ci_id"`
+	Type       string             `json:"type"`
+}
+
+// CiRelation defines model for CiRelation.
+type CiRelation struct {
+	DataSource string             `json:"data_source"`
+	FirstSeen  time.Time          `json:"first_seen"`
+	Id         openapi_types.UUID `json:"id"`
+	LastSeen   time.Time          `json:"last_seen"`
+	SourceCiId openapi_types.UUID `json:"source_ci_id"`
+	TargetCiId openapi_types.UUID `json:"target_ci_id"`
+	Type       string             `json:"type"`
+}
+
+// CiRelationRemoved defines model for CiRelationRemoved.
+type CiRelationRemoved struct {
+	Id      openapi_types.UUID `json:"id"`
+	Removed bool               `json:"removed"`
+}
+
+// CiRelationType A relation type; `impact` says which end suffers when the other fails.
+type CiRelationType struct {
+	Archived    *bool                `json:"archived,omitempty"`
+	Impact      CiRelationTypeImpact `json:"impact"`
+	Key         string               `json:"key"`
+	Name        *string              `json:"name,omitempty"`
+	Pairs       []CiClassPair        `json:"pairs"`
+	ReverseName *string              `json:"reverse_name,omitempty"`
+	System      bool                 `json:"system"`
+	Version     int                  `json:"version"`
+}
+
+// CiRelationTypeImpact defines model for CiRelationType.Impact.
+type CiRelationTypeImpact string
+
+// CiRelationTypeDefine defines model for CiRelationTypeDefine.
+type CiRelationTypeDefine struct {
+	Archived    *bool                      `json:"archived,omitempty"`
+	Impact      CiRelationTypeDefineImpact `json:"impact"`
+	Name        string                     `json:"name"`
+	Pairs       *[]CiClassPair             `json:"pairs,omitempty"`
+	ReverseName string                     `json:"reverse_name"`
+}
+
+// CiRelationTypeDefineImpact defines model for CiRelationTypeDefine.Impact.
+type CiRelationTypeDefineImpact string
+
+// CiRelationTypeList defines model for CiRelationTypeList.
+type CiRelationTypeList struct {
+	Data []CiRelationType `json:"data"`
+}
+
+// CiRequiredRelation defines model for CiRequiredRelation.
+type CiRequiredRelation struct {
+	Outgoing bool     `json:"outgoing"`
+	Types    []string `json:"types"`
+}
+
+// CiRun A reconciliation run; a dry run has no `id` and was not stored.
+type CiRun struct {
+	ActorId     *openapi_types.UUID `json:"actor_id,omitempty"`
+	Counts      CiRunCounts         `json:"counts"`
+	Decisions   *[]CiDecision       `json:"decisions,omitempty"`
+	DryRun      bool                `json:"dry_run"`
+	HubId       openapi_types.UUID  `json:"hub_id"`
+	Id          *openapi_types.UUID `json:"id,omitempty"`
+	SkippedRows *[]int              `json:"skipped_rows,omitempty"`
+	Source      string              `json:"source"`
+	StartedAt   time.Time           `json:"started_at"`
+}
+
+// CiRunCounts defines model for CiRunCounts.
+type CiRunCounts struct {
+	Created          int  `json:"created"`
+	Duplicates       int  `json:"duplicates"`
+	Held             int  `json:"held"`
+	Items            int  `json:"items"`
+	Refused          int  `json:"refused"`
+	RelationsAdded   *int `json:"relations_added,omitempty"`
+	RelationsRefused *int `json:"relations_refused,omitempty"`
+	RelationsSeen    *int `json:"relations_seen,omitempty"`
+	Unchanged        int  `json:"unchanged"`
+	Updated          int  `json:"updated"`
+}
+
+// CiRunList defines model for CiRunList.
+type CiRunList struct {
+	Data []CiRun `json:"data"`
+}
+
+// CiSource defines model for CiSource.
+type CiSource struct {
+	Classes   []string       `json:"classes"`
+	Key       string         `json:"key"`
+	Kind      CiSourceKind   `json:"kind"`
+	LastRunAt *time.Time     `json:"last_run_at,omitempty"`
+	Mapping   *CiFileMapping `json:"mapping,omitempty"`
+	MayCreate bool           `json:"may_create"`
+	Rank      int            `json:"rank"`
+	System    bool           `json:"system"`
+	Version   int            `json:"version"`
+}
+
+// CiSourceKind defines model for CiSource.Kind.
+type CiSourceKind string
+
+// CiSourceDefine defines model for CiSourceDefine.
+type CiSourceDefine struct {
+	Classes *[]string          `json:"classes,omitempty"`
+	Kind    CiSourceDefineKind `json:"kind"`
+
+	// Mapping How a CSV table's or a JSON array's columns become a configuration item.
+	Mapping   *CiFileMapping `json:"mapping,omitempty"`
+	MayCreate *bool          `json:"may_create,omitempty"`
+	Rank      int            `json:"rank"`
+}
+
+// CiSourceDefineKind defines model for CiSourceDefine.Kind.
+type CiSourceDefineKind string
+
+// CiSourceList defines model for CiSourceList.
+type CiSourceList struct {
+	Data []CiSource `json:"data"`
+}
+
+// CmdbHealth A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem.
+type CmdbHealth struct {
+	Classes []struct {
+		Class        string  `json:"class"`
+		Completeness float32 `json:"completeness"`
+		Duplicates   int     `json:"duplicates"`
+		Orphans      int     `json:"orphans"`
+		Stale        int     `json:"stale"`
+		Total        int     `json:"total"`
+	} `json:"classes"`
+	Completeness float32 `json:"completeness"`
+	Correctness  float32 `json:"correctness"`
+	Duplicates   int     `json:"duplicates"`
+	Orphans      int     `json:"orphans"`
+	Problems     []struct {
+		CiId    openapi_types.UUID        `json:"ci_id"`
+		Class   string                    `json:"class"`
+		Kinds   []CmdbHealthProblemsKinds `json:"kinds"`
+		Missing *[]string                 `json:"missing,omitempty"`
+	} `json:"problems"`
+	ReviewOverdue int `json:"review_overdue"`
+	Stale         int `json:"stale"`
+	Total         int `json:"total"`
+	WithoutOwner  int `json:"without_owner"`
+}
+
+// CmdbHealthProblemsKinds defines model for CmdbHealth.Problems.Kinds.
+type CmdbHealthProblemsKinds string
+
 // CollectionFigure What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered.
 type CollectionFigure struct {
 	// AverageSeconds FLOW - the average time those entries took from their first column to their last: from the moment each was created to the moment it was completed, in seconds. Null where none was completed.
@@ -9098,6 +10059,66 @@ type ConfigVersion struct {
 // ConfigVersionList defines model for ConfigVersionList.
 type ConfigVersionList struct {
 	Data []ConfigVersion `json:"data"`
+}
+
+// ConfigurationItem A configuration item in a hub. `attributes` hold its class's typed values; `provenance` names per attribute the source that last wrote it. `effective_protection` is given on a single read: the need it inherits from everything that suffers when it fails.
+type ConfigurationItem struct {
+	Attributes map[string]interface{} `json:"attributes"`
+	Class      string                 `json:"class"`
+	CreatedAt  time.Time              `json:"created_at"`
+	CreatedBy  *openapi_types.UUID    `json:"created_by,omitempty"`
+
+	// Decision What the reconciliation did with one item and why: the rule that matched, the attributes taken, those kept and by which source, a duplicate's candidates, a hold's or refusal's reason as a message code. It names attributes, never values.
+	Decision *CiDecision `json:"decision,omitempty"`
+
+	// EffectiveProtection A protection need per confidentiality, integrity and availability.
+	EffectiveProtection *CiProtection       `json:"effective_protection,omitempty"`
+	HubId               openapi_types.UUID  `json:"hub_id"`
+	Id                  openapi_types.UUID  `json:"id"`
+	LastSeenAt          *time.Time          `json:"last_seen_at,omitempty"`
+	LocationId          *openapi_types.UUID `json:"location_id,omitempty"`
+	MergedInto          *openapi_types.UUID `json:"merged_into,omitempty"`
+	Name                string              `json:"name"`
+	OwnerAccountId      *openapi_types.UUID `json:"owner_account_id,omitempty"`
+	OwnerGroupId        *openapi_types.UUID `json:"owner_group_id,omitempty"`
+
+	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+	Protection CiOwnProtection         `json:"protection"`
+	Provenance map[string]CiProvenance `json:"provenance"`
+	Quantity   int                     `json:"quantity"`
+	Relations  *[]CiRelation           `json:"relations,omitempty"`
+	ReviewDue  *openapi_types.Date     `json:"review_due,omitempty"`
+	Stage      ConfigurationItemStage  `json:"stage"`
+	Status     ConfigurationItemStatus `json:"status"`
+	UpdatedAt  time.Time               `json:"updated_at"`
+	UpdatedBy  *openapi_types.UUID     `json:"updated_by,omitempty"`
+	Version    int                     `json:"version"`
+}
+
+// ConfigurationItemStage defines model for ConfigurationItem.Stage.
+type ConfigurationItemStage string
+
+// ConfigurationItemStatus defines model for ConfigurationItem.Status.
+type ConfigurationItemStatus string
+
+// ConfigurationItemCreate defines model for ConfigurationItemCreate.
+type ConfigurationItemCreate struct {
+	Attributes *map[string]interface{} `json:"attributes,omitempty"`
+	Class      string                  `json:"class"`
+	Name       string                  `json:"name"`
+}
+
+// ConfigurationItemList defines model for ConfigurationItemList.
+type ConfigurationItemList struct {
+	Data []ConfigurationItem `json:"data"`
+	Next *openapi_types.UUID `json:"next,omitempty"`
+}
+
+// ConfigurationItemUpdate defines model for ConfigurationItemUpdate.
+type ConfigurationItemUpdate struct {
+	Attributes *map[string]interface{} `json:"attributes,omitempty"`
+	Class      *string                 `json:"class,omitempty"`
+	Name       *string                 `json:"name,omitempty"`
 }
 
 // ConnectedIdentity One provider identity connected to the caller's account.
@@ -17093,6 +18114,45 @@ type ListBackupsAtTargetParams struct {
 	Refresh *bool `form:"refresh,omitempty" json:"refresh,omitempty"`
 }
 
+// UpdateCiParams defines parameters for UpdateCi.
+type UpdateCiParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// SetCiComplianceParams defines parameters for SetCiCompliance.
+type SetCiComplianceParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ReadCiImpactParams defines parameters for ReadCiImpact.
+type ReadCiImpactParams struct {
+	Direction *ReadCiImpactParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+	Depth     *int                         `form:"depth,omitempty" json:"depth,omitempty"`
+}
+
+// ReadCiImpactParamsDirection defines parameters for ReadCiImpact.
+type ReadCiImpactParamsDirection string
+
+// DefineCiClassParams defines parameters for DefineCiClass.
+type DefineCiClassParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// DefineCiRelationTypeParams defines parameters for DefineCiRelationType.
+type DefineCiRelationTypeParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// DefineCiSourceParams defines parameters for DefineCiSource.
+type DefineCiSourceParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // SetCollectionHandleParams defines parameters for SetCollectionHandle.
 type SetCollectionHandleParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -17361,6 +18421,29 @@ type UpdateGroupParams struct {
 
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ListCiDuplicatesParams defines parameters for ListCiDuplicates.
+type ListCiDuplicatesParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListCiHoldsParams defines parameters for ListCiHolds.
+type ListCiHoldsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListCiRunsParams defines parameters for ListCiRuns.
+type ListCiRunsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListCisParams defines parameters for ListCis.
+type ListCisParams struct {
+	Class         *string             `form:"class,omitempty" json:"class,omitempty"`
+	After         *openapi_types.UUID `form:"after,omitempty" json:"after,omitempty"`
+	Limit         *int                `form:"limit,omitempty" json:"limit,omitempty"`
+	IncludeMerged *bool               `form:"include_merged,omitempty" json:"include_merged,omitempty"`
 }
 
 // ListPagesParams defines parameters for ListPages.
@@ -18511,6 +19594,27 @@ type CreateBackupTargetJSONRequestBody = BackupTargetCreate
 // StartBackupJSONRequestBody defines body for StartBackup for application/json ContentType.
 type StartBackupJSONRequestBody = BackupStart
 
+// ResolveCiDuplicateJSONRequestBody defines body for ResolveCiDuplicate for application/json ContentType.
+type ResolveCiDuplicateJSONRequestBody = CiDuplicateResolve
+
+// RelateCisJSONRequestBody defines body for RelateCis for application/json ContentType.
+type RelateCisJSONRequestBody = CiRelate
+
+// UpdateCiJSONRequestBody defines body for UpdateCi for application/json ContentType.
+type UpdateCiJSONRequestBody = ConfigurationItemUpdate
+
+// SetCiComplianceJSONRequestBody defines body for SetCiCompliance for application/json ContentType.
+type SetCiComplianceJSONRequestBody = CiCompliance
+
+// DefineCiClassJSONRequestBody defines body for DefineCiClass for application/json ContentType.
+type DefineCiClassJSONRequestBody = CiClassDefine
+
+// DefineCiRelationTypeJSONRequestBody defines body for DefineCiRelationType for application/json ContentType.
+type DefineCiRelationTypeJSONRequestBody = CiRelationTypeDefine
+
+// DefineCiSourceJSONRequestBody defines body for DefineCiSource for application/json ContentType.
+type DefineCiSourceJSONRequestBody = CiSourceDefine
+
 // SetCollectionHandleJSONRequestBody defines body for SetCollectionHandle for application/json ContentType.
 type SetCollectionHandleJSONRequestBody = CollectionHandle
 
@@ -18609,6 +19713,15 @@ type CreateGroupJSONRequestBody = GroupCreate
 
 // UpdateGroupApplicationMergePatchPlusJSONRequestBody defines body for UpdateGroup for application/merge-patch+json ContentType.
 type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
+
+// CreateCiJSONRequestBody defines body for CreateCi for application/json ContentType.
+type CreateCiJSONRequestBody = ConfigurationItemCreate
+
+// ImportCiFileJSONRequestBody defines body for ImportCiFile for application/json ContentType.
+type ImportCiFileJSONRequestBody = CiFileImport
+
+// ReconcileCisJSONRequestBody defines body for ReconcileCis for application/json ContentType.
+type ReconcileCisJSONRequestBody = CiPayload
 
 // CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
 type CreatePageJSONRequestBody = PageCreate
@@ -19455,6 +20568,51 @@ type ServerInterface interface {
 
 	// (GET /calendar/{token}.ics)
 	GetCalendarFeedDocument(w http.ResponseWriter, r *http.Request, token string)
+	// ResolveCiDuplicate Merge a duplicate or call it distinct
+	// (POST /ci-duplicates/{duplicateId}:resolve)
+	ResolveCiDuplicate(w http.ResponseWriter, r *http.Request, duplicateId openapi_types.UUID)
+	// DismissCiHold Close a held item
+	// (POST /ci-holds/{holdId}:dismiss)
+	DismissCiHold(w http.ResponseWriter, r *http.Request, holdId openapi_types.UUID)
+	// RelateCis Join two configuration items
+	// (POST /ci-relations)
+	RelateCis(w http.ResponseWriter, r *http.Request)
+	// UnrelateCis Remove a relation
+	// (DELETE /ci-relations/{relationId})
+	UnrelateCis(w http.ResponseWriter, r *http.Request, relationId openapi_types.UUID)
+	// ReadCiRun One reconciliation run with its decisions
+	// (GET /ci-runs/{runId})
+	ReadCiRun(w http.ResponseWriter, r *http.Request, runId openapi_types.UUID)
+	// ReadCi Read a configuration item
+	// (GET /cis/{ciId})
+	ReadCi(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID)
+	// UpdateCi Change a configuration item by hand
+	// (PATCH /cis/{ciId})
+	UpdateCi(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params UpdateCiParams)
+	// SetCiCompliance Set a configuration item's lifecycle and compliance fields
+	// (PUT /cis/{ciId}/compliance)
+	SetCiCompliance(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params SetCiComplianceParams)
+	// ReadCiImpact What a configuration item's failure reaches
+	// (GET /cis/{ciId}/impact)
+	ReadCiImpact(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params ReadCiImpactParams)
+	// ListCiClasses The configuration item classes
+	// (GET /cmdb/classes)
+	ListCiClasses(w http.ResponseWriter, r *http.Request)
+	// DefineCiClass Add or change a class of the workspace's own
+	// (PUT /cmdb/classes/{classKey})
+	DefineCiClass(w http.ResponseWriter, r *http.Request, classKey string, params DefineCiClassParams)
+	// ListCiRelationTypes The relation types between configuration items
+	// (GET /cmdb/relation-types)
+	ListCiRelationTypes(w http.ResponseWriter, r *http.Request)
+	// DefineCiRelationType Add or change a relation type of the workspace's own
+	// (PUT /cmdb/relation-types/{typeKey})
+	DefineCiRelationType(w http.ResponseWriter, r *http.Request, typeKey string, params DefineCiRelationTypeParams)
+	// ListCiSources The sources configuration items come from
+	// (GET /cmdb/sources)
+	ListCiSources(w http.ResponseWriter, r *http.Request)
+	// DefineCiSource Add or change a source
+	// (PUT /cmdb/sources/{sourceKey})
+	DefineCiSource(w http.ResponseWriter, r *http.Request, sourceKey string, params DefineCiSourceParams)
 	// SetCollectionHandle Give a collection another handle
 	// (PUT /collections/{collection_id}/handle)
 	SetCollectionHandle(w http.ResponseWriter, r *http.Request, collectionId openapi_types.UUID, params SetCollectionHandleParams)
@@ -19632,6 +20790,30 @@ type ServerInterface interface {
 	// UpdateGroup Rename a group or change its description
 	// (PATCH /groups/{groupId})
 	UpdateGroup(w http.ResponseWriter, r *http.Request, groupId GroupId, params UpdateGroupParams)
+	// ListCiDuplicates Open duplicates
+	// (GET /hubs/{hubId}/ci-duplicates)
+	ListCiDuplicates(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiDuplicatesParams)
+	// ListCiHolds Items held for review
+	// (GET /hubs/{hubId}/ci-holds)
+	ListCiHolds(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiHoldsParams)
+	// ListCiRuns A hub's reconciliation runs
+	// (GET /hubs/{hubId}/ci-runs)
+	ListCiRuns(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiRunsParams)
+	// ListCis A hub's configuration items
+	// (GET /hubs/{hubId}/cis)
+	ListCis(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCisParams)
+	// CreateCi Make a configuration item by hand
+	// (POST /hubs/{hubId}/cis)
+	CreateCi(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// ImportCiFile Import a file of configuration items
+	// (POST /hubs/{hubId}/cis:import)
+	ImportCiFile(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// ReconcileCis Reconcile a source's payload
+	// (POST /hubs/{hubId}/cis:reconcile)
+	ReconcileCis(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// ReadCmdbHealth A hub's inventory judged
+	// (GET /hubs/{hubId}/cmdb-health)
+	ReadCmdbHealth(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ListPages A hub's pages
 	// (GET /hubs/{hubId}/pages)
 	ListPages(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListPagesParams)
@@ -25315,6 +26497,497 @@ func (siw *ServerInterfaceWrapper) GetCalendarFeedDocument(w http.ResponseWriter
 	handler.ServeHTTP(w, r)
 }
 
+// ResolveCiDuplicate operation middleware
+func (siw *ServerInterfaceWrapper) ResolveCiDuplicate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "duplicateId" -------------
+	var duplicateId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "duplicateId", r.PathValue("duplicateId"), &duplicateId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "duplicateId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResolveCiDuplicate(w, r, duplicateId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DismissCiHold operation middleware
+func (siw *ServerInterfaceWrapper) DismissCiHold(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "holdId" -------------
+	var holdId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "holdId", r.PathValue("holdId"), &holdId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "holdId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DismissCiHold(w, r, holdId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RelateCis operation middleware
+func (siw *ServerInterfaceWrapper) RelateCis(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RelateCis(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnrelateCis operation middleware
+func (siw *ServerInterfaceWrapper) UnrelateCis(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "relationId" -------------
+	var relationId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "relationId", r.PathValue("relationId"), &relationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "relationId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnrelateCis(w, r, relationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadCiRun operation middleware
+func (siw *ServerInterfaceWrapper) ReadCiRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", r.PathValue("runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadCiRun(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadCi operation middleware
+func (siw *ServerInterfaceWrapper) ReadCi(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadCi(w, r, ciId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateCi operation middleware
+func (siw *ServerInterfaceWrapper) UpdateCi(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateCiParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateCi(w, r, ciId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetCiCompliance operation middleware
+func (siw *ServerInterfaceWrapper) SetCiCompliance(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetCiComplianceParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetCiCompliance(w, r, ciId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadCiImpact operation middleware
+func (siw *ServerInterfaceWrapper) ReadCiImpact(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReadCiImpactParams
+
+	// ------------- Optional query parameter "direction" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "direction", r.URL.Query(), &params.Direction, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "direction"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "direction", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "depth" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "depth", r.URL.Query(), &params.Depth, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "depth"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "depth", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadCiImpact(w, r, ciId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCiClasses operation middleware
+func (siw *ServerInterfaceWrapper) ListCiClasses(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiClasses(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DefineCiClass operation middleware
+func (siw *ServerInterfaceWrapper) DefineCiClass(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "classKey" -------------
+	var classKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "classKey", r.PathValue("classKey"), &classKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "classKey", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DefineCiClassParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DefineCiClass(w, r, classKey, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCiRelationTypes operation middleware
+func (siw *ServerInterfaceWrapper) ListCiRelationTypes(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiRelationTypes(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DefineCiRelationType operation middleware
+func (siw *ServerInterfaceWrapper) DefineCiRelationType(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "typeKey" -------------
+	var typeKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "typeKey", r.PathValue("typeKey"), &typeKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "typeKey", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DefineCiRelationTypeParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DefineCiRelationType(w, r, typeKey, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCiSources operation middleware
+func (siw *ServerInterfaceWrapper) ListCiSources(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiSources(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DefineCiSource operation middleware
+func (siw *ServerInterfaceWrapper) DefineCiSource(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sourceKey" -------------
+	var sourceKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sourceKey", r.PathValue("sourceKey"), &sourceKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sourceKey", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DefineCiSourceParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DefineCiSource(w, r, sourceKey, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SetCollectionHandle operation middleware
 func (siw *ServerInterfaceWrapper) SetCollectionHandle(w http.ResponseWriter, r *http.Request) {
 
@@ -27704,6 +29377,317 @@ func (siw *ServerInterfaceWrapper) UpdateGroup(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateGroup(w, r, groupId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCiDuplicates operation middleware
+func (siw *ServerInterfaceWrapper) ListCiDuplicates(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCiDuplicatesParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiDuplicates(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCiHolds operation middleware
+func (siw *ServerInterfaceWrapper) ListCiHolds(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCiHoldsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiHolds(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCiRuns operation middleware
+func (siw *ServerInterfaceWrapper) ListCiRuns(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCiRunsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiRuns(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCis operation middleware
+func (siw *ServerInterfaceWrapper) ListCis(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCisParams
+
+	// ------------- Optional query parameter "class" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "class", r.URL.Query(), &params.Class, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "class"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "class", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "after" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "after", r.URL.Query(), &params.After, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "after"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "after", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "include_merged" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "include_merged", r.URL.Query(), &params.IncludeMerged, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "include_merged"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "include_merged", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCis(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateCi operation middleware
+func (siw *ServerInterfaceWrapper) CreateCi(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateCi(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ImportCiFile operation middleware
+func (siw *ServerInterfaceWrapper) ImportCiFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ImportCiFile(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReconcileCis operation middleware
+func (siw *ServerInterfaceWrapper) ReconcileCis(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReconcileCis(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadCmdbHealth operation middleware
+func (siw *ServerInterfaceWrapper) ReadCmdbHealth(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadCmdbHealth(w, r, hubId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -36966,6 +38950,29 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cmdb/classes", wrapper.ListCiClasses)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/cmdb/classes/{classKey}", wrapper.DefineCiClass)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cmdb/relation-types", wrapper.ListCiRelationTypes)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/cmdb/relation-types/{typeKey}", wrapper.DefineCiRelationType)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cmdb/sources", wrapper.ListCiSources)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/cmdb/sources/{sourceKey}", wrapper.DefineCiSource)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/cis", wrapper.ListCis)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/cis", wrapper.CreateCi)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/cis:reconcile", wrapper.ReconcileCis)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/cis:import", wrapper.ImportCiFile)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/ci-runs", wrapper.ListCiRuns)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ci-runs/{runId}", wrapper.ReadCiRun)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/ci-holds", wrapper.ListCiHolds)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/ci-holds/{holdId}:dismiss", wrapper.DismissCiHold)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/ci-duplicates", wrapper.ListCiDuplicates)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/ci-duplicates/{duplicateId}:resolve", wrapper.ResolveCiDuplicate)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/cmdb-health", wrapper.ReadCmdbHealth)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}", wrapper.ReadCi)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/cis/{ciId}", wrapper.UpdateCi)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/cis/{ciId}/compliance", wrapper.SetCiCompliance)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/impact", wrapper.ReadCiImpact)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/ci-relations", wrapper.RelateCis)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/ci-relations/{relationId}", wrapper.UnrelateCis)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/templates", wrapper.ListTemplates)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/templates", wrapper.CreateTemplate)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/templates/{templateId}", wrapper.DeleteTemplate)

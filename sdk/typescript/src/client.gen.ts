@@ -111,6 +111,121 @@ export class HubtaskClient {
     return (await response.json()) as T;
   }
 
+  /** The configuration item classes */
+  listCiClasses(options: CallOptions = {}): Promise<operations["listCiClasses"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/cmdb/classes", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add or change a class of the workspace's own */
+  defineCiClass(classKey: string, body: NonNullable<operations["defineCiClass"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["defineCiClass"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/cmdb/classes/{classKey}", { "classKey": classKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The relation types between configuration items */
+  listCiRelationTypes(options: CallOptions = {}): Promise<operations["listCiRelationTypes"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/cmdb/relation-types", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add or change a relation type of the workspace's own */
+  defineCiRelationType(typeKey: string, body: NonNullable<operations["defineCiRelationType"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["defineCiRelationType"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/cmdb/relation-types/{typeKey}", { "typeKey": typeKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The sources configuration items come from */
+  listCiSources(options: CallOptions = {}): Promise<operations["listCiSources"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/cmdb/sources", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add or change a source */
+  defineCiSource(sourceKey: string, body: NonNullable<operations["defineCiSource"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["defineCiSource"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/cmdb/sources/{sourceKey}", { "sourceKey": sourceKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** A hub's configuration items */
+  listCis(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listCis"]['parameters']['query']> } = {}): Promise<operations["listCis"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/cis", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Make a configuration item by hand */
+  createCi(hubId: string, body: NonNullable<operations["createCi"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createCi"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/hubs/{hubId}/cis", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Reconcile a source's payload */
+  reconcileCis(hubId: string, body: NonNullable<operations["reconcileCis"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["reconcileCis"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/hubs/{hubId}/cis:reconcile", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Import a file of configuration items */
+  importCiFile(hubId: string, body: NonNullable<operations["importCiFile"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["importCiFile"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/hubs/{hubId}/cis:import", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** A hub's reconciliation runs */
+  listCiRuns(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listCiRuns"]['parameters']['query']> } = {}): Promise<operations["listCiRuns"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/ci-runs", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** One reconciliation run with its decisions */
+  readCiRun(runId: string, options: CallOptions = {}): Promise<operations["readCiRun"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/ci-runs/{runId}", { "runId": runId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Items held for review */
+  listCiHolds(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listCiHolds"]['parameters']['query']> } = {}): Promise<operations["listCiHolds"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/ci-holds", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Close a held item */
+  dismissCiHold(holdId: string, options: CallOptions = {}): Promise<operations["dismissCiHold"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/ci-holds/{holdId}:dismiss", { "holdId": holdId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Open duplicates */
+  listCiDuplicates(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listCiDuplicates"]['parameters']['query']> } = {}): Promise<operations["listCiDuplicates"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/ci-duplicates", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Merge a duplicate or call it distinct */
+  resolveCiDuplicate(duplicateId: string, body: NonNullable<operations["resolveCiDuplicate"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["resolveCiDuplicate"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/ci-duplicates/{duplicateId}:resolve", { "duplicateId": duplicateId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** A hub's inventory judged */
+  readCmdbHealth(hubId: string, options: CallOptions = {}): Promise<operations["readCmdbHealth"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/cmdb-health", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Read a configuration item */
+  readCi(ciId: string, options: CallOptions = {}): Promise<operations["readCi"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/cis/{ciId}", { "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Change a configuration item by hand */
+  updateCi(ciId: string, body: NonNullable<operations["updateCi"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateCi"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/cis/{ciId}", { "ciId": ciId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Set a configuration item's lifecycle and compliance fields */
+  setCiCompliance(ciId: string, body: NonNullable<operations["setCiCompliance"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setCiCompliance"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/cis/{ciId}/compliance", { "ciId": ciId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** What a configuration item's failure reaches */
+  readCiImpact(ciId: string, options: CallOptions & { readonly query?: NonNullable<operations["readCiImpact"]['parameters']['query']> } = {}): Promise<operations["readCiImpact"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/cis/{ciId}/impact", { "ciId": ciId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Join two configuration items */
+  relateCis(body: NonNullable<operations["relateCis"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["relateCis"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/ci-relations", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove a relation */
+  unrelateCis(relationId: string, options: CallOptions = {}): Promise<operations["unrelateCis"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/ci-relations/{relationId}", { "relationId": relationId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** GET /templates */
   listTemplates(options: CallOptions & { readonly query?: NonNullable<operations["listTemplates"]['parameters']['query']> } = {}): Promise<operations["listTemplates"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/templates", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

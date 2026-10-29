@@ -60,6 +60,7 @@ tags:
   - name: suggestions
   - name: pages
   - name: whiteboards
+  - name: cmdb
 
 x-hubtask-cli-groups:
   workflow: "the workspace's workflows and which collection runs which"
@@ -69,8 +70,578 @@ x-hubtask-cli-groups:
   setting: "the settings catalogue: every setting, its level and its source"
   page: "a hub's pages: write, find, move, version, comment on and export them"
   whiteboard: "a hub's whiteboards: make, draw on, trash and export them"
+  cmdb: "the workspace's configuration item classes, relation types and sources, and a hub's inventory health"
+  ci: "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact"
 
 paths:
+  /cmdb/classes:
+    get:
+      tags: [cmdb]
+      operationId: listCiClasses
+      x-hubtask-rest: generated
+      x-hubtask-cli: "cmdb class ls"
+      summary: The configuration item classes
+      description: >
+        The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what
+        it inherits: attributes, identifier rules nearest first, the relations a CI of it needs.
+        Needs READ in the workspace and the assets module switched on.
+      responses:
+        "200":
+          description: The classes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiClassList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /cmdb/classes/{classKey}:
+    parameters:
+      - name: classKey
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [cmdb]
+      operationId: defineCiClass
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: { classKey: key }
+      x-hubtask-cli: "cmdb class define"
+      summary: Add or change a class of the workspace's own
+      description: >
+        Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is
+        not changed. Needs STRUCTURE in the workspace.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CiClassDefine" }
+      responses:
+        "200":
+          description: The class
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiClass" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /cmdb/relation-types:
+    get:
+      tags: [cmdb]
+      operationId: listCiRelationTypes
+      x-hubtask-rest: generated
+      x-hubtask-cli: "cmdb relation-type ls"
+      summary: The relation types between configuration items
+      description: >
+        The shipped relation catalogue and the workspace's own types, each with which end suffers
+        when the other fails and the class pairs it may join.
+      responses:
+        "200":
+          description: The relation types
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiRelationTypeList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /cmdb/relation-types/{typeKey}:
+    parameters:
+      - name: typeKey
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [cmdb]
+      operationId: defineCiRelationType
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: { typeKey: key }
+      x-hubtask-cli: "cmdb relation-type define"
+      summary: Add or change a relation type of the workspace's own
+      description: >
+        Its words both ways, its impact (which end suffers when the other fails) and the class
+        pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CiRelationTypeDefine" }
+      responses:
+        "200":
+          description: The relation type
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiRelationType" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /cmdb/sources:
+    get:
+      tags: [cmdb]
+      operationId: listCiSources
+      x-hubtask-rest: generated
+      x-hubtask-cli: "cmdb source ls"
+      summary: The sources configuration items come from
+      description: >
+        People (`manual`), files, programs and connectors by precedence, a lower rank first.
+      responses:
+        "200":
+          description: The sources
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiSourceList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /cmdb/sources/{sourceKey}:
+    parameters:
+      - name: sourceKey
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [cmdb]
+      operationId: defineCiSource
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: { sourceKey: key }
+      x-hubtask-cli: "cmdb source define"
+      summary: Add or change a source
+      description: >
+        Its kind, rank, the classes it may write, whether it may make new CIs and a file source's
+        mapping. Needs STRUCTURE in the workspace.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CiSourceDefine" }
+      responses:
+        "200":
+          description: The source
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiSource" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /hubs/{hubId}/cis:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cmdb]
+      operationId: listCis
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci ls"
+      summary: A hub's configuration items
+      description: >
+        A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one
+        is given; `next` is the cursor of the following page. Needs READ on the hub.
+      parameters:
+        - { name: class, in: query, schema: { type: string } }
+        - { name: after, in: query, schema: { type: string, format: uuid } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500 } }
+        - { name: include_merged, in: query, schema: { type: boolean } }
+      responses:
+        "200":
+          description: The CIs
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConfigurationItemList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [cmdb]
+      operationId: createCi
+      x-hubtask-rest: generated
+      x-hubtask-rest-location: /cis/{id}
+      x-hubtask-cli: "ci create"
+      summary: Make a configuration item by hand
+      description: >
+        Through the same reconciliation every source writes through, as source `manual`: when the
+        hub already holds a CI its identifiers name, nothing is made and the problem names that CI
+        (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConfigurationItemCreate" }
+      responses:
+        "201":
+          description: Made
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConfigurationItem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /hubs/{hubId}/cis:reconcile:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [cmdb]
+      operationId: reconcileCis
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci reconcile"
+      summary: Reconcile a source's payload
+      description: >
+        Each item is identified - by the source's own key, then by its class's identifier rules in
+        order - and created, updated under the sources' precedence, held for review, or reported as
+        a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the
+        hub.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CiPayload" }
+      responses:
+        "200":
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiRun" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /hubs/{hubId}/cis:import:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [cmdb]
+      operationId: importCiFile
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci import"
+      summary: Import a file of configuration items
+      description: >
+        A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials,
+        through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS
+        on the hub.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CiFileImport" }
+      responses:
+        "200":
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiRun" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /hubs/{hubId}/ci-runs:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cmdb]
+      operationId: listCiRuns
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci run ls"
+      summary: A hub's reconciliation runs
+      description: The newest first, with their figures and without their decisions. Needs READ on the hub.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200 } }
+      responses:
+        "200":
+          description: The runs
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiRunList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /ci-runs/{runId}:
+    parameters:
+      - name: runId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cmdb]
+      operationId: readCiRun
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci run get"
+      summary: One reconciliation run with its decisions
+      description: Every item's outcome, CI, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
+      responses:
+        "200":
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiRun" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /hubs/{hubId}/ci-holds:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cmdb]
+      operationId: listCiHolds
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci hold ls"
+      summary: Items held for review
+      description: What the reconciliation held instead of making a CI, newest first. Needs READ on the hub.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500 } }
+      responses:
+        "200":
+          description: The holds
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiHoldList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /ci-holds/{holdId}:dismiss:
+    parameters:
+      - name: holdId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [cmdb]
+      operationId: dismissCiHold
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci hold dismiss"
+      summary: Close a held item
+      description: The hold stays on record with who closed it. Needs WRITE_ITEMS on the hub.
+      responses:
+        "200":
+          description: Closed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiHoldDismissed" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /hubs/{hubId}/ci-duplicates:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cmdb]
+      operationId: listCiDuplicates
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci duplicate ls"
+      summary: Open duplicates
+      description: Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500 } }
+      responses:
+        "200":
+          description: The duplicates
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiDuplicateList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /ci-duplicates/{duplicateId}:resolve:
+    parameters:
+      - name: duplicateId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [cmdb]
+      operationId: resolveCiDuplicate
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci duplicate resolve"
+      summary: Merge a duplicate or call it distinct
+      description: >
+        With a survivor, the others are merged into it and retired as merged, never deleted;
+        without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CiDuplicateResolve" }
+      responses:
+        "200":
+          description: Resolved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiDuplicateResolved" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /hubs/{hubId}/cmdb-health:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cmdb]
+      operationId: readCmdbHealth
+      x-hubtask-rest: generated
+      x-hubtask-cli: "cmdb health"
+      summary: A hub's inventory judged
+      description: >
+        Completeness, correctness (stale, orphaned, duplicate), CIs without an owner and reviews
+        overdue, per class and in all, with the CIs found wanting. Needs READ on the hub.
+      responses:
+        "200":
+          description: The health
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CmdbHealth" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /cis/{ciId}:
+    parameters:
+      - name: ciId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cmdb]
+      operationId: readCi
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci get"
+      summary: Read a configuration item
+      description: >
+        With its relations both ways and the protection need it inherits from everything that
+        suffers when it fails. Needs READ on the hub.
+      responses:
+        "200":
+          description: The CI
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConfigurationItem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    patch:
+      tags: [cmdb]
+      operationId: updateCi
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci update"
+      summary: Change a configuration item by hand
+      description: >
+        Its name, attributes (null clears one) or a more specific class, through the reconciliation
+        as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS
+        on the hub.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConfigurationItemUpdate" }
+      responses:
+        "200":
+          description: The CI
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConfigurationItem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /cis/{ciId}/compliance:
+    parameters:
+      - name: ciId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [cmdb]
+      operationId: setCiCompliance
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci compliance"
+      summary: Set a configuration item's lifecycle and compliance fields
+      description: >
+        Stage and status, owner, location, protection need (C/I/A), next review and quantity; a
+        member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CiCompliance" }
+      responses:
+        "200":
+          description: The CI
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConfigurationItem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /cis/{ciId}/impact:
+    parameters:
+      - name: ciId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cmdb]
+      operationId: readCiImpact
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci impact"
+      summary: What a configuration item's failure reaches
+      description: >
+        DOWNSTREAM, everything that suffers when it fails, with the services among them; UPSTREAM,
+        everything whose failure it suffers. Needs READ on the hub.
+      parameters:
+        - { name: direction, in: query, schema: { type: string, enum: [DOWNSTREAM, UPSTREAM] } }
+        - { name: depth, in: query, schema: { type: integer, minimum: 1, maximum: 8 } }
+      responses:
+        "200":
+          description: The impact
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiImpact" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /ci-relations:
+    post:
+      tags: [cmdb]
+      operationId: relateCis
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci relate"
+      summary: Join two configuration items
+      description: >
+        By a relation type, read from the source; the type's class pairs decide whether it may join
+        them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CiRelate" }
+      responses:
+        "200":
+          description: The relation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiRelation" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /ci-relations/{relationId}:
+    parameters:
+      - name: relationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [cmdb]
+      operationId: unrelateCis
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci unrelate"
+      summary: Remove a relation
+      description: A source that reports it again makes it again. Needs WRITE_ITEMS on the hub.
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiRelationRemoved" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /templates:
     get:
       tags: [templates]
@@ -26983,6 +27554,492 @@ components:
           required: [elements, writable]
           properties:
             writable: { type: boolean, description: "The reader may draw on the board." }
+
+    CiAttribute:
+      type: object
+      required: [key, kind]
+      properties:
+        key: { type: string }
+        kind: { type: string, enum: [TEXT, NUMBER, BOOLEAN, DATE, CHOICE, URL, GROUP, ACCOUNT] }
+        need: { type: string, enum: [OPTIONAL, RECOMMENDED, REQUIRED] }
+        identifier: { type: boolean }
+        options: { type: array, items: { type: string } }
+
+    CiIdentifierRule:
+      type: object
+      required: [attributes]
+      properties:
+        attributes: { type: array, items: { type: string } }
+        class: { type: string, description: The class that declared the rule. }
+
+    CiRequiredRelation:
+      type: object
+      required: [types, outgoing]
+      properties:
+        types: { type: array, items: { type: string } }
+        outgoing: { type: boolean }
+
+    CiClass:
+      type: object
+      description: >
+        A configuration item class. A shipped class has no `name`: a client shows its own word for
+        the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days`
+        include what it inherits.
+      required: [key, parent, system, attributes, all_attributes, identifier_rules, required_relations, staleness_days, lineage, version]
+      properties:
+        key: { type: string }
+        parent: { type: string }
+        name: { type: string }
+        icon: { type: string }
+        abstract: { type: boolean }
+        system: { type: boolean }
+        attributes: { type: array, items: { $ref: "#/components/schemas/CiAttribute" } }
+        all_attributes: { type: array, items: { $ref: "#/components/schemas/CiAttribute" } }
+        identifier_rules: { type: array, items: { $ref: "#/components/schemas/CiIdentifierRule" } }
+        required_relations: { type: array, items: { $ref: "#/components/schemas/CiRequiredRelation" } }
+        staleness_days: { type: integer }
+        lineage: { type: array, items: { type: string } }
+        archived: { type: boolean }
+        version: { type: integer }
+
+    CiClassList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/CiClass" } }
+
+    CiClassDefine:
+      type: object
+      required: [parent, name]
+      properties:
+        parent: { type: string }
+        name: { type: string, maxLength: 120 }
+        icon: { type: string }
+        abstract: { type: boolean }
+        attributes: { type: array, maxItems: 100, items: { $ref: "#/components/schemas/CiAttribute" } }
+        identifier_rules: { type: array, maxItems: 10, items: { $ref: "#/components/schemas/CiIdentifierRule" } }
+        required_relations: { type: array, items: { $ref: "#/components/schemas/CiRequiredRelation" } }
+        staleness_days: { type: integer, minimum: 0, maximum: 3650 }
+        archived: { type: boolean }
+
+    CiClassPair:
+      type: object
+      required: [from, to]
+      properties:
+        from: { type: string }
+        to: { type: string }
+
+    CiRelationType:
+      type: object
+      description: A relation type; `impact` says which end suffers when the other fails.
+      required: [key, impact, pairs, system, version]
+      properties:
+        key: { type: string }
+        name: { type: string }
+        reverse_name: { type: string }
+        impact: { type: string, enum: [NONE, SOURCE, TARGET, BOTH] }
+        pairs: { type: array, items: { $ref: "#/components/schemas/CiClassPair" } }
+        system: { type: boolean }
+        archived: { type: boolean }
+        version: { type: integer }
+
+    CiRelationTypeList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/CiRelationType" } }
+
+    CiRelationTypeDefine:
+      type: object
+      required: [name, reverse_name, impact]
+      properties:
+        name: { type: string, maxLength: 120 }
+        reverse_name: { type: string, maxLength: 120 }
+        impact: { type: string, enum: [NONE, SOURCE, TARGET, BOTH] }
+        pairs: { type: array, items: { $ref: "#/components/schemas/CiClassPair" } }
+        archived: { type: boolean }
+
+    CiFileMapping:
+      type: object
+      description: How a CSV table's or a JSON array's columns become a configuration item.
+      required: [class, name_column]
+      properties:
+        class: { type: string }
+        class_column: { type: string }
+        name_column: { type: string }
+        native_key_column: { type: string }
+        columns: { type: object, additionalProperties: { type: string } }
+        defaults: { type: object, additionalProperties: { type: string } }
+
+    CiSource:
+      type: object
+      required: [key, kind, rank, classes, may_create, system, version]
+      properties:
+        key: { type: string }
+        kind: { type: string, enum: [MANUAL, FILE, API, CONNECTOR] }
+        rank: { type: integer }
+        classes: { type: array, items: { type: string } }
+        may_create: { type: boolean }
+        mapping:
+          allOf: [{ $ref: "#/components/schemas/CiFileMapping" }]
+          nullable: true
+        system: { type: boolean }
+        last_run_at: { type: string, format: date-time, nullable: true }
+        version: { type: integer }
+
+    CiSourceList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/CiSource" } }
+
+    CiSourceDefine:
+      type: object
+      required: [kind, rank]
+      properties:
+        kind: { type: string, enum: [FILE, API, CONNECTOR] }
+        rank: { type: integer, minimum: 1, maximum: 1000 }
+        classes: { type: array, items: { type: string } }
+        may_create: { type: boolean }
+        mapping: { $ref: "#/components/schemas/CiFileMapping" }
+
+    CiProtection:
+      type: object
+      description: A protection need per confidentiality, integrity and availability.
+      properties:
+        c: { type: string, enum: [NORMAL, HIGH, VERY_HIGH], nullable: true }
+        i: { type: string, enum: [NORMAL, HIGH, VERY_HIGH], nullable: true }
+        a: { type: string, enum: [NORMAL, HIGH, VERY_HIGH], nullable: true }
+
+    CiOwnProtection:
+      type: object
+      description: >
+        The need a person set. A dimension in `fixed` is not raised by what depends on the CI and
+        carries a `reason`.
+      properties:
+        c: { type: string, enum: [NORMAL, HIGH, VERY_HIGH], nullable: true }
+        i: { type: string, enum: [NORMAL, HIGH, VERY_HIGH], nullable: true }
+        a: { type: string, enum: [NORMAL, HIGH, VERY_HIGH], nullable: true }
+        fixed: { type: array, items: { type: string, enum: [c, i, a] } }
+        reason: { type: string, maxLength: 2000 }
+
+    CiProvenance:
+      type: object
+      required: [source, at]
+      properties:
+        source: { type: string }
+        run_id: { type: string, format: uuid, nullable: true }
+        at: { type: string, format: date-time }
+
+    CiRelation:
+      type: object
+      required: [id, type, source_ci_id, target_ci_id, data_source, first_seen, last_seen]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string }
+        source_ci_id: { type: string, format: uuid }
+        target_ci_id: { type: string, format: uuid }
+        data_source: { type: string }
+        first_seen: { type: string, format: date-time }
+        last_seen: { type: string, format: date-time }
+
+    CiDecision:
+      type: object
+      description: >
+        What the reconciliation did with one item and why: the rule that matched, the attributes
+        taken, those kept and by which source, a duplicate's candidates, a hold's or refusal's
+        reason as a message code. It names attributes, never values.
+      required: [ref, outcome]
+      properties:
+        ref: { type: string }
+        outcome: { type: string, enum: [CREATE, UPDATE, UNCHANGED, HOLD, DUPLICATE, REFUSED] }
+        ci_id: { type: string, format: uuid, nullable: true }
+        class: { type: string }
+        rule: { type: string }
+        taken: { type: array, items: { type: string } }
+        kept:
+          type: array
+          items:
+            type: object
+            required: [attribute, by]
+            properties:
+              attribute: { type: string }
+              by: { type: string }
+        candidates: { type: array, items: { type: string, format: uuid } }
+        reason: { type: string }
+
+    ConfigurationItem:
+      type: object
+      description: >
+        A configuration item in a hub. `attributes` hold its class's typed values; `provenance`
+        names per attribute the source that last wrote it. `effective_protection` is given on a
+        single read: the need it inherits from everything that suffers when it fails.
+      required: [id, hub_id, class, name, stage, status, attributes, provenance, protection, quantity, created_at, updated_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        hub_id: { type: string, format: uuid }
+        class: { type: string }
+        name: { type: string }
+        stage: { type: string, enum: [PLANNED, ORDERED, IN_STOCK, IN_USE, MAINTENANCE, RETIRED, DISPOSED] }
+        status: { type: string, enum: [OK, PENDING, BLOCKED, MERGED] }
+        attributes: { type: object, additionalProperties: {} }
+        provenance: { type: object, additionalProperties: { $ref: "#/components/schemas/CiProvenance" } }
+        owner_account_id: { type: string, format: uuid, nullable: true }
+        owner_group_id: { type: string, format: uuid, nullable: true }
+        location_id: { type: string, format: uuid, nullable: true }
+        protection: { $ref: "#/components/schemas/CiOwnProtection" }
+        effective_protection: { $ref: "#/components/schemas/CiProtection" }
+        review_due: { type: string, format: date, nullable: true }
+        quantity: { type: integer }
+        last_seen_at: { type: string, format: date-time, nullable: true }
+        merged_into: { type: string, format: uuid, nullable: true }
+        relations: { type: array, items: { $ref: "#/components/schemas/CiRelation" } }
+        decision: { $ref: "#/components/schemas/CiDecision" }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_by: { type: string, format: uuid }
+        updated_at: { type: string, format: date-time }
+        version: { type: integer }
+
+    ConfigurationItemList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/ConfigurationItem" } }
+        next: { type: string, format: uuid, nullable: true }
+
+    ConfigurationItemCreate:
+      type: object
+      required: [class, name]
+      properties:
+        class: { type: string }
+        name: { type: string, maxLength: 200 }
+        attributes: { type: object, additionalProperties: {} }
+
+    ConfigurationItemUpdate:
+      type: object
+      properties:
+        name: { type: string, maxLength: 200 }
+        class: { type: string }
+        attributes: { type: object, additionalProperties: {} }
+
+    CiCompliance:
+      type: object
+      properties:
+        stage: { type: string, enum: [PLANNED, ORDERED, IN_STOCK, IN_USE, MAINTENANCE, RETIRED, DISPOSED] }
+        status: { type: string, enum: [OK, PENDING, BLOCKED] }
+        owner_account_id: { type: string, format: uuid, nullable: true }
+        owner_group_id: { type: string, format: uuid, nullable: true }
+        location_id: { type: string, format: uuid, nullable: true }
+        protection: { $ref: "#/components/schemas/CiOwnProtection" }
+        review_due: { type: string, format: date, nullable: true }
+        quantity: { type: integer, minimum: 1, maximum: 1000000 }
+
+    CiPayloadItem:
+      type: object
+      required: [class]
+      properties:
+        ref: { type: string }
+        class: { type: string }
+        name: { type: string }
+        native_key: { type: string }
+        attributes: { type: object, additionalProperties: {} }
+
+    CiPayloadRelation:
+      type: object
+      required: [type]
+      properties:
+        type: { type: string }
+        from: { type: string, description: An item's ref. }
+        to: { type: string, description: An item's ref. }
+        from_id: { type: string, format: uuid }
+        to_id: { type: string, format: uuid }
+
+    CiPayload:
+      type: object
+      required: [source, items]
+      properties:
+        source: { type: string }
+        items: { type: array, maxItems: 2000, items: { $ref: "#/components/schemas/CiPayloadItem" } }
+        relations: { type: array, maxItems: 5000, items: { $ref: "#/components/schemas/CiPayloadRelation" } }
+        dry_run: { type: boolean }
+
+    CiFileImport:
+      type: object
+      required: [source, format, content]
+      properties:
+        source: { type: string }
+        format: { type: string, enum: [CSV, JSON, CYCLONEDX, SPDX] }
+        content: { type: string, maxLength: 5242880 }
+        mapping: { $ref: "#/components/schemas/CiFileMapping" }
+        dry_run: { type: boolean }
+
+    CiRunCounts:
+      type: object
+      required: [items, created, updated, unchanged, held, duplicates, refused]
+      properties:
+        items: { type: integer }
+        created: { type: integer }
+        updated: { type: integer }
+        unchanged: { type: integer }
+        held: { type: integer }
+        duplicates: { type: integer }
+        refused: { type: integer }
+        relations_added: { type: integer }
+        relations_seen: { type: integer }
+        relations_refused: { type: integer }
+
+    CiRun:
+      type: object
+      description: A reconciliation run; a dry run has no `id` and was not stored.
+      required: [hub_id, source, started_at, dry_run, counts]
+      properties:
+        id: { type: string, format: uuid, nullable: true }
+        hub_id: { type: string, format: uuid }
+        source: { type: string }
+        actor_id: { type: string, format: uuid }
+        started_at: { type: string, format: date-time }
+        dry_run: { type: boolean }
+        counts: { $ref: "#/components/schemas/CiRunCounts" }
+        decisions: { type: array, items: { $ref: "#/components/schemas/CiDecision" } }
+        skipped_rows: { type: array, items: { type: integer } }
+
+    CiRunList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/CiRun" } }
+
+    CiHold:
+      type: object
+      required: [id, hub_id, run_id, source, reason, item, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        hub_id: { type: string, format: uuid }
+        run_id: { type: string, format: uuid }
+        source: { type: string }
+        reason: { type: string }
+        item: { $ref: "#/components/schemas/CiPayloadItem" }
+        created_at: { type: string, format: date-time }
+
+    CiHoldList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/CiHold" } }
+
+    CiHoldDismissed:
+      type: object
+      required: [id, dismissed]
+      properties:
+        id: { type: string, format: uuid }
+        dismissed: { type: boolean }
+
+    CiDuplicate:
+      type: object
+      required: [id, hub_id, ci_ids, rule, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        hub_id: { type: string, format: uuid }
+        ci_ids: { type: array, items: { type: string, format: uuid } }
+        rule: { type: string }
+        created_at: { type: string, format: date-time }
+
+    CiDuplicateList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/CiDuplicate" } }
+
+    CiDuplicateResolve:
+      type: object
+      properties:
+        survivor_id: { type: string, format: uuid, description: The CI that stays; absent says the CIs are distinct. }
+
+    CiDuplicateResolved:
+      type: object
+      description: The survivor after a merge, or the duplicate's identifier when the CIs are distinct.
+      required: [id, merged]
+      properties:
+        id: { type: string, format: uuid }
+        merged: { type: boolean }
+        hub_id: { type: string, format: uuid }
+        class: { type: string }
+        name: { type: string }
+        version: { type: integer }
+
+    CiRelate:
+      type: object
+      required: [source_ci_id, target_ci_id, type]
+      properties:
+        source_ci_id: { type: string, format: uuid }
+        target_ci_id: { type: string, format: uuid }
+        type: { type: string }
+
+    CiRelationRemoved:
+      type: object
+      required: [id, removed]
+      properties:
+        id: { type: string, format: uuid }
+        removed: { type: boolean }
+
+    CiReached:
+      type: object
+      required: [ci_id, class, name, stage, depth]
+      properties:
+        ci_id: { type: string, format: uuid }
+        class: { type: string }
+        name: { type: string }
+        stage: { type: string }
+        depth: { type: integer }
+
+    CiImpact:
+      type: object
+      required: [ci_id, direction, reached, services]
+      properties:
+        ci_id: { type: string, format: uuid }
+        direction: { type: string, enum: [DOWNSTREAM, UPSTREAM] }
+        reached: { type: array, items: { $ref: "#/components/schemas/CiReached" } }
+        services: { type: array, items: { type: string, format: uuid }, description: The active services and offerings among them. }
+
+    CmdbHealth:
+      type: object
+      description: >
+        A hub's active configuration items judged: completeness and correctness from 0 to 1, the
+        counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per
+        class, and the CIs found wanting with the kinds of problem.
+      required: [total, completeness, correctness, stale, orphans, duplicates, without_owner, review_overdue, classes, problems]
+      properties:
+        total: { type: integer }
+        completeness: { type: number }
+        correctness: { type: number }
+        stale: { type: integer }
+        orphans: { type: integer }
+        duplicates: { type: integer }
+        without_owner: { type: integer }
+        review_overdue: { type: integer }
+        classes:
+          type: array
+          items:
+            type: object
+            required: [class, total, completeness, stale, orphans, duplicates]
+            properties:
+              class: { type: string }
+              total: { type: integer }
+              completeness: { type: number }
+              stale: { type: integer }
+              orphans: { type: integer }
+              duplicates: { type: integer }
+        problems:
+          type: array
+          items:
+            type: object
+            required: [ci_id, class, kinds]
+            properties:
+              ci_id: { type: string, format: uuid }
+              class: { type: string }
+              kinds: { type: array, items: { type: string, enum: [INCOMPLETE, STALE, ORPHAN, DUPLICATE, NO_OWNER, REVIEW_OVERDUE] } }
+              missing: { type: array, items: { type: string } }
 
     WhiteboardList:
       type: object

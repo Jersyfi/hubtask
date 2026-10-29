@@ -103,6 +103,98 @@ class Client:
             return None
         return json.loads(payload)
 
+    def list_ci_classes(self) -> "CiClassList":
+        """The configuration item classes"""
+        return self._call("GET", "/cmdb/classes", {}, None, {}, None, "none", None, "json")
+
+    def define_ci_class(self, class_key: str, body: "CiClassDefine", *, if_match: str | None = None) -> "CiClass":
+        """Add or change a class of the workspace's own"""
+        return self._call("PUT", "/cmdb/classes/{classKey}", {"classKey": class_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_ci_relation_types(self) -> "CiRelationTypeList":
+        """The relation types between configuration items"""
+        return self._call("GET", "/cmdb/relation-types", {}, None, {}, None, "none", None, "json")
+
+    def define_ci_relation_type(self, type_key: str, body: "CiRelationTypeDefine", *, if_match: str | None = None) -> "CiRelationType":
+        """Add or change a relation type of the workspace's own"""
+        return self._call("PUT", "/cmdb/relation-types/{typeKey}", {"typeKey": type_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_ci_sources(self) -> "CiSourceList":
+        """The sources configuration items come from"""
+        return self._call("GET", "/cmdb/sources", {}, None, {}, None, "none", None, "json")
+
+    def define_ci_source(self, source_key: str, body: "CiSourceDefine", *, if_match: str | None = None) -> "CiSource":
+        """Add or change a source"""
+        return self._call("PUT", "/cmdb/sources/{sourceKey}", {"sourceKey": source_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_cis(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "ConfigurationItemList":
+        """A hub's configuration items"""
+        return self._call("GET", "/hubs/{hubId}/cis", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def create_ci(self, hub_id: str, body: "ConfigurationItemCreate") -> "ConfigurationItem":
+        """Make a configuration item by hand"""
+        return self._call("POST", "/hubs/{hubId}/cis", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def reconcile_cis(self, hub_id: str, body: "CiPayload") -> "CiRun":
+        """Reconcile a source's payload"""
+        return self._call("POST", "/hubs/{hubId}/cis:reconcile", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def import_ci_file(self, hub_id: str, body: "CiFileImport") -> "CiRun":
+        """Import a file of configuration items"""
+        return self._call("POST", "/hubs/{hubId}/cis:import", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_ci_runs(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiRunList":
+        """A hub's reconciliation runs"""
+        return self._call("GET", "/hubs/{hubId}/ci-runs", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def read_ci_run(self, run_id: str) -> "CiRun":
+        """One reconciliation run with its decisions"""
+        return self._call("GET", "/ci-runs/{runId}", {"runId": run_id}, None, {}, None, "none", None, "json")
+
+    def list_ci_holds(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiHoldList":
+        """Items held for review"""
+        return self._call("GET", "/hubs/{hubId}/ci-holds", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def dismiss_ci_hold(self, hold_id: str) -> "CiHoldDismissed":
+        """Close a held item"""
+        return self._call("POST", "/ci-holds/{holdId}:dismiss", {"holdId": hold_id}, None, {}, None, "none", None, "json")
+
+    def list_ci_duplicates(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiDuplicateList":
+        """Open duplicates"""
+        return self._call("GET", "/hubs/{hubId}/ci-duplicates", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def resolve_ci_duplicate(self, duplicate_id: str, body: "CiDuplicateResolve") -> "CiDuplicateResolved":
+        """Merge a duplicate or call it distinct"""
+        return self._call("POST", "/ci-duplicates/{duplicateId}:resolve", {"duplicateId": duplicate_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_cmdb_health(self, hub_id: str) -> "CmdbHealth":
+        """A hub's inventory judged"""
+        return self._call("GET", "/hubs/{hubId}/cmdb-health", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def read_ci(self, ci_id: str) -> "ConfigurationItem":
+        """Read a configuration item"""
+        return self._call("GET", "/cis/{ciId}", {"ciId": ci_id}, None, {}, None, "none", None, "json")
+
+    def update_ci(self, ci_id: str, body: "ConfigurationItemUpdate", *, if_match: str | None = None) -> "ConfigurationItem":
+        """Change a configuration item by hand"""
+        return self._call("PATCH", "/cis/{ciId}", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def set_ci_compliance(self, ci_id: str, body: "CiCompliance", *, if_match: str | None = None) -> "ConfigurationItem":
+        """Set a configuration item's lifecycle and compliance fields"""
+        return self._call("PUT", "/cis/{ciId}/compliance", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def read_ci_impact(self, ci_id: str, *, query: dict[str, Any] | None = None) -> "CiImpact":
+        """What a configuration item's failure reaches"""
+        return self._call("GET", "/cis/{ciId}/impact", {"ciId": ci_id}, query, {}, None, "none", None, "json")
+
+    def relate_cis(self, body: "CiRelate") -> "CiRelation":
+        """Join two configuration items"""
+        return self._call("POST", "/ci-relations", {}, None, {}, body, "json", "application/json", "json")
+
+    def unrelate_cis(self, relation_id: str) -> "CiRelationRemoved":
+        """Remove a relation"""
+        return self._call("DELETE", "/ci-relations/{relationId}", {"relationId": relation_id}, None, {}, None, "none", None, "json")
+
     def list_templates(self, *, query: dict[str, Any] | None = None) -> "TemplatePage":
         """GET /templates"""
         return self._call("GET", "/templates", {}, query, {}, None, "none", None, "json")

@@ -1985,3 +1985,97 @@ func (pending) TrashWhiteboard(w http.ResponseWriter, r *http.Request, _ openapi
 func (pending) UpdateWhiteboard(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId, _ openapi.UpdateWhiteboardParams) {
 	notAvailable(w, r)
 }
+
+// The assets and configuration module.
+
+func (pending) CreateCi(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) DefineCiClass(w http.ResponseWriter, r *http.Request, _ string, _ openapi.DefineCiClassParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DefineCiRelationType(w http.ResponseWriter, r *http.Request, _ string, _ openapi.DefineCiRelationTypeParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DefineCiSource(w http.ResponseWriter, r *http.Request, _ string, _ openapi.DefineCiSourceParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DismissCiHold(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ImportCiFile(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiClasses(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiDuplicates(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCiDuplicatesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiHolds(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCiHoldsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiRelationTypes(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiRuns(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCiRunsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiSources(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCis(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCisParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadCi(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadCiImpact(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ReadCiImpactParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadCiRun(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadCmdbHealth(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ReconcileCis(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) RelateCis(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ResolveCiDuplicate(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) SetCiCompliance(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.SetCiComplianceParams) {
+	notAvailable(w, r)
+}
+
+func (pending) UnrelateCis(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateCi(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.UpdateCiParams) {
+	notAvailable(w, r)
+}

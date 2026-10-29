@@ -4,6 +4,8 @@ package main
 
 // generatedGroups is the summary of each group only generated commands open.
 var generatedGroups = map[string]string{
+	"ci":         "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact",
+	"cmdb":       "the workspace's configuration item classes, relation types and sources, and a hub's inventory health",
 	"link":       "an entry's links to other entries, and references resolved",
 	"link-type":  "the kinds of link between entries: blocks, relates to, duplicates",
 	"page":       "a hub's pages: write, find, move, version, comment on and export them",
@@ -15,6 +17,194 @@ var generatedGroups = map[string]string{
 
 // generatedCommands is every operation the contract names a command for, in a stable order.
 var generatedCommands = []door{
+	{Group: "ci", Verb: "compliance", OperationID: "setCiCompliance", Method: "PUT", Path: "/cis/{ciId}/compliance", Summary: "Set a configuration item's lifecycle and compliance fields",
+		PathParams: []doorParam{
+			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "location_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "owner_account_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "owner_group_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "protection", Kind: "json", Help: "The need a person set", Required: false},
+			{Name: "quantity", Kind: "integer", Help: "", Required: false},
+			{Name: "review_due", Kind: "string", Help: "", Required: false},
+			{Name: "stage", Kind: "string", Help: "", Required: false},
+			{Name: "status", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "name", "status", "version"}},
+	{Group: "ci", Verb: "create", OperationID: "createCi", Method: "POST", Path: "/hubs/{hubId}/cis", Summary: "Make a configuration item by hand",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "attributes", Kind: "json", Help: "", Required: false},
+			{Name: "class", Kind: "string", Help: "", Required: true},
+			{Name: "name", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "status", "version"}},
+	{Group: "ci", Verb: "duplicate ls", OperationID: "listCiDuplicates", Method: "GET", Path: "/hubs/{hubId}/ci-duplicates", Summary: "Open duplicates",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "limit", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id"}},
+	{Group: "ci", Verb: "duplicate resolve", OperationID: "resolveCiDuplicate", Method: "POST", Path: "/ci-duplicates/{duplicateId}:resolve", Summary: "Merge a duplicate or call it distinct",
+		PathParams: []doorParam{
+			{Name: "duplicateId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "survivor_id", Kind: "uuid", Help: "The CI that stays; absent says the CIs are distinct", Required: false},
+		},
+		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "version"}},
+	{Group: "ci", Verb: "get", OperationID: "readCi", Method: "GET", Path: "/cis/{ciId}", Summary: "Read a configuration item",
+		PathParams: []doorParam{
+			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "status", "version"}},
+	{Group: "ci", Verb: "hold dismiss", OperationID: "dismissCiHold", Method: "POST", Path: "/ci-holds/{holdId}:dismiss", Summary: "Close a held item",
+		PathParams: []doorParam{
+			{Name: "holdId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
+	{Group: "ci", Verb: "hold ls", OperationID: "listCiHolds", Method: "GET", Path: "/hubs/{hubId}/ci-holds", Summary: "Items held for review",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "limit", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id"}},
+	{Group: "ci", Verb: "impact", OperationID: "readCiImpact", Method: "GET", Path: "/cis/{ciId}/impact", Summary: "What a configuration item's failure reaches",
+		PathParams: []doorParam{
+			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "depth", Kind: "integer", Help: "", Required: false},
+			{Name: "direction", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"ci_id", "direction"}},
+	{Group: "ci", Verb: "import", OperationID: "importCiFile", Method: "POST", Path: "/hubs/{hubId}/cis:import", Summary: "Import a file of configuration items",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "content", Kind: "string", Help: "", Required: true},
+			{Name: "dry_run", Kind: "boolean", Help: "", Required: false},
+			{Name: "format", Kind: "string", Help: "", Required: true},
+			{Name: "mapping", Kind: "json", Help: "How a CSV table's or a JSON array's columns become a configuration item", Required: false},
+			{Name: "source", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
+	{Group: "ci", Verb: "ls", OperationID: "listCis", Method: "GET", Path: "/hubs/{hubId}/cis", Summary: "A hub's configuration items",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "after", Kind: "uuid", Help: "", Required: false},
+			{Name: "class", Kind: "string", Help: "", Required: false},
+			{Name: "include_merged", Kind: "boolean", Help: "", Required: false},
+			{Name: "limit", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "name", "status", "version"}},
+	{Group: "ci", Verb: "reconcile", OperationID: "reconcileCis", Method: "POST", Path: "/hubs/{hubId}/cis:reconcile", Summary: "Reconcile a source's payload",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "dry_run", Kind: "boolean", Help: "", Required: false},
+			{Name: "items", Kind: "json", Help: "", Required: true},
+			{Name: "relations", Kind: "json", Help: "", Required: false},
+			{Name: "source", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
+	{Group: "ci", Verb: "relate", OperationID: "relateCis", Method: "POST", Path: "/ci-relations", Summary: "Join two configuration items",
+		Body: []doorParam{
+			{Name: "source_ci_id", Kind: "uuid", Help: "", Required: true},
+			{Name: "target_ci_id", Kind: "uuid", Help: "", Required: true},
+			{Name: "type", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
+	{Group: "ci", Verb: "run get", OperationID: "readCiRun", Method: "GET", Path: "/ci-runs/{runId}", Summary: "One reconciliation run with its decisions",
+		PathParams: []doorParam{
+			{Name: "runId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
+	{Group: "ci", Verb: "run ls", OperationID: "listCiRuns", Method: "GET", Path: "/hubs/{hubId}/ci-runs", Summary: "A hub's reconciliation runs",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "limit", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id"}},
+	{Group: "ci", Verb: "unrelate", OperationID: "unrelateCis", Method: "DELETE", Path: "/ci-relations/{relationId}", Summary: "Remove a relation",
+		PathParams: []doorParam{
+			{Name: "relationId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
+	{Group: "ci", Verb: "update", OperationID: "updateCi", Method: "PATCH", Path: "/cis/{ciId}", Summary: "Change a configuration item by hand",
+		PathParams: []doorParam{
+			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "attributes", Kind: "json", Help: "", Required: false},
+			{Name: "class", Kind: "string", Help: "", Required: false},
+			{Name: "name", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "name", "status", "version"}},
+	{Group: "cmdb", Verb: "class define", OperationID: "defineCiClass", Method: "PUT", Path: "/cmdb/classes/{classKey}", Summary: "Add or change a class of the workspace's own",
+		PathParams: []doorParam{
+			{Name: "classKey", Kind: "string", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "abstract", Kind: "boolean", Help: "", Required: false},
+			{Name: "archived", Kind: "boolean", Help: "", Required: false},
+			{Name: "attributes", Kind: "json", Help: "", Required: false},
+			{Name: "icon", Kind: "string", Help: "", Required: false},
+			{Name: "identifier_rules", Kind: "json", Help: "", Required: false},
+			{Name: "name", Kind: "string", Help: "", Required: true},
+			{Name: "parent", Kind: "string", Help: "", Required: true},
+			{Name: "required_relations", Kind: "json", Help: "", Required: false},
+			{Name: "staleness_days", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "name", "version"}},
+	{Group: "cmdb", Verb: "class ls", OperationID: "listCiClasses", Method: "GET", Path: "/cmdb/classes", Summary: "The configuration item classes",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name", "version"}},
+	{Group: "cmdb", Verb: "health", OperationID: "readCmdbHealth", Method: "GET", Path: "/hubs/{hubId}/cmdb-health", Summary: "A hub's inventory judged",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"completeness", "correctness", "duplicates", "orphans", "review_overdue"}},
+	{Group: "cmdb", Verb: "relation-type define", OperationID: "defineCiRelationType", Method: "PUT", Path: "/cmdb/relation-types/{typeKey}", Summary: "Add or change a relation type of the workspace's own",
+		PathParams: []doorParam{
+			{Name: "typeKey", Kind: "string", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "archived", Kind: "boolean", Help: "", Required: false},
+			{Name: "impact", Kind: "string", Help: "", Required: true},
+			{Name: "name", Kind: "string", Help: "", Required: true},
+			{Name: "pairs", Kind: "json", Help: "", Required: false},
+			{Name: "reverse_name", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "name", "version"}},
+	{Group: "cmdb", Verb: "relation-type ls", OperationID: "listCiRelationTypes", Method: "GET", Path: "/cmdb/relation-types", Summary: "The relation types between configuration items",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name", "version"}},
+	{Group: "cmdb", Verb: "source define", OperationID: "defineCiSource", Method: "PUT", Path: "/cmdb/sources/{sourceKey}", Summary: "Add or change a source",
+		PathParams: []doorParam{
+			{Name: "sourceKey", Kind: "string", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "classes", Kind: "strings", Help: "", Required: false},
+			{Name: "kind", Kind: "string", Help: "", Required: true},
+			{Name: "mapping", Kind: "json", Help: "How a CSV table's or a JSON array's columns become a configuration item", Required: false},
+			{Name: "may_create", Kind: "boolean", Help: "", Required: false},
+			{Name: "rank", Kind: "integer", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "kind", "version"}},
+	{Group: "cmdb", Verb: "source ls", OperationID: "listCiSources", Method: "GET", Path: "/cmdb/sources", Summary: "The sources configuration items come from",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "kind", "version"}},
 	{Group: "config", Verb: "propose", OperationID: "proposeConfig", Method: "POST", Path: "/config:propose", Summary: "Propose a planned change for a person to decide",
 		Body: []doorParam{
 			{Name: "acknowledge", Kind: "boolean", Help: "", Required: false},
