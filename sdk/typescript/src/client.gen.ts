@@ -1672,6 +1672,61 @@ export class HubtaskClient {
     return this.call("POST", "/entry-types/{key}/form:evaluate", { "key": key }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** List the workflows and the scheme */
+  listWorkflows(options: CallOptions = {}): Promise<operations["listWorkflows"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/workflows", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add a workflow */
+  createWorkflow(body: NonNullable<operations["createWorkflow"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createWorkflow"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/workflows", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Save a draft, rename, or discard the draft */
+  saveWorkflowDraft(key: string, body: NonNullable<operations["saveWorkflowDraft"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["saveWorkflowDraft"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/workflows/{key}", { "key": key }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Delete an unused workflow */
+  deleteWorkflow(key: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/workflows/{key}", { "key": key }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Show what publishing the draft would do */
+  previewWorkflowPublish(key: string, body: NonNullable<operations["previewWorkflowPublish"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["previewWorkflowPublish"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/workflows/{key}:preview-publish", { "key": key }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Publish the draft */
+  publishWorkflow(key: string, body: NonNullable<operations["publishWorkflow"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["publishWorkflow"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/workflows/{key}:publish", { "key": key }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Try a step against an entry */
+  tryWorkflowStep(key: string, step: string, body: NonNullable<operations["tryWorkflowStep"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["tryWorkflowStep"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/workflows/{key}/steps/{step}:try", { "key": key, "step": step }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Use a workflow in a hub or collection */
+  setWorkflowScheme(body: NonNullable<operations["setWorkflowScheme"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setWorkflowScheme"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/workflow-scheme", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Show what using a workflow would do */
+  previewWorkflowScheme(body: NonNullable<operations["previewWorkflowScheme"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["previewWorkflowScheme"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/workflow-scheme:preview", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The entry's status and the steps the person may take */
+  listEntrySteps(itemId: string, options: CallOptions = {}): Promise<operations["listEntrySteps"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/items/{itemId}/steps", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Move an entry on by one step */
+  takeStep(itemId: string, body: NonNullable<operations["takeStep"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["takeStep"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}:step", { "itemId": itemId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Change an entry's type */
   setItemEntryType(itemId: string, body: NonNullable<operations["setItemEntryType"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setItemEntryType"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/items/{itemId}/entry-type", { "itemId": itemId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);

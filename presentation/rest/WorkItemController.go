@@ -347,6 +347,9 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 	if entryType := out.String("entry_type"); entryType != "" {
 		item.EntryType = &entryType
 	}
+	if status := out.String("status"); status != "" {
+		item.Status = &status
+	}
 	if parent := out.String("parent_id"); parent != "" {
 		parentID := uuidValue(parent)
 		item.ParentId = &parentID

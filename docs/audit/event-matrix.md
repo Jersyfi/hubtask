@@ -221,6 +221,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `item.read` | SearchItems | `search` | INFO | When refused |
 | `item.reopened` | ReopenWorkItem | `item` | INFO | Every time |
 | `item.restored` | RestoreWorkItem | `item` | NOTICE | Every time |
+| `item.step_taken` | TakeStep | `item` | INFO | Every time |
+| `item.steps_read` | ListEntrySteps | `item` | INFO | When refused |
 | `item.trashed` | TrashWorkItem | `item` | NOTICE | Every time |
 | `item.unarchived` | UnarchiveWorkItem | `item` | INFO | Every time |
 | `item.unassigned` | UnassignWorkItem | `item` | INFO | Every time |
@@ -639,6 +641,20 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `webhooks.subscription_read` | ListWebhookDeliveries | `webhook_subscription` | INFO | When refused |
 | `webhooks.subscription_read` | ListWebhookSubscriptions | `webhook_subscription` | INFO | When refused |
 | `webhooks.subscription_updated` | UpdateWebhookSubscription | `webhook_subscription` | NOTICE | Every time |
+
+## Workflow
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `workflow.created` | CreateWorkflow | `workflow` | INFO | Every time |
+| `workflow.deleted` | DeleteWorkflow | `workflow` | INFO | Every time |
+| `workflow.drafted` | SaveWorkflowDraft | `workflow` | INFO | Every time |
+| `workflow.published` | PreviewWorkflowPublish | `workflow` | INFO | When refused |
+| `workflow.published` | PublishWorkflow | `workflow` | INFO | Every time |
+| `workflow.read` | ListWorkflows | `workflow` | INFO | When refused |
+| `workflow.scheme_set` | PreviewWorkflowScheme | `workflow` | INFO | When refused |
+| `workflow.scheme_set` | SetWorkflowScheme | `workflow` | INFO | Every time |
+| `workflow.step_tried` | TryWorkflowStep | `workflow` | INFO | When refused |
 
 ## Workspace
 

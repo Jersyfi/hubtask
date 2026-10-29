@@ -5877,6 +5877,57 @@ func (e WebhookSubscriptionUpdateState) Valid() bool {
 	}
 }
 
+// Defines values for WorkflowStatusCategory.
+const (
+	WorkflowStatusCategoryBACKLOG    WorkflowStatusCategory = "BACKLOG"
+	WorkflowStatusCategoryDONE       WorkflowStatusCategory = "DONE"
+	WorkflowStatusCategoryINPROGRESS WorkflowStatusCategory = "IN_PROGRESS"
+	WorkflowStatusCategoryTODO       WorkflowStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the WorkflowStatusCategory enum.
+func (e WorkflowStatusCategory) Valid() bool {
+	switch e {
+	case WorkflowStatusCategoryBACKLOG:
+		return true
+	case WorkflowStatusCategoryDONE:
+		return true
+	case WorkflowStatusCategoryINPROGRESS:
+		return true
+	case WorkflowStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkflowStepWhoRoles.
+const (
+	WorkflowStepWhoRolesADMIN       WorkflowStepWhoRoles = "ADMIN"
+	WorkflowStepWhoRolesCONTRIBUTOR WorkflowStepWhoRoles = "CONTRIBUTOR"
+	WorkflowStepWhoRolesGUEST       WorkflowStepWhoRoles = "GUEST"
+	WorkflowStepWhoRolesMEMBER      WorkflowStepWhoRoles = "MEMBER"
+	WorkflowStepWhoRolesOWNER       WorkflowStepWhoRoles = "OWNER"
+)
+
+// Valid indicates whether the value is a known member of the WorkflowStepWhoRoles enum.
+func (e WorkflowStepWhoRoles) Valid() bool {
+	switch e {
+	case WorkflowStepWhoRolesADMIN:
+		return true
+	case WorkflowStepWhoRolesCONTRIBUTOR:
+		return true
+	case WorkflowStepWhoRolesGUEST:
+		return true
+	case WorkflowStepWhoRolesMEMBER:
+		return true
+	case WorkflowStepWhoRolesOWNER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for WorkspaceDefaultWeekStart.
 const (
 	WorkspaceDefaultWeekStartLessThannil WorkspaceDefaultWeekStart = "<nil>"
@@ -8474,6 +8525,13 @@ type EntryLinksBacklinksSourceKind string
 
 // EntryLinksLinksWaits Which end waits for the other, by the link's type.
 type EntryLinksLinksWaits string
+
+// EntrySteps defines model for EntrySteps.
+type EntrySteps struct {
+	Status   *string       `json:"status"`
+	Steps    []StepVerdict `json:"steps"`
+	Workflow *string       `json:"workflow"`
+}
 
 // EntryType A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries.
 type EntryType struct {
@@ -12778,6 +12836,34 @@ type StepUpRequest struct {
 	State *string `json:"state,omitempty"`
 }
 
+// StepVerdict defines model for StepVerdict.
+type StepVerdict struct {
+	// Allowed Whether the person may take it.
+	Allowed bool     `json:"allowed"`
+	Asks    []string `json:"asks"`
+	Checks  []struct {
+		Holds   bool    `json:"holds"`
+		Key     string  `json:"key"`
+		Message *string `json:"message,omitempty"`
+	} `json:"checks"`
+
+	// From On a try: the status it was judged from.
+	From *string `json:"from,omitempty"`
+
+	// Holds Whether it may be taken now.
+	Holds bool   `json:"holds"`
+	Key   string `json:"key"`
+
+	// LeavesFrom On a try: whether it leaves that status.
+	LeavesFrom *bool `json:"leaves_from,omitempty"`
+
+	// Missing Required fields still empty.
+	Missing  []string `json:"missing"`
+	Name     *string  `json:"name"`
+	Requires []string `json:"requires"`
+	To       string   `json:"to"`
+}
+
 // StructureChange A change of a hub's or collection's own structure. Applied in this order: the preset, the settings, the resets.
 type StructureChange struct {
 	// Narrowing What happens to the entries the change hides by their level; absent is `HIDE`. `HIDE` keeps them where they are, stored and marked hidden, and switching back shows them again. `FLATTEN` moves each of them, deepest first, to the top level of its collection as an entry of the top level's type, puts a label named after its former parent's title on it (a label of the collection, created where none has that name), and records the move in its history; switching back does not undo it. For a hub, it applies to every collection that follows it.
@@ -13902,7 +13988,10 @@ type WorkItem struct {
 	// Retention Set for as long as a retention rule applies to this object.
 	Retention *RetentionState `json:"retention,omitempty"`
 	StartAt   *time.Time      `json:"start_at,omitempty"`
-	Title     string          `json:"title"`
+
+	// Status The key of the entry's status in the workflow its collection runs for its type (`GET /workflows`); null where none runs. Moved by a step (`POST /items/{itemId}:step`); in a workflow collection completion follows its category.
+	Status *string `json:"status,omitempty"`
+	Title  string  `json:"title"`
 
 	// Type Extensible; /meta/capabilities returns the valid values.
 	Type      ItemType   `json:"type"`
@@ -13974,6 +14063,155 @@ type WorkItemUpdate struct {
 	StartAt     *time.Time `json:"start_at,omitempty"`
 	Title       *string    `json:"title,omitempty"`
 }
+
+// Workflow How a workspace's work moves - statuses in categories and the steps between them.
+type Workflow struct {
+	Draft *WorkflowShape `json:"draft"`
+
+	// EntriesMoved On a publish: how many entries it moved.
+	EntriesMoved *int          `json:"entries_moved,omitempty"`
+	Key          string        `json:"key"`
+	Name         *string       `json:"name"`
+	Published    WorkflowShape `json:"published"`
+	PublishedAt  *time.Time    `json:"published_at"`
+
+	// System The shipped workflow, keyed default; never deleted.
+	System  bool `json:"system"`
+	Version int  `json:"version"`
+}
+
+// WorkflowCreate defines model for WorkflowCreate.
+type WorkflowCreate struct {
+	Key   string        `json:"key"`
+	Name  string        `json:"name"`
+	Shape WorkflowShape `json:"shape"`
+}
+
+// WorkflowDraft defines model for WorkflowDraft.
+type WorkflowDraft struct {
+	// Discard True discards the draft.
+	Discard *bool          `json:"discard,omitempty"`
+	Name    *string        `json:"name,omitempty"`
+	Shape   *WorkflowShape `json:"shape,omitempty"`
+}
+
+// WorkflowList defines model for WorkflowList.
+type WorkflowList struct {
+	Data   []Workflow `json:"data"`
+	Scheme []struct {
+		ContainerId openapi_types.UUID `json:"container_id"`
+
+		// EntryType Null for every type.
+		EntryType *string `json:"entry_type"`
+		Workflow  string  `json:"workflow"`
+	} `json:"scheme"`
+}
+
+// WorkflowPreview defines model for WorkflowPreview.
+type WorkflowPreview struct {
+	ColumnsAfter  []string `json:"columns_after"`
+	ColumnsBefore []string `json:"columns_before"`
+
+	// Entries How many entries move.
+	Entries int `json:"entries"`
+	Moves   []struct {
+		CollectionId openapi_types.UUID `json:"collection_id"`
+		Completed    bool               `json:"completed"`
+		Count        int                `json:"count"`
+		EntryType    string             `json:"entry_type"`
+		From         *string            `json:"from"`
+		To           *string            `json:"to"`
+	} `json:"moves"`
+	Removed []struct {
+		Count  int    `json:"count"`
+		Status string `json:"status"`
+	} `json:"removed"`
+}
+
+// WorkflowPublish defines model for WorkflowPublish.
+type WorkflowPublish struct {
+	// Mapping Per removed status, the status its entries move to.
+	Mapping *map[string]string `json:"mapping,omitempty"`
+}
+
+// WorkflowSchemeChange defines model for WorkflowSchemeChange.
+type WorkflowSchemeChange struct {
+	// Confirm True once the person has seen the preview.
+	Confirm     *bool              `json:"confirm,omitempty"`
+	ContainerId openapi_types.UUID `json:"container_id"`
+
+	// EntryType The type the row is for; left out for every type.
+	EntryType *string `json:"entry_type,omitempty"`
+
+	// Workflow The workflow's key; left out removes the row.
+	Workflow *string `json:"workflow,omitempty"`
+}
+
+// WorkflowSchemeResult defines model for WorkflowSchemeResult.
+type WorkflowSchemeResult struct {
+	ContainerId  openapi_types.UUID `json:"container_id"`
+	EntriesMoved int                `json:"entries_moved"`
+	EntryType    *string            `json:"entry_type"`
+	Workflow     *string            `json:"workflow"`
+}
+
+// WorkflowShape defines model for WorkflowShape.
+type WorkflowShape struct {
+	// Initial The open status a new entry starts in; the first open one when left out.
+	Initial  *string          `json:"initial,omitempty"`
+	Statuses []WorkflowStatus `json:"statuses"`
+	Steps    []WorkflowStep   `json:"steps"`
+}
+
+// WorkflowStatus defines model for WorkflowStatus.
+type WorkflowStatus struct {
+	// Category An entry in a DONE status is completed.
+	Category WorkflowStatusCategory `json:"category"`
+
+	// ColorToken One of the label colour tokens, never a colour value.
+	ColorToken string `json:"color_token"`
+	Key        string `json:"key"`
+
+	// Name Null on a status of the shipped workflow nobody named; a client shows its own word.
+	Name *string `json:"name"`
+}
+
+// WorkflowStatusCategory An entry in a DONE status is completed.
+type WorkflowStatusCategory string
+
+// WorkflowStep defines model for WorkflowStep.
+type WorkflowStep struct {
+	// Asks Fields a client asks for when the step is taken.
+	Asks   *[]string `json:"asks,omitempty"`
+	Checks *[]struct {
+		// Holds CEL that must hold.
+		Holds string `json:"holds"`
+		Key   string `json:"key"`
+
+		// Message The workspace's own words for the refusal.
+		Message *string `json:"message,omitempty"`
+	} `json:"checks,omitempty"`
+
+	// From The statuses it leaves from; empty is any status but its target.
+	From *[]string `json:"from,omitempty"`
+	Key  string    `json:"key"`
+	Name *string   `json:"name,omitempty"`
+
+	// Requires Fields that must hold a value: `due_date`, `custom_fields.<key>`.
+	Requires *[]string `json:"requires,omitempty"`
+	To       string    `json:"to"`
+	Who      *struct {
+		// Condition CEL over the entry and the actor.
+		Condition *string `json:"condition,omitempty"`
+
+		// PersonFields `assignee`, `created_by` or `custom_fields.<key>` of a person field.
+		PersonFields *[]string               `json:"person_fields,omitempty"`
+		Roles        *[]WorkflowStepWhoRoles `json:"roles,omitempty"`
+	} `json:"who,omitempty"`
+}
+
+// WorkflowStepWhoRoles defines model for WorkflowStep.Who.Roles.
+type WorkflowStepWhoRoles string
 
 // Workspace A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on.
 type Workspace struct {
@@ -15249,6 +15487,18 @@ type RestoreWorkItemParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// TakeStepJSONBody defines parameters for TakeStep.
+type TakeStepJSONBody struct {
+	Step     *string `json:"step,omitempty"`
+	ToStatus *string `json:"to_status,omitempty"`
+}
+
+// TakeStepParams defines parameters for TakeStep.
+type TakeStepParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // UnarchiveWorkItemParams defines parameters for UnarchiveWorkItem.
 type UnarchiveWorkItemParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -15678,6 +15928,24 @@ type SaveVoiceSettingsParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// SaveWorkflowDraftParams defines parameters for SaveWorkflowDraft.
+type SaveWorkflowDraftParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// TryWorkflowStepJSONBody defines parameters for TryWorkflowStep.
+type TryWorkflowStepJSONBody struct {
+	Draft  *bool              `json:"draft,omitempty"`
+	ItemId openapi_types.UUID `json:"item_id"`
+}
+
+// PublishWorkflowParams defines parameters for PublishWorkflow.
+type PublishWorkflowParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody defines body for UpdateOwnAccount for application/merge-patch+json ContentType.
 type UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody = OwnAccountUpdate
 
@@ -16080,6 +16348,9 @@ type MoveWorkItemJSONRequestBody MoveWorkItemJSONBody
 // ReorderWorkItemJSONRequestBody defines body for ReorderWorkItem for application/json ContentType.
 type ReorderWorkItemJSONRequestBody ReorderWorkItemJSONBody
 
+// TakeStepJSONRequestBody defines body for TakeStep for application/json ContentType.
+type TakeStepJSONRequestBody TakeStepJSONBody
+
 // AiSuggestFieldsJSONRequestBody defines body for AiSuggestFields for application/json ContentType.
 type AiSuggestFieldsJSONRequestBody = AiFieldsAsk
 
@@ -16256,6 +16527,27 @@ type SaveVoiceSettingsJSONRequestBody = VoiceSettings
 
 // TryVoiceSentenceJSONRequestBody defines body for TryVoiceSentence for application/json ContentType.
 type TryVoiceSentenceJSONRequestBody = VoiceTry
+
+// SetWorkflowSchemeJSONRequestBody defines body for SetWorkflowScheme for application/json ContentType.
+type SetWorkflowSchemeJSONRequestBody = WorkflowSchemeChange
+
+// PreviewWorkflowSchemeJSONRequestBody defines body for PreviewWorkflowScheme for application/json ContentType.
+type PreviewWorkflowSchemeJSONRequestBody = WorkflowSchemeChange
+
+// CreateWorkflowJSONRequestBody defines body for CreateWorkflow for application/json ContentType.
+type CreateWorkflowJSONRequestBody = WorkflowCreate
+
+// SaveWorkflowDraftJSONRequestBody defines body for SaveWorkflowDraft for application/json ContentType.
+type SaveWorkflowDraftJSONRequestBody = WorkflowDraft
+
+// TryWorkflowStepJSONRequestBody defines body for TryWorkflowStep for application/json ContentType.
+type TryWorkflowStepJSONRequestBody TryWorkflowStepJSONBody
+
+// PreviewWorkflowPublishJSONRequestBody defines body for PreviewWorkflowPublish for application/json ContentType.
+type PreviewWorkflowPublishJSONRequestBody = WorkflowPublish
+
+// PublishWorkflowJSONRequestBody defines body for PublishWorkflow for application/json ContentType.
+type PublishWorkflowJSONRequestBody = WorkflowPublish
 
 // RequestEditorFn is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -20054,6 +20346,13 @@ type ClientInterface interface {
 	// Changes a reminder. A merge patch: a field that is not sent is not touched, and each field that moves is its own change log entry, so two devices editing the offset and the channels converge to both. Recipients and channels are chosen whole - the list sent replaces the list stored.
 	UpdateReminderWithApplicationMergePatchPlusJSONBody(ctx context.Context, itemId ItemId, reminderId ReminderId, params *UpdateReminderParams, body UpdateReminderApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListEntrySteps The entry's status and the steps the person may take
+	//
+	// The workflow the entry's collection runs for its type, the entry's status, and the steps the person may take from it, each with what it asks for, what it still needs and whether its checks hold. `workflow` is null where none runs; a reader gets no steps.
+	//
+	// Corresponds with GET /items/{itemId}/steps (the `ListEntrySteps` operationId).
+	ListEntrySteps(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ArchiveWorkItem performs a POST /items/{itemId}:archive (the `ArchiveWorkItem` operationId) request.
 	//
 	// Archives the entry: it is kept and becomes read-only. Distinct from the trash, which is a deletion with a retention period running against it - an archived entry stays until somebody says otherwise. Nothing below it is archived with it: an entry's children are entries in their own right, unlike the collections of a hub. Idempotent - archiving an archived entry succeeds and changes nothing.
@@ -20184,6 +20483,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /items/{itemId}:retain (the `RetainItem` operationId).
 	RetainItem(ctx context.Context, itemId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TakeStepWithBody Move an entry on by one step
+	//
+	// Takes a step of the workflow the entry's collection runs for its type - by `step`, or the first step to `to_status` the person may take. Refused with `workflows.step_not_offered`, `workflows.step_not_allowed`, or `workflows.step_refused` naming each empty required field and each failing check in `fields`. Into a done status it completes the entry, out of one it reopens it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /items/{itemId}:step (the `TakeStep` operationId).
+	TakeStepWithBody(ctx context.Context, itemId ItemId, params *TakeStepParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TakeStep Move an entry on by one step
+	//
+	// Takes a step of the workflow the entry's collection runs for its type - by `step`, or the first step to `to_status` the person may take. Refused with `workflows.step_not_offered`, `workflows.step_not_allowed`, or `workflows.step_refused` naming each empty required field and each failing check in `fields`. Into a done status it completes the entry, out of one it reopens it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /items/{itemId}:step (the `TakeStep` operationId).
+	TakeStep(ctx context.Context, itemId ItemId, params *TakeStepParams, body TakeStepJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// AiSuggestFieldsWithBody Ask AI to propose this entry's fields
 	//
@@ -22082,6 +22399,146 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /voice:try (the `TryVoiceSentence` operationId).
 	TryVoiceSentence(ctx context.Context, body TryVoiceSentenceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetWorkflowSchemeWithBody Use a workflow in a hub or collection
+	//
+	// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /workflow-scheme (the `SetWorkflowScheme` operationId).
+	SetWorkflowSchemeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetWorkflowScheme Use a workflow in a hub or collection
+	//
+	// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /workflow-scheme (the `SetWorkflowScheme` operationId).
+	SetWorkflowScheme(ctx context.Context, body SetWorkflowSchemeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PreviewWorkflowSchemeWithBody Show what using a workflow would do
+	//
+	// Answers, changing nothing, which status every existing entry would get - by collection, type and status - and the board's columns.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /workflow-scheme:preview (the `PreviewWorkflowScheme` operationId).
+	PreviewWorkflowSchemeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PreviewWorkflowScheme Show what using a workflow would do
+	//
+	// Answers, changing nothing, which status every existing entry would get - by collection, type and status - and the board's columns.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /workflow-scheme:preview (the `PreviewWorkflowScheme` operationId).
+	PreviewWorkflowScheme(ctx context.Context, body PreviewWorkflowSchemeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListWorkflows List the workflows and the scheme
+	//
+	// The workspace's workflows - the shipped one, keyed `default`, and its own - each with the shape in force and any draft, and the scheme: which hub or collection runs which workflow for which type. Any member may read them; a board draws its columns from them.
+	//
+	// Corresponds with GET /workflows (the `ListWorkflows` operationId).
+	ListWorkflows(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateWorkflowWithBody Add a workflow
+	//
+	// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /workflows (the `CreateWorkflow` operationId).
+	CreateWorkflowWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateWorkflow Add a workflow
+	//
+	// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /workflows (the `CreateWorkflow` operationId).
+	CreateWorkflow(ctx context.Context, body CreateWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteWorkflow Delete an unused workflow
+	//
+	// Deletes a workflow of the workspace's own that no hub or collection uses; one in use is refused with `workflows.in_use`, the shipped one with `workflows.system_kept`.
+	//
+	// Corresponds with DELETE /workflows/{key} (the `DeleteWorkflow` operationId).
+	DeleteWorkflow(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SaveWorkflowDraftWithBody Save a draft, rename, or discard the draft
+	//
+	// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /workflows/{key} (the `SaveWorkflowDraft` operationId).
+	SaveWorkflowDraftWithBody(ctx context.Context, key string, params *SaveWorkflowDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SaveWorkflowDraft Save a draft, rename, or discard the draft
+	//
+	// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /workflows/{key} (the `SaveWorkflowDraft` operationId).
+	SaveWorkflowDraft(ctx context.Context, key string, params *SaveWorkflowDraftParams, body SaveWorkflowDraftJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TryWorkflowStepWithBody Try a step against an entry
+	//
+	// Judges a step - of the draft where `draft` is true and there is one - against an entry, without taking it: whether the person may take it, which required fields are empty, and each check's outcome.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /workflows/{key}/steps/{step}:try (the `TryWorkflowStep` operationId).
+	TryWorkflowStepWithBody(ctx context.Context, key string, step string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TryWorkflowStep Try a step against an entry
+	//
+	// Judges a step - of the draft where `draft` is true and there is one - against an entry, without taking it: whether the person may take it, which required fields are empty, and each check's outcome.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /workflows/{key}/steps/{step}:try (the `TryWorkflowStep` operationId).
+	TryWorkflowStep(ctx context.Context, key string, step string, body TryWorkflowStepJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PreviewWorkflowPublishWithBody Show what publishing the draft would do
+	//
+	// Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /workflows/{key}:preview-publish (the `PreviewWorkflowPublish` operationId).
+	PreviewWorkflowPublishWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PreviewWorkflowPublish Show what publishing the draft would do
+	//
+	// Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /workflows/{key}:preview-publish (the `PreviewWorkflowPublish` operationId).
+	PreviewWorkflowPublish(ctx context.Context, key string, body PreviewWorkflowPublishJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PublishWorkflowWithBody Publish the draft
+	//
+	// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /workflows/{key}:publish (the `PublishWorkflow` operationId).
+	PublishWorkflowWithBody(ctx context.Context, key string, params *PublishWorkflowParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PublishWorkflow Publish the draft
+	//
+	// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /workflows/{key}:publish (the `PublishWorkflow` operationId).
+	PublishWorkflow(ctx context.Context, key string, params *PublishWorkflowParams, body PublishWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 // GetOwnAccount The account the caller is signed in as
@@ -29757,6 +30214,23 @@ func (c *Client) UpdateReminderWithApplicationMergePatchPlusJSONBody(ctx context
 	return c.Client.Do(req)
 }
 
+// ListEntrySteps The entry's status and the steps the person may take
+//
+// The workflow the entry's collection runs for its type, the entry's status, and the steps the person may take from it, each with what it asks for, what it still needs and whether its checks hold. `workflow` is null where none runs; a reader gets no steps.
+//
+// Corresponds with GET /items/{itemId}/steps (the `ListEntrySteps` operationId).
+func (c *Client) ListEntrySteps(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListEntryStepsRequest(c.Server, itemId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ArchiveWorkItem performs a POST /items/{itemId}:archive (the `ArchiveWorkItem` operationId) request.
 //
 // Archives the entry: it is kept and becomes read-only. Distinct from the trash, which is a deletion with a retention period running against it - an archived entry stays until somebody says otherwise. Nothing below it is archived with it: an entry's children are entries in their own right, unlike the collections of a hub. Idempotent - archiving an archived entry succeeds and changes nothing.
@@ -30078,6 +30552,44 @@ func (c *Client) RestoreWorkItem(ctx context.Context, itemId ItemId, params *Res
 // Corresponds with POST /items/{itemId}:retain (the `RetainItem` operationId).
 func (c *Client) RetainItem(ctx context.Context, itemId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRetainItemRequest(c.Server, itemId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// TakeStepWithBody Move an entry on by one step
+//
+// Takes a step of the workflow the entry's collection runs for its type - by `step`, or the first step to `to_status` the person may take. Refused with `workflows.step_not_offered`, `workflows.step_not_allowed`, or `workflows.step_refused` naming each empty required field and each failing check in `fields`. Into a done status it completes the entry, out of one it reopens it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /items/{itemId}:step (the `TakeStep` operationId).
+func (c *Client) TakeStepWithBody(ctx context.Context, itemId ItemId, params *TakeStepParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTakeStepRequestWithBody(c.Server, itemId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// TakeStep Move an entry on by one step
+//
+// Takes a step of the workflow the entry's collection runs for its type - by `step`, or the first step to `to_status` the person may take. Refused with `workflows.step_not_offered`, `workflows.step_not_allowed`, or `workflows.step_refused` naming each empty required field and each failing check in `fields`. Into a done status it completes the entry, out of one it reopens it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /items/{itemId}:step (the `TakeStep` operationId).
+func (c *Client) TakeStep(ctx context.Context, itemId ItemId, params *TakeStepParams, body TakeStepJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTakeStepRequest(c.Server, itemId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -33826,6 +34338,306 @@ func (c *Client) TryVoiceSentenceWithBody(ctx context.Context, contentType strin
 // Corresponds with POST /voice:try (the `TryVoiceSentence` operationId).
 func (c *Client) TryVoiceSentence(ctx context.Context, body TryVoiceSentenceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewTryVoiceSentenceRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetWorkflowSchemeWithBody Use a workflow in a hub or collection
+//
+// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /workflow-scheme (the `SetWorkflowScheme` operationId).
+func (c *Client) SetWorkflowSchemeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetWorkflowSchemeRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetWorkflowScheme Use a workflow in a hub or collection
+//
+// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /workflow-scheme (the `SetWorkflowScheme` operationId).
+func (c *Client) SetWorkflowScheme(ctx context.Context, body SetWorkflowSchemeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetWorkflowSchemeRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PreviewWorkflowSchemeWithBody Show what using a workflow would do
+//
+// Answers, changing nothing, which status every existing entry would get - by collection, type and status - and the board's columns.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /workflow-scheme:preview (the `PreviewWorkflowScheme` operationId).
+func (c *Client) PreviewWorkflowSchemeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPreviewWorkflowSchemeRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PreviewWorkflowScheme Show what using a workflow would do
+//
+// Answers, changing nothing, which status every existing entry would get - by collection, type and status - and the board's columns.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /workflow-scheme:preview (the `PreviewWorkflowScheme` operationId).
+func (c *Client) PreviewWorkflowScheme(ctx context.Context, body PreviewWorkflowSchemeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPreviewWorkflowSchemeRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListWorkflows List the workflows and the scheme
+//
+// The workspace's workflows - the shipped one, keyed `default`, and its own - each with the shape in force and any draft, and the scheme: which hub or collection runs which workflow for which type. Any member may read them; a board draws its columns from them.
+//
+// Corresponds with GET /workflows (the `ListWorkflows` operationId).
+func (c *Client) ListWorkflows(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListWorkflowsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateWorkflowWithBody Add a workflow
+//
+// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /workflows (the `CreateWorkflow` operationId).
+func (c *Client) CreateWorkflowWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateWorkflowRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateWorkflow Add a workflow
+//
+// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /workflows (the `CreateWorkflow` operationId).
+func (c *Client) CreateWorkflow(ctx context.Context, body CreateWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateWorkflowRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteWorkflow Delete an unused workflow
+//
+// Deletes a workflow of the workspace's own that no hub or collection uses; one in use is refused with `workflows.in_use`, the shipped one with `workflows.system_kept`.
+//
+// Corresponds with DELETE /workflows/{key} (the `DeleteWorkflow` operationId).
+func (c *Client) DeleteWorkflow(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteWorkflowRequest(c.Server, key)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SaveWorkflowDraftWithBody Save a draft, rename, or discard the draft
+//
+// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /workflows/{key} (the `SaveWorkflowDraft` operationId).
+func (c *Client) SaveWorkflowDraftWithBody(ctx context.Context, key string, params *SaveWorkflowDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSaveWorkflowDraftRequestWithBody(c.Server, key, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SaveWorkflowDraft Save a draft, rename, or discard the draft
+//
+// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /workflows/{key} (the `SaveWorkflowDraft` operationId).
+func (c *Client) SaveWorkflowDraft(ctx context.Context, key string, params *SaveWorkflowDraftParams, body SaveWorkflowDraftJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSaveWorkflowDraftRequest(c.Server, key, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// TryWorkflowStepWithBody Try a step against an entry
+//
+// Judges a step - of the draft where `draft` is true and there is one - against an entry, without taking it: whether the person may take it, which required fields are empty, and each check's outcome.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /workflows/{key}/steps/{step}:try (the `TryWorkflowStep` operationId).
+func (c *Client) TryWorkflowStepWithBody(ctx context.Context, key string, step string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTryWorkflowStepRequestWithBody(c.Server, key, step, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// TryWorkflowStep Try a step against an entry
+//
+// Judges a step - of the draft where `draft` is true and there is one - against an entry, without taking it: whether the person may take it, which required fields are empty, and each check's outcome.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /workflows/{key}/steps/{step}:try (the `TryWorkflowStep` operationId).
+func (c *Client) TryWorkflowStep(ctx context.Context, key string, step string, body TryWorkflowStepJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTryWorkflowStepRequest(c.Server, key, step, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PreviewWorkflowPublishWithBody Show what publishing the draft would do
+//
+// Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /workflows/{key}:preview-publish (the `PreviewWorkflowPublish` operationId).
+func (c *Client) PreviewWorkflowPublishWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPreviewWorkflowPublishRequestWithBody(c.Server, key, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PreviewWorkflowPublish Show what publishing the draft would do
+//
+// Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /workflows/{key}:preview-publish (the `PreviewWorkflowPublish` operationId).
+func (c *Client) PreviewWorkflowPublish(ctx context.Context, key string, body PreviewWorkflowPublishJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPreviewWorkflowPublishRequest(c.Server, key, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PublishWorkflowWithBody Publish the draft
+//
+// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /workflows/{key}:publish (the `PublishWorkflow` operationId).
+func (c *Client) PublishWorkflowWithBody(ctx context.Context, key string, params *PublishWorkflowParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishWorkflowRequestWithBody(c.Server, key, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PublishWorkflow Publish the draft
+//
+// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /workflows/{key}:publish (the `PublishWorkflow` operationId).
+func (c *Client) PublishWorkflow(ctx context.Context, key string, params *PublishWorkflowParams, body PublishWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishWorkflowRequest(c.Server, key, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -46479,6 +47291,40 @@ func NewUpdateReminderRequestWithBody(server string, itemId ItemId, reminderId R
 	return req, nil
 }
 
+// NewListEntryStepsRequest constructs an http.Request for the ListEntrySteps method
+func NewListEntryStepsRequest(server string, itemId ItemId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/steps", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewArchiveWorkItemRequest constructs an http.Request for the ArchiveWorkItem method
 func NewArchiveWorkItemRequest(server string, itemId ItemId, params *ArchiveWorkItemParams) (*http.Request, error) {
 	var err error
@@ -47215,6 +48061,68 @@ func NewRetainItemRequest(server string, itemId openapi_types.UUID) (*http.Reque
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewTakeStepRequest calls the generic TakeStep builder with application/json body
+func NewTakeStepRequest(server string, itemId ItemId, params *TakeStepParams, body TakeStepJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewTakeStepRequestWithBody(server, itemId, params, "application/json", bodyReader)
+}
+
+// NewTakeStepRequestWithBody constructs an http.Request for the TakeStep method, with any body, and a specified content type
+func NewTakeStepRequestWithBody(server string, itemId ItemId, params *TakeStepParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s:step", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -53149,6 +54057,412 @@ func NewTryVoiceSentenceRequestWithBody(server string, contentType string, body 
 	return req, nil
 }
 
+// NewSetWorkflowSchemeRequest calls the generic SetWorkflowScheme builder with application/json body
+func NewSetWorkflowSchemeRequest(server string, body SetWorkflowSchemeJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetWorkflowSchemeRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetWorkflowSchemeRequestWithBody constructs an http.Request for the SetWorkflowScheme method, with any body, and a specified content type
+func NewSetWorkflowSchemeRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workflow-scheme")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPreviewWorkflowSchemeRequest calls the generic PreviewWorkflowScheme builder with application/json body
+func NewPreviewWorkflowSchemeRequest(server string, body PreviewWorkflowSchemeJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPreviewWorkflowSchemeRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPreviewWorkflowSchemeRequestWithBody constructs an http.Request for the PreviewWorkflowScheme method, with any body, and a specified content type
+func NewPreviewWorkflowSchemeRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workflow-scheme:preview")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListWorkflowsRequest constructs an http.Request for the ListWorkflows method
+func NewListWorkflowsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workflows")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateWorkflowRequest calls the generic CreateWorkflow builder with application/json body
+func NewCreateWorkflowRequest(server string, body CreateWorkflowJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateWorkflowRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateWorkflowRequestWithBody constructs an http.Request for the CreateWorkflow method, with any body, and a specified content type
+func NewCreateWorkflowRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workflows")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteWorkflowRequest constructs an http.Request for the DeleteWorkflow method
+func NewDeleteWorkflowRequest(server string, key string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workflows/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSaveWorkflowDraftRequest calls the generic SaveWorkflowDraft builder with application/json body
+func NewSaveWorkflowDraftRequest(server string, key string, params *SaveWorkflowDraftParams, body SaveWorkflowDraftJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSaveWorkflowDraftRequestWithBody(server, key, params, "application/json", bodyReader)
+}
+
+// NewSaveWorkflowDraftRequestWithBody constructs an http.Request for the SaveWorkflowDraft method, with any body, and a specified content type
+func NewSaveWorkflowDraftRequestWithBody(server string, key string, params *SaveWorkflowDraftParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workflows/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewTryWorkflowStepRequest calls the generic TryWorkflowStep builder with application/json body
+func NewTryWorkflowStepRequest(server string, key string, step string, body TryWorkflowStepJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewTryWorkflowStepRequestWithBody(server, key, step, "application/json", bodyReader)
+}
+
+// NewTryWorkflowStepRequestWithBody constructs an http.Request for the TryWorkflowStep method, with any body, and a specified content type
+func NewTryWorkflowStepRequestWithBody(server string, key string, step string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "step", step, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workflows/%s/steps/%s:try", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPreviewWorkflowPublishRequest calls the generic PreviewWorkflowPublish builder with application/json body
+func NewPreviewWorkflowPublishRequest(server string, key string, body PreviewWorkflowPublishJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPreviewWorkflowPublishRequestWithBody(server, key, "application/json", bodyReader)
+}
+
+// NewPreviewWorkflowPublishRequestWithBody constructs an http.Request for the PreviewWorkflowPublish method, with any body, and a specified content type
+func NewPreviewWorkflowPublishRequestWithBody(server string, key string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workflows/%s:preview-publish", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPublishWorkflowRequest calls the generic PublishWorkflow builder with application/json body
+func NewPublishWorkflowRequest(server string, key string, params *PublishWorkflowParams, body PublishWorkflowJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPublishWorkflowRequestWithBody(server, key, params, "application/json", bodyReader)
+}
+
+// NewPublishWorkflowRequestWithBody constructs an http.Request for the PublishWorkflow method, with any body, and a specified content type
+func NewPublishWorkflowRequestWithBody(server string, key string, params *PublishWorkflowParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workflows/%s:publish", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -57246,6 +58560,15 @@ type ClientWithResponsesInterface interface {
 	// Changes a reminder. A merge patch: a field that is not sent is not touched, and each field that moves is its own change log entry, so two devices editing the offset and the channels converge to both. Recipients and channels are chosen whole - the list sent replaces the list stored.
 	UpdateReminderWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, itemId ItemId, reminderId ReminderId, params *UpdateReminderParams, body UpdateReminderApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateReminderResult, error)
 
+	// ListEntryStepsWithResponse The entry's status and the steps the person may take
+	//
+	// The workflow the entry's collection runs for its type, the entry's status, and the steps the person may take from it, each with what it asks for, what it still needs and whether its checks hold. `workflow` is null where none runs; a reader gets no steps.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /items/{itemId}/steps (the `ListEntrySteps` operationId).
+	ListEntryStepsWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ListEntryStepsResult, error)
+
 	// ArchiveWorkItemWithResponse performs a POST /items/{itemId}:archive (the `ArchiveWorkItem` operationId) request.
 	//
 	// Archives the entry: it is kept and becomes read-only. Distinct from the trash, which is a deletion with a retention period running against it - an archived entry stays until somebody says otherwise. Nothing below it is archived with it: an entry's children are entries in their own right, unlike the collections of a hub. Idempotent - archiving an archived entry succeeds and changes nothing.
@@ -57402,6 +58725,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /items/{itemId}:retain (the `RetainItem` operationId).
 	RetainItemWithResponse(ctx context.Context, itemId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RetainItemResult, error)
+
+	// TakeStepWithBodyWithResponse Move an entry on by one step
+	//
+	// Takes a step of the workflow the entry's collection runs for its type - by `step`, or the first step to `to_status` the person may take. Refused with `workflows.step_not_offered`, `workflows.step_not_allowed`, or `workflows.step_refused` naming each empty required field and each failing check in `fields`. Into a done status it completes the entry, out of one it reopens it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}:step (the `TakeStep` operationId).
+	TakeStepWithBodyWithResponse(ctx context.Context, itemId ItemId, params *TakeStepParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TakeStepResult, error)
+
+	// TakeStepWithResponse Move an entry on by one step
+	//
+	// Takes a step of the workflow the entry's collection runs for its type - by `step`, or the first step to `to_status` the person may take. Refused with `workflows.step_not_offered`, `workflows.step_not_allowed`, or `workflows.step_refused` naming each empty required field and each failing check in `fields`. Into a done status it completes the entry, out of one it reopens it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}:step (the `TakeStep` operationId).
+	TakeStepWithResponse(ctx context.Context, itemId ItemId, params *TakeStepParams, body TakeStepJSONRequestBody, reqEditors ...RequestEditorFn) (*TakeStepResult, error)
 
 	// AiSuggestFieldsWithBodyWithResponse Ask AI to propose this entry's fields
 	//
@@ -59456,6 +60797,150 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /voice:try (the `TryVoiceSentence` operationId).
 	TryVoiceSentenceWithResponse(ctx context.Context, body TryVoiceSentenceJSONRequestBody, reqEditors ...RequestEditorFn) (*TryVoiceSentenceResult, error)
+
+	// SetWorkflowSchemeWithBodyWithResponse Use a workflow in a hub or collection
+	//
+	// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /workflow-scheme (the `SetWorkflowScheme` operationId).
+	SetWorkflowSchemeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetWorkflowSchemeResult, error)
+
+	// SetWorkflowSchemeWithResponse Use a workflow in a hub or collection
+	//
+	// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /workflow-scheme (the `SetWorkflowScheme` operationId).
+	SetWorkflowSchemeWithResponse(ctx context.Context, body SetWorkflowSchemeJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkflowSchemeResult, error)
+
+	// PreviewWorkflowSchemeWithBodyWithResponse Show what using a workflow would do
+	//
+	// Answers, changing nothing, which status every existing entry would get - by collection, type and status - and the board's columns.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workflow-scheme:preview (the `PreviewWorkflowScheme` operationId).
+	PreviewWorkflowSchemeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PreviewWorkflowSchemeResult, error)
+
+	// PreviewWorkflowSchemeWithResponse Show what using a workflow would do
+	//
+	// Answers, changing nothing, which status every existing entry would get - by collection, type and status - and the board's columns.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workflow-scheme:preview (the `PreviewWorkflowScheme` operationId).
+	PreviewWorkflowSchemeWithResponse(ctx context.Context, body PreviewWorkflowSchemeJSONRequestBody, reqEditors ...RequestEditorFn) (*PreviewWorkflowSchemeResult, error)
+
+	// ListWorkflowsWithResponse List the workflows and the scheme
+	//
+	// The workspace's workflows - the shipped one, keyed `default`, and its own - each with the shape in force and any draft, and the scheme: which hub or collection runs which workflow for which type. Any member may read them; a board draws its columns from them.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /workflows (the `ListWorkflows` operationId).
+	ListWorkflowsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListWorkflowsResult, error)
+
+	// CreateWorkflowWithBodyWithResponse Add a workflow
+	//
+	// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workflows (the `CreateWorkflow` operationId).
+	CreateWorkflowWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateWorkflowResult, error)
+
+	// CreateWorkflowWithResponse Add a workflow
+	//
+	// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workflows (the `CreateWorkflow` operationId).
+	CreateWorkflowWithResponse(ctx context.Context, body CreateWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateWorkflowResult, error)
+
+	// DeleteWorkflowWithResponse Delete an unused workflow
+	//
+	// Deletes a workflow of the workspace's own that no hub or collection uses; one in use is refused with `workflows.in_use`, the shipped one with `workflows.system_kept`.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /workflows/{key} (the `DeleteWorkflow` operationId).
+	DeleteWorkflowWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*DeleteWorkflowResult, error)
+
+	// SaveWorkflowDraftWithBodyWithResponse Save a draft, rename, or discard the draft
+	//
+	// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /workflows/{key} (the `SaveWorkflowDraft` operationId).
+	SaveWorkflowDraftWithBodyWithResponse(ctx context.Context, key string, params *SaveWorkflowDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SaveWorkflowDraftResult, error)
+
+	// SaveWorkflowDraftWithResponse Save a draft, rename, or discard the draft
+	//
+	// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /workflows/{key} (the `SaveWorkflowDraft` operationId).
+	SaveWorkflowDraftWithResponse(ctx context.Context, key string, params *SaveWorkflowDraftParams, body SaveWorkflowDraftJSONRequestBody, reqEditors ...RequestEditorFn) (*SaveWorkflowDraftResult, error)
+
+	// TryWorkflowStepWithBodyWithResponse Try a step against an entry
+	//
+	// Judges a step - of the draft where `draft` is true and there is one - against an entry, without taking it: whether the person may take it, which required fields are empty, and each check's outcome.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workflows/{key}/steps/{step}:try (the `TryWorkflowStep` operationId).
+	TryWorkflowStepWithBodyWithResponse(ctx context.Context, key string, step string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TryWorkflowStepResult, error)
+
+	// TryWorkflowStepWithResponse Try a step against an entry
+	//
+	// Judges a step - of the draft where `draft` is true and there is one - against an entry, without taking it: whether the person may take it, which required fields are empty, and each check's outcome.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workflows/{key}/steps/{step}:try (the `TryWorkflowStep` operationId).
+	TryWorkflowStepWithResponse(ctx context.Context, key string, step string, body TryWorkflowStepJSONRequestBody, reqEditors ...RequestEditorFn) (*TryWorkflowStepResult, error)
+
+	// PreviewWorkflowPublishWithBodyWithResponse Show what publishing the draft would do
+	//
+	// Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workflows/{key}:preview-publish (the `PreviewWorkflowPublish` operationId).
+	PreviewWorkflowPublishWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PreviewWorkflowPublishResult, error)
+
+	// PreviewWorkflowPublishWithResponse Show what publishing the draft would do
+	//
+	// Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workflows/{key}:preview-publish (the `PreviewWorkflowPublish` operationId).
+	PreviewWorkflowPublishWithResponse(ctx context.Context, key string, body PreviewWorkflowPublishJSONRequestBody, reqEditors ...RequestEditorFn) (*PreviewWorkflowPublishResult, error)
+
+	// PublishWorkflowWithBodyWithResponse Publish the draft
+	//
+	// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workflows/{key}:publish (the `PublishWorkflow` operationId).
+	PublishWorkflowWithBodyWithResponse(ctx context.Context, key string, params *PublishWorkflowParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishWorkflowResult, error)
+
+	// PublishWorkflowWithResponse Publish the draft
+	//
+	// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workflows/{key}:publish (the `PublishWorkflow` operationId).
+	PublishWorkflowWithResponse(ctx context.Context, key string, params *PublishWorkflowParams, body PublishWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishWorkflowResult, error)
 }
 
 type GetOwnAccountResult struct {
@@ -72559,6 +74044,54 @@ func (r UpdateReminderResult) ContentType() string {
 	return ""
 }
 
+type ListEntryStepsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *EntrySteps
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListEntryStepsResult) GetJSON200() *EntrySteps {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListEntryStepsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListEntryStepsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListEntryStepsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListEntryStepsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListEntryStepsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // ArchiveWorkItemResult200Headers the declared response headers of an HTTP 200 response for ArchiveWorkItem
 type ArchiveWorkItemResult200Headers struct {
 	ETag *string
@@ -73296,6 +74829,61 @@ func (r RetainItemResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RetainItemResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// TakeStepResult200Headers the declared response headers of an HTTP 200 response for TakeStep
+type TakeStepResult200Headers struct {
+	ETag *string
+}
+
+type TakeStepResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkItem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *TakeStepResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r TakeStepResult) GetJSON200() *WorkItem {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r TakeStepResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r TakeStepResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r TakeStepResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r TakeStepResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r TakeStepResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -79532,6 +81120,452 @@ func (r TryVoiceSentenceResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r TryVoiceSentenceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetWorkflowSchemeResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkflowSchemeResult
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetWorkflowSchemeResult) GetJSON200() *WorkflowSchemeResult {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetWorkflowSchemeResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetWorkflowSchemeResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetWorkflowSchemeResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetWorkflowSchemeResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetWorkflowSchemeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PreviewWorkflowSchemeResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkflowPreview
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PreviewWorkflowSchemeResult) GetJSON200() *WorkflowPreview {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PreviewWorkflowSchemeResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PreviewWorkflowSchemeResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PreviewWorkflowSchemeResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PreviewWorkflowSchemeResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PreviewWorkflowSchemeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListWorkflowsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkflowList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListWorkflowsResult) GetJSON200() *WorkflowList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListWorkflowsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListWorkflowsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListWorkflowsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListWorkflowsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListWorkflowsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// CreateWorkflowResult201Headers the declared response headers of an HTTP 201 response for CreateWorkflow
+type CreateWorkflowResult201Headers struct {
+	ETag *string
+}
+
+type CreateWorkflowResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Workflow
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *CreateWorkflowResult201Headers
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateWorkflowResult) GetJSON201() *Workflow {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateWorkflowResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateWorkflowResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateWorkflowResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateWorkflowResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateWorkflowResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteWorkflowResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteWorkflowResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteWorkflowResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteWorkflowResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteWorkflowResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteWorkflowResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// SaveWorkflowDraftResult200Headers the declared response headers of an HTTP 200 response for SaveWorkflowDraft
+type SaveWorkflowDraftResult200Headers struct {
+	ETag *string
+}
+
+type SaveWorkflowDraftResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Workflow
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *SaveWorkflowDraftResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SaveWorkflowDraftResult) GetJSON200() *Workflow {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SaveWorkflowDraftResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SaveWorkflowDraftResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SaveWorkflowDraftResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SaveWorkflowDraftResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SaveWorkflowDraftResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type TryWorkflowStepResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *StepVerdict
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r TryWorkflowStepResult) GetJSON200() *StepVerdict {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r TryWorkflowStepResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r TryWorkflowStepResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r TryWorkflowStepResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r TryWorkflowStepResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r TryWorkflowStepResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PreviewWorkflowPublishResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkflowPreview
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PreviewWorkflowPublishResult) GetJSON200() *WorkflowPreview {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PreviewWorkflowPublishResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PreviewWorkflowPublishResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PreviewWorkflowPublishResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PreviewWorkflowPublishResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PreviewWorkflowPublishResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// PublishWorkflowResult200Headers the declared response headers of an HTTP 200 response for PublishWorkflow
+type PublishWorkflowResult200Headers struct {
+	ETag *string
+}
+
+type PublishWorkflowResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Workflow
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *PublishWorkflowResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PublishWorkflowResult) GetJSON200() *Workflow {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PublishWorkflowResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PublishWorkflowResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PublishWorkflowResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PublishWorkflowResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PublishWorkflowResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -85961,6 +87995,21 @@ func (c *ClientWithResponses) UpdateReminderWithApplicationMergePatchPlusJSONBod
 	return ParseUpdateReminderResult(rsp)
 }
 
+// ListEntryStepsWithResponse The entry's status and the steps the person may take
+//
+// The workflow the entry's collection runs for its type, the entry's status, and the steps the person may take from it, each with what it asks for, what it still needs and whether its checks hold. `workflow` is null where none runs; a reader gets no steps.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /items/{itemId}/steps (the `ListEntrySteps` operationId).
+func (c *ClientWithResponses) ListEntryStepsWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ListEntryStepsResult, error) {
+	rsp, err := c.ListEntrySteps(ctx, itemId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListEntryStepsResult(rsp)
+}
+
 // ArchiveWorkItemWithResponse performs a POST /items/{itemId}:archive (the `ArchiveWorkItem` operationId) request.
 //
 // Archives the entry: it is kept and becomes read-only. Distinct from the trash, which is a deletion with a retention period running against it - an archived entry stays until somebody says otherwise. Nothing below it is archived with it: an entry's children are entries in their own right, unlike the collections of a hub. Idempotent - archiving an archived entry succeeds and changes nothing.
@@ -86236,6 +88285,36 @@ func (c *ClientWithResponses) RetainItemWithResponse(ctx context.Context, itemId
 		return nil, err
 	}
 	return ParseRetainItemResult(rsp)
+}
+
+// TakeStepWithBodyWithResponse Move an entry on by one step
+//
+// Takes a step of the workflow the entry's collection runs for its type - by `step`, or the first step to `to_status` the person may take. Refused with `workflows.step_not_offered`, `workflows.step_not_allowed`, or `workflows.step_refused` naming each empty required field and each failing check in `fields`. Into a done status it completes the entry, out of one it reopens it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}:step (the `TakeStep` operationId).
+func (c *ClientWithResponses) TakeStepWithBodyWithResponse(ctx context.Context, itemId ItemId, params *TakeStepParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TakeStepResult, error) {
+	rsp, err := c.TakeStepWithBody(ctx, itemId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTakeStepResult(rsp)
+}
+
+// TakeStepWithResponse Move an entry on by one step
+//
+// Takes a step of the workflow the entry's collection runs for its type - by `step`, or the first step to `to_status` the person may take. Refused with `workflows.step_not_offered`, `workflows.step_not_allowed`, or `workflows.step_refused` naming each empty required field and each failing check in `fields`. Into a done status it completes the entry, out of one it reopens it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}:step (the `TakeStep` operationId).
+func (c *ClientWithResponses) TakeStepWithResponse(ctx context.Context, itemId ItemId, params *TakeStepParams, body TakeStepJSONRequestBody, reqEditors ...RequestEditorFn) (*TakeStepResult, error) {
+	rsp, err := c.TakeStep(ctx, itemId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTakeStepResult(rsp)
 }
 
 // AiSuggestFieldsWithBodyWithResponse Ask AI to propose this entry's fields
@@ -89400,6 +91479,246 @@ func (c *ClientWithResponses) TryVoiceSentenceWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseTryVoiceSentenceResult(rsp)
+}
+
+// SetWorkflowSchemeWithBodyWithResponse Use a workflow in a hub or collection
+//
+// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /workflow-scheme (the `SetWorkflowScheme` operationId).
+func (c *ClientWithResponses) SetWorkflowSchemeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetWorkflowSchemeResult, error) {
+	rsp, err := c.SetWorkflowSchemeWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetWorkflowSchemeResult(rsp)
+}
+
+// SetWorkflowSchemeWithResponse Use a workflow in a hub or collection
+//
+// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /workflow-scheme (the `SetWorkflowScheme` operationId).
+func (c *ClientWithResponses) SetWorkflowSchemeWithResponse(ctx context.Context, body SetWorkflowSchemeJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkflowSchemeResult, error) {
+	rsp, err := c.SetWorkflowScheme(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetWorkflowSchemeResult(rsp)
+}
+
+// PreviewWorkflowSchemeWithBodyWithResponse Show what using a workflow would do
+//
+// Answers, changing nothing, which status every existing entry would get - by collection, type and status - and the board's columns.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workflow-scheme:preview (the `PreviewWorkflowScheme` operationId).
+func (c *ClientWithResponses) PreviewWorkflowSchemeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PreviewWorkflowSchemeResult, error) {
+	rsp, err := c.PreviewWorkflowSchemeWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePreviewWorkflowSchemeResult(rsp)
+}
+
+// PreviewWorkflowSchemeWithResponse Show what using a workflow would do
+//
+// Answers, changing nothing, which status every existing entry would get - by collection, type and status - and the board's columns.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workflow-scheme:preview (the `PreviewWorkflowScheme` operationId).
+func (c *ClientWithResponses) PreviewWorkflowSchemeWithResponse(ctx context.Context, body PreviewWorkflowSchemeJSONRequestBody, reqEditors ...RequestEditorFn) (*PreviewWorkflowSchemeResult, error) {
+	rsp, err := c.PreviewWorkflowScheme(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePreviewWorkflowSchemeResult(rsp)
+}
+
+// ListWorkflowsWithResponse List the workflows and the scheme
+//
+// The workspace's workflows - the shipped one, keyed `default`, and its own - each with the shape in force and any draft, and the scheme: which hub or collection runs which workflow for which type. Any member may read them; a board draws its columns from them.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /workflows (the `ListWorkflows` operationId).
+func (c *ClientWithResponses) ListWorkflowsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListWorkflowsResult, error) {
+	rsp, err := c.ListWorkflows(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListWorkflowsResult(rsp)
+}
+
+// CreateWorkflowWithBodyWithResponse Add a workflow
+//
+// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workflows (the `CreateWorkflow` operationId).
+func (c *ClientWithResponses) CreateWorkflowWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateWorkflowResult, error) {
+	rsp, err := c.CreateWorkflowWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateWorkflowResult(rsp)
+}
+
+// CreateWorkflowWithResponse Add a workflow
+//
+// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workflows (the `CreateWorkflow` operationId).
+func (c *ClientWithResponses) CreateWorkflowWithResponse(ctx context.Context, body CreateWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateWorkflowResult, error) {
+	rsp, err := c.CreateWorkflow(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateWorkflowResult(rsp)
+}
+
+// DeleteWorkflowWithResponse Delete an unused workflow
+//
+// Deletes a workflow of the workspace's own that no hub or collection uses; one in use is refused with `workflows.in_use`, the shipped one with `workflows.system_kept`.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /workflows/{key} (the `DeleteWorkflow` operationId).
+func (c *ClientWithResponses) DeleteWorkflowWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*DeleteWorkflowResult, error) {
+	rsp, err := c.DeleteWorkflow(ctx, key, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteWorkflowResult(rsp)
+}
+
+// SaveWorkflowDraftWithBodyWithResponse Save a draft, rename, or discard the draft
+//
+// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /workflows/{key} (the `SaveWorkflowDraft` operationId).
+func (c *ClientWithResponses) SaveWorkflowDraftWithBodyWithResponse(ctx context.Context, key string, params *SaveWorkflowDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SaveWorkflowDraftResult, error) {
+	rsp, err := c.SaveWorkflowDraftWithBody(ctx, key, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSaveWorkflowDraftResult(rsp)
+}
+
+// SaveWorkflowDraftWithResponse Save a draft, rename, or discard the draft
+//
+// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /workflows/{key} (the `SaveWorkflowDraft` operationId).
+func (c *ClientWithResponses) SaveWorkflowDraftWithResponse(ctx context.Context, key string, params *SaveWorkflowDraftParams, body SaveWorkflowDraftJSONRequestBody, reqEditors ...RequestEditorFn) (*SaveWorkflowDraftResult, error) {
+	rsp, err := c.SaveWorkflowDraft(ctx, key, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSaveWorkflowDraftResult(rsp)
+}
+
+// TryWorkflowStepWithBodyWithResponse Try a step against an entry
+//
+// Judges a step - of the draft where `draft` is true and there is one - against an entry, without taking it: whether the person may take it, which required fields are empty, and each check's outcome.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workflows/{key}/steps/{step}:try (the `TryWorkflowStep` operationId).
+func (c *ClientWithResponses) TryWorkflowStepWithBodyWithResponse(ctx context.Context, key string, step string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TryWorkflowStepResult, error) {
+	rsp, err := c.TryWorkflowStepWithBody(ctx, key, step, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTryWorkflowStepResult(rsp)
+}
+
+// TryWorkflowStepWithResponse Try a step against an entry
+//
+// Judges a step - of the draft where `draft` is true and there is one - against an entry, without taking it: whether the person may take it, which required fields are empty, and each check's outcome.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workflows/{key}/steps/{step}:try (the `TryWorkflowStep` operationId).
+func (c *ClientWithResponses) TryWorkflowStepWithResponse(ctx context.Context, key string, step string, body TryWorkflowStepJSONRequestBody, reqEditors ...RequestEditorFn) (*TryWorkflowStepResult, error) {
+	rsp, err := c.TryWorkflowStep(ctx, key, step, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTryWorkflowStepResult(rsp)
+}
+
+// PreviewWorkflowPublishWithBodyWithResponse Show what publishing the draft would do
+//
+// Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workflows/{key}:preview-publish (the `PreviewWorkflowPublish` operationId).
+func (c *ClientWithResponses) PreviewWorkflowPublishWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PreviewWorkflowPublishResult, error) {
+	rsp, err := c.PreviewWorkflowPublishWithBody(ctx, key, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePreviewWorkflowPublishResult(rsp)
+}
+
+// PreviewWorkflowPublishWithResponse Show what publishing the draft would do
+//
+// Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workflows/{key}:preview-publish (the `PreviewWorkflowPublish` operationId).
+func (c *ClientWithResponses) PreviewWorkflowPublishWithResponse(ctx context.Context, key string, body PreviewWorkflowPublishJSONRequestBody, reqEditors ...RequestEditorFn) (*PreviewWorkflowPublishResult, error) {
+	rsp, err := c.PreviewWorkflowPublish(ctx, key, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePreviewWorkflowPublishResult(rsp)
+}
+
+// PublishWorkflowWithBodyWithResponse Publish the draft
+//
+// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workflows/{key}:publish (the `PublishWorkflow` operationId).
+func (c *ClientWithResponses) PublishWorkflowWithBodyWithResponse(ctx context.Context, key string, params *PublishWorkflowParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishWorkflowResult, error) {
+	rsp, err := c.PublishWorkflowWithBody(ctx, key, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePublishWorkflowResult(rsp)
+}
+
+// PublishWorkflowWithResponse Publish the draft
+//
+// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workflows/{key}:publish (the `PublishWorkflow` operationId).
+func (c *ClientWithResponses) PublishWorkflowWithResponse(ctx context.Context, key string, params *PublishWorkflowParams, body PublishWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishWorkflowResult, error) {
+	rsp, err := c.PublishWorkflow(ctx, key, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePublishWorkflowResult(rsp)
 }
 
 // ParseGetOwnAccountResult parses an HTTP response from a GetOwnAccountWithResponse call
@@ -98823,6 +101142,39 @@ func ParseUpdateReminderResult(rsp *http.Response) (*UpdateReminderResult, error
 	return response, nil
 }
 
+// ParseListEntryStepsResult parses an HTTP response from a ListEntryStepsWithResponse call
+func ParseListEntryStepsResult(rsp *http.Response) (*ListEntryStepsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListEntryStepsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EntrySteps
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseArchiveWorkItemResult parses an HTTP response from a ArchiveWorkItemWithResponse call
 func ParseArchiveWorkItemResult(rsp *http.Response) (*ArchiveWorkItemResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -99417,6 +101769,52 @@ func ParseRetainItemResult(rsp *http.Response) (*RetainItemResult, error) {
 		}
 		response.ApplicationproblemJSON404 = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseTakeStepResult parses an HTTP response from a TakeStepWithResponse call
+func ParseTakeStepResult(rsp *http.Response) (*TakeStepResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &TakeStepResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkItem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers TakeStepResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
 	}
 
 	return response, nil
@@ -103871,6 +106269,338 @@ func ParseTryVoiceSentenceResult(rsp *http.Response) (*TryVoiceSentenceResult, e
 		}
 		response.ApplicationproblemJSON4XX = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseSetWorkflowSchemeResult parses an HTTP response from a SetWorkflowSchemeWithResponse call
+func ParseSetWorkflowSchemeResult(rsp *http.Response) (*SetWorkflowSchemeResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetWorkflowSchemeResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkflowSchemeResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePreviewWorkflowSchemeResult parses an HTTP response from a PreviewWorkflowSchemeWithResponse call
+func ParsePreviewWorkflowSchemeResult(rsp *http.Response) (*PreviewWorkflowSchemeResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PreviewWorkflowSchemeResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkflowPreview
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListWorkflowsResult parses an HTTP response from a ListWorkflowsWithResponse call
+func ParseListWorkflowsResult(rsp *http.Response) (*ListWorkflowsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListWorkflowsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkflowList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateWorkflowResult parses an HTTP response from a CreateWorkflowWithResponse call
+func ParseCreateWorkflowResult(rsp *http.Response) (*CreateWorkflowResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateWorkflowResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Workflow
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 201:
+		var headers CreateWorkflowResult201Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers201 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseDeleteWorkflowResult parses an HTTP response from a DeleteWorkflowWithResponse call
+func ParseDeleteWorkflowResult(rsp *http.Response) (*DeleteWorkflowResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteWorkflowResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSaveWorkflowDraftResult parses an HTTP response from a SaveWorkflowDraftWithResponse call
+func ParseSaveWorkflowDraftResult(rsp *http.Response) (*SaveWorkflowDraftResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SaveWorkflowDraftResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Workflow
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers SaveWorkflowDraftResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseTryWorkflowStepResult parses an HTTP response from a TryWorkflowStepWithResponse call
+func ParseTryWorkflowStepResult(rsp *http.Response) (*TryWorkflowStepResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &TryWorkflowStepResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StepVerdict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePreviewWorkflowPublishResult parses an HTTP response from a PreviewWorkflowPublishWithResponse call
+func ParsePreviewWorkflowPublishResult(rsp *http.Response) (*PreviewWorkflowPublishResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PreviewWorkflowPublishResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkflowPreview
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePublishWorkflowResult parses an HTTP response from a PublishWorkflowWithResponse call
+func ParsePublishWorkflowResult(rsp *http.Response) (*PublishWorkflowResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PublishWorkflowResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Workflow
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers PublishWorkflowResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
 	}
 
 	return response, nil

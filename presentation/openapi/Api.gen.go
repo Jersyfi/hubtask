@@ -5871,6 +5871,57 @@ func (e WebhookSubscriptionUpdateState) Valid() bool {
 	}
 }
 
+// Defines values for WorkflowStatusCategory.
+const (
+	WorkflowStatusCategoryBACKLOG    WorkflowStatusCategory = "BACKLOG"
+	WorkflowStatusCategoryDONE       WorkflowStatusCategory = "DONE"
+	WorkflowStatusCategoryINPROGRESS WorkflowStatusCategory = "IN_PROGRESS"
+	WorkflowStatusCategoryTODO       WorkflowStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the WorkflowStatusCategory enum.
+func (e WorkflowStatusCategory) Valid() bool {
+	switch e {
+	case WorkflowStatusCategoryBACKLOG:
+		return true
+	case WorkflowStatusCategoryDONE:
+		return true
+	case WorkflowStatusCategoryINPROGRESS:
+		return true
+	case WorkflowStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkflowStepWhoRoles.
+const (
+	WorkflowStepWhoRolesADMIN       WorkflowStepWhoRoles = "ADMIN"
+	WorkflowStepWhoRolesCONTRIBUTOR WorkflowStepWhoRoles = "CONTRIBUTOR"
+	WorkflowStepWhoRolesGUEST       WorkflowStepWhoRoles = "GUEST"
+	WorkflowStepWhoRolesMEMBER      WorkflowStepWhoRoles = "MEMBER"
+	WorkflowStepWhoRolesOWNER       WorkflowStepWhoRoles = "OWNER"
+)
+
+// Valid indicates whether the value is a known member of the WorkflowStepWhoRoles enum.
+func (e WorkflowStepWhoRoles) Valid() bool {
+	switch e {
+	case WorkflowStepWhoRolesADMIN:
+		return true
+	case WorkflowStepWhoRolesCONTRIBUTOR:
+		return true
+	case WorkflowStepWhoRolesGUEST:
+		return true
+	case WorkflowStepWhoRolesMEMBER:
+		return true
+	case WorkflowStepWhoRolesOWNER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for WorkspaceDefaultWeekStart.
 const (
 	WorkspaceDefaultWeekStartLessThannil WorkspaceDefaultWeekStart = "<nil>"
@@ -8468,6 +8519,13 @@ type EntryLinksBacklinksSourceKind string
 
 // EntryLinksLinksWaits Which end waits for the other, by the link's type.
 type EntryLinksLinksWaits string
+
+// EntrySteps defines model for EntrySteps.
+type EntrySteps struct {
+	Status   *string       `json:"status"`
+	Steps    []StepVerdict `json:"steps"`
+	Workflow *string       `json:"workflow"`
+}
 
 // EntryType A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries.
 type EntryType struct {
@@ -12772,6 +12830,34 @@ type StepUpRequest struct {
 	State *string `json:"state,omitempty"`
 }
 
+// StepVerdict defines model for StepVerdict.
+type StepVerdict struct {
+	// Allowed Whether the person may take it.
+	Allowed bool     `json:"allowed"`
+	Asks    []string `json:"asks"`
+	Checks  []struct {
+		Holds   bool    `json:"holds"`
+		Key     string  `json:"key"`
+		Message *string `json:"message,omitempty"`
+	} `json:"checks"`
+
+	// From On a try: the status it was judged from.
+	From *string `json:"from,omitempty"`
+
+	// Holds Whether it may be taken now.
+	Holds bool   `json:"holds"`
+	Key   string `json:"key"`
+
+	// LeavesFrom On a try: whether it leaves that status.
+	LeavesFrom *bool `json:"leaves_from,omitempty"`
+
+	// Missing Required fields still empty.
+	Missing  []string `json:"missing"`
+	Name     *string  `json:"name"`
+	Requires []string `json:"requires"`
+	To       string   `json:"to"`
+}
+
 // StructureChange A change of a hub's or collection's own structure. Applied in this order: the preset, the settings, the resets.
 type StructureChange struct {
 	// Narrowing What happens to the entries the change hides by their level; absent is `HIDE`. `HIDE` keeps them where they are, stored and marked hidden, and switching back shows them again. `FLATTEN` moves each of them, deepest first, to the top level of its collection as an entry of the top level's type, puts a label named after its former parent's title on it (a label of the collection, created where none has that name), and records the move in its history; switching back does not undo it. For a hub, it applies to every collection that follows it.
@@ -13896,7 +13982,10 @@ type WorkItem struct {
 	// Retention Set for as long as a retention rule applies to this object.
 	Retention *RetentionState `json:"retention,omitempty"`
 	StartAt   *time.Time      `json:"start_at,omitempty"`
-	Title     string          `json:"title"`
+
+	// Status The key of the entry's status in the workflow its collection runs for its type (`GET /workflows`); null where none runs. Moved by a step (`POST /items/{itemId}:step`); in a workflow collection completion follows its category.
+	Status *string `json:"status,omitempty"`
+	Title  string  `json:"title"`
 
 	// Type Extensible; /meta/capabilities returns the valid values.
 	Type      ItemType   `json:"type"`
@@ -13968,6 +14057,155 @@ type WorkItemUpdate struct {
 	StartAt     *time.Time `json:"start_at,omitempty"`
 	Title       *string    `json:"title,omitempty"`
 }
+
+// Workflow How a workspace's work moves - statuses in categories and the steps between them.
+type Workflow struct {
+	Draft *WorkflowShape `json:"draft"`
+
+	// EntriesMoved On a publish: how many entries it moved.
+	EntriesMoved *int          `json:"entries_moved,omitempty"`
+	Key          string        `json:"key"`
+	Name         *string       `json:"name"`
+	Published    WorkflowShape `json:"published"`
+	PublishedAt  *time.Time    `json:"published_at"`
+
+	// System The shipped workflow, keyed default; never deleted.
+	System  bool `json:"system"`
+	Version int  `json:"version"`
+}
+
+// WorkflowCreate defines model for WorkflowCreate.
+type WorkflowCreate struct {
+	Key   string        `json:"key"`
+	Name  string        `json:"name"`
+	Shape WorkflowShape `json:"shape"`
+}
+
+// WorkflowDraft defines model for WorkflowDraft.
+type WorkflowDraft struct {
+	// Discard True discards the draft.
+	Discard *bool          `json:"discard,omitempty"`
+	Name    *string        `json:"name,omitempty"`
+	Shape   *WorkflowShape `json:"shape,omitempty"`
+}
+
+// WorkflowList defines model for WorkflowList.
+type WorkflowList struct {
+	Data   []Workflow `json:"data"`
+	Scheme []struct {
+		ContainerId openapi_types.UUID `json:"container_id"`
+
+		// EntryType Null for every type.
+		EntryType *string `json:"entry_type"`
+		Workflow  string  `json:"workflow"`
+	} `json:"scheme"`
+}
+
+// WorkflowPreview defines model for WorkflowPreview.
+type WorkflowPreview struct {
+	ColumnsAfter  []string `json:"columns_after"`
+	ColumnsBefore []string `json:"columns_before"`
+
+	// Entries How many entries move.
+	Entries int `json:"entries"`
+	Moves   []struct {
+		CollectionId openapi_types.UUID `json:"collection_id"`
+		Completed    bool               `json:"completed"`
+		Count        int                `json:"count"`
+		EntryType    string             `json:"entry_type"`
+		From         *string            `json:"from"`
+		To           *string            `json:"to"`
+	} `json:"moves"`
+	Removed []struct {
+		Count  int    `json:"count"`
+		Status string `json:"status"`
+	} `json:"removed"`
+}
+
+// WorkflowPublish defines model for WorkflowPublish.
+type WorkflowPublish struct {
+	// Mapping Per removed status, the status its entries move to.
+	Mapping *map[string]string `json:"mapping,omitempty"`
+}
+
+// WorkflowSchemeChange defines model for WorkflowSchemeChange.
+type WorkflowSchemeChange struct {
+	// Confirm True once the person has seen the preview.
+	Confirm     *bool              `json:"confirm,omitempty"`
+	ContainerId openapi_types.UUID `json:"container_id"`
+
+	// EntryType The type the row is for; left out for every type.
+	EntryType *string `json:"entry_type,omitempty"`
+
+	// Workflow The workflow's key; left out removes the row.
+	Workflow *string `json:"workflow,omitempty"`
+}
+
+// WorkflowSchemeResult defines model for WorkflowSchemeResult.
+type WorkflowSchemeResult struct {
+	ContainerId  openapi_types.UUID `json:"container_id"`
+	EntriesMoved int                `json:"entries_moved"`
+	EntryType    *string            `json:"entry_type"`
+	Workflow     *string            `json:"workflow"`
+}
+
+// WorkflowShape defines model for WorkflowShape.
+type WorkflowShape struct {
+	// Initial The open status a new entry starts in; the first open one when left out.
+	Initial  *string          `json:"initial,omitempty"`
+	Statuses []WorkflowStatus `json:"statuses"`
+	Steps    []WorkflowStep   `json:"steps"`
+}
+
+// WorkflowStatus defines model for WorkflowStatus.
+type WorkflowStatus struct {
+	// Category An entry in a DONE status is completed.
+	Category WorkflowStatusCategory `json:"category"`
+
+	// ColorToken One of the label colour tokens, never a colour value.
+	ColorToken string `json:"color_token"`
+	Key        string `json:"key"`
+
+	// Name Null on a status of the shipped workflow nobody named; a client shows its own word.
+	Name *string `json:"name"`
+}
+
+// WorkflowStatusCategory An entry in a DONE status is completed.
+type WorkflowStatusCategory string
+
+// WorkflowStep defines model for WorkflowStep.
+type WorkflowStep struct {
+	// Asks Fields a client asks for when the step is taken.
+	Asks   *[]string `json:"asks,omitempty"`
+	Checks *[]struct {
+		// Holds CEL that must hold.
+		Holds string `json:"holds"`
+		Key   string `json:"key"`
+
+		// Message The workspace's own words for the refusal.
+		Message *string `json:"message,omitempty"`
+	} `json:"checks,omitempty"`
+
+	// From The statuses it leaves from; empty is any status but its target.
+	From *[]string `json:"from,omitempty"`
+	Key  string    `json:"key"`
+	Name *string   `json:"name,omitempty"`
+
+	// Requires Fields that must hold a value: `due_date`, `custom_fields.<key>`.
+	Requires *[]string `json:"requires,omitempty"`
+	To       string    `json:"to"`
+	Who      *struct {
+		// Condition CEL over the entry and the actor.
+		Condition *string `json:"condition,omitempty"`
+
+		// PersonFields `assignee`, `created_by` or `custom_fields.<key>` of a person field.
+		PersonFields *[]string               `json:"person_fields,omitempty"`
+		Roles        *[]WorkflowStepWhoRoles `json:"roles,omitempty"`
+	} `json:"who,omitempty"`
+}
+
+// WorkflowStepWhoRoles defines model for WorkflowStep.Who.Roles.
+type WorkflowStepWhoRoles string
 
 // Workspace A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on.
 type Workspace struct {
@@ -15243,6 +15481,18 @@ type RestoreWorkItemParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// TakeStepJSONBody defines parameters for TakeStep.
+type TakeStepJSONBody struct {
+	Step     *string `json:"step,omitempty"`
+	ToStatus *string `json:"to_status,omitempty"`
+}
+
+// TakeStepParams defines parameters for TakeStep.
+type TakeStepParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // UnarchiveWorkItemParams defines parameters for UnarchiveWorkItem.
 type UnarchiveWorkItemParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -15672,6 +15922,24 @@ type SaveVoiceSettingsParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// SaveWorkflowDraftParams defines parameters for SaveWorkflowDraft.
+type SaveWorkflowDraftParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// TryWorkflowStepJSONBody defines parameters for TryWorkflowStep.
+type TryWorkflowStepJSONBody struct {
+	Draft  *bool              `json:"draft,omitempty"`
+	ItemId openapi_types.UUID `json:"item_id"`
+}
+
+// PublishWorkflowParams defines parameters for PublishWorkflow.
+type PublishWorkflowParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody defines body for UpdateOwnAccount for application/merge-patch+json ContentType.
 type UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody = OwnAccountUpdate
 
@@ -16074,6 +16342,9 @@ type MoveWorkItemJSONRequestBody MoveWorkItemJSONBody
 // ReorderWorkItemJSONRequestBody defines body for ReorderWorkItem for application/json ContentType.
 type ReorderWorkItemJSONRequestBody ReorderWorkItemJSONBody
 
+// TakeStepJSONRequestBody defines body for TakeStep for application/json ContentType.
+type TakeStepJSONRequestBody TakeStepJSONBody
+
 // AiSuggestFieldsJSONRequestBody defines body for AiSuggestFields for application/json ContentType.
 type AiSuggestFieldsJSONRequestBody = AiFieldsAsk
 
@@ -16250,6 +16521,27 @@ type SaveVoiceSettingsJSONRequestBody = VoiceSettings
 
 // TryVoiceSentenceJSONRequestBody defines body for TryVoiceSentence for application/json ContentType.
 type TryVoiceSentenceJSONRequestBody = VoiceTry
+
+// SetWorkflowSchemeJSONRequestBody defines body for SetWorkflowScheme for application/json ContentType.
+type SetWorkflowSchemeJSONRequestBody = WorkflowSchemeChange
+
+// PreviewWorkflowSchemeJSONRequestBody defines body for PreviewWorkflowScheme for application/json ContentType.
+type PreviewWorkflowSchemeJSONRequestBody = WorkflowSchemeChange
+
+// CreateWorkflowJSONRequestBody defines body for CreateWorkflow for application/json ContentType.
+type CreateWorkflowJSONRequestBody = WorkflowCreate
+
+// SaveWorkflowDraftJSONRequestBody defines body for SaveWorkflowDraft for application/json ContentType.
+type SaveWorkflowDraftJSONRequestBody = WorkflowDraft
+
+// TryWorkflowStepJSONRequestBody defines body for TryWorkflowStep for application/json ContentType.
+type TryWorkflowStepJSONRequestBody TryWorkflowStepJSONBody
+
+// PreviewWorkflowPublishJSONRequestBody defines body for PreviewWorkflowPublish for application/json ContentType.
+type PreviewWorkflowPublishJSONRequestBody = WorkflowPublish
+
+// PublishWorkflowJSONRequestBody defines body for PublishWorkflow for application/json ContentType.
+type PublishWorkflowJSONRequestBody = WorkflowPublish
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -17054,6 +17346,9 @@ type ServerInterface interface {
 
 	// (PATCH /items/{itemId}/reminders/{reminderId})
 	UpdateReminder(w http.ResponseWriter, r *http.Request, itemId ItemId, reminderId ReminderId, params UpdateReminderParams)
+	// ListEntrySteps The entry's status and the steps the person may take
+	// (GET /items/{itemId}/steps)
+	ListEntrySteps(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
 	// (POST /items/{itemId}:archive)
 	ArchiveWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params ArchiveWorkItemParams)
@@ -17096,6 +17391,9 @@ type ServerInterface interface {
 	// RetainItem Take an object out of the running retention period
 	// (POST /items/{itemId}:retain)
 	RetainItem(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID)
+	// TakeStep Move an entry on by one step
+	// (POST /items/{itemId}:step)
+	TakeStep(w http.ResponseWriter, r *http.Request, itemId ItemId, params TakeStepParams)
 	// AiSuggestFields Ask AI to propose this entry's fields
 	// (POST /items/{itemId}:suggest-fields)
 	AiSuggestFields(w http.ResponseWriter, r *http.Request, itemId ItemId)
@@ -17477,6 +17775,33 @@ type ServerInterface interface {
 	// TryVoiceSentence What a spoken sentence would do
 	// (POST /voice:try)
 	TryVoiceSentence(w http.ResponseWriter, r *http.Request)
+	// SetWorkflowScheme Use a workflow in a hub or collection
+	// (PUT /workflow-scheme)
+	SetWorkflowScheme(w http.ResponseWriter, r *http.Request)
+	// PreviewWorkflowScheme Show what using a workflow would do
+	// (POST /workflow-scheme:preview)
+	PreviewWorkflowScheme(w http.ResponseWriter, r *http.Request)
+	// ListWorkflows List the workflows and the scheme
+	// (GET /workflows)
+	ListWorkflows(w http.ResponseWriter, r *http.Request)
+	// CreateWorkflow Add a workflow
+	// (POST /workflows)
+	CreateWorkflow(w http.ResponseWriter, r *http.Request)
+	// DeleteWorkflow Delete an unused workflow
+	// (DELETE /workflows/{key})
+	DeleteWorkflow(w http.ResponseWriter, r *http.Request, key string)
+	// SaveWorkflowDraft Save a draft, rename, or discard the draft
+	// (PATCH /workflows/{key})
+	SaveWorkflowDraft(w http.ResponseWriter, r *http.Request, key string, params SaveWorkflowDraftParams)
+	// TryWorkflowStep Try a step against an entry
+	// (POST /workflows/{key}/steps/{step}:try)
+	TryWorkflowStep(w http.ResponseWriter, r *http.Request, key string, step string)
+	// PreviewWorkflowPublish Show what publishing the draft would do
+	// (POST /workflows/{key}:preview-publish)
+	PreviewWorkflowPublish(w http.ResponseWriter, r *http.Request, key string)
+	// PublishWorkflow Publish the draft
+	// (POST /workflows/{key}:publish)
+	PublishWorkflow(w http.ResponseWriter, r *http.Request, key string, params PublishWorkflowParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -26663,6 +26988,32 @@ func (siw *ServerInterfaceWrapper) UpdateReminder(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// ListEntrySteps operation middleware
+func (siw *ServerInterfaceWrapper) ListEntrySteps(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEntrySteps(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ArchiveWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) ArchiveWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -27320,6 +27671,56 @@ func (siw *ServerInterfaceWrapper) RetainItem(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RetainItem(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TakeStep operation middleware
+func (siw *ServerInterfaceWrapper) TakeStep(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params TakeStepParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TakeStep(w, r, itemId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -31497,6 +31898,249 @@ func (siw *ServerInterfaceWrapper) TryVoiceSentence(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// SetWorkflowScheme operation middleware
+func (siw *ServerInterfaceWrapper) SetWorkflowScheme(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetWorkflowScheme(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PreviewWorkflowScheme operation middleware
+func (siw *ServerInterfaceWrapper) PreviewWorkflowScheme(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewWorkflowScheme(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListWorkflows operation middleware
+func (siw *ServerInterfaceWrapper) ListWorkflows(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWorkflows(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateWorkflow operation middleware
+func (siw *ServerInterfaceWrapper) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateWorkflow(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteWorkflow operation middleware
+func (siw *ServerInterfaceWrapper) DeleteWorkflow(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteWorkflow(w, r, key)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SaveWorkflowDraft operation middleware
+func (siw *ServerInterfaceWrapper) SaveWorkflowDraft(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SaveWorkflowDraftParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SaveWorkflowDraft(w, r, key, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TryWorkflowStep operation middleware
+func (siw *ServerInterfaceWrapper) TryWorkflowStep(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "step" -------------
+	var step string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "step", r.PathValue("step"), &step, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "step", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TryWorkflowStep(w, r, key, step)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PreviewWorkflowPublish operation middleware
+func (siw *ServerInterfaceWrapper) PreviewWorkflowPublish(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewWorkflowPublish(w, r, key)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PublishWorkflow operation middleware
+func (siw *ServerInterfaceWrapper) PublishWorkflow(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PublishWorkflowParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PublishWorkflow(w, r, key, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -31923,6 +32567,17 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/entry-types/{key}", wrapper.ChangeEntryType)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/entry-types/{key}/form", wrapper.SetEntryTypeForm)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/entry-types/{key}/form:evaluate", wrapper.EvaluateEntryForm)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workflows", wrapper.ListWorkflows)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflows", wrapper.CreateWorkflow)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/workflows/{key}", wrapper.DeleteWorkflow)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/workflows/{key}", wrapper.SaveWorkflowDraft)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflows/{key}:preview-publish", wrapper.PreviewWorkflowPublish)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflows/{key}:publish", wrapper.PublishWorkflow)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflows/{key}/steps/{step}:try", wrapper.TryWorkflowStep)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/workflow-scheme", wrapper.SetWorkflowScheme)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflow-scheme:preview", wrapper.PreviewWorkflowScheme)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/steps", wrapper.ListEntrySteps)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:step", wrapper.TakeStep)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/entry-type", wrapper.SetItemEntryType)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/link-types", wrapper.ListLinkTypes)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/link-types", wrapper.CreateLinkType)

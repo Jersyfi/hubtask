@@ -1716,7 +1716,9 @@ func (pending) SetEntryTypeForm(w http.ResponseWriter, r *http.Request, _ string
 	notAvailable(w, r)
 }
 
-func (pending) EvaluateEntryForm(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+func (pending) EvaluateEntryForm(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
 
 func (pending) SetItemEntryType(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.SetItemEntryTypeParams) {
 	notAvailable(w, r)
@@ -1747,3 +1749,27 @@ func (pending) UnlinkEntries(w http.ResponseWriter, r *http.Request, _ openapi_t
 func (pending) ListLinksAmong(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) ResolveReferences(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ListWorkflows(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
+func (pending) CreateWorkflow(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) SaveWorkflowDraft(w http.ResponseWriter, r *http.Request, _ string, _ openapi.SaveWorkflowDraftParams) {
+	notAvailable(w, r)
+}
+func (pending) DeleteWorkflow(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+func (pending) PreviewWorkflowPublish(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+func (pending) PublishWorkflow(w http.ResponseWriter, r *http.Request, _ string, _ openapi.PublishWorkflowParams) {
+	notAvailable(w, r)
+}
+func (pending) TryWorkflowStep(w http.ResponseWriter, r *http.Request, _ string, _ string) {
+	notAvailable(w, r)
+}
+func (pending) SetWorkflowScheme(w http.ResponseWriter, r *http.Request)     { notAvailable(w, r) }
+func (pending) PreviewWorkflowScheme(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) ListEntrySteps(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+func (pending) TakeStep(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.TakeStepParams) {
+	notAvailable(w, r)
+}

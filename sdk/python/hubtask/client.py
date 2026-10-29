@@ -1327,6 +1327,50 @@ class Client:
         """Answer a type's form for a draft"""
         return self._call("POST", "/entry-types/{key}/form:evaluate", {"key": key}, None, {}, body, "json", "application/json", "json")
 
+    def list_workflows(self) -> "WorkflowList":
+        """List the workflows and the scheme"""
+        return self._call("GET", "/workflows", {}, None, {}, None, "none", None, "json")
+
+    def create_workflow(self, body: "WorkflowCreate") -> "Workflow":
+        """Add a workflow"""
+        return self._call("POST", "/workflows", {}, None, {}, body, "json", "application/json", "json")
+
+    def save_workflow_draft(self, key: str, body: "WorkflowDraft", *, if_match: str | None = None) -> "Workflow":
+        """Save a draft, rename, or discard the draft"""
+        return self._call("PATCH", "/workflows/{key}", {"key": key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_workflow(self, key: str) -> None:
+        """Delete an unused workflow"""
+        return self._call("DELETE", "/workflows/{key}", {"key": key}, None, {}, None, "none", None, "void")
+
+    def preview_workflow_publish(self, key: str, body: "WorkflowPublish") -> "WorkflowPreview":
+        """Show what publishing the draft would do"""
+        return self._call("POST", "/workflows/{key}:preview-publish", {"key": key}, None, {}, body, "json", "application/json", "json")
+
+    def publish_workflow(self, key: str, body: "WorkflowPublish", *, if_match: str | None = None) -> "Workflow":
+        """Publish the draft"""
+        return self._call("POST", "/workflows/{key}:publish", {"key": key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def try_workflow_step(self, key: str, step: str, body: dict[str, Any]) -> "StepVerdict":
+        """Try a step against an entry"""
+        return self._call("POST", "/workflows/{key}/steps/{step}:try", {"key": key, "step": step}, None, {}, body, "json", "application/json", "json")
+
+    def set_workflow_scheme(self, body: "WorkflowSchemeChange") -> "WorkflowSchemeResult":
+        """Use a workflow in a hub or collection"""
+        return self._call("PUT", "/workflow-scheme", {}, None, {}, body, "json", "application/json", "json")
+
+    def preview_workflow_scheme(self, body: "WorkflowSchemeChange") -> "WorkflowPreview":
+        """Show what using a workflow would do"""
+        return self._call("POST", "/workflow-scheme:preview", {}, None, {}, body, "json", "application/json", "json")
+
+    def list_entry_steps(self, item_id: str) -> "EntrySteps":
+        """The entry's status and the steps the person may take"""
+        return self._call("GET", "/items/{itemId}/steps", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def take_step(self, item_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "WorkItem":
+        """Move an entry on by one step"""
+        return self._call("POST", "/items/{itemId}:step", {"itemId": item_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
     def set_item_entry_type(self, item_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "WorkItem":
         """Change an entry's type"""
         return self._call("PUT", "/items/{itemId}/entry-type", {"itemId": item_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")

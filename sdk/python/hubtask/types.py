@@ -1224,6 +1224,94 @@ class ReferenceTarget(TypedDict, total=False):
     due_at: str | None
     layout: str
 
+class WorkflowStatus(TypedDict, total=False):
+    key: Required[str]
+    name: Required[str | None]
+    category: Required[Literal["BACKLOG", "TODO", "IN_PROGRESS", "DONE"]]
+    color_token: Required[str]
+
+WorkflowStep = TypedDict("WorkflowStep", {
+    "key": Required[str],
+    "name": str | None,
+    "from": list[str],
+    "to": Required[str],
+    "who": dict[str, Any],
+    "requires": list[str],
+    "asks": list[str],
+    "checks": list[dict[str, Any]],
+}, total=False)
+
+class WorkflowShape(TypedDict, total=False):
+    statuses: Required[list["WorkflowStatus"]]
+    initial: str
+    steps: Required[list["WorkflowStep"]]
+
+class Workflow(TypedDict, total=False):
+    """How a workspace's work moves - statuses in categories and the steps between them."""
+    key: Required[str]
+    system: Required[bool]
+    name: Required[str | None]
+    published: Required["WorkflowShape"]
+    draft: Required["WorkflowShape" | Any]
+    published_at: Required[str | None]
+    version: Required[int]
+    entries_moved: int
+
+class WorkflowList(TypedDict, total=False):
+    data: Required[list["Workflow"]]
+    scheme: Required[list[dict[str, Any]]]
+
+class WorkflowCreate(TypedDict, total=False):
+    key: Required[str]
+    name: Required[str]
+    shape: Required["WorkflowShape"]
+
+class WorkflowDraft(TypedDict, total=False):
+    name: str
+    shape: "WorkflowShape"
+    discard: bool
+
+class WorkflowPublish(TypedDict, total=False):
+    mapping: dict[str, Any]
+
+class WorkflowPreview(TypedDict, total=False):
+    moves: Required[list[dict[str, Any]]]
+    entries: Required[int]
+    removed: Required[list[dict[str, Any]]]
+    columns_before: Required[list[str]]
+    columns_after: Required[list[str]]
+
+class WorkflowSchemeChange(TypedDict, total=False):
+    container_id: Required[str]
+    entry_type: str
+    workflow: str
+    confirm: bool
+
+class WorkflowSchemeResult(TypedDict, total=False):
+    container_id: Required[str]
+    entry_type: Required[str | None]
+    workflow: Required[str | None]
+    entries_moved: Required[int]
+
+StepVerdict = TypedDict("StepVerdict", {
+    "key": Required[str],
+    "name": Required[str | None],
+    "to": Required[str],
+    "requires": Required[list[str]],
+    "asks": Required[list[str]],
+    "allowed": Required[bool],
+    "missing": Required[list[str]],
+    "checks": Required[list[dict[str, Any]]],
+    "holds": Required[bool],
+    "from": str,
+    "leaves_from": bool,
+}, total=False)
+
+class EntrySteps(TypedDict, total=False):
+    workflow: Required[str | None]
+    status: Required[str | None]
+    steps: Required[list["StepVerdict"]]
+
 class EntryType(TypedDict, total=False):
     """A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries."""
     key: Required[str]
@@ -2597,6 +2685,7 @@ class WorkItem(TypedDict, total=False):
     id: Required[str]
     type: Required["ItemType"]
     entry_type: str
+    status: str | None
     collection_id: Required[str]
     parent_id: str | None
     path: str

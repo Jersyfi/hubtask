@@ -11410,6 +11410,479 @@
         }
       }
     },
+    "/workflows": {
+      "get": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "listWorkflows",
+        "summary": "List the workflows and the scheme",
+        "description": "The workspace's workflows - the shipped one, keyed `default`, and its own - each with the shape in force and any draft, and the scheme: which hub or collection runs which workflow for which type. Any member may read them; a board draws its columns from them.\n",
+        "responses": {
+          "200": {
+            "description": "The workflows and the scheme",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "createWorkflow",
+        "summary": "Add a workflow",
+        "description": "Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The workflow",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workflow"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/workflows/{key}": {
+      "parameters": [
+        {
+          "name": "key",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "saveWorkflowDraft",
+        "summary": "Save a draft, rename, or discard the draft",
+        "description": "Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowDraft"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The workflow",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workflow"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "deleteWorkflow",
+        "summary": "Delete an unused workflow",
+        "description": "Deletes a workflow of the workspace's own that no hub or collection uses; one in use is refused with `workflows.in_use`, the shipped one with `workflows.system_kept`.\n",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/workflows/{key}:preview-publish": {
+      "parameters": [
+        {
+          "name": "key",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "previewWorkflowPublish",
+        "summary": "Show what publishing the draft would do",
+        "description": "Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after.\n",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowPublish"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What publishing would do",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowPreview"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/workflows/{key}:publish": {
+      "parameters": [
+        {
+          "name": "key",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "publishWorkflow",
+        "summary": "Publish the draft",
+        "description": "Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowPublish"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The workflow as it now is in force",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workflow"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/workflows/{key}/steps/{step}:try": {
+      "parameters": [
+        {
+          "name": "key",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          }
+        },
+        {
+          "name": "step",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "tryWorkflowStep",
+        "summary": "Try a step against an entry",
+        "description": "Judges a step - of the draft where `draft` is true and there is one - against an entry, without taking it: whether the person may take it, which required fields are empty, and each check's outcome.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "item_id"
+                ],
+                "properties": {
+                  "item_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "draft": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "How the step stands",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepVerdict"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/workflow-scheme": {
+      "put": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "setWorkflowScheme",
+        "summary": "Use a workflow in a hub or collection",
+        "description": "Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowSchemeChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The row as it now is, with how many entries moved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowSchemeResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/workflow-scheme:preview": {
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "previewWorkflowScheme",
+        "summary": "Show what using a workflow would do",
+        "description": "Answers, changing nothing, which status every existing entry would get - by collection, type and status - and the board's columns.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowSchemeChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What the change would do",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowPreview"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/items/{itemId}/steps": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ItemId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "items"
+        ],
+        "operationId": "listEntrySteps",
+        "summary": "The entry's status and the steps the person may take",
+        "description": "The workflow the entry's collection runs for its type, the entry's status, and the steps the person may take from it, each with what it asks for, what it still needs and whether its checks hold. `workflow` is null where none runs; a reader gets no steps.\n",
+        "responses": {
+          "200": {
+            "description": "The steps",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntrySteps"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/items/{itemId}:step": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ItemId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "items"
+        ],
+        "operationId": "takeStep",
+        "summary": "Move an entry on by one step",
+        "description": "Takes a step of the workflow the entry's collection runs for its type - by `step`, or the first step to `to_status` the person may take. Refused with `workflows.step_not_offered`, `workflows.step_not_allowed`, or `workflows.step_refused` naming each empty required field and each failing check in `fields`. Into a done status it completes the entry, out of one it reopens it.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "step": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,49}$"
+                  },
+                  "to_status": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,49}$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The entry as it now stands",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkItem"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/items/{itemId}/entry-type": {
       "parameters": [
         {
@@ -21643,6 +22116,578 @@
           }
         }
       },
+      "WorkflowStatus": {
+        "type": "object",
+        "required": [
+          "key",
+          "name",
+          "category",
+          "color_token"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120,
+            "description": "Null on a status of the shipped workflow nobody named; a client shows its own word."
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "BACKLOG",
+              "TODO",
+              "IN_PROGRESS",
+              "DONE"
+            ],
+            "description": "An entry in a DONE status is completed."
+          },
+          "color_token": {
+            "type": "string",
+            "description": "One of the label colour tokens, never a colour value."
+          }
+        }
+      },
+      "WorkflowStep": {
+        "type": "object",
+        "required": [
+          "key",
+          "to"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "from": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The statuses it leaves from; empty is any status but its target."
+          },
+          "to": {
+            "type": "string"
+          },
+          "who": {
+            "type": "object",
+            "properties": {
+              "roles": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "OWNER",
+                    "ADMIN",
+                    "MEMBER",
+                    "CONTRIBUTOR",
+                    "GUEST"
+                  ]
+                }
+              },
+              "person_fields": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "`assignee`, `created_by` or `custom_fields.<key>` of a person field."
+              },
+              "condition": {
+                "type": "string",
+                "maxLength": 4096,
+                "description": "CEL over the entry and the actor."
+              }
+            }
+          },
+          "requires": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Fields that must hold a value: `due_date`, `custom_fields.<key>`."
+          },
+          "asks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Fields a client asks for when the step is taken."
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "key",
+                "holds"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,49}$"
+                },
+                "holds": {
+                  "type": "string",
+                  "maxLength": 4096,
+                  "description": "CEL that must hold."
+                },
+                "message": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 500,
+                  "description": "The workspace's own words for the refusal."
+                }
+              }
+            }
+          }
+        }
+      },
+      "WorkflowShape": {
+        "type": "object",
+        "required": [
+          "statuses",
+          "steps"
+        ],
+        "properties": {
+          "statuses": {
+            "type": "array",
+            "maxItems": 30,
+            "items": {
+              "$ref": "#/components/schemas/WorkflowStatus"
+            }
+          },
+          "initial": {
+            "type": "string",
+            "description": "The open status a new entry starts in; the first open one when left out."
+          },
+          "steps": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/WorkflowStep"
+            }
+          }
+        }
+      },
+      "Workflow": {
+        "type": "object",
+        "description": "How a workspace's work moves - statuses in categories and the steps between them.",
+        "required": [
+          "key",
+          "system",
+          "name",
+          "published",
+          "draft",
+          "published_at",
+          "version"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          },
+          "system": {
+            "type": "boolean",
+            "description": "The shipped workflow, keyed default; never deleted."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "published": {
+            "$ref": "#/components/schemas/WorkflowShape"
+          },
+          "draft": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WorkflowShape"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "entries_moved": {
+            "type": "integer",
+            "description": "On a publish: how many entries it moved."
+          }
+        }
+      },
+      "WorkflowList": {
+        "type": "object",
+        "required": [
+          "data",
+          "scheme"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Workflow"
+            }
+          },
+          "scheme": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "container_id",
+                "entry_type",
+                "workflow"
+              ],
+              "properties": {
+                "container_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "entry_type": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Null for every type."
+                },
+                "workflow": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "WorkflowCreate": {
+        "type": "object",
+        "required": [
+          "key",
+          "name",
+          "shape"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "shape": {
+            "$ref": "#/components/schemas/WorkflowShape"
+          }
+        }
+      },
+      "WorkflowDraft": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "shape": {
+            "$ref": "#/components/schemas/WorkflowShape"
+          },
+          "discard": {
+            "type": "boolean",
+            "description": "True discards the draft."
+          }
+        }
+      },
+      "WorkflowPublish": {
+        "type": "object",
+        "properties": {
+          "mapping": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Per removed status, the status its entries move to."
+          }
+        }
+      },
+      "WorkflowPreview": {
+        "type": "object",
+        "required": [
+          "moves",
+          "entries",
+          "removed",
+          "columns_before",
+          "columns_after"
+        ],
+        "properties": {
+          "moves": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "collection_id",
+                "entry_type",
+                "from",
+                "to",
+                "completed",
+                "count"
+              ],
+              "properties": {
+                "collection_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "entry_type": {
+                  "type": "string"
+                },
+                "from": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "to": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "completed": {
+                  "type": "boolean"
+                },
+                "count": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "entries": {
+            "type": "integer",
+            "description": "How many entries move."
+          },
+          "removed": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "status",
+                "count"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "columns_before": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "columns_after": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "WorkflowSchemeChange": {
+        "type": "object",
+        "required": [
+          "container_id"
+        ],
+        "properties": {
+          "container_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "entry_type": {
+            "type": "string",
+            "description": "The type the row is for; left out for every type."
+          },
+          "workflow": {
+            "type": "string",
+            "description": "The workflow's key; left out removes the row."
+          },
+          "confirm": {
+            "type": "boolean",
+            "description": "True once the person has seen the preview."
+          }
+        }
+      },
+      "WorkflowSchemeResult": {
+        "type": "object",
+        "required": [
+          "container_id",
+          "entry_type",
+          "workflow",
+          "entries_moved"
+        ],
+        "properties": {
+          "container_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "entry_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workflow": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "entries_moved": {
+            "type": "integer"
+          }
+        }
+      },
+      "StepVerdict": {
+        "type": "object",
+        "required": [
+          "key",
+          "name",
+          "to",
+          "requires",
+          "asks",
+          "allowed",
+          "missing",
+          "checks",
+          "holds"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "to": {
+            "type": "string"
+          },
+          "requires": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "asks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "allowed": {
+            "type": "boolean",
+            "description": "Whether the person may take it."
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Required fields still empty."
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "key",
+                "holds"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "holds": {
+                  "type": "boolean"
+                },
+                "message": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "holds": {
+            "type": "boolean",
+            "description": "Whether it may be taken now."
+          },
+          "from": {
+            "type": "string",
+            "description": "On a try: the status it was judged from."
+          },
+          "leaves_from": {
+            "type": "boolean",
+            "description": "On a try: whether it leaves that status."
+          }
+        }
+      },
+      "EntrySteps": {
+        "type": "object",
+        "required": [
+          "workflow",
+          "status",
+          "steps"
+        ],
+        "properties": {
+          "workflow": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StepVerdict"
+            }
+          }
+        }
+      },
       "EntryType": {
         "type": "object",
         "description": "A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries.\n",
@@ -28488,6 +29533,13 @@
           "entry_type": {
             "type": "string",
             "description": "The key of the entry's type (`GET /entry-types`); its level's own - `task`, `work_package`, `activity` - where it has none of the workspace's.\n"
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The key of the entry's status in the workflow its collection runs for its type (`GET /workflows`); null where none runs. Moved by a step (`POST /items/{itemId}:step`); in a workflow collection completion follows its category.\n"
           },
           "collection_id": {
             "type": "string",
