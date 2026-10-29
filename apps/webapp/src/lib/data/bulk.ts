@@ -24,13 +24,17 @@
 
 import type { BulkOperation, BulkResult } from '@hubtask/sync-engine';
 
-/** The nine the contract's enum declares, in the order a bar offers them. */
+/**
+ * The contract's operations a bar offers, in that order: all but RESTORE_ITEM, which is the trash's
+ * *Undo* rather than a choice.
+ */
 export const BULK_OPERATIONS = [
   'COMPLETE_ITEM',
   'REOPEN_ITEM',
   'ADD_LABEL',
   'REMOVE_LABEL',
   'ASSIGN',
+  'TAKE_STEP',
   'MOVE_ITEM',
   'UPDATE_ITEM',
   'CREATE_ITEM',

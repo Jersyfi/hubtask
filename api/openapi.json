@@ -30397,7 +30397,7 @@
         "properties": {
           "op": {
             "type": "string",
-            "description": "The operation. Each one is the same operation the route of the same name performs - CREATE_ITEM is POST /items, MOVE_ITEM is POST /items/{itemId}:move, ADD_LABEL is PUT /items/{itemId}/labels/{labelId}, and so on - so what a bulk may do is what a caller may do one entry at a time, never more.\n",
+            "description": "The operation. Each one is the same operation the route of the same name performs - CREATE_ITEM is POST /items, MOVE_ITEM is POST /items/{itemId}:move, ADD_LABEL is PUT /items/{itemId}/labels/{labelId}, and so on - so what a bulk may do is what a caller may do one entry at a time, never more. TAKE_STEP is POST /items/{itemId}:step, so each entry moves through its own workflow's rules.\n",
             "enum": [
               "CREATE_ITEM",
               "UPDATE_ITEM",
@@ -30408,7 +30408,8 @@
               "RESTORE_ITEM",
               "ADD_LABEL",
               "REMOVE_LABEL",
-              "ASSIGN"
+              "ASSIGN",
+              "TAKE_STEP"
             ]
           },
           "item_id": {

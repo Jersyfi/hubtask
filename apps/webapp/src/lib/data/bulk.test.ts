@@ -19,11 +19,11 @@ import {
 
 const result = (over: Partial<BulkResult>): BulkResult => ({ index: 0, status: 200, ...over }) as BulkResult;
 
-test('the nine are the contract’s nine', () => {
-  assert.equal(BULK_OPERATIONS.length, 9);
+test('the bar offers the contract’s operations but the restore', () => {
+  assert.equal(BULK_OPERATIONS.length, 10);
   assert.deepEqual(
     [...BULK_OPERATIONS].sort(),
-    ['ADD_LABEL', 'ASSIGN', 'COMPLETE_ITEM', 'CREATE_ITEM', 'MOVE_ITEM', 'REMOVE_LABEL', 'REOPEN_ITEM', 'TRASH_ITEM', 'UPDATE_ITEM'],
+    ['ADD_LABEL', 'ASSIGN', 'COMPLETE_ITEM', 'CREATE_ITEM', 'MOVE_ITEM', 'REMOVE_LABEL', 'REOPEN_ITEM', 'TAKE_STEP', 'TRASH_ITEM', 'UPDATE_ITEM'],
   );
   // The one with no entry yet.
   assert.equal(needsItem('CREATE_ITEM'), false);

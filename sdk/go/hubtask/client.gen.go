@@ -1240,6 +1240,7 @@ const (
 	REMOVELABEL  BulkOperationOp = "REMOVE_LABEL"
 	REOPENITEM   BulkOperationOp = "REOPEN_ITEM"
 	RESTOREITEM  BulkOperationOp = "RESTORE_ITEM"
+	TAKESTEP     BulkOperationOp = "TAKE_STEP"
 	TRASHITEM    BulkOperationOp = "TRASH_ITEM"
 	UPDATEITEM   BulkOperationOp = "UPDATE_ITEM"
 )
@@ -1262,6 +1263,8 @@ func (e BulkOperationOp) Valid() bool {
 	case REOPENITEM:
 		return true
 	case RESTOREITEM:
+		return true
+	case TAKESTEP:
 		return true
 	case TRASHITEM:
 		return true
@@ -7487,14 +7490,14 @@ type BulkOperation struct {
 	// ItemId The entry the operation is about. Required by every operation except CREATE_ITEM, which has no entry yet.
 	ItemId *openapi_types.UUID `json:"item_id,omitempty"`
 
-	// Op The operation. Each one is the same operation the route of the same name performs - CREATE_ITEM is POST /items, MOVE_ITEM is POST /items/{itemId}:move, ADD_LABEL is PUT /items/{itemId}/labels/{labelId}, and so on - so what a bulk may do is what a caller may do one entry at a time, never more.
+	// Op The operation. Each one is the same operation the route of the same name performs - CREATE_ITEM is POST /items, MOVE_ITEM is POST /items/{itemId}:move, ADD_LABEL is PUT /items/{itemId}/labels/{labelId}, and so on - so what a bulk may do is what a caller may do one entry at a time, never more. TAKE_STEP is POST /items/{itemId}:step, so each entry moves through its own workflow's rules.
 	Op BulkOperationOp `json:"op"`
 
 	// Payload What the single-entry operation takes in its body, by the field names it takes there. A field the operation does not know is refused by name rather than ignored.
 	Payload *map[string]interface{} `json:"payload,omitempty"`
 }
 
-// BulkOperationOp The operation. Each one is the same operation the route of the same name performs - CREATE_ITEM is POST /items, MOVE_ITEM is POST /items/{itemId}:move, ADD_LABEL is PUT /items/{itemId}/labels/{labelId}, and so on - so what a bulk may do is what a caller may do one entry at a time, never more.
+// BulkOperationOp The operation. Each one is the same operation the route of the same name performs - CREATE_ITEM is POST /items, MOVE_ITEM is POST /items/{itemId}:move, ADD_LABEL is PUT /items/{itemId}/labels/{labelId}, and so on - so what a bulk may do is what a caller may do one entry at a time, never more. TAKE_STEP is POST /items/{itemId}:step, so each entry moves through its own workflow's rules.
 type BulkOperationOp string
 
 // BulkResult What one operation of a bulk did. Exactly one of `item` and `problem` is present, except for an operation that never ran because an atomic bulk was rolled back - which carries neither and says so by its status.
