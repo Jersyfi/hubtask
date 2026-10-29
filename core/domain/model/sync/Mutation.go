@@ -21,11 +21,24 @@ const (
 	SetRemove  MutationKind = "SET_REMOVE"
 	Move       MutationKind = "MOVE"
 	CommentAdd MutationKind = "COMMENT_ADD"
+	// EntityUpsert, EntityPatch and EntityDelete are about an entity of the workspace's vocabulary
+	// rather than an entry, each under the merge rule its entity declares (Entity.Rule).
+	EntityUpsert MutationKind = "ENTITY_UPSERT"
+	EntityPatch  MutationKind = "ENTITY_PATCH"
+	EntityDelete MutationKind = "ENTITY_DELETE"
 )
 
 // MutationKinds is the closed set, in the contract's order.
 func MutationKinds() []MutationKind {
-	return []MutationKind{ItemCreate, ItemPatch, ItemDelete, SetAdd, SetRemove, Move, CommentAdd}
+	return []MutationKind{
+		ItemCreate, ItemPatch, ItemDelete, SetAdd, SetRemove, Move, CommentAdd,
+		EntityUpsert, EntityPatch, EntityDelete,
+	}
+}
+
+// OnEntity reports whether the kind names an entity rather than an entry.
+func (k MutationKind) OnEntity() bool {
+	return k == EntityUpsert || k == EntityPatch || k == EntityDelete
 }
 
 // Valid reports whether the kind is one the contract names.
