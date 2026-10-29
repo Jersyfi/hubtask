@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 const contract = `
@@ -182,5 +184,34 @@ func TestAStepUpOperationPassesTheProof(t *testing.T) {
 	}
 	if len(doors) != 1 || !doors[0].StepUp || !doors[0].IfMatch {
 		t.Fatalf("the doors are %+v", doors)
+	}
+}
+
+// An answer that is allOf another schema holds that schema's members: a detail's version is the
+// record's, and the ETag is drawn from it.
+func TestAComposedAnswerHoldsItsPartsMembers(t *testing.T) {
+	var doc document
+	if err := yaml.Unmarshal([]byte(`
+components:
+  schemas:
+    Group:
+      type: object
+      properties:
+        version: { type: integer }
+    GroupDetail:
+      allOf:
+        - $ref: "#/components/schemas/Group"
+        - type: object
+          properties:
+            members: { type: array, items: { type: string } }
+`), &doc); err != nil {
+		t.Fatal(err)
+	}
+	detail := doc.composed(schema{Ref: "#/components/schemas/GroupDetail"})
+	if _, held := detail.Properties["version"]; !held || detail.Type != "object" {
+		t.Errorf("composed %+v", detail)
+	}
+	if _, held := detail.Properties["members"]; !held {
+		t.Errorf("the detail's own members are missing: %+v", detail)
 	}
 }

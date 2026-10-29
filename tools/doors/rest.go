@@ -218,7 +218,7 @@ func restDoor(
 		}
 		fmt.Sscan(status, &door.Status)
 		if content, ok := response.Content["application/json"]; ok {
-			answer := doc.resolve(content.Schema)
+			answer := doc.composed(content.Schema)
 			door.AnswerRows = answer.Type == "array"
 			_, paged := answer.Properties["page"]
 			if data, listed := answer.Properties["data"]; listed && paged && data.Type == "array" && door.AnswerBy != "" {

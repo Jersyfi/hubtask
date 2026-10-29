@@ -82,6 +82,7 @@ type schema struct {
 	Properties  map[string]schema `yaml:"properties"`
 	Items       *schema           `yaml:"items"`
 	ReadOnly    bool              `yaml:"readOnly"`
+	AllOf       []schema          `yaml:"allOf"`
 }
 
 // typeName is a schema's type; OpenAPI 3.1 also writes it as a list, `[string, "null"]`, of
@@ -349,6 +350,29 @@ func (doc document) resolve(s schema) schema {
 		s = doc.Components.Schemas[strings.TrimPrefix(s.Ref, "#/components/schemas/")]
 	}
 	return s
+}
+
+// composed resolves a schema and folds the members of everything it is allOf into its own: an
+// answer such as a group's detail is the group and more, and its version is the group's.
+func (doc document) composed(s schema) schema {
+	s = doc.resolve(s)
+	if len(s.AllOf) == 0 {
+		return s
+	}
+	merged := s
+	merged.Properties = map[string]schema{}
+	for _, part := range s.AllOf {
+		for name, property := range doc.composed(part).Properties {
+			merged.Properties[name] = property
+		}
+	}
+	for name, property := range s.Properties {
+		merged.Properties[name] = property
+	}
+	if merged.Type == "" {
+		merged.Type = "object"
+	}
+	return merged
 }
 
 // kind is how a value is read from the command line: string, uuid, integer, number, boolean,
