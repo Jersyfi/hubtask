@@ -270,6 +270,7 @@ export type WhiteboardExportRequest = components['schemas']['WhiteboardExportReq
 export type WhiteboardVersion = components['schemas']['WhiteboardVersion'];
 export type WhiteboardVersionRead = components['schemas']['WhiteboardVersionRead'];
 export type WhiteboardVersionList = components['schemas']['WhiteboardVersionList'];
+export type WhiteboardBacklinkList = components['schemas']['WhiteboardBacklinkList'];
 /** A link between two entries, an entry's links from both sides with its backlinks, and a view's links. */
 export type EntryLink = components['schemas']['EntryLink'];
 export type EntryLinkCreate = components['schemas']['EntryLinkCreate'];

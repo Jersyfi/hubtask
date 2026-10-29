@@ -147,6 +147,7 @@ export type {
   WhiteboardVersion,
   WhiteboardVersionRead,
   WhiteboardVersionList,
+  WhiteboardBacklinkList,
   EntryLink,
   EntryLinkCreate,
   EntryLinkList,

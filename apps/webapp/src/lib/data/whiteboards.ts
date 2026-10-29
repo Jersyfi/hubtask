@@ -92,3 +92,10 @@ export function clockOf(ms: number): string {
   const seconds = Math.ceil(Math.max(0, ms) / 1000);
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
+
+/** Where a backlink of a board leads: its page, its entry or the other board. */
+export function backlinkHref(link: { page_id: string | null; entry_id: string | null; whiteboard_id: string | null }): string {
+  if (link.page_id) return `/pages/${link.page_id}`;
+  if (link.whiteboard_id) return `/whiteboards/${link.whiteboard_id}`;
+  return `/items/${link.entry_id}`;
+}

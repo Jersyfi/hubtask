@@ -23,7 +23,7 @@
   import { tokens } from '@hubtask/design-system';
   import { Button, Checkbox, Dialog, IconButton, Inline, Input, Select, Stack, Textarea } from '@hubtask/design-system/components';
   import { LiveDocument, type LiveSocket, type LiveStatus } from '@hubtask/editor';
-  import type { ReferenceTarget, WhiteboardRead, WhiteboardVersion, WorkItem } from '@hubtask/sync-engine';
+  import type { ReferenceTarget, WhiteboardBacklinkList, WhiteboardRead, WhiteboardVersion, WorkItem } from '@hubtask/sync-engine';
   import {
     Board, DEFAULT_SIZE, Doc, Facilitation, PEN_WIDTH, ROUTES, SHAPES, TEMPLATES, align, bounds, box, connectorPath, copy, culled,
     elementId, fit, fromMinimap, hit, labelPoint, lines, linkHost, minimap, outlinePath, paste, pdfOfJpeg, readCopied, snap, strokePath,
@@ -40,7 +40,7 @@
   import { items } from '../data/items.svelte.ts';
   import { resolveRequest } from '../data/links.svelte.ts';
   import {
-    BOARD_COLOURS, boardFileName, cardEntries, clockOf, entryOfNote, notesInFrame, peerColour, pictureColours, voterKey, whiteboards,
+    BOARD_COLOURS, backlinkHref, boardFileName, cardEntries, clockOf, entryOfNote, notesInFrame, peerColour, pictureColours, voterKey, whiteboards,
   } from '../data/whiteboards.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
@@ -793,6 +793,18 @@
     }
   }
 
+  // --- What points at the board (UC-CNV-07) ------------------------------------------------------
+
+  let backlinks = $state<WhiteboardBacklinkList['data'] | undefined>(undefined);
+
+  async function openBacklinks() {
+    try {
+      backlinks = await whiteboards.backlinks(board.id);
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    }
+  }
+
   // --- The minimap ---------------------------------------------------------------------------------
 
   const map = $derived(isMapShown ? minimap(elements, view, MAP) : undefined);
@@ -1209,6 +1221,24 @@
               <li class="quiet">{t('app.whiteboards.history_empty')}</li>
             {/each}
           </ol>
+        {/if}
+      </Stack>
+
+      <Stack gap="050">
+        <h3 class="heading">{t('app.whiteboards.backlinks')}</h3>
+        {#if !backlinks}
+          <Button size="sm" tone="subtle" icon="link" onclick={() => void openBacklinks()}>{t('app.whiteboards.backlinks_show')}</Button>
+        {:else}
+          <ul class="choices" aria-label={t('app.whiteboards.backlinks')}>
+            {#each backlinks as link (link.source_kind + link.source_id)}
+              <li>
+                <a href={backlinkHref(link)}>{link.title}</a>
+                <span class="quiet">{t(`app.whiteboards.backlink.${link.source_kind}`)} · {t(`app.whiteboards.strength.${link.strength}`)}</span>
+              </li>
+            {:else}
+              <li class="quiet">{t('app.whiteboards.no_backlinks')}</li>
+            {/each}
+          </ul>
         {/if}
       </Stack>
 

@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { boardFileName, cardEntries, clockOf, entryOfNote, liveBoardPath, notesInFrame, peerColour, pictureColours, readNative, voterKey } from './whiteboards.ts';
+import { backlinkHref, boardFileName, cardEntries, clockOf, entryOfNote, liveBoardPath, notesInFrame, peerColour, pictureColours, readNative, voterKey } from './whiteboards.ts';
 
 test('a board lives at its own live document', () => {
   assert.equal(liveBoardPath('b1'), '/realtime/documents/whiteboard/b1');
@@ -55,4 +55,10 @@ test('a sticky note becomes an entry of the type chosen, its words the title (UC
   assert.deepEqual(entryOfNote('c1', '  Book the room ', { key: 'bug', system: false }), { type: 'TASK', collection_id: 'c1', title: 'Book the room', entry_type: 'bug' });
   assert.deepEqual(entryOfNote('c1', 'Book', { key: 'task', system: true }), { type: 'TASK', collection_id: 'c1', title: 'Book' });
   assert.equal(entryOfNote('c1', '   '), undefined, 'a note without words is not turned');
+});
+
+test('a backlink of a board leads to its page, its entry or the other board (UC-CNV-07 check 1)', () => {
+  assert.equal(backlinkHref({ page_id: 'p1', entry_id: null, whiteboard_id: null }), '/pages/p1');
+  assert.equal(backlinkHref({ page_id: null, entry_id: 'e1', whiteboard_id: null }), '/items/e1');
+  assert.equal(backlinkHref({ page_id: null, entry_id: null, whiteboard_id: 'b2' }), '/whiteboards/b2');
 });

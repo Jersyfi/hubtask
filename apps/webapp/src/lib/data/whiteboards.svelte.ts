@@ -12,6 +12,7 @@
 
 import type {
   Whiteboard, WhiteboardChange, WhiteboardCreate, WhiteboardExport, WhiteboardRead, WhiteboardVersionList, WhiteboardVersionRead,
+  WhiteboardBacklinkList,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
@@ -80,6 +81,13 @@ class Whiteboards {
 
   nameVersion(boardId: string, seq: number, name: string): Promise<{ seq: number; name: string | null }> {
     return engine.mutate('PATCH', `${boardPath(boardId)}/versions/${seq}`, { name }, { invalidates: [`${boardPath(boardId)}/versions`] });
+  }
+
+  /** What points at the board: pages, entries' texts and other boards, each the reader may see (UC-CNV-07). */
+  async backlinks(boardId: string): Promise<WhiteboardBacklinkList['data']> {
+    const state = await engine.refresh<WhiteboardBacklinkList>({ path: `${boardPath(boardId)}/backlinks` });
+    if (state.status === 'failed') throw state.error;
+    return state.status === 'ready' ? state.data.data : [];
   }
 
   /** The board's live document socket; the connection asks for a new one on every reconnect. */
