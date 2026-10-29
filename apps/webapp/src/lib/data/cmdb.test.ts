@@ -4,9 +4,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import type { CiAttribute, CiClass, CiRelationType, ConfigurationItem } from '@hubtask/sync-engine';
+import type { CiAlert, CiAttribute, CiClass, CiConnector, CiRelationType, ConfigurationItem } from '@hubtask/sync-engine';
 
 import {
+  alertTone, alertsPath, connectorDefine, connectorDraft, connectorMissing, connectorPath, connectorsPath, connectorTone, intakeAddress,
   changedAttributes, ciReferenceText, cisPath, classDefine, matchingCis, classDraft, keyIsWellFormed, classWord, fileColumns, fileFormat, guessMapping, impactByDepth, instantiable, inventoryByClass,
   missingRequired, outcomeTone, parseAttribute, percent, protectionRows, refinements, relationRows, relationWord, sectionOf,
   sideBySide, typeAllows,
@@ -195,4 +196,52 @@ test('the CIs offered for a mention match every word and leave the merged out', 
   assert.deepEqual(matchingCis(held, 'WEB', 8).map((each) => each.id), ['1', '2']);
   assert.deepEqual(matchingCis(held, 'web booking', 8).map((each) => each.id), ['2']);
   assert.deepEqual(matchingCis(held, '', 2).map((each) => each.id), ['2', '4']);
+});
+
+const connector = (extra: Partial<CiConnector> = {}): CiConnector => ({
+  id: 'c1', hub_id: 'h', key: 'netbox', kind: 'NETBOX', source: 'netbox', push: false, base_url: 'https://netbox.example.org',
+  settings: {}, allowed_hosts: [], hosts: ['netbox.example.org'], every_minutes: 60, enabled: true, has_credential: true, failures: 0, version: 3,
+  last_outcome: '', ...extra,
+});
+
+test('UC-AST-07 check 7: the screen lists, defines and runs the connectors of a hub at their own paths', () => {
+  assert.equal(sectionOf('connectors'), 'connectors');
+  assert.equal(connectorsPath('h'), '/hubs/h/cmdb-connectors');
+  assert.equal(connectorPath('h', 'net box'), '/hubs/h/cmdb-connectors/net%20box');
+
+  const pull = connectorDraft(connector({ settings: { stray: 'x' }, allowed_hosts: ['cdn.example.org'] }));
+  assert.deepEqual(connectorDefine(pull), {
+    kind: 'NETBOX', source: 'netbox', enabled: true, allowed_hosts: ['cdn.example.org'], base_url: 'https://netbox.example.org', every_minutes: 60,
+  });
+
+  const entra = { ...connectorDraft(), key: 'entra', kind: 'ENTRA' as const, source: 'entra', baseUrl: 'https://graph.example.org', every: 1440 };
+  assert.deepEqual(connectorMissing(entra, true), [
+    'cmdb.connector_setting_required', 'cmdb.connector_setting_required', 'cmdb.connector_setting_required',
+  ]);
+  entra.settings = { tenant: 't', client_id: 'c', authority: 'https://login.example.org', other: 'dropped' };
+  assert.deepEqual(connectorMissing(entra, true), []);
+  assert.deepEqual(connectorDefine(entra).settings, { tenant: 't', client_id: 'c', authority: 'https://login.example.org' });
+  assert.deepEqual(connectorMissing({ ...entra, key: 'Bad Key', baseUrl: 'http://graph.example.org', source: '' }, true), [
+    'cmdb.connector_key_malformed', 'app.assets.connector_source_missing', 'cmdb.connector_base_url_invalid',
+  ]);
+
+  assert.equal(connectorTone(''), 'neutral');
+  assert.equal(connectorTone('OK'), 'success');
+  assert.equal(connectorTone('EMPTY'), 'warning');
+  assert.equal(connectorTone('FAILED'), 'danger');
+});
+
+test('UC-AST-08 check 7: an intake has no address or period to send, its collection is kept, and its address is the API origin', () => {
+  const intake = { ...connectorDraft(), key: 'am', kind: 'ALERTMANAGER' as const, source: 'alertmanager', baseUrl: 'ignored', every: 60, collection: 'col' };
+  assert.deepEqual(connectorMissing(intake, true), []);
+  assert.deepEqual(connectorDefine(intake), { kind: 'ALERTMANAGER', source: 'alertmanager', enabled: true, allowed_hosts: [], every_minutes: 0, collection_id: 'col' });
+  assert.equal(intakeAddress('https://hub.example.org/', 't1', 'c1'), 'https://hub.example.org/api/v1/cmdb/alert-intake/t1/c1');
+
+  assert.equal(alertsPath('h'), '/hubs/h/ci-alerts');
+  assert.equal(alertsPath('h', 'FIRING'), '/hubs/h/ci-alerts?status=FIRING');
+  const alert = (status: CiAlert['status']): CiAlert => ({
+    id: 'a', hub_id: 'h', connector_id: 'c1', key: 'k', status, severity: 'critical', title: 'disk full', first_at: '', last_at: '', count: 2,
+  });
+  assert.equal(alertTone(alert('FIRING')), 'danger');
+  assert.equal(alertTone(alert('RESOLVED')), 'neutral');
 });

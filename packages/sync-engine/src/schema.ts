@@ -305,6 +305,12 @@ export type CiImpact = components['schemas']['CiImpact'];
 export type CiReached = components['schemas']['CiReached'];
 export type CmdbHealth = components['schemas']['CmdbHealth'];
 export type CiBacklinkList = components['schemas']['CiBacklinkList'];
+export type CiConnector = components['schemas']['CiConnector'];
+export type CiConnectorList = components['schemas']['CiConnectorList'];
+export type CiConnectorDefine = components['schemas']['CiConnectorDefine'];
+export type CiConnectorRun = components['schemas']['CiConnectorRun'];
+export type CiAlert = components['schemas']['CiAlert'];
+export type CiAlertList = components['schemas']['CiAlertList'];
 /** A link between two entries, an entry's links from both sides with its backlinks, and a view's links. */
 export type EntryLink = components['schemas']['EntryLink'];
 export type EntryLinkCreate = components['schemas']['EntryLinkCreate'];

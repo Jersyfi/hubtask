@@ -10,8 +10,8 @@
  */
 
 import type {
-  CiAttribute, CiClass, CiDecision, CiFileImport, CiOwnProtection, CiProtection, CiReached, CiRelation, CiRelationType,
-  ConfigurationItem,
+  CiAlert, CiAttribute, CiClass, CiConnector, CiConnectorDefine, CiDecision, CiFileImport, CiOwnProtection, CiProtection, CiReached,
+  CiRelation, CiRelationType, ConfigurationItem,
 } from '@hubtask/sync-engine';
 
 export const ROOT_CLASS = 'ci';
@@ -37,7 +37,7 @@ export const duplicatesPath = (hubId: string) => `/hubs/${hubId}/ci-duplicates`;
 export const healthPath = (hubId: string) => `/hubs/${hubId}/cmdb-health`;
 
 /** The sections of a hub's *Assets* screen, in their order; the first is the address's default. */
-export const ASSET_SECTIONS = ['inventory', 'runs', 'duplicates', 'import', 'health'] as const;
+export const ASSET_SECTIONS = ['inventory', 'runs', 'duplicates', 'import', 'connectors', 'alerts', 'health'] as const;
 export type AssetSection = (typeof ASSET_SECTIONS)[number];
 export const sectionOf = (name: string | undefined): AssetSection =>
   (ASSET_SECTIONS as readonly string[]).includes(name ?? '') ? (name as AssetSection) : 'inventory';
@@ -391,3 +391,107 @@ export function matchingCis(cis: readonly ConfigurationItem[], term: string, lim
     })
     .slice(0, limit);
 }
+
+export const connectorsPath = (hubId: string) => `/hubs/${hubId}/cmdb-connectors`;
+export const connectorPath = (hubId: string, key: string) => `${connectorsPath(hubId)}/${encodeURIComponent(key)}`;
+export const connectorCredentialPath = (connectorId: string) => `/cmdb-connectors/${connectorId}/credential`;
+export const connectorRunPath = (connectorId: string) => `/cmdb-connectors/${connectorId}:run`;
+export function alertsPath(hubId: string, status?: CiAlert['status']): string {
+  return `/hubs/${hubId}/ci-alerts${status ? `?status=${status}` : ''}`;
+}
+
+export type ConnectorKind = CiConnector['kind'];
+
+/**
+ * What each kind needs, as the domain's `ConnectorSpec` states it: whether it is posted to rather
+ * than pulled, and the settings it cannot run without. The server refuses a missing one by its
+ * code either way; the form asks for them so nobody types a key by hand.
+ */
+export const CONNECTOR_KINDS: readonly { readonly kind: ConnectorKind; readonly push: boolean; readonly settings: readonly string[] }[] = [
+  { kind: 'GLPI', push: false, settings: ['client_id'] },
+  { kind: 'NETBOX', push: false, settings: [] },
+  { kind: 'INTUNE', push: false, settings: ['tenant', 'client_id', 'authority'] },
+  { kind: 'ENTRA', push: false, settings: ['tenant', 'client_id', 'authority'] },
+  { kind: 'HETZNER', push: false, settings: [] },
+  { kind: 'OPENSTACK', push: false, settings: ['application_credential_id'] },
+  { kind: 'ALERTMANAGER', push: true, settings: [] },
+  { kind: 'ZABBIX', push: true, settings: [] },
+  { kind: 'CHECKMK', push: true, settings: [] },
+];
+export const kindSpec = (kind: ConnectorKind) => CONNECTOR_KINDS.find((each) => each.kind === kind) ?? { kind, push: false, settings: [] };
+
+/** The periods offered, in minutes; 0 runs only when asked. The server takes any from 15 to a week. */
+export const CONNECTOR_PERIODS = [0, 15, 60, 360, 1440, 10080] as const;
+
+export interface ConnectorDraft {
+  key: string;
+  kind: ConnectorKind;
+  source: string;
+  baseUrl: string;
+  settings: Record<string, string>;
+  /** One host per line. */
+  hosts: string;
+  every: number;
+  enabled: boolean;
+  collection: string;
+}
+
+export function connectorDraft(of?: CiConnector): ConnectorDraft {
+  return {
+    key: of?.key ?? '',
+    kind: of?.kind ?? 'NETBOX',
+    source: of?.source ?? '',
+    baseUrl: of?.base_url ?? '',
+    settings: { ...(of?.settings ?? {}) },
+    hosts: (of?.allowed_hosts ?? []).join('\n'),
+    every: of?.every_minutes ?? 0,
+    enabled: of?.enabled ?? true,
+    collection: of?.collection_id ?? '',
+  };
+}
+
+/**
+ * The body `defineCiConnector` takes: only the kind's own settings, no address or period for an
+ * intake and no collection for a pull - each of which the server would refuse.
+ */
+export function connectorDefine(draft: ConnectorDraft): CiConnectorDefine {
+  const spec = kindSpec(draft.kind);
+  const settings = Object.fromEntries(spec.settings.map((key) => [key, (draft.settings[key] ?? '').trim()]).filter(([, value]) => value));
+  return {
+    kind: draft.kind,
+    source: draft.source,
+    enabled: draft.enabled,
+    allowed_hosts: lines(draft.hosts),
+    ...(spec.settings.length ? { settings } : {}),
+    ...(spec.push
+      ? { every_minutes: 0, ...(draft.collection ? { collection_id: draft.collection } : {}) }
+      : { base_url: draft.baseUrl.trim(), every_minutes: draft.every }),
+  };
+}
+
+/** What the form still lacks, as message codes in the order they are asked; empty when it may be saved. */
+export function connectorMissing(draft: ConnectorDraft, isNew: boolean): string[] {
+  const spec = kindSpec(draft.kind);
+  const out: string[] = [];
+  if (isNew && !/^[a-z][a-z0-9_]{0,49}$/u.test(draft.key)) out.push('cmdb.connector_key_malformed');
+  if (!draft.source) out.push('app.assets.connector_source_missing');
+  if (!spec.push && !/^https:\/\/[^\s/]+/u.test(draft.baseUrl.trim())) out.push('cmdb.connector_base_url_invalid');
+  for (const key of spec.settings) if (!(draft.settings[key] ?? '').trim()) out.push('cmdb.connector_setting_required');
+  return out;
+}
+
+/** Where a monitoring program posts to an intake: the API's origin is the interface's (ADR-0028). */
+export function intakeAddress(origin: string, tenantId: string, connectorId: string): string {
+  return `${origin.replace(/\/+$/u, '')}/api/v1/cmdb/alert-intake/${tenantId}/${connectorId}`;
+}
+
+/** How a connector's last run ended, as a badge's tone; never run is neutral. */
+export function connectorTone(outcome: CiConnector['last_outcome']): 'success' | 'warning' | 'danger' | 'neutral' {
+  if (outcome === 'OK') return 'success';
+  if (outcome === 'EMPTY') return 'warning';
+  if (outcome === 'FAILED') return 'danger';
+  return 'neutral';
+}
+
+/** A firing alert is a problem; a resolved one is history. */
+export const alertTone = (alert: CiAlert): 'danger' | 'neutral' => (alert.status === 'FIRING' ? 'danger' : 'neutral');

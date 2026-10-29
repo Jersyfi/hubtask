@@ -4,15 +4,16 @@
 /**
  * A hub's configuration items: the reads the *Assets* screen asks once and the writes, so every
  * write invalidates the same set (UC-AST-01 … UC-AST-06). The lists are subscriptions at the call
- * sites. A CI is written with its version; a run, a hold or a duplicate has none to keep.
+ * sites. A CI is written with its version; a run, a hold or a duplicate has none to keep. A
+ * connector (UC-AST-07, UC-AST-08) is defined with its version and never deleted.
  */
 
 import type {
-  CiBacklinkList, CiClass, CiClassDefine, CiRelationType, CiRelationTypeDefine, CiSource, CiSourceDefine, CiCompliance, CiDuplicateResolved, CiFileImport, CiImpact, CiRelation, CiRun, ConfigurationItem, ConfigurationItemCreate,
+  CiConnector, CiConnectorDefine, CiConnectorRun, CiBacklinkList, CiClass, CiClassDefine, CiRelationType, CiRelationTypeDefine, CiSource, CiSourceDefine, CiCompliance, CiDuplicateResolved, CiFileImport, CiImpact, CiRelation, CiRun, ConfigurationItem, ConfigurationItemCreate,
   ConfigurationItemList, ConfigurationItemUpdate,
 } from '@hubtask/sync-engine';
 
-import { backlinksPath, ciPath, cisPath, classesPath, duplicatesPath, healthPath, holdsPath, impactPath, relationTypesPath, runPath, runsPath, sourcesPath } from './cmdb.ts';
+import { backlinksPath, ciPath, connectorCredentialPath, connectorPath, connectorRunPath, connectorsPath, cisPath, classesPath, duplicatesPath, healthPath, holdsPath, impactPath, relationTypesPath, runPath, runsPath, sourcesPath } from './cmdb.ts';
 import { engine } from './engine.ts';
 
 export * from './cmdb.ts';
@@ -103,6 +104,31 @@ class Cmdb {
   resolveDuplicate(hubId: string, duplicateId: string, survivorId?: string): Promise<CiDuplicateResolved> {
     return engine.mutate<CiDuplicateResolved>('POST', `/ci-duplicates/${duplicateId}:resolve`, survivorId ? { survivor_id: survivorId } : {}, {
       invalidates: reconciled(hubId),
+    });
+  }
+
+  /** A connector added under its key, or changed with the version last read. */
+  defineConnector(hubId: string, key: string, body: CiConnectorDefine, version?: number): Promise<CiConnector> {
+    return engine.mutate<CiConnector>('PUT', connectorPath(hubId, key), body, {
+      ...(version ? { ifMatch: `"${version}"` } : {}),
+      invalidates: [connectorsPath(hubId)],
+    });
+  }
+
+  /**
+   * A pull's credential set, or an intake's secret drawn; the answer carries an intake's `secret`
+   * once, so the caller shows it and keeps nothing.
+   */
+  setConnectorCredential(connector: CiConnector, credential?: string): Promise<CiConnector> {
+    return engine.mutate<CiConnector>('PUT', connectorCredentialPath(connector.id), credential ? { credential } : {}, {
+      invalidates: [connectorsPath(connector.hub_id)],
+    });
+  }
+
+  /** A pull now; a dry run wrote nothing, so it invalidates only the connector's outcome. */
+  runConnector(connector: CiConnector, options: { full?: boolean; dryRun?: boolean }): Promise<CiConnectorRun> {
+    return engine.mutate<CiConnectorRun>('POST', connectorRunPath(connector.id), { full: options.full ?? false, dry_run: options.dryRun ?? false }, {
+      invalidates: options.dryRun ? [connectorsPath(connector.hub_id)] : [connectorsPath(connector.hub_id), ...reconciled(connector.hub_id)],
     });
   }
 
