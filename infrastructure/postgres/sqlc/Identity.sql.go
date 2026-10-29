@@ -1401,6 +1401,55 @@ func (q *Queries) SetAccountAvatar(ctx context.Context, arg SetAccountAvatarPara
 	return result.RowsAffected(), nil
 }
 
+const sharedItemsAcross = `-- name: SharedItemsAcross :many
+SELECT wi.id, wi.collection_id
+FROM membership m
+JOIN work_item wi ON wi.id = m.scope_id
+WHERE m.scope_type = 'ITEM'
+  AND (
+    m.account_id = $1
+    OR m.group_id IN (
+      SELECT group_id FROM account_group_member WHERE account_id = $1
+    )
+  )
+GROUP BY wi.id, wi.collection_id
+ORDER BY wi.id
+LIMIT $2
+`
+
+type SharedItemsAcrossParams struct {
+	AccountID pgtype.UUID
+	RowLimit  int32
+}
+
+type SharedItemsAcrossRow struct {
+	ID           pgtype.UUID
+	CollectionID pgtype.UUID
+}
+
+// Every entry the account holds an ITEM membership on, directly or through a group, with its
+// collection: what a workspace summary counts where the collection itself is not read. Bounded
+// by the caller's limit, which asks one row past its bound to know it was reached.
+func (q *Queries) SharedItemsAcross(ctx context.Context, arg SharedItemsAcrossParams) ([]SharedItemsAcrossRow, error) {
+	rows, err := q.db.Query(ctx, sharedItemsAcross, arg.AccountID, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SharedItemsAcrossRow{}
+	for rows.Next() {
+		var i SharedItemsAcrossRow
+		if err := rows.Scan(&i.ID, &i.CollectionID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const sharedItemsInCollection = `-- name: SharedItemsInCollection :many
 SELECT m.scope_id
 FROM membership m

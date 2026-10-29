@@ -125,6 +125,44 @@ func (r MembershipRepository) SharedItemsIn(
 	return items, nil
 }
 
+var _ repository.SharedEntries = MembershipRepository{}
+
+// SharedAcross answers the entries shared with the account anywhere in the tenant of the running
+// transaction (row level security, ADR-0010), at most limit of them.
+func (r MembershipRepository) SharedAcross(
+	ctx context.Context, accountID shared.ID, limit int,
+) ([]repository.SharedEntry, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SharedItemsAcross(ctx, sqlc.SharedItemsAcrossParams{
+		AccountID: account, RowLimit: int32(min(max(limit, 0), 1<<20)), //nolint:gosec // bounded above
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the entries shared across the workspace: %w", err))
+	}
+	entries := make([]repository.SharedEntry, 0, len(rows))
+	for _, row := range rows {
+		item, err := optionalID(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		collection, err := optionalID(row.CollectionID)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, repository.SharedEntry{ItemID: item, CollectionID: collection})
+	}
+	return entries, nil
+}
+
 // administratorRoles are the roles the retention warning treats as administrators
 // (data-retention.md §6).
 //

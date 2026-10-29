@@ -136,6 +136,21 @@ type Memberships interface {
 	HoldsAny(ctx context.Context, accountID shared.ID) (bool, error)
 }
 
+// SharedEntry is one entry shared with an account individually, with the collection it is in.
+type SharedEntry struct {
+	ItemID       shared.ID
+	CollectionID shared.ID
+}
+
+// SharedEntries answers what was shared with an account across the workspace - the question
+// Memberships.SharedItemsIn asks of one collection, asked once for a workspace summary rather than
+// once per collection. Its own port, so that no reader of one collection has to provide it.
+type SharedEntries interface {
+	// SharedAcross answers at most limit entries, in identifier order; trashed and archived ones
+	// as they are stored, since the query that counts them applies the lifecycle.
+	SharedAcross(ctx context.Context, accountID shared.ID, limit int) ([]SharedEntry, error)
+}
+
 // HeldRoles answers every role one account holds, for the doors that issue a new way into it
 // (identity.md §13): whoever holds the account's credential holds all of them at once.
 //

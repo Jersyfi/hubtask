@@ -193,6 +193,24 @@ WHERE m.scope_type = 'ITEM'
     )
   );
 
+-- name: SharedItemsAcross :many
+-- Every entry the account holds an ITEM membership on, directly or through a group, with its
+-- collection: what a workspace summary counts where the collection itself is not read. Bounded
+-- by the caller's limit, which asks one row past its bound to know it was reached.
+SELECT wi.id, wi.collection_id
+FROM membership m
+JOIN work_item wi ON wi.id = m.scope_id
+WHERE m.scope_type = 'ITEM'
+  AND (
+    m.account_id = sqlc.arg('account_id')
+    OR m.group_id IN (
+      SELECT group_id FROM account_group_member WHERE account_id = sqlc.arg('account_id')
+    )
+  )
+GROUP BY wi.id, wi.collection_id
+ORDER BY wi.id
+LIMIT sqlc.arg('row_limit');
+
 -- ============================== Accounts ==============================
 -- The tenant is never a parameter in this file: row level security bounds every statement to the
 -- tenant of the running transaction, which is what makes an account of another tenant not found
