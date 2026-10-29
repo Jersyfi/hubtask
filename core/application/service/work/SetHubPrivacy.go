@@ -188,7 +188,8 @@ func privacyChange(cmd SetHubPrivacyCommand) containerChange {
 // Descriptor is the catalogue entry.
 func (h SetHubPrivacy) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SetHubPrivacyName,
+		Permission: service.PermissionDeleteContainer,
+		Name:       SetHubPrivacyName,
 		Summary: "Makes a hub private - reached only by people holding a role on it or below it, " +
 			"the workspace's owners and administrators included - or shared again. Marking needs " +
 			"the right to create hubs and OWNER on the hub itself; unmarking needs OWNER on the " +

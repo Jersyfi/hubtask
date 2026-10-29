@@ -561,7 +561,8 @@ func (r Restorer) record(
 // Descriptor registers starting a restore in all three channels.
 func (h StartRestore) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: StartRestoreName,
+		Permission: service.PermissionStructure,
+		Name:       StartRestoreName,
 		Summary: "Reads an archive back. A dry run by default: it reports what it would do - how " +
 			"many objects are new, overwritten, skipped and in conflict - and changes nothing. " +
 			"Six modes: INSPECT looks, SELECTIVE pulls named collections or items back, MERGE " +

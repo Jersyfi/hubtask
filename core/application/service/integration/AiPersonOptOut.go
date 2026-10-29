@@ -12,6 +12,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	privacydomain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
@@ -142,7 +143,8 @@ func (h SetAiPersonOptOut) record(ctx context.Context, actor appshared.ActorCont
 // Descriptor registers the position in every channel.
 func (h SetAiPersonOptOut) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SetAiPersonOptOutName,
+		Permission: service.PermissionStructure,
+		Name:       SetAiPersonOptOutName,
 		Summary: "Sets whether each person may keep their own content out of AI (OFFERED, the " +
 			"default) or makes AI part of everybody's work (NOT_OFFERED) on a legal basis this " +
 			"workspace names: an employment contract, a works agreement or a legal obligation. " +
