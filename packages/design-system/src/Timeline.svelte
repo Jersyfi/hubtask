@@ -258,9 +258,10 @@
       const from = bar(dependency.from);
       const to = bar(dependency.to);
       if (!from || !to) continue;
-      const x1 = (isRtl ? from.last.left : from.last.right) - box.left;
+      // A bounding box is in screen coordinates: the side is chosen by isRtl, not by the stylesheet.
+      const x1 = (isRtl ? from.last.left : from.last.right) - box.left; // design-system-lint-ignore: screen coordinates.
       const y1 = from.last.top + from.last.height / 2 - box.top;
-      const x2 = (isRtl ? to.first.right : to.first.left) - box.left;
+      const x2 = (isRtl ? to.first.right : to.first.left) - box.left; // design-system-lint-ignore: screen coordinates.
       const y2 = to.first.top + to.first.height / 2 - box.top;
       // The bend is as deep as a bar is tall, so the curve scales with the row and no length is
       // invented here.
