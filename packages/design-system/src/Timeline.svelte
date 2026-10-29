@@ -830,13 +830,15 @@
     stroke-width: var(--bw-thick);
   }
 
+  /* An arrow is a line with no surface to stand on, so its dashes say "too early" and its tint only
+     strengthens them; the danger status is drawn in the words below (design-system.md §6 rule 3). */
   .arrow[data-early] {
-    stroke: var(--status-danger-accent);
+    stroke: var(--text-primary);
     stroke-dasharray: var(--sp-050) var(--sp-025);
   }
 
   .head path { fill: var(--text-secondary); }
-  .head[data-early] path { fill: var(--status-danger-accent); }
+  .head[data-early] path { fill: var(--text-primary); }
 
   .dependencies {
     display: flex;
@@ -849,7 +851,13 @@
     font-size: var(--fs-075);
   }
 
-  .dependencies [data-early] { color: var(--text-danger); }
+  .dependencies [data-early] {
+    align-self: flex-start;
+    padding: 0 var(--sp-050);
+    border-radius: var(--r-sm);
+    background: var(--status-danger-surface);
+    color: var(--status-danger-text);
+  }
 
   .empty { margin: 0; padding: var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
 </style>
