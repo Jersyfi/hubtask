@@ -72,6 +72,24 @@
           lists them; a rollback is a plan back to a version, applied the same way.
         </p>
       </div>
+      <div class="site-card">
+        <p class="site-card-index">SCOPE</p>
+        <h3>A hub's own document</h3>
+        <p>
+          The same doors with <code>hub_id</code> read and change what a hub decides itself: its
+          modules, its structure settings and which workflow it runs for which type. The hub is
+          named by the request, never inside the document, so one hub's document fits another.
+        </p>
+      </div>
+      <div class="site-card">
+        <p class="site-card-index">SANDBOX</p>
+        <h3>Try it in a copy</h3>
+        <p>
+          <code>/config/sandbox</code> is a copy of the configuration without content where
+          nothing runs. Promoting it with <code>from_sandbox</code> plans only what it changed
+          since its copy, and applies like any other plan.
+        </p>
+      </div>
     </div>
   </div>
 </section>
@@ -91,7 +109,7 @@
       <li><strong>Read the configuration in force</strong> (<code>hubtask://config/current</code>) and its hash; a withheld section is left out.</li>
       <li><strong>Explain</strong> what is unclear, key by key.</li>
       <li><strong>Validate</strong> the smallest document that does what the person asked, and correct every refusal: each names the key path and a message code.</li>
-      <li><strong>Plan, and show the plan</strong> to the person in plain words — what is added, changed and removed, and every flag.</li>
+      <li><strong>Plan, and show the plan</strong> to the person in plain words — what is added, changed and removed, every flag, and what it reaches: entries that move status, people who gain or lose a permission.</li>
       <li><strong>Apply only what the person approved</strong>, with the plan's hash. A workspace keeps an agent's plan for a person by default: it is answered <code>PROPOSED</code> and waits under the administration's <em>Changes</em>.</li>
       <li><strong>Undo with a rollback</strong>, which is a plan like any other.</li>
     </ol>
