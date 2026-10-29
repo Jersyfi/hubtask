@@ -13,7 +13,8 @@
 
 import * as Y from 'yjs';
 
-export type ElementKind = 'STICKY' | 'SHAPE' | 'TEXT' | 'CONNECTOR' | 'FRAME' | 'CARD';
+export type ElementKind = 'STICKY' | 'SHAPE' | 'TEXT' | 'CONNECTOR' | 'FRAME' | 'CARD' | 'STROKE' | 'LINK';
+export type Pen = 'PEN' | 'HIGHLIGHTER';
 export type Shape = 'RECTANGLE' | 'ROUNDED' | 'ELLIPSE' | 'DIAMOND' | 'PARALLELOGRAM' | 'TRIANGLE';
 export type Route = 'STRAIGHT' | 'ELBOW' | 'CURVED';
 export type Head = 'NONE' | 'ARROW';
@@ -36,6 +37,13 @@ export interface Element {
   end?: Head;
   target?: { kind: 'ENTRY'; id: string };
   locked?: boolean;
+  /** A stroke's line: x and y after each other, relative to (x, y). */
+  points?: number[];
+  pen?: Pen;
+  /** A web link's address; the board draws its card and never loads it. */
+  url?: string;
+  /** The group the object belongs to: chosen, moved and copied together. */
+  group?: string | null;
 }
 
 /** The first release's hard limit of one board (`whiteboards.too_many_elements`). */
@@ -52,9 +60,11 @@ export const DEFAULT_SIZE: Record<ElementKind, { width: number; height: number }
   CONNECTOR: { width: 0, height: 0 },
   FRAME: { width: 800, height: 560 },
   CARD: { width: 260, height: 112 },
+  STROKE: { width: 0, height: 0 },
+  LINK: { width: 280, height: 72 },
 };
 
-const FIELDS = ['kind', 'x', 'y', 'width', 'height', 'text', 'color_token', 'shape', 'from', 'to', 'route', 'start', 'end', 'target', 'locked'] as const;
+const FIELDS = ['kind', 'x', 'y', 'width', 'height', 'text', 'color_token', 'shape', 'from', 'to', 'route', 'start', 'end', 'target', 'locked', 'points', 'pen', 'url', 'group'] as const;
 
 type Stored = Y.Map<unknown>;
 
@@ -107,6 +117,33 @@ export class Board {
     const stored = this.#map.get(id);
     if (!stored) return;
     this.doc.transact(() => write(stored, patch));
+  }
+
+  /** Puts several objects on top of the others in one change, in their order. */
+  addAll(elements: readonly Element[]): boolean {
+    if (this.#map.size + elements.length > MAX_ELEMENTS || elements.some((e) => this.#map.has(e.id))) return false;
+    this.doc.transact(() => {
+      let z = this.#top();
+      for (const element of elements) {
+        const stored = new Y.Map<unknown>();
+        write(stored, element);
+        stored.set('z', (z += 1));
+        this.#map.set(element.id, stored);
+      }
+    });
+    return true;
+  }
+
+  /** Puts objects into one new group, or takes them out of theirs with `null`. */
+  group(ids: readonly string[], group: string | null): void {
+    this.doc.transact(() => {
+      for (const id of ids) {
+        const stored = this.#map.get(id);
+        if (!stored || stored.get('kind') === 'CONNECTOR') continue;
+        if (group) stored.set('group', group);
+        else stored.delete('group');
+      }
+    });
   }
 
   /** Moves objects by a distance, together; a locked one stays. */
@@ -212,13 +249,15 @@ function read(id: string, stored: Stored): Element {
     width: Number(stored.get('width') ?? 0),
     height: Number(stored.get('height') ?? 0),
   };
-  for (const field of ['text', 'color_token', 'shape', 'from', 'to', 'route', 'start', 'end'] as const) {
+  for (const field of ['text', 'color_token', 'shape', 'from', 'to', 'route', 'start', 'end', 'pen', 'url', 'group'] as const) {
     const value = stored.get(field);
     if (typeof value === 'string') (element as unknown as Record<string, unknown>)[field] = value;
   }
   const target = stored.get('target') as { kind?: string; id?: string } | undefined;
   if (target && typeof target.id === 'string') element.target = { kind: 'ENTRY', id: target.id };
   if (stored.get('locked') === true) element.locked = true;
+  const points = stored.get('points');
+  if (Array.isArray(points)) element.points = points.map(Number);
   return element;
 }
 

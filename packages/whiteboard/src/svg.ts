@@ -8,6 +8,7 @@
  * card's words are what the reader sees of its entry, resolved before the export.
  */
 
+import { PEN_WIDTH, strokePath } from './draw.ts';
 import { bounds, connectorPath, labelPoint } from './geometry.ts';
 import type { Element } from './scene.ts';
 
@@ -95,6 +96,15 @@ function words(text: string, x: number, y: number, width: number, size: number, 
     .join('');
 }
 
+/** A web link's host, what its card is headed by; the address itself where it has none. */
+export function linkHost(address: string): string {
+  try {
+    return new URL(address).host || address;
+  } catch {
+    return address;
+  }
+}
+
 /** A whole SVG document of the objects given, cropped to them with a margin. */
 export function toSvg(elements: readonly Element[], options: PictureOptions): string {
   const { colours } = options;
@@ -132,6 +142,19 @@ export function toSvg(elements: readonly Element[], options: PictureOptions): st
         const head = shown ? [shown.key, shown.completed ? '✓' : ''].filter(Boolean).join(' ') : '';
         if (head) parts.push(words(head, e.x + 12, e.y + 4, e.width - 24, 12, colours.line));
         parts.push(words(shown?.title ?? options.unavailable, e.x + 12, e.y + (head ? 22 : 8), e.width - 24, 14, colours.ink));
+        break;
+      }
+      case 'STROKE': {
+        const pen = e.pen ?? 'PEN';
+        const ink = (e.color_token && colours.label(e.color_token)) || colours.ink;
+        const opacity = pen === 'HIGHLIGHTER' ? ' stroke-opacity="0.4"' : '';
+        parts.push(`<path d="${strokePath(e)}" fill="none" stroke="${ink}" stroke-width="${PEN_WIDTH[pen]}" stroke-linecap="round" stroke-linejoin="round"${opacity}/>`);
+        break;
+      }
+      case 'LINK': {
+        parts.push(`<path d="${outlinePath(e)}" fill="${colours.surface}" stroke="${colours.line}"/>`);
+        parts.push(words(linkHost(e.url ?? ''), e.x + 12, e.y + 4, e.width - 24, 14, colours.ink));
+        parts.push(words(e.url ?? '', e.x + 12, e.y + 26, e.width - 24, 11, colours.line));
         break;
       }
       default:

@@ -7,6 +7,7 @@
  * only what is in view), which object a point hits, and the viewport's pan and zoom.
  */
 
+import { touches } from './draw.ts';
 import type { Element } from './scene.ts';
 
 export interface Point { x: number; y: number }
@@ -110,6 +111,10 @@ export function hit(elements: readonly Element[], point: Point): Element | undef
   for (let i = elements.length - 1; i >= 0; i--) {
     const e = elements[i];
     if (!e || e.kind === 'CONNECTOR') continue;
+    if (e.kind === 'STROKE') {
+      if (touches(e, point, 6)) return e;
+      continue;
+    }
     const b = box(e);
     if (point.x < b.left || point.x > b.right || point.y < b.top || point.y > b.bottom) continue;
     if (e.kind !== 'FRAME') return e;
