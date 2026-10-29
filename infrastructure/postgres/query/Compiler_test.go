@@ -873,3 +873,24 @@ func TestBlockedTraversesTheWaitingLinks(t *testing.T) {
 		t.Errorf("NEQ compiled to %s", not.SQL)
 	}
 }
+
+// A search finds an entry by the name of a file attached to it (F-9), through migration 0226's
+// expression written verbatim, only for a sealed and living object, and with the words bound.
+func TestASearchReadsAttachmentNames(t *testing.T) {
+	statement, err := Search(textSearchOf("budget"), "", SearchBoundary{}, 51)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+	for _, want := range []string{
+		"FROM item_attachment ia JOIN media_object mo ON mo.tenant_id = ia.tenant_id AND mo.id = ia.media_id",
+		"mo.status = 'READY' AND mo.file_name IS NOT NULL AND mo.deleted_at IS NULL",
+		"to_tsvector('simple'::regconfig, translate(mo.file_name, '._-', '   ')) @@ websearch_to_tsquery('simple', normalize($",
+	} {
+		if !strings.Contains(statement.SQL, want) {
+			t.Errorf("the search does not read %q:\n  %s", want, statement.SQL)
+		}
+	}
+	if strings.Contains(statement.SQL, "budget") {
+		t.Fatalf("the words reached the statement's text:\n  %s", statement.SQL)
+	}
+}

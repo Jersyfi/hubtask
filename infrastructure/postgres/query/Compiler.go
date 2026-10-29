@@ -400,6 +400,8 @@ func (b *builder) wordMatch(search repository.TextSearch) {
 		b.prefixQuery(head, prefix)
 	}
 
+	b.attachedMatch(search.Request.Words)
+
 	// The supplement for the scripts a tsquery cannot serve. A run of characters without word
 	// boundaries is one token, so a query for part of it matches nothing - which is why this
 	// branch is decided by the *words*, in the domain, rather than by the entries (i18n-l10n.md
@@ -408,8 +410,6 @@ func (b *builder) wordMatch(search repository.TextSearch) {
 	// ILIKE over the expression migration 0020 indexed, so the trigram index answers it. Below
 	// three characters the index cannot narrow anything and the recheck does the work; the answer
 	// is the same, which is what matters for a query somebody typed two characters into.
-	b.attachedMatch(search.Request.Words)
-
 	if search.Request.WithoutWordBoundaries() {
 		b.write(` OR `, searchText, ` ILIKE `)
 		b.likePattern(search.Request.Words)
@@ -417,9 +417,9 @@ func (b *builder) wordMatch(search repository.TextSearch) {
 }
 
 // attachedMatch writes the branches that find an entry by what is attached to it rather than by its
-// own document (F-9): a living comment on it, or one of its text-valued custom fields. Under
-// `simple` and written as migration 0225 indexed them, since the planner matches an expression
-// index by its tree. The entry is still the hit: what the actor may see is decided for entries,
+// own document (F-9): a living comment on it, one of its text-valued custom fields, or the name of
+// a file attached to it. Under `simple` and written as migrations 0225 and 0226 indexed them, since
+// the planner matches an expression index by its tree. The entry is still the hit: what the actor may see is decided for entries,
 // and a comment is readable exactly where its entry is.
 func (b *builder) attachedMatch(words string) {
 	b.write(` OR EXISTS (SELECT 1 FROM comment cm WHERE cm.tenant_id = wi.tenant_id AND cm.item_id = wi.id`)
@@ -433,7 +433,18 @@ func (b *builder) attachedMatch(words string) {
 	b.write(` AND to_tsvector('simple'::regconfig, fv.text) @@ `)
 	b.simpleQuery(words)
 	b.write(`)`)
+	b.write(` OR EXISTS (SELECT 1 FROM item_attachment ia JOIN media_object mo`)
+	b.write(` ON mo.tenant_id = ia.tenant_id AND mo.id = ia.media_id`)
+	b.write(` WHERE ia.tenant_id = wi.tenant_id AND ia.item_id = wi.id`)
+	b.write(` AND mo.status = 'READY' AND mo.file_name IS NOT NULL AND mo.deleted_at IS NULL`)
+	b.write(` AND `, attachmentName, ` @@ `)
+	b.simpleQuery(words)
+	b.write(`)`)
 }
+
+// attachmentName is migration 0226's indexed expression, verbatim: a file's name with the dot, the
+// underscore and the hyphen read as spaces, so "budget_2026.pdf" holds the word "budget".
+const attachmentName = `to_tsvector('simple'::regconfig, translate(mo.file_name, '._-', '   '))`
 
 // attachedRank adds what an attached hit is worth, so an entry found by its comment or a text field
 // ranks by how well that matched rather than at zero beside every other such entry. The best

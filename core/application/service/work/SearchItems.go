@@ -392,7 +392,8 @@ func (h SearchItems) Descriptor() usecase.Descriptor {
 		Name:       SearchItemsName,
 		Permission: service.PermissionRead,
 		Summary: "Searches the text of tasks, work packages and activities - their titles and " +
-			"their notes - and answers them in the order they match, best first. The words are " +
+			"their notes, their comments, their text fields and the names of the files attached " +
+			"to them - and answers them in the order they match, best first. The words are " +
 			"read in a language: an entry is indexed under the language it was written in, and " +
 			"the query under the caller's, so a German search finds an inflected German word and " +
 			"an English one finds a stemmed English word. A language whose script has no word " +

@@ -604,3 +604,41 @@ func TestACommentHitIsRankedByTheComment(t *testing.T) {
 		t.Errorf("the comment hits came back as %v", titles)
 	}
 }
+
+// An entry is found by the file it carries (F-9): a word only an attachment's name holds finds the
+// entry, through the index migration 0226 built, and a removed file no longer does.
+func TestAnEntryIsFoundByItsAttachmentName(t *testing.T) {
+	ctx := context.Background()
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	word := "Anhangwort" + shortSuffix(t)
+
+	task := taskIn(tenantA, authorA, collection, freshID(t), "Plain title", "a0")
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return insertErr(itemRepo().Insert(ctx, task))
+	}); err != nil {
+		t.Fatalf("seeding the entry: %v", err)
+	}
+	media := freshID(t)
+	pool := adminPool(ctx, t)
+	if _, err := pool.Exec(ctx, `INSERT INTO media_object (id, tenant_id, storage_key, mime_type, byte_size, usage, status, file_name)
+		VALUES ($1, $2, $3, 'application/pdf', 12, 'ATTACHMENT', 'READY', $4)`,
+		media.String(), tenantA.String(), "test/"+media.String(), word+"_2026.pdf"); err != nil {
+		t.Fatalf("the file: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `INSERT INTO item_attachment (tenant_id, item_id, media_id) VALUES ($1, $2, $3)`,
+		tenantA.String(), task.ID.String(), media.String()); err != nil {
+		t.Fatalf("attaching: %v", err)
+	}
+
+	titles := found(ctx, t, tenantA, searchWithin(collection, word, "en"))
+	if len(titles) != 1 || titles[0] != "Plain title" {
+		t.Errorf("a word in an attachment's name found %v", titles)
+	}
+
+	if _, err := pool.Exec(ctx, `UPDATE media_object SET deleted_at = now() WHERE id = $1`, media.String()); err != nil {
+		t.Fatalf("removing the file: %v", err)
+	}
+	if titles := found(ctx, t, tenantA, searchWithin(collection, word, "en")); len(titles) != 0 {
+		t.Errorf("a removed file still found %v", titles)
+	}
+}

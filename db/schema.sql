@@ -1653,6 +1653,8 @@ CREATE TABLE media_object (
 );
 CREATE UNIQUE INDEX media_object_tenant_id_uq ON media_object (tenant_id, id);
 CREATE INDEX media_object_reconcile_idx ON media_object (tenant_id, status, ref_count, created_at);
+-- A search finds an entry by the name of a file attached to it (migration 0226, F-9).
+CREATE INDEX media_object_name_search_idx ON media_object USING gin (to_tsvector('simple'::regconfig, translate(file_name, '._-', '   '))) WHERE file_name IS NOT NULL AND deleted_at IS NULL;
 -- Declared here rather than in work_item's definition, because media_object is created after it
 -- in this file; migration 0013 is where it arrived.
 ALTER TABLE work_item ADD CONSTRAINT work_item_cover_media_fkey
