@@ -29,7 +29,7 @@ var (
 // EntryBehaviours is what the entries of a type do (F-1). Each is a switch of the type, not of the
 // entry: two entries of one type never behave differently.
 type EntryBehaviours struct {
-	// Completable entries are done or open. A record is not (D-07).
+	// Completable entries are done or open. A record is not (UC-FLW-01).
 	Completable bool
 	// Workflow entries move through their type's statuses (FLW-02, a later step).
 	Workflow bool

@@ -5,7 +5,7 @@
  * Roles as the administration reads them (UC-ID-26): what a role editor offers, the *who may do
  * what* matrix, and what a person holds at a place. Pure functions, tested beside.
  *
- * **What is offered is what the reader holds** (D-05): the server refuses a role carrying a
+ * **What is offered is what the reader holds** (UC-ID-26): the server refuses a role carrying a
  * permission its definer lacks, so offering one would be a button the server refuses. A field or a
  * step permission is held by the owner and the administrators as a family, which no list of
  * permissions can spell, so a shipped `OWNER` or `ADMIN` among the reader's sources stands for

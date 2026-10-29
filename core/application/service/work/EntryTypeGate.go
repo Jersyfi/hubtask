@@ -11,7 +11,7 @@ import (
 )
 
 // chooseEntryType answers the type key a new entry of the level is written with, and the level's
-// profile narrowed by that type's behaviours (UC-FLW-01 check 3, D-07), among the types the
+// profile narrowed by that type's behaviours (UC-FLW-01 check 3), among the types the
 // collection offers on the level (nil: every one). Without a registry every entry is its
 // level's system type and the profile is unchanged.
 func chooseEntryType(

@@ -2650,7 +2650,7 @@ UPDATE work_item SET
   is_completed = $1,
   completed_at = $2,
   completed_by = $3,
-  -- The status moves with the completion it decides in a workflow collection (D-02), and stays
+  -- The status moves with the completion it decides in a workflow collection (UC-FLW-03 check 4), and stays
   -- what it was - null in every other collection - where a completion writes no step.
   status       = $4::text,
   updated_at   = $5,

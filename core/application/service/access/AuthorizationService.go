@@ -68,7 +68,7 @@ type Request struct {
 	// A revocation and a change of who is in a group name it as a grant does - one rule, one name.
 	Grants identity.Role
 	// HandsOut are the permissions of a custom role the request defines or grants, empty where it
-	// touches none: the actor must hold every one along the path (service.MayHandOut, D-05).
+	// touches none: the actor must hold every one along the path (service.MayHandOut, UC-ID-26).
 	HandsOut []string
 }
 

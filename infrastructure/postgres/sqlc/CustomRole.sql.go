@@ -249,7 +249,7 @@ FROM custom_role
 ORDER BY key
 `
 
-// Custom roles and where they are held (migration 0219, D-05, UC-ID-26). The tenant is the
+// Custom roles and where they are held (migration 0219, UC-ID-26). The tenant is the
 // transaction's in every statement (ADR-0010).
 func (q *Queries) ListCustomRoles(ctx context.Context) ([]CustomRole, error) {
 	rows, err := q.db.Query(ctx, listCustomRoles)

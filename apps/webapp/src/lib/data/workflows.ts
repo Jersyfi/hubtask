@@ -62,7 +62,7 @@ export function stepLabel(step: Pick<WorkflowStep, 'name' | 'to'>, shape: Workfl
   return target ? statusLabel(target, t) : step.to;
 }
 
-/** Whether entering a status completes the entry (D-02). */
+/** Whether entering a status completes the entry (UC-FLW-03 check 4). */
 export function completes(shape: WorkflowShape, key: string | null | undefined): boolean {
   return shape.statuses.find((status) => status.key === key)?.category === 'DONE';
 }

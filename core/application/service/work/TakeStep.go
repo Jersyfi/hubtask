@@ -30,7 +30,7 @@ const (
 // TakeStep moves an entry on by one step of the workflow its collection runs for its type
 // (UC-FLW-03): from where it stands, if the person may take it, with what the step requires
 // filled in and its checks holding. Into or out of a done status it completes or reopens the
-// entry, with the roll-up a completion makes (D-02).
+// entry, with the roll-up a completion makes (UC-FLW-03 check 4).
 type TakeStep struct {
 	Completion CompletionWriter
 	// Rules runs the STEP_TAKEN rules on the step inside its transaction (UC-FLW-04 check 4). Nil

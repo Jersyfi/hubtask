@@ -368,7 +368,7 @@ var entities = []Entity{
 			{Field: "group_id", Table: "account_group"},
 		},
 	},
-	// The workspace's own roles and where they are held (migration 0219, D-05). Whole: a role and a
+	// The workspace's own roles and where they are held (migration 0219, UC-ID-26). Whole: a role and a
 	// grant are removed without a marker. The roles precede their grants.
 	{
 		Name: "custom_roles", Table: "custom_role", Whole: true, Unmarked: true, Keys: []string{"id"},

@@ -279,7 +279,7 @@ CREATE INDEX membership_scope_idx  ON membership (tenant_id, scope_type, scope_i
 CREATE UNIQUE INDEX membership_grant_uq
   ON membership (tenant_id, account_id, group_id, scope_type, scope_id, role) NULLS NOT DISTINCT;
 
--- Custom roles from the permission catalogue and where they are held (migration 0219, D-05). The
+-- Custom roles from the permission catalogue and where they are held (migration 0219, UC-ID-26). The
 -- seven built-in roles are the enum above and have no row.
 CREATE TABLE custom_role (
   id          uuid PRIMARY KEY,

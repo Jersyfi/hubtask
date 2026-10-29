@@ -17,7 +17,7 @@ import (
 )
 
 // StatusCategory is what a status means to everything that does not know the workflow: a board's
-// grouping, a figure, an SLA, and completion (D-02) - an entry is done exactly while its status is
+// grouping, a figure, an SLA, and completion (UC-FLW-03 check 4) - an entry is done exactly while its status is
 // in DONE.
 type StatusCategory string
 

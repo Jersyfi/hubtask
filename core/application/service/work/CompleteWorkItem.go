@@ -73,14 +73,14 @@ type CompletionWriter struct {
 	// Structure answers the completion in force: the collection's own, else its hub's, else the
 	// workspace's (domain-model.md §2). A build without it reads the collection's own alone.
 	Structure StructureResolver
-	// EntryTypes is the workspace's type registry: a record's entries have no completion (D-07).
+	// EntryTypes is the workspace's type registry: a record's entries have no completion (UC-FLW-01).
 	// Nil in a build without it.
 	EntryTypes repository.EntryTypes
 	// Milestones records the collection, and its hub, a completion left with nothing open
 	// (UC-WRK-29 check 4). A build without it records none.
 	Milestones repository.Milestones
 	// Workflow is the workflow in force: in a workflow collection a completion takes a step into
-	// a done status and a reopening one out of it (D-02, UC-FLW-03 check 4). A build without it
+	// a done status and a reopening one out of it (UC-FLW-03 check 4). A build without it
 	// runs none.
 	Workflow WorkflowGate
 }
@@ -505,7 +505,7 @@ func (w CompletionWriter) recordChange(
 		Payload: map[string]any{
 			domain.FieldCompletion:      snapshot[domain.FieldCompletion],
 			domain.FieldCompletionCount: snapshot[domain.FieldCompletionCount],
-			// The status rides with the completion that moved it in a workflow collection (D-02).
+			// The status rides with the completion that moved it in a workflow collection (UC-FLW-03 check 4).
 			domain.FieldStatus: stringOrNil(item.Status),
 		},
 	})

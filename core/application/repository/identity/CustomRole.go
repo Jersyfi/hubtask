@@ -25,7 +25,7 @@ type CustomGrantRow struct {
 	RoleKey string
 }
 
-// CustomRoles stores the workspace's own roles and where they are held (D-05). The tenant
+// CustomRoles stores the workspace's own roles and where they are held (UC-ID-26). The tenant
 // boundary is the transaction's (ADR-0010); what an account holds of them reaches the decision
 // through Memberships.Along.
 type CustomRoles interface {

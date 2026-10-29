@@ -698,7 +698,7 @@ UPDATE work_item SET
   is_completed = sqlc.arg('is_completed'),
   completed_at = sqlc.narg('completed_at'),
   completed_by = sqlc.narg('completed_by'),
-  -- The status moves with the completion it decides in a workflow collection (D-02), and stays
+  -- The status moves with the completion it decides in a workflow collection (UC-FLW-03 check 4), and stays
   -- what it was - null in every other collection - where a completion writes no step.
   status       = sqlc.narg('status')::text,
   updated_at   = sqlc.arg('updated_at'),

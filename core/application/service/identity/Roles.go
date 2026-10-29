@@ -182,7 +182,7 @@ type RoleCommand struct {
 }
 
 // CreateRole defines a role from the catalogue (UC-ID-26 check 1). Whoever defines it must hold
-// every permission it carries on the workspace (D-05).
+// every permission it carries on the workspace (UC-ID-26).
 type CreateRole struct{ Roles Roles }
 
 func (h CreateRole) Execute(ctx context.Context, actor appshared.ActorContext, cmd RoleCommand) (repository.CustomRoleRow, error) {
@@ -715,7 +715,7 @@ func (r Roles) find(ctx context.Context, actor appshared.ActorContext, key strin
 }
 
 // authorizeDefinition asks MANAGE_MEMBERS on the workspace and every permission handed out or
-// taken back (D-05).
+// taken back (UC-ID-26).
 func (r Roles) authorizeDefinition(
 	ctx context.Context, actor appshared.ActorContext, action audit.Action, roleID shared.ID, permissions []string,
 ) error {

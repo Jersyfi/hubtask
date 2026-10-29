@@ -192,7 +192,7 @@ func DefineRole(id, tenantID shared.ID, key, name string, permissions []string) 
 	return identity.NewCustomRole(id, tenantID, key, name, permissions)
 }
 
-// MayHandOut is the ceiling every custom role meets (D-05): nobody grants a permission they do not
+// MayHandOut is the ceiling every custom role meets (UC-ID-26): nobody grants a permission they do not
 // hold. What the account holds along the path must carry every permission named, and
 // MANAGE_MEMBERS besides; for a role being defined, the path is the workspace's.
 func MayHandOut(
@@ -269,7 +269,7 @@ func membershipItemAccess(membership identity.Membership, action ItemAction) Ite
 
 // ItemReach is the widest reach any membership that counts along the path gives for the action,
 // and whether any counts at all. For the shipped ladder it is the highest role's row, as before;
-// with a custom role beside it, the union (D-05).
+// with a custom role beside it, the union (UC-ID-26).
 func ItemReach(
 	memberships []identity.Membership, path []identity.Scope, privacy Privacy, action ItemAction,
 ) (ItemAccess, bool) {

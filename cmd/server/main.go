@@ -846,7 +846,7 @@ func run() error {
 		Changes: changes, HLC: hybrid,
 	}
 
-	// The workspace's own roles (D-05): shared by the seven role use cases.
+	// The workspace's own roles (UC-ID-26): shared by the seven role use cases.
 	customRoles := identity.Roles{
 		Store: postgres.NewCustomRoleRepository(), Authorizer: authorizer, Held: authorizer,
 		Revocations: revocations, Audit: auditSink, UnitOfWork: unitOfWork,

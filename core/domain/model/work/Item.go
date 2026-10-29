@@ -236,7 +236,7 @@ type WorkItem struct {
 	EntryType string
 	// Status is the key of the entry's status in the workflow its collection runs for its type,
 	// empty where none runs (UC-FLW-02). In a workflow collection completion follows its category
-	// (D-02).
+	// (UC-FLW-03 check 4).
 	Status string
 }
 
