@@ -119,3 +119,40 @@ func TestCountsOf(t *testing.T) {
 		t.Errorf("counts %+v", counts)
 	}
 }
+
+// config-document.md §3: promoting a sandbox asks only what it changed since its copy, so what
+// changed in force meanwhile is kept.
+func TestASandboxPromotesOnlyWhatItChanged(t *testing.T) {
+	base := Document{"types": Section{
+		"task":     Block{"name": "Task", "icon": "check"},
+		"incident": Block{"name": "Incident"},
+		"problem":  Block{"name": "Problem"},
+	}}
+	sandbox := Sandbox{Base: base, Document: Document{"types": Section{
+		"task":     Block{"name": "Task"},
+		"incident": Block{"name": "Störung"},
+		"change":   Block{"name": "Change"},
+	}}}
+	promotion := sandbox.Promotion()
+	types := promotion["types"]
+	if len(types) != 4 {
+		t.Fatalf("promotion %v", promotion)
+	}
+	if types["incident"]["name"] != "Störung" || types["change"]["name"] != "Change" {
+		t.Errorf("a changed or added block is not stated as the sandbox has it: %v", types)
+	}
+	if block, held := types["problem"]; !held || block != nil {
+		t.Errorf("a removed block is not removed: %v", types["problem"])
+	}
+	if icon, held := types["task"]["icon"]; !held || icon != nil {
+		t.Errorf("an attribute the sandbox dropped is not dropped: %v", types["task"])
+	}
+
+	inForce := Document{"types": Section{
+		"task": Block{"name": "Task", "icon": "check"}, "incident": Block{"name": "Incident"},
+		"problem": Block{"name": "Problem"}, "risk": Block{"name": "Risk"},
+	}}
+	if _, kept := Resolve(inForce, promotion, ModeMerge)["types"]["risk"]; !kept {
+		t.Error("a block added in force since the copy was undone")
+	}
+}

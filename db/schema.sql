@@ -389,6 +389,18 @@ GRANT SELECT, INSERT, DELETE ON config_revision TO hubtask_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON config_proposal TO hubtask_app;
 GRANT SELECT, INSERT, DELETE ON config_template TO hubtask_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON config_template_use TO hubtask_app;
+-- The sandbox: a copy of the configuration without content, and the one it was copied from
+-- (migration 0224, config-document.md §3).
+CREATE TABLE config_sandbox (
+  tenant_id     uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  document      jsonb NOT NULL,
+  base_document jsonb NOT NULL,
+  base_hash     text NOT NULL,
+  base_version  integer NOT NULL DEFAULT 0,
+  writes        integer NOT NULL DEFAULT 0,
+  updated_at    timestamptz NOT NULL
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON config_sandbox TO hubtask_app;
 
 CREATE TABLE access_token (
   id            uuid PRIMARY KEY,
@@ -3151,7 +3163,8 @@ BEGIN
     'import_run','quota_reached','setting_value','entry_type','entry_field_value',
     'link_type','entry_link','entry_reference','workflow','workflow_scheme',
     'custom_role','custom_role_grant',
-    'config_revision','config_proposal','config_template','config_template_use'
+    'config_revision','config_proposal','config_template','config_template_use',
+    'config_sandbox'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);

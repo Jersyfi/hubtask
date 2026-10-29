@@ -70,6 +70,8 @@ func Descriptors() []usecase.Descriptor {
 		configservice.ListConfigTemplates{}.Descriptor(),
 		configservice.PublishConfigTemplate{}.Descriptor(),
 		configservice.PlanConfigTemplate{}.Descriptor(),
+		configservice.ReadConfigSandbox{}.Descriptor(),
+		configservice.WriteConfigSandbox{}.Descriptor(),
 		workflowservice.ListEntryTypes{}.Descriptor(),
 		workflowservice.CreateEntryType{}.Descriptor(),
 		workflowservice.ChangeEntryType{}.Descriptor(),

@@ -836,6 +836,16 @@ type ConfigRevision struct {
 	HubID        pgtype.UUID
 }
 
+type ConfigSandbox struct {
+	TenantID     pgtype.UUID
+	Document     []byte
+	BaseDocument []byte
+	BaseHash     string
+	BaseVersion  int32
+	Writes       int32
+	UpdatedAt    pgtype.Timestamptz
+}
+
 type ConfigTemplate struct {
 	ID        pgtype.UUID
 	TenantID  pgtype.UUID

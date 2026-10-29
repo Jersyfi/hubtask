@@ -1811,6 +1811,8 @@ func run() error {
 		configservice.ListConfigTemplates{Desk: configDesk}.Descriptor(),
 		configservice.PublishConfigTemplate{Desk: configDesk}.Descriptor(),
 		configservice.PlanConfigTemplate{Desk: configDesk}.Descriptor(),
+		configservice.ReadConfigSandbox{Desk: configDesk}.Descriptor(),
+		configservice.WriteConfigSandbox{Desk: configDesk}.Descriptor(),
 		workflowservice.ListEntryTypes{Registry: entryTypeRegistry}.Descriptor(),
 		workflowservice.CreateEntryType{Registry: entryTypeRegistry}.Descriptor(),
 		workflowservice.ChangeEntryType{Registry: entryTypeRegistry}.Descriptor(),

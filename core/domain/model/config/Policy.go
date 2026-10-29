@@ -155,3 +155,46 @@ func ErrProposalDecided() error {
 func ErrAgentApplyNever() error {
 	return shared.ErrForbidden.WithDetail("config.agent_apply_never")
 }
+
+// Sandbox is a workspace's copy of its configuration without content (config-document.md §3):
+// an agent changes it freely and nothing runs; promoting it plans what it changed since Base.
+type Sandbox struct {
+	TenantID shared.ID
+	Document Document
+	// Base is the configuration the sandbox was copied from, BaseHash and BaseVersion its
+	// fingerprint and the version in force then.
+	Base        Document
+	BaseHash    string
+	BaseVersion int
+	// Writes counts the changes made in the sandbox since it was copied.
+	Writes    int
+	UpdatedAt time.Time
+}
+
+// Promotion is what a sandbox asks of the configuration in force: only what it changed since its
+// base - a block added or changed stated as the sandbox has it, a block removed as nil - read as
+// MERGE, so a change made in force since the copy is kept rather than undone.
+func (s Sandbox) Promotion() Document {
+	out := Document{}
+	for _, change := range Diff(s.Base, s.Document) {
+		if out[change.Section] == nil {
+			out[change.Section] = Section{}
+		}
+		if change.Op == OpRemove {
+			out[change.Section][change.Key] = nil
+			continue
+		}
+		block := Block{}
+		for attribute, value := range change.After {
+			block[attribute] = value
+		}
+		// An attribute the sandbox dropped is removed in force too.
+		for attribute := range change.Before {
+			if _, kept := change.After[attribute]; !kept {
+				block[attribute] = nil
+			}
+		}
+		out[change.Section][change.Key] = block
+	}
+	return out
+}

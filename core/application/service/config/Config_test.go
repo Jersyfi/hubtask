@@ -243,13 +243,31 @@ type store struct {
 	proposals []domain.Proposal
 	templates []domain.Template
 	uses      []domain.TemplateUse
+	sandbox   *domain.Sandbox
 }
 
 func (s *store) clone() *store {
 	return &store{
 		revisions: append([]domain.Revision(nil), s.revisions...), proposals: append([]domain.Proposal(nil), s.proposals...),
 		templates: append([]domain.Template(nil), s.templates...), uses: append([]domain.TemplateUse(nil), s.uses...),
+		sandbox: s.sandbox,
 	}
+}
+
+func (s *store) Sandbox(context.Context) (domain.Sandbox, bool, error) {
+	if s.sandbox == nil {
+		return domain.Sandbox{}, false, nil
+	}
+	return *s.sandbox, true, nil
+}
+func (s *store) PutSandbox(_ context.Context, sandbox domain.Sandbox) error {
+	s.sandbox = &sandbox
+	return nil
+}
+func (s *store) DropSandbox(context.Context) (bool, error) {
+	held := s.sandbox != nil
+	s.sandbox = nil
+	return held, nil
 }
 
 func (s *store) Latest(context.Context) (domain.Revision, bool, error) {

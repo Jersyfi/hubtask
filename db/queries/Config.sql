@@ -88,3 +88,20 @@ DO UPDATE SET version = EXCLUDED.version, document = EXCLUDED.document, applied_
 SELECT tenant_id, template_key, version, document, applied_at
 FROM config_template_use
 ORDER BY template_key;
+
+-- name: FindConfigSandbox :one
+SELECT tenant_id, document, base_document, base_hash, base_version, writes, updated_at
+FROM config_sandbox;
+
+-- name: PutConfigSandbox :exec
+-- One sandbox per workspace: a write replaces its document and counts; a reset its base too.
+INSERT INTO config_sandbox (tenant_id, document, base_document, base_hash, base_version, writes, updated_at)
+VALUES (current_tenant_id(), sqlc.arg('document'), sqlc.arg('base_document'), sqlc.arg('base_hash'),
+        sqlc.arg('base_version'), sqlc.arg('writes'), sqlc.arg('at'))
+ON CONFLICT (tenant_id)
+DO UPDATE SET document = EXCLUDED.document, base_document = EXCLUDED.base_document,
+              base_hash = EXCLUDED.base_hash, base_version = EXCLUDED.base_version,
+              writes = EXCLUDED.writes, updated_at = EXCLUDED.updated_at;
+
+-- name: DropConfigSandbox :execrows
+DELETE FROM config_sandbox;

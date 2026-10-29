@@ -190,7 +190,9 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `config.read` | ListConfigProposals | `configuration` | INFO | When refused |
 | `config.read` | ListConfigTemplates | `configuration` | INFO | When refused |
 | `config.read` | ListConfigVersions | `configuration` | INFO | When refused |
+| `config.read` | ReadConfigSandbox | `configuration` | INFO | When refused |
 | `config.read` | ReadConfigVersion | `configuration` | INFO | When refused |
+| `config.sandbox_written` | WriteConfigSandbox | `configuration` | INFO | Every time |
 | `config.template_published` | PublishConfigTemplate | `configuration` | INFO | Every time |
 
 ## Data: comments

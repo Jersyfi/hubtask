@@ -468,3 +468,67 @@ func (ConfigRepository) TemplateUses(ctx context.Context) ([]domain.TemplateUse,
 	}
 	return out, nil
 }
+
+func (ConfigRepository) Sandbox(ctx context.Context) (domain.Sandbox, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return domain.Sandbox{}, false, err
+	}
+	row, err := queries.FindConfigSandbox(ctx)
+	if err != nil {
+		if IsNoRows(err) {
+			return domain.Sandbox{}, false, nil
+		}
+		return domain.Sandbox{}, false, configError(err, "reading the configuration sandbox")
+	}
+	tenant, err := idFrom(row.TenantID)
+	if err != nil {
+		return domain.Sandbox{}, false, err
+	}
+	document, err := documentFrom(row.Document)
+	if err != nil {
+		return domain.Sandbox{}, false, err
+	}
+	base, err := documentFrom(row.BaseDocument)
+	if err != nil {
+		return domain.Sandbox{}, false, err
+	}
+	return domain.Sandbox{
+		TenantID: tenant, Document: document, Base: base, BaseHash: row.BaseHash,
+		BaseVersion: int(row.BaseVersion), Writes: int(row.Writes), UpdatedAt: timeFrom(row.UpdatedAt),
+	}, true, nil
+}
+
+func (ConfigRepository) PutSandbox(ctx context.Context, sandbox domain.Sandbox) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	document, err := documentBytes(sandbox.Document)
+	if err != nil {
+		return err
+	}
+	base, err := documentBytes(sandbox.Base)
+	if err != nil {
+		return err
+	}
+	if err := queries.PutConfigSandbox(ctx, sqlc.PutConfigSandboxParams{
+		Document: document, BaseDocument: base, BaseHash: sandbox.BaseHash,
+		BaseVersion: int32(sandbox.BaseVersion), Writes: int32(sandbox.Writes), At: timestampOf(sandbox.UpdatedAt),
+	}); err != nil {
+		return configError(err, "writing the configuration sandbox")
+	}
+	return nil
+}
+
+func (ConfigRepository) DropSandbox(ctx context.Context) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	rows, err := queries.DropConfigSandbox(ctx)
+	if err != nil {
+		return false, configError(err, "discarding the configuration sandbox")
+	}
+	return rows == 1, nil
+}

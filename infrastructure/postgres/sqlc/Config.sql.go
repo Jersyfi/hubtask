@@ -38,6 +38,18 @@ func (q *Queries) DecideConfigProposal(ctx context.Context, arg DecideConfigProp
 	return result.RowsAffected(), nil
 }
 
+const dropConfigSandbox = `-- name: DropConfigSandbox :execrows
+DELETE FROM config_sandbox
+`
+
+func (q *Queries) DropConfigSandbox(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, dropConfigSandbox)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const findConfigProposal = `-- name: FindConfigProposal :one
 SELECT id, tenant_id, state, document, mode, base_hash, plan_hash, template, added, changed, removed,
        hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at, hub_id
@@ -95,6 +107,26 @@ func (q *Queries) FindConfigRevision(ctx context.Context, version int32) (Config
 		&i.Removed,
 		&i.CreatedAt,
 		&i.HubID,
+	)
+	return i, err
+}
+
+const findConfigSandbox = `-- name: FindConfigSandbox :one
+SELECT tenant_id, document, base_document, base_hash, base_version, writes, updated_at
+FROM config_sandbox
+`
+
+func (q *Queries) FindConfigSandbox(ctx context.Context) (ConfigSandbox, error) {
+	row := q.db.QueryRow(ctx, findConfigSandbox)
+	var i ConfigSandbox
+	err := row.Scan(
+		&i.TenantID,
+		&i.Document,
+		&i.BaseDocument,
+		&i.BaseHash,
+		&i.BaseVersion,
+		&i.Writes,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -477,6 +509,38 @@ func (q *Queries) ListConfigTemplates(ctx context.Context) ([]ConfigTemplate, er
 		return nil, err
 	}
 	return items, nil
+}
+
+const putConfigSandbox = `-- name: PutConfigSandbox :exec
+INSERT INTO config_sandbox (tenant_id, document, base_document, base_hash, base_version, writes, updated_at)
+VALUES (current_tenant_id(), $1, $2, $3,
+        $4, $5, $6)
+ON CONFLICT (tenant_id)
+DO UPDATE SET document = EXCLUDED.document, base_document = EXCLUDED.base_document,
+              base_hash = EXCLUDED.base_hash, base_version = EXCLUDED.base_version,
+              writes = EXCLUDED.writes, updated_at = EXCLUDED.updated_at
+`
+
+type PutConfigSandboxParams struct {
+	Document     []byte
+	BaseDocument []byte
+	BaseHash     string
+	BaseVersion  int32
+	Writes       int32
+	At           pgtype.Timestamptz
+}
+
+// One sandbox per workspace: a write replaces its document and counts; a reset its base too.
+func (q *Queries) PutConfigSandbox(ctx context.Context, arg PutConfigSandboxParams) error {
+	_, err := q.db.Exec(ctx, putConfigSandbox,
+		arg.Document,
+		arg.BaseDocument,
+		arg.BaseHash,
+		arg.BaseVersion,
+		arg.Writes,
+		arg.At,
+	)
+	return err
 }
 
 const upsertConfigTemplateUse = `-- name: UpsertConfigTemplateUse :exec

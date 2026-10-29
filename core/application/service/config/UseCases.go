@@ -58,6 +58,16 @@ func (d Desk) desired(ctx context.Context, in usecase.Input) (domain.Document, d
 		}
 		return revision.Document, domain.ModeReplace, version, nil
 	}
+	if in.Bool("from_sandbox") {
+		if hub, _ := hubOf(in); !hub.IsZero() || in.Present("document") {
+			return nil, "", 0, domain.ErrRefused([]shared.FieldError{{Path: "/from_sandbox", Code: "config.sandbox_alone"}})
+		}
+		promotion, err := d.sandboxPromotion(ctx)
+		if err != nil {
+			return nil, "", 0, err
+		}
+		return promotion, domain.ModeMerge, 0, nil
+	}
 	if !in.Present("document") {
 		return nil, "", 0, domain.ErrRefused([]shared.FieldError{{Path: "/document", Code: "usecase.field_required"}})
 	}
@@ -414,7 +424,8 @@ type PlanConfig struct{ Desk Desk }
 
 func planFields() []usecase.Field {
 	return append(documentFields(false),
-		usecase.Field{Name: "to_version", Kind: usecase.KindInt, Description: "Plans a rollback: the configuration version to go back to, stated whole. Replaces document."})
+		usecase.Field{Name: "to_version", Kind: usecase.KindInt, Description: "Plans a rollback: the configuration version to go back to, stated whole. Replaces document."},
+		usecase.Field{Name: "from_sandbox", Kind: usecase.KindBool, Description: "Promotes the sandbox: plans what it changed since its copy against the configuration in force. Replaces document."})
 }
 
 func (h PlanConfig) Descriptor() usecase.Descriptor {

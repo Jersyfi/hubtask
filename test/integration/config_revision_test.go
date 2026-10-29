@@ -162,3 +162,48 @@ func TestAWorkspacesConfigurationHistoryIsItsOwn(t *testing.T) {
 		return nil
 	})
 }
+
+// The sandbox (migration 0224, gate SG-3): one per workspace, replaced by a write, read and
+// discarded only by its own workspace.
+func TestAWorkspacesConfigurationSandboxIsItsOwn(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`DELETE FROM config_sandbox WHERE tenant_id IN ('`+tenantA.String()+`', '`+tenantB.String()+`')`); err != nil {
+		t.Fatalf("clearing an earlier run: %v", err)
+	}
+	store := postgres.NewConfigRepository()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	base := domain.Document{"types": domain.Section{"task": domain.Block{"name": "Task"}}}
+	changed := domain.Document{"types": domain.Section{"task": domain.Block{"name": "Task"}, "incident": domain.Block{"name": "Incident"}}}
+
+	inTenant(t, uow, tenantA, func(ctx context.Context) error {
+		if err := store.PutSandbox(ctx, domain.Sandbox{Document: base, Base: base, BaseHash: domain.Hash(base), UpdatedAt: now}); err != nil {
+			t.Fatalf("copying A's sandbox: %v", err)
+		}
+		if err := store.PutSandbox(ctx, domain.Sandbox{Document: changed, Base: base, BaseHash: domain.Hash(base), Writes: 1, UpdatedAt: now}); err != nil {
+			t.Fatalf("writing A's sandbox: %v", err)
+		}
+		return nil
+	})
+	inTenant(t, uow, tenantB, func(ctx context.Context) error {
+		if _, held, err := store.Sandbox(ctx); err != nil || held {
+			t.Fatalf("B reads A's sandbox: %v %v", held, err)
+		}
+		if dropped, err := store.DropSandbox(ctx); err != nil || dropped {
+			t.Fatalf("B discards A's sandbox: %v %v", dropped, err)
+		}
+		return nil
+	})
+	inTenant(t, uow, tenantA, func(ctx context.Context) error {
+		sandbox, held, err := store.Sandbox(ctx)
+		if err != nil || !held || sandbox.Writes != 1 || sandbox.Document["types"]["incident"] == nil || sandbox.Base["types"]["incident"] != nil {
+			t.Fatalf("A's sandbox: %+v %v %v", sandbox, held, err)
+		}
+		if dropped, err := store.DropSandbox(ctx); err != nil || !dropped {
+			t.Fatalf("A discards its sandbox: %v %v", dropped, err)
+		}
+		return nil
+	})
+}

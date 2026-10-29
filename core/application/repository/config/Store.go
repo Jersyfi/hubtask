@@ -41,4 +41,11 @@ type Store interface {
 	// PutTemplateUse records the template version the workspace took.
 	PutTemplateUse(ctx context.Context, use domain.TemplateUse) error
 	TemplateUses(ctx context.Context) ([]domain.TemplateUse, error)
+
+	// Sandbox answers the workspace's sandbox, false where it has none.
+	Sandbox(ctx context.Context) (domain.Sandbox, bool, error)
+	// PutSandbox writes the workspace's one sandbox.
+	PutSandbox(ctx context.Context, sandbox domain.Sandbox) error
+	// DropSandbox discards it and reports whether there was one.
+	DropSandbox(ctx context.Context) (bool, error)
 }
