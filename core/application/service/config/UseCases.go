@@ -292,7 +292,7 @@ func (d Desk) explain(ctx context.Context, actor appshared.ActorContext, path st
 				}
 			}
 			if area, found := areaOf(key); found {
-				if op, err := area.write(domain.Change{Section: name, Key: key, Op: domain.OpChange, After: domain.Block{}}, row); err == nil {
+				if op, err := area.write(domain.BlockChange{Section: name, Key: key, Op: domain.OpChange, After: domain.Block{}}, row); err == nil {
 					out["operation"] = op.UseCase
 				}
 			}

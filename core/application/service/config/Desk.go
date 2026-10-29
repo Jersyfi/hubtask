@@ -251,7 +251,7 @@ func documentOf(raw any) (domain.Document, []shared.FieldError) {
 type plan struct {
 	Base     string
 	Target   domain.Document
-	Changes  []domain.Change
+	Changes  []domain.BlockChange
 	Ops      []operation
 	Refusals []shared.FieldError
 	Flags    domain.Flags
@@ -309,7 +309,7 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 	}
 	changes := domain.Diff(now.Document, p.Target)
 	var removals []operation
-	var settingChanges []domain.Change
+	var settingChanges []domain.BlockChange
 	for _, s := range append(sections(), section{name: sectionSettings}) {
 		for _, change := range changes {
 			if change.Section != s.name {
@@ -368,7 +368,7 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 }
 
 // check holds one change to its section's declaration.
-func (d Desk) check(s section, change domain.Change, row map[string]any) []shared.FieldError {
+func (d Desk) check(s section, change domain.BlockChange, row map[string]any) []shared.FieldError {
 	var refusals []shared.FieldError
 	path := change.Path()
 	for _, attribute := range change.Fields {

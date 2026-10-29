@@ -53,8 +53,8 @@ const (
 	ModeReplace Mode = "REPLACE"
 )
 
-// Change is one block's difference: its attributes before and after, and the names that differ.
-type Change struct {
+// BlockChange is one block's difference: its attributes before and after, and the names that differ.
+type BlockChange struct {
 	Section string
 	Key     string
 	Op      Op
@@ -64,7 +64,7 @@ type Change struct {
 }
 
 // Path is the change's stable key path, `types.incident`.
-func (c Change) Path() string { return c.Section + "." + c.Key }
+func (c BlockChange) Path() string { return c.Section + "." + c.Key }
 
 // ValidKey reports whether a block key is one the document can name: lower case, digits and
 // underscores, starting with a letter, at most 63.
@@ -118,9 +118,9 @@ func Resolve(current, desired Document, mode Mode) Document {
 }
 
 // Diff is every change from one document to another, by section and key in order.
-func Diff(from, to Document) []Change {
+func Diff(from, to Document) []BlockChange {
 	names := sortedKeys(from, to)
-	var changes []Change
+	var changes []BlockChange
 	for _, name := range names {
 		before, after := from[name], to[name]
 		for _, key := range sortedKeys(before, after) {
@@ -128,12 +128,12 @@ func Diff(from, to Document) []Change {
 			now, has := after[key]
 			switch {
 			case had && !has:
-				changes = append(changes, Change{Section: name, Key: key, Op: OpRemove, Before: old})
+				changes = append(changes, BlockChange{Section: name, Key: key, Op: OpRemove, Before: old})
 			case !had && has:
-				changes = append(changes, Change{Section: name, Key: key, Op: OpAdd, After: now, Fields: attributeNames(now)})
+				changes = append(changes, BlockChange{Section: name, Key: key, Op: OpAdd, After: now, Fields: attributeNames(now)})
 			default:
 				if fields := differing(old, now); len(fields) > 0 {
-					changes = append(changes, Change{Section: name, Key: key, Op: OpChange, Before: old, After: now, Fields: fields})
+					changes = append(changes, BlockChange{Section: name, Key: key, Op: OpChange, Before: old, After: now, Fields: fields})
 				}
 			}
 		}

@@ -38,7 +38,7 @@ type settingArea struct {
 	// and whatever its write needs besides.
 	rows func(answer map[string]any) map[string]map[string]any
 	// write is the operation changing or resetting one setting.
-	write func(change domain.Change, row map[string]any) (operation, error)
+	write func(change domain.BlockChange, row map[string]any) (operation, error)
 }
 
 func settingAreas() []settingArea {
@@ -149,7 +149,7 @@ var localisationFields = map[string]string{
 // workspaceSettingOp writes one workspace setting through UpdateWorkspace. A sign-in switch or a
 // legal link is a change to the sign-in rule and carries the apply's fresh proof (security.md
 // §9), which is why the plan merges every one of them into a single call.
-func workspaceSettingOp(change domain.Change, _ map[string]any) (operation, error) {
+func workspaceSettingOp(change domain.BlockChange, _ map[string]any) (operation, error) {
 	path := change.Path()
 	value := change.After[settingValueField]
 	switch {
@@ -213,7 +213,7 @@ func aiSettingRows(answer map[string]any) map[string]map[string]any {
 	}
 	optOut := map[string]any{
 		settingValueField: answer["person_opt_out"], "source": answer["person_opt_out_origin"],
-		"locked_by": answer["person_opt_out_lock"],
+		"locked_by":    answer["person_opt_out_lock"],
 		basisAttribute: answer["person_opt_out_basis"], contactAttribute: answer["person_opt_out_contact"],
 	}
 	return map[string]map[string]any{aiSourcesKey: sources, aiPersonOptOutKey: optOut}
@@ -221,7 +221,7 @@ func aiSettingRows(answer map[string]any) map[string]map[string]any {
 
 // aiSettingOp narrows the sources - a removed block takes what the installation allows again - or
 // sets the opt-out position with its legal basis.
-func aiSettingOp(change domain.Change, row map[string]any) (operation, error) {
+func aiSettingOp(change domain.BlockChange, row map[string]any) (operation, error) {
 	path := change.Path()
 	switch change.Key {
 	case aiSourcesKey:
@@ -276,7 +276,7 @@ func settingBlock(key string, row map[string]any) domain.Block {
 
 // settingsOps is the operations of every settings change in the plan, the workspace's merged into
 // one UpdateWorkspace call so that the sign-in rule's proof is asked for once.
-func settingsOps(changes []domain.Change, rows map[string]map[string]any) ([]operation, []shared.FieldError) {
+func settingsOps(changes []domain.BlockChange, rows map[string]map[string]any) ([]operation, []shared.FieldError) {
 	var ops []operation
 	var refusals []shared.FieldError
 	merged := -1
@@ -342,7 +342,7 @@ func mergeInput(into, from usecase.Input) usecase.Input {
 	return into
 }
 
-func agentApplyOp(change domain.Change) (operation, *shared.FieldError) {
+func agentApplyOp(change domain.BlockChange) (operation, *shared.FieldError) {
 	if change.Op != domain.OpChange {
 		refusal := domain.Refusal("config.not_removable", change.Path(), nil)
 		return operation{}, &refusal

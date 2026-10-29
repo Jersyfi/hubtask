@@ -98,7 +98,7 @@ type Counts struct {
 }
 
 // CountsOf counts the changes.
-func CountsOf(changes []Change) Counts {
+func CountsOf(changes []BlockChange) Counts {
 	var c Counts
 	for _, change := range changes {
 		switch change.Op {

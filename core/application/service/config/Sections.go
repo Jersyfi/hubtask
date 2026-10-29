@@ -56,10 +56,10 @@ type section struct {
 	separate   map[string]string
 	// block and ops replace the generic reading and writing where a section needs its own.
 	block func(row map[string]any) (string, domain.Block)
-	ops   func(change domain.Change, row map[string]any) ([]operation, error)
+	ops   func(change domain.BlockChange, row map[string]any) ([]operation, error)
 	// hides reports whether a change hides data from somebody; permissions whether the section
 	// changes what somebody may do.
-	hides       func(change domain.Change) bool
+	hides       func(change domain.BlockChange) bool
 	permissions bool
 }
 
@@ -91,7 +91,7 @@ func sections() []section {
 				}
 				return strings.ToLower(text(row["module"])), domain.Block{switchAttribute: state}
 			},
-			ops: func(change domain.Change, _ map[string]any) ([]operation, error) {
+			ops: func(change domain.BlockChange, _ map[string]any) ([]operation, error) {
 				if change.Op != domain.OpChange {
 					return nil, refused("config.not_removable", change.Path(), nil)
 				}
@@ -113,7 +113,7 @@ func sections() []section {
 			create:     "DefineCustomField", change: "UpdateCustomField", remove: "DeleteCustomField",
 			locate: "field_id", locateFrom: "id",
 			changeable: []string{"options", "is_required", "restricted", "read_restricted", "applies_to"},
-			hides: func(change domain.Change) bool {
+			hides: func(change domain.BlockChange) bool {
 				if change.Op == domain.OpRemove {
 					return true
 				}
@@ -183,7 +183,7 @@ func sections() []section {
 // workflowOps writes a workflow: a new one is created with its shape; a changed shape is saved
 // as the draft and published, so that the publish's own checks - a status in use removed without
 // a mapping - refuse the apply as they refuse the designer.
-func workflowOps(change domain.Change, _ map[string]any) ([]operation, error) {
+func workflowOps(change domain.BlockChange, _ map[string]any) ([]operation, error) {
 	path := change.Path()
 	switch change.Op {
 	case domain.OpAdd:
@@ -256,7 +256,7 @@ func sortedKeysOf(m map[string]any) []string {
 // structureOps sets or resets one structure setting of the workspace through the use case its
 // settings screen calls, so the bound and the installation's locks refuse an apply as they refuse
 // the screen.
-func structureOps(change domain.Change, _ map[string]any) ([]operation, error) {
+func structureOps(change domain.BlockChange, _ map[string]any) ([]operation, error) {
 	path := change.Path()
 	switch change.Key {
 	case structureLocks:
@@ -294,10 +294,10 @@ func structureOps(change domain.Change, _ map[string]any) ([]operation, error) {
 	return []operation{{UseCase: "SetWorkspaceStructure", Path: change.Path(), Input: in}}, nil
 }
 
-func removing(change domain.Change) bool { return change.Op == domain.OpRemove }
+func removing(change domain.BlockChange) bool { return change.Op == domain.OpRemove }
 
 // ops is the use cases one change runs, by the section's declaration.
-func (s section) operations(change domain.Change, row map[string]any) ([]operation, error) {
+func (s section) operations(change domain.BlockChange, row map[string]any) ([]operation, error) {
 	if s.ops != nil {
 		return s.ops(change, row)
 	}

@@ -114,7 +114,7 @@ func TestAnAgentsApplyWaitsByDefaultAndAWorkspaceOnlyTightens(t *testing.T) {
 }
 
 func TestCountsOf(t *testing.T) {
-	counts := CountsOf([]Change{{Op: OpAdd}, {Op: OpAdd}, {Op: OpChange}, {Op: OpRemove}})
+	counts := CountsOf([]BlockChange{{Op: OpAdd}, {Op: OpAdd}, {Op: OpChange}, {Op: OpRemove}})
 	if counts != (Counts{Added: 2, Changed: 1, Removed: 1}) {
 		t.Errorf("counts %+v", counts)
 	}
