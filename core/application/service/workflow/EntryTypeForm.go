@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/expression"
 )
@@ -142,6 +143,8 @@ func (d FormDesk) check(ctx context.Context, form domain.Form) error {
 func (h SetEntryTypeForm) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: SetEntryTypeFormName,
+		// What authorizeWrite asks, as every write of the registry does.
+		Permission: service.PermissionStructure,
 		Summary: "Sets an entry type's form: its sections, its fields in order with required, read-only " +
 			"and hidden conditions (CEL over entry, actor, channel, step), defaults, validations and " +
 			"channels that may only narrow it. Every door that creates or edits an entry of the type " +

@@ -828,7 +828,7 @@ func roleInput(change bool) []usecase.Field {
 	}
 	if change {
 		fields = append(fields, usecase.Field{
-			Name: "expected_version", Kind: usecase.KindInt, Description: "The version the change was made against.",
+			Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true, Description: "The version the change was made against.",
 		})
 	}
 	return fields
