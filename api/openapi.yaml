@@ -235,6 +235,8 @@ paths:
     post:
       tags: [suggestions]
       operationId: aiGenerateTemplate
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: acceptedAsk
       summary: Ask AI to draft a template from a description
       description: >
         Asks the workspace's AI provider for a template — a name and a tree of nodes — from a
@@ -1419,6 +1421,8 @@ paths:
     post:
       tags: [automation]
       operationId: describeRule
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: acceptedAsk
       summary: Ask AI to draft a rule from a sentence
       description: >
         Asks the workspace's AI provider to draft an automation rule from one sentence in the
@@ -3954,6 +3958,7 @@ paths:
     delete:
       tags: [auth]
       operationId: revokeAllSessions
+      x-hubtask-rest: generated
       summary: Sign out everywhere
       description: >
         Ends every session of the caller's account, this one included: every refresh family dies,
@@ -3970,6 +3975,7 @@ paths:
     post:
       tags: [auth]
       operationId: revokeOtherSessions
+      x-hubtask-rest: generated
       summary: Sign out everywhere else
       description: >
         Ends every session of the caller's account except the one making this call: the answer to a lost phone, asked from the laptop that is still in hand. Every
@@ -5064,6 +5070,8 @@ paths:
     get:
       tags: [auth]
       operationId: listServiceAccounts
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: accountResponse
       summary: The workspace's service accounts
       description: >
         The accounts that exist only to be acted through: an integration, a script, a rule that
@@ -5083,6 +5091,9 @@ paths:
     post:
       tags: [auth]
       operationId: createServiceAccount
+      x-hubtask-rest: generated
+      x-hubtask-rest-location: /auth/service-accounts/{id}
+      x-hubtask-rest-answer: accountResponse
       summary: Create a service account
       description: >
         Creates an account of kind `SERVICE_ACCOUNT`: no mail address, no sign-in anywhere, and
@@ -6790,6 +6801,7 @@ paths:
     post:
       tags: [admin]
       operationId: resealSecrets
+      x-hubtask-rest: generated
       summary: Re-seal what older keys still hold
       description: >
         Rewraps every stored value that names a key other than the current one, so that the older
@@ -7236,6 +7248,7 @@ paths:
     delete:
       tags: [identity]
       operationId: removeOwnPasskey
+      x-hubtask-rest: generated
       summary: Remove one of the caller's passkeys or security keys
       description: |
         Removes the credential at once: it signs in and proves nothing from this moment. Asks a
@@ -7574,6 +7587,8 @@ paths:
     post:
       tags: [suggestions]
       operationId: suggestDecomposition
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: acceptedAsk
       summary: Ask AI what work sits under this entry
       description: >
         Asks the workspace's AI provider to propose the work packages and activities that would
@@ -7609,6 +7624,8 @@ paths:
     post:
       tags: [suggestions]
       operationId: aiSuggestFields
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: acceptedAsk
       summary: Ask AI to propose this entry's fields
       description: >
         Asks the workspace's AI provider to propose a title, notes and a due date for one entry -
@@ -7642,6 +7659,8 @@ paths:
     post:
       tags: [suggestions]
       operationId: aiSummarize
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: acceptedAsk
       summary: Ask AI to summarise this entry
       description: >
         Asks the workspace's AI provider to summarise one entry into its notes - what the
@@ -7670,6 +7689,7 @@ paths:
     post:
       tags: [suggestions]
       operationId: aiTranslate
+      x-hubtask-rest: generated
       summary: Read this entry in another language
       description: >
         Asks the workspace's AI provider for the entry's title and notes in a language the caller
@@ -7710,6 +7730,8 @@ paths:
     post:
       tags: [suggestions]
       operationId: aiClassify
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: acceptedAsk
       summary: Ask AI to propose labels for this entry
       description: >
         Asks the workspace's AI provider to propose labels for one entry - what the automation
@@ -7741,6 +7763,8 @@ paths:
     post:
       tags: [suggestions]
       operationId: aiSummarizeThread
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: acceptedAsk
       summary: Ask AI to summarise this entry's discussion
       description: >
         Asks the workspace's AI provider to summarise the comments on one entry — the discussion
@@ -7785,6 +7809,8 @@ paths:
     post:
       tags: [suggestions]
       operationId: aiSummarizeContainer
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: acceptedAsk
       summary: Ask AI how a collection stands
       description: >
         Asks the workspace's AI provider how one collection stands — what is open, what moved, what
@@ -7821,6 +7847,9 @@ paths:
     post:
       tags: [suggestions]
       operationId: makeEntries
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: {containerId: collection_id}
+      x-hubtask-rest-answer: acceptedAsk
       summary: Ask AI to turn a piece of text into entries
       description: >
         Asks the workspace's AI provider which entries a piece of pasted text holds — a recipe, an
@@ -7937,6 +7966,8 @@ paths:
     post:
       tags: [suggestions]
       operationId: askWorkspace
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: acceptedAsk
       summary: Ask the workspace a question
       description: >
         Asks the workspace's AI provider one question in the caller's own words — "what is open
@@ -7974,6 +8005,9 @@ paths:
     get:
       tags: [suggestions]
       operationId: listSuggestions
+      x-hubtask-rest: generated
+      x-hubtask-rest-query: {size: page_size}
+      x-hubtask-rest-answer: suggestionPageResponse
       summary: What AI has proposed, and not done
       description: >
         The suggestions standing against one entry, newest first. Nothing here has changed
@@ -8016,6 +8050,8 @@ paths:
     post:
       tags: [suggestions]
       operationId: acceptSuggestion
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: acceptedSuggestionResponse
       summary: Accept a suggestion
       description: >
         Applies what was proposed, as the accepting person's own write: the ordinary use case, with
@@ -8067,6 +8103,8 @@ paths:
     post:
       tags: [suggestions]
       operationId: dismissSuggestion
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: suggestionResponse
       summary: Dismiss a suggestion
       description: >
         A state, not a deletion: the record stays readable, so "what was proposed and turned down"
@@ -8790,6 +8828,8 @@ paths:
     post:
       tags: [privacy]
       operationId: giveConsent
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: consentRecordOf
       summary: Agree to an optional processing purpose
       description: |
         The caller's own agreement - for `ai_processing`, letting the content they authored back
@@ -8838,6 +8878,8 @@ paths:
     post:
       tags: [privacy]
       operationId: acknowledgeAiPosition
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: ownAiPositionOf
       summary: Acknowledge that keeping one's content out stopped taking effect
       description: |
         Records that the caller read the notice: the workspace made AI part of everybody's work,

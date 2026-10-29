@@ -22,7 +22,6 @@ const (
 	startPasskeyRegistrationUseCase    = "StartPasskeyRegistration"
 	completePasskeyRegistrationUseCase = "CompletePasskeyRegistration"
 	renameOwnPasskeyUseCase            = "RenameOwnPasskey"
-	removeOwnPasskeyUseCase            = "RemoveOwnPasskey"
 )
 
 // ListOwnPasskeys answers GET /accounts/me/passkeys. Written out, GetOwnAccount's reasoning.
@@ -166,24 +165,6 @@ func (c *RestController) CompletePasskeyRegistration(w http.ResponseWriter, r *h
 		answer.RecoveryCodes = &listed
 	}
 	writeJSON(w, r, http.StatusCreated, answer)
-}
-
-// RemoveOwnPasskey answers DELETE /accounts/me/passkeys/{passkeyId}.
-func (c *RestController) RemoveOwnPasskey(
-	w http.ResponseWriter, r *http.Request, passkeyID openapi.PasskeyId, params openapi.RemoveOwnPasskeyParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	if _, err := c.UseCases.Invoke(r.Context(), removeOwnPasskeyUseCase, actorOf(r), usecase.Input{
-		"passkey_id": passkeyID.String(), "step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-	}); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 // The passkey sign-in (identity.md §23.4). Written out, SignIn's reasoning: the routes are public, so

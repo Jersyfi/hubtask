@@ -23,7 +23,6 @@ const (
 	openTenantPasswordUseCase    = "OpenTenantPassword"
 	closeTenantPasswordUseCase   = "CloseTenantPassword"
 	readEncryptionStatusUseCase  = "ReadEncryptionStatus"
-	resealSecretsUseCase         = "ResealSecrets"
 )
 
 // ListTenants answers GET /admin/tenants.
@@ -362,24 +361,5 @@ func (c *RestController) ReadEncryptionStatus(w http.ResponseWriter, r *http.Req
 	}
 	writeJSON(w, r, http.StatusOK, openapi.EncryptionStatus{
 		ActiveKeyId: out.String("active_key_id"), Keys: keys,
-	})
-}
-
-// ResealSecrets answers POST /admin/encryption:reseal with 202: the rounds are queued, and the
-// status route is where their progress is read.
-func (c *RestController) ResealSecrets(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), resealSecretsUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusAccepted, openapi.ResealAccepted{
-		ActiveKeyId: out.String("active_key_id"), QueuedTenants: out.Int("queued_tenants"),
 	})
 }

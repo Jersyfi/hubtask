@@ -26,9 +26,7 @@ const (
 	previewErasureUseCase           = "PreviewErasure"
 	restrictProcessingUseCase       = "RestrictProcessing"
 	withdrawConsentUseCase          = "WithdrawConsent"
-	giveConsentUseCase              = "GiveConsent"
 	listConsentsUseCase             = "ListConsents"
-	acknowledgeAiPositionUseCase    = "AcknowledgeAiPosition"
 )
 
 // ListDataSubjectRequests answers GET /privacy/requests.
@@ -369,33 +367,6 @@ func (c *RestController) ListConsents(w http.ResponseWriter, r *http.Request, pa
 		answer.Data = append(answer.Data, entry)
 	}
 	writeJSON(w, r, http.StatusOK, answer)
-}
-
-// GiveConsent answers POST /privacy/consents:give.
-func (c *RestController) GiveConsent(w http.ResponseWriter, r *http.Request) {
-	var body openapi.ConsentGrant
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-	in := usecase.Input{"purpose": body.Purpose}
-	if body.AccountId != nil {
-		in["account_id"] = body.AccountId.String()
-	}
-	out, ok := c.read(w, r, giveConsentUseCase, in)
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, consentRecordOf(out))
-}
-
-// AcknowledgeAiPosition answers POST /privacy/ai-objection:noticed.
-func (c *RestController) AcknowledgeAiPosition(w http.ResponseWriter, r *http.Request) {
-	out, ok := c.read(w, r, acknowledgeAiPositionUseCase, usecase.Input{})
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, ownAiPositionOf(out))
 }
 
 func ownAiPositionOf(out usecase.Output) openapi.OwnAiPosition {

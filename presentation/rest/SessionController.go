@@ -16,10 +16,9 @@ import (
 // The use case names of the session surface. Constants for the reason the token ones are:
 // a name spelled twice is a name that eventually drifts.
 const (
-	signInUseCase            = "SignIn"
-	refreshSessionUseCase    = "RefreshSession"
-	listSessionsUseCase      = "ListSessions"
-	revokeAllSessionsUseCase = "RevokeAllSessions"
+	signInUseCase         = "SignIn"
+	refreshSessionUseCase = "RefreshSession"
+	listSessionsUseCase   = "ListSessions"
 	// revokeOtherSessionsUseCase is *Sign out everywhere else* (UC-ID-06 check 4).
 	revokeOtherSessionsUseCase = "RevokeOtherSessions"
 	redeemInvitationUseCase    = "RedeemInvitation"
@@ -144,40 +143,6 @@ func (c *RestController) ListSessions(w http.ResponseWriter, r *http.Request) {
 		sessions = append(sessions, sessionResponse(row))
 	}
 	writeJSON(w, r, http.StatusOK, sessions)
-}
-
-// RevokeAllSessions answers DELETE /auth/sessions.
-func (c *RestController) RevokeAllSessions(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	if _, err := c.UseCases.Invoke(
-		r.Context(), revokeAllSessionsUseCase, actorOf(r), usecase.Input{},
-	); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
-// RevokeOtherSessions answers POST /auth/sessions:revoke-others.
-func (c *RestController) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	if _, err := c.UseCases.Invoke(
-		r.Context(), revokeOtherSessionsUseCase, actorOf(r), usecase.Input{},
-	); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 // RedeemInvitation answers POST /auth/invitations:redeem.

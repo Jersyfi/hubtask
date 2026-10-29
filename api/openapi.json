@@ -362,6 +362,8 @@
           "suggestions"
         ],
         "operationId": "aiGenerateTemplate",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "acceptedAsk",
         "summary": "Ask AI to draft a template from a description",
         "description": "Asks the workspace's AI provider for a template — a name and a tree of nodes — from a description in the caller's own words, for the collection the template would belong to. The tree is held to the collection's capability profile: the prompt says which types may sit under which, and a node the profile refuses is dropped from the answer rather than stored.\nAsynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. The answer appears under `GET /suggestions` as a `TEMPLATE` suggestion with `target_type=CONTAINER` and the collection as its target; its payload is a `TemplateInput`, which is what accepting creates — through `CreateTemplate`, as the accepting person, with their rights at the collection and its own audit entry. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.\n",
         "parameters": [
@@ -2007,6 +2009,8 @@
           "automation"
         ],
         "operationId": "describeRule",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "acceptedAsk",
         "summary": "Ask AI to draft a rule from a sentence",
         "description": "Asks the workspace's AI provider to draft an automation rule from one sentence in the caller's own words — \"when a task is created in Website relaunch, give it to Lisa\". Needs what writing a rule needs: the automation permission at the scope, and a plan that includes rules.\nThe draft uses only what this workspace offers: the triggers it serves, the conditions the rule editor composes, a fixed set of entry-level actions, and only the people, collections and labels the sentence names and the caller may read. A model writes no expression and no address; what it could not draft is listed in the payload's `not_drafted`.\nAsynchronous and answered `202`. The draft appears under `GET /suggestions` as a `RULE` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads, accepts or dismisses it. Accepting it is `CreateRule` as the caller, so the rule is stored switched off. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.\n",
         "parameters": [
@@ -5291,6 +5295,7 @@
           "auth"
         ],
         "operationId": "revokeAllSessions",
+        "x-hubtask-rest": "generated",
         "summary": "Sign out everywhere",
         "description": "Ends every session of the caller's account, this one included: every refresh family dies, and every access token still in flight refuses on its next request. The answer to \"I left myself signed in somewhere\" - and the reason the route needs nothing but the will to call it.\n",
         "responses": {
@@ -5309,6 +5314,7 @@
           "auth"
         ],
         "operationId": "revokeOtherSessions",
+        "x-hubtask-rest": "generated",
         "summary": "Sign out everywhere else",
         "description": "Ends every session of the caller's account except the one making this call: the answer to a lost phone, asked from the laptop that is still in hand. Every other refresh family dies, and every other access token still in flight refuses on its next request. Called with a personal access token there is no session of the caller's to keep, so every session ends. Journalled in the workspace's trail with the number ended.\n",
         "responses": {
@@ -6449,6 +6455,8 @@
           "auth"
         ],
         "operationId": "listServiceAccounts",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "accountResponse",
         "summary": "The workspace's service accounts",
         "description": "The accounts that exist only to be acted through: an integration, a script, a rule that has to keep running after the person who wrote it has left. Needs the permission that manages members, because that is the person who answers for who holds access.\n",
         "responses": {
@@ -6475,6 +6483,9 @@
           "auth"
         ],
         "operationId": "createServiceAccount",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-location": "/auth/service-accounts/{id}",
+        "x-hubtask-rest-answer": "accountResponse",
         "summary": "Create a service account",
         "description": "Creates an account of kind `SERVICE_ACCOUNT`: no mail address, no sign-in anywhere, and tokens as its only credential. It holds rights the way a person does - through memberships granted to it - and it is what an automation rule runs as, so that a rule does not die with its author's departure.\n",
         "parameters": [
@@ -8701,6 +8712,7 @@
           "admin"
         ],
         "operationId": "resealSecrets",
+        "x-hubtask-rest": "generated",
         "summary": "Re-seal what older keys still hold",
         "description": "Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.\nOne job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule - and one more for the installation's own sign-in providers and offered AI models. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.\n",
         "responses": {
@@ -9203,6 +9215,7 @@
           "identity"
         ],
         "operationId": "removeOwnPasskey",
+        "x-hubtask-rest": "generated",
         "summary": "Remove one of the caller's passkeys or security keys",
         "description": "Removes the credential at once: it signs in and proves nothing from this moment. Asks a\nfresh proof of the session (`auth.step_up_required` otherwise, `auth.step_up_session_required`\nfor a token). The person is told by mail, as every change to a way into the account is.\n\nRefused before the proof is spent with `auth.passkey_not_found` for a credential the\ncaller's account does not hold, and with `auth.mfa_required_by_tenant` where it is the last\nsecond factor the account holds - no authenticator app, no other passkey or security key of\nthis workspace's address - and the workspace's rule requires one of this person. `can_remove`\non the list answers the same condition. Where the last factor of any kind goes, the recovery\ncodes go with it.\n",
         "parameters": [
@@ -9573,6 +9586,8 @@
           "suggestions"
         ],
         "operationId": "suggestDecomposition",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "acceptedAsk",
         "summary": "Ask AI what work sits under this entry",
         "description": "Asks the workspace's AI provider to propose the work packages and activities that would carry one entry. It **proposes** and changes nothing: the breakdown is read through `GET /suggestions` and is created only when somebody accepts it, one ordinary create at a time with their own rights at each destination.\nAsynchronous and answered `202`, for the reason every AI call in this product is: the provider is somebody else's machine. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.\n**Accepting a breakdown can be partial.** Each piece is its own create with its own permission check, and a refusal at the third leaves the two before it standing — which is the honest outcome for a person who accepted a breakdown and got most of it, rather than losing all of it to one title that was too long.\n",
         "parameters": [
@@ -9611,6 +9626,8 @@
           "suggestions"
         ],
         "operationId": "aiSuggestFields",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "acceptedAsk",
         "summary": "Ask AI to propose this entry's fields",
         "description": "Asks the workspace's AI provider to propose a title, notes and a due date for one entry - what the automation action `AI_SUGGEST_FIELDS` does - or only the fields `fields` names. Asynchronous and answered `202`; a workspace with no provider or no consent is answered `503` with `ai.unavailable`. A field outside the three is refused with `suggestions.field_not_offered` (422) and nothing is queued.\nAsked by whoever may change the entry: the permission is decided along the entry's own path, so a role held on its hub, its collection or the entry itself counts.\n",
         "requestBody": {
@@ -9654,6 +9671,8 @@
           "suggestions"
         ],
         "operationId": "aiSummarize",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "acceptedAsk",
         "summary": "Ask AI to summarise this entry",
         "description": "Asks the workspace's AI provider to summarise one entry into its notes - what the automation action `AI_SUMMARIZE` does. Asynchronous, and a proposal unless the caller asks for it to be applied.\n",
         "requestBody": {
@@ -9697,6 +9716,7 @@
           "suggestions"
         ],
         "operationId": "aiTranslate",
+        "x-hubtask-rest": "generated",
         "summary": "Read this entry in another language",
         "description": "Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Offered to everybody who may read the entry. A caller who stops waiting may close the request: the provider call ends with it. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.\n",
         "requestBody": {
@@ -9740,6 +9760,8 @@
           "suggestions"
         ],
         "operationId": "aiClassify",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "acceptedAsk",
         "summary": "Ask AI to propose labels for this entry",
         "description": "Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied. The answer may only choose - from the labels the entry's collection uses, the columns of its board, and the collection's closed custom fields for the entry's type - so an entry with none of the three to choose from is refused with `ai.nothing_to_choose_from` (422) rather than queued.\n",
         "requestBody": {
@@ -9783,6 +9805,8 @@
           "suggestions"
         ],
         "operationId": "aiSummarizeThread",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "acceptedAsk",
         "summary": "Ask AI to summarise this entry's discussion",
         "description": "Asks the workspace's AI provider to summarise the comments on one entry — the discussion rather than the entry. Oldest first and **bounded**: a thread of four hundred comments is a token problem rather than a summary problem, and the bound is part of the design rather than a surprise at the provider.\nAsynchronous and answered `202`, like every AI call here; a workspace with no provider or no consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent. The answer appears under `GET /suggestions` as a proposal for the entry's notes, which somebody who may change the entry accepts or dismisses.\n**A reading aid**: asked by everybody who may read the entry, not only by those who may change it, and readable by them under `GET /suggestions`. `apply: true` writes the notes, so it asks what changing the entry asks. A summary is judged against the entry's title and notes, not against the thread, so a reply does not mark it stale: it says what the discussion came to when it was made, which its `produced_at` names.\nA comment is somebody's writing and travels as content, never as instruction. Nothing about it — no comment, no author, no title — reaches a log, a metric, a trace or an audit entry; what the trail records is that somebody asked, about what, with which prompt.\n",
         "requestBody": {
@@ -9826,6 +9850,8 @@
           "suggestions"
         ],
         "operationId": "aiSummarizeContainer",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "acceptedAsk",
         "summary": "Ask AI how a collection stands",
         "description": "Asks the workspace's AI provider how one collection stands — what is open, what moved, what is overdue — in the shape a person asks a colleague on a Monday. The entries it reads are the ones directly in the collection, in the collection's own order and bounded.\nAsynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The answer appears under `GET /suggestions` with `target_type=CONTAINER`.\n**Nothing accepts it.** A collection has nowhere to put a status summary — a description says what a collection is *for*, not how its week went — so the suggestion is the answer: read it, and `:dismiss` closes it.\n",
         "requestBody": {
@@ -9869,6 +9895,11 @@
           "suggestions"
         ],
         "operationId": "makeEntries",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "containerId": "collection_id"
+        },
+        "x-hubtask-rest-answer": "acceptedAsk",
         "summary": "Ask AI to turn a piece of text into entries",
         "description": "Asks the workspace's AI provider which entries a piece of pasted text holds — a recipe, an e-mail, meeting notes — for one collection. Needs what creating entries there needs.\nThe proposal carries only the fields the collection's structure offers its entries at their level: a title always, and notes, an amount and a due date only where the collection carries them. Nothing else is read for it: no entry of the collection and nobody else's content travels, only the caller's own text and what the collection offers. A caller who keeps their own content out of AI is refused with `ai.kept_out`.\nAsynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The proposal appears under `GET /suggestions` as an `ENTRIES` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads, takes or dismisses it. Nothing is created before it is taken: `:accept` takes every entry, or those named in `take`.\n",
         "parameters": [
@@ -9987,6 +10018,8 @@
           "suggestions"
         ],
         "operationId": "askWorkspace",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "acceptedAsk",
         "summary": "Ask the workspace a question",
         "description": "Asks the workspace's AI provider one question in the caller's own words — \"what is open for Müller GmbH this week?\". The provider is shown only entries the caller may read, found through the ordinary search and listings as the caller; content of people who keep theirs out of AI is never among them. Anybody with a role in the workspace may ask, and a token needs `items:write`.\nEach question stands alone: no history is kept and no follow-up refers to it. Asynchronous and answered `202`. The answer appears under `GET /suggestions` as an `ANSWER` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads or dismisses it. It performs no action: `:accept` refuses it. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.\n",
         "parameters": [
@@ -10030,6 +10063,11 @@
           "suggestions"
         ],
         "operationId": "listSuggestions",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-query": {
+          "size": "page_size"
+        },
+        "x-hubtask-rest-answer": "suggestionPageResponse",
         "summary": "What AI has proposed, and not done",
         "description": "The suggestions standing against one entry, newest first. Nothing here has changed anything: a suggestion is a record with a name on it — the model, the prompt version and the moment — and it becomes a change only when somebody accepts it, as their own write with their own rights.\nNeeds whatever reading the target itself needs. A suggestion about an entry says something about that entry, so it is exactly as readable as the entry is.\n",
         "parameters": [
@@ -10093,6 +10131,8 @@
           "suggestions"
         ],
         "operationId": "acceptSuggestion",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "acceptedSuggestionResponse",
         "summary": "Accept a suggestion",
         "description": "Applies what was proposed, as the accepting person's own write: the ordinary use case, with the ordinary permission check, the ordinary validation and the ordinary history entry. A suggestion cannot grant anybody anything — somebody who could not make the change by hand cannot make it by accepting.\nTwo audit entries follow, deliberately: the acceptance and the write. \"Who decided this\" and \"what changed\" are two questions, and a year later only the first explains the second.\nA suggestion made against an entry that has since been rewritten is **stale** and is refused (`409`, detail code `suggestions.stale`): applying it would attach a proposal about one state of the entry to a different one. Ask for a new suggestion instead.\nThe optional body carries what the person changed or added before accepting — an edited title, or the destination collection a jumble suggestion cannot know. It is merged over the proposal key by key, and it is the caller's own input checked by the use case with the caller's own rights, exactly as if they had made the call themselves. The suggestion's target is never taken from either the proposal or the overrides: a proposal about one entry cannot be made to change another.\nA `RULE` draft carries no `name` and no `run_as`, so accepting one needs both in the overrides; any other key the overrides carry — `trigger`, `actions`, `scope` — replaces the draft's whole.\nAn `ENTRIES` proposal is taken whole, or in part with `take`: the entries named are created in the proposal's collection, in order, as the caller, and the suggestion stays `PROPOSED` with the others until none is left — then it is `ACCEPTED`. A refusal of one entry creates none of those taken. `:dismiss` turns down what is left.\n",
         "requestBody": {
@@ -10133,6 +10173,8 @@
           "suggestions"
         ],
         "operationId": "dismissSuggestion",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "suggestionResponse",
         "summary": "Dismiss a suggestion",
         "description": "A state, not a deletion: the record stays readable, so \"what was proposed and turned down\" has an answer, and the retention engine ages it out by rule rather than by hand. Dismissing an already decided suggestion is refused rather than silently repeated.\n",
         "responses": {
@@ -11074,6 +11116,8 @@
           "privacy"
         ],
         "operationId": "giveConsent",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "consentRecordOf",
         "summary": "Agree to an optional processing purpose",
         "description": "The caller's own agreement - for `ai_processing`, letting the content they authored back\ninto AI after they kept it out. Only ever the caller's own: a consent for anybody else is\nrefused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.\nThe withdrawal before it stays on record for the period it covered.\n",
         "requestBody": {
@@ -11136,6 +11180,8 @@
           "privacy"
         ],
         "operationId": "acknowledgeAiPosition",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "ownAiPositionOf",
         "summary": "Acknowledge that keeping one's content out stopped taking effect",
         "description": "Records that the caller read the notice: the workspace made AI part of everybody's work,\nso their choice to keep their content out no longer takes effect. Acknowledging twice is\nacknowledging once.\n",
         "responses": {
