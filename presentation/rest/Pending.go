@@ -2044,6 +2044,10 @@ func (pending) ReadCi(w http.ResponseWriter, r *http.Request, _ openapi_types.UU
 	notAvailable(w, r)
 }
 
+func (pending) ListCiBacklinks(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
 func (pending) ReadCiImpact(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ReadCiImpactParams) {
 	notAvailable(w, r)
 }

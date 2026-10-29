@@ -1078,6 +1078,44 @@
         }
       }
     },
+    "/cis/{ciId}/backlinks": {
+      "parameters": [
+        {
+          "name": "ciId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "listCiBacklinks",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "ci backlinks",
+        "summary": "What points at a configuration item",
+        "description": "The pages, entries' notes and comments and whiteboards that mention it, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.\n",
+        "responses": {
+          "200": {
+            "description": "The backlinks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CiBacklinkList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/ci-relations": {
       "post": {
         "tags": [
@@ -26467,7 +26505,8 @@
           "WHITEBOARD",
           "DASHBOARD",
           "GOAL",
-          "SPRINT"
+          "SPRINT",
+          "CI"
         ]
       },
       "ReferenceStrength": {
@@ -26528,7 +26567,7 @@
           },
           "title": {
             "type": "string",
-            "description": "The entry's or page's title, the container's or view's name."
+            "description": "The entry's or page's title, the container's, view's or configuration item's name."
           },
           "key": {
             "type": [
@@ -26581,7 +26620,15 @@
           "hub_id": {
             "type": "string",
             "format": "uuid",
-            "description": "The hub a page or a whiteboard is in."
+            "description": "The hub a page, a whiteboard or a configuration item is in."
+          },
+          "ci_class": {
+            "type": "string",
+            "description": "A configuration item's class."
+          },
+          "stage": {
+            "type": "string",
+            "description": "A configuration item's lifecycle stage."
           },
           "icon": {
             "type": [
@@ -43376,6 +43423,77 @@
               "format": "uuid"
             },
             "description": "The active services and offerings among them."
+          }
+        }
+      },
+      "CiBacklinkList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "source_kind",
+                "source_id",
+                "page_id",
+                "entry_id",
+                "whiteboard_id",
+                "title",
+                "strength"
+              ],
+              "properties": {
+                "source_kind": {
+                  "type": "string",
+                  "enum": [
+                    "PAGE",
+                    "ENTRY",
+                    "COMMENT",
+                    "WHITEBOARD"
+                  ],
+                  "description": "A page, an entry's notes, one of its comments, or a board."
+                },
+                "source_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "page_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "entry_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "whiteboard_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "strength": {
+                  "type": "string",
+                  "enum": [
+                    "MENTION",
+                    "CARD",
+                    "EMBED"
+                  ]
+                }
+              }
+            }
           }
         }
       },

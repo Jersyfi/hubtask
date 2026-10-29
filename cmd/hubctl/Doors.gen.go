@@ -17,6 +17,11 @@ var generatedGroups = map[string]string{
 
 // generatedCommands is every operation the contract names a command for, in a stable order.
 var generatedCommands = []door{
+	{Group: "ci", Verb: "backlinks", OperationID: "listCiBacklinks", Method: "GET", Path: "/cis/{ciId}/backlinks", Summary: "What points at a configuration item",
+		PathParams: []doorParam{
+			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"title"}},
 	{Group: "ci", Verb: "compliance", OperationID: "setCiCompliance", Method: "PUT", Path: "/cis/{ciId}/compliance", Summary: "Set a configuration item's lifecycle and compliance fields",
 		PathParams: []doorParam{
 			{Name: "ciId", Kind: "uuid", Help: "", Required: true},

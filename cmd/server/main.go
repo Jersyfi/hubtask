@@ -1792,6 +1792,7 @@ func run() error {
 	linking := work.Linking{
 		Items: items, Containers: containers, Types: linkTypeRegistry.Types, Links: entryLinks,
 		References: entryLinks, Views: savedViews, Pages: postgres.NewPageRepository(), Boards: postgres.NewWhiteboardRepository(),
+		Cis:        postgres.NewCmdbRepository(),
 		Authorizer: authorizer, Reader: authorizer,
 		Permits: authorizer, Events: outbox, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid, Activity: journal,
@@ -1876,6 +1877,9 @@ func run() error {
 		cmdbservice.ResolveCiDuplicate{Inventory: inventory}.Descriptor(),
 		cmdbservice.ReadCmdbHealth{Inventory: inventory}.Descriptor(),
 		cmdbservice.ReadCiImpact{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiBacklinks{Inventory: inventory, Pointers: cmdbservice.Pointers{
+			Texts: pageSpace.Pages, Boards: boardStudio.Boards, Entries: entryLinks, Reader: authorizer,
+		}}.Descriptor(),
 		work.ListLinkTypes{Registry: linkTypeRegistry}.Descriptor(),
 		work.CreateLinkType{Registry: linkTypeRegistry}.Descriptor(),
 		work.ChangeLinkType{Registry: linkTypeRegistry}.Descriptor(),

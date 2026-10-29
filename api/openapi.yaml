@@ -598,6 +598,29 @@ paths:
               schema: { $ref: "#/components/schemas/CiImpact" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /cis/{ciId}/backlinks:
+    parameters:
+      - name: ciId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cmdb]
+      operationId: listCiBacklinks
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci backlinks"
+      summary: What points at a configuration item
+      description: >
+        The pages, entries' notes and comments and whiteboards that mention it, show it as a card or
+        embed it, each with its title - only those the reader may see. Needs READ on the hub.
+      responses:
+        "200":
+          description: The backlinks
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiBacklinkList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /ci-relations:
     post:
       tags: [cmdb]
@@ -19203,7 +19226,7 @@ components:
     ReferenceKind:
       type: string
       description: What a reference points at. DASHBOARD, GOAL and SPRINT resolve once their modules exist.
-      enum: [ENTRY, HUB, COLLECTION, VIEW, PAGE, WHITEBOARD, DASHBOARD, GOAL, SPRINT]
+      enum: [ENTRY, HUB, COLLECTION, VIEW, PAGE, WHITEBOARD, DASHBOARD, GOAL, SPRINT, CI]
 
     ReferenceStrength:
       type: string
@@ -19229,7 +19252,7 @@ components:
         id: { type: string, format: uuid }
         anchor: { type: [string, "null"] }
         available: { type: boolean }
-        title: { type: string, description: "The entry's or page's title, the container's or view's name." }
+        title: { type: string, description: "The entry's or page's title, the container's, view's or configuration item's name." }
         key: { type: [string, "null"], description: "The entry's key (`sup-128`) or the container's handle, where it has one." }
         number: { type: [integer, "null"], format: int64 }
         level: { $ref: "#/components/schemas/ItemType" }
@@ -19240,7 +19263,9 @@ components:
         start_at: { type: [string, "null"], format: date-time }
         due_at: { type: [string, "null"], format: date-time }
         layout: { type: string, description: "A view's layout." }
-        hub_id: { type: string, format: uuid, description: "The hub a page or a whiteboard is in." }
+        hub_id: { type: string, format: uuid, description: "The hub a page, a whiteboard or a configuration item is in." }
+        ci_class: { type: string, description: "A configuration item's class." }
+        stage: { type: string, description: "A configuration item's lifecycle stage." }
         icon: { type: [string, "null"], description: "A page's icon." }
         due_for_review: { type: boolean, description: "A page whose verification has run out." }
         element_count: { type: integer, description: "How many objects a whiteboard holds." }
@@ -28001,6 +28026,24 @@ components:
         direction: { type: string, enum: [DOWNSTREAM, UPSTREAM] }
         reached: { type: array, items: { $ref: "#/components/schemas/CiReached" } }
         services: { type: array, items: { type: string, format: uuid }, description: The active services and offerings among them. }
+
+    CiBacklinkList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [source_kind, source_id, page_id, entry_id, whiteboard_id, title, strength]
+            properties:
+              source_kind: { type: string, enum: [PAGE, ENTRY, COMMENT, WHITEBOARD], description: "A page, an entry's notes, one of its comments, or a board." }
+              source_id: { type: string, format: uuid }
+              page_id: { type: [string, "null"], format: uuid }
+              entry_id: { type: [string, "null"], format: uuid }
+              whiteboard_id: { type: [string, "null"], format: uuid }
+              title: { type: string }
+              strength: { type: string, enum: [MENTION, CARD, EMBED] }
 
     CmdbHealth:
       type: object

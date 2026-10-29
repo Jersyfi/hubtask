@@ -1470,6 +1470,51 @@ func (e CiAttributeNeed) Valid() bool {
 	}
 }
 
+// Defines values for CiBacklinkListDataSourceKind.
+const (
+	CiBacklinkListDataSourceKindCOMMENT    CiBacklinkListDataSourceKind = "COMMENT"
+	CiBacklinkListDataSourceKindENTRY      CiBacklinkListDataSourceKind = "ENTRY"
+	CiBacklinkListDataSourceKindPAGE       CiBacklinkListDataSourceKind = "PAGE"
+	CiBacklinkListDataSourceKindWHITEBOARD CiBacklinkListDataSourceKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the CiBacklinkListDataSourceKind enum.
+func (e CiBacklinkListDataSourceKind) Valid() bool {
+	switch e {
+	case CiBacklinkListDataSourceKindCOMMENT:
+		return true
+	case CiBacklinkListDataSourceKindENTRY:
+		return true
+	case CiBacklinkListDataSourceKindPAGE:
+		return true
+	case CiBacklinkListDataSourceKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiBacklinkListDataStrength.
+const (
+	CiBacklinkListDataStrengthCARD    CiBacklinkListDataStrength = "CARD"
+	CiBacklinkListDataStrengthEMBED   CiBacklinkListDataStrength = "EMBED"
+	CiBacklinkListDataStrengthMENTION CiBacklinkListDataStrength = "MENTION"
+)
+
+// Valid indicates whether the value is a known member of the CiBacklinkListDataStrength enum.
+func (e CiBacklinkListDataStrength) Valid() bool {
+	switch e {
+	case CiBacklinkListDataStrengthCARD:
+		return true
+	case CiBacklinkListDataStrengthEMBED:
+		return true
+	case CiBacklinkListDataStrengthMENTION:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CiComplianceStage.
 const (
 	CiComplianceStageDISPOSED    CiComplianceStage = "DISPOSED"
@@ -5108,6 +5153,7 @@ func (e RecurrenceMode) Valid() bool {
 
 // Defines values for ReferenceKind.
 const (
+	ReferenceKindCI         ReferenceKind = "CI"
 	ReferenceKindCOLLECTION ReferenceKind = "COLLECTION"
 	ReferenceKindDASHBOARD  ReferenceKind = "DASHBOARD"
 	ReferenceKindENTRY      ReferenceKind = "ENTRY"
@@ -5122,6 +5168,8 @@ const (
 // Valid indicates whether the value is a known member of the ReferenceKind enum.
 func (e ReferenceKind) Valid() bool {
 	switch e {
+	case ReferenceKindCI:
+		return true
 	case ReferenceKindCOLLECTION:
 		return true
 	case ReferenceKindDASHBOARD:
@@ -9156,6 +9204,27 @@ type CiAttributeKind string
 
 // CiAttributeNeed defines model for CiAttribute.Need.
 type CiAttributeNeed string
+
+// CiBacklinkList defines model for CiBacklinkList.
+type CiBacklinkList struct {
+	Data []struct {
+		EntryId  *openapi_types.UUID `json:"entry_id"`
+		PageId   *openapi_types.UUID `json:"page_id"`
+		SourceId openapi_types.UUID  `json:"source_id"`
+
+		// SourceKind A page, an entry's notes, one of its comments, or a board.
+		SourceKind   CiBacklinkListDataSourceKind `json:"source_kind"`
+		Strength     CiBacklinkListDataStrength   `json:"strength"`
+		Title        string                       `json:"title"`
+		WhiteboardId *openapi_types.UUID          `json:"whiteboard_id"`
+	} `json:"data"`
+}
+
+// CiBacklinkListDataSourceKind A page, an entry's notes, one of its comments, or a board.
+type CiBacklinkListDataSourceKind string
+
+// CiBacklinkListDataStrength defines model for CiBacklinkList.Data.Strength.
+type CiBacklinkListDataStrength string
 
 // CiClass A configuration item class. A shipped class has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits.
 type CiClass struct {
@@ -14678,9 +14747,12 @@ type ReferenceStrength string
 
 // ReferenceTarget What a reference shows the reader. Where the reader may not see the object, or it is not there, only `kind`, `id`, `anchor` and `available: false` are present.
 type ReferenceTarget struct {
-	Anchor       *string             `json:"anchor"`
-	Archived     *bool               `json:"archived,omitempty"`
-	Available    bool                `json:"available"`
+	Anchor    *string `json:"anchor"`
+	Archived  *bool   `json:"archived,omitempty"`
+	Available bool    `json:"available"`
+
+	// CiClass A configuration item's class.
+	CiClass      *string             `json:"ci_class,omitempty"`
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 	Completed    *bool               `json:"completed,omitempty"`
 	DueAt        *time.Time          `json:"due_at,omitempty"`
@@ -14692,7 +14764,7 @@ type ReferenceTarget struct {
 	ElementCount *int    `json:"element_count,omitempty"`
 	EntryType    *string `json:"entry_type,omitempty"`
 
-	// HubId The hub a page or a whiteboard is in.
+	// HubId The hub a page, a whiteboard or a configuration item is in.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 
 	// Icon A page's icon.
@@ -14709,11 +14781,14 @@ type ReferenceTarget struct {
 	Layout *string `json:"layout,omitempty"`
 
 	// Level Extensible; /meta/capabilities returns the valid values.
-	Level   *ItemType  `json:"level,omitempty"`
-	Number  *int64     `json:"number,omitempty"`
+	Level  *ItemType `json:"level,omitempty"`
+	Number *int64    `json:"number,omitempty"`
+
+	// Stage A configuration item's lifecycle stage.
+	Stage   *string    `json:"stage,omitempty"`
 	StartAt *time.Time `json:"start_at,omitempty"`
 
-	// Title The entry's or page's title, the container's or view's name.
+	// Title The entry's or page's title, the container's, view's or configuration item's name.
 	Title *string `json:"title,omitempty"`
 }
 
@@ -22888,6 +22963,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
 	UpdateCi(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, body UpdateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCiBacklinks What points at a configuration item
+	//
+	// The pages, entries' notes and comments and whiteboards that mention it, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
+	//
+	// Corresponds with GET /cis/{ciId}/backlinks (the `ListCiBacklinks` operationId).
+	ListCiBacklinks(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetCiComplianceWithBody Set a configuration item's lifecycle and compliance fields
 	//
@@ -32439,6 +32521,23 @@ func (c *Client) UpdateCiWithBody(ctx context.Context, ciId openapi_types.UUID, 
 // Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
 func (c *Client) UpdateCi(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, body UpdateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateCiRequest(c.Server, ciId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCiBacklinks What points at a configuration item
+//
+// The pages, entries' notes and comments and whiteboards that mention it, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
+//
+// Corresponds with GET /cis/{ciId}/backlinks (the `ListCiBacklinks` operationId).
+func (c *Client) ListCiBacklinks(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiBacklinksRequest(c.Server, ciId)
 	if err != nil {
 		return nil, err
 	}
@@ -49166,6 +49265,40 @@ func NewUpdateCiRequestWithBody(server string, ciId openapi_types.UUID, params *
 			req.Header.Set("If-Match", headerParam0)
 		}
 
+	}
+
+	return req, nil
+}
+
+// NewListCiBacklinksRequest constructs an http.Request for the ListCiBacklinks method
+func NewListCiBacklinksRequest(server string, ciId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s/backlinks", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
 	}
 
 	return req, nil
@@ -68442,6 +68575,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
 	UpdateCiWithResponse(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, body UpdateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCiResult, error)
 
+	// ListCiBacklinksWithResponse What points at a configuration item
+	//
+	// The pages, entries' notes and comments and whiteboards that mention it, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /cis/{ciId}/backlinks (the `ListCiBacklinks` operationId).
+	ListCiBacklinksWithResponse(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiBacklinksResult, error)
+
 	// SetCiComplianceWithBodyWithResponse Set a configuration item's lifecycle and compliance fields
 	//
 	// Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
@@ -81512,6 +81654,54 @@ func (r UpdateCiResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateCiResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListCiBacklinksResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiBacklinkList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiBacklinksResult) GetJSON200() *CiBacklinkList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiBacklinksResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiBacklinksResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiBacklinksResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiBacklinksResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiBacklinksResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -102302,6 +102492,21 @@ func (c *ClientWithResponses) UpdateCiWithResponse(ctx context.Context, ciId ope
 	return ParseUpdateCiResult(rsp)
 }
 
+// ListCiBacklinksWithResponse What points at a configuration item
+//
+// The pages, entries' notes and comments and whiteboards that mention it, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /cis/{ciId}/backlinks (the `ListCiBacklinks` operationId).
+func (c *ClientWithResponses) ListCiBacklinksWithResponse(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiBacklinksResult, error) {
+	rsp, err := c.ListCiBacklinks(ctx, ciId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiBacklinksResult(rsp)
+}
+
 // SetCiComplianceWithBodyWithResponse Set a configuration item's lifecycle and compliance fields
 //
 // Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
@@ -115760,6 +115965,39 @@ func ParseUpdateCiResult(rsp *http.Response) (*UpdateCiResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest ConfigurationItem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCiBacklinksResult parses an HTTP response from a ListCiBacklinksWithResponse call
+func ParseListCiBacklinksResult(rsp *http.Response) (*ListCiBacklinksResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiBacklinksResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiBacklinkList
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

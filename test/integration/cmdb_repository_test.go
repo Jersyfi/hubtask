@@ -111,3 +111,24 @@ func TestACIIsInvisibleToTheWorkspaceNextDoor(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A text's `hubtask:ci/<id>` is a reference the database keeps, as reference.Extract reads it
+// (migration 0237), and a reference table takes the kind.
+func TestACIAddressIsAReferenceOfTheText(t *testing.T) {
+	ctx := context.Background()
+	admin := adminPool(ctx, t)
+	ci := freshID(t)
+	var kind, strength string
+	if err := admin.QueryRow(ctx,
+		`SELECT target_kind, strength FROM entry_references_of($1) WHERE target_id = $2`,
+		"runs on ![](hubtask:ci/"+ci.String()+")", ci.String(),
+	).Scan(&kind, &strength); err != nil || kind != "CI" || strength != "CARD" {
+		t.Fatalf("the address reads as %q %q, %v", kind, strength, err)
+	}
+	var allowed bool
+	if err := admin.QueryRow(ctx,
+		`SELECT pg_get_constraintdef(oid) LIKE '%''CI''%' FROM pg_constraint WHERE conname = 'whiteboard_reference_target_kind_check'`,
+	).Scan(&allowed); err != nil || !allowed {
+		t.Fatalf("a whiteboard reference takes the kind CI: %v, %v", allowed, err)
+	}
+}

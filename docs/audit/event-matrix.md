@@ -181,6 +181,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `cmdb.ci_changed` | SetCiCompliance | `cmdb_ci` | INFO | Every time |
 | `cmdb.ci_changed` | UpdateCi | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_created` | CreateCi | `cmdb_ci` | INFO | Every time |
+| `cmdb.ci_read` | ListCiBacklinks | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ListCiDuplicates | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ListCiHolds | `cmdb_run` | INFO | When refused |
 | `cmdb.ci_read` | ListCiRuns | `cmdb_run` | INFO | When refused |

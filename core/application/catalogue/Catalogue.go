@@ -137,6 +137,7 @@ func Descriptors() []usecase.Descriptor {
 		cmdbservice.ResolveCiDuplicate{}.Descriptor(),
 		cmdbservice.ReadCmdbHealth{}.Descriptor(),
 		cmdbservice.ReadCiImpact{}.Descriptor(),
+		cmdbservice.ListCiBacklinks{}.Descriptor(),
 		work.ListLinkTypes{}.Descriptor(),
 		work.CreateLinkType{}.Descriptor(),
 		work.ChangeLinkType{}.Descriptor(),

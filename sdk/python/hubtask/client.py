@@ -187,6 +187,10 @@ class Client:
         """What a configuration item's failure reaches"""
         return self._call("GET", "/cis/{ciId}/impact", {"ciId": ci_id}, query, {}, None, "none", None, "json")
 
+    def list_ci_backlinks(self, ci_id: str) -> "CiBacklinkList":
+        """What points at a configuration item"""
+        return self._call("GET", "/cis/{ciId}/backlinks", {"ciId": ci_id}, None, {}, None, "none", None, "json")
+
     def relate_cis(self, body: "CiRelate") -> "CiRelation":
         """Join two configuration items"""
         return self._call("POST", "/ci-relations", {}, None, {}, body, "json", "application/json", "json")

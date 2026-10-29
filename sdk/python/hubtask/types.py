@@ -1269,7 +1269,7 @@ class EntryLinks(TypedDict, total=False):
     page_backlinks: Required[list[dict[str, Any]]]
     whiteboard_backlinks: Required[list[dict[str, Any]]]
 
-ReferenceKind = Literal["ENTRY", "HUB", "COLLECTION", "VIEW", "PAGE", "WHITEBOARD", "DASHBOARD", "GOAL", "SPRINT"]
+ReferenceKind = Literal["ENTRY", "HUB", "COLLECTION", "VIEW", "PAGE", "WHITEBOARD", "DASHBOARD", "GOAL", "SPRINT", "CI"]
 
 ReferenceStrength = Literal["MENTION", "CARD", "EMBED"]
 
@@ -1296,6 +1296,8 @@ class ReferenceTarget(TypedDict, total=False):
     due_at: str | None
     layout: str
     hub_id: str
+    ci_class: str
+    stage: str
     icon: str | None
     due_for_review: bool
     element_count: int
@@ -4542,6 +4544,9 @@ class CiImpact(TypedDict, total=False):
     direction: Required[Literal["DOWNSTREAM", "UPSTREAM"]]
     reached: Required[list["CiReached"]]
     services: Required[list[str]]
+
+class CiBacklinkList(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
 
 class CmdbHealth(TypedDict, total=False):
     """A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem."""

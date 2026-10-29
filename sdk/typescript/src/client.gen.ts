@@ -216,6 +216,11 @@ export class HubtaskClient {
     return this.call("GET", "/cis/{ciId}/impact", { "ciId": ciId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** What points at a configuration item */
+  listCiBacklinks(ciId: string, options: CallOptions = {}): Promise<operations["listCiBacklinks"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/cis/{ciId}/backlinks", { "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Join two configuration items */
   relateCis(body: NonNullable<operations["relateCis"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["relateCis"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/ci-relations", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);

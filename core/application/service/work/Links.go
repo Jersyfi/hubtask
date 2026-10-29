@@ -66,7 +66,9 @@ type Linking struct {
 	Pages PageSummaries
 	// Boards resolves a reference to a whiteboard and finds the boards an entry is drawn on (M4);
 	// nil resolves none.
-	Boards     BoardSummaries
+	Boards BoardSummaries
+	// Cis resolves a reference to a configuration item (M6); nil resolves none.
+	Cis        CiSummaries
 	Authorizer Authorizer
 	// Reader filters a page by what the reader may see, and Permits answers one question, both
 	// without writing a refusal: a reference out of reach is not somebody trying anything.
@@ -881,7 +883,7 @@ func (h ResolveReferences) Execute(ctx context.Context, actor appshared.ActorCon
 		return nil, shared.ErrValidation.WithDetail("references.too_many").
 			WithParams(map[string]string{"maximum": strconv.Itoa(maxReferencesAsked)})
 	}
-	var entries, containers, pages, boards []shared.ID
+	var entries, containers, pages, boards, cis []shared.ID
 	for _, ref := range refs {
 		switch ref.Kind {
 		case reference.KindEntry:
@@ -892,7 +894,13 @@ func (h ResolveReferences) Execute(ctx context.Context, actor appshared.ActorCon
 			pages = append(pages, ref.ID)
 		case reference.KindWhiteboard:
 			boards = append(boards, ref.ID)
+		case reference.KindCI:
+			cis = append(cis, ref.ID)
 		}
+	}
+	visibleCis, err := h.Linking.visibleCis(ctx, actor, cis, ReferencesResolveAction)
+	if err != nil {
+		return nil, err
 	}
 	visibleBoards, err := h.Linking.visibleBoards(ctx, actor, boards, ReferencesResolveAction)
 	if err != nil {
@@ -936,6 +944,11 @@ func (h ResolveReferences) Execute(ctx context.Context, actor appshared.ActorCon
 				target := boardTarget(summary.Board.ID, summary.Board.HubID, summary.Board.Title, &elements)
 				target["anchor"] = anchorOrNil(ref.Anchor)
 				out = append(out, target)
+				continue
+			}
+		case reference.KindCI:
+			if ci, ok := visibleCis[ref.ID]; ok {
+				out = append(out, ciTarget(ci, ref.Anchor))
 				continue
 			}
 		case reference.KindPage:

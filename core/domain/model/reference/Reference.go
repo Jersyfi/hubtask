@@ -25,6 +25,8 @@ const (
 	KindView       Kind = "VIEW"
 	// KindPage is a knowledge page (M3).
 	KindPage Kind = "PAGE"
+	// KindCI is a configuration item of a hub's inventory (M6): `hubtask:ci/<id>`.
+	KindCI Kind = "CI"
 	// The kinds of the suite's later modules. A reference to one is valid today and resolves as
 	// not available until the module that holds it exists.
 	KindWhiteboard Kind = "WHITEBOARD"
@@ -35,7 +37,7 @@ const (
 
 var kinds = []Kind{
 	KindEntry, KindHub, KindCollection, KindView,
-	KindPage, KindWhiteboard, KindDashboard, KindGoal, KindSprint,
+	KindPage, KindWhiteboard, KindDashboard, KindGoal, KindSprint, KindCI,
 }
 
 // Kinds are every kind a reference may name.

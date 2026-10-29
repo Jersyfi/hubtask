@@ -1464,6 +1464,51 @@ func (e CiAttributeNeed) Valid() bool {
 	}
 }
 
+// Defines values for CiBacklinkListDataSourceKind.
+const (
+	CiBacklinkListDataSourceKindCOMMENT    CiBacklinkListDataSourceKind = "COMMENT"
+	CiBacklinkListDataSourceKindENTRY      CiBacklinkListDataSourceKind = "ENTRY"
+	CiBacklinkListDataSourceKindPAGE       CiBacklinkListDataSourceKind = "PAGE"
+	CiBacklinkListDataSourceKindWHITEBOARD CiBacklinkListDataSourceKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the CiBacklinkListDataSourceKind enum.
+func (e CiBacklinkListDataSourceKind) Valid() bool {
+	switch e {
+	case CiBacklinkListDataSourceKindCOMMENT:
+		return true
+	case CiBacklinkListDataSourceKindENTRY:
+		return true
+	case CiBacklinkListDataSourceKindPAGE:
+		return true
+	case CiBacklinkListDataSourceKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiBacklinkListDataStrength.
+const (
+	CiBacklinkListDataStrengthCARD    CiBacklinkListDataStrength = "CARD"
+	CiBacklinkListDataStrengthEMBED   CiBacklinkListDataStrength = "EMBED"
+	CiBacklinkListDataStrengthMENTION CiBacklinkListDataStrength = "MENTION"
+)
+
+// Valid indicates whether the value is a known member of the CiBacklinkListDataStrength enum.
+func (e CiBacklinkListDataStrength) Valid() bool {
+	switch e {
+	case CiBacklinkListDataStrengthCARD:
+		return true
+	case CiBacklinkListDataStrengthEMBED:
+		return true
+	case CiBacklinkListDataStrengthMENTION:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CiComplianceStage.
 const (
 	CiComplianceStageDISPOSED    CiComplianceStage = "DISPOSED"
@@ -5102,6 +5147,7 @@ func (e RecurrenceMode) Valid() bool {
 
 // Defines values for ReferenceKind.
 const (
+	ReferenceKindCI         ReferenceKind = "CI"
 	ReferenceKindCOLLECTION ReferenceKind = "COLLECTION"
 	ReferenceKindDASHBOARD  ReferenceKind = "DASHBOARD"
 	ReferenceKindENTRY      ReferenceKind = "ENTRY"
@@ -5116,6 +5162,8 @@ const (
 // Valid indicates whether the value is a known member of the ReferenceKind enum.
 func (e ReferenceKind) Valid() bool {
 	switch e {
+	case ReferenceKindCI:
+		return true
 	case ReferenceKindCOLLECTION:
 		return true
 	case ReferenceKindDASHBOARD:
@@ -9150,6 +9198,27 @@ type CiAttributeKind string
 
 // CiAttributeNeed defines model for CiAttribute.Need.
 type CiAttributeNeed string
+
+// CiBacklinkList defines model for CiBacklinkList.
+type CiBacklinkList struct {
+	Data []struct {
+		EntryId  *openapi_types.UUID `json:"entry_id"`
+		PageId   *openapi_types.UUID `json:"page_id"`
+		SourceId openapi_types.UUID  `json:"source_id"`
+
+		// SourceKind A page, an entry's notes, one of its comments, or a board.
+		SourceKind   CiBacklinkListDataSourceKind `json:"source_kind"`
+		Strength     CiBacklinkListDataStrength   `json:"strength"`
+		Title        string                       `json:"title"`
+		WhiteboardId *openapi_types.UUID          `json:"whiteboard_id"`
+	} `json:"data"`
+}
+
+// CiBacklinkListDataSourceKind A page, an entry's notes, one of its comments, or a board.
+type CiBacklinkListDataSourceKind string
+
+// CiBacklinkListDataStrength defines model for CiBacklinkList.Data.Strength.
+type CiBacklinkListDataStrength string
 
 // CiClass A configuration item class. A shipped class has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits.
 type CiClass struct {
@@ -14672,9 +14741,12 @@ type ReferenceStrength string
 
 // ReferenceTarget What a reference shows the reader. Where the reader may not see the object, or it is not there, only `kind`, `id`, `anchor` and `available: false` are present.
 type ReferenceTarget struct {
-	Anchor       *string             `json:"anchor"`
-	Archived     *bool               `json:"archived,omitempty"`
-	Available    bool                `json:"available"`
+	Anchor    *string `json:"anchor"`
+	Archived  *bool   `json:"archived,omitempty"`
+	Available bool    `json:"available"`
+
+	// CiClass A configuration item's class.
+	CiClass      *string             `json:"ci_class,omitempty"`
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 	Completed    *bool               `json:"completed,omitempty"`
 	DueAt        *time.Time          `json:"due_at,omitempty"`
@@ -14686,7 +14758,7 @@ type ReferenceTarget struct {
 	ElementCount *int    `json:"element_count,omitempty"`
 	EntryType    *string `json:"entry_type,omitempty"`
 
-	// HubId The hub a page or a whiteboard is in.
+	// HubId The hub a page, a whiteboard or a configuration item is in.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 
 	// Icon A page's icon.
@@ -14703,11 +14775,14 @@ type ReferenceTarget struct {
 	Layout *string `json:"layout,omitempty"`
 
 	// Level Extensible; /meta/capabilities returns the valid values.
-	Level   *ItemType  `json:"level,omitempty"`
-	Number  *int64     `json:"number,omitempty"`
+	Level  *ItemType `json:"level,omitempty"`
+	Number *int64    `json:"number,omitempty"`
+
+	// Stage A configuration item's lifecycle stage.
+	Stage   *string    `json:"stage,omitempty"`
 	StartAt *time.Time `json:"start_at,omitempty"`
 
-	// Title The entry's or page's title, the container's or view's name.
+	// Title The entry's or page's title, the container's, view's or configuration item's name.
 	Title *string `json:"title,omitempty"`
 }
 
@@ -20589,6 +20664,9 @@ type ServerInterface interface {
 	// UpdateCi Change a configuration item by hand
 	// (PATCH /cis/{ciId})
 	UpdateCi(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params UpdateCiParams)
+	// ListCiBacklinks What points at a configuration item
+	// (GET /cis/{ciId}/backlinks)
+	ListCiBacklinks(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID)
 	// SetCiCompliance Set a configuration item's lifecycle and compliance fields
 	// (PUT /cis/{ciId}/compliance)
 	SetCiCompliance(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params SetCiComplianceParams)
@@ -26682,6 +26760,32 @@ func (siw *ServerInterfaceWrapper) UpdateCi(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateCi(w, r, ciId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCiBacklinks operation middleware
+func (siw *ServerInterfaceWrapper) ListCiBacklinks(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiBacklinks(w, r, ciId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -38971,6 +39075,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/cis/{ciId}", wrapper.UpdateCi)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/cis/{ciId}/compliance", wrapper.SetCiCompliance)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/impact", wrapper.ReadCiImpact)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/backlinks", wrapper.ListCiBacklinks)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/ci-relations", wrapper.RelateCis)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/ci-relations/{relationId}", wrapper.UnrelateCis)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/templates", wrapper.ListTemplates)
