@@ -2267,3 +2267,201 @@ SELECT EXISTS (
 
 -- name: ClearWhiteboardMedia :execrows
 DELETE FROM whiteboard_media;
+
+
+-- name: ImportCmdbClass :execrows
+INSERT INTO cmdb_class (id, tenant_id, key, parent_key, name, icon, abstract, attributes, rules, required, staleness_days, archived_at, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.parent_key, r.name, r.icon, r.abstract, r.attributes, r.rules, r.required, r.staleness_days, r.archived_at, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::cmdb_class,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  parent_key = EXCLUDED.parent_key,
+  name = EXCLUDED.name,
+  icon = EXCLUDED.icon,
+  abstract = EXCLUDED.abstract,
+  attributes = EXCLUDED.attributes,
+  rules = EXCLUDED.rules,
+  required = EXCLUDED.required,
+  staleness_days = EXCLUDED.staleness_days,
+  archived_at = EXCLUDED.archived_at,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbClass :one
+SELECT EXISTS (SELECT 1 FROM cmdb_class WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbClass :execrows
+DELETE FROM cmdb_class;
+
+-- name: ImportCmdbRelationType :execrows
+INSERT INTO cmdb_relation_type (id, tenant_id, key, name, reverse_name, impact, pairs, archived_at, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.name, r.reverse_name, r.impact, r.pairs, r.archived_at, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::cmdb_relation_type,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  reverse_name = EXCLUDED.reverse_name,
+  impact = EXCLUDED.impact,
+  pairs = EXCLUDED.pairs,
+  archived_at = EXCLUDED.archived_at,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbRelationType :one
+SELECT EXISTS (SELECT 1 FROM cmdb_relation_type WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbRelationType :execrows
+DELETE FROM cmdb_relation_type;
+
+-- name: ImportCmdbSource :execrows
+INSERT INTO cmdb_source (id, tenant_id, key, kind, rank, classes, may_create, mapping, last_run_at, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.kind, r.rank, r.classes, r.may_create, r.mapping, r.last_run_at, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::cmdb_source,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  kind = EXCLUDED.kind,
+  rank = EXCLUDED.rank,
+  classes = EXCLUDED.classes,
+  may_create = EXCLUDED.may_create,
+  mapping = EXCLUDED.mapping,
+  last_run_at = EXCLUDED.last_run_at,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbSource :one
+SELECT EXISTS (SELECT 1 FROM cmdb_source WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbSource :execrows
+DELETE FROM cmdb_source;
+
+-- name: ImportCmdbCi :execrows
+INSERT INTO cmdb_ci (id, tenant_id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id, location_ci_id, protection, review_due, quantity, last_seen_at, merged_into, created_by, created_at, updated_by, updated_at, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.class_key, r.name, r.stage, r.status, r.attributes, r.provenance, r.owner_account_id, r.owner_group_id, r.location_ci_id, r.protection, r.review_due, r.quantity, r.last_seen_at, r.merged_into, r.created_by, r.created_at, r.updated_by, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::cmdb_ci,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  class_key = EXCLUDED.class_key,
+  name = EXCLUDED.name,
+  stage = EXCLUDED.stage,
+  status = EXCLUDED.status,
+  attributes = EXCLUDED.attributes,
+  provenance = EXCLUDED.provenance,
+  owner_account_id = EXCLUDED.owner_account_id,
+  owner_group_id = EXCLUDED.owner_group_id,
+  location_ci_id = EXCLUDED.location_ci_id,
+  protection = EXCLUDED.protection,
+  review_due = EXCLUDED.review_due,
+  quantity = EXCLUDED.quantity,
+  last_seen_at = EXCLUDED.last_seen_at,
+  merged_into = EXCLUDED.merged_into,
+  updated_by = EXCLUDED.updated_by,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbCi :one
+SELECT EXISTS (SELECT 1 FROM cmdb_ci WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbCi :execrows
+DELETE FROM cmdb_ci;
+
+-- name: ImportCmdbCiIdentifier :execrows
+INSERT INTO cmdb_ci_identifier (tenant_id, ci_id, hub_id, name, value)
+SELECT r.tenant_id, r.ci_id, r.hub_id, r.name, r.value
+FROM jsonb_populate_record(
+  NULL::cmdb_ci_identifier,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, ci_id, name) DO UPDATE SET
+  value = EXCLUDED.value
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbCiIdentifier :one
+SELECT EXISTS (SELECT 1 FROM cmdb_ci_identifier WHERE ci_id = (sqlc.arg('payload')::jsonb->>'ci_id')::uuid AND name = (sqlc.arg('payload')::jsonb->>'name')) AS held;
+
+-- name: ClearCmdbCiIdentifier :execrows
+DELETE FROM cmdb_ci_identifier;
+
+-- name: ImportCmdbRelation :execrows
+INSERT INTO cmdb_relation (id, tenant_id, hub_id, type_key, source_ci_id, target_ci_id, data_source, first_seen, last_seen, created_by)
+SELECT r.id, r.tenant_id, r.hub_id, r.type_key, r.source_ci_id, r.target_ci_id, r.data_source, r.first_seen, r.last_seen, r.created_by
+FROM jsonb_populate_record(
+  NULL::cmdb_relation,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  data_source = EXCLUDED.data_source,
+  last_seen = EXCLUDED.last_seen
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbRelation :one
+SELECT EXISTS (SELECT 1 FROM cmdb_relation WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbRelation :execrows
+DELETE FROM cmdb_relation;
+
+-- name: ImportCmdbRun :execrows
+INSERT INTO cmdb_run (id, tenant_id, hub_id, source_key, actor_id, started_at, counts, decisions)
+SELECT r.id, r.tenant_id, r.hub_id, r.source_key, r.actor_id, r.started_at, r.counts, r.decisions
+FROM jsonb_populate_record(
+  NULL::cmdb_run,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  counts = EXCLUDED.counts,
+  decisions = EXCLUDED.decisions
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbRun :one
+SELECT EXISTS (SELECT 1 FROM cmdb_run WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbRun :execrows
+DELETE FROM cmdb_run;
+
+-- name: ImportCmdbHold :execrows
+INSERT INTO cmdb_hold (id, tenant_id, hub_id, run_id, source_key, item, reason, created_at, resolved_at, resolved_by)
+SELECT r.id, r.tenant_id, r.hub_id, r.run_id, r.source_key, r.item, r.reason, r.created_at, r.resolved_at, r.resolved_by
+FROM jsonb_populate_record(
+  NULL::cmdb_hold,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  resolved_at = EXCLUDED.resolved_at,
+  resolved_by = EXCLUDED.resolved_by
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbHold :one
+SELECT EXISTS (SELECT 1 FROM cmdb_hold WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbHold :execrows
+DELETE FROM cmdb_hold;
+
+-- name: ImportCmdbDuplicate :execrows
+INSERT INTO cmdb_duplicate (id, tenant_id, hub_id, ci_ids, rule, created_at, resolved_at, resolved_by, survivor_id)
+SELECT r.id, r.tenant_id, r.hub_id, r.ci_ids, r.rule, r.created_at, r.resolved_at, r.resolved_by, r.survivor_id
+FROM jsonb_populate_record(
+  NULL::cmdb_duplicate,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  resolved_at = EXCLUDED.resolved_at,
+  resolved_by = EXCLUDED.resolved_by,
+  survivor_id = EXCLUDED.survivor_id
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbDuplicate :one
+SELECT EXISTS (SELECT 1 FROM cmdb_duplicate WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbDuplicate :execrows
+DELETE FROM cmdb_duplicate;

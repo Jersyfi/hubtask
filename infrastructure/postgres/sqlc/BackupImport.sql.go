@@ -111,6 +111,114 @@ func (q *Queries) ClearCalendarFeed(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearCmdbCi = `-- name: ClearCmdbCi :execrows
+DELETE FROM cmdb_ci
+`
+
+func (q *Queries) ClearCmdbCi(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCmdbCi)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearCmdbCiIdentifier = `-- name: ClearCmdbCiIdentifier :execrows
+DELETE FROM cmdb_ci_identifier
+`
+
+func (q *Queries) ClearCmdbCiIdentifier(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCmdbCiIdentifier)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearCmdbClass = `-- name: ClearCmdbClass :execrows
+DELETE FROM cmdb_class
+`
+
+func (q *Queries) ClearCmdbClass(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCmdbClass)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearCmdbDuplicate = `-- name: ClearCmdbDuplicate :execrows
+DELETE FROM cmdb_duplicate
+`
+
+func (q *Queries) ClearCmdbDuplicate(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCmdbDuplicate)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearCmdbHold = `-- name: ClearCmdbHold :execrows
+DELETE FROM cmdb_hold
+`
+
+func (q *Queries) ClearCmdbHold(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCmdbHold)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearCmdbRelation = `-- name: ClearCmdbRelation :execrows
+DELETE FROM cmdb_relation
+`
+
+func (q *Queries) ClearCmdbRelation(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCmdbRelation)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearCmdbRelationType = `-- name: ClearCmdbRelationType :execrows
+DELETE FROM cmdb_relation_type
+`
+
+func (q *Queries) ClearCmdbRelationType(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCmdbRelationType)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearCmdbRun = `-- name: ClearCmdbRun :execrows
+DELETE FROM cmdb_run
+`
+
+func (q *Queries) ClearCmdbRun(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCmdbRun)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearCmdbSource = `-- name: ClearCmdbSource :execrows
+DELETE FROM cmdb_source
+`
+
+func (q *Queries) ClearCmdbSource(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCmdbSource)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearComment = `-- name: ClearComment :execrows
 DELETE FROM comment
 `
@@ -746,6 +854,105 @@ SELECT EXISTS (SELECT 1 FROM calendar_feed WHERE id = ($1::jsonb->>'id')::uuid) 
 
 func (q *Queries) HoldsCalendarFeed(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsCalendarFeed, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsCmdbCi = `-- name: HoldsCmdbCi :one
+SELECT EXISTS (SELECT 1 FROM cmdb_ci WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsCmdbCi(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCmdbCi, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsCmdbCiIdentifier = `-- name: HoldsCmdbCiIdentifier :one
+SELECT EXISTS (SELECT 1 FROM cmdb_ci_identifier WHERE ci_id = ($1::jsonb->>'ci_id')::uuid AND name = ($1::jsonb->>'name')) AS held
+`
+
+func (q *Queries) HoldsCmdbCiIdentifier(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCmdbCiIdentifier, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsCmdbClass = `-- name: HoldsCmdbClass :one
+SELECT EXISTS (SELECT 1 FROM cmdb_class WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsCmdbClass(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCmdbClass, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsCmdbDuplicate = `-- name: HoldsCmdbDuplicate :one
+SELECT EXISTS (SELECT 1 FROM cmdb_duplicate WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsCmdbDuplicate(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCmdbDuplicate, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsCmdbHold = `-- name: HoldsCmdbHold :one
+SELECT EXISTS (SELECT 1 FROM cmdb_hold WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsCmdbHold(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCmdbHold, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsCmdbRelation = `-- name: HoldsCmdbRelation :one
+SELECT EXISTS (SELECT 1 FROM cmdb_relation WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsCmdbRelation(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCmdbRelation, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsCmdbRelationType = `-- name: HoldsCmdbRelationType :one
+SELECT EXISTS (SELECT 1 FROM cmdb_relation_type WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsCmdbRelationType(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCmdbRelationType, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsCmdbRun = `-- name: HoldsCmdbRun :one
+SELECT EXISTS (SELECT 1 FROM cmdb_run WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsCmdbRun(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCmdbRun, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsCmdbSource = `-- name: HoldsCmdbSource :one
+SELECT EXISTS (SELECT 1 FROM cmdb_source WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsCmdbSource(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCmdbSource, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -1758,6 +1965,275 @@ type ImportCalendarFeedParams struct {
 
 func (q *Queries) ImportCalendarFeed(ctx context.Context, arg ImportCalendarFeedParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importCalendarFeed, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importCmdbCi = `-- name: ImportCmdbCi :execrows
+INSERT INTO cmdb_ci (id, tenant_id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id, location_ci_id, protection, review_due, quantity, last_seen_at, merged_into, created_by, created_at, updated_by, updated_at, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.class_key, r.name, r.stage, r.status, r.attributes, r.provenance, r.owner_account_id, r.owner_group_id, r.location_ci_id, r.protection, r.review_due, r.quantity, r.last_seen_at, r.merged_into, r.created_by, r.created_at, r.updated_by, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::cmdb_ci,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  class_key = EXCLUDED.class_key,
+  name = EXCLUDED.name,
+  stage = EXCLUDED.stage,
+  status = EXCLUDED.status,
+  attributes = EXCLUDED.attributes,
+  provenance = EXCLUDED.provenance,
+  owner_account_id = EXCLUDED.owner_account_id,
+  owner_group_id = EXCLUDED.owner_group_id,
+  location_ci_id = EXCLUDED.location_ci_id,
+  protection = EXCLUDED.protection,
+  review_due = EXCLUDED.review_due,
+  quantity = EXCLUDED.quantity,
+  last_seen_at = EXCLUDED.last_seen_at,
+  merged_into = EXCLUDED.merged_into,
+  updated_by = EXCLUDED.updated_by,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportCmdbCiParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportCmdbCi(ctx context.Context, arg ImportCmdbCiParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importCmdbCi, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importCmdbCiIdentifier = `-- name: ImportCmdbCiIdentifier :execrows
+INSERT INTO cmdb_ci_identifier (tenant_id, ci_id, hub_id, name, value)
+SELECT r.tenant_id, r.ci_id, r.hub_id, r.name, r.value
+FROM jsonb_populate_record(
+  NULL::cmdb_ci_identifier,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, ci_id, name) DO UPDATE SET
+  value = EXCLUDED.value
+WHERE $2::boolean
+`
+
+type ImportCmdbCiIdentifierParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportCmdbCiIdentifier(ctx context.Context, arg ImportCmdbCiIdentifierParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importCmdbCiIdentifier, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importCmdbClass = `-- name: ImportCmdbClass :execrows
+INSERT INTO cmdb_class (id, tenant_id, key, parent_key, name, icon, abstract, attributes, rules, required, staleness_days, archived_at, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.parent_key, r.name, r.icon, r.abstract, r.attributes, r.rules, r.required, r.staleness_days, r.archived_at, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::cmdb_class,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  parent_key = EXCLUDED.parent_key,
+  name = EXCLUDED.name,
+  icon = EXCLUDED.icon,
+  abstract = EXCLUDED.abstract,
+  attributes = EXCLUDED.attributes,
+  rules = EXCLUDED.rules,
+  required = EXCLUDED.required,
+  staleness_days = EXCLUDED.staleness_days,
+  archived_at = EXCLUDED.archived_at,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportCmdbClassParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportCmdbClass(ctx context.Context, arg ImportCmdbClassParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importCmdbClass, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importCmdbDuplicate = `-- name: ImportCmdbDuplicate :execrows
+INSERT INTO cmdb_duplicate (id, tenant_id, hub_id, ci_ids, rule, created_at, resolved_at, resolved_by, survivor_id)
+SELECT r.id, r.tenant_id, r.hub_id, r.ci_ids, r.rule, r.created_at, r.resolved_at, r.resolved_by, r.survivor_id
+FROM jsonb_populate_record(
+  NULL::cmdb_duplicate,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  resolved_at = EXCLUDED.resolved_at,
+  resolved_by = EXCLUDED.resolved_by,
+  survivor_id = EXCLUDED.survivor_id
+WHERE $2::boolean
+`
+
+type ImportCmdbDuplicateParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportCmdbDuplicate(ctx context.Context, arg ImportCmdbDuplicateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importCmdbDuplicate, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importCmdbHold = `-- name: ImportCmdbHold :execrows
+INSERT INTO cmdb_hold (id, tenant_id, hub_id, run_id, source_key, item, reason, created_at, resolved_at, resolved_by)
+SELECT r.id, r.tenant_id, r.hub_id, r.run_id, r.source_key, r.item, r.reason, r.created_at, r.resolved_at, r.resolved_by
+FROM jsonb_populate_record(
+  NULL::cmdb_hold,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  resolved_at = EXCLUDED.resolved_at,
+  resolved_by = EXCLUDED.resolved_by
+WHERE $2::boolean
+`
+
+type ImportCmdbHoldParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportCmdbHold(ctx context.Context, arg ImportCmdbHoldParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importCmdbHold, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importCmdbRelation = `-- name: ImportCmdbRelation :execrows
+INSERT INTO cmdb_relation (id, tenant_id, hub_id, type_key, source_ci_id, target_ci_id, data_source, first_seen, last_seen, created_by)
+SELECT r.id, r.tenant_id, r.hub_id, r.type_key, r.source_ci_id, r.target_ci_id, r.data_source, r.first_seen, r.last_seen, r.created_by
+FROM jsonb_populate_record(
+  NULL::cmdb_relation,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  data_source = EXCLUDED.data_source,
+  last_seen = EXCLUDED.last_seen
+WHERE $2::boolean
+`
+
+type ImportCmdbRelationParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportCmdbRelation(ctx context.Context, arg ImportCmdbRelationParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importCmdbRelation, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importCmdbRelationType = `-- name: ImportCmdbRelationType :execrows
+INSERT INTO cmdb_relation_type (id, tenant_id, key, name, reverse_name, impact, pairs, archived_at, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.name, r.reverse_name, r.impact, r.pairs, r.archived_at, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::cmdb_relation_type,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  reverse_name = EXCLUDED.reverse_name,
+  impact = EXCLUDED.impact,
+  pairs = EXCLUDED.pairs,
+  archived_at = EXCLUDED.archived_at,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportCmdbRelationTypeParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportCmdbRelationType(ctx context.Context, arg ImportCmdbRelationTypeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importCmdbRelationType, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importCmdbRun = `-- name: ImportCmdbRun :execrows
+INSERT INTO cmdb_run (id, tenant_id, hub_id, source_key, actor_id, started_at, counts, decisions)
+SELECT r.id, r.tenant_id, r.hub_id, r.source_key, r.actor_id, r.started_at, r.counts, r.decisions
+FROM jsonb_populate_record(
+  NULL::cmdb_run,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  counts = EXCLUDED.counts,
+  decisions = EXCLUDED.decisions
+WHERE $2::boolean
+`
+
+type ImportCmdbRunParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportCmdbRun(ctx context.Context, arg ImportCmdbRunParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importCmdbRun, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importCmdbSource = `-- name: ImportCmdbSource :execrows
+INSERT INTO cmdb_source (id, tenant_id, key, kind, rank, classes, may_create, mapping, last_run_at, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.kind, r.rank, r.classes, r.may_create, r.mapping, r.last_run_at, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::cmdb_source,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  kind = EXCLUDED.kind,
+  rank = EXCLUDED.rank,
+  classes = EXCLUDED.classes,
+  may_create = EXCLUDED.may_create,
+  mapping = EXCLUDED.mapping,
+  last_run_at = EXCLUDED.last_run_at,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportCmdbSourceParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportCmdbSource(ctx context.Context, arg ImportCmdbSourceParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importCmdbSource, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

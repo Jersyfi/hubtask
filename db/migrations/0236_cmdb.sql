@@ -238,9 +238,10 @@ DROP POLICY IF EXISTS tenant_isolation ON cmdb_duplicate;
 CREATE POLICY tenant_isolation ON cmdb_duplicate
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 
-GRANT SELECT, INSERT, UPDATE ON cmdb_class, cmdb_relation_type, cmdb_source, cmdb_ci TO hubtask_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON cmdb_ci_identifier, cmdb_relation TO hubtask_app;
-GRANT SELECT, INSERT, UPDATE ON cmdb_run, cmdb_hold, cmdb_duplicate TO hubtask_app;
+-- DELETE is the identifier index's, a relation's and the replacing restore's (no use case deletes
+-- a CI, a run, a hold or a duplicate).
+GRANT SELECT, INSERT, UPDATE, DELETE ON cmdb_class, cmdb_relation_type, cmdb_source, cmdb_ci,
+  cmdb_ci_identifier, cmdb_relation, cmdb_run, cmdb_hold, cmdb_duplicate TO hubtask_app;
 
 -- +goose Down
 -- +goose StatementBegin

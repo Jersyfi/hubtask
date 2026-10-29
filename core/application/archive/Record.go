@@ -641,6 +641,58 @@ var entities = []Entity{
 			{Field: "author_id", Table: "account", Clearable: true},
 		},
 	},
+	// The assets and configuration module (migration 0236, M6): the workspace's classes, relation
+	// types and sources, and a hub's CIs with their identifier index, relations and the
+	// reconciliation's runs, holds and duplicates. Whole and unmarked: nothing removes a CI but its
+	// hub's deletion, which leaves no marker.
+	{
+		Name: "cmdb_classes", Table: "cmdb_class", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+	},
+	{
+		Name: "cmdb_relation_types", Table: "cmdb_relation_type", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+	},
+	{
+		Name: "cmdb_sources", Table: "cmdb_source", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+	},
+	{
+		Name: "cmdb_cis", Table: "cmdb_ci", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+			{Field: "owner_account_id", Table: "account", Clearable: true},
+			{Field: "owner_group_id", Table: "account_group", Clearable: true},
+		},
+	},
+	{
+		Name: "cmdb_ci_identifiers", Table: "cmdb_ci_identifier", Whole: true, Later: true, Keys: []string{"ci_id", "name"},
+		References: []Reference{
+			{Field: "ci_id", Table: "cmdb_ci"},
+		},
+	},
+	{
+		Name: "cmdb_relations", Table: "cmdb_relation", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "source_ci_id", Table: "cmdb_ci"},
+			{Field: "target_ci_id", Table: "cmdb_ci"},
+		},
+	},
+	{
+		Name: "cmdb_runs", Table: "cmdb_run", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+		},
+	},
+	{
+		Name: "cmdb_holds", Table: "cmdb_hold", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "run_id", Table: "cmdb_run"},
+		},
+	},
+	{
+		Name: "cmdb_duplicates", Table: "cmdb_duplicate", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+		},
+	},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a

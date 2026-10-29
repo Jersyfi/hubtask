@@ -169,6 +169,15 @@ re-mints identities must rewrite exactly these).
 | 51 | `whiteboards` | `whiteboard` | `id` | `hub_id`→containers (a hub's boards, migration 0233; `scene` is the board's objects as JSON in the contract's shape, a card naming its entry by identifier; where the board points is rebuilt on import) |
 | 52 | `whiteboard_versions` | `whiteboard_version` | `whiteboard_id`, `seq` | `whiteboard_id`→whiteboards, `author_id`→accounts (cleared when absent) (a board's history, migration 0234: one version per drawing session, its scene as JSON in the contract's shape) |
 | 53 | `whiteboard_media` | `whiteboard_media` | `whiteboard_id`, `media_id` | `whiteboard_id`→whiteboards, `media_id`→media_objects (the pictures and files placed on a board, migration 0235) |
+| 54 | `cmdb_classes` | `cmdb_class` | `id` | — (the workspace's own configuration item classes, migration 0236; attributes, identifier rules and required relations as JSON) |
+| 55 | `cmdb_relation_types` | `cmdb_relation_type` | `id` | — (the workspace's own relation types between CIs, with their impact and class pairs) |
+| 56 | `cmdb_sources` | `cmdb_source` | `id` | — (the sources CIs come from, their rank, classes and a file source's mapping) |
+| 57 | `cmdb_cis` | `cmdb_ci` | `id` | `hub_id`→containers, `owner_account_id`→accounts and `owner_group_id`→account_groups (cleared when absent) (a hub's configuration items: typed attributes, provenance per attribute, lifecycle and compliance fields; `location_ci_id` and `merged_into` name CIs without a foreign key) |
+| 58 | `cmdb_ci_identifiers` | `cmdb_ci_identifier` | `ci_id`, `name` | `ci_id`→cmdb_cis (the identifier index the reconciliation looks up, and each source's own key) |
+| 59 | `cmdb_relations` | `cmdb_relation` | `id` | `source_ci_id`, `target_ci_id`→cmdb_cis (relations between a hub's CIs with their source and first and last seen) |
+| 60 | `cmdb_runs` | `cmdb_run` | `id` | `hub_id`→containers (the reconciliation's runs with their decisions) |
+| 61 | `cmdb_holds` | `cmdb_hold` | `id` | `run_id`→cmdb_runs (items held for review, the item as reported) |
+| 62 | `cmdb_duplicates` | `cmdb_duplicate` | `id` | `hub_id`→containers (duplicates opened to merge, with their survivor once resolved) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

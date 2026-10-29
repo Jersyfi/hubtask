@@ -5058,7 +5058,7 @@ REVOKE ALL ON FUNCTION sweep_usage(date) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION sweep_usage(date) TO hubtask_app;
 
 -- The assets and configuration module (M6), migration 0236.
-CREATE TABLE IF NOT EXISTS cmdb_class (
+CREATE TABLE cmdb_class (
   id             uuid PRIMARY KEY,
   tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   key            text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
@@ -5078,7 +5078,7 @@ CREATE TABLE IF NOT EXISTS cmdb_class (
   UNIQUE (tenant_id, key)
 );
 
-CREATE TABLE IF NOT EXISTS cmdb_relation_type (
+CREATE TABLE cmdb_relation_type (
   id           uuid PRIMARY KEY,
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   key          text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
@@ -5094,7 +5094,7 @@ CREATE TABLE IF NOT EXISTS cmdb_relation_type (
   UNIQUE (tenant_id, key)
 );
 
-CREATE TABLE IF NOT EXISTS cmdb_source (
+CREATE TABLE cmdb_source (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   key         text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$' AND key <> 'manual'),
@@ -5111,7 +5111,7 @@ CREATE TABLE IF NOT EXISTS cmdb_source (
   UNIQUE (tenant_id, key)
 );
 
-CREATE TABLE IF NOT EXISTS cmdb_ci (
+CREATE TABLE cmdb_ci (
   id               uuid PRIMARY KEY,
   tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   hub_id           uuid NOT NULL,
@@ -5139,9 +5139,9 @@ CREATE TABLE IF NOT EXISTS cmdb_ci (
   CONSTRAINT cmdb_ci_hub_fkey FOREIGN KEY (tenant_id, hub_id)
     REFERENCES container (tenant_id, id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS cmdb_ci_hub_idx ON cmdb_ci (tenant_id, hub_id, class_key, id);
+CREATE INDEX cmdb_ci_hub_idx ON cmdb_ci (tenant_id, hub_id, class_key, id);
 
-CREATE TABLE IF NOT EXISTS cmdb_ci_identifier (
+CREATE TABLE cmdb_ci_identifier (
   tenant_id uuid NOT NULL,
   ci_id     uuid NOT NULL,
   hub_id    uuid NOT NULL,
@@ -5151,9 +5151,9 @@ CREATE TABLE IF NOT EXISTS cmdb_ci_identifier (
   CONSTRAINT cmdb_ci_identifier_ci_fkey FOREIGN KEY (tenant_id, ci_id)
     REFERENCES cmdb_ci (tenant_id, id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS cmdb_ci_identifier_lookup_idx ON cmdb_ci_identifier (tenant_id, hub_id, name, value);
+CREATE INDEX cmdb_ci_identifier_lookup_idx ON cmdb_ci_identifier (tenant_id, hub_id, name, value);
 
-CREATE TABLE IF NOT EXISTS cmdb_relation (
+CREATE TABLE cmdb_relation (
   id           uuid PRIMARY KEY,
   tenant_id    uuid NOT NULL,
   hub_id       uuid NOT NULL,
@@ -5171,11 +5171,11 @@ CREATE TABLE IF NOT EXISTS cmdb_relation (
   CONSTRAINT cmdb_relation_target_fkey FOREIGN KEY (tenant_id, target_ci_id)
     REFERENCES cmdb_ci (tenant_id, id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS cmdb_relation_source_idx ON cmdb_relation (tenant_id, source_ci_id);
-CREATE INDEX IF NOT EXISTS cmdb_relation_target_idx ON cmdb_relation (tenant_id, target_ci_id);
-CREATE INDEX IF NOT EXISTS cmdb_relation_hub_idx ON cmdb_relation (tenant_id, hub_id);
+CREATE INDEX cmdb_relation_source_idx ON cmdb_relation (tenant_id, source_ci_id);
+CREATE INDEX cmdb_relation_target_idx ON cmdb_relation (tenant_id, target_ci_id);
+CREATE INDEX cmdb_relation_hub_idx ON cmdb_relation (tenant_id, hub_id);
 
-CREATE TABLE IF NOT EXISTS cmdb_run (
+CREATE TABLE cmdb_run (
   id         uuid PRIMARY KEY,
   tenant_id  uuid NOT NULL,
   hub_id     uuid NOT NULL,
@@ -5188,9 +5188,9 @@ CREATE TABLE IF NOT EXISTS cmdb_run (
   CONSTRAINT cmdb_run_hub_fkey FOREIGN KEY (tenant_id, hub_id)
     REFERENCES container (tenant_id, id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS cmdb_run_hub_idx ON cmdb_run (tenant_id, hub_id, started_at DESC);
+CREATE INDEX cmdb_run_hub_idx ON cmdb_run (tenant_id, hub_id, started_at DESC);
 
-CREATE TABLE IF NOT EXISTS cmdb_hold (
+CREATE TABLE cmdb_hold (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL,
   hub_id      uuid NOT NULL,
@@ -5205,9 +5205,9 @@ CREATE TABLE IF NOT EXISTS cmdb_hold (
   CONSTRAINT cmdb_hold_run_fkey FOREIGN KEY (tenant_id, run_id)
     REFERENCES cmdb_run (tenant_id, id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS cmdb_hold_hub_idx ON cmdb_hold (tenant_id, hub_id, created_at DESC) WHERE resolved_at IS NULL;
+CREATE INDEX cmdb_hold_hub_idx ON cmdb_hold (tenant_id, hub_id, created_at DESC) WHERE resolved_at IS NULL;
 
-CREATE TABLE IF NOT EXISTS cmdb_duplicate (
+CREATE TABLE cmdb_duplicate (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL,
   hub_id      uuid NOT NULL,
@@ -5221,65 +5221,57 @@ CREATE TABLE IF NOT EXISTS cmdb_duplicate (
   CONSTRAINT cmdb_duplicate_hub_fkey FOREIGN KEY (tenant_id, hub_id)
     REFERENCES container (tenant_id, id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS cmdb_duplicate_hub_idx ON cmdb_duplicate (tenant_id, hub_id, created_at DESC) WHERE resolved_at IS NULL;
+CREATE INDEX cmdb_duplicate_hub_idx ON cmdb_duplicate (tenant_id, hub_id, created_at DESC) WHERE resolved_at IS NULL;
 
 ALTER TABLE cmdb_class ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cmdb_class FORCE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_isolation ON cmdb_class;
 CREATE POLICY tenant_isolation ON cmdb_class
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 
 ALTER TABLE cmdb_relation_type ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cmdb_relation_type FORCE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_isolation ON cmdb_relation_type;
 CREATE POLICY tenant_isolation ON cmdb_relation_type
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 
 ALTER TABLE cmdb_source ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cmdb_source FORCE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_isolation ON cmdb_source;
 CREATE POLICY tenant_isolation ON cmdb_source
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 
 ALTER TABLE cmdb_ci ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cmdb_ci FORCE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_isolation ON cmdb_ci;
 CREATE POLICY tenant_isolation ON cmdb_ci
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 
 ALTER TABLE cmdb_ci_identifier ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cmdb_ci_identifier FORCE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_isolation ON cmdb_ci_identifier;
 CREATE POLICY tenant_isolation ON cmdb_ci_identifier
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 
 ALTER TABLE cmdb_relation ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cmdb_relation FORCE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_isolation ON cmdb_relation;
 CREATE POLICY tenant_isolation ON cmdb_relation
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 
 ALTER TABLE cmdb_run ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cmdb_run FORCE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_isolation ON cmdb_run;
 CREATE POLICY tenant_isolation ON cmdb_run
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 
 ALTER TABLE cmdb_hold ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cmdb_hold FORCE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_isolation ON cmdb_hold;
 CREATE POLICY tenant_isolation ON cmdb_hold
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 
 ALTER TABLE cmdb_duplicate ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cmdb_duplicate FORCE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_isolation ON cmdb_duplicate;
 CREATE POLICY tenant_isolation ON cmdb_duplicate
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 
-GRANT SELECT, INSERT, UPDATE ON cmdb_class, cmdb_relation_type, cmdb_source, cmdb_ci TO hubtask_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON cmdb_ci_identifier, cmdb_relation TO hubtask_app;
-GRANT SELECT, INSERT, UPDATE ON cmdb_run, cmdb_hold, cmdb_duplicate TO hubtask_app;
+-- DELETE is the identifier index's, a relation's and the replacing restore's (no use case deletes
+-- a CI, a run, a hold or a duplicate).
+GRANT SELECT, INSERT, UPDATE, DELETE ON cmdb_class, cmdb_relation_type, cmdb_source, cmdb_ci,
+  cmdb_ci_identifier, cmdb_relation, cmdb_run, cmdb_hold, cmdb_duplicate TO hubtask_app;
 
 
 COMMIT;

@@ -71,6 +71,13 @@ var subjectColumns = map[string][]string{
 	// The whiteboards they made or last drew on (M4).
 	"whiteboard":         {"created_by", "updated_by"},
 	"whiteboard_version": {"author_id"},
+	// The configuration items they made, changed or own, the relations they made, the
+	// reconciliations they ran and the holds and duplicates they closed (M6).
+	"cmdb_ci":        {"created_by", "updated_by", "owner_account_id"},
+	"cmdb_relation":  {"created_by"},
+	"cmdb_run":       {"actor_id"},
+	"cmdb_hold":      {"resolved_by"},
+	"cmdb_duplicate": {"resolved_by"},
 	"config_revision":    {"actor_id", "proposed_by"},
 	"config_proposal":    {"proposed_by", "decided_by"},
 	"config_template":    {"created_by"},
