@@ -600,3 +600,59 @@ redelivery a no-op and is the log *Administration → E-mail* shows; it is kept 
 (`MAIL_RECEIPT`, [data-retention.md](./data-retention.md) §3). A notification about an entry
 carries the entry's ticket key on the intake's address as `Reply-To`
 (`familie+web-42@in.example.app`), so a reply is routed by rule 1.
+
+## 6. Connectors of the inventory
+
+A connector is a program a hub's configuration items are pulled from, or a monitoring program that
+posts alerts to it (UC-AST-07, UC-AST-08; the model in [domain-model.md](./domain-model.md) §3.10;
+why: research itsm-cmdb-ai §6.3). It writes as one of the workspace's sources of kind `CONNECTOR`
+and through the one reconciliation, so nothing a connector fetches reaches a CI any other way.
+
+### 6.1 Pulling
+
+| Kind | Calls | Pages and cursor |
+|---|---|---|
+| `GLPI` | the high-level API (v2): `POST /api.php/token` with an OAuth client (`client_id` setting, the secret as credential), `GET /api.php/v2/Assets/Computer` | by offset, changed since the newest `date_mod` the last walk saw |
+| `NETBOX` | `GET /api/dcim/devices/` with `Authorization: Token` | by offset, changed since the newest `last_updated` |
+| `INTUNE` | a token from the `authority` setting's `/{tenant}/oauth2/v2.0/token` (client credentials), `GET /v1.0/deviceManagement/managedDevices` | the next page's link; every device on every walk |
+| `ENTRA` | the same token, `GET /v1.0/devices/delta` | the next page's link, then the delta link: a later walk fetches only what changed; a removed device is left alone |
+| `HETZNER` | `GET /v1/servers` with the project's token as bearer | by page; every server on every walk |
+| `OPENSTACK` | `POST /v3/auth/tokens` with an application credential (`application_credential_id` setting), the public compute endpoint of the catalogue (`region` setting narrows it), `GET /servers/detail` | by marker; every server on every walk |
+
+Every address is the connector's configuration, never the source code's (PG-6): its https base
+address, the `authority` of Intune and Entra, and the further hosts it allows - an OpenStack
+compute endpoint's, typically. A call to any other host is refused (`connector.host_not_allowed`).
+Every call leaves through the guarded client (rule 6) with a deadline of 30 seconds (rule 7) inside
+a circuit breaker per connector; 401 and 403 are `connector.unauthorised`, 429 is
+`connector.rate_limited` with the source's `Retry-After`, everything else
+`connector.unreachable` - the run keeps the code, never the source's words (rule 10).
+
+A run is up to 50 pages, each reconciled and committed in a transaction of its own, so that no call
+holds one open; a failure keeps the cursor of the last page written. A scheduled connector is one
+job per connector (`cmdb.connector_pull`, deduplicated by the connector), seeded by the definition
+and rescheduling itself to the connector's next moment; it runs with the rights of the person who
+last defined the connector, as an automation with the item scopes only, and switches itself off
+after ten failed runs in a row. The credential is sealed under the purpose `cmdb.connector:<id>`
+and re-sealed by the connectors' own resealer in a key rotation (store `cmdb_connector`,
+security.md §8.1).
+
+### 6.2 Alert intake
+
+`POST /cmdb/alert-intake/{tenantId}/{connectorId}` carries no bearer of a person. Its credential is
+the secret Hubtask drew for the intake, presented as `Authorization: Bearer <secret>` - what an
+Alertmanager `webhook_config` sends with `http_config.authorization` - or used to sign the body:
+`X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256
+over the timestamp, a dot and the body. A signature older or newer than five minutes is refused and
+the digests of the last ten minutes' signatures are kept to refuse a replay (`cmdb_intake_seen`);
+every refusal is the same `404`.
+
+| Kind | Format read | Key | Hosts |
+|---|---|---|---|
+| `ALERTMANAGER` | the webhook's `alerts[]`, `status` firing or resolved, `annotations.summary` as title | `fingerprint`, else `alertname/instance` | labels `instance`, `host`, `hostname`, `nodename` |
+| `ZABBIX` | a webhook media type posting `event_id`, `status` (`PROBLEM`/`1` fires, `RESOLVED`/`OK`/`0` resolves), `severity`, `title`, `host`, `host_name`, `host_ip` | `event_id`, else `trigger_id` | `host`, `host_name`, `host_ip` |
+| `CHECKMK` | a notification posting `host`, `service`, `state`, `notification_type`, `output`, `address` | `host/service`, or `host` | `host`, `address` |
+
+At most 200 alerts per delivery. An alert is bound to the one CI of the hub a host names by host
+name, address or name; with the intake's collection, a firing alert opens an entry there through
+`CreateWorkItem` - the registry, as the intake's person - its notes pointing at the CI, and its
+resolution completes it (`CompleteWorkItem`), a reopening reopens it (`ReopenWorkItem`).

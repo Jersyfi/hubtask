@@ -197,10 +197,11 @@ value, a rotation is a configuration change. The procedure is drilled
    written under it are kept, yearly generations included ([backup-restore.md](./backup-restore.md)
    §4).
 
-**What a round touches.** The seven sealed places — the second factor, an identity provider's client
+**What a round touches.** The eight sealed places — the second factor, an identity provider's client
 secret, the AI provider's key, a webhook's current and previous signing secret, a backup target's
-credential, a rule's HTTP header secret at any depth, and the header secret of an HTTP call still
-waiting to be made or retried (in its job, until the job ends) — each re-sealed by its owning service
+credential, a rule's HTTP header secret at any depth, the header secret of an HTTP call still
+waiting to be made or retried (in its job, until the job ends), and a CMDB connector's credential
+or alert intake secret (`cmdb_connector`, purpose `cmdb.connector:<id>`) — each re-sealed by its owning service
 under its purpose. A call's secret is moved under the purpose it was sealed for, its request's or the
 rule's it was carried over from; one the envelope refuses under that purpose is skipped and counted,
 and it drains with its job. The installation's own round - a job without a tenant, run in the scope whose writes the

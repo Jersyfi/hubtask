@@ -10,10 +10,10 @@
 // every store and both levels says when the older key names nothing any more and may leave the
 // ring.
 //
-// The values themselves stay where they are and with whom they are. Six application services
-// own the seven sealed values - the second factor, the identity provider's client secret, a
+// The values themselves stay where they are and with whom they are. Seven application services
+// own the eight sealed values - the second factor, the identity provider's client secret, a
 // webhook's signing secrets, a backup target's credential, an AI provider's key, a rule's HTTP
-// header secret and a pending HTTP call's - and each is bound
+// header secret, a pending HTTP call's and a CMDB connector's credential - and each is bound
 // to a purpose only its owner can name. So each owner re-seals its own rows behind Resealer, and
 // this package composes them without learning a single purpose.
 package sealing

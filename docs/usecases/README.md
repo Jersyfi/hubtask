@@ -273,6 +273,8 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-AST-04](./assets/UC-AST-04-bring-an-inventory-in-from-a-file.md) | Bring an inventory in from a file | assets |
 | [UC-AST-05](./assets/UC-AST-05-see-what-a-failure-reaches.md) | See what a failure reaches | assets |
 | [UC-AST-06](./assets/UC-AST-06-see-how-healthy-our-inventory-is.md) | See how healthy our inventory is | assets |
+| [UC-AST-07](./assets/UC-AST-07-pull-our-inventory-from-the-tools-that-know-it.md) | Pull our inventory from the tools that already know it | assets |
+| [UC-AST-08](./assets/UC-AST-08-turn-monitoring-alerts-into-entries-on-the-affected-ci.md) | Turn monitoring alerts into entries on the affected configuration item | assets |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work |
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work |
