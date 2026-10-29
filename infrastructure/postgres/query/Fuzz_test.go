@@ -11,6 +11,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 )
 
@@ -73,6 +74,11 @@ func FuzzCompile(f *testing.F) {
 		`{"field":"custom_fields.x","op":"LT","value":"$1"}`,
 		// An aggregation over a key that tries to close the statement (S-11).
 		`{"field":"custom_fields.hours) FROM work_item; --","op":"GT","value":0}`,
+		// The set and prefix operators on a custom field (S-11): a text set, a text, undefined.
+		`{"field":"custom_fields.release_tags","op":"CONTAINS_ANY","value":["a","'; DROP TABLE work_item; --"]}`,
+		`{"field":"custom_fields.release_tags","op":"CONTAINS_ALL","value":["a","b"]}`,
+		`{"field":"custom_fields.colours","op":"STARTS_WITH","value":"%_\\"}`,
+		`{"field":"custom_fields.tags","op":"CONTAINS_ALL","value":["x"]}`,
 		`not json at all`,
 		`{}`,
 		`[]`,
@@ -124,21 +130,32 @@ func FuzzCompile(f *testing.F) {
 		assertShapeOnly(t, node, sort, statement)
 		assertAlphabet(t, statement, document)
 
-		// The same filter under an aggregation (S-11): a count per status and week.
-		counted, err := view.ParseAggregation(map[string]any{
-			"function": "COUNT", "group_by": "status",
-			"bucket": map[string]any{"field": "created_at", "period": "week"},
-		}, "/aggregate")
-		if err != nil {
-			t.Fatalf("the aggregation does not parse: %v", err)
-		}
-		summary, err := Aggregate(search, counted, document, 5001)
-		if err != nil && !hasPlaceholder(node) {
-			t.Fatalf("an aggregation did not compile: %v", err)
-		}
-		if err == nil {
-			assertParameters(t, summary)
-			assertAlphabet(t, summary, document)
+		// The same filter under an aggregation (S-11): a count per status and week, a lead time
+		// per Sunday week, and across a set of collections.
+		for _, raw := range []map[string]any{
+			{"function": "COUNT", "group_by": "status",
+				"bucket": map[string]any{"field": "created_at", "period": "week"}},
+			{"function": "AVG", "field": "lead_time",
+				"bucket": map[string]any{"field": "completed_at", "period": "week", "week_start": "sunday"}},
+			{"function": "SUM", "field": "scheduled_span", "group_by": "assignee_id"},
+		} {
+			counted, err := view.ParseAggregation(raw, "/aggregate")
+			if err != nil {
+				t.Fatalf("the aggregation does not parse: %v", err)
+			}
+			for _, anchor := range []repository.Anchor{search.Anchor, {
+				Kind: repository.AnchorCollections, CollectionIDs: []shared.ID{collection},
+			}} {
+				summary, err := Aggregate(repository.ItemSearch{Anchor: anchor, Spec: search.Spec},
+					counted, document, 5001)
+				if err != nil && !hasPlaceholder(node) {
+					t.Fatalf("an aggregation did not compile: %v", err)
+				}
+				if err == nil {
+					assertParameters(t, summary)
+					assertAlphabet(t, summary, document)
+				}
+			}
 		}
 
 		// The same keys as a sort and a grouping, which write the typed value in two more places.
@@ -218,7 +235,9 @@ func fuzzShapes(node *view.Node) map[string]view.CustomShape {
 			shapes[key] = view.CustomShape{Resolved: true}
 			continue
 		}
-		shapes[key] = view.CustomShape{Resolved: true, Defined: true, Column: column}
+		// A text key of even length holds several values, so the set operators meet a set.
+		set := column == view.CustomText && len(key)%2 == 0
+		shapes[key] = view.CustomShape{Resolved: true, Defined: true, Column: column, Set: set}
 	}
 	return shapes
 }

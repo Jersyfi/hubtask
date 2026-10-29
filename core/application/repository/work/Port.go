@@ -288,6 +288,9 @@ const (
 	AnchorCollection AnchorKind = "COLLECTION"
 	// AnchorItem is one entry, and with descendants its subtree.
 	AnchorItem AnchorKind = "ITEM"
+	// AnchorCollections is a set of collections the use case decided the actor reads: a summary
+	// across the workspace, narrowed inside the statement rather than row by row.
+	AnchorCollections AnchorKind = "COLLECTIONS"
 )
 
 // Anchor is the resolved scope of a query.
@@ -304,6 +307,8 @@ type Anchor struct {
 	HubID shared.ID
 	// ItemID is the entry, for an item anchor.
 	ItemID shared.ID
+	// CollectionIDs are the collections, for a collections anchor. Empty is no entry at all.
+	CollectionIDs []shared.ID
 	// PathPrefix is that entry's own path, which every row of its subtree begins with (I-W2).
 	PathPrefix string
 	// IncludeDescendants searches the subtree rather than one level below the anchor.

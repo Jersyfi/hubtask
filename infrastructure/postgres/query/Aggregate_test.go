@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 )
 
@@ -43,6 +45,14 @@ func TestAnAggregationCompilesToOneGroupedStatement(t *testing.T) {
 			"bucket": map[string]any{"field": "completed_at", "period": "week"}},
 			map[string]view.CustomShape{"hours": number},
 			[]string{`date_trunc('week', (wi.completed_at) AT TIME ZONE $`, `sum((SELECT efv.num FROM `}},
+		{"a Sunday week", map[string]any{"function": "COUNT",
+			"bucket": map[string]any{"field": "created_at", "period": "week", "week_start": "sunday"}}, nil,
+			[]string{`date_bin(interval '7 days', (wi.created_at) AT TIME ZONE $`,
+				`::text, make_timestamp(2000, 1, 2, 0, 0, 0))::date::text`}},
+		{"a lead time", map[string]any{"function": "AVG", "field": "lead_time"}, nil,
+			[]string{`avg(div(extract(epoch FROM timestamptz_mi(wi.completed_at, wi.created_at)), 60))::numeric`}},
+		{"a scheduled span", map[string]any{"function": "MAX", "field": "scheduled_span"}, nil,
+			[]string{`max(div(extract(epoch FROM timestamptz_mi(wi.due_at, wi.start_at)), 60))::numeric`}},
 		{"an undefined measure sums to nothing", map[string]any{"function": "AVG", "field": "custom_fields.none"},
 			nil, []string{`avg(NULL::numeric)::numeric`}},
 		{"a monthly bucket over a custom date", map[string]any{"function": "MAX", "field": "custom_fields.cost",
@@ -88,5 +98,66 @@ func TestAnUnshapedMeasureIsADefect(t *testing.T) {
 	}
 	if _, err := Aggregate(searchOf(t, nil, view.Spec{}), aggregation, "UTC", 10); err == nil {
 		t.Fatal("an unshaped measure compiled")
+	}
+}
+
+func TestAWorkspaceSummaryReadsTheBoundCollections(t *testing.T) {
+	aggregation := aggregationOf(t, map[string]any{"function": "COUNT"}, nil)
+	search := searchOf(t, nil, view.Spec{})
+
+	search.Anchor = repository.Anchor{Kind: repository.AnchorCollections, CollectionIDs: []shared.ID{collection}}
+	statement, err := Aggregate(search, aggregation, "UTC", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(statement.SQL, `wi.collection_id = ANY($1::uuid[])`) ||
+		strings.Contains(statement.SQL, collection.String()) {
+		t.Fatalf("the collections are not one bound array:\n%s", statement.SQL)
+	}
+
+	search.Anchor.CollectionIDs = nil
+	statement, err = Aggregate(search, aggregation, "UTC", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(statement.SQL, `WHERE false`) {
+		t.Fatalf("no collection reads something:\n%s", statement.SQL)
+	}
+}
+
+func TestTheSetAndPrefixOperatorsCompileOverACustomField(t *testing.T) {
+	set := view.CustomShape{Resolved: true, Defined: true, Column: view.CustomText, Set: true}
+	text := view.CustomShape{Resolved: true, Defined: true, Column: view.CustomText}
+	tests := []struct {
+		filter map[string]any
+		shape  view.CustomShape
+		want   []string
+	}{
+		{map[string]any{"field": "custom_fields.k", "op": "CONTAINS_ANY", "value": []any{"a", "b"}}, set,
+			[]string{`jsonb_build_array(to_jsonb(normalize($`, `)) OR wi.custom_fields @> `}},
+		{map[string]any{"field": "custom_fields.k", "op": "CONTAINS_ALL", "value": []any{"a", "b"}}, set,
+			[]string{`)) AND wi.custom_fields @> `}},
+		{map[string]any{"field": "custom_fields.k", "op": "STARTS_WITH", "value": "INV"}, text,
+			[]string{`(starts_with(lower(jsonb_extract_path_text(wi.custom_fields, $`}},
+	}
+	for _, test := range tests {
+		search := searchOf(t, test.filter, view.Spec{})
+		spec, err := search.Spec.Shaped(map[string]view.CustomShape{"k": test.shape})
+		if err != nil {
+			t.Fatalf("refused: %v", err)
+		}
+		search.Spec = spec
+		statement, err := Rows(search, Boundary{}, 51)
+		if err != nil {
+			t.Fatalf("%v: %v", test.filter, err)
+		}
+		for _, fragment := range append(test.want, `EXISTS (SELECT 1 FROM custom_field_definition`) {
+			if !strings.Contains(statement.SQL, fragment) {
+				t.Errorf("missing %q in\n%s", fragment, statement.SQL)
+			}
+		}
+		if strings.Contains(statement.SQL, "INV") {
+			t.Errorf("a value reached the text:\n%s", statement.SQL)
+		}
 	}
 }

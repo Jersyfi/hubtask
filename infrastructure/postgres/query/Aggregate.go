@@ -5,6 +5,7 @@ package query
 
 import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 )
 
@@ -14,8 +15,10 @@ import (
 // The four columns are always there - a NULL::text where nothing groups or buckets, a
 // NULL::numeric for a plain count - so one scan reads every shape. The period is cut in the time
 // zone the use case resolved for the actor, bound like any other value; its unit is a constant
-// chosen by the typed period. A week starts on Monday (PostgreSQL's ISO week). The limit is probe,
-// so a caller asking for one row past its bound learns the answer was cut.
+// chosen by the typed period. A Monday week is PostgreSQL's ISO week; a Sunday week is a seven-day
+// bin from a Sunday, because shifting the ISO week by a day would need an operator this package
+// never writes (FuzzCompile's alphabet). The limit is probe, so a caller asking for one row past
+// its bound learns the answer was cut.
 func Aggregate(
 	search repository.ItemSearch, aggregation view.Aggregation, timeZone string, probe int,
 ) (Statement, error) {
@@ -61,19 +64,22 @@ func (b *builder) aggregateBucket(aggregation view.Aggregation, timeZone string)
 		b.write(`NULL::text`)
 		return
 	}
-	var unit string
-	switch aggregation.Bucket {
-	case view.BucketDay:
-		unit = `'day'`
-	case view.BucketWeek:
-		unit = `'week'`
-	case view.BucketMonth:
-		unit = `'month'`
+	var opening, closing string
+	switch {
+	case aggregation.Bucket == view.BucketDay:
+		opening, closing = `date_trunc('day', (`, `)`
+	case aggregation.Bucket == view.BucketWeek && aggregation.WeekStart == view.WeekSunday:
+		// 2 January 2000 was a Sunday.
+		opening, closing = `date_bin(interval '7 days', (`, `, make_timestamp(2000, 1, 2, 0, 0, 0))`
+	case aggregation.Bucket == view.BucketWeek:
+		opening, closing = `date_trunc('week', (`, `)`
+	case aggregation.Bucket == view.BucketMonth:
+		opening, closing = `date_trunc('month', (`, `)`
 	default:
 		b.fail(errFieldNotCompilable(aggregation.BucketField))
 		return
 	}
-	b.write(`date_trunc(`, unit, `, (`)
+	b.write(opening)
 	if _, custom := view.CustomField(aggregation.BucketField.Name); custom {
 		if shape := aggregation.BucketField.Custom; shape.Resolved && !shape.Defined {
 			b.write(`NULL::timestamptz`)
@@ -90,7 +96,7 @@ func (b *builder) aggregateBucket(aggregation view.Aggregation, timeZone string)
 	}
 	b.write(`) AT TIME ZONE `)
 	b.param(timeZone)
-	b.write(`::text)::date::text`)
+	b.write(`::text`, closing, `::date::text`)
 }
 
 func (b *builder) aggregateValue(aggregation view.Aggregation) {
@@ -112,10 +118,32 @@ func (b *builder) aggregateValue(aggregation view.Aggregation) {
 		return
 	}
 	b.write(function)
+	if aggregation.Quantity != "" {
+		b.quantity(aggregation.Quantity)
+		b.write(`)::numeric`)
+		return
+	}
 	if shape := aggregation.Measure.Custom; shape.Resolved && !shape.Defined {
 		b.write(`NULL::numeric`)
 	} else {
 		b.customValue(aggregation.Measure)
 	}
 	b.write(`)::numeric`)
+}
+
+// quantity writes a built-in measure: the span between two of the row's stamps in whole minutes,
+// NULL where either is missing. timestamptz_mi is the subtraction operator's own function, spelled
+// as a name for the reason customText spells jsonb_extract_path_text.
+func (b *builder) quantity(quantity view.Quantity) {
+	var from, to string
+	switch quantity {
+	case view.QuantityLeadTime:
+		from, to = `wi.created_at`, `wi.completed_at`
+	case view.QuantityScheduledSpan:
+		from, to = `wi.start_at`, `wi.due_at`
+	default:
+		b.fail(shared.ErrInternal.WithDetail("query.quantity_unknown"))
+		return
+	}
+	b.write(`div(extract(epoch FROM timestamptz_mi(`, to, `, `, from, `)), 60)`)
 }

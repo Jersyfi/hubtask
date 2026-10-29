@@ -636,6 +636,21 @@ func (b *builder) scope(anchor repository.Anchor) {
 		// or not a policy is in force, and it is the column a planner can use.
 		b.write(`wi.tenant_id = current_tenant_id()`)
 
+	case repository.AnchorCollections:
+		// A bound array, as the restriction is, so the text does not grow with the workspace. An
+		// empty set reads nothing rather than everything.
+		if len(anchor.CollectionIDs) == 0 {
+			b.write(`false`)
+			return
+		}
+		values := make([]string, 0, len(anchor.CollectionIDs))
+		for _, id := range anchor.CollectionIDs {
+			values = append(values, id.String())
+		}
+		b.write(`wi.collection_id = ANY(`)
+		b.param(values)
+		b.write(`::uuid[])`)
+
 	case repository.AnchorHub:
 		// The hub's collections, as a subquery rather than a list the use case read first: the list
 		// would be a second round trip and a second thing to keep in step with what a hub contains.
@@ -915,6 +930,31 @@ func (b *builder) customField(node view.Node, key string) {
 		b.write(`) IN lower(coalesce(`)
 		b.customText(key)
 		b.write(`, ''))) > 0) AND `)
+		b.liveDefinition(key)
+		b.write(`)`)
+	case view.OpContainsAny, view.OpContainsAll:
+		// A set holds any or every element, one indexable containment each; the shape has
+		// already refused a field that holds one value (view.Spec.Shaped).
+		separator := ` OR `
+		if node.Op == view.OpContainsAll {
+			separator = ` AND `
+		}
+		b.write(`((`)
+		for index, value := range node.Values {
+			if index > 0 {
+				b.write(separator)
+			}
+			b.containsElement(key, value)
+		}
+		b.write(`) AND `)
+		b.liveDefinition(key)
+		b.write(`)`)
+	case view.OpStartsWith:
+		b.write(`(starts_with(lower(`)
+		b.customText(key)
+		b.write(`), lower(`)
+		b.text(node.Values[0])
+		b.write(`)) AND `)
 		b.liveDefinition(key)
 		b.write(`)`)
 	default:
