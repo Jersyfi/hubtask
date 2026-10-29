@@ -9934,6 +9934,7 @@ paths:
     post:
       tags: [structure]
       operationId: proposeConfig
+      x-hubtask-cli: "config propose"
       x-hubtask-rest: generated
       summary: Propose a planned change for a person to decide
       description: >
@@ -10020,6 +10021,7 @@ paths:
     get:
       tags: [structure]
       operationId: readConfigVersion
+      x-hubtask-cli: "config version"
       x-hubtask-rest: generated
       summary: One configuration version with its document
       description: The document as it was in force after that version's apply, so two versions are compared.

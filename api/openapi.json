@@ -12799,6 +12799,7 @@
           "structure"
         ],
         "operationId": "proposeConfig",
+        "x-hubtask-cli": "config propose",
         "x-hubtask-rest": "generated",
         "summary": "Propose a planned change for a person to decide",
         "description": "Keeps a planned change for a person to apply or decline; it appears in the administration's Changes as proposed. How an agent with the read and plan scopes brings a change to the workspace.\n",
@@ -12929,6 +12930,7 @@
           "structure"
         ],
         "operationId": "readConfigVersion",
+        "x-hubtask-cli": "config version",
         "x-hubtask-rest": "generated",
         "summary": "One configuration version with its document",
         "description": "The document as it was in force after that version's apply, so two versions are compared.",

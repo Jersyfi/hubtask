@@ -160,3 +160,22 @@ func TestEveryGeneratedCommandIsInTheTree(t *testing.T) {
 		}
 	}
 }
+
+// The configuration verbs the hand-written group left out: a version read by number, a plan
+// proposed for a person to approve.
+func TestConfigVersionAndProposeAreGenerated(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{"version":7,"hash":"h"}`)
+	if code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "config", "version", "7"); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if stub.request.URL.Path != APIPath+"/config/versions/7" {
+		t.Errorf("path %q", stub.request.URL.Path)
+	}
+
+	if code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "config", "propose", "--plan-hash", "abc"); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if stub.request.URL.Path != APIPath+"/config:propose" || !strings.Contains(stub.body, `"plan_hash":"abc"`) {
+		t.Errorf("%s %q", stub.request.URL.Path, stub.body)
+	}
+}

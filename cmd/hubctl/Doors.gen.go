@@ -13,6 +13,23 @@ var generatedGroups = map[string]string{
 
 // generatedCommands is every operation the contract names a command for, in a stable order.
 var generatedCommands = []door{
+	{Group: "config", Verb: "propose", OperationID: "proposeConfig", Method: "POST", Path: "/config:propose", Summary: "Propose a planned change for a person to decide",
+		Body: []doorParam{
+			{Name: "acknowledge", Kind: "boolean", Help: "", Required: false},
+			{Name: "document", Kind: "json", Help: "Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, …", Required: false},
+			{Name: "from_sandbox", Kind: "boolean", Help: "Promotes the sandbox - what it changed since its copy - instead of a document", Required: false},
+			{Name: "hub_id", Kind: "uuid", Help: "A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the …", Required: false},
+			{Name: "mode", Kind: "string", Help: "", Required: false},
+			{Name: "plan_hash", Kind: "string", Help: "", Required: true},
+			{Name: "template", Kind: "string", Help: "The template@version the document came from; a hub's document takes none", Required: false},
+			{Name: "to_version", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"state"}},
+	{Group: "config", Verb: "version", OperationID: "readConfigVersion", Method: "GET", Path: "/config/versions/{version}", Summary: "One configuration version with its document",
+		PathParams: []doorParam{
+			{Name: "version", Kind: "integer", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"version"}},
 	{Group: "container", Verb: "structure preview", OperationID: "previewContainerStructure", Method: "POST", Path: "/containers/{containerId}/structure:preview", Summary: "Answers what a change of a hub's or collection's own structure would stop showing, before it is …",
 		PathParams: []doorParam{
 			{Name: "containerId", Kind: "uuid", Help: "", Required: true},
