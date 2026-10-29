@@ -27,7 +27,7 @@ Carla needs the flowchart of the onboarding board in a slide, so she saves its "
 3. Every export through the API is recorded in the audit trail.
 4. The workspace's archive holds every board with its objects and its history, and a restore brings them back (tenant-export.md §6).
 5. The *Whiteboard* screen saves the whole board, the chosen frame or the chosen objects as a PDF of one page holding its picture.
-6. A page that embeds a board (`![](hubtask:whiteboard/<id>)`), or one frame of it (`#<frame>`), draws it live, as people draw on it, for a reader of the board's hub, and opens the board on that frame; anybody else sees why it is not shown.
+6. A page that embeds a board as a block (a `hubtask:whiteboard/` address on a line of its own), or one frame of it (`#<frame>`), draws it live, as people draw on it, for a reader of the board's hub, and opens the board on that frame; anybody else sees why it is not shown.
 
 ## Where it ends
 
