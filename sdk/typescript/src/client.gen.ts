@@ -222,6 +222,12 @@ export class HubtaskClient {
     return this.call("POST", "/cmdb/alert-intake/{tenantId}/{connectorId}", { "tenantId": tenantId, "connectorId": connectorId }, undefined, { "X-Hubtask-Signature": options.xHubtaskSignature, "X-Hubtask-Timestamp": options.xHubtaskTimestamp }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Post a GLPI Agent's inventory
+   * Public: sent without a bearer where the client holds none. */
+  deliverCiInventory(tenantId: string, connectorId: string, body: NonNullable<operations["deliverCiInventory"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly xHubtaskSignature?: string; readonly xHubtaskTimestamp?: string } = {}): Promise<operations["deliverCiInventory"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/cmdb/inventory-intake/{tenantId}/{connectorId}", { "tenantId": tenantId, "connectorId": connectorId }, undefined, { "X-Hubtask-Signature": options.xHubtaskSignature, "X-Hubtask-Timestamp": options.xHubtaskTimestamp }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** A hub's inventory judged */
   readCmdbHealth(hubId: string, options: CallOptions = {}): Promise<operations["readCmdbHealth"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/cmdb-health", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

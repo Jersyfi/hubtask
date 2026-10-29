@@ -117,7 +117,7 @@ func ConnectorOutput(c domain.Connector) usecase.Output {
 	}
 	return usecase.Output{
 		"id": c.ID.String(), "hub_id": c.HubID.String(), "key": c.Key, "kind": string(c.Kind), "source": c.Source,
-		"push": c.Spec().Push, "base_url": c.BaseURL, "settings": settings,
+		"push": c.Spec().Push, "inventory": c.Spec().Inventory, "base_url": c.BaseURL, "settings": settings,
 		"allowed_hosts": append([]string{}, c.AllowedHosts...), "hosts": c.Hosts(),
 		"every_minutes": c.Every, "enabled": c.Enabled, "collection_id": idOrNil(c.Collection),
 		"run_as": idOrNil(c.RunAs), "has_credential": c.HasCredential, "next_run_at": next, "last_run_at": last,

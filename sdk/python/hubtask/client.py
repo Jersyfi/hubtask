@@ -191,6 +191,10 @@ class Client:
         """Post alerts to an intake"""
         return self._call("POST", "/cmdb/alert-intake/{tenantId}/{connectorId}", {"tenantId": tenant_id, "connectorId": connector_id}, None, {"X-Hubtask-Signature": x_hubtask_signature, "X-Hubtask-Timestamp": x_hubtask_timestamp}, body, "json", "application/json", "json")
 
+    def deliver_ci_inventory(self, tenant_id: str, connector_id: str, body: dict[str, Any], *, x_hubtask_signature: str | None = None, x_hubtask_timestamp: str | None = None) -> "CiInventoryReceipt":
+        """Post a GLPI Agent's inventory"""
+        return self._call("POST", "/cmdb/inventory-intake/{tenantId}/{connectorId}", {"tenantId": tenant_id, "connectorId": connector_id}, None, {"X-Hubtask-Signature": x_hubtask_signature, "X-Hubtask-Timestamp": x_hubtask_timestamp}, body, "json", "application/json", "json")
+
     def read_cmdb_health(self, hub_id: str) -> "CmdbHealth":
         """A hub's inventory judged"""
         return self._call("GET", "/hubs/{hubId}/cmdb-health", {"hubId": hub_id}, None, {}, None, "none", None, "json")

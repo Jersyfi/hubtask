@@ -409,6 +409,51 @@ func TestAnAlertOpensAnEntryBoundToItsCIAndItsResolutionCompletesIt(t *testing.T
 	}
 }
 
+func TestAGLPIAgentsInventoryIsReconciledAsItsIntakesSourceOnlyWithItsSecret(t *testing.T) {
+	f := newConnectorFixture()
+	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "agents", "kind": "GLPI_AGENT", "source": "netbox"}))
+	out, err := call(t, SetCiConnectorCredential{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String()})
+	key, _ := out["secret"].(string)
+	if err != nil || key == "" || out["inventory"] != true {
+		t.Fatalf("an inventory intake draws its secret: %v %v", out, err)
+	}
+	ctx := context.Background()
+	machine := func(domain.ConnectorKind, []byte) (InventoryDocument, error) {
+		return InventoryDocument{Payload: domain.Payload{
+			Items: []domain.Item{{Ref: "pc", Class: "laptop", Name: "PC-42", NativeKey: "uuid-42", Attributes: map[string]any{"hostname": "pc-42"}},
+				{Ref: "sw", Class: "software", Name: "openssl", Attributes: map[string]any{"version": "3.0.14"}}},
+			Relations: []domain.RelationItem{{Type: domain.RelInstalled, From: "sw", To: "pc"}},
+		}}, nil
+	}
+	if _, err := f.c.DeliverInventory(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: "wrong"}, machine); code(err) != "cmdb.intake_not_found" {
+		t.Fatalf("a wrong secret: %v", err)
+	}
+	if _, err := f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, signals()); code(err) != "cmdb.intake_not_found" {
+		t.Fatalf("an inventory intake takes no alerts: %v", err)
+	}
+	contact, err := f.c.DeliverInventory(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key},
+		func(domain.ConnectorKind, []byte) (InventoryDocument, error) {
+			return InventoryDocument{Contact: true}, nil
+		})
+	if err != nil || !contact.Contact || len(f.m.cis) != 0 {
+		t.Fatalf("a contact writes nothing: %+v %v", contact, err)
+	}
+	r, err := f.c.DeliverInventory(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, machine)
+	if err != nil || r.Run.Counts.Created != 2 || len(f.m.cis) != 2 || len(f.m.runs) != 1 || f.m.runs[0].Source != "netbox" {
+		t.Fatalf("reconciled as the intake's source: %+v %v (%d CIs)", r, err, len(f.m.cis))
+	}
+	if c := f.store.conns[id]; c.LastOutcome != domain.ConnectorOK || c.LastRun != r.Run.ID {
+		t.Fatalf("the run is the intake's last: %+v", c)
+	}
+	if again, _ := f.c.DeliverInventory(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, machine); again.Run.Counts.Created != 0 || len(f.m.cis) != 2 {
+		t.Fatalf("the same machine posted again is the same CIs: %+v", again.Run.Counts)
+	}
+	am, alertKey := intake(t, f)
+	if _, err := f.c.DeliverInventory(ctx, AlertDelivery{TenantID: tenant, ConnectorID: am, Bearer: alertKey}, machine); code(err) != "cmdb.intake_not_found" {
+		t.Fatalf("an alert intake takes no inventory: %v", err)
+	}
+}
+
 func (m *connectorMemory) ListAlerts(_ context.Context, h shared.ID, status domain.AlertStatus, limit int) ([]domain.Alert, error) {
 	var out []domain.Alert
 	for _, a := range m.alerts {

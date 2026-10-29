@@ -4482,13 +4482,14 @@ class CiRun(TypedDict, total=False):
     skipped_rows: list[int]
 
 class CiConnector(TypedDict, total=False):
-    """A program a hub's CIs are pulled from, or that posts alerts to it. Never its credential; `secret` is present once, in the answer that drew an alert intake's."""
+    """A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's."""
     id: Required[str]
     hub_id: Required[str]
     key: Required[str]
-    kind: Required[Literal["GLPI", "NETBOX", "INTUNE", "ENTRA", "HETZNER", "OPENSTACK", "ALERTMANAGER", "ZABBIX", "CHECKMK"]]
+    kind: Required[Literal["GLPI", "NETBOX", "INTUNE", "ENTRA", "HETZNER", "OPENSTACK", "ALERTMANAGER", "ZABBIX", "CHECKMK", "GLPI_AGENT"]]
     source: Required[str]
     push: Required[bool]
+    inventory: bool
     base_url: str
     settings: Required[dict[str, Any]]
     allowed_hosts: Required[list[str]]
@@ -4513,7 +4514,7 @@ class CiConnectorList(TypedDict, total=False):
     data: Required[list["CiConnector"]]
 
 class CiConnectorDefine(TypedDict, total=False):
-    kind: Required[Literal["GLPI", "NETBOX", "INTUNE", "ENTRA", "HETZNER", "OPENSTACK", "ALERTMANAGER", "ZABBIX", "CHECKMK"]]
+    kind: Required[Literal["GLPI", "NETBOX", "INTUNE", "ENTRA", "HETZNER", "OPENSTACK", "ALERTMANAGER", "ZABBIX", "CHECKMK", "GLPI_AGENT"]]
     source: Required[str]
     base_url: str
     settings: dict[str, Any]
@@ -4556,6 +4557,14 @@ class CiAlert(TypedDict, total=False):
 
 class CiAlertList(TypedDict, total=False):
     data: Required[list["CiAlert"]]
+
+class CiInventoryReceipt(TypedDict, total=False):
+    """What the agent reads: `status` ok, and for a contact the task it is asked to run and the hours until it next calls. For an inventory, the run it became and its counts."""
+    status: Required[Literal["ok"]]
+    expiration: int
+    tasks: dict[str, Any]
+    run_id: str
+    counts: "CiRunCounts"
 
 class CiAlertReceipt(TypedDict, total=False):
     received: Required[int]

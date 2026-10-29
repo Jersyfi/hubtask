@@ -3086,6 +3086,7 @@ func run() error {
 		// The mail door beside it: the message is parsed here, its files go through the
 		// media pipeline's server-side end, and what lands is an EMAIL entry.
 		controller.CmdbAlerts = intake.AlertIntake{Deliveries: connectors}
+		controller.CmdbInventory = intake.InventoryIntake{Deliveries: connectors}
 		controller.MailIntake = intake.MailIntake{
 			Deliveries: jumbleservice.IntakeMail{
 				Intake: jumbleIntake, Entries: postgres.NewJumbleRepository(cursors),

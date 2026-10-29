@@ -661,6 +661,49 @@ paths:
               schema: { $ref: "#/components/schemas/CiAlertReceipt" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /cmdb/inventory-intake/{tenantId}/{connectorId}:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: The workspace the intake belongs to, which the lookup needs before it can happen.
+        schema: { type: string, format: uuid }
+      - name: connectorId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [cmdb]
+      operationId: deliverCiInventory
+      security: []
+      summary: Post a GLPI Agent's inventory
+      description: >
+        The server address a GLPI Agent is given: its native inventory protocol, JSON or
+        zlib-compressed JSON. A `contact` is answered with the inventory task; an `inventory`
+        is reconciled as the intake's source - the computer with its serial, addresses and
+        operating system, its installed software related to it. The intake's secret is the
+        credential: as `Authorization: Bearer <secret>`, as the password of HTTP basic
+        authentication (any user name), or signing the post as an alert intake's are. A post
+        with no credential at all is answered `401` with a basic challenge, whatever the
+        address; every other reason not to serve answers the same `404`.
+      parameters:
+        - { name: X-Hubtask-Signature, in: header, schema: { type: string } }
+        - { name: X-Hubtask-Timestamp, in: header, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+          application/x-compress-zlib:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          description: Taken in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiInventoryReceipt" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /hubs/{hubId}/cmdb-health:
     parameters:
       - name: hubId
@@ -28123,16 +28166,18 @@ components:
     CiConnector:
       type: object
       description: >
-        A program a hub's CIs are pulled from, or that posts alerts to it. Never its credential;
-        `secret` is present once, in the answer that drew an alert intake's.
+        A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory
+        to it. Never its credential; `secret` is present once, in the answer that drew an
+        intake's.
       required: [id, hub_id, key, kind, source, push, settings, allowed_hosts, hosts, every_minutes, enabled, has_credential, failures, version]
       properties:
         id: { type: string, format: uuid }
         hub_id: { type: string, format: uuid }
         key: { type: string }
-        kind: { type: string, enum: [GLPI, NETBOX, INTUNE, ENTRA, HETZNER, OPENSTACK, ALERTMANAGER, ZABBIX, CHECKMK] }
+        kind: { type: string, enum: [GLPI, NETBOX, INTUNE, ENTRA, HETZNER, OPENSTACK, ALERTMANAGER, ZABBIX, CHECKMK, GLPI_AGENT] }
         source: { type: string }
-        push: { type: boolean, description: An alert intake rather than a pull. }
+        push: { type: boolean, description: An intake rather than a pull. }
+        inventory: { type: boolean, description: An intake posted CIs rather than alerts. }
         base_url: { type: string }
         settings: { type: object, additionalProperties: { type: string } }
         allowed_hosts: { type: array, items: { type: string } }
@@ -28163,7 +28208,7 @@ components:
       type: object
       required: [kind, source]
       properties:
-        kind: { type: string, enum: [GLPI, NETBOX, INTUNE, ENTRA, HETZNER, OPENSTACK, ALERTMANAGER, ZABBIX, CHECKMK] }
+        kind: { type: string, enum: [GLPI, NETBOX, INTUNE, ENTRA, HETZNER, OPENSTACK, ALERTMANAGER, ZABBIX, CHECKMK, GLPI_AGENT] }
         source: { type: string }
         base_url: { type: string, maxLength: 2000 }
         settings: { type: object, additionalProperties: { type: string, maxLength: 500 } }
@@ -28219,6 +28264,19 @@ components:
       required: [data]
       properties:
         data: { type: array, items: { $ref: "#/components/schemas/CiAlert" } }
+
+    CiInventoryReceipt:
+      type: object
+      description: >
+        What the agent reads: `status` ok, and for a contact the task it is asked to run and the
+        hours until it next calls. For an inventory, the run it became and its counts.
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok] }
+        expiration: { type: integer, description: Hours until the agent's next contact. }
+        tasks: { type: object, additionalProperties: true }
+        run_id: { type: string, format: uuid }
+        counts: { $ref: "#/components/schemas/CiRunCounts" }
 
     CiAlertReceipt:
       type: object

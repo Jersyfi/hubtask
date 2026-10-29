@@ -26,6 +26,9 @@ const (
 	ConnectorAlertmanager ConnectorKind = "ALERTMANAGER"
 	ConnectorZabbix       ConnectorKind = "ZABBIX"
 	ConnectorCheckmk      ConnectorKind = "CHECKMK"
+	// ConnectorGLPIAgent is an inventory intake a GLPI Agent posts its native inventory to, for
+	// machines no server of ours can reach (research itsm-cmdb-ai §4.6, GLPI's second half).
+	ConnectorGLPIAgent ConnectorKind = "GLPI_AGENT"
 )
 
 // The bounds of a connector.
@@ -45,8 +48,11 @@ const (
 // an identity provider's authority - never from the source code (PG-6).
 type ConnectorSpec struct {
 	Kind ConnectorKind
-	// Push is an intake a monitoring program posts alerts to; otherwise Hubtask pulls.
+	// Push is an intake a program posts to; otherwise Hubtask pulls.
 	Push bool
+	// Inventory is a push intake whose deliveries are CIs, reconciled as the connector's source;
+	// any other push intake takes alerts.
+	Inventory bool
 	// Settings are the non-secret settings the kind needs, by key.
 	Settings []string
 	// Authority names the setting holding the https address of the identity provider the kind
@@ -66,6 +72,7 @@ func ConnectorSpecs() []ConnectorSpec {
 		{Kind: ConnectorAlertmanager, Push: true},
 		{Kind: ConnectorZabbix, Push: true},
 		{Kind: ConnectorCheckmk, Push: true},
+		{Kind: ConnectorGLPIAgent, Push: true, Inventory: true},
 	}
 }
 
@@ -216,7 +223,7 @@ func NewConnector(in ConnectorInput, existing *Connector) (Connector, error) {
 	if spec.Push && in.Every != 0 {
 		return Connector{}, invalid("/every_minutes", "cmdb.connector_push_not_scheduled")
 	}
-	if !spec.Push && !in.Collection.IsZero() {
+	if (!spec.Push || spec.Inventory) && !in.Collection.IsZero() {
 		return Connector{}, invalid("/collection_id", "cmdb.connector_collection_push_only")
 	}
 	c := Connector{ID: in.ID, TenantID: in.TenantID, HubID: in.HubID, CreatedAt: in.Now, Version: 1}

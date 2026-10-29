@@ -69,6 +69,18 @@ func TestAnAlertIntakeIsNeverScheduledAndNeedsNoAddress(t *testing.T) {
 	}
 }
 
+func TestAGLPIAgentIntakeIsPostedInventoryAndOpensNoEntries(t *testing.T) {
+	in := ConnectorInput{Key: "agents", Kind: ConnectorGLPIAgent, Source: connectorSource(), Now: now}
+	c, err := NewConnector(in, nil)
+	if err != nil || !c.Spec().Push || !c.Spec().Inventory || c.NextRunAt != nil {
+		t.Fatalf("an inventory intake: %+v %v", c, err)
+	}
+	in.Collection = id("05")
+	if _, err := NewConnector(in, nil); code(err) != "cmdb.connector_collection_push_only" {
+		t.Fatalf("an inventory intake opens no entries: %v", err)
+	}
+}
+
 func TestAScheduledConnectorRunsEveryPeriodAndStopsAfterFailures(t *testing.T) {
 	c, err := NewConnector(ConnectorInput{Key: "hz", Kind: ConnectorHetzner, Source: connectorSource(), BaseURL: "https://hz.example",
 		Every: 60, Enabled: true, Now: now}, nil)

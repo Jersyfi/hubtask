@@ -1593,6 +1593,7 @@ const (
 	CiConnectorKindCHECKMK      CiConnectorKind = "CHECKMK"
 	CiConnectorKindENTRA        CiConnectorKind = "ENTRA"
 	CiConnectorKindGLPI         CiConnectorKind = "GLPI"
+	CiConnectorKindGLPIAGENT    CiConnectorKind = "GLPI_AGENT"
 	CiConnectorKindHETZNER      CiConnectorKind = "HETZNER"
 	CiConnectorKindINTUNE       CiConnectorKind = "INTUNE"
 	CiConnectorKindNETBOX       CiConnectorKind = "NETBOX"
@@ -1610,6 +1611,8 @@ func (e CiConnectorKind) Valid() bool {
 	case CiConnectorKindENTRA:
 		return true
 	case CiConnectorKindGLPI:
+		return true
+	case CiConnectorKindGLPIAGENT:
 		return true
 	case CiConnectorKindHETZNER:
 		return true
@@ -1656,6 +1659,7 @@ const (
 	CiConnectorDefineKindCHECKMK      CiConnectorDefineKind = "CHECKMK"
 	CiConnectorDefineKindENTRA        CiConnectorDefineKind = "ENTRA"
 	CiConnectorDefineKindGLPI         CiConnectorDefineKind = "GLPI"
+	CiConnectorDefineKindGLPIAGENT    CiConnectorDefineKind = "GLPI_AGENT"
 	CiConnectorDefineKindHETZNER      CiConnectorDefineKind = "HETZNER"
 	CiConnectorDefineKindINTUNE       CiConnectorDefineKind = "INTUNE"
 	CiConnectorDefineKindNETBOX       CiConnectorDefineKind = "NETBOX"
@@ -1673,6 +1677,8 @@ func (e CiConnectorDefineKind) Valid() bool {
 	case CiConnectorDefineKindENTRA:
 		return true
 	case CiConnectorDefineKindGLPI:
+		return true
+	case CiConnectorDefineKindGLPIAGENT:
 		return true
 	case CiConnectorDefineKindHETZNER:
 		return true
@@ -1773,6 +1779,21 @@ func (e CiImpactDirection) Valid() bool {
 	case CiImpactDirectionDOWNSTREAM:
 		return true
 	case CiImpactDirectionUPSTREAM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiInventoryReceiptStatus.
+const (
+	CiInventoryReceiptStatusOk CiInventoryReceiptStatus = "ok"
+)
+
+// Valid indicates whether the value is a known member of the CiInventoryReceiptStatus enum.
+func (e CiInventoryReceiptStatus) Valid() bool {
+	switch e {
+	case CiInventoryReceiptStatusOk:
 		return true
 	default:
 		return false
@@ -9481,7 +9502,7 @@ type CiComplianceStage string
 // CiComplianceStatus defines model for CiCompliance.Status.
 type CiComplianceStatus string
 
-// CiConnector A program a hub's CIs are pulled from, or that posts alerts to it. Never its credential; `secret` is present once, in the answer that drew an alert intake's.
+// CiConnector A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
 type CiConnector struct {
 	AllowedHosts  []string            `json:"allowed_hosts"`
 	BaseUrl       *string             `json:"base_url,omitempty"`
@@ -9496,8 +9517,11 @@ type CiConnector struct {
 	Hosts []string           `json:"hosts"`
 	HubId openapi_types.UUID `json:"hub_id"`
 	Id    openapi_types.UUID `json:"id"`
-	Key   string             `json:"key"`
-	Kind  CiConnectorKind    `json:"kind"`
+
+	// Inventory An intake posted CIs rather than alerts.
+	Inventory *bool           `json:"inventory,omitempty"`
+	Key       string          `json:"key"`
+	Kind      CiConnectorKind `json:"kind"`
 
 	// LastError The last failure's message code.
 	LastError   *string                 `json:"last_error,omitempty"`
@@ -9506,7 +9530,7 @@ type CiConnector struct {
 	LastRunId   *openapi_types.UUID     `json:"last_run_id,omitempty"`
 	NextRunAt   *time.Time              `json:"next_run_at,omitempty"`
 
-	// Push An alert intake rather than a pull.
+	// Push An intake rather than a pull.
 	Push      bool                `json:"push"`
 	RunAs     *openapi_types.UUID `json:"run_as,omitempty"`
 	Secret    *string             `json:"secret,omitempty"`
@@ -9550,7 +9574,7 @@ type CiConnectorList struct {
 
 // CiConnectorRun defines model for CiConnectorRun.
 type CiConnectorRun struct {
-	// Connector A program a hub's CIs are pulled from, or that posts alerts to it. Never its credential; `secret` is present once, in the answer that drew an alert intake's.
+	// Connector A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
 	Connector CiConnector   `json:"connector"`
 	Counts    CiRunCounts   `json:"counts"`
 	Decisions *[]CiDecision `json:"decisions,omitempty"`
@@ -9687,6 +9711,20 @@ type CiImpact struct {
 
 // CiImpactDirection defines model for CiImpact.Direction.
 type CiImpactDirection string
+
+// CiInventoryReceipt What the agent reads: `status` ok, and for a contact the task it is asked to run and the hours until it next calls. For an inventory, the run it became and its counts.
+type CiInventoryReceipt struct {
+	Counts *CiRunCounts `json:"counts,omitempty"`
+
+	// Expiration Hours until the agent's next contact.
+	Expiration *int                     `json:"expiration,omitempty"`
+	RunId      *openapi_types.UUID      `json:"run_id,omitempty"`
+	Status     CiInventoryReceiptStatus `json:"status"`
+	Tasks      *map[string]interface{}  `json:"tasks,omitempty"`
+}
+
+// CiInventoryReceiptStatus defines model for CiInventoryReceipt.Status.
+type CiInventoryReceiptStatus string
 
 // CiOwnProtection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
 type CiOwnProtection struct {
@@ -18536,6 +18574,15 @@ type DefineCiClassParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// DeliverCiInventoryJSONBody defines parameters for DeliverCiInventory.
+type DeliverCiInventoryJSONBody map[string]interface{}
+
+// DeliverCiInventoryParams defines parameters for DeliverCiInventory.
+type DeliverCiInventoryParams struct {
+	XHubtaskSignature *string `json:"X-Hubtask-Signature,omitempty"`
+	XHubtaskTimestamp *string `json:"X-Hubtask-Timestamp,omitempty"`
+}
+
 // DefineCiRelationTypeParams defines parameters for DefineCiRelationType.
 type DefineCiRelationTypeParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -20027,6 +20074,9 @@ type DeliverCiAlertsJSONRequestBody DeliverCiAlertsJSONBody
 
 // DefineCiClassJSONRequestBody defines body for DefineCiClass for application/json ContentType.
 type DefineCiClassJSONRequestBody = CiClassDefine
+
+// DeliverCiInventoryJSONRequestBody defines body for DeliverCiInventory for application/json ContentType.
+type DeliverCiInventoryJSONRequestBody DeliverCiInventoryJSONBody
 
 // DefineCiRelationTypeJSONRequestBody defines body for DefineCiRelationType for application/json ContentType.
 type DefineCiRelationTypeJSONRequestBody = CiRelationTypeDefine
@@ -23417,6 +23467,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /cmdb/classes/{classKey} (the `DefineCiClass` operationId).
 	DefineCiClass(ctx context.Context, classKey string, params *DefineCiClassParams, body DefineCiClassJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeliverCiInventoryWithBody Post a GLPI Agent's inventory
+	//
+	// The server address a GLPI Agent is given: its native inventory protocol, JSON or zlib-compressed JSON. A `contact` is answered with the inventory task; an `inventory` is reconciled as the intake's source - the computer with its serial, addresses and operating system, its installed software related to it. The intake's secret is the credential: as `Authorization: Bearer <secret>`, as the password of HTTP basic authentication (any user name), or signing the post as an alert intake's are. A post with no credential at all is answered `401` with a basic challenge, whatever the address; every other reason not to serve answers the same `404`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /cmdb/inventory-intake/{tenantId}/{connectorId} (the `DeliverCiInventory` operationId).
+	DeliverCiInventoryWithBody(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiInventoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeliverCiInventory Post a GLPI Agent's inventory
+	//
+	// The server address a GLPI Agent is given: its native inventory protocol, JSON or zlib-compressed JSON. A `contact` is answered with the inventory task; an `inventory` is reconciled as the intake's source - the computer with its serial, addresses and operating system, its installed software related to it. The intake's secret is the credential: as `Authorization: Bearer <secret>`, as the password of HTTP basic authentication (any user name), or signing the post as an alert intake's are. A post with no credential at all is answered `401` with a basic challenge, whatever the address; every other reason not to serve answers the same `404`.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /cmdb/inventory-intake/{tenantId}/{connectorId} (the `DeliverCiInventory` operationId).
+	DeliverCiInventory(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiInventoryParams, body DeliverCiInventoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListCiRelationTypes The relation types between configuration items
 	//
@@ -33193,6 +33261,44 @@ func (c *Client) DefineCiClassWithBody(ctx context.Context, classKey string, par
 // Corresponds with PUT /cmdb/classes/{classKey} (the `DefineCiClass` operationId).
 func (c *Client) DefineCiClass(ctx context.Context, classKey string, params *DefineCiClassParams, body DefineCiClassJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDefineCiClassRequest(c.Server, classKey, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeliverCiInventoryWithBody Post a GLPI Agent's inventory
+//
+// The server address a GLPI Agent is given: its native inventory protocol, JSON or zlib-compressed JSON. A `contact` is answered with the inventory task; an `inventory` is reconciled as the intake's source - the computer with its serial, addresses and operating system, its installed software related to it. The intake's secret is the credential: as `Authorization: Bearer <secret>`, as the password of HTTP basic authentication (any user name), or signing the post as an alert intake's are. A post with no credential at all is answered `401` with a basic challenge, whatever the address; every other reason not to serve answers the same `404`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /cmdb/inventory-intake/{tenantId}/{connectorId} (the `DeliverCiInventory` operationId).
+func (c *Client) DeliverCiInventoryWithBody(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiInventoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeliverCiInventoryRequestWithBody(c.Server, tenantId, connectorId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeliverCiInventory Post a GLPI Agent's inventory
+//
+// The server address a GLPI Agent is given: its native inventory protocol, JSON or zlib-compressed JSON. A `contact` is answered with the inventory task; an `inventory` is reconciled as the intake's source - the computer with its serial, addresses and operating system, its installed software related to it. The intake's secret is the credential: as `Authorization: Bearer <secret>`, as the password of HTTP basic authentication (any user name), or signing the post as an alert intake's are. A post with no credential at all is answered `401` with a basic challenge, whatever the address; every other reason not to serve answers the same `404`.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /cmdb/inventory-intake/{tenantId}/{connectorId} (the `DeliverCiInventory` operationId).
+func (c *Client) DeliverCiInventory(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiInventoryParams, body DeliverCiInventoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeliverCiInventoryRequest(c.Server, tenantId, connectorId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -50312,6 +50418,86 @@ func NewDefineCiClassRequestWithBody(server string, classKey string, params *Def
 			}
 
 			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewDeliverCiInventoryRequest calls the generic DeliverCiInventory builder with application/json body
+func NewDeliverCiInventoryRequest(server string, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiInventoryParams, body DeliverCiInventoryJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDeliverCiInventoryRequestWithBody(server, tenantId, connectorId, params, "application/json", bodyReader)
+}
+
+// NewDeliverCiInventoryRequestWithBody constructs an http.Request for the DeliverCiInventory method, with any body, and a specified content type
+func NewDeliverCiInventoryRequestWithBody(server string, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiInventoryParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "tenantId", tenantId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "connectorId", connectorId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cmdb/inventory-intake/%s/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskSignature != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Signature", *params.XHubtaskSignature, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Signature", headerParam0)
+		}
+
+		if params.XHubtaskTimestamp != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Timestamp", *params.XHubtaskTimestamp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Timestamp", headerParam1)
 		}
 
 	}
@@ -69661,6 +69847,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /cmdb/classes/{classKey} (the `DefineCiClass` operationId).
 	DefineCiClassWithResponse(ctx context.Context, classKey string, params *DefineCiClassParams, body DefineCiClassJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCiClassResult, error)
 
+	// DeliverCiInventoryWithBodyWithResponse Post a GLPI Agent's inventory
+	//
+	// The server address a GLPI Agent is given: its native inventory protocol, JSON or zlib-compressed JSON. A `contact` is answered with the inventory task; an `inventory` is reconciled as the intake's source - the computer with its serial, addresses and operating system, its installed software related to it. The intake's secret is the credential: as `Authorization: Bearer <secret>`, as the password of HTTP basic authentication (any user name), or signing the post as an alert intake's are. A post with no credential at all is answered `401` with a basic challenge, whatever the address; every other reason not to serve answers the same `404`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /cmdb/inventory-intake/{tenantId}/{connectorId} (the `DeliverCiInventory` operationId).
+	DeliverCiInventoryWithBodyWithResponse(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiInventoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DeliverCiInventoryResult, error)
+
+	// DeliverCiInventoryWithResponse Post a GLPI Agent's inventory
+	//
+	// The server address a GLPI Agent is given: its native inventory protocol, JSON or zlib-compressed JSON. A `contact` is answered with the inventory task; an `inventory` is reconciled as the intake's source - the computer with its serial, addresses and operating system, its installed software related to it. The intake's secret is the credential: as `Authorization: Bearer <secret>`, as the password of HTTP basic authentication (any user name), or signing the post as an alert intake's are. A post with no credential at all is answered `401` with a basic challenge, whatever the address; every other reason not to serve answers the same `404`.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /cmdb/inventory-intake/{tenantId}/{connectorId} (the `DeliverCiInventory` operationId).
+	DeliverCiInventoryWithResponse(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiInventoryParams, body DeliverCiInventoryJSONRequestBody, reqEditors ...RequestEditorFn) (*DeliverCiInventoryResult, error)
+
 	// ListCiRelationTypesWithResponse The relation types between configuration items
 	//
 	// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the class pairs it may join.
@@ -83097,6 +83301,54 @@ func (r DefineCiClassResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r DefineCiClassResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeliverCiInventoryResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiInventoryReceipt
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DeliverCiInventoryResult) GetJSON200() *CiInventoryReceipt {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeliverCiInventoryResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeliverCiInventoryResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeliverCiInventoryResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeliverCiInventoryResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeliverCiInventoryResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -104036,6 +104288,36 @@ func (c *ClientWithResponses) DefineCiClassWithResponse(ctx context.Context, cla
 	return ParseDefineCiClassResult(rsp)
 }
 
+// DeliverCiInventoryWithBodyWithResponse Post a GLPI Agent's inventory
+//
+// The server address a GLPI Agent is given: its native inventory protocol, JSON or zlib-compressed JSON. A `contact` is answered with the inventory task; an `inventory` is reconciled as the intake's source - the computer with its serial, addresses and operating system, its installed software related to it. The intake's secret is the credential: as `Authorization: Bearer <secret>`, as the password of HTTP basic authentication (any user name), or signing the post as an alert intake's are. A post with no credential at all is answered `401` with a basic challenge, whatever the address; every other reason not to serve answers the same `404`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /cmdb/inventory-intake/{tenantId}/{connectorId} (the `DeliverCiInventory` operationId).
+func (c *ClientWithResponses) DeliverCiInventoryWithBodyWithResponse(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiInventoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DeliverCiInventoryResult, error) {
+	rsp, err := c.DeliverCiInventoryWithBody(ctx, tenantId, connectorId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeliverCiInventoryResult(rsp)
+}
+
+// DeliverCiInventoryWithResponse Post a GLPI Agent's inventory
+//
+// The server address a GLPI Agent is given: its native inventory protocol, JSON or zlib-compressed JSON. A `contact` is answered with the inventory task; an `inventory` is reconciled as the intake's source - the computer with its serial, addresses and operating system, its installed software related to it. The intake's secret is the credential: as `Authorization: Bearer <secret>`, as the password of HTTP basic authentication (any user name), or signing the post as an alert intake's are. A post with no credential at all is answered `401` with a basic challenge, whatever the address; every other reason not to serve answers the same `404`.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /cmdb/inventory-intake/{tenantId}/{connectorId} (the `DeliverCiInventory` operationId).
+func (c *ClientWithResponses) DeliverCiInventoryWithResponse(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiInventoryParams, body DeliverCiInventoryJSONRequestBody, reqEditors ...RequestEditorFn) (*DeliverCiInventoryResult, error) {
+	rsp, err := c.DeliverCiInventory(ctx, tenantId, connectorId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeliverCiInventoryResult(rsp)
+}
+
 // ListCiRelationTypesWithResponse The relation types between configuration items
 //
 // The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the class pairs it may join.
@@ -117728,6 +118010,39 @@ func ParseDefineCiClassResult(rsp *http.Response) (*DefineCiClassResult, error) 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest CiClass
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeliverCiInventoryResult parses an HTTP response from a DeliverCiInventoryWithResponse call
+func ParseDeliverCiInventoryResult(rsp *http.Response) (*DeliverCiInventoryResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeliverCiInventoryResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiInventoryReceipt
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

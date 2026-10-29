@@ -5273,7 +5273,7 @@ CREATE POLICY tenant_isolation ON cmdb_duplicate
 GRANT SELECT, INSERT, UPDATE, DELETE ON cmdb_class, cmdb_relation_type, cmdb_source, cmdb_ci,
   cmdb_ci_identifier, cmdb_relation, cmdb_run, cmdb_hold, cmdb_duplicate TO hubtask_app;
 
--- The connectors, their alerts and the signed deliveries seen (migration 0238).
+-- The connectors, their alerts and the signed deliveries seen (migrations 0238, 0239).
 CREATE TABLE cmdb_connector (
   id                    uuid PRIMARY KEY,
   tenant_id             uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -5281,7 +5281,7 @@ CREATE TABLE cmdb_connector (
   key                   text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
   kind                  text NOT NULL CHECK (kind IN
                           ('GLPI', 'NETBOX', 'INTUNE', 'ENTRA', 'HETZNER', 'OPENSTACK',
-                           'ALERTMANAGER', 'ZABBIX', 'CHECKMK')),
+                           'ALERTMANAGER', 'ZABBIX', 'CHECKMK', 'GLPI_AGENT')),
   source_key            text NOT NULL,
   base_url              text NOT NULL DEFAULT '',
   settings              jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(settings) = 'object'),

@@ -39,8 +39,10 @@ const (
 type AlertDelivery struct {
 	TenantID    shared.ID
 	ConnectorID shared.ID
-	Bearer      string
-	Signature   string
+	// Bearer is the secret as presented: a bearer token, or a basic password for a program that
+	// knows no other way.
+	Bearer    string
+	Signature string
 	// Timestamp is the signed moment in Unix seconds.
 	Timestamp string
 	Body      []byte
@@ -70,41 +72,12 @@ func intakeNotFound() error { return shared.ErrNotFound.WithDetail("cmdb.intake_
 // each problem once by its key, bound to the CI its hosts name, with an entry opened in the
 // intake's collection while it fires and completed when it resolves (research itsm-cmdb-ai C10).
 func (s Connectors) DeliverAlerts(ctx context.Context, d AlertDelivery, parse AlertParser) (AlertReceipt, error) {
-	scope := appshared.ActorContext{TenantID: d.TenantID}.PersistenceScope()
-	var c domain.Connector
-	if err := s.Inventory.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
-		var err error
-		c, err = s.Store.FindConnector(ctx, d.ConnectorID, false)
-		return err
-	}); err != nil || !c.Spec().Push || !c.Enabled || !c.HasCredential {
-		if err != nil && !errors.Is(err, shared.ErrNotFound) {
-			return AlertReceipt{}, err
-		}
-		return AlertReceipt{}, intakeNotFound()
-	}
-	actor := s.runAs(d.TenantID, c)
-	key, err := s.credential(ctx, actor, c)
+	c, actor, err := s.intake(ctx, d, false)
 	if err != nil {
-		return AlertReceipt{}, intakeNotFound()
+		return AlertReceipt{}, err
 	}
+	scope := appshared.ActorContext{TenantID: d.TenantID}.PersistenceScope()
 	now := s.Inventory.Clock.Now()
-	digest, ok := verifyDelivery(d, key.Reveal(), now)
-	if !ok {
-		return AlertReceipt{}, intakeNotFound()
-	}
-	if digest != nil {
-		fresh := false
-		if err := s.Inventory.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
-			var err error
-			fresh, err = s.Store.SeeDigest(ctx, c.ID, digest, now, now.Add(-2*SignatureWindow))
-			return err
-		}); err != nil {
-			return AlertReceipt{}, err
-		}
-		if !fresh {
-			return AlertReceipt{}, intakeNotFound()
-		}
-	}
 	signals, err := parse(c.Kind, d.Body)
 	if err != nil {
 		return AlertReceipt{}, err
@@ -134,6 +107,48 @@ func (s Connectors) DeliverAlerts(ctx context.Context, d AlertDelivery, parse Al
 			audit.Change{Field: "entries_failed", Classification: audit.Open, To: receipt.EntriesFailed})
 	})
 	return receipt, err
+}
+
+// intake answers the push intake a delivery names, once it is trusted: of the asked shape (an
+// inventory intake or an alert one), switched on, with a secret, and presented that secret or a
+// fresh signature by it. Every refusal is the same intakeNotFound.
+func (s Connectors) intake(ctx context.Context, d AlertDelivery, inventory bool) (domain.Connector, appshared.ActorContext, error) {
+	scope := appshared.ActorContext{TenantID: d.TenantID}.PersistenceScope()
+	var c domain.Connector
+	if err := s.Inventory.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+		var err error
+		c, err = s.Store.FindConnector(ctx, d.ConnectorID, false)
+		return err
+	}); err != nil || !c.Spec().Push || c.Spec().Inventory != inventory || !c.Enabled || !c.HasCredential {
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return domain.Connector{}, appshared.ActorContext{}, err
+		}
+		return domain.Connector{}, appshared.ActorContext{}, intakeNotFound()
+	}
+	actor := s.runAs(d.TenantID, c)
+	key, err := s.credential(ctx, actor, c)
+	if err != nil {
+		return domain.Connector{}, appshared.ActorContext{}, intakeNotFound()
+	}
+	now := s.Inventory.Clock.Now()
+	digest, ok := verifyDelivery(d, key.Reveal(), now)
+	if !ok {
+		return domain.Connector{}, appshared.ActorContext{}, intakeNotFound()
+	}
+	if digest != nil {
+		fresh := false
+		if err := s.Inventory.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+			var err error
+			fresh, err = s.Store.SeeDigest(ctx, c.ID, digest, now, now.Add(-2*SignatureWindow))
+			return err
+		}); err != nil {
+			return domain.Connector{}, appshared.ActorContext{}, err
+		}
+		if !fresh {
+			return domain.Connector{}, appshared.ActorContext{}, intakeNotFound()
+		}
+	}
+	return c, actor, nil
 }
 
 // verifyDelivery answers whether the delivery carries the secret, and for a signed one the digest

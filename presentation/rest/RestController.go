@@ -88,6 +88,9 @@ type RestController struct {
 	// CmdbAlerts serves the CMDB's alert intakes, for the same reasons: a monitoring program holds
 	// the credential, not a person. Nil leaves the route answering the pending 404.
 	CmdbAlerts CmdbAlertDeliverer
+	// CmdbInventory serves the CMDB's inventory intakes, a GLPI Agent posting what it found. Nil
+	// leaves the route answering the pending 404.
+	CmdbInventory CmdbInventoryDeliverer
 	// AddressedMail serves the receiving domain's inbound route (ADR-0092). Nil leaves it answering
 	// the pending 404.
 	AddressedMail AddressedMailDeliverer

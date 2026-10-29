@@ -2028,6 +2028,10 @@ func (pending) DeliverCiAlerts(w http.ResponseWriter, r *http.Request, _, _ open
 	notAvailable(w, r)
 }
 
+func (pending) DeliverCiInventory(w http.ResponseWriter, r *http.Request, _, _ openapi_types.UUID, _ openapi.DeliverCiInventoryParams) {
+	notAvailable(w, r)
+}
+
 func (pending) DismissCiHold(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }

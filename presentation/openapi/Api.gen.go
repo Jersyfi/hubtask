@@ -1587,6 +1587,7 @@ const (
 	CiConnectorKindCHECKMK      CiConnectorKind = "CHECKMK"
 	CiConnectorKindENTRA        CiConnectorKind = "ENTRA"
 	CiConnectorKindGLPI         CiConnectorKind = "GLPI"
+	CiConnectorKindGLPIAGENT    CiConnectorKind = "GLPI_AGENT"
 	CiConnectorKindHETZNER      CiConnectorKind = "HETZNER"
 	CiConnectorKindINTUNE       CiConnectorKind = "INTUNE"
 	CiConnectorKindNETBOX       CiConnectorKind = "NETBOX"
@@ -1604,6 +1605,8 @@ func (e CiConnectorKind) Valid() bool {
 	case CiConnectorKindENTRA:
 		return true
 	case CiConnectorKindGLPI:
+		return true
+	case CiConnectorKindGLPIAGENT:
 		return true
 	case CiConnectorKindHETZNER:
 		return true
@@ -1650,6 +1653,7 @@ const (
 	CiConnectorDefineKindCHECKMK      CiConnectorDefineKind = "CHECKMK"
 	CiConnectorDefineKindENTRA        CiConnectorDefineKind = "ENTRA"
 	CiConnectorDefineKindGLPI         CiConnectorDefineKind = "GLPI"
+	CiConnectorDefineKindGLPIAGENT    CiConnectorDefineKind = "GLPI_AGENT"
 	CiConnectorDefineKindHETZNER      CiConnectorDefineKind = "HETZNER"
 	CiConnectorDefineKindINTUNE       CiConnectorDefineKind = "INTUNE"
 	CiConnectorDefineKindNETBOX       CiConnectorDefineKind = "NETBOX"
@@ -1667,6 +1671,8 @@ func (e CiConnectorDefineKind) Valid() bool {
 	case CiConnectorDefineKindENTRA:
 		return true
 	case CiConnectorDefineKindGLPI:
+		return true
+	case CiConnectorDefineKindGLPIAGENT:
 		return true
 	case CiConnectorDefineKindHETZNER:
 		return true
@@ -1767,6 +1773,21 @@ func (e CiImpactDirection) Valid() bool {
 	case CiImpactDirectionDOWNSTREAM:
 		return true
 	case CiImpactDirectionUPSTREAM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiInventoryReceiptStatus.
+const (
+	CiInventoryReceiptStatusOk CiInventoryReceiptStatus = "ok"
+)
+
+// Valid indicates whether the value is a known member of the CiInventoryReceiptStatus enum.
+func (e CiInventoryReceiptStatus) Valid() bool {
+	switch e {
+	case CiInventoryReceiptStatusOk:
 		return true
 	default:
 		return false
@@ -9475,7 +9496,7 @@ type CiComplianceStage string
 // CiComplianceStatus defines model for CiCompliance.Status.
 type CiComplianceStatus string
 
-// CiConnector A program a hub's CIs are pulled from, or that posts alerts to it. Never its credential; `secret` is present once, in the answer that drew an alert intake's.
+// CiConnector A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
 type CiConnector struct {
 	AllowedHosts  []string            `json:"allowed_hosts"`
 	BaseUrl       *string             `json:"base_url,omitempty"`
@@ -9490,8 +9511,11 @@ type CiConnector struct {
 	Hosts []string           `json:"hosts"`
 	HubId openapi_types.UUID `json:"hub_id"`
 	Id    openapi_types.UUID `json:"id"`
-	Key   string             `json:"key"`
-	Kind  CiConnectorKind    `json:"kind"`
+
+	// Inventory An intake posted CIs rather than alerts.
+	Inventory *bool           `json:"inventory,omitempty"`
+	Key       string          `json:"key"`
+	Kind      CiConnectorKind `json:"kind"`
 
 	// LastError The last failure's message code.
 	LastError   *string                 `json:"last_error,omitempty"`
@@ -9500,7 +9524,7 @@ type CiConnector struct {
 	LastRunId   *openapi_types.UUID     `json:"last_run_id,omitempty"`
 	NextRunAt   *time.Time              `json:"next_run_at,omitempty"`
 
-	// Push An alert intake rather than a pull.
+	// Push An intake rather than a pull.
 	Push      bool                `json:"push"`
 	RunAs     *openapi_types.UUID `json:"run_as,omitempty"`
 	Secret    *string             `json:"secret,omitempty"`
@@ -9544,7 +9568,7 @@ type CiConnectorList struct {
 
 // CiConnectorRun defines model for CiConnectorRun.
 type CiConnectorRun struct {
-	// Connector A program a hub's CIs are pulled from, or that posts alerts to it. Never its credential; `secret` is present once, in the answer that drew an alert intake's.
+	// Connector A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
 	Connector CiConnector   `json:"connector"`
 	Counts    CiRunCounts   `json:"counts"`
 	Decisions *[]CiDecision `json:"decisions,omitempty"`
@@ -9681,6 +9705,20 @@ type CiImpact struct {
 
 // CiImpactDirection defines model for CiImpact.Direction.
 type CiImpactDirection string
+
+// CiInventoryReceipt What the agent reads: `status` ok, and for a contact the task it is asked to run and the hours until it next calls. For an inventory, the run it became and its counts.
+type CiInventoryReceipt struct {
+	Counts *CiRunCounts `json:"counts,omitempty"`
+
+	// Expiration Hours until the agent's next contact.
+	Expiration *int                     `json:"expiration,omitempty"`
+	RunId      *openapi_types.UUID      `json:"run_id,omitempty"`
+	Status     CiInventoryReceiptStatus `json:"status"`
+	Tasks      *map[string]interface{}  `json:"tasks,omitempty"`
+}
+
+// CiInventoryReceiptStatus defines model for CiInventoryReceipt.Status.
+type CiInventoryReceiptStatus string
 
 // CiOwnProtection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
 type CiOwnProtection struct {
@@ -18530,6 +18568,15 @@ type DefineCiClassParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// DeliverCiInventoryJSONBody defines parameters for DeliverCiInventory.
+type DeliverCiInventoryJSONBody map[string]interface{}
+
+// DeliverCiInventoryParams defines parameters for DeliverCiInventory.
+type DeliverCiInventoryParams struct {
+	XHubtaskSignature *string `json:"X-Hubtask-Signature,omitempty"`
+	XHubtaskTimestamp *string `json:"X-Hubtask-Timestamp,omitempty"`
+}
+
 // DefineCiRelationTypeParams defines parameters for DefineCiRelationType.
 type DefineCiRelationTypeParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -20022,6 +20069,9 @@ type DeliverCiAlertsJSONRequestBody DeliverCiAlertsJSONBody
 // DefineCiClassJSONRequestBody defines body for DefineCiClass for application/json ContentType.
 type DefineCiClassJSONRequestBody = CiClassDefine
 
+// DeliverCiInventoryJSONRequestBody defines body for DeliverCiInventory for application/json ContentType.
+type DeliverCiInventoryJSONRequestBody DeliverCiInventoryJSONBody
+
 // DefineCiRelationTypeJSONRequestBody defines body for DefineCiRelationType for application/json ContentType.
 type DefineCiRelationTypeJSONRequestBody = CiRelationTypeDefine
 
@@ -21029,6 +21079,9 @@ type ServerInterface interface {
 	// DefineCiClass Add or change a class of the workspace's own
 	// (PUT /cmdb/classes/{classKey})
 	DefineCiClass(w http.ResponseWriter, r *http.Request, classKey string, params DefineCiClassParams)
+	// DeliverCiInventory Post a GLPI Agent's inventory
+	// (POST /cmdb/inventory-intake/{tenantId}/{connectorId})
+	DeliverCiInventory(w http.ResponseWriter, r *http.Request, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params DeliverCiInventoryParams)
 	// ListCiRelationTypes The relation types between configuration items
 	// (GET /cmdb/relation-types)
 	ListCiRelationTypes(w http.ResponseWriter, r *http.Request)
@@ -27444,6 +27497,84 @@ func (siw *ServerInterfaceWrapper) DefineCiClass(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DefineCiClass(w, r, classKey, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeliverCiInventory operation middleware
+func (siw *ServerInterfaceWrapper) DeliverCiInventory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "connectorId" -------------
+	var connectorId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "connectorId", r.PathValue("connectorId"), &connectorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectorId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeliverCiInventoryParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Signature" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Signature")]; found {
+		var XHubtaskSignature string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Signature", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Signature", valueList[0], &XHubtaskSignature, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Signature", Err: err})
+			return
+		}
+
+		params.XHubtaskSignature = &XHubtaskSignature
+
+	}
+
+	// ------------- Optional header parameter "X-Hubtask-Timestamp" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Timestamp")]; found {
+		var XHubtaskTimestamp string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Timestamp", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Timestamp", valueList[0], &XHubtaskTimestamp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Timestamp", Err: err})
+			return
+		}
+
+		params.XHubtaskTimestamp = &XHubtaskTimestamp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeliverCiInventory(w, r, tenantId, connectorId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -39705,6 +39836,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/cmdb-connectors/{connectorId}:run", wrapper.RunCiConnector)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/ci-alerts", wrapper.ListCiAlerts)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/cmdb/alert-intake/{tenantId}/{connectorId}", wrapper.DeliverCiAlerts)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/cmdb/inventory-intake/{tenantId}/{connectorId}", wrapper.DeliverCiInventory)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/cmdb-health", wrapper.ReadCmdbHealth)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}", wrapper.ReadCi)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/cis/{ciId}", wrapper.UpdateCi)
