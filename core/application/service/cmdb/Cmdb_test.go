@@ -102,6 +102,10 @@ func (m *memory) Classes(context.Context) ([]domain.Class, error) { return m.cla
 func (m *memory) RelationTypes(context.Context) ([]domain.RelationType, error) {
 	return nil, nil
 }
+func (m *memory) PutClass(_ context.Context, c domain.Class, _ int) error {
+	m.classes = append(m.classes, c)
+	return nil
+}
 func (m *memory) Sources(context.Context) ([]domain.Source, error) { return m.sources, nil }
 func (m *memory) PutSource(_ context.Context, s domain.Source, _ int) error {
 	m.sources = append(m.sources, s)

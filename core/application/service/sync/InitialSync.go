@@ -33,7 +33,7 @@ var walkKinds = []string{
 	entityContainer, entityBucket, entityLabel, entityItem, kindSet,
 	entityComment, entityReminder, entityRecurrence, entityTemplate, entityEntryType,
 	entityLinkType, entityWorkflow, entityCustomRole, entityEntryLink, entityRoleGrant, entityPage,
-	entityCI, entityCIRelation,
+	entityCI, entityCIRelation, entityCICatalogue,
 }
 
 const (
@@ -61,6 +61,9 @@ const (
 	// filed under its hub: an inventory is read where its hub is (M6).
 	entityCI         = cmdbservice.CIEntity
 	entityCIRelation = cmdbservice.RelationEntity
+	// entityCICatalogue is the workspace's classes and relation types, one record under the
+	// workspace's identifier: what a device names and groups an inventory by.
+	entityCICatalogue = cmdbservice.CatalogueEntity
 	// entityRoleGrant is a grant of a custom role, walked for its holder alone: what a device
 	// may predict offline is what its own person holds (offline-sync.md §4.3).
 	entityRoleGrant = identityservice.RoleGrantEntity
@@ -173,6 +176,10 @@ func (p PullChanges) readKind(
 			rows, err = p.ownGrants(ctx, actor, after, batch)
 			return err
 		}
+		if kind == entityCICatalogue {
+			rows, err = p.catalogue(ctx, actor, after)
+			return err
+		}
 		rows, err = p.pageOf(ctx, kind, after, batch)
 		return err
 	})
@@ -195,6 +202,21 @@ func (p PullChanges) ownGrants(
 		})
 	}
 	return rows, nil
+}
+
+// catalogue is the CMDB's one workspace record; a resumed walk has delivered it already.
+func (p PullChanges) catalogue(ctx context.Context, actor appshared.ActorContext, after string) ([]walkRow, error) {
+	if after != "" {
+		return nil, nil
+	}
+	classes, types, err := p.Snapshot.CmdbCatalogue(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return []walkRow{{
+		entity: entityCICatalogue, entityID: actor.TenantID,
+		payload: cmdbservice.CatalogueOutput(classes, types), key: actor.TenantID.String(),
+	}}, nil
 }
 
 // pageOf is the table of kinds: what each one reads, and how its rows become records.

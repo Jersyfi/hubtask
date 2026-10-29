@@ -392,6 +392,20 @@ func (SnapshotRepository) CIs(ctx context.Context, after shared.ID, batch int) (
 	})
 }
 
+// CmdbCatalogue reads the workspace's own classes and relation types.
+func (SnapshotRepository) CmdbCatalogue(ctx context.Context) ([]cmdb.Class, []cmdb.RelationType, error) {
+	repo := NewCmdbRepository()
+	classes, err := repo.Classes(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	types, err := repo.RelationTypes(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return classes, types, nil
+}
+
 // CIRelations pages the relations between configuration items.
 func (SnapshotRepository) CIRelations(ctx context.Context, after shared.ID, batch int) ([]cmdb.Relation, error) {
 	queries, key, err := snapshotPage(ctx, after)

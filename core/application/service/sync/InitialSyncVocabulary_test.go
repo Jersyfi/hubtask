@@ -58,6 +58,8 @@ func TestTheWalkCarriesWorkflowsLinkTypesRolesAndLinks(t *testing.T) {
 	vocabulary(store)
 
 	records, _ := wholeWalk(t, pull, 5)
+	// The CMDB's catalogue, walked after them, is its own test's.
+	records = slices.DeleteFunc(records, func(r Record) bool { return r.Entity == "cmdb_catalogue" })
 
 	got := entities(records)
 	tail := got[len(got)-5:]

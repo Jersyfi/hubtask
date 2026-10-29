@@ -129,3 +129,25 @@ func TestAMergeTellsTheChangeLogWhatMoved(t *testing.T) {
 		t.Fatalf("the relation ends at %v, want the survivor %s", moved[2].Payload["target_ci_id"], survivor)
 	}
 }
+
+// A class defined tells the change log the workspace's whole catalogue, the shipped classes with
+// the new one, under the workspace and no hub.
+func TestAClassDefinedReachesTheChangeLogAsTheCatalogue(t *testing.T) {
+	f := newFixture()
+	log := &changeLog{}
+	f.inv.Changes, f.inv.HLC = log, &hlcs{}
+	if _, err := call(t, DefineCiClass{f.inv}.Descriptor(), as(anna), usecase.Input{"key": "printer", "parent": "hardware", "name": "Printer"}); err != nil {
+		t.Fatal(err)
+	}
+	put := log.of(CatalogueEntity, tenant)
+	if len(put) != 1 || !put[0].ContainerID.IsZero() {
+		t.Fatalf("the catalogue was recorded as %+v", put)
+	}
+	found := map[string]bool{}
+	for _, c := range put[0].Payload["classes"].([]usecase.Output) {
+		found[c["key"].(string)] = true
+	}
+	if !found["printer"] || !found["server"] {
+		t.Fatalf("the catalogue holds %v", found)
+	}
+}

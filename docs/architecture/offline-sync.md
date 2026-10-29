@@ -85,7 +85,8 @@ moment it was minted (against the window, §7) and the workspace's synchronisati
 
 A **null cursor is the initial synchronisation**: the current state, one kind at a time
 (containers, buckets, labels, entries, set elements, comments, reminders, recurrence rules,
-templates, entry types, link types, workflows, custom roles, links, the reader's own role grants), paged by identifier, each row
+templates, entry types, link types, workflows, custom roles, links, the reader's own role grants,
+pages, configuration items, their relations and the CMDB's catalogue), paged by identifier, each row
 judged by the same permission as a delta record, with the log position taken *before* the first
 page so a change landing mid-walk is the first delta's. Entry types, link types and workflows are
 the workspace's vocabulary and reach every member; a custom role reaches whoever may read at the
@@ -93,7 +94,15 @@ workspace; a link is filed under its source's collection and reaches a reader on
 read its target's as well (`target_collection_id`), so that a link never tells of an entry out of
 reach. A reader's own grants of custom roles (`role_grant`) are walked for that reader alone - named to
 them or to a group they are in - so a device predicts a form's `actor.roles` and `actor.permissions`
-offline; the server still decides (§4.3). A
+offline; the server still decides (§4.3). A configuration item (`cmdb_ci`, merged ones left out of
+the walk) and a relation between two (`cmdb_relation`) are filed under their hub, so READ there
+decides who holds a hub's inventory; every write of either records it, a merge the duplicate's
+relations as removed and the survivor's as they stand, and a sighting alone records nothing. The
+CMDB's classes and relation types, shipped and the workspace's own, travel as one record
+(`cmdb_catalogue`, under the workspace's identifier and no container, judged as a workspace-wide
+read), recorded again whenever one is defined. While the server is away the web app answers a hub's
+inventory, a CI with its relations and the catalogue from the copy, nothing writable: a CI is
+written through the reconciliation, which needs the server. A
 mid-walk page cursor names the kind and key it resumes after; the pull continues it, the stream
 refuses it.
 

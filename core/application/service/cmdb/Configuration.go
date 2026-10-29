@@ -222,6 +222,9 @@ func (h DefineCiClass) Descriptor() usecase.Descriptor {
 				if err := h.Inventory.Store.PutClass(ctx, class, expected); err != nil {
 					return err
 				}
+				if err := h.Inventory.announceCatalogue(ctx, actor); err != nil {
+					return err
+				}
 				own := append([]domain.Class{class}, reg.ownClass...)
 				classes := domain.NewClasses(own)
 				out = ClassOutput(class, classes.Resolve(class.Key))
@@ -344,6 +347,9 @@ func (h DefineCiRelationType) Descriptor() usecase.Descriptor {
 					t.ArchivedAt = &now
 				}
 				if err := h.Inventory.Store.PutRelationType(ctx, t, expected); err != nil {
+					return err
+				}
+				if err := h.Inventory.announceCatalogue(ctx, actor); err != nil {
 					return err
 				}
 				out = RelationTypeOutput(t)
@@ -485,4 +491,19 @@ func (h DefineCiSource) Descriptor() usecase.Descriptor {
 			return out, err
 		}),
 	})
+}
+
+// CatalogueOutput is the workspace's classes and relation types as ListCiClasses and
+// ListCiRelationTypes answer them, in one record for a device's copy.
+func CatalogueOutput(ownClasses []domain.Class, ownTypes []domain.RelationType) usecase.Output {
+	classes := domain.NewClasses(ownClasses)
+	classRows := []usecase.Output{}
+	for _, c := range classes.All() {
+		classRows = append(classRows, ClassOutput(c, classes.Resolve(c.Key)))
+	}
+	typeRows := []usecase.Output{}
+	for _, t := range domain.NewRelationTypes(ownTypes).All() {
+		typeRows = append(typeRows, RelationTypeOutput(t))
+	}
+	return usecase.Output{"classes": classRows, "relation_types": typeRows}
 }

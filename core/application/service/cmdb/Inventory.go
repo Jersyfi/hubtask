@@ -88,17 +88,34 @@ type Inventory struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	// Changes and HLC tell offline devices of a CI or a relation written, so that a hub's
-	// inventory can be read without the server (offline-sync.md §13). A nil Changes records
+	// inventory can be read without the server (offline-sync.md §3). A nil Changes records
 	// nothing, a test's convenience.
 	Changes changelog.ChangeLog
 	HLC     clock.HLCSource
 }
 
-// The change log's entities: a CI and a relation, each filed under its hub.
+// The change log's entities: a CI and a relation, each filed under its hub; the catalogue of
+// classes and relation types, one record per workspace under its own identifier and no container.
 const (
-	CIEntity       = "cmdb_ci"
-	RelationEntity = "cmdb_relation"
+	CIEntity        = "cmdb_ci"
+	RelationEntity  = "cmdb_relation"
+	CatalogueEntity = "cmdb_catalogue"
 )
+
+// announceCatalogue records the workspace's classes and relation types as they now stand.
+func (s Inventory) announceCatalogue(ctx context.Context, actor appshared.ActorContext) error {
+	if s.Changes == nil {
+		return nil
+	}
+	reg, err := s.registry(ctx)
+	if err != nil {
+		return err
+	}
+	return s.Changes.Record(ctx, changelog.Change{
+		TenantID: actor.TenantID, Entity: CatalogueEntity, EntityID: actor.TenantID, Op: changelog.Upsert,
+		ActorID: actor.AccountID, HLC: s.HLC.Next(), Payload: CatalogueOutput(reg.ownClass, reg.ownTypes),
+	})
+}
 
 // announce records each CI as it now stands, filed under its hub. The protection it inherits is
 // left out: it is a walk over the hub's relations, which a device computes from its own copy.

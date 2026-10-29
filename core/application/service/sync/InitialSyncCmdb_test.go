@@ -8,6 +8,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -18,6 +19,40 @@ func (s *snapshotStore) CIs(_ context.Context, after shared.ID, batch int) ([]cm
 
 func (s *snapshotStore) CIRelations(_ context.Context, after shared.ID, batch int) ([]cmdb.Relation, error) {
 	return pageAfter(s.ciRelations, func(r cmdb.Relation) string { return r.ID.String() }, after.String(), batch), nil
+}
+
+func (s *snapshotStore) CmdbCatalogue(context.Context) ([]cmdb.Class, []cmdb.RelationType, error) {
+	return s.ciClasses, nil, nil
+}
+
+// The classes and relation types a device names an inventory by travel as one record under the
+// workspace's identifier, the shipped catalogue with the workspace's own.
+func TestTheWalkCarriesTheCmdbCatalogueOnce(t *testing.T) {
+	pull, f, store := walking(t)
+	f.auth.workspace = true
+	store.ciClasses = []cmdb.Class{{Key: "printer", Parent: "hardware", Name: "Printer", Version: 1}}
+
+	records, _ := wholeWalk(t, pull, 3)
+
+	var catalogues []Record
+	for _, record := range records {
+		if record.Entity == "cmdb_catalogue" {
+			catalogues = append(catalogues, record)
+		}
+	}
+	if len(catalogues) != 1 || catalogues[0].EntityID != tenant || !catalogues[0].ContainerID.IsZero() {
+		t.Fatalf("catalogue records %+v, want one under the workspace", catalogues)
+	}
+	var keys []string
+	for _, c := range catalogues[0].Payload["classes"].([]usecase.Output) {
+		keys = append(keys, c["key"].(string))
+	}
+	if !slices.Contains(keys, "printer") || !slices.Contains(keys, "server") {
+		t.Errorf("the catalogue's classes %v, want the shipped ones and the workspace's printer", keys)
+	}
+	if len(catalogues[0].Payload["relation_types"].([]usecase.Output)) == 0 {
+		t.Error("the catalogue carries no relation types")
+	}
 }
 
 // A hub's inventory is read offline (UC-AST-01 check 10): the walk carries the CIs and their

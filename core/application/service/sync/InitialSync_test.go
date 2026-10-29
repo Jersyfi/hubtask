@@ -39,6 +39,7 @@ type snapshotStore struct {
 	pages       []knowledge.Page
 	cis         []cmdb.CI
 	ciRelations []cmdb.Relation
+	ciClasses   []cmdb.Class
 	grants      []identityrepo.CustomGrantRow
 	// groups are the groups the reader is in.
 	groups map[shared.ID]bool
