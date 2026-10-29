@@ -118,7 +118,7 @@ export interface FoundReference {
 }
 
 const KINDS: readonly ReferenceKind[] = ['ENTRY', 'HUB', 'COLLECTION', 'VIEW', 'PAGE', 'WHITEBOARD', 'DASHBOARD', 'GOAL', 'SPRINT'];
-const VIEWABLE: ReadonlySet<ReferenceKind> = new Set(['VIEW', 'DASHBOARD']);
+const VIEWABLE: ReadonlySet<ReferenceKind> = new Set(['VIEW', 'DASHBOARD', 'WHITEBOARD']);
 
 /** The server's grammar (`reference.Extract`): a Markdown link to an address, an image of one for a card. */
 const ADDRESS =

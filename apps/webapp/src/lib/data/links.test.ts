@@ -109,3 +109,8 @@ test('a reference out of sight reads as nothing - never a title (check 4)', () =
   assert.equal(targetLabel({ kind: 'ENTRY', id: A, anchor: null, available: true, title: 'Approve', key: 'des-4' }), 'des-4 Approve');
   assert.equal(targetLabel(undefined), undefined);
 });
+
+test('a whiteboard drawn in place is a live view, as the server reads it (reference.Kind.Viewable)', () => {
+  const id = '00000000-0000-0000-0000-0000000000b1';
+  assert.deepEqual(referencesIn(`![](hubtask:whiteboard/${id})`), [{ reference: { kind: 'WHITEBOARD', id }, strength: 'EMBED' }]);
+});
