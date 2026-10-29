@@ -27,7 +27,7 @@ func sightFor(roles roleOf, hidden ...repository.FieldHiding) FieldSight {
 	return FieldSight{
 		Hidings: hidings(hidden),
 		Containers: &containers{stored: map[shared.ID]domain.Container{
-			collectionID:      {ID: collectionID, TenantID: tenantID},
+			collectionID:       {ID: collectionID, TenantID: tenantID},
 			hidingCollectionID: {ID: hidingCollectionID, TenantID: tenantID},
 		}},
 		Roles: roles,

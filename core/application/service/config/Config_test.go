@@ -12,8 +12,8 @@ import (
 	"time"
 
 	settingrepo "github.com/Jersyfi/hubtask/core/application/repository/setting"
-	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
+	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
@@ -37,7 +37,7 @@ type world struct {
 	// locks and defaultPreset are the workspace structure's locks and the preset a new hub starts from.
 	locks         map[string]any
 	defaultPreset string
-	inputs    map[string][]usecase.Input
+	inputs        map[string][]usecase.Input
 	// failOn makes one use case refuse, as a block its own checks reject would.
 	failOn string
 	calls  []string

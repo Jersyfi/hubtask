@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
 	workmodel "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
