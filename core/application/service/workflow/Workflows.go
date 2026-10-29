@@ -72,6 +72,37 @@ type Desk struct {
 	Text       text.Normalizer
 	// Roles are the workspace's own roles, which a step's *who* may name (UC-ID-26 check 4).
 	Roles RoleKeys
+	// Groups are the workspace's groups, which a step's *who* may name (UC-FLW-04 check 1).
+	Groups GroupFinder
+}
+
+// GroupFinder finds one of the workspace's groups.
+type GroupFinder interface {
+	Find(ctx context.Context, groupID shared.ID) (identity.Group, error)
+}
+
+// knownGroups refuses a shape whose step names a group the workspace does not hold, for the
+// reason knownRoles refuses a role. Inside the transaction.
+func (d Desk) knownGroups(ctx context.Context, shape domain.WorkflowShape) error {
+	named := shape.GroupKeys()
+	if len(named) == 0 {
+		return nil
+	}
+	if d.Groups == nil {
+		return shared.ErrInternal.WithDetail("workflows.groups_missing")
+	}
+	for _, group := range named {
+		_, err := d.Groups.Find(ctx, shared.ID(group.Text))
+		if errors.Is(err, shared.ErrNotFound) {
+			params := map[string]string{"group": group.Text}
+			return shared.ErrValidation.WithDetail("workflows.group_unknown").WithParams(params).
+				WithFields(shared.FieldError{Path: "/shape" + group.Path, Code: "workflows.group_unknown", Params: params})
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // RoleKeys lists the workspace's own roles.
@@ -308,7 +339,7 @@ func ShapeOutput(shape domain.WorkflowShape) usecase.Output {
 			"key": step.Key, "name": stringOrNil(step.Name), "from": nonNil(step.From), "to": step.To,
 			"who": map[string]any{
 				"roles": nonNil(step.Who.Roles), "person_fields": nonNil(step.Who.PersonFields),
-				"condition": step.Who.Condition,
+				"groups": nonNil(step.Who.Groups), "condition": step.Who.Condition,
 			},
 			"requires": nonNil(step.Requires), "asks": nonNil(step.Asks), "checks": checks,
 		})
@@ -361,7 +392,7 @@ func ShapeFromInput(raw any) (domain.WorkflowShape, error) {
 		if who, ok := member["who"].(map[string]any); ok {
 			step.Who = domain.StepWho{
 				Roles: textsOf(who["roles"]), PersonFields: textsOf(who["person_fields"]),
-				Condition: textOf(who["condition"]),
+				Groups: textsOf(who["groups"]), Condition: textOf(who["condition"]),
 			}
 		}
 		for j, raw := range listOf(member["checks"]) {
@@ -493,6 +524,9 @@ func (h CreateWorkflow) Execute(ctx context.Context, actor appshared.ActorContex
 		if err := h.Desk.knownRoles(ctx, created.Published); err != nil {
 			return err
 		}
+		if err := h.Desk.knownGroups(ctx, created.Published); err != nil {
+			return err
+		}
 		if err := h.Desk.Workflows.Insert(ctx, created); err != nil {
 			return err
 		}
@@ -590,6 +624,9 @@ func (h SaveWorkflowDraft) Execute(ctx context.Context, actor appshared.ActorCon
 				return err
 			}
 			if err := h.Desk.knownRoles(ctx, *next.Draft); err != nil {
+				return err
+			}
+			if err := h.Desk.knownGroups(ctx, *next.Draft); err != nil {
 				return err
 			}
 		}

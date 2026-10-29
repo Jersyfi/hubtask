@@ -62,20 +62,24 @@ type WorkflowStatus struct {
 }
 
 // StepWho limits who may take a step (UC-FLW-04 check 1). Empty is everybody who may change the
-// entry; otherwise the person must meet one of the roles or person fields, and the condition.
+// entry; otherwise the person must meet one of the roles, groups or person fields, and the
+// condition.
 type StepWho struct {
-	// Roles are built-in role names held along the entry's path.
+	// Roles are built-in role names or custom role keys held along the entry's path.
 	Roles []string
 	// PersonFields are `assignee`, `created_by` or `custom_fields.<key>` of a person or people
 	// field: the person must be the one it names.
 	PersonFields []string
+	// Groups are the identifiers of the workspace's groups whose members may take the step.
+	Groups []string
 	// Condition is CEL over the entry and the actor, in the form's environment.
 	Condition string
 }
 
 // IsOpen reports whether the step limits nobody.
 func (w StepWho) IsOpen() bool {
-	return len(w.Roles) == 0 && len(w.PersonFields) == 0 && strings.TrimSpace(w.Condition) == ""
+	return len(w.Roles) == 0 && len(w.PersonFields) == 0 && len(w.Groups) == 0 &&
+		strings.TrimSpace(w.Condition) == ""
 }
 
 // StepCheck is a condition that must hold before a step is taken, with the team's own words for
@@ -517,11 +521,22 @@ func newStepWho(who StepWho, at string) (StepWho, error) {
 			people = append(people, field)
 		}
 	}
+	groups := []string{}
+	for _, group := range who.Groups {
+		// Whether the workspace holds the group is the use case's question, as it is for a role.
+		id, err := shared.ParseID(group)
+		if err != nil || id.IsZero() {
+			return StepWho{}, workflowInvalid(at+"/groups", "workflows.group_unknown", map[string]string{"group": group})
+		}
+		if !slices.Contains(groups, id.String()) {
+			groups = append(groups, id.String())
+		}
+	}
 	condition := strings.TrimSpace(who.Condition)
 	if len(condition) > MaxFormExpressionLength {
 		return StepWho{}, workflowInvalid(at+"/condition", "expression.too_long", nil)
 	}
-	return StepWho{Roles: roles, PersonFields: people, Condition: condition}, nil
+	return StepWho{Roles: roles, PersonFields: people, Groups: groups, Condition: condition}, nil
 }
 
 // Expressions answers every condition of the shape, for compiling it when it is saved.
@@ -548,6 +563,18 @@ func (s WorkflowShape) CustomRoleKeys() []FormExpression {
 			if identity.ValidCustomRoleKey(role) {
 				out = append(out, FormExpression{Path: "/steps/" + strconv.Itoa(i) + "/who/roles/" + strconv.Itoa(j), Text: role})
 			}
+		}
+	}
+	return out
+}
+
+// GroupKeys answers every group a step's *who* names, where it names it: what the use case
+// holds to the workspace's groups.
+func (s WorkflowShape) GroupKeys() []FormExpression {
+	var out []FormExpression
+	for i, step := range s.Steps {
+		for j, group := range step.Who.Groups {
+			out = append(out, FormExpression{Path: "/steps/" + strconv.Itoa(i) + "/who/groups/" + strconv.Itoa(j), Text: group})
 		}
 	}
 	return out

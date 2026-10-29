@@ -63,6 +63,7 @@ func TestNewWorkflowShapeRefusesWhatIsNotAWorkflow(t *testing.T) {
 		{"a step key twice", func(s *work.WorkflowShape) { s.Steps[1].Key = "start" }, "workflows.key_taken"},
 		{"an unknown role", func(s *work.WorkflowShape) { s.Steps[2].Who.Roles = []string{"BOSS"} }, "workflows.role_unknown"},
 		{"an unknown person field", func(s *work.WorkflowShape) { s.Steps[2].Who.PersonFields = []string{"owner"} }, "workflows.field_unknown"},
+		{"a group that is no identifier", func(s *work.WorkflowShape) { s.Steps[2].Who.Groups = []string{"buyers"} }, "workflows.group_unknown"},
 		{"a required field that is none", func(s *work.WorkflowShape) { s.Steps[1].Requires = []string{"colour"} }, "workflows.field_unknown"},
 		{"an empty check", func(s *work.WorkflowShape) {
 			s.Steps[1].Checks = []work.StepCheck{{Key: "amount", Holds: " "}}

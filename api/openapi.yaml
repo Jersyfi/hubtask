@@ -16635,6 +16635,12 @@ components:
               type: array
               items: { type: string }
               description: "`assignee`, `created_by` or `custom_fields.<key>` of a person field."
+            groups:
+              type: array
+              description: >
+                The workspace's groups whose members may take the step; one that is not the
+                workspace's is refused with `workflows.group_unknown`.
+              items: { type: string, format: uuid }
             condition: { type: string, maxLength: 4096, description: "CEL over the entry and the actor." }
         requires: { type: array, items: { type: string }, description: "Fields that must hold a value: `due_date`, `custom_fields.<key>`." }
         asks: { type: array, items: { type: string }, description: "Fields a client asks for when the step is taken." }

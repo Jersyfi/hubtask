@@ -22821,6 +22821,14 @@
                 },
                 "description": "`assignee`, `created_by` or `custom_fields.<key>` of a person field."
               },
+              "groups": {
+                "type": "array",
+                "description": "The workspace's groups whose members may take the step; one that is not the workspace's is refused with `workflows.group_unknown`.\n",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
               "condition": {
                 "type": "string",
                 "maxLength": 4096,

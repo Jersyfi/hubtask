@@ -59,6 +59,7 @@ type workflowStepDocument struct {
 type workflowWhoDocument struct {
 	Roles        []string `json:"roles,omitempty"`
 	PersonFields []string `json:"person_fields,omitempty"`
+	Groups       []string `json:"groups,omitempty"`
 	Condition    string   `json:"condition,omitempty"`
 }
 

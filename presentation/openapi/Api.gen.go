@@ -14462,6 +14462,9 @@ type WorkflowStep struct {
 		// Condition CEL over the entry and the actor.
 		Condition *string `json:"condition,omitempty"`
 
+		// Groups The workspace's groups whose members may take the step; one that is not the workspace's is refused with `workflows.group_unknown`.
+		Groups *[]openapi_types.UUID `json:"groups,omitempty"`
+
 		// PersonFields `assignee`, `created_by` or `custom_fields.<key>` of a person field.
 		PersonFields *[]string `json:"person_fields,omitempty"`
 
