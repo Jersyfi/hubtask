@@ -259,6 +259,9 @@ history.
   levels it hides with how many entries each, the values on entries that stay shown with on how
   many, the views it drops, the rules that would pause, and for a hub the sum over the collections
   that follow it and the collections that keep their own value of a setting it moves (`keeping`).
+  The workspace's own structure has the same preview (`PreviewWorkspaceStructure`), summed over
+  every collection that follows the workspace, `keeping` naming hubs and collections alike; a
+  configuration plan's reach for its `structure` section is the preview of its scope.
   A change that narrows nothing - a widening - is not asked about; it takes effect at once.
 * **Hide or Flatten.** The change carries `narrowing`: `HIDE`, the default, keeps everything where
   it is, marked. `FLATTEN` moves every entry the new structure hides by its level to the

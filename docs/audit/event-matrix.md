@@ -700,4 +700,5 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `workspace.changed` | UpdateWorkspace | `workspace` | NOTICE | Every time |
 | `workspace.read` | ReadWorkspace | `workspace` | INFO | When refused |
 | `workspace.starter_closed` | CloseStarter | `workspace` | INFO | Every time |
+| `workspace.structure_previewed` | PreviewWorkspaceStructure | `workspace` | INFO | When refused |
 | `workspace.structure_updated` | SetWorkspaceStructure | `workspace` | INFO | Every time |

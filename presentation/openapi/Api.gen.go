@@ -17853,6 +17853,9 @@ type SetModuleJSONRequestBody = ModuleSwitch
 // SetWorkspaceStructureJSONRequestBody defines body for SetWorkspaceStructure for application/json ContentType.
 type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
 
+// PreviewWorkspaceStructureJSONRequestBody defines body for PreviewWorkspaceStructure for application/json ContentType.
+type PreviewWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
+
 // CreateSavedViewJSONRequestBody defines body for CreateSavedView for application/json ContentType.
 type CreateSavedViewJSONRequestBody = SavedViewCreate
 
@@ -19166,6 +19169,9 @@ type ServerInterface interface {
 
 	// (PATCH /tenant/structure)
 	SetWorkspaceStructure(w http.ResponseWriter, r *http.Request, params SetWorkspaceStructureParams)
+	// PreviewWorkspaceStructure What a change of the workspace's structure would stop showing
+	// (POST /tenant/structure:preview)
+	PreviewWorkspaceStructure(w http.ResponseWriter, r *http.Request)
 	// ListTrash What is in the trash
 	// (GET /trash)
 	ListTrash(w http.ResponseWriter, r *http.Request, params ListTrashParams)
@@ -33736,6 +33742,20 @@ func (siw *ServerInterfaceWrapper) SetWorkspaceStructure(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// PreviewWorkspaceStructure operation middleware
+func (siw *ServerInterfaceWrapper) PreviewWorkspaceStructure(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewWorkspaceStructure(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTrash operation middleware
 func (siw *ServerInterfaceWrapper) ListTrash(w http.ResponseWriter, r *http.Request) {
 
@@ -34955,6 +34975,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/groups/{groupId}", wrapper.UpdateGroup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/starter:close", wrapper.CloseStarter)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant/structure", wrapper.SetWorkspaceStructure)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/structure:preview", wrapper.PreviewWorkspaceStructure)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/entry-types", wrapper.ListEntryTypes)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/entry-types", wrapper.CreateEntryType)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/entry-types/{key}", wrapper.DeleteEntryType)

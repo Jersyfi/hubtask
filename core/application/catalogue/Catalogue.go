@@ -107,6 +107,7 @@ func Descriptors() []usecase.Descriptor {
 		work.SetContainerStructure{}.Descriptor(),
 		work.PreviewContainerStructure{}.Descriptor(),
 		work.SetWorkspaceStructure{}.Descriptor(),
+		work.PreviewWorkspaceStructure{}.Descriptor(),
 		work.SavePreset{}.Descriptor(),
 		work.ChangePreset{}.Descriptor(),
 		work.WithdrawPreset{}.Descriptor(),

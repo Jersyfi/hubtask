@@ -11526,6 +11526,43 @@
         }
       }
     },
+    "/tenant/structure:preview": {
+      "post": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "previewWorkspaceStructure",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "workspace structure preview",
+        "summary": "What a change of the workspace's structure would stop showing",
+        "description": "Answers what a change of the workspace's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself - counted over every collection that follows the workspace, through its hub or by itself. `keeping` names the hubs and collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown. Takes the body `PATCH /tenant/structure` takes, and is refused as it would be.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceStructureChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What the change would stop showing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StructurePreview"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/entry-types": {
       "get": {
         "tags": [

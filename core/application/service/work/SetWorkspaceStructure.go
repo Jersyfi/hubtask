@@ -367,13 +367,28 @@ func (h SetWorkspaceStructure) Descriptor() usecase.Descriptor {
 func (h SetWorkspaceStructure) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	preset, err := presetFrom(in, "preset", "preset_id")
+	cmd, err := workspaceStructureCommandFrom(in)
 	if err != nil {
 		return nil, err
 	}
-	defaultPreset, err := presetFrom(in, "default_preset", "default_preset_id")
+	result, err := h.Execute(ctx, actor, cmd)
 	if err != nil {
 		return nil, err
+	}
+	out := usecase.Output(workspaceStructureOutput(result.Structure, result.Workspace))
+	out["version"] = result.Version
+	return out, nil
+}
+
+// workspaceStructureCommandFrom reads the change both the write and its preview take.
+func workspaceStructureCommandFrom(in usecase.Input) (SetWorkspaceStructureCommand, error) {
+	preset, err := presetFrom(in, "preset", "preset_id")
+	if err != nil {
+		return SetWorkspaceStructureCommand{}, err
+	}
+	defaultPreset, err := presetFrom(in, "default_preset", "default_preset_id")
+	if err != nil {
+		return SetWorkspaceStructureCommand{}, err
 	}
 	cmd := SetWorkspaceStructureCommand{
 		Preset:             preset,
@@ -383,26 +398,19 @@ func (h SetWorkspaceStructure) invoke(
 	}
 	if raw, held := in["settings"].(map[string]any); held {
 		if cmd.Settings, err = structureValuesFrom(raw); err != nil {
-			return nil, err
+			return SetWorkspaceStructureCommand{}, err
 		}
 	}
 	if cmd.Reset, err = settingsResetFrom(in); err != nil {
-		return nil, err
+		return SetWorkspaceStructureCommand{}, err
 	}
 	if in.Present("locks") {
 		if cmd.Locks, err = in.StringList("locks"); err != nil {
-			return nil, err
+			return SetWorkspaceStructureCommand{}, err
 		}
 		if cmd.Locks == nil {
 			cmd.Locks = []string{}
 		}
 	}
-
-	result, err := h.Execute(ctx, actor, cmd)
-	if err != nil {
-		return nil, err
-	}
-	out := usecase.Output(workspaceStructureOutput(result.Structure, result.Workspace))
-	out["version"] = result.Version
-	return out, nil
+	return cmd, nil
 }

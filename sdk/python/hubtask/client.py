@@ -1335,6 +1335,10 @@ class Client:
         """PATCH /tenant/structure"""
         return self._call("PATCH", "/tenant/structure", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def preview_workspace_structure(self, body: "WorkspaceStructureChange") -> "StructurePreview":
+        """What a change of the workspace's structure would stop showing"""
+        return self._call("POST", "/tenant/structure:preview", {}, None, {}, body, "json", "application/json", "json")
+
     def list_entry_types(self) -> "EntryTypeList":
         """The workspace's entry types"""
         return self._call("GET", "/entry-types", {}, None, {}, None, "none", None, "json")

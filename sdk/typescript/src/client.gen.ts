@@ -1682,6 +1682,11 @@ export class HubtaskClient {
     return this.call("PATCH", "/tenant/structure", {  }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** What a change of the workspace's structure would stop showing */
+  previewWorkspaceStructure(body: NonNullable<operations["previewWorkspaceStructure"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["previewWorkspaceStructure"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/tenant/structure:preview", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The workspace's entry types */
   listEntryTypes(options: CallOptions = {}): Promise<operations["listEntryTypes"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/entry-types", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

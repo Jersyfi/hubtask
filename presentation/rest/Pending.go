@@ -1845,3 +1845,7 @@ func (pending) PublishConfigTemplate(w http.ResponseWriter, r *http.Request) { n
 func (pending) PlanConfigTemplate(w http.ResponseWriter, r *http.Request, _ string) {
 	notAvailable(w, r)
 }
+
+func (pending) PreviewWorkspaceStructure(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}

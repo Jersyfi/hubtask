@@ -17859,6 +17859,9 @@ type SetModuleJSONRequestBody = ModuleSwitch
 // SetWorkspaceStructureJSONRequestBody defines body for SetWorkspaceStructure for application/json ContentType.
 type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
 
+// PreviewWorkspaceStructureJSONRequestBody defines body for PreviewWorkspaceStructure for application/json ContentType.
+type PreviewWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
+
 // CreateSavedViewJSONRequestBody defines body for CreateSavedView for application/json ContentType.
 type CreateSavedViewJSONRequestBody = SavedViewCreate
 
@@ -23993,6 +23996,24 @@ type ClientInterface interface {
 	//
 	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 	SetWorkspaceStructure(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PreviewWorkspaceStructureWithBody What a change of the workspace's structure would stop showing
+	//
+	// Answers what a change of the workspace's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself - counted over every collection that follows the workspace, through its hub or by itself. `keeping` names the hubs and collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown. Takes the body `PATCH /tenant/structure` takes, and is refused as it would be.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /tenant/structure:preview (the `PreviewWorkspaceStructure` operationId).
+	PreviewWorkspaceStructureWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PreviewWorkspaceStructure What a change of the workspace's structure would stop showing
+	//
+	// Answers what a change of the workspace's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself - counted over every collection that follows the workspace, through its hub or by itself. `keeping` names the hubs and collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown. Takes the body `PATCH /tenant/structure` takes, and is refused as it would be.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /tenant/structure:preview (the `PreviewWorkspaceStructure` operationId).
+	PreviewWorkspaceStructure(ctx context.Context, body PreviewWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListTrash What is in the trash
 	//
@@ -36520,6 +36541,44 @@ func (c *Client) SetWorkspaceStructureWithBody(ctx context.Context, params *SetW
 // Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 func (c *Client) SetWorkspaceStructure(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetWorkspaceStructureRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PreviewWorkspaceStructureWithBody What a change of the workspace's structure would stop showing
+//
+// Answers what a change of the workspace's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself - counted over every collection that follows the workspace, through its hub or by itself. `keeping` names the hubs and collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown. Takes the body `PATCH /tenant/structure` takes, and is refused as it would be.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /tenant/structure:preview (the `PreviewWorkspaceStructure` operationId).
+func (c *Client) PreviewWorkspaceStructureWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPreviewWorkspaceStructureRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PreviewWorkspaceStructure What a change of the workspace's structure would stop showing
+//
+// Answers what a change of the workspace's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself - counted over every collection that follows the workspace, through its hub or by itself. `keeping` names the hubs and collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown. Takes the body `PATCH /tenant/structure` takes, and is refused as it would be.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /tenant/structure:preview (the `PreviewWorkspaceStructure` operationId).
+func (c *Client) PreviewWorkspaceStructure(ctx context.Context, body PreviewWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPreviewWorkspaceStructureRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -57213,6 +57272,46 @@ func NewSetWorkspaceStructureRequestWithBody(server string, params *SetWorkspace
 	return req, nil
 }
 
+// NewPreviewWorkspaceStructureRequest calls the generic PreviewWorkspaceStructure builder with application/json body
+func NewPreviewWorkspaceStructureRequest(server string, body PreviewWorkspaceStructureJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPreviewWorkspaceStructureRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPreviewWorkspaceStructureRequestWithBody constructs an http.Request for the PreviewWorkspaceStructure method, with any body, and a specified content type
+func NewPreviewWorkspaceStructureRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/structure:preview")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListTrashRequest constructs an http.Request for the ListTrash method
 func NewListTrashRequest(server string, params *ListTrashParams) (*http.Request, error) {
 	var err error
@@ -64948,6 +65047,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 	SetWorkspaceStructureWithResponse(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkspaceStructureResult, error)
+
+	// PreviewWorkspaceStructureWithBodyWithResponse What a change of the workspace's structure would stop showing
+	//
+	// Answers what a change of the workspace's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself - counted over every collection that follows the workspace, through its hub or by itself. `keeping` names the hubs and collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown. Takes the body `PATCH /tenant/structure` takes, and is refused as it would be.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant/structure:preview (the `PreviewWorkspaceStructure` operationId).
+	PreviewWorkspaceStructureWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PreviewWorkspaceStructureResult, error)
+
+	// PreviewWorkspaceStructureWithResponse What a change of the workspace's structure would stop showing
+	//
+	// Answers what a change of the workspace's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself - counted over every collection that follows the workspace, through its hub or by itself. `keeping` names the hubs and collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown. Takes the body `PATCH /tenant/structure` takes, and is refused as it would be.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant/structure:preview (the `PreviewWorkspaceStructure` operationId).
+	PreviewWorkspaceStructureWithResponse(ctx context.Context, body PreviewWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*PreviewWorkspaceStructureResult, error)
 
 	// ListTrashWithResponse What is in the trash
 	//
@@ -86060,6 +86177,54 @@ func (r SetWorkspaceStructureResult) ContentType() string {
 	return ""
 }
 
+type PreviewWorkspaceStructureResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *StructurePreview
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PreviewWorkspaceStructureResult) GetJSON200() *StructurePreview {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PreviewWorkspaceStructureResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PreviewWorkspaceStructureResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PreviewWorkspaceStructureResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PreviewWorkspaceStructureResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PreviewWorkspaceStructureResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListTrashResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -97530,6 +97695,36 @@ func (c *ClientWithResponses) SetWorkspaceStructureWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParseSetWorkspaceStructureResult(rsp)
+}
+
+// PreviewWorkspaceStructureWithBodyWithResponse What a change of the workspace's structure would stop showing
+//
+// Answers what a change of the workspace's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself - counted over every collection that follows the workspace, through its hub or by itself. `keeping` names the hubs and collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown. Takes the body `PATCH /tenant/structure` takes, and is refused as it would be.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant/structure:preview (the `PreviewWorkspaceStructure` operationId).
+func (c *ClientWithResponses) PreviewWorkspaceStructureWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PreviewWorkspaceStructureResult, error) {
+	rsp, err := c.PreviewWorkspaceStructureWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePreviewWorkspaceStructureResult(rsp)
+}
+
+// PreviewWorkspaceStructureWithResponse What a change of the workspace's structure would stop showing
+//
+// Answers what a change of the workspace's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself - counted over every collection that follows the workspace, through its hub or by itself. `keeping` names the hubs and collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown. Takes the body `PATCH /tenant/structure` takes, and is refused as it would be.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant/structure:preview (the `PreviewWorkspaceStructure` operationId).
+func (c *ClientWithResponses) PreviewWorkspaceStructureWithResponse(ctx context.Context, body PreviewWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*PreviewWorkspaceStructureResult, error) {
+	rsp, err := c.PreviewWorkspaceStructure(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePreviewWorkspaceStructureResult(rsp)
 }
 
 // ListTrashWithResponse What is in the trash
@@ -113025,6 +113220,39 @@ func ParseSetWorkspaceStructureResult(rsp *http.Response) (*SetWorkspaceStructur
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParsePreviewWorkspaceStructureResult parses an HTTP response from a PreviewWorkspaceStructureWithResponse call
+func ParsePreviewWorkspaceStructureResult(rsp *http.Response) (*PreviewWorkspaceStructureResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PreviewWorkspaceStructureResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StructurePreview
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

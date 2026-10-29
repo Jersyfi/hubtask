@@ -2358,6 +2358,12 @@ func run() error {
 			Epochs: postgres.NewEpochRepository(), Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, HLC: hybrid, Text: forms,
 		}.Descriptor(),
+		work.PreviewWorkspaceStructure{
+			Set: work.SetWorkspaceStructure{
+				Structure: structures, Authorizer: authorizer, UnitOfWork: unitOfWork, Text: forms,
+			},
+			Shapes: items,
+		}.Descriptor(),
 		work.SavePreset{Desk: presetDesk}.Descriptor(),
 		work.ChangePreset{Desk: presetDesk}.Descriptor(),
 		work.WithdrawPreset{Desk: presetDesk}.Descriptor(),

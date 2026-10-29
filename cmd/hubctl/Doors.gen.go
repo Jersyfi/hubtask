@@ -266,4 +266,15 @@ var generatedCommands = []door{
 			{Name: "item_id", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"key", "name"}},
+	{Group: "workspace", Verb: "structure preview", OperationID: "previewWorkspaceStructure", Method: "POST", Path: "/tenant/structure:preview", Summary: "What a change of the workspace's structure would stop showing",
+		Body: []doorParam{
+			{Name: "default_preset", Kind: "string", Help: "The preset a hub created without one starts from; null removes it", Required: false},
+			{Name: "default_preset_id", Kind: "uuid", Help: "A workspace preset as the one a hub created without one starts from instead; null removes it, as …", Required: false},
+			{Name: "locks", Kind: "strings", Help: "The whole set of locks after the change", Required: false},
+			{Name: "preset", Kind: "string", Help: "", Required: false},
+			{Name: "preset_id", Kind: "uuid", Help: "A saved preset to copy instead - the workspace's, the installation's or the caller's own; any other …", Required: false},
+			{Name: "reset", Kind: "strings", Help: "", Required: false},
+			{Name: "settings", Kind: "json", Help: "How much structure a hub or collection has: nine settings", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"narrows"}},
 }
