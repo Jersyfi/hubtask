@@ -22,6 +22,7 @@ import type * as Y from 'yjs';
 import type { LiveDocument } from './live.ts';
 import { fromMarkdown, toMarkdown, type DocNode, type ReferenceAttrs } from './markdown.ts';
 import { CommentPassages, passagesKey, selectedWords, type Passage } from './passages.ts';
+import { MIRROR_META, linkLine, mirrorTicks, taskLineAt, tickedEntries, type TaskLine } from './tasks.ts';
 
 /** How the application draws a reference: its label, kept current as the resolver answers. */
 export interface ReferenceDrawing {
@@ -165,6 +166,8 @@ export interface PageEditorOptions {
   readonly onBlock?: (block: SelectedBlock | undefined) => void;
   /** The words drawn for a reference before it is resolved. */
   readonly fallback?: string;
+  /** Called when the person ticks or unticks a line linked to an entry (UC-DOC-03). */
+  readonly onTick?: (entryId: string, checked: boolean) => void;
 }
 
 /** Builds the editor. The caller destroys it with the screen. */
@@ -211,6 +214,9 @@ export function createPageEditor(options: PageEditorOptions): Editor {
     editorProps: { attributes: { class: 'page-body', 'aria-multiline': 'true', role: 'textbox' } },
     onUpdate: ({ editor: current, transaction }) => {
       if (transaction.getMeta('y-sync$')?.isChangeOrigin) return;
+      if (!transaction.getMeta(MIRROR_META)) {
+        for (const tick of tickedEntries(transaction.before, current.state.doc)) options.onTick?.(tick.entryId, tick.checked);
+      }
       options.onChange?.(toMarkdown(current.getJSON() as DocNode));
     },
     onSelectionUpdate: ({ editor: current }) => {
@@ -252,6 +258,26 @@ export function revealBlock(editor: Editor, blockId: string): boolean {
   if (!element) return false;
   element.scrollIntoView({ block: 'center' });
   return true;
+}
+
+/** The checklist line the selection stands in, for turning it into a task. */
+export function taskLineOf(editor: Editor): TaskLine | undefined {
+  return taskLineAt(editor.state.doc, editor.state.selection.from);
+}
+
+/** Replaces a line's words by a mention of the entry they became (UC-DOC-03). */
+export function linkLineToEntry(editor: Editor, line: TaskLine, entryId: string): boolean {
+  const tr = linkLine(editor.state, line, entryId);
+  if (!tr) return false;
+  editor.view.dispatch(tr);
+  return true;
+}
+
+/** Ticks the lines linked to entries as the entries stand. */
+export function mirrorCompletion(editor: Editor, completed: ReadonlyMap<string, boolean>): void {
+  if (editor.isDestroyed) return;
+  const tr = mirrorTicks(editor.state, completed);
+  if (tr) editor.view.dispatch(tr);
 }
 
 /** Marks the passages of the page's open threads in the page. */

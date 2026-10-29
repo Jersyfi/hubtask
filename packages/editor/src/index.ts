@@ -13,7 +13,12 @@ export { CLOSE_ACCESS_ENDED, LiveDocument } from './live.ts';
 export type { LiveDocumentOptions, LiveSocket, LiveStatus } from './live.ts';
 export { compareBodies, MAX_COMPARED_LINES } from './compare.ts';
 export type { CompareLine } from './compare.ts';
-export { createPageEditor, insertReference, markdownOf, passageTops, revealBlock, seedFromMarkdown, setPassages } from './editor.ts';
+export {
+  createPageEditor, insertReference, linkLineToEntry, markdownOf, mirrorCompletion, passageTops, revealBlock, seedFromMarkdown,
+  setPassages, taskLineOf,
+} from './editor.ts';
+export { linkLine, mirrorTicks, taskLineAt, taskLines, tickedEntries } from './tasks.ts';
+export type { TaskLine } from './tasks.ts';
 export type { Editor, PageEditorOptions, ReferenceDrawing, SelectedBlock } from './editor.ts';
 export { findPassage, selectedWords } from './passages.ts';
 export type { Passage, PassageRange } from './passages.ts';
