@@ -1763,6 +1763,12 @@ func run() error {
 		workflowservice.CreateEntryType{Registry: entryTypeRegistry}.Descriptor(),
 		workflowservice.ChangeEntryType{Registry: entryTypeRegistry}.Descriptor(),
 		workflowservice.DeleteEntryType{Registry: entryTypeRegistry}.Descriptor(),
+		workflowservice.SetEntryTypeForm{Registry: entryTypeRegistry, Desk: workflowservice.FormDesk{
+			Fields: customFields, Compiler: celexpression.New(),
+		}}.Descriptor(),
+		work.EvaluateEntryForm{
+			Items: items, Containers: containers, Gate: entryGate, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		work.SetItemEntryType{
 			Items: items, Containers: containers, Profiles: profiles, EntryTypes: entryTypes,
 			Authorizer: authorizer, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,

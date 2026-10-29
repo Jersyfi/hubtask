@@ -141,6 +141,7 @@ func EntryTypeOutput(t domain.EntryType) usecase.Output {
 		"record": t.Behaviours.Record, "schedulable": t.Behaviours.Schedulable,
 		"estimable": t.Behaviours.Estimable, "allowed_children": children,
 		"position": t.Position, "archived": t.IsArchived(), "version": t.Version,
+		"form": FormOutput(t.Form),
 	}
 	if t.Name != "" {
 		out["name"] = t.Name
