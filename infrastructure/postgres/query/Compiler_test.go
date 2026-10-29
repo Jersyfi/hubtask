@@ -787,3 +787,27 @@ func TestASearchReadsCommentsAndTextFields(t *testing.T) {
 		t.Fatalf("the words reached the statement's text:\n  %s", statement.SQL)
 	}
 }
+
+// `blocked` traverses the links (F-9): an open entry that blocks this one, or one this one depends
+// on, makes it blocked. True and false compile to one text, so the value is never statement text.
+func TestBlockedTraversesTheWaitingLinks(t *testing.T) {
+	yes := compile(t, map[string]any{"field": "blocked", "op": "EQ", "value": true}, view.Spec{})
+	no := compile(t, map[string]any{"field": "blocked", "op": "EQ", "value": false}, view.Spec{})
+	if yes.SQL != no.SQL {
+		t.Fatalf("the value changed the text:\n  %s\n  %s", yes.SQL, no.SQL)
+	}
+	for _, want := range []string{
+		"FROM entry_link bl JOIN work_item bw ON bw.tenant_id = bl.tenant_id",
+		"(bl.link_type = 'blocks' AND bl.target_id = wi.id)",
+		"(bl.link_type = 'depends_on' AND bl.source_id = wi.id)",
+		"AND NOT bw.is_completed AND bw.deleted_at IS NULL)) = $",
+	} {
+		if !strings.Contains(yes.SQL, want) {
+			t.Errorf("compiled to\n  %s\nand should contain\n  %s", yes.SQL, want)
+		}
+	}
+	not := compile(t, map[string]any{"field": "blocked", "op": "NEQ", "value": true}, view.Spec{})
+	if !strings.Contains(not.SQL, ")) IS DISTINCT FROM $") {
+		t.Errorf("NEQ compiled to %s", not.SQL)
+	}
+}

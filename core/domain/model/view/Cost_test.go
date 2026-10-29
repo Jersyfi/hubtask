@@ -90,3 +90,14 @@ func TestAnUnaffordableFilterCannotBeSaved(t *testing.T) {
 		t.Errorf("answer %v", err)
 	}
 }
+
+// A field answered over the links is priced above a plain comparison (F-9).
+func TestATraversalCostsMoreThanAComparison(t *testing.T) {
+	node := view.Node{
+		Op: view.OpEq, Field: view.Field{Name: view.FieldBlocked, Kind: view.KindBool},
+		Values: []view.Value{{Kind: view.KindBool, Bool: true}},
+	}
+	if got := view.Cost(&node); got != 2 {
+		t.Errorf("blocked costs %d, want 2", got)
+	}
+}

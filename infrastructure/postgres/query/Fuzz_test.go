@@ -42,6 +42,8 @@ func FuzzCompile(f *testing.F) {
 		`{"field":"entry_type","op":"NOT_IN","value":["bug","'; DROP TABLE work_item; --"]}`,
 		`{"field":"depth","op":"BETWEEN","value":[0,3]}`,
 		`{"field":"notes","op":"IS_NULL"}`,
+		`{"field":"blocked","op":"EQ","value":true}`,
+		`{"field":"blocked","op":"NEQ","value":false}`,
 		`{"field":"bucket_id","op":"NOT_IN","value":["0192f000-0000-7000-8000-00000000000f"]}`,
 		`{"field":"labels","op":"CONTAINS_ALL","value":["0192f000-0000-7000-8000-00000000000f"]}`,
 		`{"field":"created_at","op":"GTE","value":"2026-08-19T00:00:00Z"}`,

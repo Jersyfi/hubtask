@@ -32,6 +32,8 @@ const (
 	costText = 5
 	// costStartsWith sits between: a prefix can use an index, but only sometimes.
 	costStartsWith = 2
+	// costTraversal is a field answered over the links: two index probes per row (F-9).
+	costTraversal = 2
 	// costNegation is what NOT multiplies its subtree by: an inverted predicate reads
 	// everything the positive one would have skipped.
 	costNegation = 2
@@ -56,6 +58,8 @@ func Cost(node *Node) int {
 			total += Cost(&node.Nodes[i])
 		}
 		return total
+	case node.Field.Name == FieldBlocked:
+		return costTraversal
 	case node.Op == OpContains || node.Op == OpMatches:
 		return costText
 	case node.Op == OpStartsWith:

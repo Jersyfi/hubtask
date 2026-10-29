@@ -702,6 +702,9 @@ func (b *builder) leaf(node view.Node) {
 	case view.FieldText:
 		b.fullText(node.Values[0])
 		return
+	case view.FieldBlocked:
+		b.blocked(node)
+		return
 	}
 
 	if key, isCustom := view.CustomField(node.Field.Name); isCustom {
@@ -772,6 +775,24 @@ func (b *builder) leaf(node view.Node) {
 	default:
 		b.fail(errOperatorNotCompilable(node.Op))
 	}
+}
+
+// blocked writes whether an open entry holds this one up: the source of a `blocks` link to it, or
+// the target of a `depends_on` link from it (work.LinkWaitsTarget, work.LinkWaitsSource). The
+// value stays a parameter compared with the EXISTS, so the text is the same for true and false
+// (ADR-0026). A workspace's own types that wait are not traversed yet.
+func (b *builder) blocked(node view.Node) {
+	b.write(`(EXISTS (SELECT 1 FROM entry_link bl JOIN work_item bw ON bw.tenant_id = bl.tenant_id`)
+	b.write(` AND bw.id = CASE WHEN bl.link_type = 'blocks' THEN bl.source_id ELSE bl.target_id END`)
+	b.write(` WHERE bl.tenant_id = wi.tenant_id AND ((bl.link_type = 'blocks' AND bl.target_id = wi.id)`)
+	b.write(` OR (bl.link_type = 'depends_on' AND bl.source_id = wi.id))`)
+	b.write(` AND NOT bw.is_completed AND bw.deleted_at IS NULL))`)
+	if node.Op == view.OpNeq {
+		b.write(` IS DISTINCT FROM `)
+	} else {
+		b.write(` = `)
+	}
+	b.value(node.Field, node.Values[0])
 }
 
 // customField writes a comparison against one key of the entry's custom field document.

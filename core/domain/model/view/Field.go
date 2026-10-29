@@ -112,6 +112,10 @@ const (
 	// because the vector covers both and a client that searched `title` and matched a word in the
 	// notes would be reading a lie about which field it asked for.
 	FieldText = "text"
+	// FieldBlocked is the first field answered by traversing links (F-9): whether an open entry
+	// holds this one up, through a `blocks` link pointing at it or a `depends_on` link from it.
+	// Virtual, like text: it is a question about other rows, not a column of this one.
+	FieldBlocked = "blocked"
 
 	// CustomFieldPrefix names the family (api-guidelines.md §3). The one field name in the
 	// grammar that carries a value: everything after the dot is a key, which is why it is a
@@ -293,6 +297,10 @@ var catalogue = []Field{
 	{
 		Name: FieldText, Kind: KindText,
 		Operators: []Operator{OpMatches},
+	},
+	{
+		Name: FieldBlocked, Kind: KindBool,
+		Operators: []Operator{OpEq, OpNeq},
 	},
 }
 
