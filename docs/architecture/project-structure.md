@@ -107,7 +107,8 @@ linter can be reconfigured in a pull request and a red test is visible in review
 The JavaScript half points inwards too, towards what is shared:
 
 ```
-apps/webapp  → packages/design-system, packages/sync-engine, packages/expression, packages/editor
+apps/webapp  → packages/design-system, packages/sync-engine, packages/expression, packages/editor,
+               packages/whiteboard
 apps/website → packages/design-system, packages/api-client (the document, at build time)
 packages/*   → other packages/* only, acyclically (ADR-0033)
              sync-engine → api-client, and nothing else new
@@ -142,6 +143,11 @@ it generates its own types and has no edge to any first-party member.
   connection in the server's framing ([offline-sync.md](./offline-sync.md) §13) and the Markdown
   projection a page saves beside it. The socket is opened by the sync engine (`liveSocket`), which
   holds the bearer; the editor knows no address, no token and no screen (foundation.md §3).
+* `packages/whiteboard` is a board's scene (M4): its objects in a Yjs live document (one map per
+  object, so two people's drawing merges), the projection a board saves beside it, the geometry the
+  canvas draws, culls and hits by, and the board drawn as SVG for export with the colours the
+  application hands in (rule 15). The live document's connection is `packages/editor`'s
+  `LiveDocument`, which takes any Yjs document.
 * **The engine is product-agnostic.** Which paths a record makes stale, which reads the local copy
   answers and which writes are which mutation kind come from `apps/webapp/src/lib/data/`
   (`pathsFor`, `storeFor`, `mutationFor`); the engine never learns what a hub is.

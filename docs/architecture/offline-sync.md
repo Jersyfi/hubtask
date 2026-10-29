@@ -424,6 +424,13 @@ it, order it and decide who may touch it.
   server's state has arrived and seeds an empty document from the page's Markdown body; the
   editor saves that body beside the document a moment after the typing stops. A reader is not
   connected and reads the body as last saved.
+* **A whiteboard** (kind `whiteboard`) is the same connection over a Yjs document of the board's
+  objects (`packages/whiteboard`): each object a map of its own, keyed by its identifier, ordered
+  by a number per object. A writer seeds an empty document from the board's saved scene and saves
+  the scene beside the document a moment after the drawing stops, without `If-Match`; a reader is
+  not connected and draws the scene as last saved. A board is not in the replica: offline, an open
+  board keeps being drawn on and merges when the connection is back, and a board not opened
+  before cannot be read.
 * **Read offline.** A page's saved state - its Markdown body included - is an ordinary record of the
   change log and the walk (entity `page`, filed under its hub, so READ there decides who holds it):
   every write of a page, a trash and a restore with the pages that moved with it, record it. While
