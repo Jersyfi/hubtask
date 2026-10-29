@@ -58,6 +58,7 @@ import ContainerView from './views/ContainerView.svelte';
   import ModulesView from './views/ModulesView.svelte';
   import EntryTypesView from './views/EntryTypesView.svelte';
   import LinkTypesView from './views/LinkTypesView.svelte';
+  import ChangesView from './views/ChangesView.svelte';
   import WorkflowsView from './views/WorkflowsView.svelte';
   import BackupView from './views/BackupView.svelte';
   import RetentionView from './views/RetentionView.svelte';
@@ -329,6 +330,8 @@ import ContainerView from './views/ContainerView.svelte';
     <EntryTypesView />
   {:else if route.name === 'link-types'}
     <LinkTypesView />
+  {:else if route.name === 'changes'}
+    <ChangesView />
   {:else if route.name === 'workflows'}
     <WorkflowsView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'private-hubs'}

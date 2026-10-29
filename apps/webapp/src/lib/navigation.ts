@@ -255,6 +255,14 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       { id: 'quotas', icon: 'sliders-horizontal', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'] },
     ],
   },
+  {
+    id: 'changes',
+    code: 'app.admin.group_changes',
+    rows: [
+      // The configuration's versions, the changes proposed for a person and the file (F-6).
+      { id: 'changes', icon: 'clock', code: 'app.changes.title', path: '/administration/changes', routes: ['changes'] },
+    ],
+  },
 ];
 
 /**
