@@ -34,8 +34,10 @@ type restDoor struct {
 // door answers one generated operation. in holds the path's parameters; params is the generated
 // parameters struct (nil for none); body is a pointer to the generated request body type (nil for
 // none), decoded first so that a body the contract refuses is refused as a hand-written handler
-// refuses it - an unknown member included - before its members become the input.
-func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor, in usecase.Input, params, body any) {
+// refuses it - an unknown member included - before its members become the input; answer is a
+// pointer to the generated answer type (nil for none), which the output passes through, so the
+// answer holds to the contract's shape.
+func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor, in usecase.Input, params, body, answer any) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if params != nil && len(d.Query) > 0 {
 		values, err := members(params)
@@ -87,10 +89,18 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+	var written any = out
+	if answer != nil {
+		if err := remarshal(out, answer); err != nil {
+			WriteProblem(w, err, requestID)
+			return
+		}
+		written = answer
+	}
 	if _, versioned := out["version"]; d.ETag && versioned {
 		w.Header().Set("ETag", etag(out.Int("version")))
 	}
-	writeJSON(w, r, d.Status, out)
+	writeJSON(w, r, d.Status, written)
 }
 
 // members reads the generated parameters struct by its JSON names - the contract's.

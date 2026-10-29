@@ -34,87 +34,98 @@ var restDoors = map[string]restDoor{
 // ChangeLinkType answers PATCH /link-types/{key} by the generated mapping.
 func (c *RestController) ChangeLinkType(w http.ResponseWriter, r *http.Request, key string, params openapi.ChangeLinkTypeParams) {
 	var body openapi.ChangeLinkTypeApplicationMergePatchPlusJSONRequestBody
-	c.door(w, r, restDoors["changeLinkType"], usecase.Input{"key": key}, params, &body)
+	var answer openapi.LinkType
+	c.door(w, r, restDoors["changeLinkType"], usecase.Input{"key": key}, params, &body, &answer)
 }
 
 // ChangeRole answers PATCH /roles/{key} by the generated mapping.
 func (c *RestController) ChangeRole(w http.ResponseWriter, r *http.Request, key string, params openapi.ChangeRoleParams) {
 	var body openapi.ChangeRoleApplicationMergePatchPlusJSONRequestBody
-	c.door(w, r, restDoors["changeRole"], usecase.Input{"key": key}, params, &body)
+	var answer openapi.CustomRole
+	c.door(w, r, restDoors["changeRole"], usecase.Input{"key": key}, params, &body, &answer)
 }
 
 // CreateLinkType answers POST /link-types by the generated mapping.
 func (c *RestController) CreateLinkType(w http.ResponseWriter, r *http.Request) {
 	var body openapi.CreateLinkTypeJSONRequestBody
-	c.door(w, r, restDoors["createLinkType"], usecase.Input{}, nil, &body)
+	var answer openapi.LinkType
+	c.door(w, r, restDoors["createLinkType"], usecase.Input{}, nil, &body, &answer)
 }
 
 // CreateRole answers POST /roles by the generated mapping.
 func (c *RestController) CreateRole(w http.ResponseWriter, r *http.Request, params openapi.CreateRoleParams) {
 	var body openapi.CreateRoleJSONRequestBody
-	c.door(w, r, restDoors["createRole"], usecase.Input{}, params, &body)
+	var answer openapi.CustomRole
+	c.door(w, r, restDoors["createRole"], usecase.Input{}, params, &body, &answer)
 }
 
 // DeleteLinkType answers DELETE /link-types/{key} by the generated mapping.
 func (c *RestController) DeleteLinkType(w http.ResponseWriter, r *http.Request, key string) {
-	c.door(w, r, restDoors["deleteLinkType"], usecase.Input{"key": key}, nil, nil)
+	c.door(w, r, restDoors["deleteLinkType"], usecase.Input{"key": key}, nil, nil, nil)
 }
 
 // DeleteRole answers DELETE /roles/{key} by the generated mapping.
 func (c *RestController) DeleteRole(w http.ResponseWriter, r *http.Request, key string) {
-	c.door(w, r, restDoors["deleteRole"], usecase.Input{"key": key}, nil, nil)
+	c.door(w, r, restDoors["deleteRole"], usecase.Input{"key": key}, nil, nil, nil)
 }
 
 // ExplainAccess answers GET /access/explain by the generated mapping.
 func (c *RestController) ExplainAccess(w http.ResponseWriter, r *http.Request, params openapi.ExplainAccessParams) {
-	c.door(w, r, restDoors["explainAccess"], usecase.Input{}, params, nil)
+	var answer openapi.AccessExplanation
+	c.door(w, r, restDoors["explainAccess"], usecase.Input{}, params, nil, &answer)
 }
 
 // GrantRole answers POST /role-grants by the generated mapping.
 func (c *RestController) GrantRole(w http.ResponseWriter, r *http.Request, params openapi.GrantRoleParams) {
 	var body openapi.GrantRoleJSONRequestBody
-	c.door(w, r, restDoors["grantRole"], usecase.Input{}, params, &body)
+	var answer openapi.CustomRoleGrant
+	c.door(w, r, restDoors["grantRole"], usecase.Input{}, params, &body, &answer)
 }
 
 // LinkEntries answers POST /items/{itemId}/links by the generated mapping.
 func (c *RestController) LinkEntries(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
 	var body openapi.LinkEntriesJSONRequestBody
-	c.door(w, r, restDoors["linkEntries"], usecase.Input{"item_id": itemId.String()}, nil, &body)
+	var answer openapi.EntryLink
+	c.door(w, r, restDoors["linkEntries"], usecase.Input{"item_id": itemId.String()}, nil, &body, &answer)
 }
 
 // ListEntryLinks answers GET /items/{itemId}/links by the generated mapping.
 func (c *RestController) ListEntryLinks(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
-	c.door(w, r, restDoors["listEntryLinks"], usecase.Input{"item_id": itemId.String()}, nil, nil)
+	var answer openapi.EntryLinks
+	c.door(w, r, restDoors["listEntryLinks"], usecase.Input{"item_id": itemId.String()}, nil, nil, &answer)
 }
 
 // ListLinkTypes answers GET /link-types by the generated mapping.
 func (c *RestController) ListLinkTypes(w http.ResponseWriter, r *http.Request) {
-	c.door(w, r, restDoors["listLinkTypes"], usecase.Input{}, nil, nil)
+	var answer openapi.LinkTypeList
+	c.door(w, r, restDoors["listLinkTypes"], usecase.Input{}, nil, nil, &answer)
 }
 
 // ListLinksAmong answers POST /links:query by the generated mapping.
 func (c *RestController) ListLinksAmong(w http.ResponseWriter, r *http.Request) {
 	var body openapi.ListLinksAmongJSONRequestBody
-	c.door(w, r, restDoors["listLinksAmong"], usecase.Input{}, nil, &body)
+	var answer openapi.EntryLinkList
+	c.door(w, r, restDoors["listLinksAmong"], usecase.Input{}, nil, &body, &answer)
 }
 
 // ListRoles answers GET /roles by the generated mapping.
 func (c *RestController) ListRoles(w http.ResponseWriter, r *http.Request) {
-	c.door(w, r, restDoors["listRoles"], usecase.Input{}, nil, nil)
+	var answer openapi.RoleCatalogue
+	c.door(w, r, restDoors["listRoles"], usecase.Input{}, nil, nil, &answer)
 }
 
 // ResolveReferences answers POST /references:resolve by the generated mapping.
 func (c *RestController) ResolveReferences(w http.ResponseWriter, r *http.Request) {
 	var body openapi.ResolveReferencesJSONRequestBody
-	c.door(w, r, restDoors["resolveReferences"], usecase.Input{}, nil, &body)
+	c.door(w, r, restDoors["resolveReferences"], usecase.Input{}, nil, &body, nil)
 }
 
 // RevokeRoleGrant answers DELETE /role-grants/{grantId} by the generated mapping.
 func (c *RestController) RevokeRoleGrant(w http.ResponseWriter, r *http.Request, grantId openapi_types.UUID) {
-	c.door(w, r, restDoors["revokeRoleGrant"], usecase.Input{"grant_id": grantId.String()}, nil, nil)
+	c.door(w, r, restDoors["revokeRoleGrant"], usecase.Input{"grant_id": grantId.String()}, nil, nil, nil)
 }
 
 // UnlinkEntries answers DELETE /links/{linkId} by the generated mapping.
 func (c *RestController) UnlinkEntries(w http.ResponseWriter, r *http.Request, linkId openapi_types.UUID) {
-	c.door(w, r, restDoors["unlinkEntries"], usecase.Input{"link_id": linkId.String()}, nil, nil)
+	c.door(w, r, restDoors["unlinkEntries"], usecase.Input{"link_id": linkId.String()}, nil, nil, nil)
 }

@@ -30,6 +30,7 @@ type RESTDoor struct {
 	Params                             []string // the signature after (w, r), as Go source
 	ParamsArg                          string   // the params struct's argument, empty for none
 	BodyType                           string   // the generated request body type, empty for none
+	AnswerType                         string   // the generated answer type, empty for none
 	BodyRequired, IfMatch, ETag        bool
 }
 
@@ -156,6 +157,12 @@ func restDoor(
 		fmt.Sscan(status, &door.Status)
 		if content, ok := response.Content["application/json"]; ok {
 			_, door.ETag = doc.resolve(content.Schema).Properties["version"]
+			// Typed by the contract: the answer passes through its generated type, so it holds
+			// the contract's shape whatever else the use case's output carries. An answer written
+			// inline has no type of its own and is written as the output.
+			if ref := strings.TrimPrefix(content.Schema.Ref, "#/components/schemas/"); ref != "" && bodies[ref] {
+				door.AnswerType = "openapi." + ref
+			}
 		}
 		break
 	}
@@ -165,7 +172,7 @@ func restDoor(
 	return door, nil
 }
 
-// serverInterface reads the generated router's method signatures and the request body types.
+// serverInterface reads the generated router's method signatures and every generated type's name.
 func serverInterface(source []byte) (map[string][]*ast.Field, map[string]bool, error) {
 	file, err := parser.ParseFile(token.NewFileSet(), "Api.gen.go", source, parser.SkipObjectResolution)
 	if err != nil {
@@ -180,9 +187,7 @@ func serverInterface(source []byte) (map[string][]*ast.Field, map[string]bool, e
 		}
 		for _, spec := range gen.Specs {
 			typeSpec := spec.(*ast.TypeSpec)
-			if strings.HasSuffix(typeSpec.Name.Name, "RequestBody") {
-				bodies[typeSpec.Name.Name] = true
-			}
+			bodies[typeSpec.Name.Name] = true
 			iface, ok := typeSpec.Type.(*ast.InterfaceType)
 			if !ok || typeSpec.Name.Name != "ServerInterface" {
 				continue
@@ -258,13 +263,17 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 		if d.ParamsArg != "" {
 			params = d.ParamsArg
 		}
-		body := "nil"
+		body, answer := "nil", "nil"
 		if d.BodyType != "" {
 			fmt.Fprintf(&b, "\tvar body %s\n", d.BodyType)
 			body = "&body"
 		}
-		fmt.Fprintf(&b, "\tc.door(w, r, restDoors[%q], usecase.Input{%s}, %s, %s)\n}\n",
-			d.OperationID, strings.Join(in, ", "), params, body)
+		if d.AnswerType != "" {
+			fmt.Fprintf(&b, "\tvar answer %s\n", d.AnswerType)
+			answer = "&answer"
+		}
+		fmt.Fprintf(&b, "\tc.door(w, r, restDoors[%q], usecase.Input{%s}, %s, %s, %s)\n}\n",
+			d.OperationID, strings.Join(in, ", "), params, body, answer)
 	}
 	return format.Source(b.Bytes())
 }
