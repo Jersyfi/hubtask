@@ -35,6 +35,8 @@ func TestAnAggregationCompilesToOneGroupedStatement(t *testing.T) {
 	}{
 		{"a count", map[string]any{"function": "COUNT"}, nil,
 			[]string{`SELECT NULL::text, NULL::text, count(*)::bigint, NULL::numeric FROM work_item wi WHERE `}},
+		{"a total is not grouped", map[string]any{"function": "SUM", "field": "custom_fields.none"}, nil,
+			[]string{`::numeric FROM work_item wi WHERE `}},
 		{"a count per status", map[string]any{"function": "COUNT", "group_by": "status"}, nil,
 			[]string{`SELECT wi.status::text, NULL::text,`, ` GROUP BY 1, 2 ORDER BY 1 ASC NULLS LAST`}},
 		{"a sum per week of completion", map[string]any{"function": "SUM", "field": "custom_fields.hours",
@@ -45,7 +47,7 @@ func TestAnAggregationCompilesToOneGroupedStatement(t *testing.T) {
 			nil, []string{`avg(NULL::numeric)::numeric`}},
 		{"a monthly bucket over a custom date", map[string]any{"function": "MAX", "field": "custom_fields.cost",
 			"group_by": "custom_fields.team",
-			"bucket": map[string]any{"field": "custom_fields.review", "period": "month"}},
+			"bucket":   map[string]any{"field": "custom_fields.review", "period": "month"}},
 			map[string]view.CustomShape{"cost": number, "review": date,
 				"team": {Resolved: true, Defined: true, Column: view.CustomText}},
 			[]string{`date_trunc('month', ((SELECT efv.ts FROM `, `max((SELECT efv.num FROM `, `((SELECT efv.text FROM `}},
@@ -61,6 +63,10 @@ func TestAnAggregationCompilesToOneGroupedStatement(t *testing.T) {
 				if !strings.Contains(statement.SQL, fragment) {
 					t.Errorf("missing %q in\n%s", fragment, statement.SQL)
 				}
+			}
+			grouped := strings.Contains(statement.SQL, "GROUP BY")
+			if wants := test.raw["group_by"] != nil || test.raw["bucket"] != nil; grouped != wants {
+				t.Errorf("grouped %v, want %v:\n%s", grouped, wants, statement.SQL)
 			}
 			if strings.Count(statement.SQL, "$") != len(statement.Args) {
 				t.Errorf("placeholders and arguments disagree:\n%s", statement.SQL)

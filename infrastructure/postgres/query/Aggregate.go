@@ -29,7 +29,11 @@ func Aggregate(
 	b.aggregateValue(aggregation)
 	b.write(` FROM work_item wi WHERE `)
 	b.predicates(search)
-	b.write(` GROUP BY 1, 2 ORDER BY 1 ASC NULLS LAST, 2 ASC NULLS LAST LIMIT `)
+	// A plain total is not grouped, so an empty scope answers one row of zero rather than none.
+	if aggregation.IsGrouped() || aggregation.IsBucketed() {
+		b.write(` GROUP BY 1, 2 ORDER BY 1 ASC NULLS LAST, 2 ASC NULLS LAST`)
+	}
+	b.write(` LIMIT `)
 	b.param(int64(probe))
 
 	return b.statement()
