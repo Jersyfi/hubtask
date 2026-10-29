@@ -8,6 +8,7 @@ package integration
 import (
 	"context"
 	"testing"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -554,5 +555,26 @@ func TestAWordlessSearchStaysInsideItsWorkspace(t *testing.T) {
 	elsewhere := searched(ctx, t, tenantB, wordless)
 	if len(elsewhere.Hits) != 0 {
 		t.Errorf("the other workspace's search found %d of this one's entries", len(elsewhere.Hits))
+	}
+}
+
+// An entry is found by what was said about it (F-9): a word only its comment carries finds the
+// entry, through the index migration 0225 built.
+func TestAnEntryIsFoundByItsComment(t *testing.T) {
+	ctx := context.Background()
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	word := "Kommentarwort" + shortSuffix(t)
+
+	task := taskIn(tenantA, authorA, collection, freshID(t), "Plain title", "a0")
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return insertErr(itemRepo().Insert(ctx, task))
+	}); err != nil {
+		t.Fatalf("seeding the entry: %v", err)
+	}
+	seedComment(ctx, t, tenantA, task.ID, authorA, "Noted: "+word, time.Now().UTC())
+
+	titles := found(ctx, t, tenantA, searchWithin(collection, word, "en"))
+	if len(titles) != 1 || titles[0] != "Plain title" {
+		t.Errorf("a word in a comment found %v", titles)
 	}
 }

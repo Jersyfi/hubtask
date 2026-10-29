@@ -407,10 +407,31 @@ func (b *builder) wordMatch(search repository.TextSearch) {
 	// ILIKE over the expression migration 0020 indexed, so the trigram index answers it. Below
 	// three characters the index cannot narrow anything and the recheck does the work; the answer
 	// is the same, which is what matters for a query somebody typed two characters into.
+	b.attachedMatch(search.Request.Words)
+
 	if search.Request.WithoutWordBoundaries() {
 		b.write(` OR `, searchText, ` ILIKE `)
 		b.likePattern(search.Request.Words)
 	}
+}
+
+// attachedMatch writes the branches that find an entry by what is attached to it rather than by its
+// own document (F-9): a living comment on it, or one of its text-valued custom fields. Under
+// `simple` and written as migration 0225 indexed them, since the planner matches an expression
+// index by its tree. The entry is still the hit: what the actor may see is decided for entries,
+// and a comment is readable exactly where its entry is.
+func (b *builder) attachedMatch(words string) {
+	b.write(` OR EXISTS (SELECT 1 FROM comment cm WHERE cm.tenant_id = wi.tenant_id AND cm.item_id = wi.id`)
+	b.write(` AND cm.deleted_at IS NULL AND to_tsvector('simple'::regconfig, cm.body) @@ `)
+	b.simpleQuery(words)
+	b.write(`)`)
+	b.write(` OR EXISTS (SELECT 1 FROM entry_field_value fv JOIN custom_field_definition fd`)
+	b.write(` ON fd.tenant_id = fv.tenant_id AND fd.id = fv.definition_id`)
+	b.write(` WHERE fv.tenant_id = wi.tenant_id AND fv.entry_id = wi.id AND fv.text IS NOT NULL`)
+	b.write(` AND fd.kind IN ('TEXT', 'URL') AND fd.deleted_at IS NULL`)
+	b.write(` AND to_tsvector('simple'::regconfig, fv.text) @@ `)
+	b.simpleQuery(words)
+	b.write(`)`)
 }
 
 // neighbourhood is the branch that makes the search find an entry sharing no word with the query.

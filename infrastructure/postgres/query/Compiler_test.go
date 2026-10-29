@@ -578,7 +578,7 @@ func TestASearchWithoutAVectorIsTheStatementItAlwaysWas(t *testing.T) {
 		t.Fatalf("compilation failed: %v", err)
 	}
 
-	for _, unwanted := range []string{"item_embedding", "<=>", "vector"} {
+	for _, unwanted := range []string{"item_embedding", "<=>", "::vector"} {
 		if strings.Contains(statement.SQL, unwanted) {
 			t.Errorf("a lexical search mentions %q:\n  %s", unwanted, statement.SQL)
 		}
@@ -763,5 +763,27 @@ func TestASearchSaysWhichRowsOnlyTheMeaningFound(t *testing.T) {
 	}
 	if !strings.Contains(rows.SQL, "false AS by_meaning") {
 		t.Errorf("a wordless search lacks the by_meaning column the reader scans:\n  %s", rows.SQL)
+	}
+}
+
+// A search finds an entry by a living comment on it and by its text-valued custom fields (F-9),
+// through the expressions migration 0225 indexed, and the words reach both as parameters only.
+func TestASearchReadsCommentsAndTextFields(t *testing.T) {
+	statement, err := Search(textSearchOf("quarterly report"), "", SearchBoundary{}, 51)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+	for _, want := range []string{
+		"FROM comment cm WHERE cm.tenant_id = wi.tenant_id AND cm.item_id = wi.id AND cm.deleted_at IS NULL",
+		"to_tsvector('simple'::regconfig, cm.body) @@ websearch_to_tsquery('simple', normalize($",
+		"fd.kind IN ('TEXT', 'URL') AND fd.deleted_at IS NULL",
+		"to_tsvector('simple'::regconfig, fv.text) @@ websearch_to_tsquery('simple', normalize($",
+	} {
+		if !strings.Contains(statement.SQL, want) {
+			t.Errorf("the search does not read %q:\n  %s", want, statement.SQL)
+		}
+	}
+	if strings.Contains(statement.SQL, "quarterly") {
+		t.Fatalf("the words reached the statement's text:\n  %s", statement.SQL)
 	}
 }

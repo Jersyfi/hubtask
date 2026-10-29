@@ -1407,6 +1407,7 @@ CREATE INDEX efv_num_idx  ON entry_field_value (tenant_id, definition_id, num)  
 CREATE INDEX efv_ts_idx   ON entry_field_value (tenant_id, definition_id, ts)   WHERE ts IS NOT NULL;
 CREATE INDEX efv_text_idx ON entry_field_value (tenant_id, definition_id, text) WHERE text IS NOT NULL;
 CREATE INDEX efv_ref_idx  ON entry_field_value (tenant_id, definition_id, ref)  WHERE ref IS NOT NULL;
+CREATE INDEX efv_search_idx ON entry_field_value USING gin (to_tsvector('simple'::regconfig, text)) WHERE text IS NOT NULL;  -- migration 0225
 GRANT SELECT, INSERT, UPDATE, DELETE ON entry_field_value TO hubtask_app;
 -- entry_field_values_of(work_item) and the trigger work_item_field_values: migration 0211.
 
@@ -1505,6 +1506,8 @@ CREATE TABLE comment (
     FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX comment_tenant_id_uq ON comment (tenant_id, id);
+-- A search finds an entry by its comments (migration 0225, F-9).
+CREATE INDEX comment_search_idx ON comment USING gin (to_tsvector('simple'::regconfig, body)) WHERE deleted_at IS NULL;
 ALTER TABLE comment ADD CONSTRAINT comment_parent_comment_id_fkey
     FOREIGN KEY (tenant_id, parent_comment_id) REFERENCES comment (tenant_id, id) ON DELETE CASCADE;
 CREATE INDEX comment_item_idx ON comment (tenant_id, item_id, created_at);
