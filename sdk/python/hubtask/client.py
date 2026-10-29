@@ -1323,6 +1323,42 @@ class Client:
         """Change an entry's type"""
         return self._call("PUT", "/items/{itemId}/entry-type", {"itemId": item_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def list_link_types(self) -> "LinkTypeList":
+        """The workspace's link types"""
+        return self._call("GET", "/link-types", {}, None, {}, None, "none", None, "json")
+
+    def create_link_type(self, body: "LinkTypeCreate") -> "LinkType":
+        """Add a link type"""
+        return self._call("POST", "/link-types", {}, None, {}, body, "json", "application/json", "json")
+
+    def change_link_type(self, key: str, body: "LinkTypeChange", *, if_match: str | None = None) -> "LinkType":
+        """Change a link type"""
+        return self._call("PATCH", "/link-types/{key}", {"key": key}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
+
+    def delete_link_type(self, key: str) -> None:
+        """Delete an unused link type"""
+        return self._call("DELETE", "/link-types/{key}", {"key": key}, None, {}, None, "none", None, "void")
+
+    def list_entry_links(self, item_id: str) -> "EntryLinks":
+        """An entry's links and backlinks"""
+        return self._call("GET", "/items/{itemId}/links", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def link_entries(self, item_id: str, body: "EntryLinkCreate") -> "EntryLink":
+        """Link the entry to another"""
+        return self._call("POST", "/items/{itemId}/links", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
+    def unlink_entries(self, link_id: str) -> None:
+        """Remove a link"""
+        return self._call("DELETE", "/links/{linkId}", {"linkId": link_id}, None, {}, None, "none", None, "void")
+
+    def list_links_among(self, body: dict[str, Any]) -> "EntryLinkList":
+        """The links between the entries a view shows"""
+        return self._call("POST", "/links:query", {}, None, {}, body, "json", "application/json", "json")
+
+    def resolve_references(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Resolve references for the caller"""
+        return self._call("POST", "/references:resolve", {}, None, {}, body, "json", "application/json", "json")
+
     def read_settings_catalogue(self) -> "SettingsCatalogue":
         """Every setting the product declares"""
         return self._call("GET", "/settings/catalogue", {}, None, {}, None, "none", None, "json")

@@ -1667,6 +1667,51 @@ export class HubtaskClient {
     return this.call("PUT", "/items/{itemId}/entry-type", { "itemId": itemId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The workspace's link types */
+  listLinkTypes(options: CallOptions = {}): Promise<operations["listLinkTypes"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/link-types", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add a link type */
+  createLinkType(body: NonNullable<operations["createLinkType"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createLinkType"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/link-types", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Change a link type */
+  changeLinkType(key: string, body: NonNullable<operations["changeLinkType"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["changeLinkType"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/link-types/{key}", { "key": key }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/merge-patch+json", "json", options.signal);
+  }
+
+  /** Delete an unused link type */
+  deleteLinkType(key: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/link-types/{key}", { "key": key }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** An entry's links and backlinks */
+  listEntryLinks(itemId: string, options: CallOptions = {}): Promise<operations["listEntryLinks"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/items/{itemId}/links", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Link the entry to another */
+  linkEntries(itemId: string, body: NonNullable<operations["linkEntries"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["linkEntries"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}/links", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove a link */
+  unlinkEntries(linkId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/links/{linkId}", { "linkId": linkId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** The links between the entries a view shows */
+  listLinksAmong(body: NonNullable<operations["listLinksAmong"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["listLinksAmong"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/links:query", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Resolve references for the caller */
+  resolveReferences(body: NonNullable<operations["resolveReferences"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["resolveReferences"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/references:resolve", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Every setting the product declares */
   readSettingsCatalogue(options: CallOptions = {}): Promise<operations["readSettingsCatalogue"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/settings/catalogue", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

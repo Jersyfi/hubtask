@@ -1830,6 +1830,66 @@ func (e EncryptionStoreCountStore) Valid() bool {
 	}
 }
 
+// Defines values for EntryLinkWaits.
+const (
+	EntryLinkWaitsNONE   EntryLinkWaits = "NONE"
+	EntryLinkWaitsSOURCE EntryLinkWaits = "SOURCE"
+	EntryLinkWaitsTARGET EntryLinkWaits = "TARGET"
+)
+
+// Valid indicates whether the value is a known member of the EntryLinkWaits enum.
+func (e EntryLinkWaits) Valid() bool {
+	switch e {
+	case EntryLinkWaitsNONE:
+		return true
+	case EntryLinkWaitsSOURCE:
+		return true
+	case EntryLinkWaitsTARGET:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EntryLinksBacklinksSourceKind.
+const (
+	EntryLinksBacklinksSourceKindCOMMENT EntryLinksBacklinksSourceKind = "COMMENT"
+	EntryLinksBacklinksSourceKindENTRY   EntryLinksBacklinksSourceKind = "ENTRY"
+)
+
+// Valid indicates whether the value is a known member of the EntryLinksBacklinksSourceKind enum.
+func (e EntryLinksBacklinksSourceKind) Valid() bool {
+	switch e {
+	case EntryLinksBacklinksSourceKindCOMMENT:
+		return true
+	case EntryLinksBacklinksSourceKindENTRY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EntryLinksLinksWaits.
+const (
+	EntryLinksLinksWaitsNONE   EntryLinksLinksWaits = "NONE"
+	EntryLinksLinksWaitsSOURCE EntryLinksLinksWaits = "SOURCE"
+	EntryLinksLinksWaitsTARGET EntryLinksLinksWaits = "TARGET"
+)
+
+// Valid indicates whether the value is a known member of the EntryLinksLinksWaits enum.
+func (e EntryLinksLinksWaits) Valid() bool {
+	switch e {
+	case EntryLinksLinksWaitsNONE:
+		return true
+	case EntryLinksLinksWaitsSOURCE:
+		return true
+	case EntryLinksLinksWaitsTARGET:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErasureKeptHoldScopeKind.
 const (
 	ErasureKeptHoldScopeKindACCOUNT   ErasureKeptHoldScopeKind = "ACCOUNT"
@@ -2733,6 +2793,156 @@ func (e LegalLinksTermsSetBy) Valid() bool {
 	}
 }
 
+// Defines values for LinkTypeCardinality.
+const (
+	LinkTypeCardinalityMANY LinkTypeCardinality = "MANY"
+	LinkTypeCardinalityONE  LinkTypeCardinality = "ONE"
+)
+
+// Valid indicates whether the value is a known member of the LinkTypeCardinality enum.
+func (e LinkTypeCardinality) Valid() bool {
+	switch e {
+	case LinkTypeCardinalityMANY:
+		return true
+	case LinkTypeCardinalityONE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LinkTypeCycles.
+const (
+	LinkTypeCyclesALLOWED   LinkTypeCycles = "ALLOWED"
+	LinkTypeCyclesFORBIDDEN LinkTypeCycles = "FORBIDDEN"
+)
+
+// Valid indicates whether the value is a known member of the LinkTypeCycles enum.
+func (e LinkTypeCycles) Valid() bool {
+	switch e {
+	case LinkTypeCyclesALLOWED:
+		return true
+	case LinkTypeCyclesFORBIDDEN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LinkTypeDirection.
+const (
+	LinkTypeDirectionDIRECTED  LinkTypeDirection = "DIRECTED"
+	LinkTypeDirectionSYMMETRIC LinkTypeDirection = "SYMMETRIC"
+)
+
+// Valid indicates whether the value is a known member of the LinkTypeDirection enum.
+func (e LinkTypeDirection) Valid() bool {
+	switch e {
+	case LinkTypeDirectionDIRECTED:
+		return true
+	case LinkTypeDirectionSYMMETRIC:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LinkTypeWaits.
+const (
+	LinkTypeWaitsNONE   LinkTypeWaits = "NONE"
+	LinkTypeWaitsSOURCE LinkTypeWaits = "SOURCE"
+	LinkTypeWaitsTARGET LinkTypeWaits = "TARGET"
+)
+
+// Valid indicates whether the value is a known member of the LinkTypeWaits enum.
+func (e LinkTypeWaits) Valid() bool {
+	switch e {
+	case LinkTypeWaitsNONE:
+		return true
+	case LinkTypeWaitsSOURCE:
+		return true
+	case LinkTypeWaitsTARGET:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LinkTypeCreateCardinality.
+const (
+	LinkTypeCreateCardinalityMANY LinkTypeCreateCardinality = "MANY"
+	LinkTypeCreateCardinalityONE  LinkTypeCreateCardinality = "ONE"
+)
+
+// Valid indicates whether the value is a known member of the LinkTypeCreateCardinality enum.
+func (e LinkTypeCreateCardinality) Valid() bool {
+	switch e {
+	case LinkTypeCreateCardinalityMANY:
+		return true
+	case LinkTypeCreateCardinalityONE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LinkTypeCreateCycles.
+const (
+	LinkTypeCreateCyclesALLOWED   LinkTypeCreateCycles = "ALLOWED"
+	LinkTypeCreateCyclesFORBIDDEN LinkTypeCreateCycles = "FORBIDDEN"
+)
+
+// Valid indicates whether the value is a known member of the LinkTypeCreateCycles enum.
+func (e LinkTypeCreateCycles) Valid() bool {
+	switch e {
+	case LinkTypeCreateCyclesALLOWED:
+		return true
+	case LinkTypeCreateCyclesFORBIDDEN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LinkTypeCreateDirection.
+const (
+	LinkTypeCreateDirectionDIRECTED  LinkTypeCreateDirection = "DIRECTED"
+	LinkTypeCreateDirectionSYMMETRIC LinkTypeCreateDirection = "SYMMETRIC"
+)
+
+// Valid indicates whether the value is a known member of the LinkTypeCreateDirection enum.
+func (e LinkTypeCreateDirection) Valid() bool {
+	switch e {
+	case LinkTypeCreateDirectionDIRECTED:
+		return true
+	case LinkTypeCreateDirectionSYMMETRIC:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LinkTypeCreateWaits.
+const (
+	LinkTypeCreateWaitsNONE   LinkTypeCreateWaits = "NONE"
+	LinkTypeCreateWaitsSOURCE LinkTypeCreateWaits = "SOURCE"
+	LinkTypeCreateWaitsTARGET LinkTypeCreateWaits = "TARGET"
+)
+
+// Valid indicates whether the value is a known member of the LinkTypeCreateWaits enum.
+func (e LinkTypeCreateWaits) Valid() bool {
+	switch e {
+	case LinkTypeCreateWaitsNONE:
+		return true
+	case LinkTypeCreateWaitsSOURCE:
+		return true
+	case LinkTypeCreateWaitsTARGET:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MailDeliveredOutcome.
 const (
 	MailDeliveredOutcomeCOMMENT   MailDeliveredOutcome = "COMMENT"
@@ -3092,37 +3302,37 @@ func (e MfaChallengeMethods) Valid() bool {
 
 // Defines values for Module.
 const (
-	AGENTS      Module = "AGENTS"
-	ASSETS      Module = "ASSETS"
-	GOALS       Module = "GOALS"
-	KNOWLEDGE   Module = "KNOWLEDGE"
-	PLANNING    Module = "PLANNING"
-	SERVICEDESK Module = "SERVICE_DESK"
-	TIME        Module = "TIME"
-	WHITEBOARD  Module = "WHITEBOARD"
-	WORKFLOWS   Module = "WORKFLOWS"
+	ModuleAGENTS      Module = "AGENTS"
+	ModuleASSETS      Module = "ASSETS"
+	ModuleGOALS       Module = "GOALS"
+	ModuleKNOWLEDGE   Module = "KNOWLEDGE"
+	ModulePLANNING    Module = "PLANNING"
+	ModuleSERVICEDESK Module = "SERVICE_DESK"
+	ModuleTIME        Module = "TIME"
+	ModuleWHITEBOARD  Module = "WHITEBOARD"
+	ModuleWORKFLOWS   Module = "WORKFLOWS"
 )
 
 // Valid indicates whether the value is a known member of the Module enum.
 func (e Module) Valid() bool {
 	switch e {
-	case AGENTS:
+	case ModuleAGENTS:
 		return true
-	case ASSETS:
+	case ModuleASSETS:
 		return true
-	case GOALS:
+	case ModuleGOALS:
 		return true
-	case KNOWLEDGE:
+	case ModuleKNOWLEDGE:
 		return true
-	case PLANNING:
+	case ModulePLANNING:
 		return true
-	case SERVICEDESK:
+	case ModuleSERVICEDESK:
 		return true
-	case TIME:
+	case ModuleTIME:
 		return true
-	case WHITEBOARD:
+	case ModuleWHITEBOARD:
 		return true
-	case WORKFLOWS:
+	case ModuleWORKFLOWS:
 		return true
 	default:
 		return false
@@ -3792,6 +4002,66 @@ func (e RecurrenceMode) Valid() bool {
 	case ONCOMPLETION:
 		return true
 	case ONSCHEDULE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReferenceKind.
+const (
+	ReferenceKindCOLLECTION ReferenceKind = "COLLECTION"
+	ReferenceKindDASHBOARD  ReferenceKind = "DASHBOARD"
+	ReferenceKindENTRY      ReferenceKind = "ENTRY"
+	ReferenceKindGOAL       ReferenceKind = "GOAL"
+	ReferenceKindHUB        ReferenceKind = "HUB"
+	ReferenceKindPAGE       ReferenceKind = "PAGE"
+	ReferenceKindSPRINT     ReferenceKind = "SPRINT"
+	ReferenceKindVIEW       ReferenceKind = "VIEW"
+	ReferenceKindWHITEBOARD ReferenceKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the ReferenceKind enum.
+func (e ReferenceKind) Valid() bool {
+	switch e {
+	case ReferenceKindCOLLECTION:
+		return true
+	case ReferenceKindDASHBOARD:
+		return true
+	case ReferenceKindENTRY:
+		return true
+	case ReferenceKindGOAL:
+		return true
+	case ReferenceKindHUB:
+		return true
+	case ReferenceKindPAGE:
+		return true
+	case ReferenceKindSPRINT:
+		return true
+	case ReferenceKindVIEW:
+		return true
+	case ReferenceKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReferenceStrength.
+const (
+	CARD    ReferenceStrength = "CARD"
+	EMBED   ReferenceStrength = "EMBED"
+	MENTION ReferenceStrength = "MENTION"
+)
+
+// Valid indicates whether the value is a known member of the ReferenceStrength enum.
+func (e ReferenceStrength) Valid() bool {
+	switch e {
+	case CARD:
+		return true
+	case EMBED:
+		return true
+	case MENTION:
 		return true
 	default:
 		return false
@@ -7988,6 +8258,80 @@ type EntryHidden struct {
 	Level bool `json:"level"`
 }
 
+// EntryLink A link of a type from one entry (the source) to another (the target).
+type EntryLink struct {
+	CreatedAt time.Time          `json:"created_at"`
+	Id        openapi_types.UUID `json:"id"`
+	SourceId  openapi_types.UUID `json:"source_id"`
+	TargetId  openapi_types.UUID `json:"target_id"`
+
+	// Type The link type's key.
+	Type string `json:"type"`
+
+	// Waits Which end waits for the other, by the link's type.
+	Waits *EntryLinkWaits `json:"waits,omitempty"`
+}
+
+// EntryLinkWaits Which end waits for the other, by the link's type.
+type EntryLinkWaits string
+
+// EntryLinkCreate defines model for EntryLinkCreate.
+type EntryLinkCreate struct {
+	TargetId openapi_types.UUID `json:"target_id"`
+
+	// Type The link type's key.
+	Type string `json:"type"`
+}
+
+// EntryLinkList defines model for EntryLinkList.
+type EntryLinkList struct {
+	Data []EntryLink `json:"data"`
+}
+
+// EntryLinks defines model for EntryLinks.
+type EntryLinks struct {
+	// Backlinks The notes and comments that point at the entry, from entries the reader may see.
+	Backlinks []struct {
+		Anchor *string `json:"anchor"`
+
+		// Entry What a reference shows the reader. Where the reader may not see the object, or it is not there, only `kind`, `id`, `anchor` and `available: false` are present.
+		Entry    ReferenceTarget    `json:"entry"`
+		SourceId openapi_types.UUID `json:"source_id"`
+
+		// SourceKind An entry's notes, or one of its comments.
+		SourceKind EntryLinksBacklinksSourceKind `json:"source_kind"`
+
+		// Strength How a reference is drawn where it stands - inline, as a card, or as a live view.
+		Strength ReferenceStrength `json:"strength"`
+	} `json:"backlinks"`
+
+	// Links The entry's links from both ends, oldest first.
+	Links []struct {
+		CreatedAt time.Time          `json:"created_at"`
+		Id        openapi_types.UUID `json:"id"`
+
+		// Other What a reference shows the reader. Where the reader may not see the object, or it is not there, only `kind`, `id`, `anchor` and `available: false` are present.
+		Other ReferenceTarget `json:"other"`
+
+		// Outward Whether this entry is the link's source.
+		Outward  bool               `json:"outward"`
+		SourceId openapi_types.UUID `json:"source_id"`
+		TargetId openapi_types.UUID `json:"target_id"`
+
+		// Type The link type's key.
+		Type string `json:"type"`
+
+		// Waits Which end waits for the other, by the link's type.
+		Waits *EntryLinksLinksWaits `json:"waits,omitempty"`
+	} `json:"links"`
+}
+
+// EntryLinksBacklinksSourceKind An entry's notes, or one of its comments.
+type EntryLinksBacklinksSourceKind string
+
+// EntryLinksLinksWaits Which end waits for the other, by the link's type.
+type EntryLinksLinksWaits string
+
 // EntryType A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries.
 type EntryType struct {
 	// AllowedChildren The keys of the types of the level below that may sit underneath; empty allows every one.
@@ -9396,6 +9740,93 @@ type LinkCompletion struct {
 
 	// PendingToken The `LINK` challenge's credential. It dies on use.
 	PendingToken string `json:"pending_token"`
+}
+
+// LinkType A kind of relation between two entries: one of the six every workspace has, or one of its own. What it means is fixed once it is made.
+type LinkType struct {
+	Archived bool `json:"archived"`
+
+	// Cardinality How many links of the type one entry may start.
+	Cardinality LinkTypeCardinality `json:"cardinality"`
+
+	// Cycles Whether links of the type may form a loop.
+	Cycles    LinkTypeCycles    `json:"cycles"`
+	Direction LinkTypeDirection `json:"direction"`
+
+	// InverseName What it is called from its target; null on a shipped or a symmetric type.
+	InverseName *string `json:"inverse_name"`
+	Key         string  `json:"key"`
+
+	// Name What the link is called from its source; null on a shipped type, which a client names by its key.
+	Name     *string `json:"name"`
+	Position int     `json:"position"`
+
+	// System One of the six every workspace has; never changed or deleted.
+	System bool `json:"system"`
+
+	// Version The optimistic lock; zero for a shipped type.
+	Version int `json:"version"`
+
+	// Waits Which end waits for the other - SOURCE for depends_on, TARGET for blocks. A waiting link is a dependency.
+	Waits LinkTypeWaits `json:"waits"`
+}
+
+// LinkTypeCardinality How many links of the type one entry may start.
+type LinkTypeCardinality string
+
+// LinkTypeCycles Whether links of the type may form a loop.
+type LinkTypeCycles string
+
+// LinkTypeDirection defines model for LinkType.Direction.
+type LinkTypeDirection string
+
+// LinkTypeWaits Which end waits for the other - SOURCE for depends_on, TARGET for blocks. A waiting link is a dependency.
+type LinkTypeWaits string
+
+// LinkTypeChange defines model for LinkTypeChange.
+type LinkTypeChange struct {
+	Archived    *bool   `json:"archived,omitempty"`
+	InverseName *string `json:"inverse_name,omitempty"`
+	Name        *string `json:"name,omitempty"`
+	Position    *int    `json:"position,omitempty"`
+}
+
+// LinkTypeCreate defines model for LinkTypeCreate.
+type LinkTypeCreate struct {
+	// Cardinality MANY when absent.
+	Cardinality *LinkTypeCreateCardinality `json:"cardinality,omitempty"`
+
+	// Cycles ALLOWED when absent.
+	Cycles *LinkTypeCreateCycles `json:"cycles,omitempty"`
+
+	// Direction DIRECTED when absent.
+	Direction *LinkTypeCreateDirection `json:"direction,omitempty"`
+
+	// InverseName Required unless the type is symmetric.
+	InverseName *string `json:"inverse_name,omitempty"`
+	Key         string  `json:"key"`
+	Name        string  `json:"name"`
+	Position    *int    `json:"position,omitempty"`
+
+	// Waits NONE when absent.
+	Waits *LinkTypeCreateWaits `json:"waits,omitempty"`
+}
+
+// LinkTypeCreateCardinality MANY when absent.
+type LinkTypeCreateCardinality string
+
+// LinkTypeCreateCycles ALLOWED when absent.
+type LinkTypeCreateCycles string
+
+// LinkTypeCreateDirection DIRECTED when absent.
+type LinkTypeCreateDirection string
+
+// LinkTypeCreateWaits NONE when absent.
+type LinkTypeCreateWaits string
+
+// LinkTypeList defines model for LinkTypeList.
+type LinkTypeList struct {
+	Data []LinkType `json:"data"`
 }
 
 // Lookalike defines model for Lookalike.
@@ -11157,6 +11588,51 @@ type RecurrenceInput struct {
 
 // RecurrenceMode ON_SCHEDULE puts the next occurrence in place at its time, whether or not the last one was done - a rent payment does not wait. ON_COMPLETION creates the next one only once its predecessor is completed - a task that means "again, two weeks after I last did it".
 type RecurrenceMode string
+
+// Reference defines model for Reference.
+type Reference struct {
+	// Anchor A place inside the object.
+	Anchor *string            `json:"anchor,omitempty"`
+	Id     openapi_types.UUID `json:"id"`
+
+	// Kind What a reference points at. PAGE, WHITEBOARD, DASHBOARD, GOAL and SPRINT resolve once their modules exist.
+	Kind ReferenceKind `json:"kind"`
+}
+
+// ReferenceKind What a reference points at. PAGE, WHITEBOARD, DASHBOARD, GOAL and SPRINT resolve once their modules exist.
+type ReferenceKind string
+
+// ReferenceStrength How a reference is drawn where it stands - inline, as a card, or as a live view.
+type ReferenceStrength string
+
+// ReferenceTarget What a reference shows the reader. Where the reader may not see the object, or it is not there, only `kind`, `id`, `anchor` and `available: false` are present.
+type ReferenceTarget struct {
+	Anchor       *string             `json:"anchor"`
+	Archived     *bool               `json:"archived,omitempty"`
+	Available    bool                `json:"available"`
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+	Completed    *bool               `json:"completed,omitempty"`
+	DueAt        *time.Time          `json:"due_at,omitempty"`
+	EntryType    *string             `json:"entry_type,omitempty"`
+	Id           openapi_types.UUID  `json:"id"`
+
+	// Key The entry's key (`sup-128`) or the container's handle, where it has one.
+	Key *string `json:"key,omitempty"`
+
+	// Kind What a reference points at. PAGE, WHITEBOARD, DASHBOARD, GOAL and SPRINT resolve once their modules exist.
+	Kind ReferenceKind `json:"kind"`
+
+	// Layout A view's layout.
+	Layout *string `json:"layout,omitempty"`
+
+	// Level Extensible; /meta/capabilities returns the valid values.
+	Level   *ItemType  `json:"level,omitempty"`
+	Number  *int64     `json:"number,omitempty"`
+	StartAt *time.Time `json:"start_at,omitempty"`
+
+	// Title The entry's title, the container's or view's name.
+	Title *string `json:"title,omitempty"`
+}
 
 // Reminder defines model for Reminder.
 type Reminder struct {
@@ -14725,6 +15201,17 @@ type ListLegalHoldsParams struct {
 	IncludeReleased *bool `form:"include_released,omitempty" json:"include_released,omitempty"`
 }
 
+// ChangeLinkTypeParams defines parameters for ChangeLinkType.
+type ChangeLinkTypeParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ListLinksAmongJSONBody defines parameters for ListLinksAmong.
+type ListLinksAmongJSONBody struct {
+	ItemIds []openapi_types.UUID `json:"item_ids"`
+}
+
 // DeliverAddressedMailMultipartBody defines parameters for DeliverAddressedMail.
 type DeliverAddressedMailMultipartBody struct {
 	BodyMime  *string `json:"body-mime,omitempty"`
@@ -14872,6 +15359,11 @@ type ExtendDataSubjectRequestParams struct {
 type OpenPrivateHubParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ResolveReferencesJSONBody defines parameters for ResolveReferences.
+type ResolveReferencesJSONBody struct {
+	References []Reference `json:"references"`
 }
 
 // ListRetentionPoliciesParams defines parameters for ListRetentionPolicies.
@@ -15397,6 +15889,9 @@ type SetDueDateJSONRequestBody = DueDateInput
 // SetItemEntryTypeJSONRequestBody defines body for SetItemEntryType for application/json ContentType.
 type SetItemEntryTypeJSONRequestBody SetItemEntryTypeJSONBody
 
+// LinkEntriesJSONRequestBody defines body for LinkEntries for application/json ContentType.
+type LinkEntriesJSONRequestBody = EntryLinkCreate
+
 // SetRecurrenceJSONRequestBody defines body for SetRecurrence for application/json ContentType.
 type SetRecurrenceJSONRequestBody = RecurrenceInput
 
@@ -15466,6 +15961,15 @@ type PlaceLegalHoldJSONRequestBody = LegalHoldCreate
 // ReleaseLegalHoldJSONRequestBody defines body for ReleaseLegalHold for application/json ContentType.
 type ReleaseLegalHoldJSONRequestBody = LegalHoldRelease
 
+// CreateLinkTypeJSONRequestBody defines body for CreateLinkType for application/json ContentType.
+type CreateLinkTypeJSONRequestBody = LinkTypeCreate
+
+// ChangeLinkTypeApplicationMergePatchPlusJSONRequestBody defines body for ChangeLinkType for application/merge-patch+json ContentType.
+type ChangeLinkTypeApplicationMergePatchPlusJSONRequestBody = LinkTypeChange
+
+// ListLinksAmongJSONRequestBody defines body for ListLinksAmong for application/json ContentType.
+type ListLinksAmongJSONRequestBody ListLinksAmongJSONBody
+
 // DeliverAddressedMailMultipartRequestBody defines body for DeliverAddressedMail for multipart/form-data ContentType.
 type DeliverAddressedMailMultipartRequestBody DeliverAddressedMailMultipartBody
 
@@ -15522,6 +16026,9 @@ type ExtendDataSubjectRequestJSONRequestBody = DataSubjectRequestExtension
 
 // OpenPrivateHubJSONRequestBody defines body for OpenPrivateHub for application/json ContentType.
 type OpenPrivateHubJSONRequestBody = PrivateHubAccessRequest
+
+// ResolveReferencesJSONRequestBody defines body for ResolveReferences for application/json ContentType.
+type ResolveReferencesJSONRequestBody ResolveReferencesJSONBody
 
 // StartRestoreJSONRequestBody defines body for StartRestore for application/json ContentType.
 type StartRestoreJSONRequestBody = RestoreRequest
@@ -16350,6 +16857,12 @@ type ServerInterface interface {
 
 	// (PUT /items/{itemId}/labels/{labelId})
 	AddLabel(w http.ResponseWriter, r *http.Request, itemId ItemId, labelId LabelId)
+	// ListEntryLinks An entry's links and backlinks
+	// (GET /items/{itemId}/links)
+	ListEntryLinks(w http.ResponseWriter, r *http.Request, itemId ItemId)
+	// LinkEntries Link the entry to another
+	// (POST /items/{itemId}/links)
+	LinkEntries(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
 	// (DELETE /items/{itemId}/members/{accountId})
 	RemoveMember(w http.ResponseWriter, r *http.Request, itemId ItemId, accountId AccountId)
@@ -16500,6 +17013,24 @@ type ServerInterface interface {
 	// ReleaseLegalHold Lift a legal hold
 	// (POST /legal-holds/{holdId}:release)
 	ReleaseLegalHold(w http.ResponseWriter, r *http.Request, holdId openapi_types.UUID)
+	// ListLinkTypes The workspace's link types
+	// (GET /link-types)
+	ListLinkTypes(w http.ResponseWriter, r *http.Request)
+	// CreateLinkType Add a link type
+	// (POST /link-types)
+	CreateLinkType(w http.ResponseWriter, r *http.Request)
+	// DeleteLinkType Delete an unused link type
+	// (DELETE /link-types/{key})
+	DeleteLinkType(w http.ResponseWriter, r *http.Request, key string)
+	// ChangeLinkType Change a link type
+	// (PATCH /link-types/{key})
+	ChangeLinkType(w http.ResponseWriter, r *http.Request, key string, params ChangeLinkTypeParams)
+	// UnlinkEntries Remove a link
+	// (DELETE /links/{linkId})
+	UnlinkEntries(w http.ResponseWriter, r *http.Request, linkId openapi_types.UUID)
+	// ListLinksAmong The links between the entries a view shows
+	// (POST /links:query)
+	ListLinksAmong(w http.ResponseWriter, r *http.Request)
 	// DeliverAddressedMail Deliver a mail to the operator's receiving domain
 	// (POST /mail/inbound)
 	DeliverAddressedMail(w http.ResponseWriter, r *http.Request, params DeliverAddressedMailParams)
@@ -16641,6 +17172,9 @@ type ServerInterface interface {
 	// ReadQuotas The workspace's quota standing
 	// (GET /quotas)
 	ReadQuotas(w http.ResponseWriter, r *http.Request)
+	// ResolveReferences Resolve references for the caller
+	// (POST /references:resolve)
+	ResolveReferences(w http.ResponseWriter, r *http.Request)
 	// StartRestore Start a restore
 	// (POST /restores)
 	StartRestore(w http.ResponseWriter, r *http.Request)
@@ -25400,6 +25934,58 @@ func (siw *ServerInterfaceWrapper) AddLabel(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// ListEntryLinks operation middleware
+func (siw *ServerInterfaceWrapper) ListEntryLinks(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEntryLinks(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LinkEntries operation middleware
+func (siw *ServerInterfaceWrapper) LinkEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LinkEntries(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RemoveMember operation middleware
 func (siw *ServerInterfaceWrapper) RemoveMember(w http.ResponseWriter, r *http.Request) {
 
@@ -27466,6 +28052,150 @@ func (siw *ServerInterfaceWrapper) ReleaseLegalHold(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// ListLinkTypes operation middleware
+func (siw *ServerInterfaceWrapper) ListLinkTypes(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListLinkTypes(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateLinkType operation middleware
+func (siw *ServerInterfaceWrapper) CreateLinkType(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateLinkType(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteLinkType operation middleware
+func (siw *ServerInterfaceWrapper) DeleteLinkType(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteLinkType(w, r, key)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangeLinkType operation middleware
+func (siw *ServerInterfaceWrapper) ChangeLinkType(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangeLinkTypeParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeLinkType(w, r, key, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnlinkEntries operation middleware
+func (siw *ServerInterfaceWrapper) UnlinkEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "linkId" -------------
+	var linkId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "linkId", r.PathValue("linkId"), &linkId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "linkId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnlinkEntries(w, r, linkId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListLinksAmong operation middleware
+func (siw *ServerInterfaceWrapper) ListLinksAmong(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListLinksAmong(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DeliverAddressedMail operation middleware
 func (siw *ServerInterfaceWrapper) DeliverAddressedMail(w http.ResponseWriter, r *http.Request) {
 
@@ -28962,6 +29692,20 @@ func (siw *ServerInterfaceWrapper) ReadQuotas(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReadQuotas(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResolveReferences operation middleware
+func (siw *ServerInterfaceWrapper) ResolveReferences(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResolveReferences(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -30941,6 +31685,15 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/entry-types/{key}", wrapper.DeleteEntryType)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/entry-types/{key}", wrapper.ChangeEntryType)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/entry-type", wrapper.SetItemEntryType)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/link-types", wrapper.ListLinkTypes)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/link-types", wrapper.CreateLinkType)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/link-types/{key}", wrapper.DeleteLinkType)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/link-types/{key}", wrapper.ChangeLinkType)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/links", wrapper.ListEntryLinks)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}/links", wrapper.LinkEntries)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/links/{linkId}", wrapper.UnlinkEntries)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/links:query", wrapper.ListLinksAmong)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/references:resolve", wrapper.ResolveReferences)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/settings/catalogue", wrapper.ReadSettingsCatalogue)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/modules", wrapper.ListModules)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tenant/modules/{module}", wrapper.SetModule)

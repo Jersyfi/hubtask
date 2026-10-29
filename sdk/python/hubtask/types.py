@@ -1144,6 +1144,86 @@ Module = Literal["WORKFLOWS", "PLANNING", "KNOWLEDGE", "WHITEBOARD", "SERVICE_DE
 
 SettingSource = Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE", "HUB", "COLLECTION", "PERSON"]
 
+class LinkType(TypedDict, total=False):
+    """A kind of relation between two entries: one of the six every workspace has, or one of its own. What it means is fixed once it is made."""
+    key: Required[str]
+    system: Required[bool]
+    name: Required[str | None]
+    inverse_name: Required[str | None]
+    direction: Required[Literal["DIRECTED", "SYMMETRIC"]]
+    cardinality: Required[Literal["MANY", "ONE"]]
+    cycles: Required[Literal["FORBIDDEN", "ALLOWED"]]
+    waits: Required[Literal["NONE", "SOURCE", "TARGET"]]
+    position: Required[int]
+    archived: Required[bool]
+    version: Required[int]
+
+class LinkTypeList(TypedDict, total=False):
+    data: Required[list["LinkType"]]
+
+class LinkTypeCreate(TypedDict, total=False):
+    key: Required[str]
+    name: Required[str]
+    inverse_name: str
+    direction: Literal["DIRECTED", "SYMMETRIC"]
+    cardinality: Literal["MANY", "ONE"]
+    cycles: Literal["FORBIDDEN", "ALLOWED"]
+    waits: Literal["NONE", "SOURCE", "TARGET"]
+    position: int
+
+class LinkTypeChange(TypedDict, total=False):
+    name: str
+    inverse_name: str
+    position: int
+    archived: bool
+
+class EntryLinkCreate(TypedDict, total=False):
+    target_id: Required[str]
+    type: Required[str]
+
+class EntryLink(TypedDict, total=False):
+    """A link of a type from one entry (the source) to another (the target)."""
+    id: Required[str]
+    type: Required[str]
+    source_id: Required[str]
+    target_id: Required[str]
+    created_at: Required[str]
+    waits: Literal["NONE", "SOURCE", "TARGET"]
+
+class EntryLinkList(TypedDict, total=False):
+    data: Required[list["EntryLink"]]
+
+class EntryLinks(TypedDict, total=False):
+    links: Required[list["EntryLink"]]
+    backlinks: Required[list[dict[str, Any]]]
+
+ReferenceKind = Literal["ENTRY", "HUB", "COLLECTION", "VIEW", "PAGE", "WHITEBOARD", "DASHBOARD", "GOAL", "SPRINT"]
+
+ReferenceStrength = Literal["MENTION", "CARD", "EMBED"]
+
+class Reference(TypedDict, total=False):
+    kind: Required["ReferenceKind"]
+    id: Required[str]
+    anchor: str
+
+class ReferenceTarget(TypedDict, total=False):
+    """What a reference shows the reader. Where the reader may not see the object, or it is not there, only `kind`, `id`, `anchor` and `available: false` are present."""
+    kind: Required["ReferenceKind"]
+    id: Required[str]
+    anchor: Required[str | None]
+    available: Required[bool]
+    title: str
+    key: str | None
+    number: int | None
+    level: "ItemType"
+    entry_type: str
+    completed: bool
+    archived: bool
+    collection_id: str
+    start_at: str | None
+    due_at: str | None
+    layout: str
+
 class EntryType(TypedDict, total=False):
     """A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries."""
     key: Required[str]

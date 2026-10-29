@@ -206,12 +206,15 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `item.entry_type_set` | SetItemEntryType | `item` | INFO | Every time |
 | `item.label_added` | AddLabel | `item` | INFO | Every time |
 | `item.label_removed` | RemoveLabel | `item` | INFO | Every time |
+| `item.linked` | LinkEntries | `entry_link` | INFO | Every time |
 | `item.member_added` | AddMember | `item` | INFO | Every time |
 | `item.member_removed` | RemoveMember | `item` | INFO | Every time |
 | `item.moved` | MoveWorkItem | `item` | INFO | Every time |
 | `item.moved` | ReorderWorkItem | `item` | INFO | Every time |
 | `item.purged` | PurgeWorkItem | `item` | WARNING | Every time |
 | `item.read` | GetWorkItem | `item` | INFO | When refused |
+| `item.read` | ListEntryLinks | `item` | INFO | When refused |
+| `item.read` | ListLinksAmong | `item` | INFO | When refused |
 | `item.read` | ListWorkItems | `item` | INFO | When refused |
 | `item.read` | QueryItems | `item` | INFO | When refused |
 | `item.read` | SearchItems | `search` | INFO | When refused |
@@ -220,6 +223,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `item.trashed` | TrashWorkItem | `item` | NOTICE | Every time |
 | `item.unarchived` | UnarchiveWorkItem | `item` | INFO | Every time |
 | `item.unassigned` | UnassignWorkItem | `item` | INFO | Every time |
+| `item.unlinked` | UnlinkEntries | `entry_link` | INFO | Every time |
 | `item.updated` | UpdateWorkItem | `item` | INFO | Every time |
 
 ## Data: hubs and collections
@@ -390,6 +394,15 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `kudos.read` | ReadKudos | `item` | INFO | When refused |
 | `kudos.taken_back` | TakeBackKudos | `item` | INFO | When refused |
 
+## Link_type
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `link_type.changed` | ChangeLinkType | `link_type` | INFO | Every time |
+| `link_type.created` | CreateLinkType | `link_type` | INFO | Every time |
+| `link_type.deleted` | DeleteLinkType | `link_type` | INFO | Every time |
+| `link_type.read` | ListLinkTypes | `link_type` | INFO | When refused |
+
 ## Mail
 
 | Action | Use case | Target | Severity | Recorded |
@@ -499,6 +512,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `reminder.deleted` | DeleteReminder | `reminder` | INFO | Every time |
 | `reminder.list_read` | ListReminders | `item` | INFO | When refused |
 | `reminder.updated` | UpdateReminder | `reminder` | INFO | Every time |
+
+## Reference
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `reference.resolved` | ResolveReferences | `reference` | INFO | When refused |
 
 ## Retention and legal hold
 

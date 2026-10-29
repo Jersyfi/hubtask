@@ -1715,3 +1715,29 @@ func (pending) DeleteEntryType(w http.ResponseWriter, r *http.Request, _ string)
 func (pending) SetItemEntryType(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.SetItemEntryTypeParams) {
 	notAvailable(w, r)
 }
+
+func (pending) ListLinkTypes(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CreateLinkType(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ChangeLinkType(w http.ResponseWriter, r *http.Request, _ string, _ openapi.ChangeLinkTypeParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteLinkType(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+func (pending) ListEntryLinks(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) LinkEntries(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) UnlinkEntries(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListLinksAmong(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ResolveReferences(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

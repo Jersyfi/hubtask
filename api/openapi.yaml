@@ -8947,6 +8947,229 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /link-types:
+    get:
+      tags: [items]
+      operationId: listLinkTypes
+      summary: The workspace's link types
+      description: >
+        Every link type of the workspace: the six every workspace has (`blocks`, `depends_on`,
+        `duplicates`, `runs_on`, `affects`, `implements`) and its own, each with its direction,
+        cardinality, cycle rule and which end waits for the other. A shipped type answers null
+        names, which a client fills with its own words for the key. Archived types are included
+        and marked. Needs a signed-in member of the workspace.
+      responses:
+        "200":
+          description: The registry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkTypeList"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [items]
+      operationId: createLinkType
+      summary: Add a link type
+      description: >
+        Adds a link type of the workspace's own with a key free in the workspace and its two names.
+        What it means - its direction, cardinality, cycle rule and which end waits - is fixed once
+        it is made. A symmetric type has no waiting end and no limit of one; a type an end waits on
+        forbids loops. Needs STRUCTURE at the workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LinkTypeCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkType"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /link-types/{key}:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
+    patch:
+      tags: [items]
+      operationId: changeLinkType
+      summary: Change a link type
+      description: >
+        Renames, reorders, archives or restores one of the workspace's own link types. An archived
+        type draws no new link and the links that stand stay readable. A shipped type does not
+        change (`link_types.system_fixed`). Needs STRUCTURE at the workspace.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/LinkTypeChange"
+      responses:
+        "200":
+          description: The type as it now is
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkType"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [items]
+      operationId: deleteLinkType
+      summary: Delete an unused link type
+      description: >
+        Deletes one of the workspace's own link types that no link names. A type in use is refused
+        with `link_types.in_use` and can only be archived. Needs STRUCTURE at the workspace.
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}/links:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      tags: [items]
+      operationId: listEntryLinks
+      summary: An entry's links and backlinks
+      description: >
+        The entry's links from both ends, each with the far end as the reader may see it - its
+        title, key and state, or only its identifier and `available: false` - and its backlinks:
+        the notes and comments that point at it, from entries the reader may see. Needs READ on
+        the entry.
+      responses:
+        "200":
+          description: The links and backlinks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntryLinks"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [items]
+      operationId: linkEntries
+      summary: Link the entry to another
+      description: >
+        Draws a link of a type from this entry to another. Needs WRITE_ITEMS on this entry and
+        sight of the other; one out of sight is not found, as a missing one is. A link that would
+        close a loop of a type that forbids loops is refused with `links.cycle` - for a dependency,
+        judged over every type one end waits on; a second link of a type of one per entry with
+        `links.cardinality`; one already drawn with `links.exists`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EntryLinkCreate"
+      responses:
+        "201":
+          description: Drawn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntryLink"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /links/{linkId}:
+    parameters:
+      - name: linkId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [items]
+      operationId: unlinkEntries
+      summary: Remove a link
+      description: Removes a link between two entries. Whoever may change either end may remove it.
+      responses:
+        "204":
+          description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /links:query:
+    post:
+      tags: [items]
+      operationId: listLinksAmong
+      summary: The links between the entries a view shows
+      description: >
+        The links with both ends among the given entries, at most 500 of them, each with which end
+        waits for the other - what a timeline draws as dependencies. A `POST` because the list of
+        entries is a body rather than a query string. A link with an end the caller may not see is
+        left out.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [item_ids]
+              properties:
+                item_ids:
+                  type: array
+                  maxItems: 500
+                  items: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The links
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntryLinkList"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /references:resolve:
+    post:
+      tags: [items]
+      operationId: resolveReferences
+      summary: Resolve references for the caller
+      description: >
+        Resolves up to 100 references to what a mention, a card or a live view shows of each: the
+        title, key and state the caller may see. One the caller may not see, one that is not there,
+        and one of a module that does not exist yet all answer only their address and
+        `available: false` - never a title. Text writes a reference as a Markdown link to
+        `hubtask:<kind>/<id>#<anchor>`; an image of the link draws a card or a live view.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [references]
+              properties:
+                references:
+                  type: array
+                  maxItems: 100
+                  items: { $ref: "#/components/schemas/Reference" }
+      responses:
+        "200":
+          description: The references, in the order asked
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/ReferenceTarget" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /settings/catalogue:
     get:
       tags: [meta]
@@ -15534,6 +15757,162 @@ components:
       type: string
       description: The level a value in force comes from; `DEFAULT` is Hubtask's own.
       enum: [DEFAULT, INSTANCE, PLAN, WORKSPACE, HUB, COLLECTION, PERSON]
+
+    LinkType:
+      type: object
+      description: >
+        A kind of relation between two entries: one of the six every workspace has, or one of its
+        own. What it means is fixed once it is made.
+      required: [key, system, name, inverse_name, direction, cardinality, cycles, waits, position, archived, version]
+      properties:
+        key: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
+        system: { type: boolean, description: "One of the six every workspace has; never changed or deleted." }
+        name:
+          type: [string, "null"]
+          maxLength: 120
+          description: What the link is called from its source; null on a shipped type, which a client names by its key.
+        inverse_name:
+          type: [string, "null"]
+          maxLength: 120
+          description: What it is called from its target; null on a shipped or a symmetric type.
+        direction: { type: string, enum: [DIRECTED, SYMMETRIC] }
+        cardinality: { type: string, enum: [MANY, ONE], description: "How many links of the type one entry may start." }
+        cycles: { type: string, enum: [FORBIDDEN, ALLOWED], description: "Whether links of the type may form a loop." }
+        waits:
+          type: string
+          enum: [NONE, SOURCE, TARGET]
+          description: Which end waits for the other - SOURCE for depends_on, TARGET for blocks. A waiting link is a dependency.
+        position: { type: integer }
+        archived: { type: boolean }
+        version: { type: integer, description: "The optimistic lock; zero for a shipped type." }
+
+    LinkTypeList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/LinkType" }
+
+    LinkTypeCreate:
+      type: object
+      required: [key, name]
+      properties:
+        key: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
+        name: { type: string, maxLength: 120 }
+        inverse_name: { type: string, maxLength: 120, description: "Required unless the type is symmetric." }
+        direction: { type: string, enum: [DIRECTED, SYMMETRIC], description: "DIRECTED when absent." }
+        cardinality: { type: string, enum: [MANY, ONE], description: "MANY when absent." }
+        cycles: { type: string, enum: [FORBIDDEN, ALLOWED], description: "ALLOWED when absent." }
+        waits: { type: string, enum: [NONE, SOURCE, TARGET], description: "NONE when absent." }
+        position: { type: integer }
+
+    LinkTypeChange:
+      type: object
+      properties:
+        name: { type: string, maxLength: 120 }
+        inverse_name: { type: string, maxLength: 120 }
+        position: { type: integer }
+        archived: { type: boolean }
+
+    EntryLinkCreate:
+      type: object
+      required: [target_id, type]
+      properties:
+        target_id: { type: string, format: uuid }
+        type: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$", description: "The link type's key." }
+
+    EntryLink:
+      type: object
+      description: A link of a type from one entry (the source) to another (the target).
+      required: [id, type, source_id, target_id, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, description: "The link type's key." }
+        source_id: { type: string, format: uuid }
+        target_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        waits:
+          type: string
+          enum: [NONE, SOURCE, TARGET]
+          description: Which end waits for the other, by the link's type.
+
+    EntryLinkList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/EntryLink" }
+
+    EntryLinks:
+      type: object
+      required: [links, backlinks]
+      properties:
+        links:
+          type: array
+          description: The entry's links from both ends, oldest first.
+          items:
+            allOf:
+              - $ref: "#/components/schemas/EntryLink"
+              - type: object
+                required: [outward, other]
+                properties:
+                  outward: { type: boolean, description: "Whether this entry is the link's source." }
+                  other: { $ref: "#/components/schemas/ReferenceTarget" }
+        backlinks:
+          type: array
+          description: The notes and comments that point at the entry, from entries the reader may see.
+          items:
+            type: object
+            required: [source_kind, source_id, anchor, strength, entry]
+            properties:
+              source_kind: { type: string, enum: [ENTRY, COMMENT], description: "An entry's notes, or one of its comments." }
+              source_id: { type: string, format: uuid }
+              anchor: { type: [string, "null"] }
+              strength: { $ref: "#/components/schemas/ReferenceStrength" }
+              entry: { $ref: "#/components/schemas/ReferenceTarget" }
+
+    ReferenceKind:
+      type: string
+      description: What a reference points at. PAGE, WHITEBOARD, DASHBOARD, GOAL and SPRINT resolve once their modules exist.
+      enum: [ENTRY, HUB, COLLECTION, VIEW, PAGE, WHITEBOARD, DASHBOARD, GOAL, SPRINT]
+
+    ReferenceStrength:
+      type: string
+      description: How a reference is drawn where it stands - inline, as a card, or as a live view.
+      enum: [MENTION, CARD, EMBED]
+
+    Reference:
+      type: object
+      required: [kind, id]
+      properties:
+        kind: { $ref: "#/components/schemas/ReferenceKind" }
+        id: { type: string, format: uuid }
+        anchor: { type: string, pattern: "^[A-Za-z0-9_-]{1,64}$", description: "A place inside the object." }
+
+    ReferenceTarget:
+      type: object
+      description: >
+        What a reference shows the reader. Where the reader may not see the object, or it is not
+        there, only `kind`, `id`, `anchor` and `available: false` are present.
+      required: [kind, id, anchor, available]
+      properties:
+        kind: { $ref: "#/components/schemas/ReferenceKind" }
+        id: { type: string, format: uuid }
+        anchor: { type: [string, "null"] }
+        available: { type: boolean }
+        title: { type: string, description: "The entry's title, the container's or view's name." }
+        key: { type: [string, "null"], description: "The entry's key (`sup-128`) or the container's handle, where it has one." }
+        number: { type: [integer, "null"], format: int64 }
+        level: { $ref: "#/components/schemas/ItemType" }
+        entry_type: { type: string }
+        completed: { type: boolean }
+        archived: { type: boolean }
+        collection_id: { type: string, format: uuid }
+        start_at: { type: [string, "null"], format: date-time }
+        due_at: { type: [string, "null"], format: date-time }
+        layout: { type: string, description: "A view's layout." }
 
     EntryType:
       type: object

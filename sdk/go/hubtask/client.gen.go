@@ -1836,6 +1836,66 @@ func (e EncryptionStoreCountStore) Valid() bool {
 	}
 }
 
+// Defines values for EntryLinkWaits.
+const (
+	EntryLinkWaitsNONE   EntryLinkWaits = "NONE"
+	EntryLinkWaitsSOURCE EntryLinkWaits = "SOURCE"
+	EntryLinkWaitsTARGET EntryLinkWaits = "TARGET"
+)
+
+// Valid indicates whether the value is a known member of the EntryLinkWaits enum.
+func (e EntryLinkWaits) Valid() bool {
+	switch e {
+	case EntryLinkWaitsNONE:
+		return true
+	case EntryLinkWaitsSOURCE:
+		return true
+	case EntryLinkWaitsTARGET:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EntryLinksBacklinksSourceKind.
+const (
+	EntryLinksBacklinksSourceKindCOMMENT EntryLinksBacklinksSourceKind = "COMMENT"
+	EntryLinksBacklinksSourceKindENTRY   EntryLinksBacklinksSourceKind = "ENTRY"
+)
+
+// Valid indicates whether the value is a known member of the EntryLinksBacklinksSourceKind enum.
+func (e EntryLinksBacklinksSourceKind) Valid() bool {
+	switch e {
+	case EntryLinksBacklinksSourceKindCOMMENT:
+		return true
+	case EntryLinksBacklinksSourceKindENTRY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EntryLinksLinksWaits.
+const (
+	EntryLinksLinksWaitsNONE   EntryLinksLinksWaits = "NONE"
+	EntryLinksLinksWaitsSOURCE EntryLinksLinksWaits = "SOURCE"
+	EntryLinksLinksWaitsTARGET EntryLinksLinksWaits = "TARGET"
+)
+
+// Valid indicates whether the value is a known member of the EntryLinksLinksWaits enum.
+func (e EntryLinksLinksWaits) Valid() bool {
+	switch e {
+	case EntryLinksLinksWaitsNONE:
+		return true
+	case EntryLinksLinksWaitsSOURCE:
+		return true
+	case EntryLinksLinksWaitsTARGET:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErasureKeptHoldScopeKind.
 const (
 	ErasureKeptHoldScopeKindACCOUNT   ErasureKeptHoldScopeKind = "ACCOUNT"
@@ -2739,6 +2799,156 @@ func (e LegalLinksTermsSetBy) Valid() bool {
 	}
 }
 
+// Defines values for LinkTypeCardinality.
+const (
+	LinkTypeCardinalityMANY LinkTypeCardinality = "MANY"
+	LinkTypeCardinalityONE  LinkTypeCardinality = "ONE"
+)
+
+// Valid indicates whether the value is a known member of the LinkTypeCardinality enum.
+func (e LinkTypeCardinality) Valid() bool {
+	switch e {
+	case LinkTypeCardinalityMANY:
+		return true
+	case LinkTypeCardinalityONE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LinkTypeCycles.
+const (
+	LinkTypeCyclesALLOWED   LinkTypeCycles = "ALLOWED"
+	LinkTypeCyclesFORBIDDEN LinkTypeCycles = "FORBIDDEN"
+)
+
+// Valid indicates whether the value is a known member of the LinkTypeCycles enum.
+func (e LinkTypeCycles) Valid() bool {
+	switch e {
+	case LinkTypeCyclesALLOWED:
+		return true
+	case LinkTypeCyclesFORBIDDEN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LinkTypeDirection.
+const (
+	LinkTypeDirectionDIRECTED  LinkTypeDirection = "DIRECTED"
+	LinkTypeDirectionSYMMETRIC LinkTypeDirection = "SYMMETRIC"
+)
+
+// Valid indicates whether the value is a known member of the LinkTypeDirection enum.
+func (e LinkTypeDirection) Valid() bool {
+	switch e {
+	case LinkTypeDirectionDIRECTED:
+		return true
+	case LinkTypeDirectionSYMMETRIC:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LinkTypeWaits.
+const (
+	LinkTypeWaitsNONE   LinkTypeWaits = "NONE"
+	LinkTypeWaitsSOURCE LinkTypeWaits = "SOURCE"
+	LinkTypeWaitsTARGET LinkTypeWaits = "TARGET"
+)
+
+// Valid indicates whether the value is a known member of the LinkTypeWaits enum.
+func (e LinkTypeWaits) Valid() bool {
+	switch e {
+	case LinkTypeWaitsNONE:
+		return true
+	case LinkTypeWaitsSOURCE:
+		return true
+	case LinkTypeWaitsTARGET:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LinkTypeCreateCardinality.
+const (
+	LinkTypeCreateCardinalityMANY LinkTypeCreateCardinality = "MANY"
+	LinkTypeCreateCardinalityONE  LinkTypeCreateCardinality = "ONE"
+)
+
+// Valid indicates whether the value is a known member of the LinkTypeCreateCardinality enum.
+func (e LinkTypeCreateCardinality) Valid() bool {
+	switch e {
+	case LinkTypeCreateCardinalityMANY:
+		return true
+	case LinkTypeCreateCardinalityONE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LinkTypeCreateCycles.
+const (
+	LinkTypeCreateCyclesALLOWED   LinkTypeCreateCycles = "ALLOWED"
+	LinkTypeCreateCyclesFORBIDDEN LinkTypeCreateCycles = "FORBIDDEN"
+)
+
+// Valid indicates whether the value is a known member of the LinkTypeCreateCycles enum.
+func (e LinkTypeCreateCycles) Valid() bool {
+	switch e {
+	case LinkTypeCreateCyclesALLOWED:
+		return true
+	case LinkTypeCreateCyclesFORBIDDEN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LinkTypeCreateDirection.
+const (
+	LinkTypeCreateDirectionDIRECTED  LinkTypeCreateDirection = "DIRECTED"
+	LinkTypeCreateDirectionSYMMETRIC LinkTypeCreateDirection = "SYMMETRIC"
+)
+
+// Valid indicates whether the value is a known member of the LinkTypeCreateDirection enum.
+func (e LinkTypeCreateDirection) Valid() bool {
+	switch e {
+	case LinkTypeCreateDirectionDIRECTED:
+		return true
+	case LinkTypeCreateDirectionSYMMETRIC:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LinkTypeCreateWaits.
+const (
+	LinkTypeCreateWaitsNONE   LinkTypeCreateWaits = "NONE"
+	LinkTypeCreateWaitsSOURCE LinkTypeCreateWaits = "SOURCE"
+	LinkTypeCreateWaitsTARGET LinkTypeCreateWaits = "TARGET"
+)
+
+// Valid indicates whether the value is a known member of the LinkTypeCreateWaits enum.
+func (e LinkTypeCreateWaits) Valid() bool {
+	switch e {
+	case LinkTypeCreateWaitsNONE:
+		return true
+	case LinkTypeCreateWaitsSOURCE:
+		return true
+	case LinkTypeCreateWaitsTARGET:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MailDeliveredOutcome.
 const (
 	MailDeliveredOutcomeCOMMENT   MailDeliveredOutcome = "COMMENT"
@@ -3098,37 +3308,37 @@ func (e MfaChallengeMethods) Valid() bool {
 
 // Defines values for Module.
 const (
-	AGENTS      Module = "AGENTS"
-	ASSETS      Module = "ASSETS"
-	GOALS       Module = "GOALS"
-	KNOWLEDGE   Module = "KNOWLEDGE"
-	PLANNING    Module = "PLANNING"
-	SERVICEDESK Module = "SERVICE_DESK"
-	TIME        Module = "TIME"
-	WHITEBOARD  Module = "WHITEBOARD"
-	WORKFLOWS   Module = "WORKFLOWS"
+	ModuleAGENTS      Module = "AGENTS"
+	ModuleASSETS      Module = "ASSETS"
+	ModuleGOALS       Module = "GOALS"
+	ModuleKNOWLEDGE   Module = "KNOWLEDGE"
+	ModulePLANNING    Module = "PLANNING"
+	ModuleSERVICEDESK Module = "SERVICE_DESK"
+	ModuleTIME        Module = "TIME"
+	ModuleWHITEBOARD  Module = "WHITEBOARD"
+	ModuleWORKFLOWS   Module = "WORKFLOWS"
 )
 
 // Valid indicates whether the value is a known member of the Module enum.
 func (e Module) Valid() bool {
 	switch e {
-	case AGENTS:
+	case ModuleAGENTS:
 		return true
-	case ASSETS:
+	case ModuleASSETS:
 		return true
-	case GOALS:
+	case ModuleGOALS:
 		return true
-	case KNOWLEDGE:
+	case ModuleKNOWLEDGE:
 		return true
-	case PLANNING:
+	case ModulePLANNING:
 		return true
-	case SERVICEDESK:
+	case ModuleSERVICEDESK:
 		return true
-	case TIME:
+	case ModuleTIME:
 		return true
-	case WHITEBOARD:
+	case ModuleWHITEBOARD:
 		return true
-	case WORKFLOWS:
+	case ModuleWORKFLOWS:
 		return true
 	default:
 		return false
@@ -3798,6 +4008,66 @@ func (e RecurrenceMode) Valid() bool {
 	case ONCOMPLETION:
 		return true
 	case ONSCHEDULE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReferenceKind.
+const (
+	ReferenceKindCOLLECTION ReferenceKind = "COLLECTION"
+	ReferenceKindDASHBOARD  ReferenceKind = "DASHBOARD"
+	ReferenceKindENTRY      ReferenceKind = "ENTRY"
+	ReferenceKindGOAL       ReferenceKind = "GOAL"
+	ReferenceKindHUB        ReferenceKind = "HUB"
+	ReferenceKindPAGE       ReferenceKind = "PAGE"
+	ReferenceKindSPRINT     ReferenceKind = "SPRINT"
+	ReferenceKindVIEW       ReferenceKind = "VIEW"
+	ReferenceKindWHITEBOARD ReferenceKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the ReferenceKind enum.
+func (e ReferenceKind) Valid() bool {
+	switch e {
+	case ReferenceKindCOLLECTION:
+		return true
+	case ReferenceKindDASHBOARD:
+		return true
+	case ReferenceKindENTRY:
+		return true
+	case ReferenceKindGOAL:
+		return true
+	case ReferenceKindHUB:
+		return true
+	case ReferenceKindPAGE:
+		return true
+	case ReferenceKindSPRINT:
+		return true
+	case ReferenceKindVIEW:
+		return true
+	case ReferenceKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReferenceStrength.
+const (
+	CARD    ReferenceStrength = "CARD"
+	EMBED   ReferenceStrength = "EMBED"
+	MENTION ReferenceStrength = "MENTION"
+)
+
+// Valid indicates whether the value is a known member of the ReferenceStrength enum.
+func (e ReferenceStrength) Valid() bool {
+	switch e {
+	case CARD:
+		return true
+	case EMBED:
+		return true
+	case MENTION:
 		return true
 	default:
 		return false
@@ -7994,6 +8264,80 @@ type EntryHidden struct {
 	Level bool `json:"level"`
 }
 
+// EntryLink A link of a type from one entry (the source) to another (the target).
+type EntryLink struct {
+	CreatedAt time.Time          `json:"created_at"`
+	Id        openapi_types.UUID `json:"id"`
+	SourceId  openapi_types.UUID `json:"source_id"`
+	TargetId  openapi_types.UUID `json:"target_id"`
+
+	// Type The link type's key.
+	Type string `json:"type"`
+
+	// Waits Which end waits for the other, by the link's type.
+	Waits *EntryLinkWaits `json:"waits,omitempty"`
+}
+
+// EntryLinkWaits Which end waits for the other, by the link's type.
+type EntryLinkWaits string
+
+// EntryLinkCreate defines model for EntryLinkCreate.
+type EntryLinkCreate struct {
+	TargetId openapi_types.UUID `json:"target_id"`
+
+	// Type The link type's key.
+	Type string `json:"type"`
+}
+
+// EntryLinkList defines model for EntryLinkList.
+type EntryLinkList struct {
+	Data []EntryLink `json:"data"`
+}
+
+// EntryLinks defines model for EntryLinks.
+type EntryLinks struct {
+	// Backlinks The notes and comments that point at the entry, from entries the reader may see.
+	Backlinks []struct {
+		Anchor *string `json:"anchor"`
+
+		// Entry What a reference shows the reader. Where the reader may not see the object, or it is not there, only `kind`, `id`, `anchor` and `available: false` are present.
+		Entry    ReferenceTarget    `json:"entry"`
+		SourceId openapi_types.UUID `json:"source_id"`
+
+		// SourceKind An entry's notes, or one of its comments.
+		SourceKind EntryLinksBacklinksSourceKind `json:"source_kind"`
+
+		// Strength How a reference is drawn where it stands - inline, as a card, or as a live view.
+		Strength ReferenceStrength `json:"strength"`
+	} `json:"backlinks"`
+
+	// Links The entry's links from both ends, oldest first.
+	Links []struct {
+		CreatedAt time.Time          `json:"created_at"`
+		Id        openapi_types.UUID `json:"id"`
+
+		// Other What a reference shows the reader. Where the reader may not see the object, or it is not there, only `kind`, `id`, `anchor` and `available: false` are present.
+		Other ReferenceTarget `json:"other"`
+
+		// Outward Whether this entry is the link's source.
+		Outward  bool               `json:"outward"`
+		SourceId openapi_types.UUID `json:"source_id"`
+		TargetId openapi_types.UUID `json:"target_id"`
+
+		// Type The link type's key.
+		Type string `json:"type"`
+
+		// Waits Which end waits for the other, by the link's type.
+		Waits *EntryLinksLinksWaits `json:"waits,omitempty"`
+	} `json:"links"`
+}
+
+// EntryLinksBacklinksSourceKind An entry's notes, or one of its comments.
+type EntryLinksBacklinksSourceKind string
+
+// EntryLinksLinksWaits Which end waits for the other, by the link's type.
+type EntryLinksLinksWaits string
+
 // EntryType A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries.
 type EntryType struct {
 	// AllowedChildren The keys of the types of the level below that may sit underneath; empty allows every one.
@@ -9402,6 +9746,93 @@ type LinkCompletion struct {
 
 	// PendingToken The `LINK` challenge's credential. It dies on use.
 	PendingToken string `json:"pending_token"`
+}
+
+// LinkType A kind of relation between two entries: one of the six every workspace has, or one of its own. What it means is fixed once it is made.
+type LinkType struct {
+	Archived bool `json:"archived"`
+
+	// Cardinality How many links of the type one entry may start.
+	Cardinality LinkTypeCardinality `json:"cardinality"`
+
+	// Cycles Whether links of the type may form a loop.
+	Cycles    LinkTypeCycles    `json:"cycles"`
+	Direction LinkTypeDirection `json:"direction"`
+
+	// InverseName What it is called from its target; null on a shipped or a symmetric type.
+	InverseName *string `json:"inverse_name"`
+	Key         string  `json:"key"`
+
+	// Name What the link is called from its source; null on a shipped type, which a client names by its key.
+	Name     *string `json:"name"`
+	Position int     `json:"position"`
+
+	// System One of the six every workspace has; never changed or deleted.
+	System bool `json:"system"`
+
+	// Version The optimistic lock; zero for a shipped type.
+	Version int `json:"version"`
+
+	// Waits Which end waits for the other - SOURCE for depends_on, TARGET for blocks. A waiting link is a dependency.
+	Waits LinkTypeWaits `json:"waits"`
+}
+
+// LinkTypeCardinality How many links of the type one entry may start.
+type LinkTypeCardinality string
+
+// LinkTypeCycles Whether links of the type may form a loop.
+type LinkTypeCycles string
+
+// LinkTypeDirection defines model for LinkType.Direction.
+type LinkTypeDirection string
+
+// LinkTypeWaits Which end waits for the other - SOURCE for depends_on, TARGET for blocks. A waiting link is a dependency.
+type LinkTypeWaits string
+
+// LinkTypeChange defines model for LinkTypeChange.
+type LinkTypeChange struct {
+	Archived    *bool   `json:"archived,omitempty"`
+	InverseName *string `json:"inverse_name,omitempty"`
+	Name        *string `json:"name,omitempty"`
+	Position    *int    `json:"position,omitempty"`
+}
+
+// LinkTypeCreate defines model for LinkTypeCreate.
+type LinkTypeCreate struct {
+	// Cardinality MANY when absent.
+	Cardinality *LinkTypeCreateCardinality `json:"cardinality,omitempty"`
+
+	// Cycles ALLOWED when absent.
+	Cycles *LinkTypeCreateCycles `json:"cycles,omitempty"`
+
+	// Direction DIRECTED when absent.
+	Direction *LinkTypeCreateDirection `json:"direction,omitempty"`
+
+	// InverseName Required unless the type is symmetric.
+	InverseName *string `json:"inverse_name,omitempty"`
+	Key         string  `json:"key"`
+	Name        string  `json:"name"`
+	Position    *int    `json:"position,omitempty"`
+
+	// Waits NONE when absent.
+	Waits *LinkTypeCreateWaits `json:"waits,omitempty"`
+}
+
+// LinkTypeCreateCardinality MANY when absent.
+type LinkTypeCreateCardinality string
+
+// LinkTypeCreateCycles ALLOWED when absent.
+type LinkTypeCreateCycles string
+
+// LinkTypeCreateDirection DIRECTED when absent.
+type LinkTypeCreateDirection string
+
+// LinkTypeCreateWaits NONE when absent.
+type LinkTypeCreateWaits string
+
+// LinkTypeList defines model for LinkTypeList.
+type LinkTypeList struct {
+	Data []LinkType `json:"data"`
 }
 
 // Lookalike defines model for Lookalike.
@@ -11163,6 +11594,51 @@ type RecurrenceInput struct {
 
 // RecurrenceMode ON_SCHEDULE puts the next occurrence in place at its time, whether or not the last one was done - a rent payment does not wait. ON_COMPLETION creates the next one only once its predecessor is completed - a task that means "again, two weeks after I last did it".
 type RecurrenceMode string
+
+// Reference defines model for Reference.
+type Reference struct {
+	// Anchor A place inside the object.
+	Anchor *string            `json:"anchor,omitempty"`
+	Id     openapi_types.UUID `json:"id"`
+
+	// Kind What a reference points at. PAGE, WHITEBOARD, DASHBOARD, GOAL and SPRINT resolve once their modules exist.
+	Kind ReferenceKind `json:"kind"`
+}
+
+// ReferenceKind What a reference points at. PAGE, WHITEBOARD, DASHBOARD, GOAL and SPRINT resolve once their modules exist.
+type ReferenceKind string
+
+// ReferenceStrength How a reference is drawn where it stands - inline, as a card, or as a live view.
+type ReferenceStrength string
+
+// ReferenceTarget What a reference shows the reader. Where the reader may not see the object, or it is not there, only `kind`, `id`, `anchor` and `available: false` are present.
+type ReferenceTarget struct {
+	Anchor       *string             `json:"anchor"`
+	Archived     *bool               `json:"archived,omitempty"`
+	Available    bool                `json:"available"`
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+	Completed    *bool               `json:"completed,omitempty"`
+	DueAt        *time.Time          `json:"due_at,omitempty"`
+	EntryType    *string             `json:"entry_type,omitempty"`
+	Id           openapi_types.UUID  `json:"id"`
+
+	// Key The entry's key (`sup-128`) or the container's handle, where it has one.
+	Key *string `json:"key,omitempty"`
+
+	// Kind What a reference points at. PAGE, WHITEBOARD, DASHBOARD, GOAL and SPRINT resolve once their modules exist.
+	Kind ReferenceKind `json:"kind"`
+
+	// Layout A view's layout.
+	Layout *string `json:"layout,omitempty"`
+
+	// Level Extensible; /meta/capabilities returns the valid values.
+	Level   *ItemType  `json:"level,omitempty"`
+	Number  *int64     `json:"number,omitempty"`
+	StartAt *time.Time `json:"start_at,omitempty"`
+
+	// Title The entry's title, the container's or view's name.
+	Title *string `json:"title,omitempty"`
+}
 
 // Reminder defines model for Reminder.
 type Reminder struct {
@@ -14731,6 +15207,17 @@ type ListLegalHoldsParams struct {
 	IncludeReleased *bool `form:"include_released,omitempty" json:"include_released,omitempty"`
 }
 
+// ChangeLinkTypeParams defines parameters for ChangeLinkType.
+type ChangeLinkTypeParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ListLinksAmongJSONBody defines parameters for ListLinksAmong.
+type ListLinksAmongJSONBody struct {
+	ItemIds []openapi_types.UUID `json:"item_ids"`
+}
+
 // DeliverAddressedMailMultipartBody defines parameters for DeliverAddressedMail.
 type DeliverAddressedMailMultipartBody struct {
 	BodyMime  *string `json:"body-mime,omitempty"`
@@ -14878,6 +15365,11 @@ type ExtendDataSubjectRequestParams struct {
 type OpenPrivateHubParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ResolveReferencesJSONBody defines parameters for ResolveReferences.
+type ResolveReferencesJSONBody struct {
+	References []Reference `json:"references"`
 }
 
 // ListRetentionPoliciesParams defines parameters for ListRetentionPolicies.
@@ -15403,6 +15895,9 @@ type SetDueDateJSONRequestBody = DueDateInput
 // SetItemEntryTypeJSONRequestBody defines body for SetItemEntryType for application/json ContentType.
 type SetItemEntryTypeJSONRequestBody SetItemEntryTypeJSONBody
 
+// LinkEntriesJSONRequestBody defines body for LinkEntries for application/json ContentType.
+type LinkEntriesJSONRequestBody = EntryLinkCreate
+
 // SetRecurrenceJSONRequestBody defines body for SetRecurrence for application/json ContentType.
 type SetRecurrenceJSONRequestBody = RecurrenceInput
 
@@ -15472,6 +15967,15 @@ type PlaceLegalHoldJSONRequestBody = LegalHoldCreate
 // ReleaseLegalHoldJSONRequestBody defines body for ReleaseLegalHold for application/json ContentType.
 type ReleaseLegalHoldJSONRequestBody = LegalHoldRelease
 
+// CreateLinkTypeJSONRequestBody defines body for CreateLinkType for application/json ContentType.
+type CreateLinkTypeJSONRequestBody = LinkTypeCreate
+
+// ChangeLinkTypeApplicationMergePatchPlusJSONRequestBody defines body for ChangeLinkType for application/merge-patch+json ContentType.
+type ChangeLinkTypeApplicationMergePatchPlusJSONRequestBody = LinkTypeChange
+
+// ListLinksAmongJSONRequestBody defines body for ListLinksAmong for application/json ContentType.
+type ListLinksAmongJSONRequestBody ListLinksAmongJSONBody
+
 // DeliverAddressedMailMultipartRequestBody defines body for DeliverAddressedMail for multipart/form-data ContentType.
 type DeliverAddressedMailMultipartRequestBody DeliverAddressedMailMultipartBody
 
@@ -15528,6 +16032,9 @@ type ExtendDataSubjectRequestJSONRequestBody = DataSubjectRequestExtension
 
 // OpenPrivateHubJSONRequestBody defines body for OpenPrivateHub for application/json ContentType.
 type OpenPrivateHubJSONRequestBody = PrivateHubAccessRequest
+
+// ResolveReferencesJSONRequestBody defines body for ResolveReferences for application/json ContentType.
+type ResolveReferencesJSONRequestBody ResolveReferencesJSONBody
 
 // StartRestoreJSONRequestBody defines body for StartRestore for application/json ContentType.
 type StartRestoreJSONRequestBody = RestoreRequest
@@ -19255,6 +19762,31 @@ type ClientInterface interface {
 	// Puts a label on an entry. Idempotent: an entry that already carries it succeeds. The label has to belong to the entry's own collection - a label is a vocabulary one collection agreed on - and the entry's type has to carry the LABELS capability.
 	AddLabel(ctx context.Context, itemId ItemId, labelId LabelId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListEntryLinks An entry's links and backlinks
+	//
+	// The entry's links from both ends, each with the far end as the reader may see it - its title, key and state, or only its identifier and `available: false` - and its backlinks: the notes and comments that point at it, from entries the reader may see. Needs READ on the entry.
+	//
+	// Corresponds with GET /items/{itemId}/links (the `ListEntryLinks` operationId).
+	ListEntryLinks(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LinkEntriesWithBody Link the entry to another
+	//
+	// Draws a link of a type from this entry to another. Needs WRITE_ITEMS on this entry and sight of the other; one out of sight is not found, as a missing one is. A link that would close a loop of a type that forbids loops is refused with `links.cycle` - for a dependency, judged over every type one end waits on; a second link of a type of one per entry with `links.cardinality`; one already drawn with `links.exists`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /items/{itemId}/links (the `LinkEntries` operationId).
+	LinkEntriesWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LinkEntries Link the entry to another
+	//
+	// Draws a link of a type from this entry to another. Needs WRITE_ITEMS on this entry and sight of the other; one out of sight is not found, as a missing one is. A link that would close a loop of a type that forbids loops is refused with `links.cycle` - for a dependency, judged over every type one end waits on; a second link of a type of one per entry with `links.cardinality`; one already drawn with `links.exists`.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /items/{itemId}/links (the `LinkEntries` operationId).
+	LinkEntries(ctx context.Context, itemId ItemId, body LinkEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RemoveMember performs a DELETE /items/{itemId}/members/{accountId} (the `RemoveMember` operationId) request.
 	//
 	// Takes an account off an entry's member list. Idempotent: an entry that does not carry it succeeds.
@@ -19874,6 +20406,81 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /legal-holds/{holdId}:release (the `ReleaseLegalHold` operationId).
 	ReleaseLegalHold(ctx context.Context, holdId openapi_types.UUID, body ReleaseLegalHoldJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListLinkTypes The workspace's link types
+	//
+	// Every link type of the workspace: the six every workspace has (`blocks`, `depends_on`, `duplicates`, `runs_on`, `affects`, `implements`) and its own, each with its direction, cardinality, cycle rule and which end waits for the other. A shipped type answers null names, which a client fills with its own words for the key. Archived types are included and marked. Needs a signed-in member of the workspace.
+	//
+	// Corresponds with GET /link-types (the `ListLinkTypes` operationId).
+	ListLinkTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateLinkTypeWithBody Add a link type
+	//
+	// Adds a link type of the workspace's own with a key free in the workspace and its two names. What it means - its direction, cardinality, cycle rule and which end waits - is fixed once it is made. A symmetric type has no waiting end and no limit of one; a type an end waits on forbids loops. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /link-types (the `CreateLinkType` operationId).
+	CreateLinkTypeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateLinkType Add a link type
+	//
+	// Adds a link type of the workspace's own with a key free in the workspace and its two names. What it means - its direction, cardinality, cycle rule and which end waits - is fixed once it is made. A symmetric type has no waiting end and no limit of one; a type an end waits on forbids loops. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /link-types (the `CreateLinkType` operationId).
+	CreateLinkType(ctx context.Context, body CreateLinkTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteLinkType Delete an unused link type
+	//
+	// Deletes one of the workspace's own link types that no link names. A type in use is refused with `link_types.in_use` and can only be archived. Needs STRUCTURE at the workspace.
+	//
+	// Corresponds with DELETE /link-types/{key} (the `DeleteLinkType` operationId).
+	DeleteLinkType(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeLinkTypeWithBody Change a link type
+	//
+	// Renames, reorders, archives or restores one of the workspace's own link types. An archived type draws no new link and the links that stand stay readable. A shipped type does not change (`link_types.system_fixed`). Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /link-types/{key} (the `ChangeLinkType` operationId).
+	ChangeLinkTypeWithBody(ctx context.Context, key string, params *ChangeLinkTypeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeLinkTypeWithApplicationMergePatchPlusJSONBody Change a link type
+	//
+	// Renames, reorders, archives or restores one of the workspace's own link types. An archived type draws no new link and the links that stand stay readable. A shipped type does not change (`link_types.system_fixed`). Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/merge-patch+json` content type.
+	//
+	// Corresponds with PATCH /link-types/{key} (the `ChangeLinkType` operationId).
+	ChangeLinkTypeWithApplicationMergePatchPlusJSONBody(ctx context.Context, key string, params *ChangeLinkTypeParams, body ChangeLinkTypeApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UnlinkEntries Remove a link
+	//
+	// Removes a link between two entries. Whoever may change either end may remove it.
+	//
+	// Corresponds with DELETE /links/{linkId} (the `UnlinkEntries` operationId).
+	UnlinkEntries(ctx context.Context, linkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListLinksAmongWithBody The links between the entries a view shows
+	//
+	// The links with both ends among the given entries, at most 500 of them, each with which end waits for the other - what a timeline draws as dependencies. A `POST` because the list of entries is a body rather than a query string. A link with an end the caller may not see is left out.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /links:query (the `ListLinksAmong` operationId).
+	ListLinksAmongWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListLinksAmong The links between the entries a view shows
+	//
+	// The links with both ends among the given entries, at most 500 of them, each with which end waits for the other - what a timeline draws as dependencies. A `POST` because the list of entries is a body rather than a query string. A link with an end the caller may not see is left out.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /links:query (the `ListLinksAmong` operationId).
+	ListLinksAmong(ctx context.Context, body ListLinksAmongJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeliverAddressedMailWithBody Deliver a mail to the operator's receiving domain
 	//
@@ -20549,6 +21156,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /quotas (the `ReadQuotas` operationId).
 	ReadQuotas(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ResolveReferencesWithBody Resolve references for the caller
+	//
+	// Resolves up to 100 references to what a mention, a card or a live view shows of each: the title, key and state the caller may see. One the caller may not see, one that is not there, and one of a module that does not exist yet all answer only their address and `available: false` - never a title. Text writes a reference as a Markdown link to `hubtask:<kind>/<id>#<anchor>`; an image of the link draws a card or a live view.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /references:resolve (the `ResolveReferences` operationId).
+	ResolveReferencesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ResolveReferences Resolve references for the caller
+	//
+	// Resolves up to 100 references to what a mention, a card or a live view shows of each: the title, key and state the caller may see. One the caller may not see, one that is not there, and one of a module that does not exist yet all answer only their address and `available: false` - never a title. Text writes a reference as a Markdown link to `hubtask:<kind>/<id>#<anchor>`; an image of the link draws a card or a live view.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /references:resolve (the `ResolveReferences` operationId).
+	ResolveReferences(ctx context.Context, body ResolveReferencesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StartRestoreWithBody Start a restore
 	//
@@ -28604,6 +29229,61 @@ func (c *Client) AddLabel(ctx context.Context, itemId ItemId, labelId LabelId, r
 	return c.Client.Do(req)
 }
 
+// ListEntryLinks An entry's links and backlinks
+//
+// The entry's links from both ends, each with the far end as the reader may see it - its title, key and state, or only its identifier and `available: false` - and its backlinks: the notes and comments that point at it, from entries the reader may see. Needs READ on the entry.
+//
+// Corresponds with GET /items/{itemId}/links (the `ListEntryLinks` operationId).
+func (c *Client) ListEntryLinks(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListEntryLinksRequest(c.Server, itemId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LinkEntriesWithBody Link the entry to another
+//
+// Draws a link of a type from this entry to another. Needs WRITE_ITEMS on this entry and sight of the other; one out of sight is not found, as a missing one is. A link that would close a loop of a type that forbids loops is refused with `links.cycle` - for a dependency, judged over every type one end waits on; a second link of a type of one per entry with `links.cardinality`; one already drawn with `links.exists`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /items/{itemId}/links (the `LinkEntries` operationId).
+func (c *Client) LinkEntriesWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLinkEntriesRequestWithBody(c.Server, itemId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LinkEntries Link the entry to another
+//
+// Draws a link of a type from this entry to another. Needs WRITE_ITEMS on this entry and sight of the other; one out of sight is not found, as a missing one is. A link that would close a loop of a type that forbids loops is refused with `links.cycle` - for a dependency, judged over every type one end waits on; a second link of a type of one per entry with `links.cardinality`; one already drawn with `links.exists`.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /items/{itemId}/links (the `LinkEntries` operationId).
+func (c *Client) LinkEntries(ctx context.Context, itemId ItemId, body LinkEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLinkEntriesRequest(c.Server, itemId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // RemoveMember performs a DELETE /items/{itemId}/members/{accountId} (the `RemoveMember` operationId) request.
 //
 // Takes an account off an entry's member list. Idempotent: an entry that does not carry it succeeds.
@@ -29954,6 +30634,171 @@ func (c *Client) ReleaseLegalHold(ctx context.Context, holdId openapi_types.UUID
 	return c.Client.Do(req)
 }
 
+// ListLinkTypes The workspace's link types
+//
+// Every link type of the workspace: the six every workspace has (`blocks`, `depends_on`, `duplicates`, `runs_on`, `affects`, `implements`) and its own, each with its direction, cardinality, cycle rule and which end waits for the other. A shipped type answers null names, which a client fills with its own words for the key. Archived types are included and marked. Needs a signed-in member of the workspace.
+//
+// Corresponds with GET /link-types (the `ListLinkTypes` operationId).
+func (c *Client) ListLinkTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListLinkTypesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateLinkTypeWithBody Add a link type
+//
+// Adds a link type of the workspace's own with a key free in the workspace and its two names. What it means - its direction, cardinality, cycle rule and which end waits - is fixed once it is made. A symmetric type has no waiting end and no limit of one; a type an end waits on forbids loops. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /link-types (the `CreateLinkType` operationId).
+func (c *Client) CreateLinkTypeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateLinkTypeRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateLinkType Add a link type
+//
+// Adds a link type of the workspace's own with a key free in the workspace and its two names. What it means - its direction, cardinality, cycle rule and which end waits - is fixed once it is made. A symmetric type has no waiting end and no limit of one; a type an end waits on forbids loops. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /link-types (the `CreateLinkType` operationId).
+func (c *Client) CreateLinkType(ctx context.Context, body CreateLinkTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateLinkTypeRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteLinkType Delete an unused link type
+//
+// Deletes one of the workspace's own link types that no link names. A type in use is refused with `link_types.in_use` and can only be archived. Needs STRUCTURE at the workspace.
+//
+// Corresponds with DELETE /link-types/{key} (the `DeleteLinkType` operationId).
+func (c *Client) DeleteLinkType(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteLinkTypeRequest(c.Server, key)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeLinkTypeWithBody Change a link type
+//
+// Renames, reorders, archives or restores one of the workspace's own link types. An archived type draws no new link and the links that stand stay readable. A shipped type does not change (`link_types.system_fixed`). Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /link-types/{key} (the `ChangeLinkType` operationId).
+func (c *Client) ChangeLinkTypeWithBody(ctx context.Context, key string, params *ChangeLinkTypeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeLinkTypeRequestWithBody(c.Server, key, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeLinkTypeWithApplicationMergePatchPlusJSONBody Change a link type
+//
+// Renames, reorders, archives or restores one of the workspace's own link types. An archived type draws no new link and the links that stand stay readable. A shipped type does not change (`link_types.system_fixed`). Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/merge-patch+json` content type.
+//
+// Corresponds with PATCH /link-types/{key} (the `ChangeLinkType` operationId).
+func (c *Client) ChangeLinkTypeWithApplicationMergePatchPlusJSONBody(ctx context.Context, key string, params *ChangeLinkTypeParams, body ChangeLinkTypeApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeLinkTypeRequestWithApplicationMergePatchPlusJSONBody(c.Server, key, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UnlinkEntries Remove a link
+//
+// Removes a link between two entries. Whoever may change either end may remove it.
+//
+// Corresponds with DELETE /links/{linkId} (the `UnlinkEntries` operationId).
+func (c *Client) UnlinkEntries(ctx context.Context, linkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUnlinkEntriesRequest(c.Server, linkId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListLinksAmongWithBody The links between the entries a view shows
+//
+// The links with both ends among the given entries, at most 500 of them, each with which end waits for the other - what a timeline draws as dependencies. A `POST` because the list of entries is a body rather than a query string. A link with an end the caller may not see is left out.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /links:query (the `ListLinksAmong` operationId).
+func (c *Client) ListLinksAmongWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListLinksAmongRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListLinksAmong The links between the entries a view shows
+//
+// The links with both ends among the given entries, at most 500 of them, each with which end waits for the other - what a timeline draws as dependencies. A `POST` because the list of entries is a body rather than a query string. A link with an end the caller may not see is left out.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /links:query (the `ListLinksAmong` operationId).
+func (c *Client) ListLinksAmong(ctx context.Context, body ListLinksAmongJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListLinksAmongRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // DeliverAddressedMailWithBody Deliver a mail to the operator's receiving domain
 //
 // The installation's inbound route: the inbound service the receiving domain's MX points at posts each raw message here, authenticated by `HUBTASK_MAIL_INBOUND_KEY` as a bearer token or as the password of the URL's basic credentials. The workspace is the one an address names - `<workspace>@`, `<workspace>+<tag>@` or `<handle>.<workspace>@` at the receiving domain - whose intake is on.
@@ -31269,6 +32114,44 @@ func (c *Client) OpenPrivateHub(ctx context.Context, hubId HubId, params *OpenPr
 // Corresponds with GET /quotas (the `ReadQuotas` operationId).
 func (c *Client) ReadQuotas(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadQuotasRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ResolveReferencesWithBody Resolve references for the caller
+//
+// Resolves up to 100 references to what a mention, a card or a live view shows of each: the title, key and state the caller may see. One the caller may not see, one that is not there, and one of a module that does not exist yet all answer only their address and `available: false` - never a title. Text writes a reference as a Markdown link to `hubtask:<kind>/<id>#<anchor>`; an image of the link draws a card or a live view.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /references:resolve (the `ResolveReferences` operationId).
+func (c *Client) ResolveReferencesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResolveReferencesRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ResolveReferences Resolve references for the caller
+//
+// Resolves up to 100 references to what a mention, a card or a live view shows of each: the title, key and state the caller may see. One the caller may not see, one that is not there, and one of a module that does not exist yet all answer only their address and `available: false` - never a title. Text writes a reference as a Markdown link to `hubtask:<kind>/<id>#<anchor>`; an image of the link draws a card or a live view.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /references:resolve (the `ResolveReferences` operationId).
+func (c *Client) ResolveReferences(ctx context.Context, body ResolveReferencesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResolveReferencesRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -44642,6 +45525,87 @@ func NewAddLabelRequest(server string, itemId ItemId, labelId LabelId) (*http.Re
 	return req, nil
 }
 
+// NewListEntryLinksRequest constructs an http.Request for the ListEntryLinks method
+func NewListEntryLinksRequest(server string, itemId ItemId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/links", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewLinkEntriesRequest calls the generic LinkEntries builder with application/json body
+func NewLinkEntriesRequest(server string, itemId ItemId, body LinkEntriesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewLinkEntriesRequestWithBody(server, itemId, "application/json", bodyReader)
+}
+
+// NewLinkEntriesRequestWithBody constructs an http.Request for the LinkEntries method, with any body, and a specified content type
+func NewLinkEntriesRequestWithBody(server string, itemId ItemId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/links", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewRemoveMemberRequest constructs an http.Request for the RemoveMember method
 func NewRemoveMemberRequest(server string, itemId ItemId, accountId AccountId) (*http.Request, error) {
 	var err error
@@ -47183,6 +48147,243 @@ func NewReleaseLegalHoldRequestWithBody(server string, holdId openapi_types.UUID
 	return req, nil
 }
 
+// NewListLinkTypesRequest constructs an http.Request for the ListLinkTypes method
+func NewListLinkTypesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/link-types")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateLinkTypeRequest calls the generic CreateLinkType builder with application/json body
+func NewCreateLinkTypeRequest(server string, body CreateLinkTypeJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateLinkTypeRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateLinkTypeRequestWithBody constructs an http.Request for the CreateLinkType method, with any body, and a specified content type
+func NewCreateLinkTypeRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/link-types")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteLinkTypeRequest constructs an http.Request for the DeleteLinkType method
+func NewDeleteLinkTypeRequest(server string, key string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/link-types/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewChangeLinkTypeRequestWithApplicationMergePatchPlusJSONBody calls the generic ChangeLinkType builder with application/merge-patch+json body
+func NewChangeLinkTypeRequestWithApplicationMergePatchPlusJSONBody(server string, key string, params *ChangeLinkTypeParams, body ChangeLinkTypeApplicationMergePatchPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangeLinkTypeRequestWithBody(server, key, params, "application/merge-patch+json", bodyReader)
+}
+
+// NewChangeLinkTypeRequestWithBody constructs an http.Request for the ChangeLinkType method, with any body, and a specified content type
+func NewChangeLinkTypeRequestWithBody(server string, key string, params *ChangeLinkTypeParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/link-types/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewUnlinkEntriesRequest constructs an http.Request for the UnlinkEntries method
+func NewUnlinkEntriesRequest(server string, linkId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "linkId", linkId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/links/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListLinksAmongRequest calls the generic ListLinksAmong builder with application/json body
+func NewListLinksAmongRequest(server string, body ListLinksAmongJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewListLinksAmongRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewListLinksAmongRequestWithBody constructs an http.Request for the ListLinksAmong method, with any body, and a specified content type
+func NewListLinksAmongRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/links:query")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewDeliverAddressedMailRequestWithBody constructs an http.Request for the DeliverAddressedMail method, with any body, and a specified content type
 func NewDeliverAddressedMailRequestWithBody(server string, params *DeliverAddressedMailParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
@@ -49315,6 +50516,46 @@ func NewReadQuotasRequest(server string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewResolveReferencesRequest calls the generic ResolveReferences builder with application/json body
+func NewResolveReferencesRequest(server string, body ResolveReferencesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewResolveReferencesRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewResolveReferencesRequestWithBody constructs an http.Request for the ResolveReferences method, with any body, and a specified content type
+func NewResolveReferencesRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/references:resolve")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -55470,6 +56711,33 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	AddLabelWithResponse(ctx context.Context, itemId ItemId, labelId LabelId, reqEditors ...RequestEditorFn) (*AddLabelResult, error)
 
+	// ListEntryLinksWithResponse An entry's links and backlinks
+	//
+	// The entry's links from both ends, each with the far end as the reader may see it - its title, key and state, or only its identifier and `available: false` - and its backlinks: the notes and comments that point at it, from entries the reader may see. Needs READ on the entry.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /items/{itemId}/links (the `ListEntryLinks` operationId).
+	ListEntryLinksWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ListEntryLinksResult, error)
+
+	// LinkEntriesWithBodyWithResponse Link the entry to another
+	//
+	// Draws a link of a type from this entry to another. Needs WRITE_ITEMS on this entry and sight of the other; one out of sight is not found, as a missing one is. A link that would close a loop of a type that forbids loops is refused with `links.cycle` - for a dependency, judged over every type one end waits on; a second link of a type of one per entry with `links.cardinality`; one already drawn with `links.exists`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}/links (the `LinkEntries` operationId).
+	LinkEntriesWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LinkEntriesResult, error)
+
+	// LinkEntriesWithResponse Link the entry to another
+	//
+	// Draws a link of a type from this entry to another. Needs WRITE_ITEMS on this entry and sight of the other; one out of sight is not found, as a missing one is. A link that would close a loop of a type that forbids loops is refused with `links.cycle` - for a dependency, judged over every type one end waits on; a second link of a type of one per entry with `links.cardinality`; one already drawn with `links.exists`.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}/links (the `LinkEntries` operationId).
+	LinkEntriesWithResponse(ctx context.Context, itemId ItemId, body LinkEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*LinkEntriesResult, error)
+
 	// RemoveMemberWithResponse performs a DELETE /items/{itemId}/members/{accountId} (the `RemoveMember` operationId) request.
 	//
 	// Takes an account off an entry's member list. Idempotent: an entry that does not carry it succeeds.
@@ -56159,6 +57427,87 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /legal-holds/{holdId}:release (the `ReleaseLegalHold` operationId).
 	ReleaseLegalHoldWithResponse(ctx context.Context, holdId openapi_types.UUID, body ReleaseLegalHoldJSONRequestBody, reqEditors ...RequestEditorFn) (*ReleaseLegalHoldResult, error)
+
+	// ListLinkTypesWithResponse The workspace's link types
+	//
+	// Every link type of the workspace: the six every workspace has (`blocks`, `depends_on`, `duplicates`, `runs_on`, `affects`, `implements`) and its own, each with its direction, cardinality, cycle rule and which end waits for the other. A shipped type answers null names, which a client fills with its own words for the key. Archived types are included and marked. Needs a signed-in member of the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /link-types (the `ListLinkTypes` operationId).
+	ListLinkTypesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListLinkTypesResult, error)
+
+	// CreateLinkTypeWithBodyWithResponse Add a link type
+	//
+	// Adds a link type of the workspace's own with a key free in the workspace and its two names. What it means - its direction, cardinality, cycle rule and which end waits - is fixed once it is made. A symmetric type has no waiting end and no limit of one; a type an end waits on forbids loops. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /link-types (the `CreateLinkType` operationId).
+	CreateLinkTypeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateLinkTypeResult, error)
+
+	// CreateLinkTypeWithResponse Add a link type
+	//
+	// Adds a link type of the workspace's own with a key free in the workspace and its two names. What it means - its direction, cardinality, cycle rule and which end waits - is fixed once it is made. A symmetric type has no waiting end and no limit of one; a type an end waits on forbids loops. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /link-types (the `CreateLinkType` operationId).
+	CreateLinkTypeWithResponse(ctx context.Context, body CreateLinkTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateLinkTypeResult, error)
+
+	// DeleteLinkTypeWithResponse Delete an unused link type
+	//
+	// Deletes one of the workspace's own link types that no link names. A type in use is refused with `link_types.in_use` and can only be archived. Needs STRUCTURE at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /link-types/{key} (the `DeleteLinkType` operationId).
+	DeleteLinkTypeWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*DeleteLinkTypeResult, error)
+
+	// ChangeLinkTypeWithBodyWithResponse Change a link type
+	//
+	// Renames, reorders, archives or restores one of the workspace's own link types. An archived type draws no new link and the links that stand stay readable. A shipped type does not change (`link_types.system_fixed`). Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /link-types/{key} (the `ChangeLinkType` operationId).
+	ChangeLinkTypeWithBodyWithResponse(ctx context.Context, key string, params *ChangeLinkTypeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeLinkTypeResult, error)
+
+	// ChangeLinkTypeWithApplicationMergePatchPlusJSONBodyWithResponse Change a link type
+	//
+	// Renames, reorders, archives or restores one of the workspace's own link types. An archived type draws no new link and the links that stand stay readable. A shipped type does not change (`link_types.system_fixed`). Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /link-types/{key} (the `ChangeLinkType` operationId).
+	ChangeLinkTypeWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, key string, params *ChangeLinkTypeParams, body ChangeLinkTypeApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeLinkTypeResult, error)
+
+	// UnlinkEntriesWithResponse Remove a link
+	//
+	// Removes a link between two entries. Whoever may change either end may remove it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /links/{linkId} (the `UnlinkEntries` operationId).
+	UnlinkEntriesWithResponse(ctx context.Context, linkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnlinkEntriesResult, error)
+
+	// ListLinksAmongWithBodyWithResponse The links between the entries a view shows
+	//
+	// The links with both ends among the given entries, at most 500 of them, each with which end waits for the other - what a timeline draws as dependencies. A `POST` because the list of entries is a body rather than a query string. A link with an end the caller may not see is left out.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /links:query (the `ListLinksAmong` operationId).
+	ListLinksAmongWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ListLinksAmongResult, error)
+
+	// ListLinksAmongWithResponse The links between the entries a view shows
+	//
+	// The links with both ends among the given entries, at most 500 of them, each with which end waits for the other - what a timeline draws as dependencies. A `POST` because the list of entries is a body rather than a query string. A link with an end the caller may not see is left out.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /links:query (the `ListLinksAmong` operationId).
+	ListLinksAmongWithResponse(ctx context.Context, body ListLinksAmongJSONRequestBody, reqEditors ...RequestEditorFn) (*ListLinksAmongResult, error)
 
 	// DeliverAddressedMailWithBodyWithResponse Deliver a mail to the operator's receiving domain
 	//
@@ -56894,6 +58243,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /quotas (the `ReadQuotas` operationId).
 	ReadQuotasWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadQuotasResult, error)
+
+	// ResolveReferencesWithBodyWithResponse Resolve references for the caller
+	//
+	// Resolves up to 100 references to what a mention, a card or a live view shows of each: the title, key and state the caller may see. One the caller may not see, one that is not there, and one of a module that does not exist yet all answer only their address and `available: false` - never a title. Text writes a reference as a Markdown link to `hubtask:<kind>/<id>#<anchor>`; an image of the link draws a card or a live view.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /references:resolve (the `ResolveReferences` operationId).
+	ResolveReferencesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ResolveReferencesResult, error)
+
+	// ResolveReferencesWithResponse Resolve references for the caller
+	//
+	// Resolves up to 100 references to what a mention, a card or a live view shows of each: the title, key and state the caller may see. One the caller may not see, one that is not there, and one of a module that does not exist yet all answer only their address and `available: false` - never a title. Text writes a reference as a Markdown link to `hubtask:<kind>/<id>#<anchor>`; an image of the link draws a card or a live view.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /references:resolve (the `ResolveReferences` operationId).
+	ResolveReferencesWithResponse(ctx context.Context, body ResolveReferencesJSONRequestBody, reqEditors ...RequestEditorFn) (*ResolveReferencesResult, error)
 
 	// StartRestoreWithBodyWithResponse Start a restore
 	//
@@ -70087,6 +71454,102 @@ func (r AddLabelResult) ContentType() string {
 	return ""
 }
 
+type ListEntryLinksResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *EntryLinks
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListEntryLinksResult) GetJSON200() *EntryLinks {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListEntryLinksResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListEntryLinksResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListEntryLinksResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListEntryLinksResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListEntryLinksResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type LinkEntriesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *EntryLink
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r LinkEntriesResult) GetJSON201() *EntryLink {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r LinkEntriesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r LinkEntriesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r LinkEntriesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r LinkEntriesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r LinkEntriesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RemoveMemberResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -72688,6 +74151,280 @@ func (r ReleaseLegalHoldResult) ContentType() string {
 	return ""
 }
 
+type ListLinkTypesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *LinkTypeList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListLinkTypesResult) GetJSON200() *LinkTypeList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListLinkTypesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListLinkTypesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListLinkTypesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListLinkTypesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListLinkTypesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateLinkTypeResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *LinkType
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateLinkTypeResult) GetJSON201() *LinkType {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateLinkTypeResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateLinkTypeResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateLinkTypeResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateLinkTypeResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateLinkTypeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteLinkTypeResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteLinkTypeResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteLinkTypeResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteLinkTypeResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteLinkTypeResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteLinkTypeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ChangeLinkTypeResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *LinkType
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ChangeLinkTypeResult) GetJSON200() *LinkType {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangeLinkTypeResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangeLinkTypeResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangeLinkTypeResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangeLinkTypeResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangeLinkTypeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UnlinkEntriesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UnlinkEntriesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UnlinkEntriesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UnlinkEntriesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UnlinkEntriesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UnlinkEntriesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListLinksAmongResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *EntryLinkList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListLinksAmongResult) GetJSON200() *EntryLinkList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListLinksAmongResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListLinksAmongResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListLinksAmongResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListLinksAmongResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListLinksAmongResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type DeliverAddressedMailResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -74906,6 +76643,58 @@ func (r ReadQuotasResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReadQuotasResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ResolveReferencesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Data []ReferenceTarget `json:"data"`
+	}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ResolveReferencesResult) GetJSON200() *struct {
+	Data []ReferenceTarget `json:"data"`
+} {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ResolveReferencesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ResolveReferencesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ResolveReferencesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ResolveReferencesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ResolveReferencesResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -83385,6 +85174,51 @@ func (c *ClientWithResponses) AddLabelWithResponse(ctx context.Context, itemId I
 	return ParseAddLabelResult(rsp)
 }
 
+// ListEntryLinksWithResponse An entry's links and backlinks
+//
+// The entry's links from both ends, each with the far end as the reader may see it - its title, key and state, or only its identifier and `available: false` - and its backlinks: the notes and comments that point at it, from entries the reader may see. Needs READ on the entry.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /items/{itemId}/links (the `ListEntryLinks` operationId).
+func (c *ClientWithResponses) ListEntryLinksWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ListEntryLinksResult, error) {
+	rsp, err := c.ListEntryLinks(ctx, itemId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListEntryLinksResult(rsp)
+}
+
+// LinkEntriesWithBodyWithResponse Link the entry to another
+//
+// Draws a link of a type from this entry to another. Needs WRITE_ITEMS on this entry and sight of the other; one out of sight is not found, as a missing one is. A link that would close a loop of a type that forbids loops is refused with `links.cycle` - for a dependency, judged over every type one end waits on; a second link of a type of one per entry with `links.cardinality`; one already drawn with `links.exists`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}/links (the `LinkEntries` operationId).
+func (c *ClientWithResponses) LinkEntriesWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LinkEntriesResult, error) {
+	rsp, err := c.LinkEntriesWithBody(ctx, itemId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLinkEntriesResult(rsp)
+}
+
+// LinkEntriesWithResponse Link the entry to another
+//
+// Draws a link of a type from this entry to another. Needs WRITE_ITEMS on this entry and sight of the other; one out of sight is not found, as a missing one is. A link that would close a loop of a type that forbids loops is refused with `links.cycle` - for a dependency, judged over every type one end waits on; a second link of a type of one per entry with `links.cardinality`; one already drawn with `links.exists`.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}/links (the `LinkEntries` operationId).
+func (c *ClientWithResponses) LinkEntriesWithResponse(ctx context.Context, itemId ItemId, body LinkEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*LinkEntriesResult, error) {
+	rsp, err := c.LinkEntries(ctx, itemId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLinkEntriesResult(rsp)
+}
+
 // RemoveMemberWithResponse performs a DELETE /items/{itemId}/members/{accountId} (the `RemoveMember` operationId) request.
 //
 // Takes an account off an entry's member list. Idempotent: an entry that does not carry it succeeds.
@@ -84513,6 +86347,141 @@ func (c *ClientWithResponses) ReleaseLegalHoldWithResponse(ctx context.Context, 
 	return ParseReleaseLegalHoldResult(rsp)
 }
 
+// ListLinkTypesWithResponse The workspace's link types
+//
+// Every link type of the workspace: the six every workspace has (`blocks`, `depends_on`, `duplicates`, `runs_on`, `affects`, `implements`) and its own, each with its direction, cardinality, cycle rule and which end waits for the other. A shipped type answers null names, which a client fills with its own words for the key. Archived types are included and marked. Needs a signed-in member of the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /link-types (the `ListLinkTypes` operationId).
+func (c *ClientWithResponses) ListLinkTypesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListLinkTypesResult, error) {
+	rsp, err := c.ListLinkTypes(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListLinkTypesResult(rsp)
+}
+
+// CreateLinkTypeWithBodyWithResponse Add a link type
+//
+// Adds a link type of the workspace's own with a key free in the workspace and its two names. What it means - its direction, cardinality, cycle rule and which end waits - is fixed once it is made. A symmetric type has no waiting end and no limit of one; a type an end waits on forbids loops. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /link-types (the `CreateLinkType` operationId).
+func (c *ClientWithResponses) CreateLinkTypeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateLinkTypeResult, error) {
+	rsp, err := c.CreateLinkTypeWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateLinkTypeResult(rsp)
+}
+
+// CreateLinkTypeWithResponse Add a link type
+//
+// Adds a link type of the workspace's own with a key free in the workspace and its two names. What it means - its direction, cardinality, cycle rule and which end waits - is fixed once it is made. A symmetric type has no waiting end and no limit of one; a type an end waits on forbids loops. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /link-types (the `CreateLinkType` operationId).
+func (c *ClientWithResponses) CreateLinkTypeWithResponse(ctx context.Context, body CreateLinkTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateLinkTypeResult, error) {
+	rsp, err := c.CreateLinkType(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateLinkTypeResult(rsp)
+}
+
+// DeleteLinkTypeWithResponse Delete an unused link type
+//
+// Deletes one of the workspace's own link types that no link names. A type in use is refused with `link_types.in_use` and can only be archived. Needs STRUCTURE at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /link-types/{key} (the `DeleteLinkType` operationId).
+func (c *ClientWithResponses) DeleteLinkTypeWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*DeleteLinkTypeResult, error) {
+	rsp, err := c.DeleteLinkType(ctx, key, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteLinkTypeResult(rsp)
+}
+
+// ChangeLinkTypeWithBodyWithResponse Change a link type
+//
+// Renames, reorders, archives or restores one of the workspace's own link types. An archived type draws no new link and the links that stand stay readable. A shipped type does not change (`link_types.system_fixed`). Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /link-types/{key} (the `ChangeLinkType` operationId).
+func (c *ClientWithResponses) ChangeLinkTypeWithBodyWithResponse(ctx context.Context, key string, params *ChangeLinkTypeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeLinkTypeResult, error) {
+	rsp, err := c.ChangeLinkTypeWithBody(ctx, key, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeLinkTypeResult(rsp)
+}
+
+// ChangeLinkTypeWithApplicationMergePatchPlusJSONBodyWithResponse Change a link type
+//
+// Renames, reorders, archives or restores one of the workspace's own link types. An archived type draws no new link and the links that stand stay readable. A shipped type does not change (`link_types.system_fixed`). Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /link-types/{key} (the `ChangeLinkType` operationId).
+func (c *ClientWithResponses) ChangeLinkTypeWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, key string, params *ChangeLinkTypeParams, body ChangeLinkTypeApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeLinkTypeResult, error) {
+	rsp, err := c.ChangeLinkTypeWithApplicationMergePatchPlusJSONBody(ctx, key, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeLinkTypeResult(rsp)
+}
+
+// UnlinkEntriesWithResponse Remove a link
+//
+// Removes a link between two entries. Whoever may change either end may remove it.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /links/{linkId} (the `UnlinkEntries` operationId).
+func (c *ClientWithResponses) UnlinkEntriesWithResponse(ctx context.Context, linkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnlinkEntriesResult, error) {
+	rsp, err := c.UnlinkEntries(ctx, linkId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUnlinkEntriesResult(rsp)
+}
+
+// ListLinksAmongWithBodyWithResponse The links between the entries a view shows
+//
+// The links with both ends among the given entries, at most 500 of them, each with which end waits for the other - what a timeline draws as dependencies. A `POST` because the list of entries is a body rather than a query string. A link with an end the caller may not see is left out.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /links:query (the `ListLinksAmong` operationId).
+func (c *ClientWithResponses) ListLinksAmongWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ListLinksAmongResult, error) {
+	rsp, err := c.ListLinksAmongWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListLinksAmongResult(rsp)
+}
+
+// ListLinksAmongWithResponse The links between the entries a view shows
+//
+// The links with both ends among the given entries, at most 500 of them, each with which end waits for the other - what a timeline draws as dependencies. A `POST` because the list of entries is a body rather than a query string. A link with an end the caller may not see is left out.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /links:query (the `ListLinksAmong` operationId).
+func (c *ClientWithResponses) ListLinksAmongWithResponse(ctx context.Context, body ListLinksAmongJSONRequestBody, reqEditors ...RequestEditorFn) (*ListLinksAmongResult, error) {
+	rsp, err := c.ListLinksAmong(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListLinksAmongResult(rsp)
+}
+
 // DeliverAddressedMailWithBodyWithResponse Deliver a mail to the operator's receiving domain
 //
 // The installation's inbound route: the inbound service the receiving domain's MX points at posts each raw message here, authenticated by `HUBTASK_MAIL_INBOUND_KEY` as a bearer token or as the password of the URL's basic credentials. The workspace is the one an address names - `<workspace>@`, `<workspace>+<tag>@` or `<handle>.<workspace>@` at the receiving domain - whose intake is on.
@@ -85636,6 +87605,36 @@ func (c *ClientWithResponses) ReadQuotasWithResponse(ctx context.Context, reqEdi
 		return nil, err
 	}
 	return ParseReadQuotasResult(rsp)
+}
+
+// ResolveReferencesWithBodyWithResponse Resolve references for the caller
+//
+// Resolves up to 100 references to what a mention, a card or a live view shows of each: the title, key and state the caller may see. One the caller may not see, one that is not there, and one of a module that does not exist yet all answer only their address and `available: false` - never a title. Text writes a reference as a Markdown link to `hubtask:<kind>/<id>#<anchor>`; an image of the link draws a card or a live view.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /references:resolve (the `ResolveReferences` operationId).
+func (c *ClientWithResponses) ResolveReferencesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ResolveReferencesResult, error) {
+	rsp, err := c.ResolveReferencesWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseResolveReferencesResult(rsp)
+}
+
+// ResolveReferencesWithResponse Resolve references for the caller
+//
+// Resolves up to 100 references to what a mention, a card or a live view shows of each: the title, key and state the caller may see. One the caller may not see, one that is not there, and one of a module that does not exist yet all answer only their address and `available: false` - never a title. Text writes a reference as a Markdown link to `hubtask:<kind>/<id>#<anchor>`; an image of the link draws a card or a live view.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /references:resolve (the `ResolveReferences` operationId).
+func (c *ClientWithResponses) ResolveReferencesWithResponse(ctx context.Context, body ResolveReferencesJSONRequestBody, reqEditors ...RequestEditorFn) (*ResolveReferencesResult, error) {
+	rsp, err := c.ResolveReferences(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseResolveReferencesResult(rsp)
 }
 
 // StartRestoreWithBodyWithResponse Start a restore
@@ -95737,6 +97736,72 @@ func ParseAddLabelResult(rsp *http.Response) (*AddLabelResult, error) {
 	return response, nil
 }
 
+// ParseListEntryLinksResult parses an HTTP response from a ListEntryLinksWithResponse call
+func ParseListEntryLinksResult(rsp *http.Response) (*ListEntryLinksResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListEntryLinksResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EntryLinks
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseLinkEntriesResult parses an HTTP response from a LinkEntriesWithResponse call
+func ParseLinkEntriesResult(rsp *http.Response) (*LinkEntriesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &LinkEntriesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest EntryLink
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseRemoveMemberResult parses an HTTP response from a RemoveMemberWithResponse call
 func ParseRemoveMemberResult(rsp *http.Response) (*RemoveMemberResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -97715,6 +99780,196 @@ func ParseReleaseLegalHoldResult(rsp *http.Response) (*ReleaseLegalHoldResult, e
 	return response, nil
 }
 
+// ParseListLinkTypesResult parses an HTTP response from a ListLinkTypesWithResponse call
+func ParseListLinkTypesResult(rsp *http.Response) (*ListLinkTypesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListLinkTypesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest LinkTypeList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateLinkTypeResult parses an HTTP response from a CreateLinkTypeWithResponse call
+func ParseCreateLinkTypeResult(rsp *http.Response) (*CreateLinkTypeResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateLinkTypeResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest LinkType
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteLinkTypeResult parses an HTTP response from a DeleteLinkTypeWithResponse call
+func ParseDeleteLinkTypeResult(rsp *http.Response) (*DeleteLinkTypeResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteLinkTypeResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseChangeLinkTypeResult parses an HTTP response from a ChangeLinkTypeWithResponse call
+func ParseChangeLinkTypeResult(rsp *http.Response) (*ChangeLinkTypeResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangeLinkTypeResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest LinkType
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUnlinkEntriesResult parses an HTTP response from a UnlinkEntriesWithResponse call
+func ParseUnlinkEntriesResult(rsp *http.Response) (*UnlinkEntriesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UnlinkEntriesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListLinksAmongResult parses an HTTP response from a ListLinksAmongWithResponse call
+func ParseListLinksAmongResult(rsp *http.Response) (*ListLinksAmongResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListLinksAmongResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EntryLinkList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseDeliverAddressedMailResult parses an HTTP response from a DeliverAddressedMailWithResponse call
 func ParseDeliverAddressedMailResult(rsp *http.Response) (*DeliverAddressedMailResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -99245,6 +101500,41 @@ func ParseReadQuotasResult(rsp *http.Response) (*ReadQuotasResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest []QuotaStanding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseResolveReferencesResult parses an HTTP response from a ResolveReferencesWithResponse call
+func ParseResolveReferencesResult(rsp *http.Response) (*ResolveReferencesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ResolveReferencesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data []ReferenceTarget `json:"data"`
+		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
