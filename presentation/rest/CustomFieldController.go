@@ -81,6 +81,9 @@ func (c *RestController) DefineCustomField(
 	if body.Currency != nil {
 		in["currency"] = *body.Currency
 	}
+	if body.Formula != nil {
+		in["formula"] = *body.Formula
+	}
 	if body.IsRequired != nil {
 		in["is_required"] = *body.IsRequired
 	}
@@ -133,6 +136,9 @@ func customFieldResponse(out usecase.Output) openapi.CustomFieldDefinition {
 	}
 	if currency := out.String("currency"); currency != "" {
 		definition.Currency = &currency
+	}
+	if formula := out.String("formula"); formula != "" {
+		definition.Formula = &formula
 	}
 	return definition
 }

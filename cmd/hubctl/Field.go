@@ -73,13 +73,14 @@ func fieldList(ctx context.Context, cli *CLI, args []string) error {
 
 func fieldDefine(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "field", "define",
-		"--key <key> --kind <kind> [--collection <id>] [--applies-to <types>] [--options <values>] [--currency <code>] [--required]")
+		"--key <key> --kind <kind> [--collection <id>] [--applies-to <types>] [--options <values>] [--currency <code>] [--formula <expression>] [--required]")
 	key := flags.String("key", "", "the identifier the value is stored under; fixed once defined")
 	kind := flags.String("kind", "", "what a value looks like: TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER, URL, MONEY, DURATION, REFERENCE, USER_SET or RICH_TEXT")
 	collection := flags.String("collection", "", "the collection the definition belongs to; unset defines it workspace-wide")
 	appliesTo := flags.String("applies-to", "", "comma-separated item types that carry the field; unset means TASK alone")
 	options := flags.String("options", "", "comma-separated values a SELECT or MULTI_SELECT permits")
 	currency := flags.String("currency", "", "the ISO 4217 code of a MONEY field's amounts")
+	formula := flags.String("formula", "", "a CALCULATED field's expression over entry.custom_fields")
 	required := flags.Bool("required", false, "whether the field has to hold a value")
 	if err := parseCommand(flags, args); err != nil {
 		return err
@@ -122,6 +123,9 @@ func fieldDefine(ctx context.Context, cli *CLI, args []string) error {
 	}
 	if *currency != "" {
 		body.Currency = currency
+	}
+	if *formula != "" {
+		body.Formula = formula
 	}
 	if *required {
 		body.IsRequired = required

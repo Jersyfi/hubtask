@@ -1039,7 +1039,7 @@ func run() error {
 		Items: items, Containers: containers, Profiles: profiles, Fields: customFields,
 		Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms, Compiler: celexpression.New(),
 	}
 
 	// The three changes to an existing view share one dependency set (work.SavedViewWriter): the
@@ -2570,7 +2570,7 @@ func run() error {
 		work.DefineCustomField{
 			Fields: customFields, Containers: containers, Profiles: profiles,
 			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-			Clock: clockadapter.System{}, IDs: ids, Text: forms,
+			Clock: clockadapter.System{}, IDs: ids, Text: forms, Compiler: celexpression.New(),
 		}.Descriptor(),
 		work.ListCustomFields{
 			Fields: customFields, Containers: containers, Authorizer: authorizer,

@@ -24,6 +24,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -71,6 +72,9 @@ type SetCustomField struct {
 	HLC        clock.HLCSource
 	// Text brings the options and a TEXT value to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
+	// Compiler recomputes the entry's CALCULATED fields after each write of a value; without it
+	// they are left as they are.
+	Compiler expression.Compiler
 }
 
 // SetCustomFieldCommand is the input, typed.
@@ -387,7 +391,55 @@ func (h SetCustomField) write(
 	if err := h.recordActivity(ctx, after, actor, change, profile, now); err != nil {
 		return domain.WorkItem{}, err
 	}
-	return after, nil
+	if definition.Kind == domain.CustomFieldCalculated {
+		// A formula reads no CALCULATED field, so its own write moves no other.
+		return after, nil
+	}
+	return h.recalculate(ctx, actor, after, profile, now)
+}
+
+// recalculate writes each CALCULATED field whose value the write just made moved, each key as its
+// own write with its own records, as every key is (offline-sync.md §4.2): the person who changed an
+// input is who changed the result, and a device merges the result's key like any other.
+func (h SetCustomField) recalculate(
+	ctx context.Context, actor appshared.ActorContext, item domain.WorkItem,
+	profile domain.CapabilityProfile, now time.Time,
+) (domain.WorkItem, error) {
+	if h.Compiler == nil {
+		return item, nil
+	}
+	inScope, err := h.Fields.ListInScope(ctx, item.CollectionID)
+	if err != nil {
+		return domain.WorkItem{}, err
+	}
+	for _, calculated := range calculate(ctx, h.Compiler, effectiveDefinitions(inScope), item) {
+		wanted, moved := item.WithCustomField(calculated.definition.Key, calculated.value, now)
+		if !moved {
+			continue
+		}
+		cmd := SetCustomFieldCommand{ItemID: item.ID, Key: calculated.definition.Key, ExpectedVersion: item.Version}
+		if item, err = h.write(ctx, actor, item, wanted, cmd, calculated.definition, profile, now); err != nil {
+			return domain.WorkItem{}, err
+		}
+	}
+	return item, nil
+}
+
+// effectiveDefinitions keeps, per key, the definition a collection's entry is judged by: its own
+// over the workspace-wide one (FindInScope's rule), given the list in ListInScope's order.
+func effectiveDefinitions(inScope []domain.CustomFieldDefinition) []domain.CustomFieldDefinition {
+	byKey := make(map[string]int, len(inScope))
+	effective := make([]domain.CustomFieldDefinition, 0, len(inScope))
+	for _, definition := range inScope {
+		if at, seen := byKey[definition.Key]; seen {
+			// The workspace-wide ones come first; the collection's own replaces it.
+			effective[at] = definition
+			continue
+		}
+		byKey[definition.Key] = len(effective)
+		effective = append(effective, definition)
+	}
+	return effective
 }
 
 // recordChange writes what an offline client has to be told.

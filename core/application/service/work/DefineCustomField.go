@@ -19,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -69,6 +70,9 @@ type DefineCustomField struct {
 	IDs        clock.IDGenerator
 	// Text brings the options and a TEXT value to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
+	// Compiler holds a CALCULATED field's formula to the fields it may read; without it such a
+	// field is refused.
+	Compiler expression.Compiler
 }
 
 // DefineCustomFieldCommand is the input, typed.
@@ -79,7 +83,9 @@ type DefineCustomFieldCommand struct {
 	Kind         domain.CustomFieldKind
 	Options      []string
 	// Currency is a MONEY field's ISO 4217 code, empty for every other kind.
-	Currency   string
+	Currency string
+	// Formula is a CALCULATED field's expression, empty for every other kind.
+	Formula    string
 	IsRequired bool
 	// AppliesTo are the item types that carry the field. Empty means the column's default, which
 	// is a task alone.
@@ -137,11 +143,22 @@ func (h DefineCustomField) Execute(
 		now := h.Clock.Now()
 		definition, err := domain.NewCustomFieldDefinition(domain.NewCustomFieldInput{
 			ID: h.IDs.NewID(), TenantID: actor.TenantID, CollectionID: cmd.CollectionID,
-			Key: cmd.Key, Kind: cmd.Kind, Options: cmd.Options, Currency: cmd.Currency,
+			Key: cmd.Key, Kind: cmd.Kind, Options: cmd.Options, Currency: cmd.Currency, Formula: cmd.Formula,
 			IsRequired: cmd.IsRequired, AppliesTo: appliesTo, Now: now, Text: h.Text,
 		})
 		if err != nil {
 			return err
+		}
+		if definition.Kind == domain.CustomFieldCalculated {
+			// What the formula may read is what an entry of this scope carries: the collection's
+			// own fields and the workspace's.
+			inScope, err := h.Fields.ListInScope(ctx, cmd.CollectionID)
+			if err != nil {
+				return err
+			}
+			if err := compileFormula(h.Compiler, definition.Formula, effectiveDefinitions(inScope)); err != nil {
+				return err
+			}
 		}
 		if err := h.Fields.Insert(ctx, definition); err != nil {
 			return err
@@ -287,6 +304,7 @@ func customFieldOutput(definition domain.CustomFieldDefinition) usecase.Output {
 		"options": options,
 		// Null for every kind but MONEY, for the reason collection_id is always present.
 		"currency":    stringOrNil(definition.Currency),
+		"formula":     stringOrNil(definition.Formula),
 		"is_required": definition.IsRequired,
 		"applies_to":  appliesTo,
 		"created_at":  definition.CreatedAt,
@@ -336,6 +354,12 @@ func (h DefineCustomField) Descriptor() usecase.Descriptor {
 			{
 				Name: "currency", Kind: usecase.KindString,
 				Description: "The ISO 4217 code of a MONEY field's amounts. Required for MONEY " +
+					"and refused for every other kind; fixed once defined.",
+			},
+			{
+				Name: "formula", Kind: usecase.KindString,
+				Description: "A CALCULATED field's expression over entry.custom_fields - the number " +
+					"and boolean fields of the scope - producing a number. Required for CALCULATED " +
 					"and refused for every other kind; fixed once defined.",
 			},
 			{
@@ -391,6 +415,7 @@ func (h DefineCustomField) invoke(
 		Kind:         kind,
 		Options:      options,
 		Currency:     in.String("currency"),
+		Formula:      in.String("formula"),
 		IsRequired:   in.Bool("is_required"),
 		AppliesTo:    appliesTo,
 	})

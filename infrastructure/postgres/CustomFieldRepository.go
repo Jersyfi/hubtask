@@ -59,6 +59,7 @@ func (r CustomFieldRepository) Insert(
 	err = queries.InsertCustomField(ctx, sqlc.InsertCustomFieldParams{
 		ID: id, CollectionID: collectionID, Key: definition.Key,
 		Kind: string(definition.Kind), Options: options, Currency: currencyOf(definition.Currency),
+		Formula:    currencyOf(definition.Formula),
 		IsRequired: definition.IsRequired,
 		AppliesTo:  typesOf(definition.AppliesTo), CreatedAt: timestampOf(definition.CreatedAt),
 	})
@@ -285,13 +286,14 @@ func customFieldFrom(row sqlc.FindCustomFieldRow) (work.CustomFieldDefinition, e
 	return work.CustomFieldDefinition{
 		ID: id, TenantID: tenantID, CollectionID: collectionID,
 		Key: row.Key, Kind: work.CustomFieldKind(row.Kind), Options: options,
-		Currency: currencyFrom(row.Currency), IsRequired: row.IsRequired, AppliesTo: appliesTo,
+		Currency: currencyFrom(row.Currency), Formula: currencyFrom(row.Formula), IsRequired: row.IsRequired, AppliesTo: appliesTo,
 		CreatedAt: timeFrom(row.CreatedAt), UpdatedAt: timeFrom(row.UpdatedAt),
 		DeletedAt: optionalTime(row.DeletedAt), Version: int(row.Version),
 	}, nil
 }
 
-// currencyOf stores an empty currency as null: the column's CHECK pairs a currency with MONEY.
+// currencyOf stores an empty currency - or formula - as null: the columns' CHECKs pair a currency
+// with MONEY and a formula with CALCULATED.
 func currencyOf(code string) *string {
 	if code == "" {
 		return nil
