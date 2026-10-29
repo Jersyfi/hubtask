@@ -1178,6 +1178,8 @@ paths:
     get:
       tags: [automation]
       operationId: listRules
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: ruleResponse
       summary: The workspace's automation rules
       description: >
         Newest first, and only the rules the caller may see: a member manages their own rules, and
@@ -1204,6 +1206,8 @@ paths:
     post:
       tags: [automation]
       operationId: createRule
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: ruleResponse
       summary: Write a rule
       description: >
         A rule is created **switched off**. Enabling it is its own call and its own audit entry:
@@ -1258,6 +1262,8 @@ paths:
     patch:
       tags: [automation]
       operationId: updateRule
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: ruleResponse
       summary: Change what a rule does
       description: >
         An omitted field is left alone. `enabled` is not among the fields: switching a rule on or
@@ -1352,6 +1358,8 @@ paths:
     post:
       tags: [automation]
       operationId: checkRules
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: checkedRulesResponse
       summary: Check every rule of the workspace against what exists now
       description: >
         Every rule the caller may read, its references resolved -
@@ -1458,6 +1466,8 @@ paths:
     post:
       tags: [automation]
       operationId: triggerRuleManually
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: ruleRunAcceptedResponse
       summary: Run a rule now
       description: >
         The `MANUAL` trigger: the one of the six a person pulls. It queues a
@@ -1494,6 +1504,8 @@ paths:
     post:
       tags: [automation]
       operationId: rotateInboundTrigger
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: inboundTriggerTokenResponse
       summary: Mint the address an inbound-webhook rule answers on
       description: >
         The `INBOUND_WEBHOOK` trigger's credential: a token-protected URL per
@@ -1699,6 +1711,8 @@ paths:
     get:
       tags: [automation]
       operationId: listRuleRuns
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: runResponse
       summary: What the rules have done
       description: >
         Every run, newest first: which rule, which event started it, how its conditions answered,
@@ -1789,6 +1803,8 @@ paths:
     post:
       tags: [automation]
       operationId: replayRuleRun
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: ruleRunAcceptedResponse
       summary: Complete a failed run
       description: >
         Re-executes a failed run's remaining actions under the same idempotency keys - which is

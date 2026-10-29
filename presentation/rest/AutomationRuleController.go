@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	openapi_types "github.com/oapi-codegen/runtime/types"
-
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -20,230 +18,8 @@ import (
 // nested shapes whole, because a trigger's fields belong to its kind and flattening them would let
 // a channel express a combination the aggregate refuses.
 
-const (
-	createRuleUseCase    = "CreateRule"
-	listRulesUseCase     = "ListRules"
-	updateRuleUseCase    = "UpdateRule"
-	triggerRuleUseCase   = "TriggerRuleManually"
-	rotateInboundUseCase = "RotateInboundTrigger"
-)
-
-// ListAutomationRules answers GET /automation/rules.
-func (c *RestController) ListRules(
-	w http.ResponseWriter, r *http.Request, params openapi.ListRulesParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		input := usecase.Input{}
-		if params.Enabled != nil {
-			input["enabled"] = *params.Enabled
-		}
-		if params.Cursor != nil {
-			input["cursor"] = *params.Cursor
-		}
-		if params.Size != nil {
-			input["size"] = *params.Size
-		}
-		return c.UseCases.Invoke(r.Context(), listRulesUseCase, actor, input)
-	}, func(out usecase.Output) {
-		rows, _ := out["data"].([]usecase.Output)
-		rules := make([]openapi.AutomationRule, 0, len(rows))
-		for _, row := range rows {
-			rules = append(rules, ruleResponse(row))
-		}
-		writeJSON(w, r, http.StatusOK, openapi.AutomationRulePage{
-			Data: rules, Page: pageResponse(out),
-		})
-	})
-}
-
-// CreateAutomationRule answers POST /automation/rules.
-func (c *RestController) CreateRule(
-	w http.ResponseWriter, r *http.Request, _ openapi.CreateRuleParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.AutomationRuleCreate
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-
-		input := usecase.Input{
-			"name":    body.Name,
-			"scope":   scopeInput(body.Scope),
-			"run_as":  body.RunAs.String(),
-			"trigger": triggerInput(body.Trigger),
-			"actions": actionsInput(body.Actions),
-		}
-		if body.Conditions != nil {
-			// Sent only when the client sent one, so that the refusal is about a condition the
-			// caller actually wrote rather than about an absent field.
-			input["conditions"] = conditionsInput(*body.Conditions)
-		}
-		if body.Throttle != nil {
-			input["throttle"] = throttleInput(*body.Throttle)
-		}
-		if body.OnError != nil {
-			input["on_error"] = string(*body.OnError)
-		}
-		return c.UseCases.Invoke(r.Context(), createRuleUseCase, actor, input)
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusCreated, ruleResponse(out))
-	})
-}
-
-// UpdateAutomationRule answers PATCH /automation/rules/{ruleId}.
-func (c *RestController) UpdateRule(
-	w http.ResponseWriter, r *http.Request, ruleID openapi.RuleId,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.AutomationRuleUpdate
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-
-		input := usecase.Input{"rule_id": ruleID.String()}
-		if body.Name != nil {
-			input["name"] = *body.Name
-		}
-		if body.Scope != nil {
-			input["scope"] = scopeInput(*body.Scope)
-		}
-		if body.RunAs != nil {
-			input["run_as"] = body.RunAs.String()
-		}
-		if body.Trigger != nil {
-			input["trigger"] = triggerInput(*body.Trigger)
-		}
-		if body.Conditions != nil {
-			input["conditions"] = conditionsInput(*body.Conditions)
-		}
-		if body.Actions != nil {
-			input["actions"] = actionsInput(*body.Actions)
-		}
-		if body.Throttle != nil {
-			input["throttle"] = throttleInput(*body.Throttle)
-		}
-		if body.OnError != nil {
-			input["on_error"] = string(*body.OnError)
-		}
-		if body.ExpectedVersion != nil {
-			input["expected_version"] = *body.ExpectedVersion
-		}
-		return c.UseCases.Invoke(r.Context(), updateRuleUseCase, actor, input)
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, ruleResponse(out))
-	})
-}
-
 // The readers. Each maps one document whole, so that what reaches the use case is the shape the
 // aggregate validates rather than a flattening of it.
-
-// TriggerRuleManually answers POST /automation/rules/{ruleId}:trigger.
-//
-// 202 rather than 200: the run happens on a worker, and what comes back is the identifier it will
-// carry rather than the run itself. A caller that wants the outcome watches
-// GET /automation/runs/{runId}, which answers 404 until a worker claims the job.
-func (c *RestController) TriggerRuleManually(
-	w http.ResponseWriter, r *http.Request, ruleID openapi.RuleId,
-	_ openapi.TriggerRuleManuallyParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), triggerRuleUseCase, actor,
-			usecase.Input{"rule_id": ruleID.String()})
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusAccepted, openapi.RuleRunAccepted{
-			RunId: uuidValue(out.String("run_id")), RuleId: uuidValue(out.String("rule_id")),
-		})
-	})
-}
-
-// RotateInboundTrigger answers POST /automation/rules/{ruleId}:rotate-inbound-token.
-//
-// The one answer that carries the token. Everything afterwards shows only when it was minted: the
-// value is stored hashed, and there is no read that can produce it again.
-func (c *RestController) RotateInboundTrigger(
-	w http.ResponseWriter, r *http.Request, ruleID openapi.RuleId,
-	_ openapi.RotateInboundTriggerParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), rotateInboundUseCase, actor,
-			usecase.Input{"rule_id": ruleID.String()})
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, openapi.InboundTriggerToken{
-			RuleId:    uuidValue(out.String("rule_id")),
-			Token:     out.String("token"),
-			RotatedAt: timeValue(out["rotated_at"]),
-		})
-	})
-}
-
-func scopeInput(scope openapi.RuleScope) map[string]any {
-	document := map[string]any{"type": string(scope.Type)}
-	if scope.Id != nil {
-		document["id"] = scope.Id.String()
-	}
-	return document
-}
-
-func triggerInput(trigger openapi.RuleTrigger) map[string]any {
-	document := map[string]any{"kind": string(trigger.Kind)}
-	for name, value := range map[string]*string{
-		"event_type": trigger.EventType,
-		"rrule":      trigger.Rrule,
-		"timezone":   trigger.Timezone,
-		"offset":     trigger.Offset,
-		"step":       trigger.Step,
-		"workflow":   trigger.Workflow,
-	} {
-		if value != nil {
-			// Present when the client sent it, empty string and all: a field belonging to another
-			// kind is refused inwards of here, and a reader that dropped an empty one would decide
-			// that question in the wrong place.
-			document[name] = *value
-		}
-	}
-	if trigger.Anchor != nil {
-		document["anchor"] = string(*trigger.Anchor)
-	}
-	if trigger.ChangedFields != nil {
-		fields := make([]any, 0, len(*trigger.ChangedFields))
-		for _, field := range *trigger.ChangedFields {
-			fields = append(fields, field)
-		}
-		document["changed_fields"] = fields
-	}
-	return document
-}
-
-func conditionsInput(conditions []openapi.RuleCondition) []any {
-	rows := make([]any, 0, len(conditions))
-	for _, condition := range conditions {
-		rows = append(rows, map[string]any{"expr": condition.Expr})
-	}
-	return rows
-}
-
-func actionsInput(actions []openapi.RuleAction) []any {
-	rows := make([]any, 0, len(actions))
-	for _, action := range actions {
-		row := map[string]any{"kind": action.Kind}
-		if action.Params != nil {
-			row["params"] = map[string]any(*action.Params)
-		}
-		rows = append(rows, row)
-	}
-	return rows
-}
-
-func throttleInput(throttle openapi.RuleThrottle) map[string]any {
-	document := map[string]any{}
-	if throttle.MaxRunsPerHour != nil {
-		document["max_runs_per_hour"] = *throttle.MaxRunsPerHour
-	}
-	if throttle.DedupeKeyExpr != nil {
-		document["dedupe_key_expr"] = *throttle.DedupeKeyExpr
-	}
-	return document
-}
 
 // ruleResponse renders one rule.
 func ruleResponse(out usecase.Output) openapi.AutomationRule {
@@ -407,83 +183,9 @@ func textField(document map[string]any, name string) string {
 // The run log. What a rule did, why it did not, and what each action answered.
 
 const (
-	listRuleRunsUseCase = "ListRuleRuns"
+	httpRequestUseCase = "HttpRequest"
+	testRuleUseCase    = "TestRule"
 )
-
-// ListRuleRuns answers GET /automation/runs.
-func (c *RestController) ListRuleRuns(
-	w http.ResponseWriter, r *http.Request, params openapi.ListRuleRunsParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		input := usecase.Input{}
-		if params.RuleId != nil {
-			input["rule_id"] = params.RuleId.String()
-		}
-		if params.Status != nil {
-			input["status"] = string(*params.Status)
-		}
-		if params.Trigger != nil {
-			input["trigger"] = string(*params.Trigger)
-		}
-		if params.From != nil {
-			input["from"] = params.From.Format(time.RFC3339Nano)
-		}
-		if params.To != nil {
-			input["to"] = params.To.Format(time.RFC3339Nano)
-		}
-		if params.Cursor != nil {
-			input["cursor"] = *params.Cursor
-		}
-		if params.Size != nil {
-			input["size"] = *params.Size
-		}
-		return c.UseCases.Invoke(r.Context(), listRuleRunsUseCase, actor, input)
-	}, func(out usecase.Output) {
-		rows, _ := out["data"].([]usecase.Output)
-		runs := make([]openapi.RuleRun, 0, len(rows))
-		for _, row := range rows {
-			runs = append(runs, runResponse(row))
-		}
-		writeJSON(w, r, http.StatusOK, openapi.RuleRunPage{Data: runs, Page: pageResponse(out)})
-	})
-}
-
-// ReplayRuleRun answers POST /automation/runs/{runId}:replay.
-func (c *RestController) ReplayRuleRun(
-	w http.ResponseWriter, r *http.Request, runID openapi_types.UUID, _ openapi.ReplayRuleRunParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), replayRuleRunUseCase, actor,
-			usecase.Input{"run_id": runID.String()})
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusAccepted, openapi.RuleRunAccepted{
-			RunId: uuidValue(out.String("run_id")), RuleId: uuidValue(out.String("rule_id")),
-		})
-	})
-}
-
-const (
-	httpRequestUseCase   = "HttpRequest"
-	testRuleUseCase      = "TestRule"
-	replayRuleRunUseCase = "ReplayRuleRun"
-	checkRulesUseCase    = "CheckRules"
-)
-
-// CheckRules answers POST /automation/rules:check (ADR-0060).
-//
-//nolint:contextcheck // the closure carries the request's own context exactly as every sibling does
-func (c *RestController) CheckRules(w http.ResponseWriter, r *http.Request) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), checkRulesUseCase, actor, usecase.Input{})
-	}, func(out usecase.Output) {
-		rows, _ := out["data"].([]usecase.Output)
-		rules := make([]openapi.AutomationRule, 0, len(rows))
-		for _, row := range rows {
-			rules = append(rules, ruleResponse(row))
-		}
-		writeJSON(w, r, http.StatusOK, map[string]any{"data": rules})
-	})
-}
 
 // TestRule answers POST /automation/rules:test.
 //
@@ -698,4 +400,95 @@ func intField(document map[string]any, name string) int {
 func boolField(document map[string]any, name string) bool {
 	value, _ := document[name].(bool)
 	return value
+}
+
+// ruleRunAcceptedResponse names the run a trigger or a replay queued.
+func ruleRunAcceptedResponse(out usecase.Output) openapi.RuleRunAccepted {
+	return openapi.RuleRunAccepted{RunId: uuidValue(out.String("run_id")), RuleId: uuidValue(out.String("rule_id"))}
+}
+
+// inboundTriggerTokenResponse is the one answer that carries an inbound trigger's token.
+func inboundTriggerTokenResponse(out usecase.Output) openapi.InboundTriggerToken {
+	return openapi.InboundTriggerToken{
+		RuleId: uuidValue(out.String("rule_id")), Token: out.String("token"), RotatedAt: timeValue(out["rotated_at"]),
+	}
+}
+
+// checkedRulesResponse is every rule with what the check found, unpaged.
+func checkedRulesResponse(out usecase.Output) map[string]any {
+	rows := rowsOf(out)
+	rules := make([]openapi.AutomationRule, 0, len(rows))
+	for _, row := range rows {
+		rules = append(rules, ruleResponse(row))
+	}
+	return map[string]any{"data": rules}
+}
+
+func scopeInput(scope openapi.RuleScope) map[string]any {
+	document := map[string]any{"type": string(scope.Type)}
+	if scope.Id != nil {
+		document["id"] = scope.Id.String()
+	}
+	return document
+}
+
+func triggerInput(trigger openapi.RuleTrigger) map[string]any {
+	document := map[string]any{"kind": string(trigger.Kind)}
+	for name, value := range map[string]*string{
+		"event_type": trigger.EventType,
+		"rrule":      trigger.Rrule,
+		"timezone":   trigger.Timezone,
+		"offset":     trigger.Offset,
+		"step":       trigger.Step,
+		"workflow":   trigger.Workflow,
+	} {
+		if value != nil {
+			// Present when the client sent it, empty string and all: a field belonging to another
+			// kind is refused inwards of here, and a reader that dropped an empty one would decide
+			// that question in the wrong place.
+			document[name] = *value
+		}
+	}
+	if trigger.Anchor != nil {
+		document["anchor"] = string(*trigger.Anchor)
+	}
+	if trigger.ChangedFields != nil {
+		fields := make([]any, 0, len(*trigger.ChangedFields))
+		for _, field := range *trigger.ChangedFields {
+			fields = append(fields, field)
+		}
+		document["changed_fields"] = fields
+	}
+	return document
+}
+
+func conditionsInput(conditions []openapi.RuleCondition) []any {
+	rows := make([]any, 0, len(conditions))
+	for _, condition := range conditions {
+		rows = append(rows, map[string]any{"expr": condition.Expr})
+	}
+	return rows
+}
+
+func actionsInput(actions []openapi.RuleAction) []any {
+	rows := make([]any, 0, len(actions))
+	for _, action := range actions {
+		row := map[string]any{"kind": action.Kind}
+		if action.Params != nil {
+			row["params"] = map[string]any(*action.Params)
+		}
+		rows = append(rows, row)
+	}
+	return rows
+}
+
+func throttleInput(throttle openapi.RuleThrottle) map[string]any {
+	document := map[string]any{}
+	if throttle.MaxRunsPerHour != nil {
+		document["max_runs_per_hour"] = *throttle.MaxRunsPerHour
+	}
+	if throttle.DedupeKeyExpr != nil {
+		document["dedupe_key_expr"] = *throttle.DedupeKeyExpr
+	}
+	return document
 }

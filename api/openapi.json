@@ -1700,6 +1700,8 @@
           "automation"
         ],
         "operationId": "listRules",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "ruleResponse",
         "summary": "The workspace's automation rules",
         "description": "Newest first, and only the rules the caller may see: a member manages their own rules, and an administrator the scope's. Deleted rules are not among them - the deletion is soft so that the runs a rule produced stay readable, not so that the rule stays listed.\n",
         "parameters": [
@@ -1740,6 +1742,8 @@
           "automation"
         ],
         "operationId": "createRule",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "ruleResponse",
         "summary": "Write a rule",
         "description": "A rule is created **switched off**. Enabling it is its own call and its own audit entry: writing what a rule would do and letting it loose on the workspace are two decisions, and a rule that ran the moment it was saved would give nobody the chance to read it back first.\nWriting a rule needs the automation permission at its scope **and** the rights its own actions need. Without the second half a member with automation rights and nothing else would write a rule that runs as a generously-scoped service account and does what they may not.\nWhat this build refuses, and says so by code rather than by silence: a condition that does not compile, or that names something this build does not publish; an action naming a kind this build does not serve; a parameter the action's use case does not declare.\n",
         "parameters": [
@@ -1809,6 +1813,8 @@
           "automation"
         ],
         "operationId": "updateRule",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "ruleResponse",
         "summary": "Change what a rule does",
         "description": "An omitted field is left alone. `enabled` is not among the fields: switching a rule on or off is its own call, so that the audit trail says which of the two somebody did rather than leaving it to be inferred from a change set.\nThe same two-sided permission check as creating one, against the rule as it would be afterwards - a rule may not be edited into doing something its writer may not do.\n",
         "requestBody": {
@@ -1935,6 +1941,8 @@
           "automation"
         ],
         "operationId": "checkRules",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "checkedRulesResponse",
         "summary": "Check every rule of the workspace against what exists now",
         "description": "Every rule the caller may read, its references resolved - the trigger's event type, each action's kind and parameter keys, each condition, the account it runs as, and every identifier a parameter carries - against what this installation and this workspace have now. What is found is written on the rules (`findings`, `checked_at`) and answered here; a rule that cannot run is switched off, audited and its author told, exactly as five failed runs would. Nothing else is written.\nThe rules screen calls this when it opens, which is what makes \"after an update, the rules that need attention are shown\" true without anything enumerating tenants. A deletion of something a rule may name runs the same check for the workspace by itself.\n",
         "responses": {
@@ -2054,6 +2062,8 @@
           "automation"
         ],
         "operationId": "triggerRuleManually",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "ruleRunAcceptedResponse",
         "summary": "Run a rule now",
         "description": "The `MANUAL` trigger: the one of the six a person pulls. It queues a run into the same engine every other trigger produces into - the conditions are evaluated, the actions dispatch as the rule's `run_as` account, and the loop bound and the throttle apply exactly as they do to an event's run.\nThe run **records who pulled it**, which is the whole reason this is its own call rather than a flag on something else: a rule that acted because somebody asked and a rule that acted because a deadline passed are two different entries in the log.\nOnly a rule whose trigger is `MANUAL` can be started this way, and only an enabled one. Both refusals name themselves rather than answering an empty success - a call that appears to work and does nothing is the failure this refusal exists to avoid.\nThe answer carries the identifier the run will have. It is a `202`: the run happens on a worker, so `GET /automation/runs/{runId}` answers `404` until it starts and the whole log afterwards.\n",
         "parameters": [
@@ -2089,6 +2099,8 @@
           "automation"
         ],
         "operationId": "rotateInboundTrigger",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "inboundTriggerTokenResponse",
         "summary": "Mint the address an inbound-webhook rule answers on",
         "description": "The `INBOUND_WEBHOOK` trigger's credential: a token-protected URL per rule, minted here and answered **once**. It is stored hashed under its own purpose label, so no later read can produce it.\nRotating is how one is revoked. There is exactly one address per rule and the replacement happens in a single statement, so the old token and the new one never both open the rule - which is what \"revocable by rotating\" has to mean. Somebody who wants to revoke without a replacement switches the rule off.\nOnly a rule whose trigger is `INBOUND_WEBHOOK`. An address on any other rule would be a credential that opens nothing, handed out as though it worked.\n",
         "parameters": [
@@ -2293,6 +2305,8 @@
           "automation"
         ],
         "operationId": "listRuleRuns",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "runResponse",
         "summary": "What the rules have done",
         "description": "Every run, newest first: which rule, which event started it, how its conditions answered, what each action did, and what went wrong if anything did. This is the run log - retrievable, filterable, and the only place a person can find out why a rule did or did not act.\nA run outlives the rule that produced it. Deleting a rule is soft for exactly this reason: a record of actions nobody can account for would be worse than the rule staying visible.\n",
         "parameters": [
@@ -2440,6 +2454,8 @@
           "automation"
         ],
         "operationId": "replayRuleRun",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "ruleRunAcceptedResponse",
         "summary": "Complete a failed run",
         "description": "Re-executes a failed run's remaining actions under the same idempotency keys - which is what makes this a completion rather than a duplication: an action the original run finished finds its key already claimed and does nothing again, and only what never happened happens now.\nOnly a `FAILED` run can be replayed, and only while its rule is enabled: a waiting run resumes by itself, a skipped or throttled one did what its rule says, and a disabled rule must not act. The conditions are evaluated again against the world as it stands - the answer that decides an action is the answer of the day it runs - and the replay is audited with the replayer, because somebody looked at a failure and decided the world is ready for the rest.\nThe answer carries the identifier the replay's run will have, exactly as `:trigger` does.\n",
         "parameters": [
