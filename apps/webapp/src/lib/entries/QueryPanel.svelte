@@ -41,6 +41,7 @@
     takesValue,
   } from '../data/query.ts';
   import { t } from '../i18n/i18n.svelte.ts';
+  import { entryTypes, typeOrder, typesShown } from '../data/entrytypes.svelte.ts';
 
   interface Props {
     /** Which layout the reader chose, because the grouping belongs to the board. */
@@ -89,6 +90,9 @@
     sortDir = $bindable('ASC'),
   }: Props = $props();
 
+  /** The query field of an entry's type (`view.FieldEntryType`). */
+  const ENTRY_TYPE = 'entry_type';
+
   let conditions = $state<QueryCondition[]>([]);
   let groupField = $state('bucket_id');
   /**
@@ -97,8 +101,20 @@
    */
   let kept = $state<FilterNode | undefined>(undefined);
 
+  // The entry type is a value only where the workspace shows types (UC-FLW-01 check 8); there its
+  // keys are the workspace's, so the values come from `/entry-types`, named as the list names them.
+  const showsTypes = $derived(typesShown(manifest.value));
+  $effect(() => {
+    if (!showsTypes) return;
+    return untrack(() => entryTypes.open());
+  });
+  const typeValues = $derived(
+    typeOrder(entryTypes.all).map((type) => ({ value: type.key, label: type.name ?? t('app.entry_types.level', { level: type.level }) })),
+  );
+  const shown = <T extends { field: string }>(each: readonly T[]) => (showsTypes ? each : each.filter((field) => field.field !== ENTRY_TYPE));
+
   const fields = $derived(
-    offeredByProfile(filterableFields(manifest.value, custom), carried).map((field) => ({
+    shown(offeredByProfile(filterableFields(manifest.value, custom), carried)).map((field) => ({
       // The field's own name, drawn as the installation reports it. There is no code for it and
       // there cannot be: the set grows with the installation, so a catalogue entry per field would
       // be a catalogue that is wrong on the one that has another (the same reasoning the entry
@@ -115,11 +131,11 @@
           takesValue: takesValue(op),
           hint: takesList(op) ? t('app.query.list_hint') : t('app.query.placeholder_hint'),
         })),
-      values: field.values?.map((value) => ({ value, label: value })),
+      values: field.field === ENTRY_TYPE && typeValues.length > 0 ? typeValues : field.values?.map((value) => ({ value, label: value })),
     })),
   );
 
-  const groups = $derived(offeredByProfile(groupableFields(manifest.value, custom), carried));
+  const groups = $derived(shown(offeredByProfile(groupableFields(manifest.value, custom), carried)));
 
   /**
    * The document, rebuilt from the controls.
