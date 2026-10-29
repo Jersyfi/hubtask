@@ -1,6 +1,6 @@
 -- Live documents (F-8, offline-sync.md §13): each document's CRDT update log, the snapshots that
 -- compact it, and its head. The server stores and orders the updates and never reads them; the
--- format is the editor's (Yjs-compatible).
+-- format is the editors' CRDT update.
 --
 -- `realtime_document` is the head: the last place given and the one the newest snapshot covers,
 -- locked by the append that takes the next place, so two writers of one document never share a
