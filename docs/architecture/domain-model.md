@@ -324,6 +324,31 @@ signed-in caller, without any place's value, and the client's settings search an
 `plan_setting`, and `setting_value` (level, scope, key, value, hold, allowed) for the workspace, a
 hub, a collection and a person (migration 0208).
 
+**The configuration document** (F-6, D-15 … D-17; packages `core/domain/model/config` and
+`core/application/service/config`). A workspace's configuration as one document of sections -
+`modules`, `roles`, `fields`, `link_types`, `types` (with their forms), `workflows`, `settings` - each
+block named by a stable key (`types.incident`), never by an identifier, and holding no content and no
+secret. A section is declared by the use cases that read and write it (its list, create, change and
+remove), so a document is read and applied through the registry like every other door (P-18), and
+its JSON Schema (`ReadConfigSchema`) is generated from those use cases' declared input. A desired
+document is read in `MERGE` mode (absent is kept, a null block removes) or `REPLACE` mode (each named
+section stated whole; a rollback). A plan (`PlanConfig`) is the diff by key path with the operations
+it runs, the refusals (a message code and the key path, machine-readable), two flags a person must
+acknowledge - *hides data* (a field or type removed, a field turned read-restricted) and *changes
+permissions* (a role) - and a plan hash over the hash of the document in force and the document it
+leads to. `ApplyConfig` re-exports, refuses `config.version_conflict` where the configuration moved
+through any door, runs every operation in one transaction and writes a `config_revision` (the
+document after, who applied it, who proposed it, the counts) and one trail entry with counts only
+(rule 10). A rollback is a `REPLACE` plan of an earlier version's document. An agent's apply
+(`actor.Kind = AI_AGENT`) follows `config.agent_apply` - `APPROVAL` by default keeps it as a
+`config_proposal` a person applies or declines (`DecideConfigProposal`; an agent never decides one,
+and a plan touching the policy itself always waits), `ALLOWED` applies, `NEVER` refuses; the
+installation and a plan may lock it and a workspace only tightens it. A **template** is a versioned
+`MERGE` document (`config_template`, a version never rewritten, linted before it is published);
+taking one records `template@version` with the version's document (`config_template_use`), and an
+upgrade compares that base, the workspace's document and the newer version three ways: what only the
+template changed is taken, what the workspace changed too is a conflict shown and left unless chosen.
+
 **Modules** (UC-INS-21, package `core/domain/model/module`) are catalogue entries `module.<name>`
 of kind `FLAG`, off by default: the installation and a plan lock one on or off, the workspace
 switches it, a hub only switches off what the workspace has on. A use case of a module declares it
