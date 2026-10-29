@@ -234,6 +234,10 @@ type WorkItem struct {
 	// EntryType is the key of the entry's type, empty for its level's system type (UC-FLW-01). A
 	// scalar, so it merges as last writer wins per field (offline-sync.md §4.2).
 	EntryType string
+	// Status is the key of the entry's status in the workflow its collection runs for its type,
+	// empty where none runs (UC-FLW-02). In a workflow collection completion follows its category
+	// (D-02).
+	Status string
 }
 
 // RetentionState is what an entry in a running retention period carries (data-retention.md §6).
