@@ -71,3 +71,25 @@ func TestAHubsConfigurationIsPlannedWithItsHub(t *testing.T) {
 		t.Errorf("the history does not ask for the hub's: %s", stub.request.URL.RawQuery)
 	}
 }
+
+// The sandbox from the command line: a document changes it, and promote plans what it changed.
+func TestTheSandboxIsChangedAndPromotedFromTheCommandLine(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{"exists":true,"writes":1}`)
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), `{"types":{"incident":{"level":"TASK","name":"Incident"}}}`, "config", "sandbox", "-f", "-")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if stub.request.Method != http.MethodPost || stub.request.URL.Path != APIPath+"/config/sandbox" || !strings.Contains(stub.body, "incident") {
+		t.Errorf("%s %s with %s", stub.request.Method, stub.request.URL.Path, stub.body)
+	}
+
+	plan := `{"base_hash":"b","plan_hash":"p3","changes":[{"op":"ADD","path":"types.incident","fields":["level","name"]}],"refusals":[],"operations":[],"flags":{"hides_data":false,"changes_permissions":false},"counts":{"added":1,"changed":0,"removed":0}}`
+	stub = serveJSON(t, http.StatusOK, plan)
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "config", "promote")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if stub.request.URL.Path != APIPath+"/config:plan" || !strings.Contains(stub.body, `"from_sandbox":true`) || !strings.Contains(out, "types.incident") {
+		t.Errorf("%s with %s: %q", stub.request.URL.Path, stub.body, out)
+	}
+}

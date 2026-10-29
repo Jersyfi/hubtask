@@ -39,6 +39,8 @@ func configGroup() group {
 			{name: "templates", summary: "the workspace's templates and the updates available", run: configTemplates},
 			{name: "publish", summary: "publish a template's next version", run: configPublish},
 			{name: "take", summary: "plan taking or upgrading a template", run: configTake},
+			{name: "sandbox", summary: "the sandbox: read it, change it with -f, --reset or --discard", run: configSandbox},
+			{name: "promote", summary: "plan promoting the sandbox; --yes applies it", run: configPromote},
 		},
 	}
 }
@@ -545,4 +547,77 @@ func cellOf(v any) string {
 		raw, _ := json.Marshal(value)
 		return string(raw)
 	}
+}
+
+// configSandbox reads the sandbox, or changes it: a document with -f, a fresh copy with --reset,
+// or --discard. Nothing runs in force.
+func configSandbox(ctx context.Context, cli *CLI, args []string) error {
+	flags := commandFlags(cli, "config", "sandbox", "[-f <file>] [--replace] [--reset] [--discard]")
+	file := flags.String("f", "", "a document to change the sandbox by; - reads standard input")
+	replace := flags.Bool("replace", false, "state each section the document names whole")
+	reset := flags.Bool("reset", false, "copy the configuration in force afresh first")
+	discard := flags.Bool("discard", false, "throw the sandbox away")
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var out map[string]any
+	if *file == "" && !*reset && !*discard {
+		if err := client.Get(ctx, configPath+"/sandbox", nil, &out); err != nil {
+			return err
+		}
+		if promotion, ok := out["promotion"].(map[string]any); ok {
+			return cli.Emit(out, configPlanTable(promotion))
+		}
+		return cli.emitJSON(out)
+	}
+	body := map[string]any{}
+	switch {
+	case *discard:
+		body["discard"] = true
+	default:
+		if *reset {
+			body["reset"] = true
+		}
+		if *file != "" {
+			document, err := readDocument(cli, *file)
+			if err != nil {
+				return err
+			}
+			body["document"], body["mode"] = document, configMode(*replace)
+		}
+	}
+	if err := client.Post(ctx, configPath+"/sandbox", body, &out); err != nil {
+		return err
+	}
+	return cli.emitJSON(out)
+}
+
+// configPromote plans promoting the sandbox - what it changed since its copy - and with --yes
+// applies that plan.
+func configPromote(ctx context.Context, cli *CLI, args []string) error {
+	flags := commandFlags(cli, "config", "promote", "[--yes] [--acknowledge]")
+	yes := flags.Bool("yes", false, "apply the plan rather than only show it")
+	acknowledge := flags.Bool("acknowledge", false, "the plan hides data or changes permissions, and that is seen")
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+	if !*yes {
+		return planAndShow(ctx, cli, map[string]any{"from_sandbox": true})
+	}
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var plan map[string]any
+	if err := client.Post(ctx, configPath+":plan", map[string]any{"from_sandbox": true}, &plan); err != nil {
+		return err
+	}
+	if plan["plan_hash"] == nil {
+		return cli.Emit(plan, configPlanTable(plan))
+	}
+	return applyAndShow(ctx, cli, map[string]any{"from_sandbox": true, "plan_hash": plan["plan_hash"], "acknowledge": *acknowledge})
 }
