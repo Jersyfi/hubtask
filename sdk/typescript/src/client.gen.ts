@@ -1922,6 +1922,11 @@ export class HubtaskClient {
     return this.call("PUT", "/tenant/modules/{module}", { "module": module }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** How many people switching a module off would leave without it */
+  previewModuleReach(module: string, options: CallOptions & { readonly query?: NonNullable<operations["previewModuleReach"]['parameters']['query']> } = {}): Promise<operations["previewModuleReach"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/tenant/modules/{module}/reach", { "module": module }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The presets a hub or collection can start from */
   listPresets(options: CallOptions = {}): Promise<operations["listPresets"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/presets", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

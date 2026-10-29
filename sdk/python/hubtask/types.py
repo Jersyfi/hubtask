@@ -1562,7 +1562,14 @@ class ConfigReach(TypedDict, total=False):
     groups: int
     gained: list[str]
     lost: list[str]
+    people: int
     withheld: bool
+
+class ModuleReach(TypedDict, total=False):
+    module: Required["Module"]
+    hub_id: str
+    on: Required[bool]
+    people: Required[int]
 
 class CustomFieldReach(TypedDict, total=False):
     field_id: Required[str]

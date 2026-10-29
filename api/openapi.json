@@ -13437,6 +13437,52 @@
         }
       }
     },
+    "/tenant/modules/{module}/reach": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "previewModuleReach",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "module reach",
+        "summary": "How many people switching a module off would leave without it",
+        "description": "How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. A count, never who. Needs what the switch needs.\n",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Module"
+            }
+          },
+          {
+            "name": "hub_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleReach"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/presets": {
       "get": {
         "tags": [
@@ -25347,9 +25393,38 @@
               "type": "string"
             }
           },
+          "people": {
+            "type": "integer",
+            "description": "People a module switched off at the plan's place would leave without it."
+          },
           "withheld": {
             "type": "boolean",
             "description": "True where the reach was not counted because the reader may not see what the change touches - a token without the scope the preview needs, or a module that is off. The plan still holds; only the counts are missing.\n"
+          }
+        }
+      },
+      "ModuleReach": {
+        "type": "object",
+        "required": [
+          "module",
+          "on",
+          "people"
+        ],
+        "properties": {
+          "module": {
+            "$ref": "#/components/schemas/Module"
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "on": {
+            "type": "boolean",
+            "description": "Whether the module is on at the place now."
+          },
+          "people": {
+            "type": "integer",
+            "description": "People who reach the place while the module is on there; 0 where it is off."
           }
         }
       },

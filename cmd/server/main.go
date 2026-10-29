@@ -1802,6 +1802,7 @@ func run() error {
 		work.ResolveReferences{Linking: linking}.Descriptor(),
 		settingservice.ListModules{Modules: modules}.Descriptor(),
 		settingservice.SetModule{Modules: modules}.Descriptor(),
+		settingservice.PreviewModuleReach{Modules: modules, People: postgres.NewMembershipRepository()}.Descriptor(),
 		settingservice.ReadSettingsCatalogue{}.Descriptor(),
 		configservice.ReadConfigSchema{Desk: configDesk}.Descriptor(),
 		configservice.ExportConfig{Desk: configDesk}.Descriptor(),

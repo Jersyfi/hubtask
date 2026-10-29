@@ -8563,8 +8563,11 @@ type ConfigReach struct {
 	Lost         *[]string `json:"lost,omitempty"`
 
 	// Moves Per collection and entry type, the status entries move from and to, and how many (as WorkflowPreview).
-	Moves   *[]map[string]interface{} `json:"moves,omitempty"`
-	Path    string                    `json:"path"`
+	Moves *[]map[string]interface{} `json:"moves,omitempty"`
+	Path  string                    `json:"path"`
+
+	// People People a module switched off at the plan's place would leave without it.
+	People  *int `json:"people,omitempty"`
 	Removed *[]struct {
 		Count  int    `json:"count"`
 		Status string `json:"status"`
@@ -11582,6 +11585,20 @@ type Module string
 // ModuleList defines model for ModuleList.
 type ModuleList struct {
 	Modules []ModuleState `json:"modules"`
+}
+
+// ModuleReach defines model for ModuleReach.
+type ModuleReach struct {
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+
+	// Module A module of the suite - a family of building blocks switched on for a place.
+	Module Module `json:"module"`
+
+	// On Whether the module is on at the place now.
+	On bool `json:"on"`
+
+	// People People who reach the place while the module is on there; 0 where it is off.
+	People int `json:"people"`
 }
 
 // ModuleState defines model for ModuleState.
@@ -17161,6 +17178,11 @@ type ListModulesParams struct {
 	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
 }
 
+// PreviewModuleReachParams defines parameters for PreviewModuleReach.
+type PreviewModuleReachParams struct {
+	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+}
+
 // SetWorkspaceStructureParams defines parameters for SetWorkspaceStructure.
 type SetWorkspaceStructureParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -19163,6 +19185,9 @@ type ServerInterface interface {
 	// SetModule Switch a module on or off
 	// (PUT /tenant/modules/{module})
 	SetModule(w http.ResponseWriter, r *http.Request, module Module)
+	// PreviewModuleReach How many people switching a module off would leave without it
+	// (GET /tenant/modules/{module}/reach)
+	PreviewModuleReach(w http.ResponseWriter, r *http.Request, module Module, params PreviewModuleReachParams)
 	// CloseStarter Answers the first start's question for good
 	// (POST /tenant/starter:close)
 	CloseStarter(w http.ResponseWriter, r *http.Request)
@@ -33687,6 +33712,48 @@ func (siw *ServerInterfaceWrapper) SetModule(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// PreviewModuleReach operation middleware
+func (siw *ServerInterfaceWrapper) PreviewModuleReach(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "module" -------------
+	var module Module
+
+	err = runtime.BindStyledParameterWithOptions("simple", "module", r.PathValue("module"), &module, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "module", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PreviewModuleReachParams
+
+	// ------------- Optional query parameter "hub_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "hub_id", r.URL.Query(), &params.HubId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "hub_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hub_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewModuleReach(w, r, module, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CloseStarter operation middleware
 func (siw *ServerInterfaceWrapper) CloseStarter(w http.ResponseWriter, r *http.Request) {
 
@@ -35023,6 +35090,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/config/sandbox", wrapper.WriteConfigSandbox)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/modules", wrapper.ListModules)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tenant/modules/{module}", wrapper.SetModule)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/modules/{module}/reach", wrapper.PreviewModuleReach)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/presets", wrapper.ListPresets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/presets", wrapper.SavePreset)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/presets/{presetId}", wrapper.WithdrawPreset)

@@ -124,6 +124,14 @@ var generatedCommands = []door{
 			{Name: "position", Kind: "integer", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "name", "version"}},
+	{Group: "module", Verb: "reach", OperationID: "previewModuleReach", Method: "GET", Path: "/tenant/modules/{module}/reach", Summary: "How many people switching a module off would leave without it",
+		PathParams: []doorParam{
+			{Name: "module", Kind: "string", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "hub_id", Kind: "uuid", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"hub_id", "module", "on", "people"}},
 	{Group: "role", Verb: "create", OperationID: "createRole", Method: "POST", Path: "/roles", Summary: "Define a role of the workspace's own",
 		Body: []doorParam{
 			{Name: "key", Kind: "string", Help: "", Required: true},

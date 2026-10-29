@@ -68,6 +68,7 @@ var restDoors = map[string]restDoor{
 	"planConfig":                {UseCase: "PlanConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
 	"planConfigTemplate":        {UseCase: "PlanConfigTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"version"}},
 	"previewCustomFieldReach":   {UseCase: "PreviewCustomFieldReach", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"previewModuleReach":        {UseCase: "PreviewModuleReach", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"previewRetentionPolicy":    {UseCase: "PreviewRetentionPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"previewWorkflowPublish":    {UseCase: "PreviewWorkflowPublish", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"previewWorkflowScheme":     {UseCase: "PreviewWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -437,6 +438,12 @@ func (c *RestController) PlanConfigTemplate(w http.ResponseWriter, r *http.Reque
 func (c *RestController) PreviewCustomFieldReach(w http.ResponseWriter, r *http.Request, fieldId openapi.CustomFieldId) {
 	var answer openapi.CustomFieldReach
 	c.door(w, r, restDoors["previewCustomFieldReach"], usecase.Input{"field_id": fieldId.String()}, nil, nil, &answer)
+}
+
+// PreviewModuleReach answers GET /tenant/modules/{module}/reach by the generated mapping.
+func (c *RestController) PreviewModuleReach(w http.ResponseWriter, r *http.Request, module openapi.Module, params openapi.PreviewModuleReachParams) {
+	var answer openapi.ModuleReach
+	c.door(w, r, restDoors["previewModuleReach"], usecase.Input{"module": string(module)}, params, nil, &answer)
 }
 
 // PreviewRetentionPolicy answers POST /retention-policies/{policyId}:preview by the generated mapping.

@@ -340,3 +340,25 @@ func (r MembershipRepository) HoldsAny(ctx context.Context, accountID shared.ID)
 	}
 	return held, nil
 }
+
+// PeopleReaching answers how many people hold a role in the transaction's tenant, or within one
+// hub when hubID is not zero.
+func (r MembershipRepository) PeopleReaching(ctx context.Context, hubID shared.ID) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var hub pgtype.UUID
+	if !hubID.IsZero() {
+		if hub, err = uuidOf(hubID); err != nil {
+			return 0, err
+		}
+	}
+	people, err := queries.CountPeopleReaching(ctx, hub)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the people a place reaches: %w", err))
+	}
+	return int(people), nil
+}

@@ -1527,6 +1527,10 @@ class Client:
         """Switch a module on or off"""
         return self._call("PUT", "/tenant/modules/{module}", {"module": module}, None, {}, body, "json", "application/json", "json")
 
+    def preview_module_reach(self, module: str, *, query: dict[str, Any] | None = None) -> "ModuleReach":
+        """How many people switching a module off would leave without it"""
+        return self._call("GET", "/tenant/modules/{module}/reach", {"module": module}, query, {}, None, "none", None, "json")
+
     def list_presets(self) -> dict[str, Any]:
         """The presets a hub or collection can start from"""
         return self._call("GET", "/presets", {}, None, {}, None, "none", None, "json")

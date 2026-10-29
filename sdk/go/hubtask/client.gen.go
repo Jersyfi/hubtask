@@ -8569,8 +8569,11 @@ type ConfigReach struct {
 	Lost         *[]string `json:"lost,omitempty"`
 
 	// Moves Per collection and entry type, the status entries move from and to, and how many (as WorkflowPreview).
-	Moves   *[]map[string]interface{} `json:"moves,omitempty"`
-	Path    string                    `json:"path"`
+	Moves *[]map[string]interface{} `json:"moves,omitempty"`
+	Path  string                    `json:"path"`
+
+	// People People a module switched off at the plan's place would leave without it.
+	People  *int `json:"people,omitempty"`
 	Removed *[]struct {
 		Count  int    `json:"count"`
 		Status string `json:"status"`
@@ -11588,6 +11591,20 @@ type Module string
 // ModuleList defines model for ModuleList.
 type ModuleList struct {
 	Modules []ModuleState `json:"modules"`
+}
+
+// ModuleReach defines model for ModuleReach.
+type ModuleReach struct {
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+
+	// Module A module of the suite - a family of building blocks switched on for a place.
+	Module Module `json:"module"`
+
+	// On Whether the module is on at the place now.
+	On bool `json:"on"`
+
+	// People People who reach the place while the module is on there; 0 where it is off.
+	People int `json:"people"`
 }
 
 // ModuleState defines model for ModuleState.
@@ -17164,6 +17181,11 @@ type UpdateWorkspaceParams struct {
 
 // ListModulesParams defines parameters for ListModules.
 type ListModulesParams struct {
+	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+}
+
+// PreviewModuleReachParams defines parameters for PreviewModuleReach.
+type PreviewModuleReachParams struct {
 	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
 }
 
@@ -23977,6 +23999,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /tenant/modules/{module} (the `SetModule` operationId).
 	SetModule(ctx context.Context, module Module, body SetModuleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PreviewModuleReach How many people switching a module off would leave without it
+	//
+	// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. A count, never who. Needs what the switch needs.
+	//
+	// Corresponds with GET /tenant/modules/{module}/reach (the `PreviewModuleReach` operationId).
+	PreviewModuleReach(ctx context.Context, module Module, params *PreviewModuleReachParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CloseStarter Answers the first start's question for good
 	//
@@ -36492,6 +36521,23 @@ func (c *Client) SetModuleWithBody(ctx context.Context, module Module, contentTy
 // Corresponds with PUT /tenant/modules/{module} (the `SetModule` operationId).
 func (c *Client) SetModule(ctx context.Context, module Module, body SetModuleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetModuleRequest(c.Server, module, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PreviewModuleReach How many people switching a module off would leave without it
+//
+// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. A count, never who. Needs what the switch needs.
+//
+// Corresponds with GET /tenant/modules/{module}/reach (the `PreviewModuleReach` operationId).
+func (c *Client) PreviewModuleReach(ctx context.Context, module Module, params *PreviewModuleReachParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPreviewModuleReachRequest(c.Server, module, params)
 	if err != nil {
 		return nil, err
 	}
@@ -57190,6 +57236,67 @@ func NewSetModuleRequestWithBody(server string, module Module, contentType strin
 	return req, nil
 }
 
+// NewPreviewModuleReachRequest constructs an http.Request for the PreviewModuleReach method
+func NewPreviewModuleReachRequest(server string, module Module, params *PreviewModuleReachParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "module", module, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/modules/%s/reach", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.HubId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "hub_id", *params.HubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewCloseStarterRequest constructs an http.Request for the CloseStarter method
 func NewCloseStarterRequest(server string) (*http.Request, error) {
 	var err error
@@ -65024,6 +65131,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /tenant/modules/{module} (the `SetModule` operationId).
 	SetModuleWithResponse(ctx context.Context, module Module, body SetModuleJSONRequestBody, reqEditors ...RequestEditorFn) (*SetModuleResult, error)
+
+	// PreviewModuleReachWithResponse How many people switching a module off would leave without it
+	//
+	// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. A count, never who. Needs what the switch needs.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /tenant/modules/{module}/reach (the `PreviewModuleReach` operationId).
+	PreviewModuleReachWithResponse(ctx context.Context, module Module, params *PreviewModuleReachParams, reqEditors ...RequestEditorFn) (*PreviewModuleReachResult, error)
 
 	// CloseStarterWithResponse Answers the first start's question for good
 	//
@@ -86081,6 +86197,54 @@ func (r SetModuleResult) ContentType() string {
 	return ""
 }
 
+type PreviewModuleReachResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ModuleReach
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PreviewModuleReachResult) GetJSON200() *ModuleReach {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PreviewModuleReachResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PreviewModuleReachResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PreviewModuleReachResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PreviewModuleReachResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PreviewModuleReachResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CloseStarterResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -97654,6 +97818,21 @@ func (c *ClientWithResponses) SetModuleWithResponse(ctx context.Context, module 
 		return nil, err
 	}
 	return ParseSetModuleResult(rsp)
+}
+
+// PreviewModuleReachWithResponse How many people switching a module off would leave without it
+//
+// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. A count, never who. Needs what the switch needs.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /tenant/modules/{module}/reach (the `PreviewModuleReach` operationId).
+func (c *ClientWithResponses) PreviewModuleReachWithResponse(ctx context.Context, module Module, params *PreviewModuleReachParams, reqEditors ...RequestEditorFn) (*PreviewModuleReachResult, error) {
+	rsp, err := c.PreviewModuleReach(ctx, module, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePreviewModuleReachResult(rsp)
 }
 
 // CloseStarterWithResponse Answers the first start's question for good
@@ -113133,6 +113312,39 @@ func ParseSetModuleResult(rsp *http.Response) (*SetModuleResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest ModuleList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePreviewModuleReachResult parses an HTTP response from a PreviewModuleReachWithResponse call
+func ParsePreviewModuleReachResult(rsp *http.Response) (*PreviewModuleReachResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PreviewModuleReachResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ModuleReach
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

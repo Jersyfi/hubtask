@@ -449,6 +449,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `module.reach_previewed` | PreviewModuleReach | `module` | INFO | When refused |
 | `module.read` | ListModules | `module` | INFO | When refused |
 | `module.switched` | SetModule | `module` | INFO | Every time |
 

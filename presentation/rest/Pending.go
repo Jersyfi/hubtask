@@ -1849,3 +1849,7 @@ func (pending) PlanConfigTemplate(w http.ResponseWriter, r *http.Request, _ stri
 func (pending) PreviewWorkspaceStructure(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
+
+func (pending) PreviewModuleReach(w http.ResponseWriter, r *http.Request, _ openapi.Module, _ openapi.PreviewModuleReachParams) {
+	notAvailable(w, r)
+}

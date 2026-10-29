@@ -126,6 +126,34 @@ SELECT EXISTS (
      )
 ) AS held;
 
+-- name: CountPeopleReaching :one
+-- How many people hold a role - built-in or the workspace's own, directly or through a group - in
+-- the tenant, or within one hub when hub_id is named: at the hub, at a collection of it, at an
+-- entry there, or at the workspace unless the hub is private. A disabled or deleted account is
+-- not counted. What a module switched off there leaves without it (config-document.md §2).
+WITH grants AS (
+  SELECT m.account_id, m.group_id, m.scope_type, m.scope_id FROM membership m
+  UNION ALL
+  SELECT g.account_id, g.group_id, g.scope_type, g.scope_id FROM custom_role_grant g
+), reaching AS (
+  SELECT g.account_id, g.group_id FROM grants g
+  WHERE sqlc.narg('hub_id')::uuid IS NULL
+     OR (g.scope_type = 'TENANT' AND EXISTS (
+           SELECT 1 FROM container h WHERE h.id = sqlc.narg('hub_id')::uuid AND NOT h.private))
+     OR (g.scope_type = 'HUB' AND g.scope_id = sqlc.narg('hub_id')::uuid)
+     OR (g.scope_type = 'COLLECTION' AND g.scope_id IN (
+           SELECT c.id FROM container c WHERE c.parent_id = sqlc.narg('hub_id')::uuid))
+     OR (g.scope_type = 'ITEM' AND g.scope_id IN (
+           SELECT w.id FROM work_item w JOIN container c ON c.id = w.collection_id
+           WHERE c.parent_id = sqlc.narg('hub_id')::uuid))
+)
+SELECT count(*)::int AS people
+FROM account a
+WHERE a.deleted_at IS NULL AND a.status <> 'DISABLED'
+  AND (a.id IN (SELECT r.account_id FROM reaching r WHERE r.account_id IS NOT NULL)
+    OR a.id IN (SELECT gm.account_id FROM account_group_member gm
+                JOIN reaching r ON r.group_id = gm.group_id));
+
 -- name: RolesHeldAnywhere :many
 -- Every role the account holds anywhere in the tenant, directly or through a group, each once:
 -- what a new way into the account would hand its issuer (identity.md §13). The rows that stand are
