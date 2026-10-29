@@ -1,9 +1,10 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // A hub's inventory judged (UC-AST-06 check 6): completeness and correctness, the stale, orphaned
-  // and duplicate CIs, those without an owner and the reviews overdue, in all and per class, and
-  // the CIs found wanting, each opened from its row.
+  // A hub's inventory judged (UC-AST-06 checks 6 to 9): completeness and correctness, the stale,
+  // orphaned and duplicate CIs, those without an owner, the reviews overdue and the relations no
+  // program confirms any more, in all and per class; each service's score, worst first; each
+  // source's conflict rate; and the CIs found wanting, each opened from its row.
 
   import { untrack } from 'svelte';
   import { Banner, Spinner, Stack } from '@hubtask/design-system/components';
@@ -73,6 +74,7 @@
       <div><dt>{t('app.assets.duplicates')}</dt><dd>{health.duplicates}</dd></div>
       <div><dt>{t('app.assets.without_owner')}</dt><dd>{health.without_owner}</dd></div>
       <div><dt>{t('app.assets.review_overdue')}</dt><dd>{health.review_overdue}</dd></div>
+      <div><dt>{t('app.assets.stale_relations')}</dt><dd>{health.stale_relations}</dd></div>
     </dl>
 
     {#if health.classes.length > 0}
@@ -104,6 +106,68 @@
         </table>
       </div>
     {/if}
+
+    <section class="part" aria-labelledby="health-services">
+      <h2 id="health-services" class="heading">{t('app.assets.services')}</h2>
+      {#if health.services.length === 0}
+        <p class="meta">{t('app.assets.services_none')}</p>
+      {:else}
+        <div class="scroll">
+          <table class="classes">
+            <thead>
+              <tr>
+                <th scope="col">{t('app.assets.service_label')}</th>
+                <th scope="col">{t('app.assets.class_label')}</th>
+                <th scope="col">{t('app.assets.service_cis')}</th>
+                <th scope="col">{t('app.assets.service_wanting')}</th>
+                <th scope="col">{t('app.assets.service_score')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each health.services as service (service.ci_id)}
+                <tr>
+                  <th scope="row"><a href={`/cis/${service.ci_id}`}>{service.name}</a></th>
+                  <td>{classWord(service.class, classes, words)}</td>
+                  <td>{service.cis}</td>
+                  <td>{service.wanting}</td>
+                  <td>{share(service.score)}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {/if}
+    </section>
+
+    <section class="part" aria-labelledby="health-sources">
+      <h2 id="health-sources" class="heading">{t('app.assets.sources')}</h2>
+      {#if health.sources.length === 0}
+        <p class="meta">{t('app.assets.sources_none')}</p>
+      {:else}
+        <div class="scroll">
+          <table class="classes">
+            <thead>
+              <tr>
+                <th scope="col">{t('app.assets.source_label')}</th>
+                <th scope="col">{t('app.assets.source_reported')}</th>
+                <th scope="col">{t('app.assets.source_kept')}</th>
+                <th scope="col">{t('app.assets.source_conflicts')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each health.sources as source (source.source)}
+                <tr>
+                  <th scope="row">{source.source}</th>
+                  <td>{source.reported}</td>
+                  <td>{source.kept}</td>
+                  <td>{share(source.conflict_rate)}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {/if}
+    </section>
 
     <section class="part" aria-labelledby="health-problems">
       <h2 id="health-problems" class="heading">{t('app.assets.problems')}</h2>
@@ -146,6 +210,6 @@
     padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md);
     background: var(--bg-surface);
   }
-  .row a { color: var(--text-primary); font-weight: var(--fw-medium); }
+  .row a, .classes a { color: var(--text-primary); font-weight: var(--fw-medium); }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
 </style>
