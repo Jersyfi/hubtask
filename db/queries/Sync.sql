@@ -409,3 +409,22 @@ FROM page
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after') AND deleted_at IS NULL
 ORDER BY id
 LIMIT sqlc.arg('batch');
+
+-- name: SnapshotCmdbCis :many
+-- The workspace's configuration items not merged away (migration 0236), for reading a hub's
+-- inventory offline; each is filed under its hub, which decides who is told of it.
+SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
+       location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
+       created_by, created_at, updated_by, updated_at, version
+FROM cmdb_ci
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after') AND merged_into IS NULL
+ORDER BY id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotCmdbRelations :many
+-- The relations between them, each filed under its hub.
+SELECT id, hub_id, type_key, source_ci_id, target_ci_id, data_source, first_seen, last_seen, created_by
+FROM cmdb_relation
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');

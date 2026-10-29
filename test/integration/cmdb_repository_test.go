@@ -132,3 +132,41 @@ func TestACIAddressIsAReferenceOfTheText(t *testing.T) {
 		t.Fatalf("a whiteboard reference takes the kind CI: %v, %v", allowed, err)
 	}
 }
+
+// The initial sync's walk of the inventory (offline reading) answers a workspace's own CIs and
+// relations, and none of the workspace next door's.
+func TestTheInventoryWalkStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	_, app, vm := seedCIs(ctx, t)
+	snapshot := postgres.NewSnapshotRepository()
+	seen := func(tenant shared.ID) (map[shared.ID]bool, int) {
+		found, relations := map[shared.ID]bool{}, 0
+		if err := write(ctx, t, tenant, func(ctx context.Context) error {
+			cis, err := snapshot.CIs(ctx, "", 5000)
+			if err != nil {
+				return err
+			}
+			for _, ci := range cis {
+				found[ci.ID] = true
+			}
+			rels, err := snapshot.CIRelations(ctx, "", 5000)
+			for _, r := range rels {
+				if r.SourceCI == app && r.TargetCI == vm {
+					relations++
+				}
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return found, relations
+	}
+	own, ownRelations := seen(tenantA)
+	if !own[app] || !own[vm] || ownRelations != 1 {
+		t.Errorf("the workspace's walk holds %v and %d relations, want both CIs and their relation", own, ownRelations)
+	}
+	next, nextRelations := seen(tenantB)
+	if next[app] || next[vm] || nextRelations != 0 {
+		t.Errorf("the workspace next door walked %v and %d relations", next, nextRelations)
+	}
+}

@@ -11,6 +11,7 @@ import (
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
+	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -371,6 +372,40 @@ func (SnapshotRepository) Pages(ctx context.Context, after shared.ID, batch int)
 	}
 	return mapRows(rows, func(row sqlc.SnapshotPagesRow) (knowledge.Page, error) {
 		return pageFrom(sqlc.FindPageRow(row))
+	})
+}
+
+// CIs pages the workspace's configuration items that are not merged away.
+func (SnapshotRepository) CIs(ctx context.Context, after shared.ID, batch int) ([]cmdb.CI, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotCmdbCis(ctx, sqlc.SnapshotCmdbCisParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("configuration items", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotCmdbCisRow) (cmdb.CI, error) {
+		return cmdbCIFrom(sqlc.FindCmdbCiRow(row))
+	})
+}
+
+// CIRelations pages the relations between configuration items.
+func (SnapshotRepository) CIRelations(ctx context.Context, after shared.ID, batch int) ([]cmdb.Relation, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotCmdbRelations(ctx, sqlc.SnapshotCmdbRelationsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("configuration item relations", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotCmdbRelationsRow) (cmdb.Relation, error) {
+		return cmdbRelationFrom(sqlc.FindCmdbRelationRow(row))
 	})
 }
 

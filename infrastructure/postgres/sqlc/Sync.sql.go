@@ -660,6 +660,145 @@ func (q *Queries) SnapshotBuckets(ctx context.Context, arg SnapshotBucketsParams
 	return items, nil
 }
 
+const snapshotCmdbCis = `-- name: SnapshotCmdbCis :many
+SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
+       location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
+       created_by, created_at, updated_by, updated_at, version
+FROM cmdb_ci
+WHERE tenant_id = current_tenant_id() AND id > $1 AND merged_into IS NULL
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotCmdbCisParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotCmdbCisRow struct {
+	ID             pgtype.UUID
+	HubID          pgtype.UUID
+	ClassKey       string
+	Name           string
+	Stage          string
+	Status         string
+	Attributes     []byte
+	Provenance     []byte
+	OwnerAccountID pgtype.UUID
+	OwnerGroupID   pgtype.UUID
+	LocationCiID   pgtype.UUID
+	Protection     []byte
+	ReviewDue      pgtype.Date
+	Quantity       int32
+	LastSeenAt     pgtype.Timestamptz
+	MergedInto     pgtype.UUID
+	CreatedBy      pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	UpdatedBy      pgtype.UUID
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
+}
+
+// The workspace's configuration items not merged away (migration 0236), for reading a hub's
+// inventory offline; each is filed under its hub, which decides who is told of it.
+func (q *Queries) SnapshotCmdbCis(ctx context.Context, arg SnapshotCmdbCisParams) ([]SnapshotCmdbCisRow, error) {
+	rows, err := q.db.Query(ctx, snapshotCmdbCis, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotCmdbCisRow{}
+	for rows.Next() {
+		var i SnapshotCmdbCisRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HubID,
+			&i.ClassKey,
+			&i.Name,
+			&i.Stage,
+			&i.Status,
+			&i.Attributes,
+			&i.Provenance,
+			&i.OwnerAccountID,
+			&i.OwnerGroupID,
+			&i.LocationCiID,
+			&i.Protection,
+			&i.ReviewDue,
+			&i.Quantity,
+			&i.LastSeenAt,
+			&i.MergedInto,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedBy,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotCmdbRelations = `-- name: SnapshotCmdbRelations :many
+SELECT id, hub_id, type_key, source_ci_id, target_ci_id, data_source, first_seen, last_seen, created_by
+FROM cmdb_relation
+WHERE tenant_id = current_tenant_id() AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotCmdbRelationsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotCmdbRelationsRow struct {
+	ID         pgtype.UUID
+	HubID      pgtype.UUID
+	TypeKey    string
+	SourceCiID pgtype.UUID
+	TargetCiID pgtype.UUID
+	DataSource string
+	FirstSeen  pgtype.Timestamptz
+	LastSeen   pgtype.Timestamptz
+	CreatedBy  pgtype.UUID
+}
+
+// The relations between them, each filed under its hub.
+func (q *Queries) SnapshotCmdbRelations(ctx context.Context, arg SnapshotCmdbRelationsParams) ([]SnapshotCmdbRelationsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotCmdbRelations, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotCmdbRelationsRow{}
+	for rows.Next() {
+		var i SnapshotCmdbRelationsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HubID,
+			&i.TypeKey,
+			&i.SourceCiID,
+			&i.TargetCiID,
+			&i.DataSource,
+			&i.FirstSeen,
+			&i.LastSeen,
+			&i.CreatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotComments = `-- name: SnapshotComments :many
 SELECT c.id, c.tenant_id, c.item_id, c.author_id, c.parent_comment_id, c.body,
        c.created_at, c.edited_at, c.deleted_at, c.version, c.kind, c.system_code, c.system_params,

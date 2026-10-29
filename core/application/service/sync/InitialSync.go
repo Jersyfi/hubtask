@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
+	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
 	knowledgeservice "github.com/Jersyfi/hubtask/core/application/service/knowledge"
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
@@ -32,6 +33,7 @@ var walkKinds = []string{
 	entityContainer, entityBucket, entityLabel, entityItem, kindSet,
 	entityComment, entityReminder, entityRecurrence, entityTemplate, entityEntryType,
 	entityLinkType, entityWorkflow, entityCustomRole, entityEntryLink, entityRoleGrant, entityPage,
+	entityCI, entityCIRelation,
 }
 
 const (
@@ -55,6 +57,10 @@ const (
 	entityEntryLink = "entry_link"
 	// entityPage is a page with its body, filed under its hub: a page is read where its hub is.
 	entityPage = knowledge.DocumentKind
+	// entityCI and entityCIRelation are a configuration item and a relation between two, each
+	// filed under its hub: an inventory is read where its hub is (M6).
+	entityCI         = cmdbservice.CIEntity
+	entityCIRelation = cmdbservice.RelationEntity
 	// entityRoleGrant is a grant of a custom role, walked for its holder alone: what a device
 	// may predict offline is what its own person holds (offline-sync.md §4.3).
 	entityRoleGrant = identityservice.RoleGrantEntity
@@ -380,6 +386,32 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 			rows = append(rows, walkRow{
 				entity: entityPage, entityID: page.ID, containerID: page.HubID,
 				payload: knowledgeservice.PageOutput(page, true, now), key: page.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityCI:
+		cis, err := p.Snapshot.CIs(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(cis))
+		for _, ci := range cis {
+			rows = append(rows, walkRow{
+				entity: entityCI, entityID: ci.ID, containerID: ci.HubID,
+				payload: cmdbservice.CIOutput(ci, nil), key: ci.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityCIRelation:
+		relations, err := p.Snapshot.CIRelations(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(relations))
+		for _, r := range relations {
+			rows = append(rows, walkRow{
+				entity: entityCIRelation, entityID: r.ID, containerID: r.HubID,
+				payload: cmdbservice.RelationOutput(r), key: r.ID.String(),
 			})
 		}
 		return rows, nil

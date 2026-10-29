@@ -14,6 +14,7 @@ import (
 	"time"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	syncdomain "github.com/Jersyfi/hubtask/core/domain/model/sync"
@@ -160,6 +161,11 @@ type Snapshot interface {
 	CustomRoles(ctx context.Context, after shared.ID, batch int) ([]identityrepo.CustomRoleRow, error)
 	// Pages pages the workspace's living pages with their bodies, for reading offline (M3).
 	Pages(ctx context.Context, after shared.ID, batch int) ([]knowledge.Page, error)
+	// CIs pages the workspace's configuration items that are not merged away, for reading a
+	// hub's inventory offline (M6).
+	CIs(ctx context.Context, after shared.ID, batch int) ([]cmdb.CI, error)
+	// CIRelations pages the relations between them.
+	CIRelations(ctx context.Context, after shared.ID, batch int) ([]cmdb.Relation, error)
 	// OwnRoleGrants pages the grants of custom roles the account holds, named to it or to a
 	// group it is in: a person's own (offline-sync.md §4.3).
 	OwnRoleGrants(ctx context.Context, accountID, after shared.ID, batch int) ([]identityrepo.CustomGrantRow, error)
