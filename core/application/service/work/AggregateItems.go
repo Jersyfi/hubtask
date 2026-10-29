@@ -299,7 +299,9 @@ func (h AggregateItems) Descriptor() usecase.Descriptor {
 	})
 	input = append(input, usecase.Field{
 		Name: "aggregate", Kind: usecase.KindObject, Required: true,
-		Description: "The summary: function (COUNT, SUM, AVG, MIN or MAX), field (a custom field " +
+		Description: "The summary: source (entries, the default, or links - the links whose " +
+			"two ends the scope and filter both keep, counted only, grouped by link_type or a " +
+			"field of the source end), function (COUNT, SUM, AVG, MIN or MAX), field (a custom field " +
 			"holding a number, money or a duration, or lead_time - creation to completion - or " +
 			"scheduled_span - start to due -, both in minutes; not for COUNT), group_by (a field a " +
 			"query may group by), and bucket (field, a timestamp, and period: day, week or month, " +

@@ -2940,6 +2940,24 @@ func (e ItemAggregateQueryAggregateFunction) Valid() bool {
 	}
 }
 
+// Defines values for ItemAggregateQueryAggregateSource.
+const (
+	Entries ItemAggregateQueryAggregateSource = "entries"
+	Links   ItemAggregateQueryAggregateSource = "links"
+)
+
+// Valid indicates whether the value is a known member of the ItemAggregateQueryAggregateSource enum.
+func (e ItemAggregateQueryAggregateSource) Valid() bool {
+	switch e {
+	case Entries:
+		return true
+	case Links:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ItemExportFormat.
 const (
 	ItemExportFormatCSV  ItemExportFormat = "CSV"
@@ -10386,8 +10404,11 @@ type ItemAggregateQuery struct {
 		Field    *string                             `json:"field,omitempty"`
 		Function ItemAggregateQueryAggregateFunction `json:"function"`
 
-		// GroupBy A field a query may group by; one row per value.
+		// GroupBy A field a query may group by, or `link_type` for a `links` summary; one row per value.
 		GroupBy *string `json:"group_by,omitempty"`
+
+		// Source What is counted: the entries the scope and filter keep, or the links whose two ends they both keep - an end the caller may not see is never counted. A `links` summary is a `COUNT`; its `group_by` and `bucket` read the link's source end, and it may group by `link_type` too.
+		Source *ItemAggregateQueryAggregateSource `json:"source,omitempty"`
 	} `json:"aggregate"`
 
 	// Filter Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
@@ -10417,6 +10438,9 @@ type ItemAggregateQueryAggregateBucketWeekStart string
 
 // ItemAggregateQueryAggregateFunction defines model for ItemAggregateQuery.Aggregate.Function.
 type ItemAggregateQueryAggregateFunction string
+
+// ItemAggregateQueryAggregateSource What is counted: the entries the scope and filter keep, or the links whose two ends they both keep - an end the caller may not see is never counted. A `links` summary is a `COUNT`; its `group_by` and `bucket` read the link's source end, and it may group by `link_type` too.
+type ItemAggregateQueryAggregateSource string
 
 // ItemAggregateResult defines model for ItemAggregateResult.
 type ItemAggregateResult struct {
@@ -22028,7 +22052,8 @@ type ClientInterface interface {
 
 	// AggregateItemsWithBody A summary of what a query keeps
 	//
-	// How many entries the query's scope and filter keep, and the sum, average, least or greatest
+	// How many entries the query's scope and filter keep - or links between them, with
+	// `source: links` - and the sum, average, least or greatest
 	// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
 	// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
 	// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
@@ -22043,7 +22068,8 @@ type ClientInterface interface {
 
 	// AggregateItems A summary of what a query keeps
 	//
-	// How many entries the query's scope and filter keep, and the sum, average, least or greatest
+	// How many entries the query's scope and filter keep - or links between them, with
+	// `source: links` - and the sum, average, least or greatest
 	// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
 	// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
 	// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
@@ -32849,7 +32875,8 @@ func (c *Client) UnassignWorkItem(ctx context.Context, itemId ItemId, params *Un
 
 // AggregateItemsWithBody A summary of what a query keeps
 //
-// How many entries the query's scope and filter keep, and the sum, average, least or greatest
+// How many entries the query's scope and filter keep - or links between them, with
+// `source: links` - and the sum, average, least or greatest
 // of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
 // `scheduled_span` - optionally per value of a field a query may group by, and per day, week
 // or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
@@ -32874,7 +32901,8 @@ func (c *Client) AggregateItemsWithBody(ctx context.Context, contentType string,
 
 // AggregateItems A summary of what a query keeps
 //
-// How many entries the query's scope and filter keep, and the sum, average, least or greatest
+// How many entries the query's scope and filter keep - or links between them, with
+// `source: links` - and the sum, average, least or greatest
 // of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
 // `scheduled_span` - optionally per value of a field a query may group by, and per day, week
 // or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
@@ -62676,7 +62704,8 @@ type ClientWithResponsesInterface interface {
 
 	// AggregateItemsWithBodyWithResponse A summary of what a query keeps
 	//
-	// How many entries the query's scope and filter keep, and the sum, average, least or greatest
+	// How many entries the query's scope and filter keep - or links between them, with
+	// `source: links` - and the sum, average, least or greatest
 	// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
 	// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
 	// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
@@ -62691,7 +62720,8 @@ type ClientWithResponsesInterface interface {
 
 	// AggregateItemsWithResponse A summary of what a query keeps
 	//
-	// How many entries the query's scope and filter keep, and the sum, average, least or greatest
+	// How many entries the query's scope and filter keep - or links between them, with
+	// `source: links` - and the sum, average, least or greatest
 	// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
 	// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
 	// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
@@ -94109,7 +94139,8 @@ func (c *ClientWithResponses) UnassignWorkItemWithResponse(ctx context.Context, 
 
 // AggregateItemsWithBodyWithResponse A summary of what a query keeps
 //
-// How many entries the query's scope and filter keep, and the sum, average, least or greatest
+// How many entries the query's scope and filter keep - or links between them, with
+// `source: links` - and the sum, average, least or greatest
 // of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
 // `scheduled_span` - optionally per value of a field a query may group by, and per day, week
 // or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
@@ -94130,7 +94161,8 @@ func (c *ClientWithResponses) AggregateItemsWithBodyWithResponse(ctx context.Con
 
 // AggregateItemsWithResponse A summary of what a query keeps
 //
-// How many entries the query's scope and filter keep, and the sum, average, least or greatest
+// How many entries the query's scope and filter keep - or links between them, with
+// `source: links` - and the sum, average, least or greatest
 // of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
 // `scheduled_span` - optionally per value of a field a query may group by, and per day, week
 // or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless

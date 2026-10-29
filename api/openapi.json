@@ -14429,7 +14429,7 @@
         "operationId": "aggregateItems",
         "x-hubtask-cli": "item aggregate",
         "summary": "A summary of what a query keeps",
-        "description": "How many entries the query's scope and filter keep, and the sum, average, least or greatest\nof a custom field holding a number, money or a duration, or of an entry's `lead_time` or\n`scheduled_span` - optionally per value of a field a query may group by, and per day, week\nor month of a timestamp, cut in the caller's time zone (a week starts on Monday unless\n`week_start` says Sunday). The permission is the query's: checked against the scope once;\na `workspace` scope counts every collection the caller may read. At most 5000 rows, in the\ngroup's order and then the period's; `truncated` says a longer answer was cut.\n",
+        "description": "How many entries the query's scope and filter keep - or links between them, with\n`source: links` - and the sum, average, least or greatest\nof a custom field holding a number, money or a duration, or of an entry's `lead_time` or\n`scheduled_span` - optionally per value of a field a query may group by, and per day, week\nor month of a timestamp, cut in the caller's time zone (a week starts on Monday unless\n`week_start` says Sunday). The permission is the query's: checked against the scope once;\na `workspace` scope counts every collection the caller may read. At most 5000 rows, in the\ngroup's order and then the period's; `truncated` says a longer answer was cut.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -32765,6 +32765,15 @@
               "function"
             ],
             "properties": {
+              "source": {
+                "type": "string",
+                "enum": [
+                  "entries",
+                  "links"
+                ],
+                "default": "entries",
+                "description": "What is counted: the entries the scope and filter keep, or the links whose two ends they both keep - an end the caller may not see is never counted. A `links` summary is a `COUNT`; its `group_by` and `bucket` read the link's source end, and it may group by `link_type` too.\n"
+              },
               "function": {
                 "type": "string",
                 "enum": [
@@ -32781,7 +32790,7 @@
               },
               "group_by": {
                 "type": "string",
-                "description": "A field a query may group by; one row per value."
+                "description": "A field a query may group by, or `link_type` for a `links` summary; one row per value.\n"
               },
               "bucket": {
                 "type": "object",

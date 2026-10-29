@@ -2934,6 +2934,24 @@ func (e ItemAggregateQueryAggregateFunction) Valid() bool {
 	}
 }
 
+// Defines values for ItemAggregateQueryAggregateSource.
+const (
+	Entries ItemAggregateQueryAggregateSource = "entries"
+	Links   ItemAggregateQueryAggregateSource = "links"
+)
+
+// Valid indicates whether the value is a known member of the ItemAggregateQueryAggregateSource enum.
+func (e ItemAggregateQueryAggregateSource) Valid() bool {
+	switch e {
+	case Entries:
+		return true
+	case Links:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ItemExportFormat.
 const (
 	ItemExportFormatCSV  ItemExportFormat = "CSV"
@@ -10380,8 +10398,11 @@ type ItemAggregateQuery struct {
 		Field    *string                             `json:"field,omitempty"`
 		Function ItemAggregateQueryAggregateFunction `json:"function"`
 
-		// GroupBy A field a query may group by; one row per value.
+		// GroupBy A field a query may group by, or `link_type` for a `links` summary; one row per value.
 		GroupBy *string `json:"group_by,omitempty"`
+
+		// Source What is counted: the entries the scope and filter keep, or the links whose two ends they both keep - an end the caller may not see is never counted. A `links` summary is a `COUNT`; its `group_by` and `bucket` read the link's source end, and it may group by `link_type` too.
+		Source *ItemAggregateQueryAggregateSource `json:"source,omitempty"`
 	} `json:"aggregate"`
 
 	// Filter Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
@@ -10411,6 +10432,9 @@ type ItemAggregateQueryAggregateBucketWeekStart string
 
 // ItemAggregateQueryAggregateFunction defines model for ItemAggregateQuery.Aggregate.Function.
 type ItemAggregateQueryAggregateFunction string
+
+// ItemAggregateQueryAggregateSource What is counted: the entries the scope and filter keep, or the links whose two ends they both keep - an end the caller may not see is never counted. A `links` summary is a `COUNT`; its `group_by` and `bucket` read the link's source end, and it may group by `link_type` too.
+type ItemAggregateQueryAggregateSource string
 
 // ItemAggregateResult defines model for ItemAggregateResult.
 type ItemAggregateResult struct {

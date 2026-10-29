@@ -147,7 +147,12 @@ instead be `workspace: true`: the use case asks a read of every live collection 
 with `include_archived`) at its own path, at most 2000 (`query.workspace_too_large`), and binds the
 readable ones as one array, so the narrowing is inside the statement; an entry shared with the
 actor alone in a collection they do not read is asked at its own path and bound as a second array,
-at most 5000. A saved view may store `aggregate` (and then `scope_workspace: true`
+at most 5000. `source: links` counts links instead of entries: a link whose two ends the scope and
+filter both keep (the target is held to the same predicates inside the statement, so an end the
+reader cannot see is never counted), `COUNT` only (`query.aggregate_links_count_only`), its
+`group_by` and `bucket` reading the source end, and `group_by: link_type` its own grouping; another
+source is `query.aggregate_source_unknown` - records are entries, and time records and pages have no
+store yet. A saved view may store `aggregate` (and then `scope_workspace: true`
 instead of an anchor); `POST /views/{viewId}:aggregate` runs it under the caller's authorisation,
 and a view without one is refused (`views.aggregate_missing`); a workspace-scoped summary view has
 no rows, and its `:export` is refused (`views.summary_not_exportable`). It answers at most 5000 rows of
