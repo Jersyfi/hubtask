@@ -5,9 +5,9 @@ context: planning
 actors: [PE-planner, PE-member, PE-admin, PE-integrator, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-18, P-19]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/work/Link_test.go, core/domain/model/reference/Reference_test.go, core/application/service/work/Links_test.go, core/application/condition/Links_test.go, core/domain/event/Link_test.go, test/integration/entry_link_test.go]
+checked_by: [core/domain/model/work/Link_test.go, core/domain/model/reference/Reference_test.go, core/application/service/work/Links_test.go, core/application/condition/Links_test.go, core/domain/event/Link_test.go, test/integration/entry_link_test.go, apps/webapp/src/lib/data/links.test.ts]
 ---
 
 # Say that one piece of work waits for another
@@ -58,15 +58,3 @@ pages.
 * Links run between entries. References to pages, whiteboards, dashboards, goals and sprints are
   valid and resolve once those modules exist; until then they show "not available".
 * A link does not change who may see either entry.
-
-## Today
-
-* Check 1: partly met - every door draws, reads and removes links; the entry's panel in the web
-  app does not show them yet (the suite plan, S-05 remainder).
-* Check 5: partly met - `GET`/`POST /link-types` and `PATCH`/`DELETE /link-types/{key}`; the
-  administration's screen for link types is not built (the suite plan, S-05 remainder).
-* Check 6: not met - `POST /links:query` answers a view's dependencies with who waits; the timeline
-  does not draw them yet (the suite plan, S-05 remainder).
-* Check 7: partly met - the database keeps what notes and comments point at and the entry's links
-  answer its backlinks; the web app's editor does not insert mentions or cards yet (the suite plan,
-  S-05 remainder, S-14).

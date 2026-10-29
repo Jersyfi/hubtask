@@ -62,5 +62,6 @@ the list by `priority = high`.
 
 * Checks 1, 3 and 4 for the five suite kinds (money, duration, reference, several people, formatted
   text): met through the API, `hubctl`, MCP and the web app. In the web app a reference is chosen
-  among the collection's entries the device has loaded; one pointing elsewhere is kept and shown
-  as such.
+  among the collection's entries the device has loaded or found by a search across every
+  collection the writer can see; one pointing elsewhere is named as the reader may see it, or as
+  not available to them.
