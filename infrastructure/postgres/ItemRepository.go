@@ -402,6 +402,7 @@ func (r ItemRepository) SetCompletion(ctx context.Context, item work.WorkItem, e
 		IsCompleted: item.Completion.IsCompleted,
 		CompletedAt: completedAt,
 		CompletedBy: completedBy,
+		Status:      optionalText(item.Status),
 		UpdatedAt:   timestampOf(item.UpdatedAt),
 		ID:          id,
 		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
@@ -1081,6 +1082,7 @@ func (r ItemRepository) insert(ctx context.Context, item *work.WorkItem) error {
 		CreatedBy:       createdBy,
 		CreatedAt:       timestampOf(item.CreatedAt),
 		EntryType:       optionalText(item.EntryType),
+		Status:          optionalText(item.Status),
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -1409,6 +1411,7 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 		Version:            int(row.Version),
 		Number:             int64Of(row.Number),
 		EntryType:          stringFrom(row.EntryType),
+		Status:             stringFrom(row.Status),
 	}, nil
 }
 

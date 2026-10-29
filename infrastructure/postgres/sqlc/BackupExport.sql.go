@@ -1998,6 +1998,98 @@ func (q *Queries) ExportWorkItems(ctx context.Context, arg ExportWorkItemsParams
 	return items, nil
 }
 
+const exportWorkflowSchemes = `-- name: ExportWorkflowSchemes :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (w.container_id::text || '/' || w.entry_type)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(w) - 'tenant_id')::jsonb AS payload,
+         w.container_id AS key_1,
+         w.entry_type AS key_2
+  FROM workflow_scheme w
+) s
+  WHERE (s.key_1, s.key_2) > ($1::uuid, $2::text)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportWorkflowSchemesParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond string
+	Batch       int32
+}
+
+type ExportWorkflowSchemesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportWorkflowSchemes(ctx context.Context, arg ExportWorkflowSchemesParams) ([]ExportWorkflowSchemesRow, error) {
+	rows, err := q.db.Query(ctx, exportWorkflowSchemes, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportWorkflowSchemesRow{}
+	for rows.Next() {
+		var i ExportWorkflowSchemesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportWorkflows = `-- name: ExportWorkflows :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (w.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(w) - 'tenant_id')::jsonb AS payload,
+         w.id AS key_1
+  FROM workflow w
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportWorkflowsParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportWorkflowsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportWorkflows(ctx context.Context, arg ExportWorkflowsParams) ([]ExportWorkflowsRow, error) {
+	rows, err := q.db.Query(ctx, exportWorkflows, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportWorkflowsRow{}
+	for rows.Next() {
+		var i ExportWorkflowsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findMediaStorageKey = `-- name: FindMediaStorageKey :one
 SELECT storage_key, byte_size
 FROM media_object

@@ -1951,4 +1951,28 @@ type WorkItem struct {
 	FlowFinishedAt        pgtype.Timestamptz
 	Number                *int64
 	EntryType             *string
+	Status                *string
+}
+
+type Workflow struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	Key         string
+	System      bool
+	Name        string
+	Published   []byte
+	Draft       []byte
+	PublishedAt pgtype.Timestamptz
+	PublishedBy pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	Version     int32
+}
+
+type WorkflowScheme struct {
+	TenantID    pgtype.UUID
+	ContainerID pgtype.UUID
+	EntryType   string
+	WorkflowKey string
+	CreatedAt   pgtype.Timestamptz
 }

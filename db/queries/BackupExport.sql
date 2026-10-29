@@ -584,3 +584,30 @@ FROM (
   WHERE s.key_1 > sqlc.arg('after_id')::uuid
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportWorkflows :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (w.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(w) - 'tenant_id')::jsonb AS payload,
+         w.id AS key_1
+  FROM workflow w
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportWorkflowSchemes :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (w.container_id::text || '/' || w.entry_type)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(w) - 'tenant_id')::jsonb AS payload,
+         w.container_id AS key_1,
+         w.entry_type AS key_2
+  FROM workflow_scheme w
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::text)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;

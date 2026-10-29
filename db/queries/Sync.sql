@@ -181,7 +181,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number, wi.entry_type
+  wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
 WHERE wi.tenant_id = current_tenant_id() AND wi.deleted_at IS NULL AND wi.id > sqlc.arg('after')
 ORDER BY wi.id

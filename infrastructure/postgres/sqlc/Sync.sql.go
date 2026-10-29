@@ -1185,7 +1185,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number, wi.entry_type
+  wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
 WHERE wi.tenant_id = current_tenant_id() AND wi.deleted_at IS NULL AND wi.id > $1
 ORDER BY wi.id
@@ -1241,6 +1241,7 @@ type SnapshotWorkItemsRow struct {
 	Version               int32
 	Number                *int64
 	EntryType             *string
+	Status                *string
 }
 
 func (q *Queries) SnapshotWorkItems(ctx context.Context, arg SnapshotWorkItemsParams) ([]SnapshotWorkItemsRow, error) {
@@ -1296,6 +1297,7 @@ func (q *Queries) SnapshotWorkItems(ctx context.Context, arg SnapshotWorkItemsPa
 			&i.Version,
 			&i.Number,
 			&i.EntryType,
+			&i.Status,
 		); err != nil {
 			return nil, err
 		}

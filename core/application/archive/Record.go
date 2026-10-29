@@ -526,6 +526,19 @@ var entities = []Entity{
 	// The settings catalogue's entries of the workspace, its hubs, collections and people
 	// (migration 0208): the module switches among them, so that a restore keeps what was on.
 	{Name: "setting_values", Table: "setting_value", Keys: []string{"id"}},
+	// The workspace's workflows and which hub or collection runs which (migration 0216, F-4).
+	// Whole: a workflow and a scheme row go without a marker. The workflows precede the scheme
+	// rows that name them by key; a duplicate skips a key the workspace holds.
+	{
+		Name: "workflows", Table: "workflow", Whole: true, Keys: []string{"id"}, Duplicable: true,
+		Unique:     []UniqueField{{Field: "key", Rule: UniqueSkip}},
+		References: []Reference{{Field: "published_by", Table: "account", Clearable: true}},
+	},
+	{
+		Name: "workflow_schemes", Table: "workflow_scheme", Whole: true, Later: true, Duplicable: true,
+		Keys:       []string{"container_id", "entry_type"},
+		References: []Reference{{Field: "container_id", Table: "container"}},
+	},
 	// The workspace's own link types and the links between entries (migration 0213, F-3). Whole:
 	// a link is removed without a marker. The types precede the links that name them by key; a
 	// duplicate skips a key the workspace holds, and its links then name that type.

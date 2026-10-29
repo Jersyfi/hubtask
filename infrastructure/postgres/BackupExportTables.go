@@ -145,6 +145,33 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"workflow": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportWorkflows(ctx, sqlc.ExportWorkflowsParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportWorkflowsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"workflow_scheme": {
+		delta: false,
+		keys:  2,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportWorkflowSchemes(ctx, sqlc.ExportWorkflowSchemesParams{
+				AfterID:     cursorUUID(page.After, 0),
+				AfterSecond: cursorText(page.After, 1),
+				Batch:       page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportWorkflowSchemesRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"link_type": {
 		delta: false,
 		keys:  1,

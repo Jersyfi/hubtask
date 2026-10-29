@@ -211,7 +211,7 @@ func readItems(ctx context.Context, tx pgx.Tx, statement query.Statement) ([]wor
 			&row.RetentionBlockedBy,
 			&row.ArchivedAt, &row.DeletedAt,
 			&row.TrashBatchID, &row.CreatedBy, &row.CreatedAt, &row.UpdatedAt, &row.Version,
-			&row.Number, &row.EntryType,
+			&row.Number, &row.EntryType, &row.Status,
 		); err != nil {
 			return nil, queryFailed("reading a queried item", err)
 		}

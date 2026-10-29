@@ -459,6 +459,30 @@ func (q *Queries) ClearWorkItem(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearWorkflow = `-- name: ClearWorkflow :execrows
+DELETE FROM workflow
+`
+
+func (q *Queries) ClearWorkflow(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearWorkflow)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearWorkflowScheme = `-- name: ClearWorkflowScheme :execrows
+DELETE FROM workflow_scheme
+`
+
+func (q *Queries) ClearWorkflowScheme(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearWorkflowScheme)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const holdsAccount = `-- name: HoldsAccount :one
 SELECT EXISTS (SELECT 1 FROM account WHERE id = ($1::jsonb->>'id')::uuid) AS held
 `
@@ -872,6 +896,32 @@ SELECT EXISTS (SELECT 1 FROM work_item WHERE id = ($1::jsonb->>'id')::uuid) AS h
 
 func (q *Queries) HoldsWorkItem(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsWorkItem, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsWorkflow = `-- name: HoldsWorkflow :one
+SELECT EXISTS (SELECT 1 FROM workflow WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsWorkflow(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsWorkflow, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsWorkflowScheme = `-- name: HoldsWorkflowScheme :one
+SELECT EXISTS (
+  SELECT 1 FROM workflow_scheme
+  WHERE container_id = ($1::jsonb->>'container_id')::uuid
+    AND entry_type = $1::jsonb->>'entry_type'
+) AS held
+`
+
+func (q *Queries) HoldsWorkflowScheme(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsWorkflowScheme, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -2918,7 +2968,8 @@ INSERT INTO work_item (
   flow_started_at,
   flow_finished_at,
   number,
-  entry_type
+  entry_type,
+  status
 )
 SELECT
   r.id,
@@ -2973,7 +3024,9 @@ SELECT
   -- and the store then draws the next of its collection.
   r.number,
   -- An archive written before migration 0209 carries none: the level's system type.
-  r.entry_type
+  r.entry_type,
+  -- An archive written before migration 0216 carries none: no workflow ran.
+  r.status
 FROM jsonb_populate_record(
   NULL::work_item,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -3026,7 +3079,8 @@ ON CONFLICT (id) DO UPDATE SET
   flow_started_at = EXCLUDED.flow_started_at,
   flow_finished_at = EXCLUDED.flow_finished_at,
   number = EXCLUDED.number,
-  entry_type = EXCLUDED.entry_type
+  entry_type = EXCLUDED.entry_type,
+  status = EXCLUDED.status
 WHERE $2::boolean
 `
 
@@ -3039,6 +3093,67 @@ type ImportWorkItemParams struct {
 // what the column held, and PostgreSQL refuses an insert into one.
 func (q *Queries) ImportWorkItem(ctx context.Context, arg ImportWorkItemParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importWorkItem, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importWorkflow = `-- name: ImportWorkflow :execrows
+INSERT INTO workflow (
+  id, tenant_id, key, system, name, published, draft, published_at, published_by,
+  created_at, updated_at, version
+)
+SELECT
+  r.id, r.tenant_id, r.key, r.system, r.name, r.published, r.draft, r.published_at, r.published_by,
+  r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::workflow,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  published = EXCLUDED.published,
+  draft = EXCLUDED.draft,
+  published_at = EXCLUDED.published_at,
+  published_by = EXCLUDED.published_by,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportWorkflowParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportWorkflow(ctx context.Context, arg ImportWorkflowParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importWorkflow, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importWorkflowScheme = `-- name: ImportWorkflowScheme :execrows
+INSERT INTO workflow_scheme (tenant_id, container_id, entry_type, workflow_key, created_at)
+SELECT r.tenant_id, r.container_id, r.entry_type, r.workflow_key, r.created_at
+FROM jsonb_populate_record(
+  NULL::workflow_scheme,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, container_id, entry_type) DO UPDATE SET
+  workflow_key = EXCLUDED.workflow_key
+WHERE $2::boolean
+`
+
+type ImportWorkflowSchemeParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportWorkflowScheme(ctx context.Context, arg ImportWorkflowSchemeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importWorkflowScheme, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

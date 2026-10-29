@@ -117,6 +117,28 @@ var importers = map[string]importer{
 			return queries.ClearEntryType(ctx)
 		},
 	},
+	"workflow": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportWorkflow(ctx, sqlc.ImportWorkflowParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsWorkflow(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearWorkflow(ctx)
+		},
+	},
+	"workflow_scheme": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportWorkflowScheme(ctx, sqlc.ImportWorkflowSchemeParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsWorkflowScheme(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearWorkflowScheme(ctx)
+		},
+	},
 	"link_type": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportLinkType(ctx, sqlc.ImportLinkTypeParams{Payload: payload, Overwrite: overwrite})

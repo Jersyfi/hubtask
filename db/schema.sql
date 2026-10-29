@@ -950,6 +950,41 @@ CREATE TABLE entry_type (
 );
 CREATE UNIQUE INDEX entry_type_system_uq ON entry_type (tenant_id, level) WHERE system;
 
+-- Workflows and which hub or collection runs which per type (migration 0216, UC-FLW-02 … 05).
+CREATE TABLE workflow (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key          text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  system       boolean NOT NULL DEFAULT false,
+  name         text NOT NULL CHECK (char_length(name) <= 120 AND (system OR btrim(name) <> '')),
+  published    jsonb NOT NULL
+    CHECK (jsonb_typeof(published) = 'object' AND pg_column_size(published) <= 262144),
+  draft        jsonb
+    CHECK (draft IS NULL OR (jsonb_typeof(draft) = 'object' AND pg_column_size(draft) <= 262144)),
+  published_at timestamptz,
+  published_by uuid,
+  created_at   timestamptz NOT NULL,
+  updated_at   timestamptz NOT NULL,
+  version      integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT workflow_key_uq UNIQUE (tenant_id, key),
+  CHECK (NOT system OR key = 'default')
+);
+
+CREATE TABLE workflow_scheme (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  container_id uuid NOT NULL,
+  entry_type   text NOT NULL DEFAULT ''
+    CHECK (entry_type = '' OR entry_type ~ '^[a-z][a-z0-9_]{0,49}$'),
+  workflow_key text NOT NULL,
+  created_at   timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, container_id, entry_type),
+  CONSTRAINT workflow_scheme_container_fkey
+    FOREIGN KEY (tenant_id, container_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT workflow_scheme_workflow_fkey
+    FOREIGN KEY (tenant_id, workflow_key) REFERENCES workflow (tenant_id, key)
+);
+
 CREATE TABLE work_item (
   id                 uuid PRIMARY KEY,
   tenant_id          uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1038,10 +1073,13 @@ CREATE TABLE work_item (
   number       bigint,
   -- The entry's type by key, null for its level's system type (migration 0209).
   entry_type   text,
+  -- Its status in the workflow in force for it, null where none runs (migration 0216).
+  status       text,
   CONSTRAINT work_item_entry_type_fkey
     FOREIGN KEY (tenant_id, entry_type) REFERENCES entry_type (tenant_id, key)
 );
 CREATE INDEX wi_entry_type_idx ON work_item (tenant_id, entry_type) WHERE entry_type IS NOT NULL;
+CREATE INDEX wi_status_idx ON work_item (tenant_id, collection_id, status) WHERE status IS NOT NULL;
 CREATE UNIQUE INDEX work_item_tenant_id_uq ON work_item (tenant_id, id);
 CREATE UNIQUE INDEX wi_calendar_uid_uq ON work_item (tenant_id, calendar_uid)
   WHERE calendar_uid IS NOT NULL;
@@ -2978,7 +3016,7 @@ BEGIN
     'retention_rule','retention_cursor',
     'legal_hold','tombstone','sync_device','sync_op_log','set_element','field_clock',
     'import_run','quota_reached','entry_type','entry_field_value',
-    'link_type','entry_link','entry_reference'
+    'link_type','entry_link','entry_reference','workflow','workflow_scheme'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
