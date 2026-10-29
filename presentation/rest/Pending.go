@@ -1621,6 +1621,11 @@ func (pending) TestInstanceBackupTarget(w http.ResponseWriter, r *http.Request, 
 // LocateOidcFlow is overridden by RestController, for the reason given at CreateContainer.
 func (pending) LocateOidcFlow(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// IssueDeviceListEntry and CheckDeviceList are overridden by RestController, for the reason given at
+// CreateContainer.
+func (pending) IssueDeviceListEntry(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) CheckDeviceList(w http.ResponseWriter, r *http.Request)      { notAvailable(w, r) }
+
 // ReadUsage is the control plane's use read (multi-tenancy.md §4.3).
 func (pending) ReadUsage(w http.ResponseWriter, r *http.Request, _ openapi.ReadUsageParams) {
 	notAvailable(w, r)
@@ -1687,5 +1692,36 @@ func (pending) FindDuplicatesByTitle(w http.ResponseWriter, r *http.Request) {
 }
 
 func (pending) ReadAiBudgetState(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+// A change of a workspace's address, and the notice a member without an address is told at sign-in.
+func (pending) ChangeTenantAddress(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId, _ openapi.ChangeTenantAddressParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ChangeWorkspaceAddress(w http.ResponseWriter, r *http.Request, _ openapi.ChangeWorkspaceAddressParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListAddressNotices(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) AcknowledgeAddressNotices(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ListOwnDomains(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) BlockOwnDomain(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+func (pending) SetUpOwnDomain(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) RemoveOwnDomain(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) MakeOwnDomainMain(w http.ResponseWriter, r *http.Request, _ openapi.MakeOwnDomainMainParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SwitchBackFromOwnDomain(w http.ResponseWriter, r *http.Request, _ openapi.SwitchBackFromOwnDomainParams) {
 	notAvailable(w, r)
 }

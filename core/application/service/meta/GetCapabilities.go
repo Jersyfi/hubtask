@@ -6,6 +6,7 @@ package meta
 
 import (
 	"context"
+	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -41,7 +42,13 @@ type Capabilities struct {
 	ProductVersion string
 	APIVersion     string
 	TenancyMode    string
-	ItemTypes      []work.CapabilityProfile
+	// WorkspaceHosts is, in multi mode, whether a workspace answers beneath the installation's host
+	// or at one the operator assigns (ADR-0095 §6); empty in single mode.
+	WorkspaceHosts string
+	// InstallationURL is, in multi mode, the installation's own address, where the device's list
+	// of workspaces is kept (ADR-0095 §7); empty in single mode, which keeps no list.
+	InstallationURL string
+	ItemTypes       []work.CapabilityProfile
 	// QueryFields is what POST /items:query accepts: which fields may be filtered, ordered and
 	// grouped by, and with which operators (api-guidelines.md §3).
 	//
@@ -503,6 +510,8 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		ProductVersion:            g.Config.Version,
 		APIVersion:                APIVersion,
 		TenancyMode:               string(g.Config.Tenancy),
+		WorkspaceHosts:            workspaceHostsOf(g.Config),
+		InstallationURL:           installationURLOf(g.Config),
 		ItemTypes:                 profiles,
 		QueryFields:               view.Fields(),
 		ViewLayouts:               view.Layouts(),
@@ -700,4 +709,25 @@ func notificationChannels() []string {
 // here because the application layer may not import a sibling service.
 type KeptOutReader interface {
 	Read(ctx context.Context, tenantID shared.ID) (integration.KeptOut, error)
+}
+
+// workspaceHostsOf is the installation's way of giving a workspace its host, named only where there
+// are workspaces to give one: a single-mode installation's one workspace is the installation.
+func workspaceHostsOf(config env.Config) string {
+	if config.Tenancy != env.TenancyMulti {
+		return ""
+	}
+	if config.WorkspaceHosts == "" {
+		return string(env.HostsSubdomain)
+	}
+	return string(config.WorkspaceHosts)
+}
+
+// installationURLOf is the installation's own address in multi mode, and nothing in single mode,
+// where the installation's address is the one workspace's.
+func installationURLOf(config env.Config) string {
+	if config.Tenancy != env.TenancyMulti {
+		return ""
+	}
+	return strings.TrimSuffix(config.BaseURL, "/")
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
 // Workspaces is the tenant's own row, read and written from inside the tenant.
@@ -45,4 +46,25 @@ type TenantHosts interface {
 // (migration 0207), installation-wide and in the system scope. It answers how many it wrote.
 type MainHosts interface {
 	EnsureMain(ctx context.Context, baseHost string) (int, error)
+}
+
+// AddressChanges answers when the transaction's workspace last changed its address (migration
+// 0210): zero where it never did. An owner's change waits out the installation's cooldown from it.
+type AddressChanges interface {
+	LastAddressChange(ctx context.Context) (time.Time, error)
+	// LockAddressChange answers the same and holds the workspace's row until the transaction
+	// ends, so that two owners' changes cannot both pass the cooldown.
+	LockAddressChange(ctx context.Context) (time.Time, error)
+}
+
+// AddressChangeNotices holds what a member without an email address is told of a change of the
+// workspace's address at the next sign-in (migration 0209), bounded to the transaction's workspace.
+type AddressChangeNotices interface {
+	// Record writes it for one member; a second change before they read it keeps the address they
+	// last knew.
+	Record(ctx context.Context, accountID shared.ID, from, to string, at time.Time) error
+	// Of answers the member's notice, none once acknowledged.
+	Of(ctx context.Context, accountID shared.ID) ([]identity.AddressChangeNotice, error)
+	// Acknowledge removes it.
+	Acknowledge(ctx context.Context, accountID shared.ID) error
 }

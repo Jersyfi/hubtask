@@ -562,6 +562,14 @@ written onto the session when it opens: a tightened bound reaches new sessions o
 
 * The web app keeps both tokens in `sessionStorage`, never longer than the tab; signing out ends the
   session at the server and discards the copy.
+* An installed app keeps a pair per workspace it holds, with the workspace's address and the
+  account, in the system's keystore through the shell (one entry per workspace's origin) and the
+  open workspace's in the page's memory - never in the webview's storage - so a restart signs nobody
+  out; signing out ends the session, withdraws the app's grant (§15.3) and removes the entry and the
+  copy. *Forget this workspace* does the same for any workspace the app holds, with that
+  workspace's own pair, and takes it off the app's list; forgotten while its server cannot be
+  reached, the copy and its key go at once and the grant is withdrawn by the next start that
+  reaches it, its entry kept until then.
 * A client exchanges the refresh token in **one place, once per refusal**: a `401` gets one refresh
   and one retry, concurrent requests sharing the exchange in flight.
 * A credential is never put in a URL, a log, a message or the DOM beyond its field. One arriving in
@@ -610,12 +618,35 @@ an operator (§19), so provisioning by a platform does not depend on a person wh
 * Issued tokens are the session pair of §14 leashed to the **grant**: the session carries its
   scopes, revoking the grant ends its sessions, and every act through it is audited with the client
   as an actor attribute. Grants are listed per account with client, scopes and last use.
-* *Decided, not built - milestone F7* ([ADR-0096](../adr/ADR-0096-the-installed-apps-sign-in-through-the-system-browser.md)):
-  the Hubtask apps are a **built-in public client** every workspace knows without registering it,
-  with no secret; its redirect is a loopback address on any port (desktop) or
-  `eu.hubtask.app:/oauth` (Android) and nothing else. The flow opens in the system browser at the
-  workspace's host, the consent names the app and the device, and the grant carries a session's
-  scopes (§15.4).
+* **The installed apps are a built-in public client**
+  ([ADR-0096](../adr/ADR-0096-the-installed-apps-sign-in-through-the-system-browser.md)): one
+  identifier in every workspace of every installation (`AppClientID`, answered as `app_client_id`
+  by `/meta/capabilities`), no secret, no registration. Its redirect is `http://127.0.0.1` or
+  `http://[::1]` on any port with the path `/oauth` on the desktop - never `localhost`, which a hosts
+  file can point elsewhere - and exactly `eu.hubtask.app:/oauth` on Android (RFC 8252 §7.3, §7.1);
+  nothing else, and `S256` as for any client. The app asks for no scope: the consent names the
+  device and its system (`device`, `platform`), and the grant carries a session's scopes (§15.4).
+  Each consent writes a client row of its own, marked with the platform and named by the device
+  (migration 0214), so two devices are two grants signed out one by one; the registry lists only
+  registered clients, and such a row presented by its own identifier is no client. The exchange
+  names the built-in identifier and finds the row through the code. The app's own sign-out
+  (`DELETE /auth/sessions/{id}` of its session) withdraws its grant; the grant list names it
+  "Hubtask app for {system} on {device}" with *Sign out*.
+* **The flow** (desktop): the app reads `/meta/capabilities` at the address typed - nothing answers,
+  not Hubtask, older than the app (F7 Decision 12) or an installation's own address in multi mode is
+  refused at the field before the browser opens -, opens a loopback listener, and hands
+  `/oauth/consent` at the workspace's host to the system browser with the challenge and a state;
+  the verifier stays in the page's memory. The redirect's page is the app's own ("Back to the
+  app"), the code is exchanged at `/oauth/token` from the webview, and the pair goes to the
+  keystore (§14.4). The installed apps' webview origins pass CORS for that ([security.md](./security.md) §9).
+* **A passkey step-up in the app** (ADR-0096 decision 5) goes the same way: the app asks
+  `POST /auth/step-up:passkey-options` with its own session, opens a loopback listener and hands
+  `/app/passkey` at the workspace's host to the system browser, the options in the address's
+  fragment, which no request carries. That page runs the ceremony at the relying party's own origin
+  (§23.3) and sends the answer to `http://127.0.0.1:{port}/oauth` as the redirect's `code`, with the
+  app's state; the app presents it to `POST /auth/step-up` as any key's answer. The challenge is
+  bound to the app's session (§23.3), so the answer is worth nothing to anybody else, and the page
+  sends nothing to the server. A step-up at a provider does not go through the browser yet.
 
 ### 15.4 What a session carries
 
@@ -659,6 +690,10 @@ at most a minute ahead, and inside the step-up window — otherwise `auth.step_u
   or a restore's `step_up_token` in its body).
 * Every step-up is audited with its method, never its credential; `RECOVERY` also records the
   consumed code.
+* **An act may accept only some methods.** A change of a workspace's address accepts `PASSWORD` and
+  `PROVIDER` alone ([multi-tenancy.md](./multi-tenancy.md) §3.1): its demand names the account's
+  methods among those, with `purpose` `change_address` so the prompt says why a passkey is not
+  offered, and a proof given another way is spent and refused as `auth.step_up_method_refused`.
 
 ### 16.3 Which actions demand it
 
@@ -670,8 +705,9 @@ a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the
 /tenant` that asks), §13's new start password, connecting a provider from a session (§11), adding or
 removing a passkey or a security key (§23.2), a private hub's emergency access (§22), and every write of §6
 (bearer door), §8–§9, §10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's
-destructive modes and §8.5's erasures carried out again after a point-in-time recovery, and
-configuring or removing one of the installation's own backup targets (backup-restore.md §2).
+destructive modes and §8.5's erasures carried out again after a point-in-time recovery,
+configuring or removing one of the installation's own backup targets (backup-restore.md §2), and
+an operator's change of a workspace's address ([multi-tenancy.md](./multi-tenancy.md) §3.1).
 
 ---
 
@@ -980,7 +1016,7 @@ A credential that once answered with UV and later without is held to the ceremon
 | Rule | Detail |
 |---|---|
 | RP ID | The workspace's canonical host (`tenant_host`, a subdomain in multi mode, the installation's host in single mode) — never the registrable parent, so one workspace's passkeys are never offered in another (P-01). A changed host ends its passkeys (UC-INS-19, UC-INS-15). Each credential records the RP ID it was made for (migration 0163); one of another host counts as no factor, the profile says so, and it can always be removed. A row made before the column counts as the workspace's. |
-| Origin | The scheme of `HUBTASK_BASE_URL` and that host, with the base URL's port where it is not the scheme's default; any other origin is refused. There is no development switch: a server configured at `http://localhost:…` admits that origin and no other. Neither the shells' webview origin nor any other localhost origin passes; the installed apps sign in through the system browser at the workspace's host (§15.3, *decided, not built - milestone F7*). |
+| Origin | The scheme of `HUBTASK_BASE_URL` and that host, with the base URL's port where it is not the scheme's default; any other origin is refused. There is no development switch: a server configured at `http://localhost:…` admits that origin and no other. Neither the shells' webview origin nor any other localhost origin passes; the installed apps sign in through the system browser at the workspace's host (§15.3). |
 | Attestation | `none`: the server checks no maker, keeps no metadata service and no allow-list. |
 | Algorithms | ES256, EdDSA (Ed25519) and RS256, from the standard library. |
 | Challenges | Thirty-two random bytes from the `RandomSource` port, held as an `auth_pending` row of their own purpose - `PASSKEY_REGISTER`, `PASSKEY_SIGN_IN`, `PASSKEY_FACTOR`, `PASSKEY_ENROLL`, `PASSKEY_STEP_UP` (migrations 0161, 0174, 0176), each under its own token prefix: five minutes, single use, bound to the workspace, to the account where one is known and, for a step-up or an addition, to the session. A challenge is spent only by its own door. |

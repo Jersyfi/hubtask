@@ -965,6 +965,12 @@ export class HubtaskClient {
     return this.call("POST", "/auth/oidc:callback", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Which entries of the device's list still open a workspace
+   * Public: sent without a bearer where the client holds none. */
+  checkDeviceList(body: NonNullable<operations["checkDeviceList"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["checkDeviceList"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/auth/device-list:check", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Where a provider's return belongs
    * Public: sent without a bearer where the client holds none. */
   locateOidcFlow(body: NonNullable<operations["locateOidcFlow"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["locateOidcFlow"]['responses'][200]['content']["application/json"]> {
@@ -1114,6 +1120,21 @@ export class HubtaskClient {
   /** Withdraw a preset of the installation */
   withdrawInstallationPreset(presetId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<void> {
     return this.call("DELETE", "/admin/presets/{presetId}", { "presetId": presetId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Change a workspace's address */
+  changeTenantAddress(tenantId: string, body: NonNullable<operations["changeTenantAddress"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["changeTenantAddress"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/tenants/{tenantId}:change-address", { "tenantId": tenantId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Every own domain the workspaces' owners set up */
+  listOwnDomains(options: CallOptions = {}): Promise<operations["listOwnDomains"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/own-domains", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Block an own domain */
+  blockOwnDomain(domain: string, body: NonNullable<operations["blockOwnDomain"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["blockOwnDomain"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/own-domains/{domain}:block", { "domain": domain }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Put a workspace on another plan */
@@ -1276,6 +1297,11 @@ export class HubtaskClient {
     return this.call("PATCH", "/tenant", {  }, undefined, { "If-Match": options.ifMatch, "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/merge-patch+json", "json", options.signal);
   }
 
+  /** The workspace's owner changes its address */
+  changeWorkspaceAddress(body: NonNullable<operations["changeWorkspaceAddress"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["changeWorkspaceAddress"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/tenant:change-address", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The workspace's private hubs, without their names */
   listPrivateHubs(options: CallOptions = {}): Promise<operations["listPrivateHubs"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/private-hubs", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -1334,6 +1360,41 @@ export class HubtaskClient {
   /** The emergency accesses the caller was told of in the last 30 days */
   listEmergencyNotices(options: CallOptions = {}): Promise<operations["listEmergencyNotices"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/accounts/me/emergency-notices", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The change of the workspace's address the caller still has to be told of */
+  listAddressNotices(options: CallOptions = {}): Promise<operations["listAddressNotices"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/accounts/me/address-notices", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Acknowledge the change of the workspace's address */
+  acknowledgeAddressNotices(options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/accounts/me/address-notices:acknowledge", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** This workspace's entry for the device's list of workspaces */
+  issueDeviceListEntry(options: CallOptions = {}): Promise<operations["issueDeviceListEntry"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/tenant/device-list-entry", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The workspace's owner sets up an own domain */
+  setUpOwnDomain(body: NonNullable<operations["setUpOwnDomain"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setUpOwnDomain"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/tenant/own-domain", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The workspace's owner removes its own domain */
+  removeOwnDomain(options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/tenant/own-domain", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** The workspace's owner makes its own domain the main address */
+  makeOwnDomainMain(body: NonNullable<operations["makeOwnDomainMain"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["makeOwnDomainMain"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/tenant/own-domain:make-main", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The workspace's owner makes its subdomain the main address again */
+  switchBackFromOwnDomain(body: NonNullable<operations["switchBackFromOwnDomain"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["switchBackFromOwnDomain"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/tenant/own-domain:switch-back", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
   }
 
   /** How many people here no provider switched on here signs in */

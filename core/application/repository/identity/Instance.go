@@ -52,6 +52,14 @@ type InstanceLevel struct {
 	// product's list (multi-tenancy.md §3.1). Instance-only, no lock: it binds provisioning, not
 	// a workspace.
 	ReservedShortNames []string
+	// OwnersChangeAddress lets a workspace's owners change its address in multi mode, off by
+	// default; AddressCooldownDays is the days after a change before they may again, zero for the
+	// product's 30 (multi-tenancy.md §3.1). Instance-only, no lock: no workspace decides either.
+	OwnersChangeAddress bool
+	AddressCooldownDays int
+	// OwnersOwnDomains lets a workspace's owners set up an own domain in multi mode, off by
+	// default (ADR-0095 §8, UC-INS-15). Instance-only, no lock.
+	OwnersOwnDomains bool
 	// Source says where the values came from, for the health report: "database" or the path of
 	// the file that is enforcing them (ADR-0070 §5).
 	Source string

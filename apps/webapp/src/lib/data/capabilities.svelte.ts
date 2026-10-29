@@ -108,6 +108,15 @@ class Manifest {
   }
 
   /**
+   * Whether a new workspace is given a host the operator names rather than a subdomain under the
+   * installation's own address (ADR-0095 §6). `false` until the manifest says `assigned`, so the
+   * short name is asked as it always was.
+   */
+  get hasAssignedHosts(): boolean {
+    return this.value?.workspace_hosts === 'assigned';
+  }
+
+  /**
    * Whether this installation runs exactly one workspace by design (`single`). `false` until the
    * manifest says so, so nothing is moved on a guess.
    */

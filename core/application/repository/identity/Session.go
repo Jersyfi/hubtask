@@ -131,6 +131,11 @@ type Sessions interface {
 	// RevokeAll ends every live session of the account and reports how many.
 	RevokeAll(ctx context.Context, accountID shared.ID, at time.Time) (int, error)
 
+	// RevokeAppGrant withdraws the grant of the built-in client of the installed apps behind one
+	// of the account's sessions, and answers the grant and its client; zero identifiers where the
+	// session carries none, carries a registered client's, or is not the account's.
+	RevokeAppGrant(ctx context.Context, sessionID, accountID shared.ID, at time.Time) (grantID, clientID shared.ID, err error)
+
 	// RevokeOthers ends every live session of the account except the one named, and reports how
 	// many. A zero session spares nothing - a caller with no session of its own (UC-ID-06 check 4).
 	RevokeOthers(ctx context.Context, accountID, keep shared.ID, at time.Time) (int, error)
@@ -390,7 +395,9 @@ type StepUps interface {
 type GrantListing struct {
 	Grant      identity.OauthGrant
 	ClientName string
-	LastUsedAt time.Time
+	// AppPlatform is set for a grant of the built-in client of the installed apps.
+	AppPlatform identity.AppPlatform
+	LastUsedAt  time.Time
 }
 
 // OauthClients is the registry of third-party apps. The presented secret travels whole

@@ -34,6 +34,7 @@
   import { collectionOffers, containerOffers, placeOffers, type Offer, type Placed, type Reach, type Target } from './sources.ts';
   import { frameActionOffers, recentOffers, settingOffers } from './registry.ts';
   import { land } from './landing.ts';
+  import type { AccountAction } from '../navigation.ts';
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
   import { capture } from '../capture/capture.svelte.ts';
   import { mayCaptureHere } from '../capture/places.svelte.ts';
@@ -62,7 +63,7 @@
     /** Where a row sends the reader. The frame owns the router; this does not. */
     onnavigate: (path: string) => void;
     /** The account's verbs, which are the frame's. */
-    onaccount: (action: 'help' | 'sign-out') => void;
+    onaccount: (action: AccountAction) => void;
     /** Where the reader stands, as the route names it: what the frame's actions are offered for. */
     here?: { readonly hub?: string; readonly collection?: string; readonly item?: string };
   }

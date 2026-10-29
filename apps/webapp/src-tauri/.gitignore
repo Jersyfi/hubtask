@@ -1,0 +1,7 @@
+# Cargo's build output.
+/target/
+# Written by tauri-build on every build.
+/gen/schemas
+# Generated from the mark's app-icon source by `pnpm desktop:icons` (UC-WRK-33 check 5), never
+# committed: a hand-made icon would drift from the mark.
+/icons/

@@ -14,10 +14,12 @@ import assert from 'node:assert/strict';
 import { SyncEngine } from '../src/SyncEngine.ts';
 import { TransportError } from '../src/errors.ts';
 import { MemoryStorage } from '../src/storage/MemoryStorage.ts';
+import { SqliteStorage, copyNameFor } from '../src/storage/SqliteStorage.ts';
 import { collectionOf, META } from '../src/replica.ts';
 import type { ChangeRecord, StoredRecord } from '../src/schema.ts';
-import type { StreamEvent } from '../src/ports.ts';
+import type { Storage, StreamEvent } from '../src/ports.ts';
 import { FakeTransport, FixedClock } from './fakes.ts';
+import { FakeShell } from './fakeShell.ts';
 
 const HUB = '0192f000-0000-7000-8000-0000000000a1';
 const COLLECTION = '0192f000-0000-7000-8000-0000000000c1';
@@ -53,15 +55,21 @@ async function settle(turns = 12): Promise<void> {
   for (let i = 0; i < turns; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+/** The stores an engine runs over: the memory store, and the shells' SQLite over a fake shell. */
+const STORES: readonly (readonly [string, () => Storage])[] = [
+  ['memory', () => new MemoryStorage()],
+  ['the shells\' SQLite', () => new SqliteStorage(copyNameFor('https://hubtask.example', 'account-1'), new FakeShell().call)],
+];
+
 /** An engine with a store attached and a device minted, over the fakes. */
-async function attached(transport: FakeTransport, storage = new MemoryStorage()) {
+async function attached(transport: FakeTransport, storage: Storage = new MemoryStorage()) {
   const clock = new FixedClock();
   const engine = new SyncEngine({ transport, clock });
   const device = await engine.attach(storage, { platform: 'web', displayName: 'Firefox on Linux' });
   return { engine, storage, device, clock };
 }
 
-const held = (storage: MemoryStorage, entity: string, id: string) =>
+const held = (storage: Storage, entity: string, id: string) =>
   storage.get<StoredRecord<Record<string, unknown>>>(collectionOf(entity), id);
 
 test('a fresh sign-in takes the snapshot and holds every record of it; the cursor is the store\'s', async () => {
@@ -193,6 +201,64 @@ test('a snapshot ending twice without its cursor is followed by the page walk', 
   assert.equal((await storage.get<{ cursor: string }>(META, 'position'))?.cursor, 'c-200', 'the last page\'s cursor');
 });
 
+/** The stores again, each opened twice over one device: an app closed and started again. */
+const REOPENED: readonly (readonly [string, () => () => Storage])[] = [
+  ['memory', () => {
+    const storage = new MemoryStorage();
+    return () => storage;
+  }],
+  ['the shells\' SQLite', () => {
+    const shell = new FakeShell();
+    return () => new SqliteStorage(copyNameFor('https://hubtask.example', 'account-1'), shell.call);
+  }],
+];
+
+for (const [store, device] of REOPENED) {
+  test(`UC-SYN-01/1, SY-B: a first synchronisation cut short resumes after the last page it held (${store})`, async () => {
+    const open = device();
+    const phone = { platform: 'android', displayName: 'Pixel on Android' };
+
+    // The installed apps walk pages from the start; the connection goes after the second page.
+    const first = new FakeTransport().answerEach('/sync:pull', [
+      { changes: WORKSPACE.slice(0, 4), cursor: 'walk-1', has_more: true },
+      { changes: WORKSPACE.slice(4, 6), cursor: 'walk-2', has_more: true },
+      new TransportError('offline'),
+    ]);
+    const a = new SyncEngine({ transport: first, clock: new FixedClock(), firstSynchronisation: 'pages' });
+    const before = await a.attach(open(), phone);
+    await assert.rejects(a.catchUp({ pathsFor }));
+    assert.equal(first.snapshots.length, 0, 'no snapshot: a response cut short leaves nothing to resume from');
+
+    // The app is closed and started again: a new engine over the same copy.
+    const second = new FakeTransport().answerEach('/sync:pull', [
+      { changes: WORKSPACE.slice(6), cursor: 'c-300', has_more: false },
+    ]);
+    const b = new SyncEngine({ transport: second, clock: new FixedClock(), firstSynchronisation: 'pages' });
+    const storage = open();
+    const after = await b.attach(storage, phone);
+    assert.equal(after.id, before.id, 'the same device');
+    assert.equal(await b.catchUp({ pathsFor }), 'c-300');
+
+    assert.equal(second.snapshots.length, 0);
+    const pulls = second.calls.filter((c) => c.path === '/sync:pull').map((c) => (c.body as { cursor: unknown }).cursor);
+    assert.deepEqual(pulls, ['walk-2'], 'the walk continues after the last page held, not from nothing');
+    const item = await held(storage, 'item', ITEM);
+    assert.equal(item?.document.title, 'Buy milk', 'a page held before the interruption is still there');
+    assert.deepEqual(item?.sets, { labels: [LABEL] }, 'and the page after it landed beside it');
+    assert.equal((await held(storage, 'comment', COMMENT))?.document.body, 'soon');
+    assert.equal((await storage.get<{ cursor: string }>(META, 'position'))?.cursor, 'c-300', 'the delta cursor the walk ended on');
+  });
+}
+
+test('the browser still takes the snapshot first; the walk is the installed apps\' choice', async () => {
+  const transport = new FakeTransport().snapshotSessions({ records: WORKSPACE, cursor: 'c-100' });
+  transport.answer('/sync:pull', { changes: [], cursor: 'c-100', has_more: false });
+  const { engine } = await attached(transport);
+  await engine.catchUp({ pathsFor });
+  assert.equal(transport.snapshots.length, 1);
+  assert.deepEqual(transport.calls.filter((c) => c.path === '/sync:pull').map((c) => (c.body as { cursor: unknown }).cursor), ['c-100']);
+});
+
 test('the stream applies each record before it invalidates, and the cursor advances in the store', async () => {
   const transport = new FakeTransport()
     .snapshotSessions({ records: WORKSPACE, cursor: 'c-1' })
@@ -225,25 +291,29 @@ test('the stream applies each record before it invalidates, and the cursor advan
   assert.ok(seen.includes('ready'), 'the watched entry was re-read after the record');
 });
 
-test('§9.3: an ACCESS_REVOKED for a hub leaves nothing of the hub in the store', async () => {
-  const transport = new FakeTransport()
-    .snapshotSessions({ records: WORKSPACE, cursor: 'c-1' })
-    .answer('/sync:pull', { changes: [], cursor: 'c-1', has_more: false })
-    .streamSessions({
-      events: [frame('c-2', { op: 'ACCESS_REVOKED', entity: 'container', entity_id: HUB, container_id: HUB } as ChangeRecord)],
-      open: true,
-    });
-  const { engine, storage } = await attached(transport);
-  const stop = engine.listen({ pathsFor });
-  await settle(20);
-  stop();
+// The shells' store too: what a revocation deletes is deleted through the port, whichever store is
+// beneath it (F7-04).
+for (const [store, fresh] of STORES) {
+  test(`§9.3: an ACCESS_REVOKED for a hub leaves nothing of the hub in the store (${store})`, async () => {
+    const transport = new FakeTransport()
+      .snapshotSessions({ records: WORKSPACE, cursor: 'c-1' })
+      .answer('/sync:pull', { changes: [], cursor: 'c-1', has_more: false })
+      .streamSessions({
+        events: [frame('c-2', { op: 'ACCESS_REVOKED', entity: 'container', entity_id: HUB, container_id: HUB } as ChangeRecord)],
+        open: true,
+      });
+    const { engine, storage } = await attached(transport, fresh());
+    const stop = engine.listen({ pathsFor });
+    await settle(20);
+    stop();
 
-  for (const [entity, id] of [['container', HUB], ['container', COLLECTION], ['item', ITEM], ['label', LABEL], ['comment', COMMENT]] as const) {
-    assert.equal(await held(storage, entity, id), undefined, `${entity} ${id} survived the revocation`);
-  }
-  assert.notEqual(await held(storage, 'container', OTHER_COLLECTION), undefined, 'a collection outside the hub stays');
-  assert.notEqual(await held(storage, 'item', OTHER_ITEM), undefined);
-});
+    for (const [entity, id] of [['container', HUB], ['container', COLLECTION], ['item', ITEM], ['label', LABEL], ['comment', COMMENT]] as const) {
+      assert.equal(await held(storage, entity, id), undefined, `${entity} ${id} survived the revocation`);
+    }
+    assert.notEqual(await held(storage, 'container', OTHER_COLLECTION), undefined, 'a collection outside the hub stays');
+    assert.notEqual(await held(storage, 'item', OTHER_ITEM), undefined);
+  });
+}
 
 test('§9.4: sync.cursor_too_old empties the store and resynchronises; the device stays', async () => {
   const transport = new FakeTransport()

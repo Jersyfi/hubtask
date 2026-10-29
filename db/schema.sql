@@ -162,6 +162,9 @@ CREATE TABLE tenant (
   -- The first start's question was answered or skipped (0197, UC-WRK-30 check 5): nobody is asked
   -- again.
   starter_answered_at       timestamptz,
+  -- When the workspace's address last changed (0210, multi-tenancy.md §3.1): an owner's change
+  -- waits out the installation's cooldown from it.
+  address_changed_at        timestamptz,
   CONSTRAINT tenant_password_opening_whole_check
     CHECK (num_nulls(password_opened_until, password_opened_requester, password_opened_reason) IN (0, 3))
 );
@@ -549,7 +552,11 @@ CREATE TABLE oauth_client (
   created_at    timestamptz NOT NULL,
   created_by    uuid,
   version       integer NOT NULL DEFAULT 1,
-  CHECK (confidential = (secret_hash IS NOT NULL))
+  -- Set on a row of the built-in client of the installed apps, one per consent, named by the
+  -- device (migration 0214, identity.md §15.3); the registry keeps the rows where it is NULL.
+  app_platform  text CHECK (app_platform IN ('windows', 'linux', 'android')),
+  CHECK (confidential = (secret_hash IS NOT NULL)),
+  CONSTRAINT oauth_client_app_public CHECK (app_platform IS NULL OR NOT confidential)
 );
 CREATE UNIQUE INDEX oauth_client_tenant_id_uq ON oauth_client (tenant_id, id);
 
@@ -606,6 +613,20 @@ CREATE TABLE tenant_host (
   verified_at  timestamptz,
   is_canonical boolean NOT NULL DEFAULT false,
   created_at   timestamptz NOT NULL,
+  -- ADDRESS a subdomain or an assigned host · OWN_DOMAIN set up by the workspace's owner and proven
+  -- by DNS (migration 0211, ADR-0095 §4): a CNAME to the installation's target and a TXT record at
+  -- `_hubtask.<host>` carrying `verification`. A VERIFIED own domain answers; it is ACTIVE once the
+  -- ingress asked for its certificate and a request reached the workspace through it.
+  kind         text NOT NULL DEFAULT 'ADDRESS' CONSTRAINT tenant_host_kind_check
+                 CHECK (kind IN ('ADDRESS', 'OWN_DOMAIN')),
+  state_since  timestamptz,
+  checked_at   timestamptz,
+  target_found boolean NOT NULL DEFAULT false,
+  proof_found  boolean NOT NULL DEFAULT false,
+  certificate_asked_at timestamptz,
+  -- When a main own domain broke and the subdomain became the main address again by itself
+  -- (migration 0212); cleared when the owner makes it main again.
+  fell_back_at timestamptz,
   PRIMARY KEY (tenant_id, host)
 );
 -- One host, one workspace, installation-wide: two workspaces claiming the same host is the failure
@@ -613,6 +634,20 @@ CREATE TABLE tenant_host (
 CREATE UNIQUE INDEX tenant_host_host_uq ON tenant_host (host);
 -- One canonical host per workspace. A mail, a redirect and an invitation link have to name one.
 CREATE UNIQUE INDEX tenant_host_canonical_uq ON tenant_host (tenant_id) WHERE is_canonical;
+-- One own domain per workspace (Decision 9 of milestone CD).
+CREATE UNIQUE INDEX tenant_host_own_domain_uq ON tenant_host (tenant_id) WHERE kind = 'OWN_DOMAIN';
+
+-- The domains the operator blocked (migration 0211): installation-wide, outliving the row, so no
+-- workspace sets one up again. The workspace it was taken from reads its own block, the reason
+-- word for word, until its owner removes it from view.
+CREATE TABLE blocked_domain (
+  host         text PRIMARY KEY CHECK (host = lower(host) AND length(host) BETWEEN 4 AND 253),
+  tenant_id    uuid REFERENCES tenant(id) ON DELETE SET NULL,
+  reason       text NOT NULL CHECK (length(reason) BETWEEN 1 AND 500),
+  blocked_at   timestamptz NOT NULL,
+  was_main     boolean NOT NULL DEFAULT false,
+  dismissed_at timestamptz
+);
 
 -- The providers a workspace signs its people in through (migration 0103). Plural,
 -- and `tenant_id` is nullable: NULL is the installation's own, which every workspace reads and
@@ -2271,6 +2306,19 @@ CREATE TABLE ai_objection_notice (
     FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
 
+-- A member without an email address told of a change of the workspace's address at their next
+-- sign-in (migration 0209); the acknowledgement removes the row.
+CREATE TABLE address_change_notice (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL,
+  from_host  text NOT NULL CHECK (length(from_host) BETWEEN 1 AND 253),
+  to_host    text NOT NULL CHECK (length(to_host) BETWEEN 1 AND 253),
+  changed_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, account_id),
+  CONSTRAINT address_change_notice_account_id_fkey
+    FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+
 -- Documented data breaches (Art. 33/34) - evidence, not automated notification.
 CREATE TABLE privacy_incident (
   id             uuid PRIMARY KEY,
@@ -2831,7 +2879,7 @@ BEGIN
     'outbox_event','event_consumption','idempotency_key','usage_record',
     'notification','notification_preference','private_hub_access',
     'audit_anchor','audit_pseudonym','retention_policy','data_subject_request','consent_record',
-    'ai_objection_notice',
+    'ai_objection_notice','address_change_notice','blocked_domain',
     'erasure_kept',
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'retention_rule','retention_cursor',
@@ -3622,6 +3670,12 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tenant_host' AND policyname = 'doors_write') THEN
     CREATE POLICY doors_write ON tenant_host FOR INSERT TO CURRENT_USER WITH CHECK (true);
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tenant_host' AND policyname = 'doors_update') THEN
+    CREATE POLICY doors_update ON tenant_host FOR UPDATE TO CURRENT_USER USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'blocked_domain' AND policyname = 'doors_read') THEN
+    CREATE POLICY doors_read ON blocked_domain FOR SELECT TO CURRENT_USER USING (true);
+  END IF;
 END $owner$;
 
 CREATE OR REPLACE FUNCTION resolve_tenant_host(request_host text) RETURNS uuid
@@ -3629,7 +3683,7 @@ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
   SELECT h.tenant_id FROM tenant_host h
   JOIN tenant t ON t.id = h.tenant_id
   WHERE h.host = lower(rtrim(request_host, '.'))
-    AND h.state = 'ACTIVE'
+    AND (h.state = 'ACTIVE' OR (h.kind = 'OWN_DOMAIN' AND h.state = 'VERIFIED'))
     AND t.deleted_at IS NULL
   LIMIT 1
 $$;
@@ -3661,6 +3715,172 @@ END
 $$;
 REVOKE ALL ON FUNCTION ensure_main_hosts(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION ensure_main_hosts(text) TO hubtask_app;
+
+-- The main row of each live workspace among `want`, every one where it is NULL: what the control
+-- plane's list shows beside the short name (migration 0208).
+CREATE OR REPLACE FUNCTION admin_main_hosts(want uuid[]) RETURNS TABLE (tenant_id uuid, host text)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT h.tenant_id, h.host
+  FROM tenant_host h
+  JOIN tenant t ON t.id = h.tenant_id
+  WHERE h.is_canonical
+    AND h.state = 'ACTIVE'
+    AND t.deleted_at IS NULL
+    AND (want IS NULL OR h.tenant_id = ANY (want))
+$$;
+
+REVOKE ALL ON FUNCTION admin_main_hosts(uuid[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION admin_main_hosts(uuid[]) TO hubtask_app;
+
+-- An own domain's doors (migration 0211): the ingress's question, the first request, the block,
+-- the check's due rows and the operator's list. The owner updates a row by `doors_update`.
+-- The ingress's question on the operations port: may this host have a certificate? Yes for a
+-- serving row of a live workspace, never for a blocked, pending or broken one. An own domain is
+-- stamped as asked, which is half of what makes it ACTIVE.
+CREATE OR REPLACE FUNCTION own_domain_certificate(request_host text, asked_at timestamptz) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER VOLATILE SET search_path = public, pg_temp AS $$
+DECLARE
+  wanted text := lower(rtrim(coalesce(request_host, ''), '.'));
+  found  boolean;
+BEGIN
+  SELECT true INTO found FROM tenant_host h
+  JOIN tenant t ON t.id = h.tenant_id
+  WHERE h.host = wanted
+    AND (h.state = 'ACTIVE' OR (h.kind = 'OWN_DOMAIN' AND h.state = 'VERIFIED'))
+    AND t.deleted_at IS NULL
+    AND NOT EXISTS (SELECT 1 FROM blocked_domain b WHERE b.host = wanted);
+  IF NOT coalesce(found, false) THEN
+    RETURN false;
+  END IF;
+  UPDATE tenant_host SET certificate_asked_at = asked_at
+  WHERE host = wanted AND kind = 'OWN_DOMAIN' AND certificate_asked_at IS NULL;
+  RETURN true;
+END
+$$;
+
+-- A request reached a workspace through this host: a VERIFIED own domain the ingress asked about
+-- becomes ACTIVE. Whether it awaits that is answered beside the workspace, so the request path
+-- writes only when there is something to write.
+CREATE OR REPLACE FUNCTION resolve_serving_host(request_host text)
+RETURNS TABLE (tenant_id uuid, awaits_request boolean)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT h.tenant_id,
+         (h.kind = 'OWN_DOMAIN' AND h.state = 'VERIFIED' AND h.certificate_asked_at IS NOT NULL)
+  FROM tenant_host h
+  JOIN tenant t ON t.id = h.tenant_id
+  WHERE h.host = lower(rtrim(request_host, '.'))
+    AND (h.state = 'ACTIVE' OR (h.kind = 'OWN_DOMAIN' AND h.state = 'VERIFIED'))
+    AND t.deleted_at IS NULL
+  LIMIT 1
+$$;
+
+CREATE OR REPLACE FUNCTION own_domain_served(request_host text, served_at timestamptz) RETURNS boolean
+LANGUAGE sql SECURITY DEFINER VOLATILE SET search_path = public, pg_temp AS $$
+  WITH moved AS (
+    UPDATE tenant_host SET state = 'ACTIVE', state_since = served_at
+    WHERE host = lower(rtrim(request_host, '.'))
+      AND kind = 'OWN_DOMAIN' AND state = 'VERIFIED' AND certificate_asked_at IS NOT NULL
+    RETURNING 1
+  )
+  SELECT EXISTS (SELECT 1 FROM moved)
+$$;
+
+-- Whether the operator blocked a host, asked from the workspace that wants to set it up.
+CREATE OR REPLACE FUNCTION own_domain_blocked(request_host text) RETURNS boolean
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT EXISTS (SELECT 1 FROM blocked_domain WHERE host = lower(rtrim(request_host, '.')))
+$$;
+
+-- The own domains the check owes a look: pending and broken ones not looked at since
+-- `pending_before`, serving ones not since `serving_before`; the longest unchecked first.
+CREATE OR REPLACE FUNCTION own_domains_due(pending_before timestamptz, serving_before timestamptz, most integer)
+RETURNS TABLE (tenant_id uuid, host text, verification text, state text)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT h.tenant_id, h.host, h.verification, h.state
+  FROM tenant_host h
+  JOIN tenant t ON t.id = h.tenant_id
+  WHERE h.kind = 'OWN_DOMAIN'
+    AND t.deleted_at IS NULL
+    AND (h.checked_at IS NULL
+         OR (h.state IN ('PENDING', 'BROKEN') AND h.checked_at < pending_before)
+         OR (h.state IN ('VERIFIED', 'ACTIVE') AND h.checked_at < serving_before))
+  ORDER BY h.checked_at NULLS FIRST, h.host
+  LIMIT most
+$$;
+
+-- Every own domain of the installation with its workspace, and every block, for the operator; with
+-- when a main one fell back and the workspace's own address it fell back to.
+CREATE OR REPLACE FUNCTION admin_own_domains()
+RETURNS TABLE (host text, tenant_id uuid, tenant_name text, state text, since timestamptz,
+               is_main boolean, blocked_reason text, fell_back_at timestamptz, address_host text)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT h.host, h.tenant_id, t.display_name, h.state, coalesce(h.state_since, h.created_at),
+         h.is_canonical, NULL::text, h.fell_back_at,
+         (SELECT a.host FROM tenant_host a
+          WHERE a.tenant_id = h.tenant_id AND a.kind = 'ADDRESS' AND a.state = 'ACTIVE'
+          ORDER BY a.is_canonical DESC, a.created_at DESC LIMIT 1)
+  FROM tenant_host h
+  JOIN tenant t ON t.id = h.tenant_id
+  WHERE h.kind = 'OWN_DOMAIN' AND t.deleted_at IS NULL
+  UNION ALL
+  SELECT b.host, b.tenant_id, coalesce(t.display_name, ''), 'BLOCKED', b.blocked_at, b.was_main,
+         b.reason, NULL::timestamptz,
+         (SELECT a.host FROM tenant_host a
+          WHERE a.tenant_id = b.tenant_id AND a.kind = 'ADDRESS' AND a.state = 'ACTIVE'
+          ORDER BY a.is_canonical DESC, a.created_at DESC LIMIT 1)
+  FROM blocked_domain b
+  LEFT JOIN tenant t ON t.id = b.tenant_id AND t.deleted_at IS NULL
+  ORDER BY 5 DESC, 1
+$$;
+
+-- Where a browser on this host is sent instead: the workspace's main address, for a serving row that
+-- is not main beside a serving main row, where one of the two is an own domain. NULL for every other
+-- host, which the request then serves as before.
+CREATE OR REPLACE FUNCTION browser_host(request_host text) RETURNS text
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT m.host
+  FROM tenant_host h
+  JOIN tenant t ON t.id = h.tenant_id
+  JOIN tenant_host m ON m.tenant_id = h.tenant_id AND m.is_canonical AND m.state = 'ACTIVE'
+  WHERE h.host = lower(rtrim(request_host, '.'))
+    AND h.state = 'ACTIVE' AND NOT h.is_canonical
+    AND (h.kind = 'OWN_DOMAIN' OR m.kind = 'OWN_DOMAIN')
+    AND t.deleted_at IS NULL
+  LIMIT 1
+$$;
+
+REVOKE ALL ON FUNCTION own_domain_certificate(text, timestamptz) FROM PUBLIC;
+REVOKE ALL ON FUNCTION resolve_serving_host(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION own_domain_served(text, timestamptz) FROM PUBLIC;
+REVOKE ALL ON FUNCTION own_domain_blocked(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION own_domains_due(timestamptz, timestamptz, integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION admin_own_domains() FROM PUBLIC;
+REVOKE ALL ON FUNCTION browser_host(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION own_domain_certificate(text, timestamptz) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION resolve_serving_host(text) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION own_domain_served(text, timestamptz) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION own_domain_blocked(text) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION own_domains_due(timestamptz, timestamptz, integer) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION admin_own_domains() TO hubtask_app;
+GRANT EXECUTE ON FUNCTION browser_host(text) TO hubtask_app;
+
+-- Whether this host is the main address of a live workspace (migration 0213): the device's list of
+-- workspaces asks it before it keeps an entry and whenever it shows one. A yes or a no, never the
+-- workspace.
+CREATE OR REPLACE FUNCTION is_main_host(request_host text) RETURNS boolean
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM tenant_host h
+    JOIN tenant t ON t.id = h.tenant_id
+    WHERE h.host = lower(rtrim(request_host, '.'))
+      AND h.is_canonical AND h.state = 'ACTIVE'
+      AND t.deleted_at IS NULL
+  )
+$$;
+REVOKE ALL ON FUNCTION is_main_host(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION is_main_host(text) TO hubtask_app;
+
 
 -- A bare address in `HUBTASK_OPERATORS` in single mode (migration 0128): the one workspace's
 -- account by address, nothing when there is not exactly one workspace.

@@ -40,10 +40,20 @@
     lead?: string;
     /** The banner slot: one refusal, one notice, never two. */
     notice?: Snippet;
+    /**
+     * The installation's own address rather than a workspace's: the host is named alone, since
+     * nobody signs in to it (UC-ID-25 check 3).
+     */
+    isInstallation?: boolean;
+    /**
+     * The line beside the mark where it is not this page's host: an installed app names the
+     * workspace it signs in to, and nothing before one is chosen (`null`).
+     */
+    hostLine?: string | null;
     children: Snippet;
   }
 
-  const { title, step, lead, notice, children }: Props = $props();
+  const { title, step, lead, notice, isInstallation = false, hostLine, children }: Props = $props();
 
   const host = $derived(signInRules.workspaceHost ?? location.hostname);
   const legal = $derived(signInRules.legal);
@@ -55,7 +65,9 @@
       <div class="brand">
         <!-- A name rather than a message: the product is called Hubtask in every language. -->
         <Logo size="md" wordmark="Hubtask" />
-        <span class="host">{t('app.sign_in.to_workspace', { host })}</span>
+        {#if hostLine !== null}
+          <span class="host">{hostLine ?? (isInstallation ? location.hostname : t('app.sign_in.to_workspace', { host }))}</span>
+        {/if}
       </div>
 
       <Stack gap="250">

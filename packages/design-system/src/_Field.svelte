@@ -11,6 +11,7 @@
 
   import type { Snippet } from 'svelte';
 
+  import Icon from './Icon.svelte';
   import Reason from './_Reason.svelte';
   import Stack from './Stack.svelte';
   import { sharedReason, type GuardOptions } from './reason.ts';
@@ -100,8 +101,9 @@
   {@render children({ id: uid, describedBy, invalid: error !== undefined || isInvalid })}
 
   {#if error}
-    <!-- Rule 3: colour never stands alone. The message is text, and the border is only the echo. -->
-    <p id={errorId} class="message error">{error}</p>
+    <!-- Rule 3: colour never stands alone. The message is text with the refusal's mark, and the
+         border is only the echo. -->
+    <p id={errorId} class="message error"><span class="mark"><Icon name="circle-x" size="sm" /></span><span>{error}</span></p>
   {/if}
   {#if disabledReason !== undefined && reasonId && !groupReasonId}
     <Reason id={reasonId} text={disabledReason} {control} {guardOptions} />
@@ -144,5 +146,14 @@
     overflow-wrap: anywhere;
   }
 
-  .message.error { color: var(--text-danger); }
+  .message.error {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-050);
+    color: var(--text-danger);
+    font-weight: var(--fw-medium);
+  }
+
+  /* On the first line, however many lines the sentence takes. */
+  .message.error .mark { display: inline-flex; flex: none; margin-block-start: var(--sp-025); }
 </style>

@@ -208,9 +208,11 @@ export interface TransportDocument {
  * because that is the intersection of IndexedDB and SQLite - and the intersection is the honest
  * port when two implementations are already known.
  *
- * Two implementations ship with the package: `IndexedDbStorage`, one database per API
- * origin and account, which the browser platform seam supplies; and `MemoryStorage`, which the
- * tests and the conformance runner use. `test/storage.test.ts` holds both to the same promises.
+ * Three implementations ship with the package: `IndexedDbStorage`, one database per API
+ * origin and account, which the browser platform seam supplies; `SqliteStorage`, the shells'
+ * encrypted copy behind their commands, which the desktop seam supplies; and `MemoryStorage`,
+ * which the tests and the conformance runner use. `test/storage.test.ts` holds all three to the
+ * same promises.
  */
 export interface Storage {
   get<T>(collection: string, id: string): Promise<T | undefined>;

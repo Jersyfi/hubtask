@@ -13,9 +13,7 @@
   // workspace started with, and for the week start what applies while this workspace decides
   // none. Only where the installation decided one - a private installation is not a column here.
   //
-  // **The slug is shown and not editable, with the reason.** It is the subdomain the workspace is
-  // reached by; changing it would break every link anybody has bookmarked or pasted, and the
-  // contract does not offer it. Showing it without the reason would look like an oversight.
+  // The address is not here: it has a screen of its own, *Address*, with who may change it.
 
   import { tick, untrack } from 'svelte';
 
@@ -180,13 +178,6 @@
               isRequired
             />
 
-            <!-- Read-only and said so, rather than absent: the address people reach this workspace
-                 at is a thing they look for on this screen, and leaving it out reads as a gap. -->
-            <Stack gap="050">
-              <span class="label">{t('app.workspace.slug')}</span>
-              <p class="fixed">{current.slug}</p>
-              <p class="quiet small">{t('app.workspace.slug_fixed')}</p>
-            </Stack>
 
             {#if locales.length > 0}
               <Select
@@ -281,11 +272,6 @@
     color: var(--text-secondary);
   }
 
-  .small { font-size: var(--fs-075); }
-
-  .label { color: var(--text-primary); font-size: var(--fs-075); font-weight: var(--fw-medium); }
-
-  .fixed { margin: 0; font-family: var(--font-mono); color: var(--text-primary); }
 
   /* A form is neither prose nor a table, and it is the third case of ADR-0065 decision 2: an
      input as wide as the region is a target nobody aims at, so the fields carry a measure of

@@ -79,8 +79,13 @@ reads across tenants. Each is narrow by construction and granted to `hubtask_app
 | Function | Answers | Used by |
 |---|---|---|
 | `resolve_tenant(slug)` | One tenant identifier or none — never a list | Single mode's sign-in before a credential exists (§3), with no slug |
-| `resolve_tenant_host(host)` | One tenant identifier or none — only a serving row of a live workspace, never a list | Multi mode: every door before a credential exists, and the host check of an authenticated request (§3) |
+| `resolve_tenant_host(host)` | One tenant identifier or none — only a serving row of a live workspace (an `ACTIVE` one, or a `VERIFIED` own domain), never a list | Multi mode: every door before a credential exists, and the host check of an authenticated request (§3) |
+| `resolve_serving_host(host)`, `own_domain_served(host, at)` | One tenant identifier or none, and whether a verified own domain awaits its first request; whether it moved to `ACTIVE` | A request before a credential exists, writing only when there is something to write (§3.1) |
+| `own_domain_certificate(host, at)` | Yes or no — never a row | The ingress's question on the operations port (§3.1, deployment.md §6.1) |
+| `own_domain_blocked(host)`, `own_domains_due(…)`, `admin_own_domains()` | Whether a host is blocked; the own domains the check owes a look; every own domain and block for the operator | Setting one up, the check's job and the control plane (§3.1) |
 | `ensure_main_hosts(base)` | The number of main rows it wrote — never a row or a name | A multi-mode server's start, for every live workspace without a main address (§3.1) |
+| `browser_host(host)` | The main address to send a browser on to, or none — never the workspace | A page load on a host that is not its workspace's main address, beside an own domain (§3.1) |
+| `is_main_host(host)` | Yes or no — never the workspace | The device's list of workspaces: checking an entry the installation signed before it is kept and whenever it is shown (§3.1) |
 | `resolve_mail_address(code)` | One tenant identifier or none — never a list, nothing about the place | The receiving domain's inbound route before it has a tenant ([ADR-0092](../adr/ADR-0092-mail-addresses-for-every-place.md)) |
 | `resolve_mail_workspace(name)`, `mail_workspace_name_taken(name, self)` | One tenant identifier or none; whether another workspace holds a name - never a list | An address on the operator's mail domain before it has a tenant, and choosing that name ([ADR-0094](../adr/ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md)) |
 | `admin_tenants()` | The list of tenants | The control plane behind `admin:tenants` (§4.1) |
@@ -205,8 +210,10 @@ deliberately not used.
 [ADR-0095](../adr/ADR-0095-a-workspaces-address-resolves-through-its-hosts.md); the market research
 behind it in
 [archive/backlog/workspace-addressing-research-2026-10.md](../archive/backlog/workspace-addressing-research-2026-10.md)).
-Built so far: the reserved short names, and the resolution through `tenant_host` with the
-provider's return to the main address (below).
+Built so far: the reserved short names, the resolution through `tenant_host` with the
+provider's return to the main address, the hosts the operator assigns, the operator's and the
+owner's change of address, own domains with the way to and from the main address, and the device's
+list of workspaces (below).
 The browser origin is a workspace's boundary on the client - its session, its offline cache, its
 passkeys ([identity.md](./identity.md) §23.3) and the host its sign-in card shows - so every
 workspace has a host of its own:
@@ -238,7 +245,29 @@ Never a path prefix, and never a root-domain workspace beside subdomain workspac
   in the web app on the base host and in the shells, with *Switch workspace*. There is no
   cross-workspace account, session or count ([NG-global-identity](../vision/non-goals.md)), no
   *Find your workspaces*, and no routing by an address or its domain: no screen tells anybody which
-  workspaces an address belongs to.
+  workspaces an address belongs to. *Built* in the web app (UC-ID-25; ADR-0095 §7): after a sign-in
+  in multi mode the workspace reads its entry (`GET /tenant/device-list-entry`: the main address's
+  host and the display name, signed with an HMAC keyed on the installation secret, people only) and
+  sends the browser to the installation's own address (`installation_url` in `/meta/capabilities`,
+  multi mode only) at `/workspaces` with the entry in the fragment; the page there asks
+  `POST /auth/device-list:check`, which leaves out every entry the installation did not sign and
+  says of the others whether the host is still a main address (`is_main_host`, migration 0213),
+  keeps a confirmed one in its `localStorage` and sends the browser back - a redirect there and
+  back, nothing drawn between. Whenever the browser goes from that address to a workspace's, it
+  hands over a copy of the list in the fragment; the account menu's *Switch workspace* (a dialog,
+  a sheet on a phone) draws that copy, *Open* goes through the installation's address, which opens
+  only a host its list holds and that still answers, and *Forget this workspace on this device*
+  takes the row off at once and the entry off the installation's list by the same redirect. Signed
+  out, the installation's address shows the list, or with none where a workspace is reached; it
+  takes no short name and no host (Decision 7 of milestone CD). The list is checked when it is
+  shown: an entry whose host no longer answers says so and offers *Forget* alone. Single mode keeps
+  no list and draws none of it. The list's model is the platform seam's
+  (`apps/webapp/src/lib/platform/workspaces.ts`) and the entry the server's. The installed apps
+  keep a list of their own instead (UC-ID-25 check 7): every workspace the app signed in
+  to, of one installation or several, with its host, its name and its installation's host - added
+  only by a sign-in at that address, so no signed entry is needed, and drawn in single mode too.
+  Each has its own session in the keystore and its own copy; *Forget this workspace* withdraws its
+  grant and deletes both (identity.md §14.4).
 
 * **Reserved short names.** The product keeps a list of the labels an installation or its ingress
   uses for itself (`www`, `api`, `auth`, `admin`, `mail`, `media`, `status`, `docs` and their kin,
@@ -257,15 +286,81 @@ mail's link, the provider's return, the passkey's RP ID, the sign-in card - come
 never from the short name. A workspace provisioned in multi mode gets its main row then; one older
 than its row gets it from `ensure_main_hosts` at the next start of a multi-mode server, because
 only the server knows the installation's host and the migrator does not. *Built:* the resolution,
-the provider's return, the passkey's RP ID, and every mail's link and the invitation handed over -
-all read through one helper, `WorkspaceAddress`, when the link is written; the calendar feed's, a
-CalDAV todo's and an export's links still name the installation's host (#1784). While no main row
-serves, the helper answers the subdomain the short name makes. A change of address replaces the
-main row and drops the old one in one transaction. An own domain is a row proven by a TXT record carrying its mark and re-proven by a job;
-an assigned host is a row the operator writes without a proof, in an installation set to
-`HUBTASK_WORKSPACE_HOSTS=assigned`. The installation's settings hold whether owners may change the
-address (default off) and set up own domains (default off), the cooldown (30 days) and the
-operator's reserved short names beside the product's list.
+the provider's return, the passkey's RP ID, every mail's link and the invitation handed over, and
+the links beyond the mails - a calendar feed's address, a CalDAV todo's, an export's entries' - all
+read through one helper, `WorkspaceAddress`, when the link is written; an adapter reaches it through
+`WorkspaceLinks`, a read-only transaction in the request's workspace, never through
+`HUBTASK_BASE_URL`. While no main row
+serves, the helper answers the subdomain the short name makes. A change of address replaces the main row and drops the old one in one transaction.
+*Built* for the operator - `POST /admin/tenants/{id}:change-address`, `hubctl admin tenant
+change-address` and the installation's *Workspaces*, in multi mode only: the same transaction moves
+the short name with a subdomain (with assigned hosts it stays), ends every person's session (an
+OAuth grant's stay), writes the trail and the journal, queues a mail for each member with an address
+and leaves each member without one a notice (`address_change_notice`) the web app shows until it is
+acknowledged. It is refused for a workspace pending deletion, at the field as provisioning refuses a
+name or host, and as `admin.address_lockout_self` or `admin.address_lockout_owner` (with `reason`
+`way_in` or `factor`) while the caller or every owner lacks a lasting way in; the proof is a password
+or provider step-up ([identity.md](./identity.md) §16.2). A dry run checks all of it but the proof
+and answers who is told. *Built* for the owner as well - `POST /tenant:change-address` and the
+workspace's *Address* screen under "Workspace and people": the same change, refusals, lockout rule,
+proof and notices, behind the installation's `owners_change_address` (off by default; always off in
+single mode, `access.address_change_not_allowed`), the caller's `OWNER` on the workspace
+(`access.owner_required`) and the cooldown, `address_change_cooldown_days` (30 where unset, 1-365),
+measured by the `Clock` from the last change of the address by anybody (`tenant.address_changed_at`,
+migration 0210) and checked again under the row's lock inside the change; inside it the change is
+refused as `access.address_change_cooldown` naming `possible_at`, and the screen names the day. The
+operator is held by neither. `GET /tenant` answers the main address and whether the reader may change
+it as `address`; an owner's change is in the workspace's trail only, not the instance journal. With subdomains the same short name is accepted while the main row names
+another host: it is how a workspace moves beneath a changed `HUBTASK_BASE_URL`, whose old rows
+`ensure_main_hosts` leaves as they are.
+An own domain is a row of its own kind (`OWN_DOMAIN`, migration 0211), one per workspace, proven by
+DNS and re-proven by a job (*built*, UC-INS-15): where the installation's `owners_own_domains` allows
+it, the workspace's owner sets it up on the *Address* screen or `PUT /tenant/own-domain` and is
+answered two records - a CNAME pointing it at `domains.<installation host>` and a TXT record at
+`_hubtask.<domain>` carrying `hubtask-domain=<mark>`. The field refuses what is no domain
+(`admin.own_domain_invalid`), an apex, which takes no CNAME (`admin.own_domain_apex`: a name in
+front of it, such as `tasks.<domain>`), the installation's host or one beneath it
+(`admin.own_domain_installation`), another workspace's host without saying whose
+(`admin.own_domain_taken`) and a blocked one (`admin.own_domain_blocked`). The check
+(`own_domain.check`, an installation job every five minutes) looks a pending domain up on every pass
+and a serving one hourly through the DNS port, each lookup under its deadline; both records found
+make it `VERIFIED`, and a verified domain answers. It turns `ACTIVE` once the ingress asked for its
+certificate (deployment.md §6.1) and a request reached the workspace through it, and `BROKEN` once
+its TXT record is gone, back again by itself when the record returns; a lookup that got no answer
+moves nothing. The operator lists every own domain on the installation's *Workspaces* and
+`GET /admin/own-domains`, and blocks one with a reason (`POST /admin/own-domains/{domain}:block`): its
+row goes in the same transaction, so it stops answering at once, and `blocked_domain` keeps the host
+from every workspace and the reason for its owner to read, until the owner removes it from view.
+Setting up, verifying, breaking, removing and blocking are in the workspace's trail; the block, with
+its reason, also in the instance journal.
+*Built* as well (migration 0212): an `ACTIVE` own domain becomes the main address on the *Address*
+screen's *Make it the main address* or `POST /tenant/own-domain:make-main`, and the subdomain (or
+assigned host) becomes main again on *Make … the main address again* or
+`POST /tenant/own-domain:switch-back`. Either asks what a change of address asks - the lockout rule,
+the password or provider step-up, the members told - ends every session, and costs the passkeys made
+at the old address; it is the owner's (`access.owner_required`), making main also needs
+`owners_own_domains`, and no cooldown holds either. Neither replaces a row: `is_canonical` moves
+between the two, both stay `ACTIVE`, the API answers on both, and a page load on the one not main is
+sent on with a `302` to the same path at the main address (`browser_host`, only where one of the two
+is an own domain). After switching back the own domain therefore stays set up and sends browsers to
+the subdomain. A main own domain that breaks hands the main address back in the check's own
+transaction and keeps the moment as `fell_back_at`; one the operator blocks hands it back in the
+block's transaction, the block keeping `was_main`. Either raises the warning on the workspace's
+administration overview and - for a break - the installation's overview, until the owner makes the
+domain main again or removes it. An operator's or owner's change of address while an own domain is
+main replaces the subdomain row and leaves the own domain set up, no longer main.
+An assigned host is a row the operator writes without a proof, in an installation set to
+`HUBTASK_WORKSPACE_HOSTS=assigned` (*built*): provisioning and the first start's setup ask for the
+host instead of a subdomain, refuse it at the field as `admin.host_invalid`,
+`admin.host_installation` or `admin.host_taken` (the table's unique index, installation-wide), and
+make the short name - still the workspace's identifier for `hubctl` and the API - from its first
+label where none is given. Such an installation's start writes no subdomain rows, and the
+control plane's reads answer each workspace's main address as `host`. The installation's settings hold whether owners may change the
+address (`owners_change_address`, default off, *built*) and set up own domains (`owners_own_domains`,
+default off, *built*), the
+cooldown (`address_change_cooldown_days`, 30 days, *built*) and the operator's reserved short names
+beside the product's list - each through the instance file, `hubctl admin settings set` and
+`PUT /admin/settings`, which the installation's settings screen sends back as it read them.
 
 ---
 

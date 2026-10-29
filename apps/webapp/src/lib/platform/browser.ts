@@ -4,7 +4,20 @@
 import { IndexedDbStorage, databaseNameFor } from '@hubtask/sync-engine';
 
 import type { Platform } from './index.ts';
+import { pageLanguages, saveByLink } from './page.ts';
+import { API_PATH } from './server.ts';
 import { browserStorage, tokenStore } from './tokenStore.ts';
+import {
+  HOP_PATH,
+  addressOf,
+  entryList,
+  handoverFragment,
+  hopFragment,
+  readHandover,
+  readHop,
+  type DeviceWorkspaces,
+  type ListStorage,
+} from './workspaces.ts';
 
 /**
  * The browser: the primary target (ADR-0033), and the one with the narrowest promises — offline
@@ -40,8 +53,61 @@ function browserName(): string {
   return system ? `${browser} on ${system}` : browser;
 }
 
+/**
+ * The device's list of workspaces in the browser (`workspaces.ts`). `localStorage`, not the tab's
+ * `sessionStorage`: the list is what this browser remembers, and it holds no credential.
+ */
+function localList(): ListStorage | undefined {
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return undefined;
+  }
+}
+const list = entryList(localList());
+
+/** Drops a fragment once read: replaced rather than pushed, so Back does not bring it back. */
+function dropFragment(): void {
+  history.replaceState(history.state, '', location.pathname + location.search);
+}
+
+// A workspace's address arrived at from the list's home takes the copy handed over with it.
+// (A module a test imports outside a page has no address to read.)
+const handedOver = typeof location === 'undefined' ? undefined : readHandover(location.hash);
+if (handedOver !== undefined) {
+  list.replace(handedOver);
+  dropFragment();
+}
+
+const workspaces: DeviceWorkspaces = {
+  list: () => list.all(),
+  drop: (entry) => list.drop(entry),
+  keep: (entry) => list.keep(entry),
+  // Replaced, not pushed: the redirect there and back is invisible (UC-ID-25, the approved preview),
+  // and Back from the workspace must not land on it.
+  remember: (entry, installation, path) =>
+    location.replace(`${installation}${HOP_PATH}${hopFragment({ kind: 'add', entry, path })}`),
+  forget: (host, installation, back, path) => {
+    list.forget(host);
+    if (back !== undefined) location.replace(`${installation}${HOP_PATH}${hopFragment({ kind: 'forget', host, back, path })}`);
+  },
+  open: (host, installation) => location.assign(`${installation}${HOP_PATH}${hopFragment({ kind: 'open', host })}`),
+  takeHop: () => {
+    if (location.pathname !== HOP_PATH) return undefined;
+    const hop = readHop(location.hash);
+    dropFragment();
+    return hop;
+  },
+  leave: (host, path) =>
+    location.replace(`${addressOf(host, location)}${path}${handoverFragment(list.all().map((each) => each.entry))}`),
+};
+
 export const platform: Platform = {
   target: 'browser',
+
+  // Relative: the bundle and the API come from one origin (ADR-0028), so there is no host to name.
+  apiBase: API_PATH,
+  webOrigin: globalThis.location?.origin ?? '',
 
   // Answering `undefined` rather than an empty string is the difference between "no credential"
   // and "a credential that is empty", and only one of those is ever true.
@@ -61,13 +127,7 @@ export const platform: Platform = {
   // when it is clicked makes the callback asynchronous by definition.
   openDownload: (url) => window.location.assign(url),
 
-  // An object URL and a click, which is the only way a browser saves bytes it already has. The URL
-  // is revoked immediately afterwards: it is a handle to memory, and one left behind keeps the
-  // whole file alive for the life of the document.
-  // `navigator.languages` is the ordered list the reader configured; `language` is the first of
-  // them and is the fallback where the list is missing.
-  preferredLanguages: () =>
-    navigator.languages?.length ? [...navigator.languages] : [navigator.language].filter(Boolean),
+  preferredLanguages: pageLanguages,
 
   // The database is named after this origin and the account (ADR-0033 §4): the API is this
   // origin's (ADR-0028), so two installations on two hosts never share a copy, and two accounts on
@@ -81,6 +141,12 @@ export const platform: Platform = {
     }
   },
 
+  // Not encrypted, so it holds no file captured offline (ADR-0033 §4), and has no key to forget:
+  // the engine's reset deletes the database itself.
+  holdsFiles: false,
+  firstSynchronisation: 'snapshot',
+  forgetCopy: async () => {},
+
   rememberAccount: (id) => store.rememberAccount(id),
 
   rememberElevation: (until) => store.rememberElevatedUntil(until),
@@ -90,14 +156,9 @@ export const platform: Platform = {
 
   deviceName: browserName,
 
-  saveFile: (bytes, fileName) => {
-    const url = URL.createObjectURL(bytes);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  },
+  devicePlatform: 'web',
+
+  workspaces,
+
+  saveFile: saveByLink,
 };

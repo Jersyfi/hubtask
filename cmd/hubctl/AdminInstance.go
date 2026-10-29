@@ -142,8 +142,11 @@ func adminSettingsSet(ctx context.Context, cli *CLI, args []string, setting bool
 			map[bool]string{true: " and a value", false: ""}[setting])
 	}
 
-	if rest[0] == "metering" {
-		return adminSettingsMetering(ctx, cli, setting, rest)
+	if rest[0] == meteringKey || rest[0] == ownersChangeAddressKey || rest[0] == ownersOwnDomainsKey {
+		return adminSettingsSwitch(ctx, cli, rest[0], setting, rest)
+	}
+	if rest[0] == addressCooldownKey {
+		return adminSettingsCooldown(ctx, cli, setting, rest)
 	}
 	if rest[0] == reservedShortNamesKey {
 		return adminSettingsReservedShortNames(ctx, cli, setting, rest)
@@ -289,6 +292,15 @@ func settingsTable(settings openapi.InstanceSettings) Table {
 	add("ai", settings.Ai)
 	if settings.ReservedShortNames != nil && len(*settings.ReservedShortNames) > 0 {
 		rows = append(rows, []string{reservedShortNamesKey, strings.Join(*settings.ReservedShortNames, ","), "-"})
+	}
+	if settings.OwnersChangeAddress != nil {
+		rows = append(rows, []string{ownersChangeAddressKey, map[bool]string{true: "on", false: "off"}[*settings.OwnersChangeAddress], "-"})
+	}
+	if settings.OwnersOwnDomains != nil {
+		rows = append(rows, []string{ownersOwnDomainsKey, map[bool]string{true: "on", false: "off"}[*settings.OwnersOwnDomains], "-"})
+	}
+	if settings.AddressChangeCooldownDays != nil {
+		rows = append(rows, []string{addressCooldownKey, strconv.Itoa(*settings.AddressChangeCooldownDays), "-"})
 	}
 	return Table{Columns: []string{"key", "value", "workspace"}, Rows: rows}
 }
@@ -607,10 +619,22 @@ func commaList(raw string) *[]string {
 	return &list
 }
 
-// adminSettingsMetering sets or clears the installation's metering switch, which offers the use for
-// billing (`GET /admin/usage`): `set metering on|off`, and `clear metering` for off. It is the
-// installation's alone, beside the areas, so it has no lock.
-func adminSettingsMetering(ctx context.Context, cli *CLI, setting bool, rest []string) error {
+// The installation's own switches beside the areas, which no workspace decides and so have no lock.
+const (
+	// meteringKey offers the use for billing (`GET /admin/usage`).
+	meteringKey = "metering"
+	// ownersChangeAddressKey lets a workspace's owners change its address in multi mode.
+	ownersChangeAddressKey = "owners_change_address"
+	// ownersOwnDomainsKey lets a workspace's owners set up an own domain in multi mode.
+	ownersOwnDomainsKey = "owners_own_domains"
+	// addressCooldownKey is the days after a change of address before its owners may change it again.
+	addressCooldownKey = "address_change_cooldown_days"
+)
+
+// adminSettingsSwitch sets or clears one of the installation's switches beside the areas:
+// `set metering on|off`, `set owners_change_address on|off`, `set owners_own_domains on|off`, and
+// `clear` for off.
+func adminSettingsSwitch(ctx context.Context, cli *CLI, key string, setting bool, rest []string) error {
 	on := false
 	if setting {
 		switch strings.ToLower(rest[1]) {
@@ -618,9 +642,44 @@ func adminSettingsMetering(ctx context.Context, cli *CLI, setting bool, rest []s
 			on = true
 		case "off", "false", "no":
 		default:
-			return usagef("metering is on or off, not %q", rest[1])
+			return usagef("%s is on or off, not %q", key, rest[1])
 		}
 	}
+	return adminSettingsLevel(ctx, cli, func(settings *openapi.InstanceSettings) {
+		switch key {
+		case meteringKey:
+			settings.Metering = &on
+		case ownersOwnDomainsKey:
+			settings.OwnersOwnDomains = &on
+		default:
+			settings.OwnersChangeAddress = &on
+		}
+	})
+}
+
+// adminSettingsCooldown sets the days after a change of a workspace's address before its owners may
+// change it again (`set address_change_cooldown_days 14`), or `clear`s it back to the product's 30.
+func adminSettingsCooldown(ctx context.Context, cli *CLI, setting bool, rest []string) error {
+	days := 0
+	if setting {
+		parsed, err := strconv.Atoi(rest[1])
+		if err != nil {
+			return usagef("%s is a number of days, not %q", addressCooldownKey, rest[1])
+		}
+		days = parsed
+	}
+	return adminSettingsLevel(ctx, cli, func(settings *openapi.InstanceSettings) {
+		if setting {
+			settings.AddressChangeCooldownDays = &days
+		} else {
+			settings.AddressChangeCooldownDays = nil
+		}
+	})
+}
+
+// adminSettingsLevel reads the level whole, changes it, and sends it back with the version it read:
+// `PUT` replaces, and a level somebody saved in between refuses the save.
+func adminSettingsLevel(ctx context.Context, cli *CLI, change func(*openapi.InstanceSettings)) error {
 	client, err := cli.client()
 	if err != nil {
 		return err
@@ -633,7 +692,7 @@ func adminSettingsMetering(ctx context.Context, cli *CLI, setting bool, rest []s
 	if settings.Version != nil {
 		read = *settings.Version
 	}
-	settings.Metering = &on
+	change(&settings)
 	var written openapi.InstanceSettings
 	if err := client.PutVersioned(
 		ctx, adminSettingsPath, settings, versionPrecondition(read), &written,

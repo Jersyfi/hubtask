@@ -182,6 +182,11 @@ export const DECLARED = {
     'utensils',
     'gift',
   ],
+  'Staying current': [
+    // The installed apps' offer of a newer release: its download, on Android and for the `.deb`
+    // (UC-SYN-07 checks 5 and 6).
+    'download',
+  ],
   'The AI treatment': [
     // The one mark a proposal carries beside its heading. Rule 3: the surface and the border say
     // "not the reader's own" by colour, and this says it in a shape. Not a logo, not a badge -

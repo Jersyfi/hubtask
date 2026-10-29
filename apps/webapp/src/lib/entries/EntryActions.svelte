@@ -31,7 +31,11 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import AssigneePanel from '../people/AssigneePanel.svelte';
   import MembersDialog from '../people/MembersDialog.svelte';
+  import { platform } from '../platform/index.ts';
   import { renderProblem } from '../problem.ts';
+
+  /** An entry's address in the workspace's web app, which opens only for somebody who may read it. */
+  const entryLink = (id: string) => `${platform.webOrigin}/items/${id}`;
 
   interface Props {
     /** Opening an entry is the surface's: beside it from `large` where it has a pane, else its page. */
@@ -179,8 +183,12 @@
           duplicating = item;
           return;
         case 'copy-link':
-          await navigator.clipboard.writeText(`${location.origin}/items/${item.id}`);
+          // The workspace's address, not the page's: inside a shell the page is `tauri://localhost`.
+          await navigator.clipboard.writeText(entryLink(item.id));
           announcer.say(t('app.entry_menu.link_copied'));
+          return;
+        case 'send-link':
+          await platform.sendLink?.(item.title, entryLink(item.id));
           return;
         case 'archive':
           // At once, and the message offers the way back (UC-WRK-28 check 3); it is also what

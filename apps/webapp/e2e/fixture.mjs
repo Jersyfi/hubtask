@@ -1021,6 +1021,8 @@ export function stub(route) {
     return route.fulfill({ json: { ...HUB, private: request.postDataJSON().private, version: HUB.version + 1 } });
   }
   if (path.endsWith('/api/v1/tenant') && request.method() === 'GET') return route.fulfill({ json: WORKSPACE });
+  // The notices of a changed address the reader has not seen: none, unless a walk routes them.
+  if (path.endsWith('/api/v1/accounts/me/address-notices') && request.method() === 'GET') return route.fulfill({ json: [] });
   if (path.endsWith('/api/v1/private-hubs') && request.method() === 'GET') return route.fulfill({ json: PRIVATE_HUBS });
   // A hub's emergency accesses, and the reader's own notices: none, unless a walk routes them.
   if (/\/api\/v1\/private-hubs\/[^/]+\/accesses$/.test(path) && request.method() === 'GET') return route.fulfill({ json: [] });
@@ -1127,6 +1129,8 @@ export function stub(route) {
   if (path.endsWith('/api/v1/privacy/consents') && request.method() === 'GET') return route.fulfill({ json: CONSENT_REGISTER });
   if (path.endsWith('/api/v1/admin/encryption') && request.method() === 'GET') return route.fulfill({ json: ENCRYPTION_STATUS });
   if (path.endsWith('/api/v1/admin/subscriptions') && request.method() === 'GET') return route.fulfill({ json: PLATFORM_SUBSCRIPTIONS });
+  // The contract's bare list: no workspace has set up its own domain yet.
+  if (path.endsWith('/api/v1/admin/own-domains') && request.method() === 'GET') return route.fulfill({ json: [] });
   // The operator's hour at the installation level, granted: a walk of those screens looks at them,
   // not at the door (ADR-0070 §4).
   if (path.endsWith('/api/v1/auth/sessions:elevate')) {

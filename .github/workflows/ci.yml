@@ -57,6 +57,7 @@ jobs:
       n8n_node: ${{ github.event_name != 'pull_request' || steps.filter.outputs.n8n_node == 'true' }}
       zapier_app: ${{ github.event_name != 'pull_request' || steps.filter.outputs.zapier_app == 'true' }}
       sdk_typescript: ${{ github.event_name != 'pull_request' || steps.filter.outputs.sdk_typescript == 'true' }}
+      shell: ${{ github.event_name != 'pull_request' || steps.filter.outputs.shell == 'true' }}
       # `docs` is deliberately not an output any more: the documentation job runs unconditionally
       # (see it below), and an output nothing reads is a filter nobody maintains. The `docs:`
       # entry in the filter list stays, because the coverage check in test/architecture reads the
@@ -157,6 +158,16 @@ jobs:
             api_client:
               - 'packages/api-client/**'
               - *workspace-manifests
+            # The installed apps' shell renders the web app (ADR-0033), so what changes the web app
+            # changes what the shell bundles: the app, what it is built from, and the shell itself.
+            # A change elsewhere leaves the `shell` lane skipped, which is what keeps it cheap.
+            shell:
+              - 'apps/webapp/**'
+              - 'packages/design-system/**'
+              - 'packages/sync-engine/**'
+              - 'packages/api-client/**'
+              - 'locales/en.json'
+              - *workspace-manifests
             n8n_node:
               - 'packages/n8n-nodes-hubtask/**'
             zapier_app:
@@ -220,6 +231,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ false }}
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        if: ${{ false }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: ${{ false }}
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         if: ${{ false }}
@@ -296,6 +309,10 @@ jobs:
           # change the terms on which an Apache-2.0 build may be passed on. It applies to the
           # JavaScript half too, which `go-licenses` cannot see.
           deny-licenses: GPL-1.0-or-later, GPL-2.0-or-later, GPL-3.0-or-later, AGPL-1.0-or-later, AGPL-3.0-or-later, LGPL-2.0-or-later, LGPL-2.1-or-later, LGPL-3.0-or-later, SSPL-1.0
+          # Exactly these versions, not the crate: r-efi offers "MIT OR Apache-2.0 OR
+          # LGPL-2.1-or-later" and is taken under MIT, which the action cannot tell from the
+          # expression. apps/webapp/src-tauri/deny.toml records the same choice for cargo-deny.
+          allow-dependencies-licenses: pkg:cargo/r-efi@5.3.0, pkg:cargo/r-efi@6.0.0
           fail-on-severity: high
 
   licences:
@@ -993,6 +1010,219 @@ jobs:
         env:
           ENGINES: chromium
 
+  # The installed apps' shell (ADR-0031, UC-WRK-33/5): the Tauri project at apps/webapp/src-tauri/,
+  # built on the two desktop systems it ships for (F7 Decision 9) - only here, never by `go` or the
+  # pnpm workspace (ADR-0033). Rust comes from the runner's rustup, which installs the version
+  # `rust-toolchain.toml` pins, so the lane needs no action beyond GitHub's own. The licences of
+  # the crates are held by cargo-deny under the policy `go-licenses` holds the Go side to
+  # (licensing-editions.md §1); once is enough, so the Linux leg runs it with the Rust tests.
+  #
+  # Each leg then walks its app (UC-SYN-07 check 9): the debug build with the `walk` feature against
+  # a real server on the runner's own PostgreSQL, driven by the engine's own WebDriver - WebKitGTK's
+  # WebKitWebDriver, the runner's msedgedriver for WebView2, its chromedriver for Android's system
+  # WebView on an emulator (`apps/webapp/e2e/webview/smoke.mjs`). A failure in one engine fails
+  # the lane; `fail-fast` stays off so the other two still say whether they pass.
+  shell:
+    name: Shell (${{ matrix.system }})
+    needs: changes
+    if: needs.changes.outputs.shell == 'true' || needs.changes.outputs.ci == 'true'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 70
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: Linux
+            runner: ubuntu-latest
+            bundles: deb
+          - system: Windows
+            runner: windows-latest
+            bundles: nsis
+          # The Android app on the runner's own SDK, NDK and JDK: one ABI in debug, the emulator's,
+          # to prove it builds and to walk it; the universal, signed APK is the release's (F7
+          # Decision 9, versioning-release.md).
+          - system: Android
+            runner: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_TERM_COLOR: never
+      # The walk's app and server carry one version: Android takes no `0.0.0` (its version code
+      # would be 0), and an app newer than its server refuses the workspace at the address field
+      # (UC-SYN-07), as the server's untagged `0.0.0-dev` would be.
+      WALK_VERSION: 0.0.1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      # Not `make tools-node`: a Windows runner has no make. The same pin, read the same way.
+      - name: pnpm, as package.json pins it
+        run: |
+          version=$(sed -n 's/.*"packageManager": "pnpm@\([^"]*\)".*/\1/p' package.json)
+          corepack enable pnpm
+          corepack prepare "pnpm@$version" --activate
+          pnpm --version
+      - id: store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+      - name: The pinned Rust
+        working-directory: apps/webapp/src-tauri
+        run: rustup toolchain install
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/bin/cargo-deny*
+            apps/webapp/src-tauri/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('apps/webapp/src-tauri/rust-toolchain.toml', 'apps/webapp/src-tauri/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+      # The walk's server, built from this commit.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      # The webview and the packaging tools Tauri's Linux build links against. apt can hang on the
+      # runner's mirror, so the step has a limit of its own (see `engines`).
+      - name: The system's webview
+        if: matrix.system == 'Linux'
+        timeout-minutes: 15
+        run: |
+          printf 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' |
+            sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev librsvg2-dev libxdo-dev libssl-dev file \
+            webkit2gtk-driver xvfb gnome-keyring
+      # SQLCipher, the encrypted copy's cipher (ADR-0033 §4), links OpenSSL's libcrypto: Linux finds
+      # libssl-dev's where the compiler looks, the Windows runner's has to be named.
+      - name: The system's OpenSSL
+        if: runner.os == 'Windows'
+        timeout-minutes: 10
+        run: |
+          found() { for root in "/c/Program Files/OpenSSL" "/c/Program Files/OpenSSL-Win64"; do
+            [ -d "$root/include/openssl" ] && return 0; done; return 1; }
+          found || { choco install openssl --no-progress -y && found; }
+          # The import library for the dynamic runtime where the installer carries several.
+          lib=$(find "$root/lib" -iname libcrypto.lib | grep -i 'x64/md/' | head -1)
+          [ -n "$lib" ] || lib=$(find "$root/lib" -iname libcrypto.lib | head -1)
+          test -n "$lib"
+          echo "OPENSSL_LIB_DIR=$(cygpath -w "$(dirname "$lib")")" >> "$GITHUB_ENV"
+          echo "OPENSSL_INCLUDE_DIR=$(cygpath -w "$root/include")" >> "$GITHUB_ENV"
+          # The walk runs the app, which loads libcrypto's DLL from the path.
+          cygpath -w "$root/bin" >> "$GITHUB_PATH"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter "@hubtask/webapp^..." build
+      # UC-WRK-33 check 5: the icons on every size from the mark's app-icon source, and the check
+      # that the shell bundles exactly those - nothing committed by hand.
+      - run: pnpm --filter @hubtask/webapp desktop:icons
+      - name: The crates' licences
+        if: matrix.system == 'Linux'
+        working-directory: apps/webapp/src-tauri
+        run: |
+          command -v cargo-deny >/dev/null || cargo install cargo-deny --locked --version 0.19.0
+          cargo deny --locked check licenses bans sources
+      - name: Format, lint and test the shell
+        if: matrix.system == 'Linux'
+        working-directory: apps/webapp/src-tauri
+        run: |
+          pnpm --filter @hubtask/webapp build:desktop
+          cargo fmt --check
+          cargo clippy --locked --all-targets --all-features -- -D warnings
+          cargo test --locked --all-features
+      # A debug build: the lane proves the shell builds and bundles on this system; the release
+      # build with its signature is the release's (versioning-release.md). With the walk's stand-in
+      # for the system's browser (`walk.rs`), which no release carries.
+      - if: matrix.system != 'Android'
+        run: pnpm --filter @hubtask/webapp desktop:build --debug --ci --bundles ${{ matrix.bundles }} --features walk
+      # SQLCipher's libcrypto for Android, from OpenSSL's pinned release (`android-openssl.sh`).
+      - name: The Android app
+        if: matrix.system == 'Android'
+        run: |
+          (cd apps/webapp/src-tauri && rustup target add x86_64-linux-android)
+          export NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          pnpm --filter @hubtask/webapp android:openssl x86_64-linux-android
+          pnpm --filter @hubtask/webapp android:build --debug --apk --ci --target x86_64 --features walk --config "{\"version\":\"$WALK_VERSION\"}"
+      # UC-SYN-07 check 9 from here on. The walk's server and its database: the runner's own
+      # PostgreSQL, a database of its own, and the server and its migrations built from this commit.
+      - name: The walk's server
+        timeout-minutes: 10
+        run: |
+          walk="$RUNNER_TEMP/walk" && mkdir -p "$walk"
+          if [ "$RUNNER_OS" = Windows ]; then
+            # The image ships the service disabled; its documented start sets the start type first.
+            pwsh -NoProfile -Command 'Get-Service -Name postgresql* | Set-Service -StartupType Manual -PassThru | Start-Service'
+            "$(cygpath -u "$PGBIN")/pg_isready.exe" -h 127.0.0.1 -t 60
+            "$(cygpath -u "$PGBIN")/createdb.exe" hubtask
+            echo "WALK_DB=postgres://$PGUSER:$PGPASSWORD@127.0.0.1:5432/hubtask?sslmode=disable" >> "$GITHUB_ENV"
+            exe=.exe
+          else
+            sudo systemctl start postgresql.service
+            sudo -u postgres psql -qc "ALTER USER postgres PASSWORD 'walk'"
+            sudo -u postgres createdb hubtask
+            echo "WALK_DB=postgres://postgres:walk@127.0.0.1:5432/hubtask?sslmode=disable" >> "$GITHUB_ENV"
+            exe=
+          fi
+          go build -ldflags "-X main.version=$WALK_VERSION" -o "$walk/hubtask$exe" ./cmd/server
+          go build -o "$walk/hubtask-migrate$exe" ./cmd/migrate
+          echo "WALK_SERVER=$walk/hubtask$exe" >> "$GITHUB_ENV"
+          echo "WALK_MIGRATE=$walk/hubtask-migrate$exe" >> "$GITHUB_ENV"
+      # Android's system WebView on an emulator of the runner's SDK, with the KVM the runner offers.
+      - name: The emulator
+        if: matrix.system == 'Android'
+        timeout-minutes: 25
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules >/dev/null
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          tools="$ANDROID_HOME/cmdline-tools/latest/bin"
+          image='system-images;android-35;google_apis;x86_64'
+          "$tools/sdkmanager" --install emulator platform-tools "$image" < /dev/null > /dev/null
+          # One place for the AVD, named to both tools: avdmanager and the emulator otherwise disagree
+          # about the default directory on the runner.
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | "$tools/avdmanager" create avd --force -n walk -k "$image" -d pixel_7 -p "$ANDROID_AVD_HOME/walk.avd"
+          "$tools/avdmanager" list avd
+          emulator="$ANDROID_HOME/emulator/emulator"
+          "$emulator" -accel-check
+          log="$RUNNER_TEMP/emulator.log"
+          nohup "$emulator" -avd walk -no-window -no-audio -no-snapshot -no-boot-anim \
+            -accel on -gpu swiftshader_indirect -memory 4096 -cores 4 -camera-back none > "$log" 2>&1 &
+          pid=$!
+          adb="$ANDROID_HOME/platform-tools/adb"
+          # Bounded: a dead emulator or a boot that never completes fails here with its log, rather
+          # than hanging in an unbounded `adb wait-for-device` until the step's timeout.
+          deadline=$((SECONDS + 1200))
+          until [ "$(timeout 10 "$adb" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; do
+            if ! kill -0 "$pid" 2>/dev/null || [ "$SECONDS" -ge "$deadline" ]; then
+              echo "::error::the emulator did not boot"; tail -n 80 "$log"; exit 1
+            fi
+            sleep 5
+          done
+          "$adb" shell input keyevent 82
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+      - name: The smoke walk
+        timeout-minutes: 15
+        run: |
+          walk=(node apps/webapp/e2e/webview/smoke.mjs --server "$WALK_SERVER" --migrate "$WALK_MIGRATE" --db "$WALK_DB" --out "$RUNNER_TEMP/walk/out")
+          case "${{ matrix.system }}" in
+            # The session lives in the system's keystore (UC-SYN-07 check 3): a Secret Service on a
+            # bus of the walk's own, unlocked, as a person's desktop session has it.
+            Linux) dbus-run-session -- bash -c 'echo -n walk | gnome-keyring-daemon --unlock --components=secrets >/dev/null; exec "$@"' walk \
+              xvfb-run -a "${walk[@]}" --engine linux --app apps/webapp/src-tauri/target/debug/hubtask --driver WebKitWebDriver ;;
+            Windows) "${walk[@]}" --engine windows --app "$(cygpath -w "$PWD/apps/webapp/src-tauri/target/debug/hubtask.exe")" \
+              --driver "$(cygpath -u "${EDGEWEBDRIVER:-C:\\SeleniumWebDrivers\\EdgeDriver}")/msedgedriver.exe" ;;
+            Android) "${walk[@]}" --engine android --driver "$CHROMEWEBDRIVER/chromedriver" \
+              --app "$(find apps/webapp/src-tauri/gen/android/app/build/outputs/apk -name '*.apk' | head -1)" ;;
+          esac
+
   tokens-drift:
     name: Design tokens are in step with the core
     needs: changes
@@ -1099,6 +1329,7 @@ jobs:
       - pr-description
       - node
       - engines
+      - shell
       - tokens-drift
       - api-client-drift
     runs-on: ubuntu-latest

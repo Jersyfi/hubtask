@@ -24,7 +24,8 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 
 /** The trees this applies to: everything a browser renders. */
 const ROOTS = ['apps', 'packages'];
-const SKIP_DIRS = new Set(['node_modules', 'dist', '.vite', '.turbo', '.svelte-kit']);
+// src-tauri: the shell's Rust and Cargo's build output, which embeds a copy of the built bundle.
+const SKIP_DIRS = new Set(['node_modules', 'dist', '.vite', '.turbo', '.svelte-kit', 'src-tauri']);
 /** Where a style can be written. A `.ts` file that builds a style string is not a case this has met. */
 const EXTENSIONS = new Set(['.css', '.svelte', '.html']);
 

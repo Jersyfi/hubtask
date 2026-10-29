@@ -17,6 +17,8 @@ import (
 const (
 	readWorkspaceUseCase   = "ReadWorkspace"
 	updateWorkspaceUseCase = "UpdateWorkspace"
+
+	changeWorkspaceAddressUseCase = "ChangeWorkspaceAddress"
 )
 
 // ReadWorkspace answers GET /tenant.
@@ -215,7 +217,74 @@ func workspaceResponse(out usecase.Output) openapi.Workspace {
 		}
 		answer.Hosts = &hosts
 	}
+	if address, held := out["address"].(usecase.Output); held {
+		answer.Address = &openapi.WorkspaceAddress{
+			Host:            address.String("host"),
+			OwnersMayChange: boolValue(address["owners_may_change"]),
+			MayChange:       boolValue(address["may_change"]),
+		}
+		if changed, ok := address["changed_at"].(time.Time); ok {
+			answer.Address.ChangedAt = &changed
+		}
+		if from, ok := address["changeable_from"].(time.Time); ok {
+			answer.Address.ChangeableFrom = &from
+		}
+		if allowed, ok := address["own_domains_allowed"].(bool); ok {
+			answer.Address.OwnDomainsAllowed = &allowed
+		}
+		if manage, ok := address["may_manage_own_domain"].(bool); ok {
+			answer.Address.MayManageOwnDomain = &manage
+		}
+		if own, ok := address["own_domain"].(usecase.Output); ok {
+			answer.Address.OwnDomain = ownDomainOf(own)
+		}
+		if back := address.String("address_host"); back != "" {
+			answer.Address.AddressHost = &back
+		}
+	}
 	return answer
+}
+
+// ChangeWorkspaceAddress answers POST /tenant:change-address: the owners' door to the change of
+// address, written out longhand for the operator's door's reason (AdminController.go).
+func (c *RestController) ChangeWorkspaceAddress(
+	w http.ResponseWriter, r *http.Request, params openapi.ChangeWorkspaceAddressParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.TenantAddressChange
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in := usecase.Input{"step_up_token": stepUpHeaderField(params.XHubtaskStepUp)}
+	if body.Slug != nil {
+		in["slug"] = *body.Slug
+	}
+	if body.Host != nil {
+		in["host"] = *body.Host
+	}
+	if body.DryRun != nil {
+		in["dry_run"] = *body.DryRun
+	}
+	out, err := c.UseCases.Invoke(r.Context(), changeWorkspaceAddressUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	mailed, _ := out["members_mailed"].(int)
+	told, _ := out["members_told_at_sign_in"].(int)
+	dryRun, _ := out["dry_run"].(bool)
+	answer := openapi.WorkspaceAddressChanged{
+		From: out.String("from"), MembersMailed: mailed, MembersToldAtSignIn: told, DryRun: dryRun,
+	}
+	if to := out.String("to"); to != "" {
+		answer.To = &to
+	}
+	writeJSON(w, r, http.StatusOK, answer)
 }
 
 // signInPolicyResponse maps the three-level projection. One helper per kind of switch, because the

@@ -318,12 +318,12 @@ class Conformance {
     const itemId = await this.#checkIdentifiers();
     if (itemId) await this.#checkIdempotence(itemId);
     await this.#checkServerDecides();
-    this.#record(6, 'not-tested', 'not tested from a browser engine, by ADR-0033 §4: the store beneath the engine is deleted on sign-out (`reset`), never encrypted, and this runner does not pretend otherwise');
+    this.#record(6, 'not-tested', 'not tested from a browser engine, by ADR-0033 §4: the store beneath the engine is deleted on sign-out (`reset`), never encrypted, and this runner does not pretend otherwise. The installed apps prove it in the shell lane: apps/webapp/src-tauri/src/copy.rs (the file unreadable without its key, sign-out removing file and key)');
     // 4 before 7: the resynchronisation it provokes is a snapshot, and a snapshot line carries an
     // entry whole - which is what 7 compares the copy against.
     await this.#checkCursor();
     if (itemId) await this.#checkUnknownFields(itemId);
-    this.#record(8, 'not-tested', 'the engine frames no such kind, by construction: `MutationKind` is the seven of §1\'s left-hand column, and a write the application cannot name as one of them is refused rather than queued');
+    this.#record(8, 'not-tested', 'the engine frames no such kind, by construction: `MutationKind` holds only kinds of §1\'s left-hand column, and a write the application cannot name as one of them is refused rather than queued');
     // Last, because the device has no access to anything below the hub afterwards.
     await this.#checkRevocation();
   }

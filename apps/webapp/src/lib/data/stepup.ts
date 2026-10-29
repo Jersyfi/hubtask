@@ -29,7 +29,7 @@ const KNOWN: readonly StepUpMethod[] = ['PASSWORD', 'TOTP', 'RECOVERY', 'PROVIDE
  */
 export async function withStepUp<T>(
   call: (stepUpToken?: string) => Promise<T>,
-  ask: (methods: readonly StepUpMethod[], provider?: string) => Promise<string | undefined>,
+  ask: (methods: readonly StepUpMethod[], provider?: string, purpose?: string) => Promise<string | undefined>,
   held: () => string | undefined = () => undefined,
 ): Promise<T> {
   try {
@@ -51,7 +51,7 @@ export async function withStepUp<T>(
       }
     }
 
-    const token = await ask(methodsOf(cause), providerOf(cause));
+    const token = await ask(methodsOf(cause), providerOf(cause), purposeOf(cause));
     if (token === undefined) throw cause;
     return call(token);
   }
@@ -83,6 +83,15 @@ export function methodsOf(cause: TransportError): readonly StepUpMethod[] {
 }
 
 /** The provider a `PROVIDER` proof goes to, as the refusal names it — what "Confirm with …" says. */
+/**
+ * Why the act accepts only some methods, where the refusal says: `change_address` for a change of a
+ * workspace's address, which a passkey cannot confirm (its relying party is the address that ends).
+ */
+export function purposeOf(cause: TransportError): string | undefined {
+  const named = cause.params?.purpose;
+  return typeof named === 'string' && named.trim() !== '' ? named : undefined;
+}
+
 export function providerOf(cause: TransportError): string | undefined {
   const named = cause.params?.provider;
   return typeof named === 'string' && named.trim() !== '' ? named : undefined;

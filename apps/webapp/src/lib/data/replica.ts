@@ -373,8 +373,8 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
 /**
  * `mutationFor` maps a write - its method, path and body, as `mutate` was called - to the
  * mutation `:push` takes, without its clocks (the engine stamps them), or to `undefined` for a
- * write that cannot be made offline and goes straight to the server as before. The seven kinds
- * (`offline-sync.md` §3.2):
+ * write that cannot be made offline and goes straight to the server as before. The kinds
+ * (`offline-sync.md` §3.2, §4.2):
  *
  * - `POST /items` is an `ITEM_CREATE` with an identifier the client mints (§9.1: final). The
  *   direct path keeps the server's identifier, because a direct create is not a mutation.
@@ -386,11 +386,15 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
  * - a label, a member or an attachment put or deleted is a `SET_ADD` or `SET_REMOVE`.
  * - `DELETE /items/{id}` is an `ITEM_DELETE`; `POST /items/{id}/comments` a `COMMENT_ADD` with a
  *   comment identifier the client mints.
+ * - a reminder, the entry's series, a container, a label and a bucket created, changed or deleted
+ *   are their `*_CREATE`, `*_PATCH` and `*_DELETE`, the creation under an identifier the client
+ *   mints; a series the copy already holds is changed rather than created again.
+ * - `POST /templates/{id}:instantiate` is a `TEMPLATE_APPLY`; its entries arrive with the pull.
  *
  * Everything else answers `undefined`, and the test says which and why: archiving and restoring
- * change lifecycle the server owns; the cover, a bulk and a duplicate have no mutation kind;
- * containers, labels' definitions, templates and views are §1's structure the queue does not
- * carry; and the administration's writes are §1's right column.
+ * change lifecycle the server owns; the cover, a bulk and a duplicate have no mutation kind; a
+ * container's structure, policies, privacy and place, a template's definition and views stay
+ * online; and the administration's writes are §1's right column.
  */
 export async function mutationFor(
   method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
@@ -462,6 +466,55 @@ export async function mutationFor(
   match = /^\/items\/([^/]+)\/comments$/.exec(pathname);
   if (match?.[1] && method === 'POST') {
     return { kind: 'COMMENT_ADD', itemId: match[1], payload: { ...fields, id: helpers.mintId() } };
+  }
+
+  match = /^\/items\/([^/]+)\/reminders(?:\/([^/]+))?$/.exec(pathname);
+  if (match?.[1]) {
+    const itemId = match[1];
+    const reminderId = match[2];
+    if (!reminderId && method === 'POST') return { kind: 'REMINDER_CREATE', itemId, entityId: helpers.mintId(), payload: fields };
+    if (reminderId && method === 'PATCH') return { kind: 'REMINDER_PATCH', itemId, entityId: reminderId, fields };
+    if (reminderId && method === 'DELETE') return { kind: 'REMINDER_DELETE', itemId, entityId: reminderId };
+    return undefined;
+  }
+
+  match = /^\/items\/([^/]+)\/recurrence$/.exec(pathname);
+  if (match?.[1] && (method === 'PUT' || method === 'DELETE')) {
+    const itemId = match[1];
+    const held = (await documents(helpers.storage, 'recurrence_rule')).find((row) => row.item_id === itemId && !row.deleted_at);
+    const heldId = typeof held?.id === 'string' ? held.id : undefined;
+    if (method === 'DELETE') return heldId ? { kind: 'RECURRENCE_DELETE', itemId, entityId: heldId } : undefined;
+    return heldId
+      ? { kind: 'RECURRENCE_PATCH', itemId, entityId: heldId, fields }
+      : { kind: 'RECURRENCE_CREATE', itemId, entityId: helpers.mintId(), payload: fields };
+  }
+
+  match = /^\/templates\/([^/:]+):instantiate$/.exec(pathname);
+  if (match?.[1] && method === 'POST') {
+    return { kind: 'TEMPLATE_APPLY', itemId: '', payload: { ...fields, template_id: match[1] } };
+  }
+
+  if (pathname === '/containers' && method === 'POST') {
+    return { kind: 'CONTAINER_CREATE', itemId: '', entityId: helpers.mintId(), payload: fields };
+  }
+  match = /^\/containers\/([^/:]+)$/.exec(pathname);
+  if (match?.[1]) {
+    if (method === 'PATCH') return { kind: 'CONTAINER_PATCH', itemId: '', entityId: match[1], fields };
+    if (method === 'DELETE') return { kind: 'CONTAINER_DELETE', itemId: '', entityId: match[1] };
+    return undefined;
+  }
+
+  match = /^\/containers\/([^/]+)\/(labels|buckets)(?:\/([^/:]+))?$/.exec(pathname);
+  if (match?.[1] && match[2]) {
+    const containerId = match[1];
+    const prefix = match[2] === 'labels' ? 'LABEL' : 'BUCKET';
+    const id = match[3];
+    if (!id && method === 'POST') {
+      return { kind: `${prefix}_CREATE`, itemId: '', entityId: helpers.mintId(), payload: { ...fields, collection_id: containerId } };
+    }
+    if (id && method === 'PATCH') return { kind: `${prefix}_PATCH`, itemId: '', entityId: id, containerId, fields };
+    if (id && method === 'DELETE') return { kind: `${prefix}_DELETE`, itemId: '', entityId: id, containerId };
+    return undefined;
   }
 
   return undefined;

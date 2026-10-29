@@ -66,6 +66,9 @@ func (AdminTenantRepository) List(ctx context.Context) ([]repository.TenantRecor
 			Version:        int(row.Version),
 		})
 	}
+	if err := withMainHosts(ctx, queries, records, nil); err != nil {
+		return nil, err
+	}
 	return records, nil
 }
 
@@ -85,9 +88,12 @@ func (AdminTenantRepository) Insert(ctx context.Context, record repository.Tenan
 	})
 	if err != nil {
 		if isUniqueViolation(err) {
+			// Refused at the field, as a change of address refuses it (UC-INS-07 check 2).
+			params := map[string]string{"slug": record.Slug}
 			return shared.ErrConflict.
 				WithDetail("admin.slug_taken").
-				WithParams(map[string]string{"slug": record.Slug})
+				WithParams(params).
+				WithFields(shared.FieldError{Path: "/slug", Code: "admin.slug_taken", Params: params})
 		}
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -132,7 +138,34 @@ func (AdminTenantRepository) Find(ctx context.Context) (repository.TenantRecord,
 		Version:              int(row.Version),
 		PlanName:             row.PlanName,
 		ExternalReference:    row.ExternalReference,
+		Host:                 row.Host,
 	}, nil
+}
+
+// withMainHosts fills each record's main address from `admin_main_hosts` (migration 0208): want
+// names the workspaces to read, nil every one.
+func withMainHosts(
+	ctx context.Context, queries *sqlc.Queries, records []repository.TenantRecord, want []pgtype.UUID,
+) error {
+	if len(records) == 0 {
+		return nil
+	}
+	rows, err := queries.AdminMainHosts(ctx, want)
+	if err != nil {
+		return queryFailed("reading the workspaces' main addresses", err)
+	}
+	hosts := make(map[shared.ID]string, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.TenantID)
+		if err != nil {
+			return err
+		}
+		hosts[id] = row.Host
+	}
+	for i := range records {
+		records[i].Host = hosts[records[i].ID]
+	}
+	return nil
 }
 
 // SetPlan puts the transaction's own tenant on a plan, or none.
@@ -796,6 +829,17 @@ func (r TenantQueryRepository) Query(
 			LegalHold: row.LegalHold, PurgeStartedAt: timeFrom(row.PurgeStartedAt),
 			PlanName: row.PlanName, Version: int(row.Version), ExternalReference: row.ExternalReference,
 		})
+	}
+	want := make([]pgtype.UUID, 0, len(records))
+	for _, record := range records {
+		id, err := uuidOf(record.ID)
+		if err != nil {
+			return nil, repository.PageInfo{}, err
+		}
+		want = append(want, id)
+	}
+	if err := withMainHosts(ctx, queries, records, want); err != nil {
+		return nil, repository.PageInfo{}, err
 	}
 	page := repository.PageInfo{}
 	if len(records) > query.Size {

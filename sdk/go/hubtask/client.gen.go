@@ -228,6 +228,33 @@ func (e ActorType) Valid() bool {
 	}
 }
 
+// Defines values for AdminOwnDomainState.
+const (
+	AdminOwnDomainStateACTIVE   AdminOwnDomainState = "ACTIVE"
+	AdminOwnDomainStateBLOCKED  AdminOwnDomainState = "BLOCKED"
+	AdminOwnDomainStateBROKEN   AdminOwnDomainState = "BROKEN"
+	AdminOwnDomainStatePENDING  AdminOwnDomainState = "PENDING"
+	AdminOwnDomainStateVERIFIED AdminOwnDomainState = "VERIFIED"
+)
+
+// Valid indicates whether the value is a known member of the AdminOwnDomainState enum.
+func (e AdminOwnDomainState) Valid() bool {
+	switch e {
+	case AdminOwnDomainStateACTIVE:
+		return true
+	case AdminOwnDomainStateBLOCKED:
+		return true
+	case AdminOwnDomainStateBROKEN:
+		return true
+	case AdminOwnDomainStatePENDING:
+		return true
+	case AdminOwnDomainStateVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminTenantStatus.
 const (
 	AdminTenantStatusACTIVE          AdminTenantStatus = "ACTIVE"
@@ -1323,6 +1350,24 @@ func (e CapabilitiesTenancyMode) Valid() bool {
 	case Multi:
 		return true
 	case Single:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CapabilitiesWorkspaceHosts.
+const (
+	Assigned  CapabilitiesWorkspaceHosts = "assigned"
+	Subdomain CapabilitiesWorkspaceHosts = "subdomain"
+)
+
+// Valid indicates whether the value is a known member of the CapabilitiesWorkspaceHosts enum.
+func (e CapabilitiesWorkspaceHosts) Valid() bool {
+	switch e {
+	case Assigned:
+		return true
+	case Subdomain:
 		return true
 	default:
 		return false
@@ -3096,6 +3141,54 @@ func (e OauthAuthorizationCodeChallengeMethod) Valid() bool {
 	}
 }
 
+// Defines values for OauthAuthorizationPlatform.
+const (
+	OauthAuthorizationPlatformAndroid     OauthAuthorizationPlatform = "android"
+	OauthAuthorizationPlatformLessThannil OauthAuthorizationPlatform = "<nil>"
+	OauthAuthorizationPlatformLinux       OauthAuthorizationPlatform = "linux"
+	OauthAuthorizationPlatformWindows     OauthAuthorizationPlatform = "windows"
+)
+
+// Valid indicates whether the value is a known member of the OauthAuthorizationPlatform enum.
+func (e OauthAuthorizationPlatform) Valid() bool {
+	switch e {
+	case OauthAuthorizationPlatformAndroid:
+		return true
+	case OauthAuthorizationPlatformLessThannil:
+		return true
+	case OauthAuthorizationPlatformLinux:
+		return true
+	case OauthAuthorizationPlatformWindows:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OauthGrantAppPlatform.
+const (
+	OauthGrantAppPlatformAndroid     OauthGrantAppPlatform = "android"
+	OauthGrantAppPlatformLessThannil OauthGrantAppPlatform = "<nil>"
+	OauthGrantAppPlatformLinux       OauthGrantAppPlatform = "linux"
+	OauthGrantAppPlatformWindows     OauthGrantAppPlatform = "windows"
+)
+
+// Valid indicates whether the value is a known member of the OauthGrantAppPlatform enum.
+func (e OauthGrantAppPlatform) Valid() bool {
+	switch e {
+	case OauthGrantAppPlatformAndroid:
+		return true
+	case OauthGrantAppPlatformLessThannil:
+		return true
+	case OauthGrantAppPlatformLinux:
+		return true
+	case OauthGrantAppPlatformWindows:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for OauthTokenRequestGrantType.
 const (
 	AuthorizationCode OauthTokenRequestGrantType = "authorization_code"
@@ -3123,6 +3216,51 @@ func (e OperatorKind) Valid() bool {
 	case OperatorKindSERVICEACCOUNT:
 		return true
 	case OperatorKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OwnDomainState.
+const (
+	OwnDomainStateACTIVE   OwnDomainState = "ACTIVE"
+	OwnDomainStateBLOCKED  OwnDomainState = "BLOCKED"
+	OwnDomainStateBROKEN   OwnDomainState = "BROKEN"
+	OwnDomainStatePENDING  OwnDomainState = "PENDING"
+	OwnDomainStateVERIFIED OwnDomainState = "VERIFIED"
+)
+
+// Valid indicates whether the value is a known member of the OwnDomainState enum.
+func (e OwnDomainState) Valid() bool {
+	switch e {
+	case OwnDomainStateACTIVE:
+		return true
+	case OwnDomainStateBLOCKED:
+		return true
+	case OwnDomainStateBROKEN:
+		return true
+	case OwnDomainStatePENDING:
+		return true
+	case OwnDomainStateVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OwnDomainRecordType.
+const (
+	CNAME OwnDomainRecordType = "CNAME"
+	TXT   OwnDomainRecordType = "TXT"
+)
+
+// Valid indicates whether the value is a known member of the OwnDomainRecordType enum.
+func (e OwnDomainRecordType) Valid() bool {
+	switch e {
+	case CNAME:
+		return true
+	case TXT:
 		return true
 	default:
 		return false
@@ -5009,19 +5147,47 @@ func (e SyncChangeOp) Valid() bool {
 
 // Defines values for SyncMutationKind.
 const (
-	COMMENTADD SyncMutationKind = "COMMENT_ADD"
-	ITEMCREATE SyncMutationKind = "ITEM_CREATE"
-	ITEMDELETE SyncMutationKind = "ITEM_DELETE"
-	ITEMPATCH  SyncMutationKind = "ITEM_PATCH"
-	MOVE       SyncMutationKind = "MOVE"
-	SETADD     SyncMutationKind = "SET_ADD"
-	SETREMOVE  SyncMutationKind = "SET_REMOVE"
+	BUCKETCREATE     SyncMutationKind = "BUCKET_CREATE"
+	BUCKETDELETE     SyncMutationKind = "BUCKET_DELETE"
+	BUCKETPATCH      SyncMutationKind = "BUCKET_PATCH"
+	COMMENTADD       SyncMutationKind = "COMMENT_ADD"
+	CONTAINERCREATE  SyncMutationKind = "CONTAINER_CREATE"
+	CONTAINERDELETE  SyncMutationKind = "CONTAINER_DELETE"
+	CONTAINERPATCH   SyncMutationKind = "CONTAINER_PATCH"
+	ITEMCREATE       SyncMutationKind = "ITEM_CREATE"
+	ITEMDELETE       SyncMutationKind = "ITEM_DELETE"
+	ITEMPATCH        SyncMutationKind = "ITEM_PATCH"
+	LABELCREATE      SyncMutationKind = "LABEL_CREATE"
+	LABELDELETE      SyncMutationKind = "LABEL_DELETE"
+	LABELPATCH       SyncMutationKind = "LABEL_PATCH"
+	MOVE             SyncMutationKind = "MOVE"
+	RECURRENCECREATE SyncMutationKind = "RECURRENCE_CREATE"
+	RECURRENCEDELETE SyncMutationKind = "RECURRENCE_DELETE"
+	RECURRENCEPATCH  SyncMutationKind = "RECURRENCE_PATCH"
+	REMINDERCREATE   SyncMutationKind = "REMINDER_CREATE"
+	REMINDERDELETE   SyncMutationKind = "REMINDER_DELETE"
+	REMINDERPATCH    SyncMutationKind = "REMINDER_PATCH"
+	SETADD           SyncMutationKind = "SET_ADD"
+	SETREMOVE        SyncMutationKind = "SET_REMOVE"
+	TEMPLATEAPPLY    SyncMutationKind = "TEMPLATE_APPLY"
 )
 
 // Valid indicates whether the value is a known member of the SyncMutationKind enum.
 func (e SyncMutationKind) Valid() bool {
 	switch e {
+	case BUCKETCREATE:
+		return true
+	case BUCKETDELETE:
+		return true
+	case BUCKETPATCH:
+		return true
 	case COMMENTADD:
+		return true
+	case CONTAINERCREATE:
+		return true
+	case CONTAINERDELETE:
+		return true
+	case CONTAINERPATCH:
 		return true
 	case ITEMCREATE:
 		return true
@@ -5029,11 +5195,31 @@ func (e SyncMutationKind) Valid() bool {
 		return true
 	case ITEMPATCH:
 		return true
+	case LABELCREATE:
+		return true
+	case LABELDELETE:
+		return true
+	case LABELPATCH:
+		return true
 	case MOVE:
+		return true
+	case RECURRENCECREATE:
+		return true
+	case RECURRENCEDELETE:
+		return true
+	case RECURRENCEPATCH:
+		return true
+	case REMINDERCREATE:
+		return true
+	case REMINDERDELETE:
+		return true
+	case REMINDERPATCH:
 		return true
 	case SETADD:
 		return true
 	case SETREMOVE:
+		return true
+	case TEMPLATEAPPLY:
 		return true
 	default:
 		return false
@@ -6044,6 +6230,17 @@ type Actor struct {
 // ActorType defines model for Actor.Type.
 type ActorType string
 
+// AddressChangeNotice defines model for AddressChangeNotice.
+type AddressChangeNotice struct {
+	ChangedAt time.Time `json:"changed_at"`
+
+	// From The workspace's address before the change.
+	From string `json:"from"`
+
+	// To Its address since.
+	To string `json:"to"`
+}
+
 // AddressConfirm defines model for AddressConfirm.
 type AddressConfirm struct {
 	// Token The token from the confirmation mail. It dies on use.
@@ -6061,6 +6258,31 @@ type AddressRequested struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
+// AdminOwnDomain defines model for AdminOwnDomain.
+type AdminOwnDomain struct {
+	// AddressHost The workspace's subdomain (or assigned host), which becomes the main address where this domain falls back; null for a blocked domain no workspace holds.
+	AddressHost   *string `json:"address_host,omitempty"`
+	BlockedReason *string `json:"blocked_reason,omitempty"`
+	Domain        string  `json:"domain"`
+
+	// FellBackAt When it was the main address and broke, so its workspace's subdomain became the main address again by itself; null otherwise.
+	FellBackAt *time.Time `json:"fell_back_at,omitempty"`
+
+	// IsMain Whether it is its workspace's main address; for a blocked one, whether it was when it was blocked.
+	IsMain bool                `json:"is_main"`
+	Since  time.Time           `json:"since"`
+	State  AdminOwnDomainState `json:"state"`
+
+	// TenantId The workspace; null for a blocked domain no workspace holds.
+	TenantId *openapi_types.UUID `json:"tenant_id,omitempty"`
+
+	// TenantName The workspace's display name; empty where no workspace holds it.
+	TenantName string `json:"tenant_name"`
+}
+
+// AdminOwnDomainState defines model for AdminOwnDomain.State.
+type AdminOwnDomainState string
+
 // AdminTenant defines model for AdminTenant.
 type AdminTenant struct {
 	CreatedAt       time.Time `json:"created_at"`
@@ -6069,8 +6291,11 @@ type AdminTenant struct {
 	DisplayName     string    `json:"display_name"`
 
 	// ExternalReference The purchase platform's own reference, where it set one.
-	ExternalReference *string            `json:"external_reference,omitempty"`
-	Id                openapi_types.UUID `json:"id"`
+	ExternalReference *string `json:"external_reference,omitempty"`
+
+	// Host The host the workspace answers at, its main address. Absent in single mode, where the installation's own host is the workspace's.
+	Host *string            `json:"host,omitempty"`
+	Id   openapi_types.UUID `json:"id"`
 
 	// LegalHold Whether a legal hold is in force in the workspace. While one is, a deletion request is refused, and a workspace already pending deletion stays pending until the last hold is lifted. Only the state: which hold, on what and why stay the workspace's.
 	LegalHold *bool `json:"legal_hold,omitempty"`
@@ -7026,6 +7251,9 @@ type Capabilities struct {
 	AccountLink *string `json:"account_link,omitempty"`
 	ApiVersion  *string `json:"api_version,omitempty"`
 
+	// AppClientId The built-in OAuth2 client of the installed apps, the same in every workspace and installation: public, without a secret, redirecting only to a loopback address or `eu.hubtask.app:/oauth`.
+	AppClientId *openapi_types.UUID `json:"app_client_id,omitempty"`
+
 	// AutoAssignStrategies The values an auto-assign policy's `strategy` may take, for the reason the completion policies are listed.
 	AutoAssignStrategies *[]AutoAssignStrategy `json:"auto_assign_strategies,omitempty"`
 
@@ -7059,6 +7287,9 @@ type Capabilities struct {
 	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both, and so does a person who keeps their own content out of AI - no AI action is offered to them. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
 	Features *map[string]bool `json:"features,omitempty"`
+
+	// InstallationUrl Multi mode only: the installation's own address, where the device's list of workspaces is kept and shown. Absent in single mode, which keeps no list.
+	InstallationUrl *string `json:"installation_url,omitempty"`
 
 	// Instance What this caller may do at the level above the workspaces. Caller-scoped, like `ai_suggestions` and `backup_targets` beside it: an anonymous read answers `reachable: false`, and the answer changes with the actor.
 	// **This is what decides whether a client draws a way into `/instance` at all.** Hubtask does not draw a control somebody may not use and then refuse it: what the installation permits is read, never compiled in, and a capability that is refused outright is absent rather than disabled.
@@ -7126,6 +7357,9 @@ type Capabilities struct {
 	TokenScopes *[]string `json:"token_scopes,omitempty"`
 	ViewLayouts *[]string `json:"view_layouts,omitempty"`
 
+	// WorkspaceHosts Multi mode only: whether a workspace answers beneath the installation's own host or at a host the operator assigns, and therefore whether creating one asks for a short name or for a host. Absent in single mode.
+	WorkspaceHosts *CapabilitiesWorkspaceHosts `json:"workspace_hosts,omitempty"`
+
 	// WorkspacePermissions The columns of the role matrix the caller holds on the workspace itself, from every membership they hold there - their own and their groups' - decided as every request is decided, and recording nothing: asking is not an attempt. Caller-scoped like `instance`: absent for an anonymous caller, empty for somebody whose roles sit only on hubs, collections or entries.
 	// It answers what a client offers at the level of the workspace before anybody presses anything - the administration (`STRUCTURE` or `READ_CONFIGURATION`), the jumble (`READ`), capturing into it (`WRITE_ITEMS`), its intake address (`AUTOMATION`) - rather than a client probing a route that refuses. It says nothing about a hub, a collection or an entry, where roles granted there add to these, and nothing about the presenting credential: a token's scopes bound it further.
 	WorkspacePermissions *[]CapabilitiesWorkspacePermissions `json:"workspace_permissions,omitempty"`
@@ -7139,6 +7373,9 @@ type CapabilitiesSupportedLocalesWeekStart string
 
 // CapabilitiesTenancyMode defines model for Capabilities.TenancyMode.
 type CapabilitiesTenancyMode string
+
+// CapabilitiesWorkspaceHosts Multi mode only: whether a workspace answers beneath the installation's own host or at a host the operator assigns, and therefore whether creating one asks for a short name or for a host. Absent in single mode.
+type CapabilitiesWorkspaceHosts string
 
 // CapabilitiesWorkspacePermissions defines model for Capabilities.WorkspacePermissions.
 type CapabilitiesWorkspacePermissions string
@@ -7693,6 +7930,37 @@ type DeprecatedField struct {
 
 	// Sunset The day it stops being accepted, once one is set. Null until then.
 	Sunset *openapi_types.Date `json:"sunset,omitempty"`
+}
+
+// DeviceListCheck defines model for DeviceListCheck.
+type DeviceListCheck struct {
+	Entries []string `json:"entries"`
+}
+
+// DeviceListChecked defines model for DeviceListChecked.
+type DeviceListChecked struct {
+	// Entries The entries this installation signed, in the order asked; an entry it did not sign is not in it.
+	Entries []DeviceListEntryState `json:"entries"`
+}
+
+// DeviceListEntry One workspace as the device's list holds it: the signed entry, and what it says - the host and the display name, nothing else.
+type DeviceListEntry struct {
+	DisplayName string `json:"display_name"`
+
+	// Entry The entry as the installation signed it; opaque to a client.
+	Entry string `json:"entry"`
+
+	// Host The workspace's main address, a host without a scheme.
+	Host string `json:"host"`
+}
+
+// DeviceListEntryState defines model for DeviceListEntryState.
+type DeviceListEntryState struct {
+	// Answers Whether the host is still a workspace's main address. `false` for a workspace whose address changed or that is gone: the entry opens nothing and can only be forgotten.
+	Answers     bool   `json:"answers"`
+	DisplayName string `json:"display_name"`
+	Entry       string `json:"entry"`
+	Host        string `json:"host"`
 }
 
 // DroppedReference defines model for DroppedReference.
@@ -8379,6 +8647,9 @@ type InstallationSetUp struct {
 	// DisplayName The workspace's name.
 	DisplayName string `json:"display_name"`
 
+	// Host Multi mode with assigned hosts only, and required there: the full host name the workspace answers at. Refused like a provisioned workspace's host (`admin.host_required`, `admin.host_invalid`, `admin.host_installation`, `admin.host_taken`), and with `admin.host_not_assigned` where the installation uses subdomains or runs a single workspace.
+	Host *string `json:"host,omitempty"`
+
 	// OwnerDisplayName The owner's name; the address stands in when it is omitted.
 	OwnerDisplayName *string `json:"owner_display_name,omitempty"`
 
@@ -8388,7 +8659,7 @@ type InstallationSetUp struct {
 	// Password The owner's password, under the product's password policy.
 	Password string `json:"password"`
 
-	// Slug Multi mode only, and required there: the subdomain the workspace answers on, 3-40 characters of lower-case letters, digits and hyphens. Refused in single mode.
+	// Slug Multi mode only: the workspace's short name, 3-40 characters of lower-case letters, digits and hyphens. With subdomains it is required and the subdomain the workspace answers on; with assigned hosts it is optional and made from the host when omitted. Refused in single mode.
 	Slug *string `json:"slug,omitempty"`
 }
 
@@ -8478,6 +8749,9 @@ type InstanceSettingWorkspaceMay string
 // InstanceSettings The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use.
 // **Every key of every area is answered**, decided or not, with `set` saying which. A reader has to be able to see that a setting exists and that this installation has left it to each workspace — a different fact from the setting not existing, and the only way a screen can draw the level without keeping a list that would be wrong the day one is added.
 type InstanceSettings struct {
+	// AddressChangeCooldownDays The days after a change of a workspace's address - by anybody - before its owners may change it again. 30 where the installation decides nothing; the operator is never held by it. A value outside 1-365 is refused (`admin.address_cooldown_invalid`).
+	AddressChangeCooldownDays *int `json:"address_change_cooldown_days,omitempty"`
+
 	// Ai Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this installation offers), `OWN` (only the workspace's own, the default) or `EITHER`; `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a workspace's own model must declare about where it processes content; `person_opt_out` is `OFFERED` only - each person may keep their own content out of AI - and with `locked` it holds every workspace there. `NOT_OFFERED` is refused here with `ai.opt_out_workspace_only`: only a workspace can make AI part of everybody's work, because only it can name the legal basis.
 	// A workspace may narrow `sources` where it is not locked, and may always choose no AI: a lock holds a workspace out of a source, never in one. No value here switches processing on - that is each workspace's own consent.
 	Ai *map[string]InstanceSetting `json:"ai,omitempty"`
@@ -8498,6 +8772,12 @@ type InstanceSettings struct {
 
 	// Metering Whether the use per workspace and day is offered for billing (`GET /admin/usage`). Off by default. The counts are recorded either way; this switch only offers them.
 	Metering *bool `json:"metering,omitempty"`
+
+	// OwnersChangeAddress Whether a workspace's owners may change its address themselves (`POST /tenant:change-address`), in multi mode. Off by default: the operator's change is the only one. The installation's alone - no workspace switches it for itself.
+	OwnersChangeAddress *bool `json:"owners_change_address,omitempty"`
+
+	// OwnersOwnDomains Whether a workspace's owners may set up an own domain (`PUT /tenant/own-domain`), in multi mode. Off by default. The installation's alone; the operator sees every own domain and may block one either way.
+	OwnersOwnDomains *bool `json:"owners_own_domains,omitempty"`
 
 	// Quotas One ceiling per quota, by the quota's own name — the middle level of `Effective(product, instance, plan, workspace)`. A workspace that sets none of its own gets these; one that does still wins, unless the ceiling is locked.
 	// Unlike the other areas a lock here is meaningful, which is what "Tarif, Ausnahme je Bereich" will mean once there are plans. `0` is unlimited and is a decision; absent is "the installation decides nothing", and the product's own default applies.
@@ -9387,6 +9667,12 @@ type MailboxPreset struct {
 // MailboxPresetProtocol defines model for MailboxPreset.Protocol.
 type MailboxPresetProtocol string
 
+// MainAddressSwitch defines model for MainAddressSwitch.
+type MainAddressSwitch struct {
+	// DryRun Check and answer without changing anything, and without a step-up.
+	DryRun *bool `json:"dry_run,omitempty"`
+}
+
 // ManagedAccountCreate defines model for ManagedAccountCreate.
 type ManagedAccountCreate struct {
 	DisplayName string `json:"display_name"`
@@ -9609,15 +9895,22 @@ type NotificationPreferenceUpdate struct {
 
 // OauthAuthorization defines model for OauthAuthorization.
 type OauthAuthorization struct {
+	// ClientId A registered client, or the built-in client of the installed apps, which every workspace knows without registering it (`app_client_id` in `/meta/capabilities`).
 	ClientId openapi_types.UUID `json:"client_id"`
 
 	// CodeChallenge BASE64URL(SHA256(code_verifier)), RFC 7636.
 	CodeChallenge       string                                `json:"code_challenge"`
 	CodeChallengeMethod OauthAuthorizationCodeChallengeMethod `json:"code_challenge_method"`
-	RedirectUri         string                                `json:"redirect_uri"`
 
-	// Scopes From this installation's own catalogue - the scopes descriptors already declare, no parallel vocabulary. The issued pair is bounded by them exactly as a PAT's is.
-	Scopes []string `json:"scopes"`
+	// Device The built-in client only, and required there: the name the device's system gives it, which the consent and the grant list show.
+	Device *string `json:"device,omitempty"`
+
+	// Platform The built-in client only, and required there: the system the app runs on. The desktop's redirect is a loopback address on any port, Android's `eu.hubtask.app:/oauth`.
+	Platform    *OauthAuthorizationPlatform `json:"platform,omitempty"`
+	RedirectUri string                      `json:"redirect_uri"`
+
+	// Scopes From this installation's own catalogue - the scopes descriptors already declare, no parallel vocabulary. The issued pair is bounded by them exactly as a PAT's is. At least one for a registered client; none for the built-in client, whose grant carries a session's scopes.
+	Scopes *[]string `json:"scopes,omitempty"`
 
 	// State Echoed back untouched, for the client's own CSRF binding.
 	State *string `json:"state,omitempty"`
@@ -9625,6 +9918,9 @@ type OauthAuthorization struct {
 
 // OauthAuthorizationCodeChallengeMethod defines model for OauthAuthorization.CodeChallengeMethod.
 type OauthAuthorizationCodeChallengeMethod string
+
+// OauthAuthorizationPlatform The built-in client only, and required there: the system the app runs on. The desktop's redirect is a loopback address on any port, Android's `eu.hubtask.app:/oauth`.
+type OauthAuthorizationPlatform string
 
 // OauthClient defines model for OauthClient.
 type OauthClient struct {
@@ -9676,7 +9972,11 @@ type OauthCode struct {
 
 // OauthGrant defines model for OauthGrant.
 type OauthGrant struct {
-	ClientId   openapi_types.UUID `json:"client_id"`
+	// AppPlatform Set for a grant of the built-in client of the installed apps: the system the app runs on. Null for a registered client.
+	AppPlatform *OauthGrantAppPlatform `json:"app_platform,omitempty"`
+	ClientId    openapi_types.UUID     `json:"client_id"`
+
+	// ClientName The registered client's name, or for the built-in client of the installed apps the device's name it consented on.
 	ClientName string             `json:"client_name"`
 	CreatedAt  time.Time          `json:"created_at"`
 	Id         openapi_types.UUID `json:"id"`
@@ -9685,6 +9985,9 @@ type OauthGrant struct {
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 	Scopes     []string   `json:"scopes"`
 }
+
+// OauthGrantAppPlatform Set for a grant of the built-in client of the installed apps: the system the app runs on. Null for a registered client.
+type OauthGrantAppPlatform string
 
 // OauthStandardTokens defines model for OauthStandardTokens.
 type OauthStandardTokens struct {
@@ -9923,6 +10226,67 @@ type OwnAiPosition struct {
 
 	// Since Since when AI is part of everybody's work. Absent with `OFFERED`.
 	Since *time.Time `json:"since,omitempty"`
+}
+
+// OwnDomain A workspace's own domain as its owner sees it: the state, the two records and whether each was found at the last check.
+type OwnDomain struct {
+	// BlockedReason The operator's reason, word for word, where it is blocked.
+	BlockedReason *string `json:"blocked_reason,omitempty"`
+
+	// CertificateAsked Whether the ingress asked for its certificate.
+	CertificateAsked bool `json:"certificate_asked"`
+
+	// CheckedAt The last check of its records; null before the first.
+	CheckedAt *time.Time `json:"checked_at,omitempty"`
+
+	// Domain The domain, as the DNS holds it - lower case, letters beyond ASCII encoded.
+	Domain string `json:"domain"`
+
+	// FellBackAt When it was the main address and broke, so the workspace's subdomain became the main address again by itself; null otherwise. It stays until the owner makes the domain the main address again or removes it. A blocked domain that was the main address says so by `is_main`.
+	FellBackAt *time.Time `json:"fell_back_at,omitempty"`
+
+	// IsMain Whether it is the workspace's main address.
+	IsMain bool `json:"is_main"`
+
+	// Records The CNAME and the TXT record, in that order. Empty where it is blocked.
+	Records []OwnDomainRecord `json:"records"`
+
+	// Since When it entered its state.
+	Since time.Time `json:"since"`
+
+	// State `PENDING` waits for its records; `VERIFIED` has both and answers, its certificate on its way; `ACTIVE` the ingress obtained a certificate for it and a request reached the workspace through it; `BROKEN` its proof is gone and it answers no more until the record is back; `BLOCKED` the operator blocked it.
+	State OwnDomainState `json:"state"`
+}
+
+// OwnDomainState `PENDING` waits for its records; `VERIFIED` has both and answers, its certificate on its way; `ACTIVE` the ingress obtained a certificate for it and a request reached the workspace through it; `BROKEN` its proof is gone and it answers no more until the record is back; `BLOCKED` the operator blocked it.
+type OwnDomainState string
+
+// OwnDomainBlock defines model for OwnDomainBlock.
+type OwnDomainBlock struct {
+	// Reason Why - shown to the workspace's owner and kept in the installation's journal.
+	Reason string `json:"reason"`
+}
+
+// OwnDomainRecord defines model for OwnDomainRecord.
+type OwnDomainRecord struct {
+	// Found Whether the last check found it as shown.
+	Found bool `json:"found"`
+
+	// Name The record's name.
+	Name string              `json:"name"`
+	Type OwnDomainRecordType `json:"type"`
+
+	// Value What it points to, or the text it carries.
+	Value string `json:"value"`
+}
+
+// OwnDomainRecordType defines model for OwnDomainRecord.Type.
+type OwnDomainRecordType string
+
+// OwnDomainSetUp defines model for OwnDomainSetUp.
+type OwnDomainSetUp struct {
+	// Domain The domain, such as `tasks.example.com`.
+	Domain string `json:"domain"`
 }
 
 // PageInfo defines model for PageInfo.
@@ -10712,8 +11076,11 @@ type ProvisionedTenant struct {
 	ExampleCollectionId openapi_types.UUID `json:"example_collection_id"`
 
 	// ExternalReference The purchase platform's own reference, where it set one.
-	ExternalReference *string            `json:"external_reference,omitempty"`
-	Id                openapi_types.UUID `json:"id"`
+	ExternalReference *string `json:"external_reference,omitempty"`
+
+	// Host The host the workspace answers at, its main address. Absent in single mode, where the installation's own host is the workspace's.
+	Host *string            `json:"host,omitempty"`
+	Id   openapi_types.UUID `json:"id"`
 
 	// LegalHold Whether a legal hold is in force in the workspace. While one is, a deletion request is refused, and a workspace already pending deletion stays pending until the last hold is lifted. Only the state: which hold, on what and why stay the workspace's.
 	LegalHold      *bool              `json:"legal_hold,omitempty"`
@@ -12104,8 +12471,16 @@ type SyncDevice struct {
 
 // SyncMutation defines model for SyncMutation.
 type SyncMutation struct {
-	BaseVersion *int                `json:"base_version,omitempty"`
+	BaseVersion *int `json:"base_version,omitempty"`
+
+	// ContainerId The collection a label or a bucket belongs to, on its `*_PATCH` and `*_DELETE`: where
+	// the server reads it back when the device's fields lost.
+	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
 	Element     *openapi_types.UUID `json:"element,omitempty"`
+
+	// EntityId The reminder, recurrence rule, container, label or bucket the mutation is about,
+	// assigned by the client (UUIDv7) on its creation. Absent on the entry's kinds.
+	EntityId *openapi_types.UUID `json:"entity_id,omitempty"`
 
 	// Fields Per-field changes, each field with its own HLC.
 	Fields *map[string]struct {
@@ -12116,7 +12491,18 @@ type SyncMutation struct {
 
 	// ItemId Assigned by the client (UUIDv7), including on CREATE
 	ItemId *openapi_types.UUID `json:"item_id,omitempty"`
-	Kind   SyncMutationKind    `json:"kind"`
+
+	// Kind What the device did. The entry's kinds name it by `item_id`. A reminder, a recurrence
+	// rule, a container, a label and a bucket travel whole on creation (`*_CREATE`, the
+	// route's body as `payload`) and deletion (`*_DELETE`, no payload), and field by field
+	// between (`*_PATCH`, `fields`), each field merged under its own clock; a field the server
+	// decides (a reminder's `fire_at` and `state`, a rule's `last_materialized_at`, a
+	// container's structure and privacy) is refused as `sync.field_not_mergeable`.
+	// A reminder and a rule name their entry by `item_id`; a recurrence rule is the entry's
+	// one series, so a `RECURRENCE_CREATE` for an entry that has one merges field by field.
+	// `TEMPLATE_APPLY` carries the instantiation's body as `payload`; its entries arrive as
+	// ordinary creations. A kind this build does not know is `sync.kind_unknown`.
+	Kind SyncMutationKind `json:"kind"`
 
 	// OpId The idempotency key. The server keeps it for the maximum offline window - the `tombstone_window_days` a pull answers, 90 days by default - so a mutation pushed again within that window takes effect exactly once.
 	OpId    openapi_types.UUID      `json:"op_id"`
@@ -12129,7 +12515,16 @@ type SyncMutation struct {
 	Set *SyncMutationSet `json:"set,omitempty"`
 }
 
-// SyncMutationKind defines model for SyncMutation.Kind.
+// SyncMutationKind What the device did. The entry's kinds name it by `item_id`. A reminder, a recurrence
+// rule, a container, a label and a bucket travel whole on creation (`*_CREATE`, the
+// route's body as `payload`) and deletion (`*_DELETE`, no payload), and field by field
+// between (`*_PATCH`, `fields`), each field merged under its own clock; a field the server
+// decides (a reminder's `fire_at` and `state`, a rule's `last_materialized_at`, a
+// container's structure and privacy) is refused as `sync.field_not_mergeable`.
+// A reminder and a rule name their entry by `item_id`; a recurrence rule is the entry's
+// one series, so a `RECURRENCE_CREATE` for an entry that has one merges field by field.
+// `TEMPLATE_APPLY` carries the instantiation's body as `payload`; its entries arrive as
+// ordinary creations. A kind this build does not know is `sync.kind_unknown`.
 type SyncMutationKind string
 
 // SyncMutationSet Which set of the entry the element belongs to. For `attachments`, a device that
@@ -12351,6 +12746,36 @@ type TemplateUpdate struct {
 	Nodes       *[]TemplateNode `json:"nodes,omitempty"`
 }
 
+// TenantAddressChange The new address: `slug` where workspaces answer beneath the installation's host, `host` where the installation assigns hosts - the other is refused.
+type TenantAddressChange struct {
+	// DryRun Check and answer without changing anything, and without a step-up.
+	DryRun *bool `json:"dry_run,omitempty"`
+
+	// Host The new host, where the installation assigns hosts. No DNS is checked.
+	Host *string `json:"host,omitempty"`
+
+	// Slug The new short name, 3-40 lower-case letters, digits and hyphens.
+	Slug *string `json:"slug,omitempty"`
+}
+
+// TenantAddressChanged defines model for TenantAddressChanged.
+type TenantAddressChanged struct {
+	DryRun bool `json:"dry_run"`
+
+	// From The main address before the change.
+	From string `json:"from"`
+
+	// MembersMailed The members with an email address, who are mailed the old and the new address.
+	MembersMailed int `json:"members_mailed"`
+
+	// MembersToldAtSignIn The members without one, who are told at their next sign-in.
+	MembersToldAtSignIn int         `json:"members_told_at_sign_in"`
+	Tenant              AdminTenant `json:"tenant"`
+
+	// To The main address after it. Absent on a dry run without a new address.
+	To *string `json:"to,omitempty"`
+}
+
 // TenantDeletionRequest defines model for TenantDeletionRequest.
 type TenantDeletionRequest struct {
 	// Confirmation The workspace's display name, typed exactly - the restore precedent.
@@ -12402,15 +12827,18 @@ type TenantProvision struct {
 	DisplayName     string  `json:"display_name"`
 
 	// ExternalReference The purchase platform's own reference for the workspace, unique on the installation - what it finds the workspace by when an answer was lost.
-	ExternalReference *string             `json:"external_reference,omitempty"`
-	OwnerDisplayName  *string             `json:"owner_display_name,omitempty"`
-	OwnerEmail        openapi_types.Email `json:"owner_email"`
+	ExternalReference *string `json:"external_reference,omitempty"`
+
+	// Host The full host name the workspace answers at, such as `tasks-hr.corp.example`: required where the installation assigns hosts (`admin.host_required`), refused where it uses subdomains (`admin.host_not_assigned`). No DNS is checked; the record and the certificate are the operator's. Refused at the field when it is no host name (`admin.host_invalid`), the installation's own host (`admin.host_installation`) or a host another workspace answers at (`admin.host_taken`).
+	Host             *string             `json:"host,omitempty"`
+	OwnerDisplayName *string             `json:"owner_display_name,omitempty"`
+	OwnerEmail       openapi_types.Email `json:"owner_email"`
 
 	// Plan The short name of the plan the workspace starts on, or none. An unknown or removed plan is refused before anything is written.
 	Plan *string `json:"plan,omitempty"`
 
-	// Slug The subdomain the workspace answers on. Unique across the installation (`admin.slug_taken`), and none the installation reserves for itself - the product's list or the operator's `reserved_short_names`, each with its plural (`admin.slug_reserved`).
-	Slug string `json:"slug"`
+	// Slug The workspace's short name, by which the API and `hubctl` name it. Unique across the installation (`admin.slug_taken`), and none the installation reserves for itself - the product's list or the operator's `reserved_short_names`, each with its plural (`admin.slug_reserved`). With subdomains it is required (`admin.slug_required`) and is the subdomain the workspace answers on; with assigned hosts it may be omitted and is then made from the host's first label.
+	Slug *string `json:"slug,omitempty"`
 }
 
 // TenantQuery defines model for TenantQuery.
@@ -13003,6 +13431,9 @@ type WorkItemUpdate struct {
 
 // Workspace A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on.
 type Workspace struct {
+	// Address The workspace's main address and who may change it. The operator always may; the owners where the installation allows it (`owners_change_address`) and the last change is older than its cooldown.
+	Address *WorkspaceAddress `json:"address,omitempty"`
+
 	// AuditAnchorTargetId The workspace's backup target the audit chain's end is anchored to once a day, or null where anchoring is off. Read here, because a screen that sets a value it cannot read back is guessing; written through `PUT /audit/anchoring` and nowhere else, which is where the write is audited with the target before and after. A body naming it on the `PATCH` is refused as an unknown field.
 	AuditAnchorTargetId *openapi_types.UUID `json:"audit_anchor_target_id,omitempty"`
 	CreatedAt           time.Time           `json:"created_at"`
@@ -13017,8 +13448,8 @@ type Workspace struct {
 	DefaultWeekStart *WorkspaceDefaultWeekStart `json:"default_week_start,omitempty"`
 	DisplayName      string                     `json:"display_name"`
 
-	// Hosts The hosts this workspace answers at. **Read-only, and nothing resolves a request through them yet**: a workspace is still found from its slug, and what this answers is the model a custom domain will need - one host per row, a state, and which of them is canonical.
-	// Absent where there are none, which is every workspace provisioned before the table existed. An empty array would read as "this workspace is reachable nowhere".
+	// Hosts The hosts this workspace answers at, read-only: one host per row, a state, and which of them is canonical - the main address every link Hubtask writes names. In multi mode a request's host finds its workspace through them.
+	// Absent where there are none: in single mode, and for a workspace whose main row the next start of a multi-mode server has not written yet. An empty array would read as "this workspace is reachable nowhere".
 	Hosts *[]WorkspaceHost   `json:"hosts,omitempty"`
 	Id    openapi_types.UUID `json:"id"`
 
@@ -13062,6 +13493,53 @@ type WorkspaceDefaultWeekStart string
 
 // WorkspaceStatus The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
 type WorkspaceStatus string
+
+// WorkspaceAddress The workspace's main address and who may change it. The operator always may; the owners where the installation allows it (`owners_change_address`) and the last change is older than its cooldown.
+type WorkspaceAddress struct {
+	// AddressHost Where the own domain is the main address, the workspace's subdomain (or assigned host) beside it: it sends browsers on to the own domain, still answers the API and is the way back. Null otherwise.
+	AddressHost *string `json:"address_host,omitempty"`
+
+	// ChangeableFrom Where owners may change it and the cooldown runs, the moment from which they may again; null otherwise.
+	ChangeableFrom *time.Time `json:"changeable_from,omitempty"`
+
+	// ChangedAt The last change of the address, by anybody; null where it never changed.
+	ChangedAt *time.Time `json:"changed_at,omitempty"`
+
+	// Host The main address, the host every link Hubtask writes names.
+	Host string `json:"host"`
+
+	// MayChange Whether the reader may change it now (`POST /tenant:change-address`): the installation allows it, the reader holds `OWNER` on the workspace and the cooldown is over.
+	MayChange bool `json:"may_change"`
+
+	// MayManageOwnDomain Whether the reader may set up the own domain where it is allowed, and remove it: the reader holds `OWNER` on the workspace. Always false in single mode.
+	MayManageOwnDomain *bool `json:"may_manage_own_domain,omitempty"`
+
+	// OwnDomain A workspace's own domain as its owner sees it: the state, the two records and whether each was found at the last check.
+	OwnDomain *OwnDomain `json:"own_domain,omitempty"`
+
+	// OwnDomainsAllowed Whether this installation lets the workspace's owners set up an own domain (`owners_own_domains`). Always false in single mode.
+	OwnDomainsAllowed *bool `json:"own_domains_allowed,omitempty"`
+
+	// OwnersMayChange Whether this installation lets the workspace's owners change the address. Always false in single mode.
+	OwnersMayChange bool `json:"owners_may_change"`
+}
+
+// WorkspaceAddressChanged defines model for WorkspaceAddressChanged.
+type WorkspaceAddressChanged struct {
+	DryRun bool `json:"dry_run"`
+
+	// From The main address before the change.
+	From string `json:"from"`
+
+	// MembersMailed The members with an email address, who are mailed the old and the new address.
+	MembersMailed int `json:"members_mailed"`
+
+	// MembersToldAtSignIn The members without one, who are told at their next sign-in.
+	MembersToldAtSignIn int `json:"members_told_at_sign_in"`
+
+	// To The main address after it. Absent on a dry run without a new address.
+	To *string `json:"to,omitempty"`
+}
 
 // WorkspaceHost One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish.
 type WorkspaceHost struct {
@@ -13485,6 +13963,12 @@ type ProvisionTenantParams struct {
 type UpdateTenantParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ChangeTenantAddressParams defines parameters for ChangeTenantAddress.
+type ChangeTenantAddressParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // RequestTenantDeletionParams defines parameters for RequestTenantDeletion.
@@ -14586,10 +15070,28 @@ type UpdateWorkspaceParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// MakeOwnDomainMainParams defines parameters for MakeOwnDomainMain.
+type MakeOwnDomainMainParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// SwitchBackFromOwnDomainParams defines parameters for SwitchBackFromOwnDomain.
+type SwitchBackFromOwnDomainParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // SetWorkspaceStructureParams defines parameters for SetWorkspaceStructure.
 type SetWorkspaceStructureParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ChangeWorkspaceAddressParams defines parameters for ChangeWorkspaceAddress.
+type ChangeWorkspaceAddressParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ListTrashParams defines parameters for ListTrash.
@@ -14717,6 +15219,9 @@ type WithdrawInstanceIdentityProviderJSONRequestBody = ProviderWithdrawal
 // AddOperatorJSONRequestBody defines body for AddOperator for application/json ContentType.
 type AddOperatorJSONRequestBody = OperatorAdd
 
+// BlockOwnDomainJSONRequestBody defines body for BlockOwnDomain for application/json ContentType.
+type BlockOwnDomainJSONRequestBody = OwnDomainBlock
+
 // CreatePlanJSONRequestBody defines body for CreatePlan for application/json ContentType.
 type CreatePlanJSONRequestBody = PlanCreate
 
@@ -14746,6 +15251,9 @@ type UpdateTenantJSONRequestBody = TenantUpdate
 
 // UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody defines body for UpdateTenantQuotas for application/merge-patch+json ContentType.
 type UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody = TenantQuotas
+
+// ChangeTenantAddressJSONRequestBody defines body for ChangeTenantAddress for application/json ContentType.
+type ChangeTenantAddressJSONRequestBody = TenantAddressChange
 
 // RequestTenantDeletionJSONRequestBody defines body for RequestTenantDeletion for application/json ContentType.
 type RequestTenantDeletionJSONRequestBody = TenantDeletionRequest
@@ -14797,6 +15305,9 @@ type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 
 // ConfirmAddressJSONRequestBody defines body for ConfirmAddress for application/json ContentType.
 type ConfirmAddressJSONRequestBody = AddressConfirm
+
+// CheckDeviceListJSONRequestBody defines body for CheckDeviceList for application/json ContentType.
+type CheckDeviceListJSONRequestBody = DeviceListCheck
 
 // SetUpInstallationJSONRequestBody defines body for SetUpInstallation for application/json ContentType.
 type SetUpInstallationJSONRequestBody = InstallationSetUp
@@ -15182,8 +15693,20 @@ type AiGenerateTemplateJSONRequestBody = TemplateGeneration
 // UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody defines body for UpdateWorkspace for application/merge-patch+json ContentType.
 type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
 
+// SetUpOwnDomainJSONRequestBody defines body for SetUpOwnDomain for application/json ContentType.
+type SetUpOwnDomainJSONRequestBody = OwnDomainSetUp
+
+// MakeOwnDomainMainJSONRequestBody defines body for MakeOwnDomainMain for application/json ContentType.
+type MakeOwnDomainMainJSONRequestBody = MainAddressSwitch
+
+// SwitchBackFromOwnDomainJSONRequestBody defines body for SwitchBackFromOwnDomain for application/json ContentType.
+type SwitchBackFromOwnDomainJSONRequestBody = MainAddressSwitch
+
 // SetWorkspaceStructureJSONRequestBody defines body for SetWorkspaceStructure for application/json ContentType.
 type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
+
+// ChangeWorkspaceAddressJSONRequestBody defines body for ChangeWorkspaceAddress for application/json ContentType.
+type ChangeWorkspaceAddressJSONRequestBody = TenantAddressChange
 
 // CreateSavedViewJSONRequestBody defines body for CreateSavedView for application/json ContentType.
 type CreateSavedViewJSONRequestBody = SavedViewCreate
@@ -15328,6 +15851,20 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
 	UpdateOwnAccountWithApplicationMergePatchPlusJSONBody(ctx context.Context, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAddressNotices The change of the workspace's address the caller still has to be told of
+	//
+	// A member without an email address is told of a change of the workspace's address at their next sign-in: the old and the new address, that passkeys made at the old one ended and that everybody signs in again. At most one, the latest change; empty once acknowledged, and for a member who was mailed.
+	//
+	// Corresponds with GET /accounts/me/address-notices (the `ListAddressNotices` operationId).
+	ListAddressNotices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AcknowledgeAddressNotices Acknowledge the change of the workspace's address
+	//
+	// Records that the caller read it. Acknowledging twice is acknowledging once.
+	//
+	// Corresponds with POST /accounts/me/address-notices:acknowledge (the `AcknowledgeAddressNotices` operationId).
+	AcknowledgeAddressNotices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RemoveOwnAvatar Go back to the initials
 	//
@@ -16153,6 +16690,31 @@ type ClientInterface interface {
 	// Corresponds with GET /admin/overview (the `ReadInstanceOverview` operationId).
 	ReadInstanceOverview(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListOwnDomains Every own domain the workspaces' owners set up
+	//
+	// Every own domain of every workspace, with its workspace and its state, the blocked ones included - a blocked domain keeps its row here, with the reason, after its workspace removed it. Newest first. In single mode and where the installation never allowed own domains the list is simply empty.
+	//
+	// Corresponds with GET /admin/own-domains (the `ListOwnDomains` operationId).
+	ListOwnDomains(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// BlockOwnDomainWithBody Block an own domain
+	//
+	// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/own-domains/{domain}:block (the `BlockOwnDomain` operationId).
+	BlockOwnDomainWithBody(ctx context.Context, domain string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// BlockOwnDomain Block an own domain
+	//
+	// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/own-domains/{domain}:block (the `BlockOwnDomain` operationId).
+	BlockOwnDomain(ctx context.Context, domain string, body BlockOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListPlans The installation's plans
 	//
 	// Every plan not removed, oldest first, each with its values in the installation level's shape, the features it leaves out and the number of workspaces on it. A plan holds only what it decides; the rest falls through to the installation. Plans exist in multi mode only; single mode refuses with `admin.multi_mode_required`. No price, no contract: a provider's platform sells plans and puts workspaces on them.
@@ -16446,6 +17008,30 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:cancel-deletion (the `CancelTenantDeletion` operationId).
 	CancelTenantDeletion(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeTenantAddressWithBody Change a workspace's address
+	//
+	// Gives the workspace a new main address: a new short name where workspaces answer beneath the installation's host, a new host where the installation assigns hosts. The old address is free at once - it answers like an address no workspace has, without a redirect, and another workspace may take it. Everybody signs in again; passkeys made at the old address stay listed and count as no factor; personal access tokens, service accounts and connected apps keep working once pointed at the new address. Every member with an email address is mailed the old and the new address, and a member without one is told at the next sign-in.
+	// A short name that is invalid, reserved or taken, and a host that is invalid, the installation's own or taken, are refused at the field as at provisioning; the address the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer beneath the installation's host, the same short name is accepted when the main address still names another host - how a workspace moves under a changed installation address.
+	// Refused with `admin.address_lockout_self` while it would leave the caller, and with `admin.address_lockout_owner` while it would leave every owner of the workspace, without a way in that survives it: a password or a connected provider, plus an authenticator app or recovery codes where a second factor is required. `reason` names what is missing: `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected provider where passwords are off - a passkey belongs to the old address and is refused with `auth.step_up_method_refused`, naming the methods that are accepted.
+	// With `dry_run` it checks the new address and the lockout, answers what the change would be and writes nothing, without a step-up; a dry run without a new address answers the current address and who would be told. Refused with `admin.multi_mode_required` in single mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail and the installation's journal.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:change-address (the `ChangeTenantAddress` operationId).
+	ChangeTenantAddressWithBody(ctx context.Context, tenantId AdminTenantId, params *ChangeTenantAddressParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeTenantAddress Change a workspace's address
+	//
+	// Gives the workspace a new main address: a new short name where workspaces answer beneath the installation's host, a new host where the installation assigns hosts. The old address is free at once - it answers like an address no workspace has, without a redirect, and another workspace may take it. Everybody signs in again; passkeys made at the old address stay listed and count as no factor; personal access tokens, service accounts and connected apps keep working once pointed at the new address. Every member with an email address is mailed the old and the new address, and a member without one is told at the next sign-in.
+	// A short name that is invalid, reserved or taken, and a host that is invalid, the installation's own or taken, are refused at the field as at provisioning; the address the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer beneath the installation's host, the same short name is accepted when the main address still names another host - how a workspace moves under a changed installation address.
+	// Refused with `admin.address_lockout_self` while it would leave the caller, and with `admin.address_lockout_owner` while it would leave every owner of the workspace, without a way in that survives it: a password or a connected provider, plus an authenticator app or recovery codes where a second factor is required. `reason` names what is missing: `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected provider where passwords are off - a passkey belongs to the old address and is refused with `auth.step_up_method_refused`, naming the methods that are accepted.
+	// With `dry_run` it checks the new address and the lockout, answers what the change would be and writes nothing, without a step-up; a dry run without a new address answers the current address and who would be told. Refused with `admin.multi_mode_required` in single mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail and the installation's journal.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:change-address (the `ChangeTenantAddress` operationId).
+	ChangeTenantAddress(ctx context.Context, tenantId AdminTenantId, params *ChangeTenantAddressParams, body ChangeTenantAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CloseTenantPassword Close an operator's opening of the password early
 	//
@@ -16865,6 +17451,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
 	ConfirmAddress(ctx context.Context, body ConfirmAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckDeviceListWithBody Which entries of the device's list still open a workspace
+	//
+	// The installation's own address keeps the device's list of workspaces and asks this before it adds an entry and whenever it shows the list. An entry this installation did not sign is left out of the answer - so the answer never names a workspace for a host nobody was handed - and one it signed says whether its host is still a workspace's main address. Reads and writes nothing else; in single-tenant operation every entry is left out.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/device-list:check (the `CheckDeviceList` operationId).
+	CheckDeviceListWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckDeviceList Which entries of the device's list still open a workspace
+	//
+	// The installation's own address keeps the device's list of workspaces and asks this before it adds an entry and whenever it shows the list. An entry this installation did not sign is left out of the answer - so the answer never names a workspace for a host nobody was handed - and one it signed says whether its host is still a workspace's main address. Reads and writes nothing else; in single-tenant operation every entry is left out.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/device-list:check (the `CheckDeviceList` operationId).
+	CheckDeviceList(ctx context.Context, body CheckDeviceListJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetUpInstallationWithBody Set up a fresh installation with the code its first start printed
 	//
@@ -20579,7 +21183,7 @@ type ClientInterface interface {
 	//
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 	// `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
-	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+	// The slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` and, where the installation allows it, the owners' `POST /tenant:change-address` - never a patch. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
 	// `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
@@ -20592,7 +21196,7 @@ type ClientInterface interface {
 	//
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 	// `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
-	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+	// The slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` and, where the installation allows it, the owners' `POST /tenant:change-address` - never a patch. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
 	// `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
@@ -20609,6 +21213,80 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 	CountAccountsWithoutProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// IssueDeviceListEntry This workspace's entry for the device's list of workspaces
+	//
+	// In multi-tenant operation, after a person signs in, the browser carries this entry once to the installation's own address, where the device keeps its list of workspaces: the workspace's main address and its display name, signed by the installation, and nothing else - no address of a person, no token. The installation's address takes an entry only once `POST /auth/device-list:check` confirmed it. People only; in single-tenant operation there is no list and this is refused with `access.device_list_not_offered`.
+	//
+	// Corresponds with GET /tenant/device-list-entry (the `IssueDeviceListEntry` operationId).
+	IssueDeviceListEntry(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveOwnDomain The workspace's owner removes its own domain
+	//
+	// The domain stops answering at once and another workspace may set it up. A domain the operator blocked leaves the workspace's view and stays blocked. Needs `OWNER` on the workspace (`access.owner_required`); `admin.own_domain_none` where there is none. In the workspace's trail.
+	//
+	// Corresponds with DELETE /tenant/own-domain (the `RemoveOwnDomain` operationId).
+	RemoveOwnDomain(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetUpOwnDomainWithBody The workspace's owner sets up an own domain
+	//
+	// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).
+	// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
+	SetUpOwnDomainWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetUpOwnDomain The workspace's owner sets up an own domain
+	//
+	// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).
+	// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
+	SetUpOwnDomain(ctx context.Context, body SetUpOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MakeOwnDomainMainWithBody The workspace's owner makes its own domain the main address
+	//
+	// An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.
+	// Needs `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /tenant/own-domain:make-main (the `MakeOwnDomainMain` operationId).
+	MakeOwnDomainMainWithBody(ctx context.Context, params *MakeOwnDomainMainParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MakeOwnDomainMain The workspace's owner makes its own domain the main address
+	//
+	// An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.
+	// Needs `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /tenant/own-domain:make-main (the `MakeOwnDomainMain` operationId).
+	MakeOwnDomainMain(ctx context.Context, params *MakeOwnDomainMainParams, body MakeOwnDomainMainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SwitchBackFromOwnDomainWithBody The workspace's owner makes its subdomain the main address again
+	//
+	// The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.
+	// Needs `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /tenant/own-domain:switch-back (the `SwitchBackFromOwnDomain` operationId).
+	SwitchBackFromOwnDomainWithBody(ctx context.Context, params *SwitchBackFromOwnDomainParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SwitchBackFromOwnDomain The workspace's owner makes its subdomain the main address again
+	//
+	// The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.
+	// Needs `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /tenant/own-domain:switch-back (the `SwitchBackFromOwnDomain` operationId).
+	SwitchBackFromOwnDomain(ctx context.Context, params *SwitchBackFromOwnDomainParams, body SwitchBackFromOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CloseStarter Answers the first start's question for good
 	//
@@ -20628,6 +21306,28 @@ type ClientInterface interface {
 	//
 	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 	SetWorkspaceStructure(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeWorkspaceAddressWithBody The workspace's owner changes its address
+	//
+	// The owners' door to the change `POST /admin/tenants/{tenantId}:change-address` makes, where the installation lets owners change the address (`owners_change_address`): the same new address, the same refusals at the field, the same lockout rule, the same proof by password or provider - never a passkey - and the same notices. The old address is free at once and everybody signs in again. In the workspace's trail.
+	// Needs the caller to hold `OWNER` on the workspace (`access.owner_required`). Refused with `access.address_change_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode, and with `access.address_change_cooldown` while the last change of the address is more recent than the installation's cooldown; `params.possible_at` names the day from which a change is possible again. `GET /tenant` answers all of it beforehand as `address`.
+	// With `dry_run` it checks everything but the proof and writes nothing.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /tenant:change-address (the `ChangeWorkspaceAddress` operationId).
+	ChangeWorkspaceAddressWithBody(ctx context.Context, params *ChangeWorkspaceAddressParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeWorkspaceAddress The workspace's owner changes its address
+	//
+	// The owners' door to the change `POST /admin/tenants/{tenantId}:change-address` makes, where the installation lets owners change the address (`owners_change_address`): the same new address, the same refusals at the field, the same lockout rule, the same proof by password or provider - never a passkey - and the same notices. The old address is free at once and everybody signs in again. In the workspace's trail.
+	// Needs the caller to hold `OWNER` on the workspace (`access.owner_required`). Refused with `access.address_change_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode, and with `access.address_change_cooldown` while the last change of the address is more recent than the installation's cooldown; `params.possible_at` names the day from which a change is possible again. `GET /tenant` answers all of it beforehand as `address`.
+	// With `dry_run` it checks everything but the proof and writes nothing.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /tenant:change-address (the `ChangeWorkspaceAddress` operationId).
+	ChangeWorkspaceAddress(ctx context.Context, params *ChangeWorkspaceAddressParams, body ChangeWorkspaceAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListTrash What is in the trash
 	//
@@ -20848,6 +21548,40 @@ func (c *Client) UpdateOwnAccountWithBody(ctx context.Context, contentType strin
 // Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
 func (c *Client) UpdateOwnAccountWithApplicationMergePatchPlusJSONBody(ctx context.Context, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateOwnAccountRequestWithApplicationMergePatchPlusJSONBody(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListAddressNotices The change of the workspace's address the caller still has to be told of
+//
+// A member without an email address is told of a change of the workspace's address at their next sign-in: the old and the new address, that passkeys made at the old one ended and that everybody signs in again. At most one, the latest change; empty once acknowledged, and for a member who was mailed.
+//
+// Corresponds with GET /accounts/me/address-notices (the `ListAddressNotices` operationId).
+func (c *Client) ListAddressNotices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAddressNoticesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AcknowledgeAddressNotices Acknowledge the change of the workspace's address
+//
+// Records that the caller read it. Acknowledging twice is acknowledging once.
+//
+// Corresponds with POST /accounts/me/address-notices:acknowledge (the `AcknowledgeAddressNotices` operationId).
+func (c *Client) AcknowledgeAddressNotices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAcknowledgeAddressNoticesRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -22292,6 +23026,61 @@ func (c *Client) ReadInstanceOverview(ctx context.Context, reqEditors ...Request
 	return c.Client.Do(req)
 }
 
+// ListOwnDomains Every own domain the workspaces' owners set up
+//
+// Every own domain of every workspace, with its workspace and its state, the blocked ones included - a blocked domain keeps its row here, with the reason, after its workspace removed it. Newest first. In single mode and where the installation never allowed own domains the list is simply empty.
+//
+// Corresponds with GET /admin/own-domains (the `ListOwnDomains` operationId).
+func (c *Client) ListOwnDomains(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListOwnDomainsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// BlockOwnDomainWithBody Block an own domain
+//
+// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/own-domains/{domain}:block (the `BlockOwnDomain` operationId).
+func (c *Client) BlockOwnDomainWithBody(ctx context.Context, domain string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBlockOwnDomainRequestWithBody(c.Server, domain, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// BlockOwnDomain Block an own domain
+//
+// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/own-domains/{domain}:block (the `BlockOwnDomain` operationId).
+func (c *Client) BlockOwnDomain(ctx context.Context, domain string, body BlockOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBlockOwnDomainRequest(c.Server, domain, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListPlans The installation's plans
 //
 // Every plan not removed, oldest first, each with its values in the installation level's shape, the features it leaves out and the number of workspaces on it. A plan holds only what it decides; the rest falls through to the installation. Plans exist in multi mode only; single mode refuses with `admin.multi_mode_required`. No price, no contract: a provider's platform sells plans and puts workspaces on them.
@@ -22926,6 +23715,50 @@ func (c *Client) UpdateTenantQuotasWithApplicationMergePatchPlusJSONBody(ctx con
 // Corresponds with POST /admin/tenants/{tenantId}:cancel-deletion (the `CancelTenantDeletion` operationId).
 func (c *Client) CancelTenantDeletion(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCancelTenantDeletionRequest(c.Server, tenantId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeTenantAddressWithBody Change a workspace's address
+//
+// Gives the workspace a new main address: a new short name where workspaces answer beneath the installation's host, a new host where the installation assigns hosts. The old address is free at once - it answers like an address no workspace has, without a redirect, and another workspace may take it. Everybody signs in again; passkeys made at the old address stay listed and count as no factor; personal access tokens, service accounts and connected apps keep working once pointed at the new address. Every member with an email address is mailed the old and the new address, and a member without one is told at the next sign-in.
+// A short name that is invalid, reserved or taken, and a host that is invalid, the installation's own or taken, are refused at the field as at provisioning; the address the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer beneath the installation's host, the same short name is accepted when the main address still names another host - how a workspace moves under a changed installation address.
+// Refused with `admin.address_lockout_self` while it would leave the caller, and with `admin.address_lockout_owner` while it would leave every owner of the workspace, without a way in that survives it: a password or a connected provider, plus an authenticator app or recovery codes where a second factor is required. `reason` names what is missing: `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected provider where passwords are off - a passkey belongs to the old address and is refused with `auth.step_up_method_refused`, naming the methods that are accepted.
+// With `dry_run` it checks the new address and the lockout, answers what the change would be and writes nothing, without a step-up; a dry run without a new address answers the current address and who would be told. Refused with `admin.multi_mode_required` in single mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail and the installation's journal.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/tenants/{tenantId}:change-address (the `ChangeTenantAddress` operationId).
+func (c *Client) ChangeTenantAddressWithBody(ctx context.Context, tenantId AdminTenantId, params *ChangeTenantAddressParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeTenantAddressRequestWithBody(c.Server, tenantId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeTenantAddress Change a workspace's address
+//
+// Gives the workspace a new main address: a new short name where workspaces answer beneath the installation's host, a new host where the installation assigns hosts. The old address is free at once - it answers like an address no workspace has, without a redirect, and another workspace may take it. Everybody signs in again; passkeys made at the old address stay listed and count as no factor; personal access tokens, service accounts and connected apps keep working once pointed at the new address. Every member with an email address is mailed the old and the new address, and a member without one is told at the next sign-in.
+// A short name that is invalid, reserved or taken, and a host that is invalid, the installation's own or taken, are refused at the field as at provisioning; the address the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer beneath the installation's host, the same short name is accepted when the main address still names another host - how a workspace moves under a changed installation address.
+// Refused with `admin.address_lockout_self` while it would leave the caller, and with `admin.address_lockout_owner` while it would leave every owner of the workspace, without a way in that survives it: a password or a connected provider, plus an authenticator app or recovery codes where a second factor is required. `reason` names what is missing: `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected provider where passwords are off - a passkey belongs to the old address and is refused with `auth.step_up_method_refused`, naming the methods that are accepted.
+// With `dry_run` it checks the new address and the lockout, answers what the change would be and writes nothing, without a step-up; a dry run without a new address answers the current address and who would be told. Refused with `admin.multi_mode_required` in single mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail and the installation's journal.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/tenants/{tenantId}:change-address (the `ChangeTenantAddress` operationId).
+func (c *Client) ChangeTenantAddress(ctx context.Context, tenantId AdminTenantId, params *ChangeTenantAddressParams, body ChangeTenantAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeTenantAddressRequest(c.Server, tenantId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -23775,6 +24608,44 @@ func (c *Client) ConfirmAddressWithBody(ctx context.Context, contentType string,
 // Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
 func (c *Client) ConfirmAddress(ctx context.Context, body ConfirmAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewConfirmAddressRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckDeviceListWithBody Which entries of the device's list still open a workspace
+//
+// The installation's own address keeps the device's list of workspaces and asks this before it adds an entry and whenever it shows the list. An entry this installation did not sign is left out of the answer - so the answer never names a workspace for a host nobody was handed - and one it signed says whether its host is still a workspace's main address. Reads and writes nothing else; in single-tenant operation every entry is left out.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/device-list:check (the `CheckDeviceList` operationId).
+func (c *Client) CheckDeviceListWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckDeviceListRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckDeviceList Which entries of the device's list still open a workspace
+//
+// The installation's own address keeps the device's list of workspaces and asks this before it adds an entry and whenever it shows the list. An entry this installation did not sign is left out of the answer - so the answer never names a workspace for a host nobody was handed - and one it signed says whether its host is still a workspace's main address. Reads and writes nothing else; in single-tenant operation every entry is left out.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/device-list:check (the `CheckDeviceList` operationId).
+func (c *Client) CheckDeviceList(ctx context.Context, body CheckDeviceListJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckDeviceListRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -31508,7 +32379,7 @@ func (c *Client) ReadWorkspace(ctx context.Context, reqEditors ...RequestEditorF
 //
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 // `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
-// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+// The slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` and, where the installation allows it, the owners' `POST /tenant:change-address` - never a patch. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
 // `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
@@ -31531,7 +32402,7 @@ func (c *Client) UpdateWorkspaceWithBody(ctx context.Context, params *UpdateWork
 //
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 // `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
-// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+// The slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` and, where the installation allows it, the owners' `POST /tenant:change-address` - never a patch. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
 // `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
@@ -31559,6 +32430,160 @@ func (c *Client) UpdateWorkspaceWithApplicationMergePatchPlusJSONBody(ctx contex
 // Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 func (c *Client) CountAccountsWithoutProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCountAccountsWithoutProviderRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// IssueDeviceListEntry This workspace's entry for the device's list of workspaces
+//
+// In multi-tenant operation, after a person signs in, the browser carries this entry once to the installation's own address, where the device keeps its list of workspaces: the workspace's main address and its display name, signed by the installation, and nothing else - no address of a person, no token. The installation's address takes an entry only once `POST /auth/device-list:check` confirmed it. People only; in single-tenant operation there is no list and this is refused with `access.device_list_not_offered`.
+//
+// Corresponds with GET /tenant/device-list-entry (the `IssueDeviceListEntry` operationId).
+func (c *Client) IssueDeviceListEntry(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewIssueDeviceListEntryRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveOwnDomain The workspace's owner removes its own domain
+//
+// The domain stops answering at once and another workspace may set it up. A domain the operator blocked leaves the workspace's view and stays blocked. Needs `OWNER` on the workspace (`access.owner_required`); `admin.own_domain_none` where there is none. In the workspace's trail.
+//
+// Corresponds with DELETE /tenant/own-domain (the `RemoveOwnDomain` operationId).
+func (c *Client) RemoveOwnDomain(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveOwnDomainRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetUpOwnDomainWithBody The workspace's owner sets up an own domain
+//
+// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).
+// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
+func (c *Client) SetUpOwnDomainWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetUpOwnDomainRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetUpOwnDomain The workspace's owner sets up an own domain
+//
+// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).
+// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
+func (c *Client) SetUpOwnDomain(ctx context.Context, body SetUpOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetUpOwnDomainRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MakeOwnDomainMainWithBody The workspace's owner makes its own domain the main address
+//
+// An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.
+// Needs `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /tenant/own-domain:make-main (the `MakeOwnDomainMain` operationId).
+func (c *Client) MakeOwnDomainMainWithBody(ctx context.Context, params *MakeOwnDomainMainParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMakeOwnDomainMainRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MakeOwnDomainMain The workspace's owner makes its own domain the main address
+//
+// An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.
+// Needs `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /tenant/own-domain:make-main (the `MakeOwnDomainMain` operationId).
+func (c *Client) MakeOwnDomainMain(ctx context.Context, params *MakeOwnDomainMainParams, body MakeOwnDomainMainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMakeOwnDomainMainRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SwitchBackFromOwnDomainWithBody The workspace's owner makes its subdomain the main address again
+//
+// The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.
+// Needs `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /tenant/own-domain:switch-back (the `SwitchBackFromOwnDomain` operationId).
+func (c *Client) SwitchBackFromOwnDomainWithBody(ctx context.Context, params *SwitchBackFromOwnDomainParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSwitchBackFromOwnDomainRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SwitchBackFromOwnDomain The workspace's owner makes its subdomain the main address again
+//
+// The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.
+// Needs `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /tenant/own-domain:switch-back (the `SwitchBackFromOwnDomain` operationId).
+func (c *Client) SwitchBackFromOwnDomain(ctx context.Context, params *SwitchBackFromOwnDomainParams, body SwitchBackFromOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSwitchBackFromOwnDomainRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -31608,6 +32633,48 @@ func (c *Client) SetWorkspaceStructureWithBody(ctx context.Context, params *SetW
 // Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 func (c *Client) SetWorkspaceStructure(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetWorkspaceStructureRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeWorkspaceAddressWithBody The workspace's owner changes its address
+//
+// The owners' door to the change `POST /admin/tenants/{tenantId}:change-address` makes, where the installation lets owners change the address (`owners_change_address`): the same new address, the same refusals at the field, the same lockout rule, the same proof by password or provider - never a passkey - and the same notices. The old address is free at once and everybody signs in again. In the workspace's trail.
+// Needs the caller to hold `OWNER` on the workspace (`access.owner_required`). Refused with `access.address_change_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode, and with `access.address_change_cooldown` while the last change of the address is more recent than the installation's cooldown; `params.possible_at` names the day from which a change is possible again. `GET /tenant` answers all of it beforehand as `address`.
+// With `dry_run` it checks everything but the proof and writes nothing.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /tenant:change-address (the `ChangeWorkspaceAddress` operationId).
+func (c *Client) ChangeWorkspaceAddressWithBody(ctx context.Context, params *ChangeWorkspaceAddressParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeWorkspaceAddressRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeWorkspaceAddress The workspace's owner changes its address
+//
+// The owners' door to the change `POST /admin/tenants/{tenantId}:change-address` makes, where the installation lets owners change the address (`owners_change_address`): the same new address, the same refusals at the field, the same lockout rule, the same proof by password or provider - never a passkey - and the same notices. The old address is free at once and everybody signs in again. In the workspace's trail.
+// Needs the caller to hold `OWNER` on the workspace (`access.owner_required`). Refused with `access.address_change_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode, and with `access.address_change_cooldown` while the last change of the address is more recent than the installation's cooldown; `params.possible_at` names the day from which a change is possible again. `GET /tenant` answers all of it beforehand as `address`.
+// With `dry_run` it checks everything but the proof and writes nothing.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /tenant:change-address (the `ChangeWorkspaceAddress` operationId).
+func (c *Client) ChangeWorkspaceAddress(ctx context.Context, params *ChangeWorkspaceAddressParams, body ChangeWorkspaceAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeWorkspaceAddressRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -32040,6 +33107,60 @@ func NewUpdateOwnAccountRequestWithBody(server string, contentType string, body 
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListAddressNoticesRequest constructs an http.Request for the ListAddressNotices method
+func NewListAddressNoticesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me/address-notices")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAcknowledgeAddressNoticesRequest constructs an http.Request for the AcknowledgeAddressNotices method
+func NewAcknowledgeAddressNoticesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me/address-notices:acknowledge")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -33898,6 +35019,80 @@ func NewReadInstanceOverviewRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewListOwnDomainsRequest constructs an http.Request for the ListOwnDomains method
+func NewListOwnDomainsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/own-domains")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewBlockOwnDomainRequest calls the generic BlockOwnDomain builder with application/json body
+func NewBlockOwnDomainRequest(server string, domain string, body BlockOwnDomainJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewBlockOwnDomainRequestWithBody(server, domain, "application/json", bodyReader)
+}
+
+// NewBlockOwnDomainRequestWithBody constructs an http.Request for the BlockOwnDomain method, with any body, and a specified content type
+func NewBlockOwnDomainRequestWithBody(server string, domain string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "domain", domain, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/own-domains/%s:block", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListPlansRequest constructs an http.Request for the ListPlans method
 func NewListPlansRequest(server string) (*http.Request, error) {
 	var err error
@@ -35037,6 +36232,68 @@ func NewCancelTenantDeletionRequest(server string, tenantId AdminTenantId) (*htt
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewChangeTenantAddressRequest calls the generic ChangeTenantAddress builder with application/json body
+func NewChangeTenantAddressRequest(server string, tenantId AdminTenantId, params *ChangeTenantAddressParams, body ChangeTenantAddressJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangeTenantAddressRequestWithBody(server, tenantId, params, "application/json", bodyReader)
+}
+
+// NewChangeTenantAddressRequestWithBody constructs an http.Request for the ChangeTenantAddress method, with any body, and a specified content type
+func NewChangeTenantAddressRequestWithBody(server string, tenantId AdminTenantId, params *ChangeTenantAddressParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "tenantId", tenantId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/tenants/%s:change-address", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -36286,6 +37543,46 @@ func NewConfirmAddressRequestWithBody(server string, contentType string, body io
 	}
 
 	operationPath := fmt.Sprintf("/auth/address:confirm")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCheckDeviceListRequest calls the generic CheckDeviceList builder with application/json body
+func NewCheckDeviceListRequest(server string, body CheckDeviceListJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCheckDeviceListRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCheckDeviceListRequestWithBody constructs an http.Request for the CheckDeviceList method, with any body, and a specified content type
+func NewCheckDeviceListRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/device-list:check")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -49675,6 +50972,210 @@ func NewCountAccountsWithoutProviderRequest(server string) (*http.Request, error
 	return req, nil
 }
 
+// NewIssueDeviceListEntryRequest constructs an http.Request for the IssueDeviceListEntry method
+func NewIssueDeviceListEntryRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/device-list-entry")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRemoveOwnDomainRequest constructs an http.Request for the RemoveOwnDomain method
+func NewRemoveOwnDomainRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/own-domain")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetUpOwnDomainRequest calls the generic SetUpOwnDomain builder with application/json body
+func NewSetUpOwnDomainRequest(server string, body SetUpOwnDomainJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetUpOwnDomainRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetUpOwnDomainRequestWithBody constructs an http.Request for the SetUpOwnDomain method, with any body, and a specified content type
+func NewSetUpOwnDomainRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/own-domain")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewMakeOwnDomainMainRequest calls the generic MakeOwnDomainMain builder with application/json body
+func NewMakeOwnDomainMainRequest(server string, params *MakeOwnDomainMainParams, body MakeOwnDomainMainJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewMakeOwnDomainMainRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewMakeOwnDomainMainRequestWithBody constructs an http.Request for the MakeOwnDomainMain method, with any body, and a specified content type
+func NewMakeOwnDomainMainRequestWithBody(server string, params *MakeOwnDomainMainParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/own-domain:make-main")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewSwitchBackFromOwnDomainRequest calls the generic SwitchBackFromOwnDomain builder with application/json body
+func NewSwitchBackFromOwnDomainRequest(server string, params *SwitchBackFromOwnDomainParams, body SwitchBackFromOwnDomainJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSwitchBackFromOwnDomainRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewSwitchBackFromOwnDomainRequestWithBody constructs an http.Request for the SwitchBackFromOwnDomain method, with any body, and a specified content type
+func NewSwitchBackFromOwnDomainRequestWithBody(server string, params *SwitchBackFromOwnDomainParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/own-domain:switch-back")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewCloseStarterRequest constructs an http.Request for the CloseStarter method
 func NewCloseStarterRequest(server string) (*http.Request, error) {
 	var err error
@@ -49750,6 +51251,61 @@ func NewSetWorkspaceStructureRequestWithBody(server string, params *SetWorkspace
 			}
 
 			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewChangeWorkspaceAddressRequest calls the generic ChangeWorkspaceAddress builder with application/json body
+func NewChangeWorkspaceAddressRequest(server string, params *ChangeWorkspaceAddressParams, body ChangeWorkspaceAddressJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangeWorkspaceAddressRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewChangeWorkspaceAddressRequestWithBody constructs an http.Request for the ChangeWorkspaceAddress method, with any body, and a specified content type
+func NewChangeWorkspaceAddressRequestWithBody(server string, params *ChangeWorkspaceAddressParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant:change-address")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
 		}
 
 	}
@@ -50564,6 +52120,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
 	UpdateOwnAccountWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateOwnAccountResult, error)
+
+	// ListAddressNoticesWithResponse The change of the workspace's address the caller still has to be told of
+	//
+	// A member without an email address is told of a change of the workspace's address at their next sign-in: the old and the new address, that passkeys made at the old one ended and that everybody signs in again. At most one, the latest change; empty once acknowledged, and for a member who was mailed.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /accounts/me/address-notices (the `ListAddressNotices` operationId).
+	ListAddressNoticesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAddressNoticesResult, error)
+
+	// AcknowledgeAddressNoticesWithResponse Acknowledge the change of the workspace's address
+	//
+	// Records that the caller read it. Acknowledging twice is acknowledging once.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/me/address-notices:acknowledge (the `AcknowledgeAddressNotices` operationId).
+	AcknowledgeAddressNoticesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*AcknowledgeAddressNoticesResult, error)
 
 	// RemoveOwnAvatarWithResponse Go back to the initials
 	//
@@ -51439,6 +53013,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /admin/overview (the `ReadInstanceOverview` operationId).
 	ReadInstanceOverviewWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadInstanceOverviewResult, error)
 
+	// ListOwnDomainsWithResponse Every own domain the workspaces' owners set up
+	//
+	// Every own domain of every workspace, with its workspace and its state, the blocked ones included - a blocked domain keeps its row here, with the reason, after its workspace removed it. Newest first. In single mode and where the installation never allowed own domains the list is simply empty.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/own-domains (the `ListOwnDomains` operationId).
+	ListOwnDomainsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListOwnDomainsResult, error)
+
+	// BlockOwnDomainWithBodyWithResponse Block an own domain
+	//
+	// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/own-domains/{domain}:block (the `BlockOwnDomain` operationId).
+	BlockOwnDomainWithBodyWithResponse(ctx context.Context, domain string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BlockOwnDomainResult, error)
+
+	// BlockOwnDomainWithResponse Block an own domain
+	//
+	// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/own-domains/{domain}:block (the `BlockOwnDomain` operationId).
+	BlockOwnDomainWithResponse(ctx context.Context, domain string, body BlockOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*BlockOwnDomainResult, error)
+
 	// ListPlansWithResponse The installation's plans
 	//
 	// Every plan not removed, oldest first, each with its values in the installation level's shape, the features it leaves out and the number of workspaces on it. A plan holds only what it decides; the rest falls through to the installation. Plans exist in multi mode only; single mode refuses with `admin.multi_mode_required`. No price, no contract: a provider's platform sells plans and puts workspaces on them.
@@ -51762,6 +53363,30 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:cancel-deletion (the `CancelTenantDeletion` operationId).
 	CancelTenantDeletionWithResponse(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*CancelTenantDeletionResult, error)
+
+	// ChangeTenantAddressWithBodyWithResponse Change a workspace's address
+	//
+	// Gives the workspace a new main address: a new short name where workspaces answer beneath the installation's host, a new host where the installation assigns hosts. The old address is free at once - it answers like an address no workspace has, without a redirect, and another workspace may take it. Everybody signs in again; passkeys made at the old address stay listed and count as no factor; personal access tokens, service accounts and connected apps keep working once pointed at the new address. Every member with an email address is mailed the old and the new address, and a member without one is told at the next sign-in.
+	// A short name that is invalid, reserved or taken, and a host that is invalid, the installation's own or taken, are refused at the field as at provisioning; the address the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer beneath the installation's host, the same short name is accepted when the main address still names another host - how a workspace moves under a changed installation address.
+	// Refused with `admin.address_lockout_self` while it would leave the caller, and with `admin.address_lockout_owner` while it would leave every owner of the workspace, without a way in that survives it: a password or a connected provider, plus an authenticator app or recovery codes where a second factor is required. `reason` names what is missing: `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected provider where passwords are off - a passkey belongs to the old address and is refused with `auth.step_up_method_refused`, naming the methods that are accepted.
+	// With `dry_run` it checks the new address and the lockout, answers what the change would be and writes nothing, without a step-up; a dry run without a new address answers the current address and who would be told. Refused with `admin.multi_mode_required` in single mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail and the installation's journal.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:change-address (the `ChangeTenantAddress` operationId).
+	ChangeTenantAddressWithBodyWithResponse(ctx context.Context, tenantId AdminTenantId, params *ChangeTenantAddressParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeTenantAddressResult, error)
+
+	// ChangeTenantAddressWithResponse Change a workspace's address
+	//
+	// Gives the workspace a new main address: a new short name where workspaces answer beneath the installation's host, a new host where the installation assigns hosts. The old address is free at once - it answers like an address no workspace has, without a redirect, and another workspace may take it. Everybody signs in again; passkeys made at the old address stay listed and count as no factor; personal access tokens, service accounts and connected apps keep working once pointed at the new address. Every member with an email address is mailed the old and the new address, and a member without one is told at the next sign-in.
+	// A short name that is invalid, reserved or taken, and a host that is invalid, the installation's own or taken, are refused at the field as at provisioning; the address the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer beneath the installation's host, the same short name is accepted when the main address still names another host - how a workspace moves under a changed installation address.
+	// Refused with `admin.address_lockout_self` while it would leave the caller, and with `admin.address_lockout_owner` while it would leave every owner of the workspace, without a way in that survives it: a password or a connected provider, plus an authenticator app or recovery codes where a second factor is required. `reason` names what is missing: `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected provider where passwords are off - a passkey belongs to the old address and is refused with `auth.step_up_method_refused`, naming the methods that are accepted.
+	// With `dry_run` it checks the new address and the lockout, answers what the change would be and writes nothing, without a step-up; a dry run without a new address answers the current address and who would be told. Refused with `admin.multi_mode_required` in single mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail and the installation's journal.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:change-address (the `ChangeTenantAddress` operationId).
+	ChangeTenantAddressWithResponse(ctx context.Context, tenantId AdminTenantId, params *ChangeTenantAddressParams, body ChangeTenantAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeTenantAddressResult, error)
 
 	// CloseTenantPasswordWithResponse Close an operator's opening of the password early
 	//
@@ -52199,6 +53824,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
 	ConfirmAddressWithResponse(ctx context.Context, body ConfirmAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfirmAddressResult, error)
+
+	// CheckDeviceListWithBodyWithResponse Which entries of the device's list still open a workspace
+	//
+	// The installation's own address keeps the device's list of workspaces and asks this before it adds an entry and whenever it shows the list. An entry this installation did not sign is left out of the answer - so the answer never names a workspace for a host nobody was handed - and one it signed says whether its host is still a workspace's main address. Reads and writes nothing else; in single-tenant operation every entry is left out.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/device-list:check (the `CheckDeviceList` operationId).
+	CheckDeviceListWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckDeviceListResult, error)
+
+	// CheckDeviceListWithResponse Which entries of the device's list still open a workspace
+	//
+	// The installation's own address keeps the device's list of workspaces and asks this before it adds an entry and whenever it shows the list. An entry this installation did not sign is left out of the answer - so the answer never names a workspace for a host nobody was handed - and one it signed says whether its host is still a workspace's main address. Reads and writes nothing else; in single-tenant operation every entry is left out.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/device-list:check (the `CheckDeviceList` operationId).
+	CheckDeviceListWithResponse(ctx context.Context, body CheckDeviceListJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckDeviceListResult, error)
 
 	// SetUpInstallationWithBodyWithResponse Set up a fresh installation with the code its first start printed
 	//
@@ -56281,7 +57924,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 	// `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
-	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+	// The slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` and, where the installation allows it, the owners' `POST /tenant:change-address` - never a patch. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
 	// `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
@@ -56294,7 +57937,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 	// `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
-	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+	// The slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` and, where the installation allows it, the owners' `POST /tenant:change-address` - never a patch. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
 	// `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
@@ -56313,6 +57956,84 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 	CountAccountsWithoutProviderWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*CountAccountsWithoutProviderResult, error)
+
+	// IssueDeviceListEntryWithResponse This workspace's entry for the device's list of workspaces
+	//
+	// In multi-tenant operation, after a person signs in, the browser carries this entry once to the installation's own address, where the device keeps its list of workspaces: the workspace's main address and its display name, signed by the installation, and nothing else - no address of a person, no token. The installation's address takes an entry only once `POST /auth/device-list:check` confirmed it. People only; in single-tenant operation there is no list and this is refused with `access.device_list_not_offered`.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /tenant/device-list-entry (the `IssueDeviceListEntry` operationId).
+	IssueDeviceListEntryWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*IssueDeviceListEntryResult, error)
+
+	// RemoveOwnDomainWithResponse The workspace's owner removes its own domain
+	//
+	// The domain stops answering at once and another workspace may set it up. A domain the operator blocked leaves the workspace's view and stays blocked. Needs `OWNER` on the workspace (`access.owner_required`); `admin.own_domain_none` where there is none. In the workspace's trail.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /tenant/own-domain (the `RemoveOwnDomain` operationId).
+	RemoveOwnDomainWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RemoveOwnDomainResult, error)
+
+	// SetUpOwnDomainWithBodyWithResponse The workspace's owner sets up an own domain
+	//
+	// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).
+	// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
+	SetUpOwnDomainWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetUpOwnDomainResult, error)
+
+	// SetUpOwnDomainWithResponse The workspace's owner sets up an own domain
+	//
+	// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).
+	// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
+	SetUpOwnDomainWithResponse(ctx context.Context, body SetUpOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*SetUpOwnDomainResult, error)
+
+	// MakeOwnDomainMainWithBodyWithResponse The workspace's owner makes its own domain the main address
+	//
+	// An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.
+	// Needs `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant/own-domain:make-main (the `MakeOwnDomainMain` operationId).
+	MakeOwnDomainMainWithBodyWithResponse(ctx context.Context, params *MakeOwnDomainMainParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MakeOwnDomainMainResult, error)
+
+	// MakeOwnDomainMainWithResponse The workspace's owner makes its own domain the main address
+	//
+	// An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.
+	// Needs `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant/own-domain:make-main (the `MakeOwnDomainMain` operationId).
+	MakeOwnDomainMainWithResponse(ctx context.Context, params *MakeOwnDomainMainParams, body MakeOwnDomainMainJSONRequestBody, reqEditors ...RequestEditorFn) (*MakeOwnDomainMainResult, error)
+
+	// SwitchBackFromOwnDomainWithBodyWithResponse The workspace's owner makes its subdomain the main address again
+	//
+	// The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.
+	// Needs `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant/own-domain:switch-back (the `SwitchBackFromOwnDomain` operationId).
+	SwitchBackFromOwnDomainWithBodyWithResponse(ctx context.Context, params *SwitchBackFromOwnDomainParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SwitchBackFromOwnDomainResult, error)
+
+	// SwitchBackFromOwnDomainWithResponse The workspace's owner makes its subdomain the main address again
+	//
+	// The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.
+	// Needs `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant/own-domain:switch-back (the `SwitchBackFromOwnDomain` operationId).
+	SwitchBackFromOwnDomainWithResponse(ctx context.Context, params *SwitchBackFromOwnDomainParams, body SwitchBackFromOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*SwitchBackFromOwnDomainResult, error)
 
 	// CloseStarterWithResponse Answers the first start's question for good
 	//
@@ -56336,6 +58057,28 @@ type ClientWithResponsesInterface interface {
 	//
 	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 	SetWorkspaceStructureWithResponse(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkspaceStructureResult, error)
+
+	// ChangeWorkspaceAddressWithBodyWithResponse The workspace's owner changes its address
+	//
+	// The owners' door to the change `POST /admin/tenants/{tenantId}:change-address` makes, where the installation lets owners change the address (`owners_change_address`): the same new address, the same refusals at the field, the same lockout rule, the same proof by password or provider - never a passkey - and the same notices. The old address is free at once and everybody signs in again. In the workspace's trail.
+	// Needs the caller to hold `OWNER` on the workspace (`access.owner_required`). Refused with `access.address_change_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode, and with `access.address_change_cooldown` while the last change of the address is more recent than the installation's cooldown; `params.possible_at` names the day from which a change is possible again. `GET /tenant` answers all of it beforehand as `address`.
+	// With `dry_run` it checks everything but the proof and writes nothing.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant:change-address (the `ChangeWorkspaceAddress` operationId).
+	ChangeWorkspaceAddressWithBodyWithResponse(ctx context.Context, params *ChangeWorkspaceAddressParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeWorkspaceAddressResult, error)
+
+	// ChangeWorkspaceAddressWithResponse The workspace's owner changes its address
+	//
+	// The owners' door to the change `POST /admin/tenants/{tenantId}:change-address` makes, where the installation lets owners change the address (`owners_change_address`): the same new address, the same refusals at the field, the same lockout rule, the same proof by password or provider - never a passkey - and the same notices. The old address is free at once and everybody signs in again. In the workspace's trail.
+	// Needs the caller to hold `OWNER` on the workspace (`access.owner_required`). Refused with `access.address_change_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode, and with `access.address_change_cooldown` while the last change of the address is more recent than the installation's cooldown; `params.possible_at` names the day from which a change is possible again. `GET /tenant` answers all of it beforehand as `address`.
+	// With `dry_run` it checks everything but the proof and writes nothing.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant:change-address (the `ChangeWorkspaceAddress` operationId).
+	ChangeWorkspaceAddressWithResponse(ctx context.Context, params *ChangeWorkspaceAddressParams, body ChangeWorkspaceAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeWorkspaceAddressResult, error)
 
 	// ListTrashWithResponse What is in the trash
 	//
@@ -56599,6 +58342,95 @@ func (r UpdateOwnAccountResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateOwnAccountResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListAddressNoticesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]AddressChangeNotice
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListAddressNoticesResult) GetJSON200() *[]AddressChangeNotice {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListAddressNoticesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListAddressNoticesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAddressNoticesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAddressNoticesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListAddressNoticesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AcknowledgeAddressNoticesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AcknowledgeAddressNoticesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AcknowledgeAddressNoticesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AcknowledgeAddressNoticesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AcknowledgeAddressNoticesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AcknowledgeAddressNoticesResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -58627,6 +60459,102 @@ func (r ReadInstanceOverviewResult) ContentType() string {
 	return ""
 }
 
+type ListOwnDomainsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]AdminOwnDomain
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListOwnDomainsResult) GetJSON200() *[]AdminOwnDomain {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListOwnDomainsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListOwnDomainsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListOwnDomainsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListOwnDomainsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListOwnDomainsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type BlockOwnDomainResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AdminOwnDomain
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r BlockOwnDomainResult) GetJSON200() *AdminOwnDomain {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r BlockOwnDomainResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r BlockOwnDomainResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r BlockOwnDomainResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r BlockOwnDomainResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r BlockOwnDomainResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListPlansResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -59863,6 +61791,54 @@ func (r CancelTenantDeletionResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CancelTenantDeletionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ChangeTenantAddressResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *TenantAddressChanged
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ChangeTenantAddressResult) GetJSON200() *TenantAddressChanged {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangeTenantAddressResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangeTenantAddressResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangeTenantAddressResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangeTenantAddressResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangeTenantAddressResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -61161,6 +63137,54 @@ func (r ConfirmAddressResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ConfirmAddressResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CheckDeviceListResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DeviceListChecked
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CheckDeviceListResult) GetJSON200() *DeviceListChecked {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CheckDeviceListResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CheckDeviceListResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CheckDeviceListResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CheckDeviceListResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CheckDeviceListResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -74898,6 +76922,239 @@ func (r CountAccountsWithoutProviderResult) ContentType() string {
 	return ""
 }
 
+type IssueDeviceListEntryResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DeviceListEntry
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r IssueDeviceListEntryResult) GetJSON200() *DeviceListEntry {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r IssueDeviceListEntryResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r IssueDeviceListEntryResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r IssueDeviceListEntryResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r IssueDeviceListEntryResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r IssueDeviceListEntryResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveOwnDomainResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveOwnDomainResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveOwnDomainResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveOwnDomainResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveOwnDomainResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveOwnDomainResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetUpOwnDomainResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *OwnDomain
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetUpOwnDomainResult) GetJSON200() *OwnDomain {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetUpOwnDomainResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetUpOwnDomainResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetUpOwnDomainResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetUpOwnDomainResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetUpOwnDomainResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type MakeOwnDomainMainResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkspaceAddressChanged
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r MakeOwnDomainMainResult) GetJSON200() *WorkspaceAddressChanged {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r MakeOwnDomainMainResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r MakeOwnDomainMainResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r MakeOwnDomainMainResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MakeOwnDomainMainResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MakeOwnDomainMainResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SwitchBackFromOwnDomainResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkspaceAddressChanged
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SwitchBackFromOwnDomainResult) GetJSON200() *WorkspaceAddressChanged {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SwitchBackFromOwnDomainResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SwitchBackFromOwnDomainResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SwitchBackFromOwnDomainResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SwitchBackFromOwnDomainResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SwitchBackFromOwnDomainResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CloseStarterResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -74988,6 +77245,54 @@ func (r SetWorkspaceStructureResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SetWorkspaceStructureResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ChangeWorkspaceAddressResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkspaceAddressChanged
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ChangeWorkspaceAddressResult) GetJSON200() *WorkspaceAddressChanged {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangeWorkspaceAddressResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangeWorkspaceAddressResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangeWorkspaceAddressResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangeWorkspaceAddressResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangeWorkspaceAddressResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -75761,6 +78066,36 @@ func (c *ClientWithResponses) UpdateOwnAccountWithApplicationMergePatchPlusJSONB
 		return nil, err
 	}
 	return ParseUpdateOwnAccountResult(rsp)
+}
+
+// ListAddressNoticesWithResponse The change of the workspace's address the caller still has to be told of
+//
+// A member without an email address is told of a change of the workspace's address at their next sign-in: the old and the new address, that passkeys made at the old one ended and that everybody signs in again. At most one, the latest change; empty once acknowledged, and for a member who was mailed.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /accounts/me/address-notices (the `ListAddressNotices` operationId).
+func (c *ClientWithResponses) ListAddressNoticesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAddressNoticesResult, error) {
+	rsp, err := c.ListAddressNotices(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAddressNoticesResult(rsp)
+}
+
+// AcknowledgeAddressNoticesWithResponse Acknowledge the change of the workspace's address
+//
+// Records that the caller read it. Acknowledging twice is acknowledging once.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/me/address-notices:acknowledge (the `AcknowledgeAddressNotices` operationId).
+func (c *ClientWithResponses) AcknowledgeAddressNoticesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*AcknowledgeAddressNoticesResult, error) {
+	rsp, err := c.AcknowledgeAddressNotices(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAcknowledgeAddressNoticesResult(rsp)
 }
 
 // RemoveOwnAvatarWithResponse Go back to the initials
@@ -77003,6 +79338,51 @@ func (c *ClientWithResponses) ReadInstanceOverviewWithResponse(ctx context.Conte
 	return ParseReadInstanceOverviewResult(rsp)
 }
 
+// ListOwnDomainsWithResponse Every own domain the workspaces' owners set up
+//
+// Every own domain of every workspace, with its workspace and its state, the blocked ones included - a blocked domain keeps its row here, with the reason, after its workspace removed it. Newest first. In single mode and where the installation never allowed own domains the list is simply empty.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/own-domains (the `ListOwnDomains` operationId).
+func (c *ClientWithResponses) ListOwnDomainsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListOwnDomainsResult, error) {
+	rsp, err := c.ListOwnDomains(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListOwnDomainsResult(rsp)
+}
+
+// BlockOwnDomainWithBodyWithResponse Block an own domain
+//
+// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/own-domains/{domain}:block (the `BlockOwnDomain` operationId).
+func (c *ClientWithResponses) BlockOwnDomainWithBodyWithResponse(ctx context.Context, domain string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BlockOwnDomainResult, error) {
+	rsp, err := c.BlockOwnDomainWithBody(ctx, domain, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBlockOwnDomainResult(rsp)
+}
+
+// BlockOwnDomainWithResponse Block an own domain
+//
+// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/own-domains/{domain}:block (the `BlockOwnDomain` operationId).
+func (c *ClientWithResponses) BlockOwnDomainWithResponse(ctx context.Context, domain string, body BlockOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*BlockOwnDomainResult, error) {
+	rsp, err := c.BlockOwnDomain(ctx, domain, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBlockOwnDomainResult(rsp)
+}
+
 // ListPlansWithResponse The installation's plans
 //
 // Every plan not removed, oldest first, each with its values in the installation level's shape, the features it leaves out and the number of workspaces on it. A plan holds only what it decides; the rest falls through to the installation. Plans exist in multi mode only; single mode refuses with `admin.multi_mode_required`. No price, no contract: a provider's platform sells plans and puts workspaces on them.
@@ -77535,6 +79915,42 @@ func (c *ClientWithResponses) CancelTenantDeletionWithResponse(ctx context.Conte
 		return nil, err
 	}
 	return ParseCancelTenantDeletionResult(rsp)
+}
+
+// ChangeTenantAddressWithBodyWithResponse Change a workspace's address
+//
+// Gives the workspace a new main address: a new short name where workspaces answer beneath the installation's host, a new host where the installation assigns hosts. The old address is free at once - it answers like an address no workspace has, without a redirect, and another workspace may take it. Everybody signs in again; passkeys made at the old address stay listed and count as no factor; personal access tokens, service accounts and connected apps keep working once pointed at the new address. Every member with an email address is mailed the old and the new address, and a member without one is told at the next sign-in.
+// A short name that is invalid, reserved or taken, and a host that is invalid, the installation's own or taken, are refused at the field as at provisioning; the address the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer beneath the installation's host, the same short name is accepted when the main address still names another host - how a workspace moves under a changed installation address.
+// Refused with `admin.address_lockout_self` while it would leave the caller, and with `admin.address_lockout_owner` while it would leave every owner of the workspace, without a way in that survives it: a password or a connected provider, plus an authenticator app or recovery codes where a second factor is required. `reason` names what is missing: `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected provider where passwords are off - a passkey belongs to the old address and is refused with `auth.step_up_method_refused`, naming the methods that are accepted.
+// With `dry_run` it checks the new address and the lockout, answers what the change would be and writes nothing, without a step-up; a dry run without a new address answers the current address and who would be told. Refused with `admin.multi_mode_required` in single mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail and the installation's journal.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants/{tenantId}:change-address (the `ChangeTenantAddress` operationId).
+func (c *ClientWithResponses) ChangeTenantAddressWithBodyWithResponse(ctx context.Context, tenantId AdminTenantId, params *ChangeTenantAddressParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeTenantAddressResult, error) {
+	rsp, err := c.ChangeTenantAddressWithBody(ctx, tenantId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeTenantAddressResult(rsp)
+}
+
+// ChangeTenantAddressWithResponse Change a workspace's address
+//
+// Gives the workspace a new main address: a new short name where workspaces answer beneath the installation's host, a new host where the installation assigns hosts. The old address is free at once - it answers like an address no workspace has, without a redirect, and another workspace may take it. Everybody signs in again; passkeys made at the old address stay listed and count as no factor; personal access tokens, service accounts and connected apps keep working once pointed at the new address. Every member with an email address is mailed the old and the new address, and a member without one is told at the next sign-in.
+// A short name that is invalid, reserved or taken, and a host that is invalid, the installation's own or taken, are refused at the field as at provisioning; the address the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer beneath the installation's host, the same short name is accepted when the main address still names another host - how a workspace moves under a changed installation address.
+// Refused with `admin.address_lockout_self` while it would leave the caller, and with `admin.address_lockout_owner` while it would leave every owner of the workspace, without a way in that survives it: a password or a connected provider, plus an authenticator app or recovery codes where a second factor is required. `reason` names what is missing: `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected provider where passwords are off - a passkey belongs to the old address and is refused with `auth.step_up_method_refused`, naming the methods that are accepted.
+// With `dry_run` it checks the new address and the lockout, answers what the change would be and writes nothing, without a step-up; a dry run without a new address answers the current address and who would be told. Refused with `admin.multi_mode_required` in single mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail and the installation's journal.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants/{tenantId}:change-address (the `ChangeTenantAddress` operationId).
+func (c *ClientWithResponses) ChangeTenantAddressWithResponse(ctx context.Context, tenantId AdminTenantId, params *ChangeTenantAddressParams, body ChangeTenantAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeTenantAddressResult, error) {
+	rsp, err := c.ChangeTenantAddress(ctx, tenantId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeTenantAddressResult(rsp)
 }
 
 // CloseTenantPasswordWithResponse Close an operator's opening of the password early
@@ -78230,6 +80646,36 @@ func (c *ClientWithResponses) ConfirmAddressWithResponse(ctx context.Context, bo
 		return nil, err
 	}
 	return ParseConfirmAddressResult(rsp)
+}
+
+// CheckDeviceListWithBodyWithResponse Which entries of the device's list still open a workspace
+//
+// The installation's own address keeps the device's list of workspaces and asks this before it adds an entry and whenever it shows the list. An entry this installation did not sign is left out of the answer - so the answer never names a workspace for a host nobody was handed - and one it signed says whether its host is still a workspace's main address. Reads and writes nothing else; in single-tenant operation every entry is left out.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/device-list:check (the `CheckDeviceList` operationId).
+func (c *ClientWithResponses) CheckDeviceListWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckDeviceListResult, error) {
+	rsp, err := c.CheckDeviceListWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckDeviceListResult(rsp)
+}
+
+// CheckDeviceListWithResponse Which entries of the device's list still open a workspace
+//
+// The installation's own address keeps the device's list of workspaces and asks this before it adds an entry and whenever it shows the list. An entry this installation did not sign is left out of the answer - so the answer never names a workspace for a host nobody was handed - and one it signed says whether its host is still a workspace's main address. Reads and writes nothing else; in single-tenant operation every entry is left out.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/device-list:check (the `CheckDeviceList` operationId).
+func (c *ClientWithResponses) CheckDeviceListWithResponse(ctx context.Context, body CheckDeviceListJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckDeviceListResult, error) {
+	rsp, err := c.CheckDeviceList(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckDeviceListResult(rsp)
 }
 
 // SetUpInstallationWithBodyWithResponse Set up a fresh installation with the code its first start printed
@@ -84719,7 +87165,7 @@ func (c *ClientWithResponses) ReadWorkspaceWithResponse(ctx context.Context, req
 //
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 // `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
-// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+// The slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` and, where the installation allows it, the owners' `POST /tenant:change-address` - never a patch. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
 // `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
@@ -84738,7 +87184,7 @@ func (c *ClientWithResponses) UpdateWorkspaceWithBodyWithResponse(ctx context.Co
 //
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 // `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
-// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+// The slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` and, where the installation allows it, the owners' `POST /tenant:change-address` - never a patch. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
 // `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
@@ -84768,6 +87214,132 @@ func (c *ClientWithResponses) CountAccountsWithoutProviderWithResponse(ctx conte
 		return nil, err
 	}
 	return ParseCountAccountsWithoutProviderResult(rsp)
+}
+
+// IssueDeviceListEntryWithResponse This workspace's entry for the device's list of workspaces
+//
+// In multi-tenant operation, after a person signs in, the browser carries this entry once to the installation's own address, where the device keeps its list of workspaces: the workspace's main address and its display name, signed by the installation, and nothing else - no address of a person, no token. The installation's address takes an entry only once `POST /auth/device-list:check` confirmed it. People only; in single-tenant operation there is no list and this is refused with `access.device_list_not_offered`.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /tenant/device-list-entry (the `IssueDeviceListEntry` operationId).
+func (c *ClientWithResponses) IssueDeviceListEntryWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*IssueDeviceListEntryResult, error) {
+	rsp, err := c.IssueDeviceListEntry(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseIssueDeviceListEntryResult(rsp)
+}
+
+// RemoveOwnDomainWithResponse The workspace's owner removes its own domain
+//
+// The domain stops answering at once and another workspace may set it up. A domain the operator blocked leaves the workspace's view and stays blocked. Needs `OWNER` on the workspace (`access.owner_required`); `admin.own_domain_none` where there is none. In the workspace's trail.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /tenant/own-domain (the `RemoveOwnDomain` operationId).
+func (c *ClientWithResponses) RemoveOwnDomainWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RemoveOwnDomainResult, error) {
+	rsp, err := c.RemoveOwnDomain(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveOwnDomainResult(rsp)
+}
+
+// SetUpOwnDomainWithBodyWithResponse The workspace's owner sets up an own domain
+//
+// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).
+// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
+func (c *ClientWithResponses) SetUpOwnDomainWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetUpOwnDomainResult, error) {
+	rsp, err := c.SetUpOwnDomainWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetUpOwnDomainResult(rsp)
+}
+
+// SetUpOwnDomainWithResponse The workspace's owner sets up an own domain
+//
+// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).
+// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
+func (c *ClientWithResponses) SetUpOwnDomainWithResponse(ctx context.Context, body SetUpOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*SetUpOwnDomainResult, error) {
+	rsp, err := c.SetUpOwnDomain(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetUpOwnDomainResult(rsp)
+}
+
+// MakeOwnDomainMainWithBodyWithResponse The workspace's owner makes its own domain the main address
+//
+// An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.
+// Needs `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant/own-domain:make-main (the `MakeOwnDomainMain` operationId).
+func (c *ClientWithResponses) MakeOwnDomainMainWithBodyWithResponse(ctx context.Context, params *MakeOwnDomainMainParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MakeOwnDomainMainResult, error) {
+	rsp, err := c.MakeOwnDomainMainWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMakeOwnDomainMainResult(rsp)
+}
+
+// MakeOwnDomainMainWithResponse The workspace's owner makes its own domain the main address
+//
+// An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.
+// Needs `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant/own-domain:make-main (the `MakeOwnDomainMain` operationId).
+func (c *ClientWithResponses) MakeOwnDomainMainWithResponse(ctx context.Context, params *MakeOwnDomainMainParams, body MakeOwnDomainMainJSONRequestBody, reqEditors ...RequestEditorFn) (*MakeOwnDomainMainResult, error) {
+	rsp, err := c.MakeOwnDomainMain(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMakeOwnDomainMainResult(rsp)
+}
+
+// SwitchBackFromOwnDomainWithBodyWithResponse The workspace's owner makes its subdomain the main address again
+//
+// The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.
+// Needs `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant/own-domain:switch-back (the `SwitchBackFromOwnDomain` operationId).
+func (c *ClientWithResponses) SwitchBackFromOwnDomainWithBodyWithResponse(ctx context.Context, params *SwitchBackFromOwnDomainParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SwitchBackFromOwnDomainResult, error) {
+	rsp, err := c.SwitchBackFromOwnDomainWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSwitchBackFromOwnDomainResult(rsp)
+}
+
+// SwitchBackFromOwnDomainWithResponse The workspace's owner makes its subdomain the main address again
+//
+// The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.
+// Needs `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant/own-domain:switch-back (the `SwitchBackFromOwnDomain` operationId).
+func (c *ClientWithResponses) SwitchBackFromOwnDomainWithResponse(ctx context.Context, params *SwitchBackFromOwnDomainParams, body SwitchBackFromOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*SwitchBackFromOwnDomainResult, error) {
+	rsp, err := c.SwitchBackFromOwnDomain(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSwitchBackFromOwnDomainResult(rsp)
 }
 
 // CloseStarterWithResponse Answers the first start's question for good
@@ -84809,6 +87381,40 @@ func (c *ClientWithResponses) SetWorkspaceStructureWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParseSetWorkspaceStructureResult(rsp)
+}
+
+// ChangeWorkspaceAddressWithBodyWithResponse The workspace's owner changes its address
+//
+// The owners' door to the change `POST /admin/tenants/{tenantId}:change-address` makes, where the installation lets owners change the address (`owners_change_address`): the same new address, the same refusals at the field, the same lockout rule, the same proof by password or provider - never a passkey - and the same notices. The old address is free at once and everybody signs in again. In the workspace's trail.
+// Needs the caller to hold `OWNER` on the workspace (`access.owner_required`). Refused with `access.address_change_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode, and with `access.address_change_cooldown` while the last change of the address is more recent than the installation's cooldown; `params.possible_at` names the day from which a change is possible again. `GET /tenant` answers all of it beforehand as `address`.
+// With `dry_run` it checks everything but the proof and writes nothing.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant:change-address (the `ChangeWorkspaceAddress` operationId).
+func (c *ClientWithResponses) ChangeWorkspaceAddressWithBodyWithResponse(ctx context.Context, params *ChangeWorkspaceAddressParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeWorkspaceAddressResult, error) {
+	rsp, err := c.ChangeWorkspaceAddressWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeWorkspaceAddressResult(rsp)
+}
+
+// ChangeWorkspaceAddressWithResponse The workspace's owner changes its address
+//
+// The owners' door to the change `POST /admin/tenants/{tenantId}:change-address` makes, where the installation lets owners change the address (`owners_change_address`): the same new address, the same refusals at the field, the same lockout rule, the same proof by password or provider - never a passkey - and the same notices. The old address is free at once and everybody signs in again. In the workspace's trail.
+// Needs the caller to hold `OWNER` on the workspace (`access.owner_required`). Refused with `access.address_change_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode, and with `access.address_change_cooldown` while the last change of the address is more recent than the installation's cooldown; `params.possible_at` names the day from which a change is possible again. `GET /tenant` answers all of it beforehand as `address`.
+// With `dry_run` it checks everything but the proof and writes nothing.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant:change-address (the `ChangeWorkspaceAddress` operationId).
+func (c *ClientWithResponses) ChangeWorkspaceAddressWithResponse(ctx context.Context, params *ChangeWorkspaceAddressParams, body ChangeWorkspaceAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeWorkspaceAddressResult, error) {
+	rsp, err := c.ChangeWorkspaceAddress(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeWorkspaceAddressResult(rsp)
 }
 
 // ListTrashWithResponse What is in the trash
@@ -85161,6 +87767,68 @@ func ParseUpdateOwnAccountResult(rsp *http.Response) (*UpdateOwnAccountResult, e
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAddressNoticesResult parses an HTTP response from a ListAddressNoticesWithResponse call
+func ParseListAddressNoticesResult(rsp *http.Response) (*ListAddressNoticesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAddressNoticesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []AddressChangeNotice
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAcknowledgeAddressNoticesResult parses an HTTP response from a AcknowledgeAddressNoticesWithResponse call
+func ParseAcknowledgeAddressNoticesResult(rsp *http.Response) (*AcknowledgeAddressNoticesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AcknowledgeAddressNoticesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -86569,6 +89237,72 @@ func ParseReadInstanceOverviewResult(rsp *http.Response) (*ReadInstanceOverviewR
 	return response, nil
 }
 
+// ParseListOwnDomainsResult parses an HTTP response from a ListOwnDomainsWithResponse call
+func ParseListOwnDomainsResult(rsp *http.Response) (*ListOwnDomainsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListOwnDomainsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []AdminOwnDomain
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseBlockOwnDomainResult parses an HTTP response from a BlockOwnDomainWithResponse call
+func ParseBlockOwnDomainResult(rsp *http.Response) (*BlockOwnDomainResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &BlockOwnDomainResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminOwnDomain
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListPlansResult parses an HTTP response from a ListPlansWithResponse call
 func ParseListPlansResult(rsp *http.Response) (*ListPlansResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -87495,6 +90229,39 @@ func ParseCancelTenantDeletionResult(rsp *http.Response) (*CancelTenantDeletionR
 	return response, nil
 }
 
+// ParseChangeTenantAddressResult parses an HTTP response from a ChangeTenantAddressWithResponse call
+func ParseChangeTenantAddressResult(rsp *http.Response) (*ChangeTenantAddressResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangeTenantAddressResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TenantAddressChanged
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseCloseTenantPasswordResult parses an HTTP response from a CloseTenantPasswordWithResponse call
 func ParseCloseTenantPasswordResult(rsp *http.Response) (*CloseTenantPasswordResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -88370,6 +91137,39 @@ func ParseConfirmAddressResult(rsp *http.Response) (*ConfirmAddressResult, error
 	switch {
 	case rsp.StatusCode == 204:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCheckDeviceListResult parses an HTTP response from a CheckDeviceListWithResponse call
+func ParseCheckDeviceListResult(rsp *http.Response) (*CheckDeviceListResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CheckDeviceListResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DeviceListChecked
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -98364,6 +101164,167 @@ func ParseCountAccountsWithoutProviderResult(rsp *http.Response) (*CountAccounts
 	return response, nil
 }
 
+// ParseIssueDeviceListEntryResult parses an HTTP response from a IssueDeviceListEntryWithResponse call
+func ParseIssueDeviceListEntryResult(rsp *http.Response) (*IssueDeviceListEntryResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &IssueDeviceListEntryResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DeviceListEntry
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveOwnDomainResult parses an HTTP response from a RemoveOwnDomainWithResponse call
+func ParseRemoveOwnDomainResult(rsp *http.Response) (*RemoveOwnDomainResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveOwnDomainResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetUpOwnDomainResult parses an HTTP response from a SetUpOwnDomainWithResponse call
+func ParseSetUpOwnDomainResult(rsp *http.Response) (*SetUpOwnDomainResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetUpOwnDomainResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest OwnDomain
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMakeOwnDomainMainResult parses an HTTP response from a MakeOwnDomainMainWithResponse call
+func ParseMakeOwnDomainMainResult(rsp *http.Response) (*MakeOwnDomainMainResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MakeOwnDomainMainResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkspaceAddressChanged
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSwitchBackFromOwnDomainResult parses an HTTP response from a SwitchBackFromOwnDomainWithResponse call
+func ParseSwitchBackFromOwnDomainResult(rsp *http.Response) (*SwitchBackFromOwnDomainResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SwitchBackFromOwnDomainResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkspaceAddressChanged
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseCloseStarterResult parses an HTTP response from a CloseStarterWithResponse call
 func ParseCloseStarterResult(rsp *http.Response) (*CloseStarterResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -98434,6 +101395,39 @@ func ParseSetWorkspaceStructureResult(rsp *http.Response) (*SetWorkspaceStructur
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseChangeWorkspaceAddressResult parses an HTTP response from a ChangeWorkspaceAddressWithResponse call
+func ParseChangeWorkspaceAddressResult(rsp *http.Response) (*ChangeWorkspaceAddressResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangeWorkspaceAddressResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkspaceAddressChanged
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

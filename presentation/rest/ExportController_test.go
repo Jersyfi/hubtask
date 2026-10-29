@@ -66,7 +66,7 @@ func postExport(t *testing.T, registry UseCaseRegistry, body string) *httptest.R
 
 	controller := NewRestController()
 	controller.UseCases = registry
-	controller.BaseURL = "https://hubtask.example.com/"
+	controller.Links = &movingLinks{base: "https://hubtask.example.com"}
 
 	ctx := appshared.ContextWithActor(t.Context(), appshared.ActorContext{
 		Kind: appshared.ActorUser, TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
@@ -236,7 +236,7 @@ func postItemsExport(t *testing.T, registry UseCaseRegistry, body string) *httpt
 
 	controller := NewRestController()
 	controller.UseCases = registry
-	controller.BaseURL = "https://hubtask.example.com/"
+	controller.Links = &movingLinks{base: "https://hubtask.example.com"}
 
 	ctx := appshared.ContextWithActor(t.Context(), appshared.ActorContext{
 		Kind: appshared.ActorUser, TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),

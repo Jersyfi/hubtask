@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-10, P-11, P-12]
 state: partial
 tasks: [N-01, N-02, N-04, N-10, F6-03, F6-04, F6-05, F6-06, F7-04, F7-05, F7-07]
-checked_by: [packages/sync-engine/test/replica.test.ts, packages/sync-engine/test/queue.test.ts, packages/sync-engine/test/engine.test.ts, test/integration/push_test.go, test/integration/initial_sync_test.go]
+checked_by: [packages/sync-engine/test/replica.test.ts, packages/sync-engine/test/queue.test.ts, packages/sync-engine/test/engine.test.ts, packages/sync-engine/test/beyond.test.ts, test/integration/push_test.go, test/integration/push_beyond_entry_test.go, test/integration/initial_sync_test.go, apps/webapp/e2e/offline-beyond-entry.test.mjs, packages/sync-engine/test/storage.test.ts, apps/webapp/src-tauri/src/copy.rs, apps/webapp/src/lib/data/media.test.ts, apps/webapp/src/lib/platform/appSession.test.ts]
 ---
 
 # Keep working when the connection drops
@@ -59,5 +59,5 @@ refused with a note that it needs the connection.
 
 ## Today
 
-* Check 6: not met in the web app — reminders, recurrence, templates and attachment capture are refused offline with `sync.needs_connection` instead of being kept.
-* Check 7: not met — there is no installed desktop or mobile app; only the browser client exists.
+* Check 1: met; the installed apps walk the first synchronisation page by page, so one cut short resumes after the last page held. Not yet measured on a reference phone (SY-B).
+* Check 7: met on the desktop; on Android the copy's key is sealed under the Android Keystore, built and not yet walked on a device.

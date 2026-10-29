@@ -12,16 +12,75 @@
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { appUpdate } from '../lib/frame/appupdate.svelte.ts';
+  import { platform } from '../lib/platform/index.ts';
+  import { releasePage } from '../lib/platform/update.ts';
 
   const state = $derived(manifest.state);
   const problem = $derived(state.status === 'failed' ? renderProblem(state.error, messages) : undefined);
+  // The installed apps call the page what the account menu does, since it is about the app too.
+  const title = $derived(appUpdate.current === undefined ? t('app.installation.title') : t('app.nav.about'));
   // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
   // reads its heading rather than drawing it, so the screen keeps one heading.
-  $effect(() => page.entitle(t('app.installation.title')));
+  $effect(() => page.entitle(title));
+  const found = $derived(appUpdate.found);
+  const server = $derived.by(() => {
+    try {
+      return new URL(platform.webOrigin).host;
+    } catch {
+      return platform.webOrigin;
+    }
+  });
 </script>
 
 <Stack gap="300">
-  <PageHeader title={t('app.installation.title')} isTitleInBar={viewport.isCompact} />
+  <PageHeader {title} isTitleInBar={viewport.isCompact} />
+
+  {#if appUpdate.current !== undefined}
+    <!-- The installed app's own version and what it knows of a newer one (UC-SYN-07 checks 5 and
+         6): the offer stays here after *Later* hid its banner. -->
+    <section class="panel" data-this-app>
+      <span class="label">{t('app.update.this_app')}</span>
+      <p class="fixed">{appUpdate.current}</p>
+      {#if found && found.state !== 'refused'}
+        <div>
+          <Badge tone="info">
+            {found.state === 'ready'
+              ? t('app.update.badge_ready', { version: found.version })
+              : t('app.update.badge_available', { version: found.version })}
+          </Badge>
+        </div>
+      {/if}
+      <p class="quiet">
+        {appUpdate.offersOn === 'today' ? t('app.update.signed_android') : t('app.update.signed_desktop')}
+      </p>
+      {#if found?.state === 'ready'}
+        <div class="full">
+          <Button
+            tone="secondary"
+            isFull
+            isBusy={appUpdate.isInstalling}
+            busyLabel={t('app.update.installing', { version: found.version })}
+            onclick={() => void appUpdate.install()}
+          >
+            {t('app.update.install')}
+          </Button>
+        </div>
+      {:else if found?.state === 'available'}
+        <div class="full">
+          <Button tone="secondary" isFull icon="download" onclick={() => appUpdate.open(releasePage(found.version))}>
+            {t('app.update.download', { version: found.version })}
+          </Button>
+        </div>
+      {/if}
+    </section>
+    {#if state.status === 'ready'}
+      <section class="panel" data-server>
+        <span class="label">{t('app.update.server')}</span>
+        <p class="fixed server">{t('app.update.server_value', { host: server, version: state.data.product_version ?? '—' })}</p>
+      </section>
+    {/if}
+  {/if}
 
   {#if state.status === 'loading' || state.status === 'idle'}
     <Inline gap="150" align="center">
@@ -102,6 +161,27 @@
 </Stack>
 
 <style>
+  /* The installed app's panels, as the approved preview draws them. */
+  .panel {
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+    gap: var(--sp-100);
+    max-width: 72ch;
+    padding: var(--sp-200);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
+  }
+
+  .panel p { margin: 0; }
+  .label { font-size: var(--fs-075); font-weight: var(--fw-medium); color: var(--text-primary); }
+  .fixed { font-family: var(--font-mono); font-size: var(--fs-200); font-weight: var(--fw-regular); color: var(--text-primary); overflow-wrap: anywhere; }
+  .full { align-self: stretch; }
+  .fixed.server { font-size: var(--fs-100); }
+  .quiet { color: var(--text-subtle); font-size: var(--fs-075); }
+
   dl {
     display: grid;
     grid-template-columns: auto 1fr;

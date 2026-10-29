@@ -36,7 +36,14 @@ func requestTenant(
 			return "", err
 		}
 	} else if host := domain.RequestHost(rawHost); host != "" && host != domain.RequestHost(installationHost) {
+		serving, _ := tenants.(repository.ServingHosts)
+		awaits := false
 		err := uow.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+			if serving != nil {
+				id, waiting, err := serving.ResolveServing(ctx, host)
+				tenantID, awaits = id, waiting
+				return err
+			}
 			id, err := tenants.ResolveHost(ctx, host)
 			tenantID = id
 			return err
@@ -49,6 +56,9 @@ func requestTenant(
 		}
 		if err != nil {
 			return "", err
+		}
+		if awaits {
+			markServed(ctx, uow, serving, host)
 		}
 	}
 	if tenantID.IsZero() {
@@ -65,6 +75,20 @@ func requestTenant(
 		return "", shared.ErrForbidden.WithDetail("access.tenant_mismatch")
 	}
 	return tenantID, nil
+}
+
+// markServed makes a verified own domain the ingress asked about active, on the first request that
+// reached its workspace through it (ADR-0095 §5). Written only when the resolution said it awaits
+// that, so an ordinary request writes nothing; a failed write is tried again by the next request
+// and never refuses this one.
+func markServed(ctx context.Context, uow persistence.UnitOfWork, serving repository.ServingHosts, host string) {
+	err := uow.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		_, err := serving.Served(ctx, host)
+		return err
+	})
+	if err != nil {
+		slog.WarnContext(ctx, "an own domain's first request was not recorded", slog.String("error", err.Error()))
+	}
 }
 
 // isInstallationHost is whether a host no row serves is the installation's own, where the header

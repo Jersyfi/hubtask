@@ -66,6 +66,8 @@ type CreateLabel struct {
 
 // CreateLabelCommand is the input, typed.
 type CreateLabelCommand struct {
+	// ID is the identifier an offline client minted, or zero for the server's.
+	ID           shared.ID
 	CollectionID shared.ID
 	Name         string
 	ColorToken   string
@@ -132,8 +134,12 @@ func (h CreateLabel) Execute(
 func (h CreateLabel) insertWithin(
 	ctx context.Context, actor appshared.ActorContext, collection domain.Container, cmd CreateLabelCommand,
 ) (domain.Label, error) {
+	id, err := mintedOr(cmd.ID, h.IDs)
+	if err != nil {
+		return domain.Label{}, err
+	}
 	label, err := domain.NewLabel(domain.NewLabelInput{
-		ID:           h.IDs.NewID(),
+		ID:           id,
 		TenantID:     actor.TenantID,
 		CollectionID: cmd.CollectionID,
 		Name:         cmd.Name,
@@ -283,6 +289,7 @@ func (h CreateLabel) Descriptor() usecase.Descriptor {
 			", records a change for offline clients, and writes an audit entry.",
 		TokenScope: labelsWrite,
 		Input: []usecase.Field{
+			clientIDField,
 			{
 				Name: "collection_id", Kind: usecase.KindID, Required: true,
 				Description: "The collection whose vocabulary the label joins.",
@@ -321,7 +328,12 @@ func (h CreateLabel) invoke(
 		return nil, err
 	}
 
+	id, err := in.ID("id")
+	if err != nil {
+		return nil, err
+	}
 	label, err := h.Execute(ctx, actor, CreateLabelCommand{
+		ID:           id,
 		CollectionID: collectionID,
 		Name:         in.String("name"),
 		ColorToken:   in.String("color_token"),

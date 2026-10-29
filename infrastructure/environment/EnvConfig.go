@@ -47,6 +47,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		LogFormat:            get("HUBTASK_LOG_FORMAT", "json"),
 		LogLevel:             get("HUBTASK_LOG_LEVEL", "info"),
 		Tenancy:              env.TenancyMode(get("HUBTASK_TENANCY_MODE", "single")),
+		WorkspaceHosts:       env.WorkspaceHosts(get("HUBTASK_WORKSPACE_HOSTS", "subdomain")),
 		InstanceFile:         get("HUBTASK_INSTANCE_FILE", ""),
 		InstanceFileMode:     get("HUBTASK_INSTANCE_FILE_MODE", "seed"),
 		StepUpWindow:         getDuration("HUBTASK_STEP_UP_WINDOW", 5*time.Minute),
@@ -345,6 +346,11 @@ func validate(cfg env.Config) error {
 	case env.TenancySingle, env.TenancyMulti:
 	default:
 		errs = append(errs, configError("config.tenancy_invalid", "HUBTASK_TENANCY_MODE"))
+	}
+	switch cfg.WorkspaceHosts {
+	case env.HostsSubdomain, env.HostsAssigned:
+	default:
+		errs = append(errs, configError("config.workspace_hosts_invalid", "HUBTASK_WORKSPACE_HOSTS"))
 	}
 	if len(cfg.Roles) == 0 {
 		errs = append(errs, configError("config.roles_empty", "HUBTASK_ROLES"))

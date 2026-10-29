@@ -30,8 +30,11 @@ conflicts nobody can resolve.
 * The **browser** holds a replica in IndexedDB as a best-effort cache with no encryption of its own,
   deleted whole at sign-out, never the offline promise. It sends no scope: its replica is everything
   the caller may read.
-* The **shells** hold the same replica in SQLite under the platform keystore; the promise lives
-  there.
+* The **shells** hold the same replica in SQLite encrypted at rest (SQLCipher), one database per
+  server and account under a key created once for it and held only in the platform's keystore
+  (`SqliteStorage` over the shell's `copy.rs`); the promise lives there. A reset, a revocation and
+  a purge delete what they delete in the browser; signing out deletes the database and its key. A
+  copy whose key is gone cannot be read by anybody and starts again empty.
 
 **How the browser reads.** From the server while the server answers; the replica answers only a
 read that failed to reach the server (a network failure, not a status), marked as of its last
@@ -48,11 +51,14 @@ mutation stays visible with its code until dismissed (§9 rule 5).
 
 **The browser offers offline exactly what the push frame carries** (§3.2): entries created, edited,
 completed, moved, sorted and trashed; labels, members and attachments added or removed (bytes
-uploaded online first, §4.2); comments added. The rest of the left column is refused offline in the
-browser with `sync.needs_connection` until the frame gains a kind for it. A file captured offline
-stays refused in the browser, whose copy is not encrypted; the installed apps keep its bytes in their
-encrypted copy and upload them, then add the attachment, when the connection returns (decided for
-milestone F7, not yet built).
+uploaded online first, §4.2); comments added; reminders and an entry's series set, changed and
+removed; a template applied; hubs, collections, label definitions and columns created, renamed and
+deleted. What stays online although it is structure - a container's structure, policies, privacy
+and place, a column's place, a template's definition, views - is refused offline with
+`sync.needs_connection`. A file captured offline stays refused in the browser, whose copy is not
+encrypted; the installed apps keep its bytes in their encrypted copy (the engine's `holdsFiles`)
+and, when the connection returns, upload them, then add the attachment, before anything made after
+it; a refusal at upload - size, type, quota - shows on the change like any refused mutation.
 
 ---
 
@@ -98,7 +104,9 @@ page size, answered as `application/x-ndjson` — one `SyncChange` per line in w
 delta cursor as a last record (`{"cursor": …}`) minted from the position read before the first row,
 permission and scope applied by the pages' code. It counts against the streams' caps, with its own
 deadline and byte budget. A connection ending before the last line leaves no cursor: the client
-starts again, and after two such snapshots walks `:pull` instead.
+starts again, and after two such snapshots walks `:pull` instead. The installed apps walk `:pull`
+from the start and hold each page's cursor, so a first synchronisation the network or the system
+cut short resumes after the last page held (§12, SY-B); the browser takes the snapshot.
 
 ### 3.2 `POST /api/v1/sync:push`
 
@@ -114,11 +122,17 @@ starts again, and after two such snapshots walks `:pull` instead.
 }
 ```
 
-The kinds are `ITEM_CREATE`, `ITEM_PATCH`, `ITEM_DELETE`, `SET_ADD`, `SET_REMOVE`, `MOVE` and
-`COMMENT_ADD`; a new kind is an additive enum value. Each mutation is answered `applied`, `merged`
+The entry's kinds are `ITEM_CREATE`, `ITEM_PATCH`, `ITEM_DELETE`, `SET_ADD`, `SET_REMOVE`, `MOVE`
+and `COMMENT_ADD`. Beyond the entry, a reminder, a recurrence rule, a container, a label and a
+bucket each have `*_CREATE` (the route's body as `payload`, the client's identifier as
+`entity_id`), `*_PATCH` (`fields`, one reading each) and `*_DELETE`, merged by §4.2's row for the
+object; a label's and a bucket's patch and deletion name their collection (`container_id`), and a
+reminder's and a series' name their entry (`item_id`). `TEMPLATE_APPLY` carries the instantiation's
+body; its entries arrive as ordinary creations. Each is applied through the route's own use case as
+the pushing person, never a code path of its own. A new kind is an additive enum value. Each mutation is answered `applied`, `merged`
 (with the resulting object), `rejected` (with a stable code) or `conflict` (with both values, §5).
 
-* **The client assigns IDs** (UUIDv7): a repeated push is idempotent, and an item created offline has its final identity at once.
+* **The client assigns IDs** (UUIDv7): a repeated push is idempotent, and an item created offline has its final identity at once. An identifier already held — in this workspace or another, since every primary key is global — refuses the creation as `<area>.id_taken` (a `REJECTED` result, not a failure pushed again); it never reaches the row that holds it.
 * **An `op_id` per mutation** is kept server-side for the offline window (`HUBTASK_TOMBSTONE_WINDOW`, 90 days by default — the one period the change log, the operation log and the tombstones share, retention kind `SYNC_LOG`); a duplicate push takes effect exactly once.
 * **A mutation's effect and its `sync_op_log` record commit in one transaction.**
 * **Ordering within one device is preserved**; between devices the HLC decides (§4.1).
@@ -159,7 +173,8 @@ logged.
 | Appending lists | Comments, activities | Append-only, no conflicts |
 | Child entities with an identity | Reminders | **Whole** for creation and deletion (an `UPSERT` with the whole reminder, a payload-less `DELETE`), then **LWW per field**, one entry per field that moved. `channels` and `recipients` merge as scalars. `fire_at` (derived from the offset and the due date) and `state` are the server's and never merge; `state` reaches a device as its own entry when a reminder fires or is cancelled, for reconciling local notifications (§8) |
 | Series definitions | The recurrence rule | Like a reminder: whole on creation and deletion, **LWW per field** between. `last_materialized_at` never merges; the occurrences are the server's (§4.3) |
-| Definitions carrying a tree | The template's `nodes` | **Whole**: one `UPSERT` with the document on every change, a payload-less `DELETE` when it goes, LWW over the whole document — two trees merged node by node would be a shape nobody designed. Applying a template needs the server (§1); its entries arrive as ordinary creations |
+| Definitions carrying a tree | The template's `nodes` | **Whole**: one `UPSERT` with the document on every change, a payload-less `DELETE` when it goes, LWW over the whole document — two trees merged node by node would be a shape nobody designed. Applying a template is an act, not a state: it travels as `TEMPLATE_APPLY`, the server stamps it when the push arrives, and its entries arrive as ordinary creations |
+| Definitions beside the entries | A container's name, description, icon and colour; a label; a bucket | Like a reminder: **whole** on creation (the client's identifier) and deletion, **LWW per field** between. A container's structure and privacy are refused in a patch (`sync.field_not_mergeable`), its policies and place and a bucket's place are not in the frame yet (`sync.field_unavailable`) |
 | Suggestions | Everything on an `ai_suggestion` | **Server-side, not merged**: delivered as an `UPSERT` with the whole record and its status; the change a decision caused arrives as the entry's own `UPSERT`. A second answer to one proposal is refused as already decided |
 | Account preferences | `locale`, `time_zone`, `week_start`, `celebrations`, `onboarding_completed_at` | **Last writer wins** through `UpdateAccountPreferences`, never a push: an account is not a synchronised entity |
 | Counters | Progress, derived values, a collection's figure | Computed server-side, never set by a client; a collection's figure travels in no change record and is answered only by the server's read, so a read the replica answers carries none |
@@ -287,7 +302,9 @@ invisible from the server, and a cursor past the window cannot be minted from ou
 it). The client half is the engine's conformance runner
 ([sync-engine README](../../packages/sync-engine/README.md#testing)), run against the Compose stack
 on every pull request ([ci-cd.md](./ci-cd.md) §3); 6 is not testable from a browser engine
-(ADR-0033 §4) and 8 holds by construction.
+(ADR-0033 §4) and 8 holds by construction. The installed apps prove 6 in the `shell` lane
+(`apps/webapp/src-tauri/src/copy.rs`: the file unreadable without its key, sign-out removing
+file and key), and both runners' row for it names that evidence.
 
 ---
 
@@ -337,5 +354,5 @@ to QS-27 of [arc42.md](./arc42.md) §10) is filed under `docs/evidence/SY-<date>
 | # | Point | Needed by |
 |---|---|---|
 | SY-A | Character-level merging for long notes (CRDT text) — assess the need after user feedback | After `1.0.0` |
-| SY-B | The default sync scope on a mobile shell (everything vs. subscribed containers). The browser asks for everything (§1): 66,867 entries measured 60 MB (4.1 MB gzipped), 6–11 s, once | The shells |
+| SY-B | The default sync scope on a mobile shell (everything vs. subscribed containers). The browser asks for everything (§1): 66,867 entries measured 60 MB (4.1 MB gzipped), 6–11 s, once. The phone asks for everything too unless a measurement rules it out (F7 Decision 7), and its first synchronisation walks the pages so that an interruption resumes where it stopped (§3.1). Open until the first synchronisation of that workspace is measured on a reference phone - time, storage, memory, a resumption - and filed under `docs/evidence/` | The shells |
 | SY-D | The local cache encryption of a third-party client. First-party clients use SQLite encrypted at rest with the key in the platform keystore ([ADR-0033](../adr/ADR-0033-shared-client-architecture.md)) | Each third-party client |

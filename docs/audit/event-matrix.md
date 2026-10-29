@@ -35,6 +35,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `account.address_confirmed` | ConfirmAddress | `account` | NOTICE | Every time |
+| `account.address_notices_acknowledged` | AcknowledgeAddressNotices | `account` | INFO | Every time |
+| `account.address_notices_read` | ListAddressNotices | `account` | INFO | When refused |
 | `account.address_requested` | RequestAddress | `account` | NOTICE | Every time |
 | `account.avatar_removed` | RemoveOwnAvatar | `account` | INFO | Every time |
 | `account.avatar_set` | SetOwnAvatar | `account` | INFO | Every time |
@@ -329,6 +331,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.operator_removed` | RemoveOperator | `instance` | NOTICE | Every time |
 | `instance.operators_read` | ListOperators | `instance` | INFO | When refused |
 | `instance.overview_read` | ReadInstanceOverview | `instance` | INFO | When refused |
+| `instance.own_domains_read` | ListOwnDomains | `instance` | INFO | When refused |
 | `instance.platform_deliveries_read` | ListPlatformDeliveries | `platform_subscription` | INFO | When refused |
 | `instance.platform_events_read` | ListPlatformEvents | `instance` | INFO | When refused |
 | `instance.platform_subscription_changed` | UpdatePlatformSubscription | `platform_subscription` | WARNING | Every time |
@@ -419,6 +422,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `` | CheckDeviceList | `` |  | When refused |
 | `` | CheckPassword | `` |  | When refused |
 | `` | GetImport | `` |  | When refused |
 | `` | GetSignInRules | `` |  | When refused |
@@ -542,10 +546,17 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `tenant.address_changed` | ChangeTenantAddress | `tenant` | WARNING | Every time |
+| `tenant.address_changed` | ChangeWorkspaceAddress | `tenant` | WARNING | Every time |
 | `tenant.deletion_cancelled` | CancelTenantDeletion | `tenant` | INFO | Every time |
 | `tenant.deletion_requested` | RequestTenantDeletion | `tenant` | CRITICAL | Every time |
 | `tenant.exported` | ExportTenant | `tenant` | WARNING | Every time |
 | `tenant.listed` | ListTenants | `tenant` | INFO | When refused |
+| `tenant.own_domain_added` | SetUpOwnDomain | `tenant` | WARNING | Every time |
+| `tenant.own_domain_blocked` | BlockOwnDomain | `tenant` | WARNING | Every time |
+| `tenant.own_domain_made_main` | MakeOwnDomainMain | `tenant` | WARNING | Every time |
+| `tenant.own_domain_removed` | RemoveOwnDomain | `tenant` | WARNING | Every time |
+| `tenant.own_domain_switched_back` | SwitchBackFromOwnDomain | `tenant` | WARNING | Every time |
 | `tenant.password_closed` | CloseTenantPassword | `tenant` | INFO | Every time |
 | `tenant.password_opened` | OpenTenantPassword | `tenant` | WARNING | Every time |
 | `tenant.plan_changed` | MoveTenantPlan | `tenant` | NOTICE | Every time |
@@ -606,6 +617,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `workspace.changed` | UpdateWorkspace | `workspace` | NOTICE | Every time |
+| `workspace.device_list_entry_read` | IssueDeviceListEntry | `workspace` | INFO | When refused |
 | `workspace.read` | ReadWorkspace | `workspace` | INFO | When refused |
 | `workspace.starter_closed` | CloseStarter | `workspace` | INFO | Every time |
 | `workspace.structure_updated` | SetWorkspaceStructure | `workspace` | INFO | Every time |

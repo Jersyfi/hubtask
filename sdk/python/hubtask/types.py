@@ -231,6 +231,7 @@ class InstallationSetUp(TypedDict, total=False):
     code: Required[str]
     display_name: Required[str]
     slug: str
+    host: str
     owner_email: Required[str]
     owner_display_name: str
     password: Required[str]
@@ -285,6 +286,24 @@ class OidcCallback(TypedDict, total=False):
 class OidcLocate(TypedDict, total=False):
     """The state a provider's return carried."""
     state: Required[str]
+
+class DeviceListEntry(TypedDict, total=False):
+    """One workspace as the device's list holds it: the signed entry, and what it says - the host and the display name, nothing else."""
+    entry: Required[str]
+    host: Required[str]
+    display_name: Required[str]
+
+class DeviceListCheck(TypedDict, total=False):
+    entries: Required[list[str]]
+
+class DeviceListChecked(TypedDict, total=False):
+    entries: Required[list["DeviceListEntryState"]]
+
+class DeviceListEntryState(TypedDict, total=False):
+    entry: Required[str]
+    host: Required[str]
+    display_name: Required[str]
+    answers: Required[bool]
 
 class OidcLocated(TypedDict, total=False):
     base_url: Required[str]
@@ -536,6 +555,7 @@ class Workspace(TypedDict, total=False):
     """A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on."""
     id: Required[str]
     slug: Required[str]
+    address: "WorkspaceAddress"
     display_name: Required[str]
     status: Required[Literal["ACTIVE", "SUSPENDED", "PENDING_DELETION"]]
     default_locale: Required[str]
@@ -554,6 +574,64 @@ class Workspace(TypedDict, total=False):
     starter_offered: bool
     hosts: list["WorkspaceHost"]
     password_opening: "WorkspacePasswordOpening"
+
+class WorkspaceAddress(TypedDict, total=False):
+    """The workspace's main address and who may change it. The operator always may; the owners where the installation allows it (`owners_change_address`) and the last change is older than its cooldown."""
+    host: Required[str]
+    owners_may_change: Required[bool]
+    may_change: Required[bool]
+    changed_at: str | None
+    changeable_from: str | None
+    own_domains_allowed: bool
+    may_manage_own_domain: bool
+    own_domain: "OwnDomain"
+    address_host: str | None
+
+class OwnDomain(TypedDict, total=False):
+    """A workspace's own domain as its owner sees it: the state, the two records and whether each was found at the last check."""
+    domain: Required[str]
+    state: Required[Literal["PENDING", "VERIFIED", "ACTIVE", "BROKEN", "BLOCKED"]]
+    since: Required[str]
+    checked_at: str | None
+    is_main: Required[bool]
+    certificate_asked: Required[bool]
+    blocked_reason: str | None
+    fell_back_at: str | None
+    records: Required[list["OwnDomainRecord"]]
+
+class OwnDomainRecord(TypedDict, total=False):
+    type: Required[Literal["CNAME", "TXT"]]
+    name: Required[str]
+    value: Required[str]
+    found: Required[bool]
+
+class OwnDomainSetUp(TypedDict, total=False):
+    domain: Required[str]
+
+class OwnDomainBlock(TypedDict, total=False):
+    reason: Required[str]
+
+class AdminOwnDomain(TypedDict, total=False):
+    domain: Required[str]
+    tenant_id: str | None
+    tenant_name: Required[str]
+    state: Required[Literal["PENDING", "VERIFIED", "ACTIVE", "BROKEN", "BLOCKED"]]
+    since: Required[str]
+    is_main: Required[bool]
+    blocked_reason: str | None
+    fell_back_at: str | None
+    address_host: str | None
+
+class MainAddressSwitch(TypedDict, total=False):
+    dry_run: bool
+
+WorkspaceAddressChanged = TypedDict("WorkspaceAddressChanged", {
+    "from": Required[str],
+    "to": str,
+    "members_mailed": Required[int],
+    "members_told_at_sign_in": Required[int],
+    "dry_run": Required[bool],
+}, total=False)
 
 class WorkspaceHost(TypedDict, total=False):
     """One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish."""
@@ -909,6 +987,9 @@ class InstanceSettings(TypedDict, total=False):
     blocklist_file: str
     metering: bool
     reserved_short_names: list[str]
+    owners_change_address: bool
+    owners_own_domains: bool
+    address_change_cooldown_days: int
     source: str
     is_enforced_from_file: bool
     version: int
@@ -1048,6 +1129,7 @@ class TotpConfirmed(TypedDict, total=False):
 class AdminTenant(TypedDict, total=False):
     id: Required[str]
     slug: Required[str]
+    host: str
     display_name: Required[str]
     status: Required[Literal["ACTIVE", "SUSPENDED", "PENDING_DELETION"]]
     default_locale: str
@@ -1173,6 +1255,27 @@ class Plan(TypedDict, total=False):
     created_at: Required[str]
     updated_at: Required[str]
 
+class TenantAddressChange(TypedDict, total=False):
+    """The new address: `slug` where workspaces answer beneath the installation's host, `host` where the installation assigns hosts - the other is refused."""
+    slug: str
+    host: str
+    dry_run: bool
+
+TenantAddressChanged = TypedDict("TenantAddressChanged", {
+    "tenant": Required["AdminTenant"],
+    "from": Required[str],
+    "to": str,
+    "members_mailed": Required[int],
+    "members_told_at_sign_in": Required[int],
+    "dry_run": Required[bool],
+}, total=False)
+
+AddressChangeNotice = TypedDict("AddressChangeNotice", {
+    "from": Required[str],
+    "to": Required[str],
+    "changed_at": Required[str],
+}, total=False)
+
 class TenantPlanMove(TypedDict, total=False):
     plan: Required[str | None]
     expected_version: int
@@ -1206,7 +1309,8 @@ class AdminTenantPage(TypedDict, total=False):
     page: Required["PageInfo"]
 
 class TenantProvision(TypedDict, total=False):
-    slug: Required[str]
+    slug: str
+    host: str
     display_name: Required[str]
     default_locale: str | None
     default_time_zone: str | None
@@ -1218,6 +1322,7 @@ class TenantProvision(TypedDict, total=False):
 class ProvisionedTenant(TypedDict, total=False):
     id: Required[str]
     slug: Required[str]
+    host: str
     display_name: Required[str]
     status: Required[Literal["ACTIVE", "SUSPENDED", "PENDING_DELETION"]]
     default_locale: str
@@ -1297,7 +1402,9 @@ class OauthClientSecret(TypedDict, total=False):
 class OauthAuthorization(TypedDict, total=False):
     client_id: Required[str]
     redirect_uri: Required[str]
-    scopes: Required[list[str]]
+    scopes: list[str]
+    device: str | None
+    platform: Literal["windows", "linux", "android"] | None
     code_challenge: Required[str]
     code_challenge_method: Required[Literal["S256"]]
     state: str | None
@@ -1319,6 +1426,7 @@ class OauthGrant(TypedDict, total=False):
     id: Required[str]
     client_id: Required[str]
     client_name: Required[str]
+    app_platform: Literal["windows", "linux", "android"] | None
     scopes: Required[list[str]]
     created_at: Required[str]
     last_used_at: str | None
@@ -3252,8 +3360,10 @@ class SyncPullResponse(TypedDict, total=False):
 
 class SyncMutation(TypedDict, total=False):
     op_id: Required[str]
-    kind: Required[Literal["ITEM_CREATE", "ITEM_PATCH", "ITEM_DELETE", "SET_ADD", "SET_REMOVE", "MOVE", "COMMENT_ADD"]]
+    kind: Required[Literal["ITEM_CREATE", "ITEM_PATCH", "ITEM_DELETE", "SET_ADD", "SET_REMOVE", "MOVE", "COMMENT_ADD", "REMINDER_CREATE", "REMINDER_PATCH", "REMINDER_DELETE", "RECURRENCE_CREATE", "RECURRENCE_PATCH", "RECURRENCE_DELETE", "TEMPLATE_APPLY", "CONTAINER_CREATE", "CONTAINER_PATCH", "CONTAINER_DELETE", "LABEL_CREATE", "LABEL_PATCH", "LABEL_DELETE", "BUCKET_CREATE", "BUCKET_PATCH", "BUCKET_DELETE"]]
     item_id: str
+    entity_id: str | None
+    container_id: str | None
     base_version: int | None
     fields: dict[str, Any]
     set: Literal["labels", "members", "watchers", "attachments"] | None
@@ -3363,6 +3473,9 @@ class Capabilities(TypedDict, total=False):
     product_version: str
     api_version: str
     tenancy_mode: Literal["single", "multi"]
+    installation_url: str
+    app_client_id: str
+    workspace_hosts: Literal["subdomain", "assigned"]
     item_types: list[dict[str, Any]]
     view_layouts: list[str]
     completion_policies: list["CompletionPolicy"]

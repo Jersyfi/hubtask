@@ -107,7 +107,7 @@ class Live {
       const storage = platform.storageFor(accountId);
       if (storage) {
         try {
-          await engine.attach(storage, { platform: 'web', displayName: platform.deviceName() });
+          await engine.attach(storage, { platform: platform.devicePlatform, displayName: platform.deviceName() });
         } catch {
           // A store that cannot be opened is no store: the copy is a convenience in the browser,
           // and the stream and every read work without it.

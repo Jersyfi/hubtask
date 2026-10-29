@@ -35,6 +35,16 @@
      */
     revealLabel?: string;
     hideLabel?: string;
+    /**
+     * The face the value is drawn in. `code` for a value a machine reads as typed - a host, a
+     * short name - in the mono face, as the screens that show it elsewhere draw it.
+     */
+    face?: 'text' | 'code';
+    /**
+     * Fixed text after the value, inside the control: what the value becomes part of, such as the
+     * host a short name is put in front of. Drawn, never typed, and not part of the value.
+     */
+    suffix?: string;
   }
 
   let {
@@ -51,6 +61,8 @@
     isInvalid = false,
     revealLabel,
     hideLabel,
+    face = 'text',
+    suffix,
     ...rest
   }: Props = $props();
 
@@ -80,6 +92,7 @@
         {id}
         type={shownType}
         class="input"
+        data-face={face}
         bind:value
         {...rest}
         aria-disabled={unavailable ? 'true' : undefined}
@@ -87,6 +100,9 @@
         aria-invalid={invalid ? 'true' : undefined}
         aria-describedby={describedBy}
       />
+      {#if suffix}
+        <span class="suffix" aria-hidden="true">{suffix}</span>
+      {/if}
       {#if mayReveal}
         <span class="reveal">
           <IconButton
@@ -145,6 +161,9 @@
     font: inherit;
     text-align: start;
   }
+
+  .input[data-face='code'] { font-family: var(--font-mono); }
+  .suffix { font-family: var(--font-mono); font-size: var(--fs-075); color: var(--text-subtle); white-space: nowrap; }
 
   /* Per size, because the shell's minimum is only true if the field inside it fits within one.
      A flat step here made a small field taller than the minimum it declared. */

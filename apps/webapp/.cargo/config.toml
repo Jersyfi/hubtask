@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 Jérôme Bastian Winkel
+
+# SQLCipher's libcrypto on each Android target, as `src-tauri/android-openssl.sh` builds it (ADR-0033
+# §4). Here rather than in `src-tauri/`, because Cargo reads its configuration from where it is
+# started, and the Android build starts it from this directory.
+[env]
+AARCH64_LINUX_ANDROID_OPENSSL_DIR = { value = "src-tauri/target/openssl/aarch64-linux-android", relative = true }
+ARMV7_LINUX_ANDROIDEABI_OPENSSL_DIR = { value = "src-tauri/target/openssl/armv7-linux-androideabi", relative = true }
+I686_LINUX_ANDROID_OPENSSL_DIR = { value = "src-tauri/target/openssl/i686-linux-android", relative = true }
+X86_64_LINUX_ANDROID_OPENSSL_DIR = { value = "src-tauri/target/openssl/x86_64-linux-android", relative = true }

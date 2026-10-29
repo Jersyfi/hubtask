@@ -70,6 +70,11 @@ export interface EntryMenuContext {
    * share is offered neither.
    */
   readonly readsPeople?: boolean;
+  /**
+   * Whether the entry's link can go to the system's share sheet (UC-SYN-07 check 8): the Android
+   * app's *Send link…* after *Copy link*. *Share* already means giving people a role on the entry.
+   */
+  readonly sendsLinks?: boolean;
 }
 
 type Translate = (code: string, params?: Record<string, string | number>) => string;
@@ -89,18 +94,19 @@ export function entryMenu(context: EntryMenuContext, t: Translate): MenuItem[] {
   // On its own page the entry is open already: *Open* is every other surface's.
   const opens: MenuItem[] = context.surface === 'page' ? [] : [{ id: 'open', label: t('app.entry_menu.open') }];
   const copyLink: MenuItem = { id: 'copy-link', label: t('app.entry_menu.copy_link') };
+  const links: MenuItem[] = [copyLink, ...(context.sendsLinks ? [{ id: 'send-link', label: t('app.entry_menu.send_link') }] : [])];
   const mayDuplicate = context.mayCreate && !context.isCollectionReadOnly;
   const duplicate: MenuItem = { id: 'duplicate', label: t('app.duplicate.title') };
   /** Who has access, read only: the page's, where the reader may not share. */
   const people = (): MenuItem[] => (context.readsPeople && !context.mayShare ? [{ id: 'share', label: t('app.people.title') }] : []);
 
   // Until the role is known nothing that writes is drawn, and no reason either.
-  if (context.mayChange === undefined) return [...opens, copyLink];
+  if (context.mayChange === undefined) return [...opens, ...links];
 
   // A read-only area: what does not write the entry, and nothing that would only say "archived"
   // on every row.
   if (context.archival === 'inherited' || context.isCollectionReadOnly) {
-    return [...opens, ...people(), copyLink, ...(mayDuplicate ? [{ ...duplicate, hasSeparatorBefore: true }] : [])];
+    return [...opens, ...people(), ...links, ...(mayDuplicate ? [{ ...duplicate, hasSeparatorBefore: true }] : [])];
   }
 
   // The role may not change it: a copy where the reader may create one, and the ways to look at it.
@@ -109,7 +115,7 @@ export function entryMenu(context: EntryMenuContext, t: Translate): MenuItem[] {
       ...opens,
       ...(mayDuplicate ? [{ ...duplicate, hasSeparatorBefore: opens.length > 0 }] : []),
       ...(context.mayShare ? [{ id: 'share', label: t('app.people.share') }] : people()),
-      copyLink,
+      ...links,
     ];
   }
 
@@ -192,7 +198,7 @@ export function entryMenu(context: EntryMenuContext, t: Translate): MenuItem[] {
   if (mayDuplicate) items.push({ ...duplicate, hasSeparatorBefore: true });
   const sharing = context.mayShare ? [{ id: 'share', label: t('app.people.share') }] : people();
   sharing.forEach((each) => items.push({ ...each, hasSeparatorBefore: !mayDuplicate }));
-  items.push({ ...copyLink, hasSeparatorBefore: !mayDuplicate && sharing.length === 0 });
+  items.push({ ...copyLink, hasSeparatorBefore: !mayDuplicate && sharing.length === 0 }, ...links.slice(1));
 
   items.push({
     id: context.archival === 'archived' ? 'unarchive' : 'archive',

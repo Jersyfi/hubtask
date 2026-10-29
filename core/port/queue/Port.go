@@ -75,6 +75,12 @@ const (
 	// that existed only to be an exception would be the wrong shape for it.
 	KindPasswordOpeningEmail Kind = "notification.password_opening"
 
+	// KindAddressChangedEmail tells one member that the workspace's address changed: the old and the
+	// new address, that passkeys ended and that everybody signs in again (multi-tenancy.md §3.1).
+	// Queued in the change's own transaction, one job per member with an address, for
+	// KindPasswordOpeningEmail's reason not a notification record.
+	KindAddressChangedEmail Kind = "notification.address_changed"
+
 	// KindWayInChangedEmail tells a person that a way into their account changed - a password
 	// changed or set through a reset, a provider connected or disconnected (ADR-0078 §6,
 	// identity.md §6). Queued in the change's own transaction, one job per person, and only where
@@ -442,6 +448,11 @@ const (
 	// an installation job without a tenant, queued in the event's own transaction and again for
 	// each retry and redelivery. A workspace's purge removes its jobs, never these.
 	KindPlatformDeliver Kind = "platform.deliver"
+
+	// KindOwnDomainCheck looks at the own domains' DNS records (ADR-0095 §4): one installation job,
+	// without a tenant, seeded when a worker starts in multi mode and repeating; the dedupe key
+	// keeps it one however many workers start. Detached, so no transaction waits on a name server.
+	KindOwnDomainCheck Kind = "own_domain.check"
 )
 
 func (k Kind) String() string { return string(k) }

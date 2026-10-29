@@ -356,3 +356,264 @@ test('chromium: a reserved short name is refused at the field of New workspace',
   assert.equal(sent.length, 1);
   assert.equal(sent[0].slug, 'www');
 });
+
+// UC-INS-07 check 2: a short name the list did not know as taken - another operator took it a
+// moment ago - is the server's refusal, said at the field of *New workspace*, and the dialog stays.
+test('chromium: a short name taken meanwhile is refused at the field of New workspace', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const sent = [];
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: MULTI });
+    if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: [workspace()] });
+    if (path === '/admin/tenants' && request.method() === 'POST') {
+      const body = request.postDataJSON() ?? {};
+      sent.push(body);
+      return route.fulfill({
+        status: 409,
+        json: {
+          code: 'errors.conflict', detail_code: 'admin.slug_taken', status: 409,
+          request_id: 'req_t', params: { slug: body.slug },
+          field_errors: [{ path: '/slug', code: 'admin.slug_taken', params: { slug: body.slug } }],
+        },
+      });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+
+  await page.goto(`${served.origin}/instance/workspaces`);
+  await page.getByRole('row').filter({ hasText: 'Acme' }).waitFor();
+  await page.getByRole('button', { name: 'New workspace' }).click();
+  const dialog = page.getByRole('dialog', { name: 'New workspace' });
+  await dialog.waitFor();
+
+  await dialog.getByLabel(/^Address/).fill('sales');
+  await dialog.getByLabel(/^Name/).fill('Sales');
+  await dialog.getByLabel(/^The owner's email address/).fill('eva@acme.example');
+  await dialog.getByRole('button', { name: 'Create it' }).click();
+
+  await dialog.getByText("That subdomain is already a workspace's. Choose another.").waitFor();
+  assert.equal(await dialog.getByLabel(/^Address/).getAttribute('aria-invalid'), 'true');
+  assert.ok(await dialog.isVisible(), 'a refused short name closed the dialog');
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].slug, 'sales');
+});
+
+// UC-INS-20 checks 1 and 3: where the installation assigns hosts, *New workspace* asks for the
+// workspace's host and offers the short name as optional, made from the host where it is left
+// empty. A host already in the table is said while it is typed and nothing is sent; one the server
+// refuses is said at the field with its own reason; no DNS is asked. With subdomains the dialog
+// asks for the short name as before, and no longer says it cannot be changed.
+test('chromium: New workspace asks for the host where the installation assigns hosts', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const sent = [];
+  let mode = 'assigned';
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/auth/sessions:elevate') {
+      return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
+    }
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MULTI, workspace_hosts: mode } });
+    if (path === '/admin/tenants' && request.method() === 'GET') {
+      return route.fulfill({ json: [{ ...workspace(), slug: 'sales', display_name: 'Sales', host: 'tasks-sales.corp.example' }] });
+    }
+    if (path === '/admin/tenants' && request.method() === 'POST') {
+      const body = request.postDataJSON() ?? {};
+      sent.push(body);
+      if (body.host === 'tasks.corp.example') {
+        return route.fulfill({
+          status: 422,
+          json: {
+            code: 'errors.validation', detail_code: 'admin.host_installation', status: 422,
+            request_id: 'req_h', params: { host: body.host },
+            field_errors: [{ path: '/host', code: 'admin.host_installation', params: { host: body.host } }],
+          },
+        });
+      }
+      return route.fulfill({
+        status: 201,
+        json: {
+          ...workspace(), id: '01936f2a-7c1e-7000-8000-0000000034b1', slug: 'tasks-hr', host: body.host,
+          display_name: body.display_name, owner_account_id: '01936f2a-7c1e-7000-8000-0000000034b2',
+          owner_redemption_token: 'hbt_rdm_e2e', default_hub_id: '01936f2a-7c1e-7000-8000-0000000034b3',
+          example_collection_id: '01936f2a-7c1e-7000-8000-0000000034b4',
+        },
+      });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+
+  await page.goto(`${served.origin}/instance/workspaces`);
+  await page.getByRole('row').filter({ hasText: 'Sales' }).waitFor();
+  await page.getByRole('button', { name: 'New workspace' }).click();
+  const dialog = page.getByRole('dialog', { name: 'New workspace' });
+  await dialog.waitFor();
+
+  // The host, not a subdomain; nothing about DNS is asked, only said.
+  assert.equal(await dialog.getByLabel(/^Address/).count(), 0);
+  const host = dialog.getByLabel(/^Host/);
+  const shortName = dialog.getByLabel(/^Short name/);
+  assert.equal(await host.getAttribute('required'), '');
+  assert.equal(await shortName.getAttribute('required'), null);
+  assert.match(await dialog.textContent() ?? '', /Hubtask checks no DNS for it/);
+  assert.match(await dialog.textContent() ?? '', /Left empty, it is made from the host/);
+
+  // A host in the table is said while it is typed, and pressing sends nothing.
+  await host.fill('Tasks-Sales.corp.example');
+  await dialog.getByText('A workspace already answers at tasks-sales.corp.example.').waitFor();
+  await dialog.getByLabel(/^Name/).fill('Human Resources');
+  await dialog.getByLabel(/^The owner's email address/).fill('jana.koch@corp.example');
+  await dialog.getByRole('button', { name: 'Create it' }).click();
+  assert.equal(sent.length, 0);
+
+  // The installation's own host is the server's refusal, at the field.
+  await host.fill('tasks.corp.example');
+  await dialog.getByRole('button', { name: 'Create it' }).click();
+  await dialog.getByText('tasks.corp.example is this installation\'s own address. A workspace needs a host of its own.').waitFor();
+  assert.equal(await host.getAttribute('aria-invalid'), 'true');
+  assert.ok(await dialog.isVisible(), 'a refused host closed the dialog');
+
+  // The short name the host makes is shown before it is made, and left to the server.
+  await host.fill('tasks-hr.corp.example');
+  assert.equal(await shortName.getAttribute('placeholder'), 'tasks-hr');
+  await dialog.getByRole('button', { name: 'Create it' }).click();
+  await page.getByText("The owner's token").first().waitFor();
+  assert.deepEqual(sent[1], {
+    host: 'tasks-hr.corp.example', display_name: 'Human Resources', owner_email: 'jana.koch@corp.example',
+  });
+
+  // With subdomains: the short name, and the hint without "cannot be changed".
+  mode = 'subdomain';
+  const subdomains = await context.newPage();
+  await subdomains.goto(`${served.origin}/instance/workspaces`);
+  await subdomains.getByRole('row').filter({ hasText: 'Sales' }).waitFor();
+  await subdomains.getByRole('button', { name: 'New workspace' }).click();
+  const plain = subdomains.getByRole('dialog', { name: 'New workspace' });
+  await plain.waitFor();
+  assert.equal(await plain.getByLabel(/^Host/).count(), 0);
+  await plain.getByLabel(/^Address/).waitFor();
+  assert.match(await plain.textContent() ?? '', /It is the start of the workspace's address, such as meier.tasks.example.net/);
+  assert.doesNotMatch(await plain.textContent() ?? '', /cannot be changed/);
+});
+
+// UC-INS-19 checks 4, 5 and 6, UC-INS-20 check 4: the operator changes a workspace's address. The
+// list shows each address; the dialog names the new address, what the change ends and who is told
+// before anything is changed; a lockout is refused in the dialog before a proof is asked; the proof
+// is the password, with the note why a passkey is not offered.
+test('chromium: Change address names the new address and its costs, and is confirmed by the password', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const sent = [];
+  let lockout = true;
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/auth/sessions:elevate') {
+      return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
+    }
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MULTI, workspace_hosts: 'subdomain' } });
+    if (path === '/admin/tenants' && request.method() === 'GET') {
+      return route.fulfill({
+        json: [
+          { ...workspace(), slug: 'meier', display_name: 'Meier family', host: 'meier.tasks.example.net' },
+          { ...workspace(), id: '01936f2a-7c1e-7000-8000-0000000034c1', slug: 'taken', display_name: 'Taken', host: 'taken.tasks.example.net' },
+        ],
+      });
+    }
+    if (path === '/auth/step-up') {
+      return route.fulfill({ status: 201, json: { step_up_token: 'hbt_sup_tok', expires_at: '2099-01-01T00:00:00Z', method: 'PASSWORD' } });
+    }
+    if (path === `/admin/tenants/${TENANT}:change-address`) {
+      const body = request.postDataJSON() ?? {};
+      const proof = request.headers()['x-hubtask-step-up'] ?? null;
+      sent.push({ body, proof });
+      const tenant = { ...workspace(), slug: body.slug ?? 'meier', display_name: 'Meier family', host: body.slug ? `${body.slug}.tasks.example.net` : 'meier.tasks.example.net' };
+      const answer = { tenant, from: 'meier.tasks.example.net', members_mailed: 6, members_told_at_sign_in: 1, dry_run: body.dry_run === true };
+      if (body.slug) answer.to = `${body.slug}.tasks.example.net`;
+      if (body.slug && lockout) {
+        return route.fulfill({ status: 409, json: { code: 'errors.conflict', detail_code: 'admin.address_lockout_owner', status: 409, params: { reason: 'way_in' }, request_id: 'req_l' } });
+      }
+      if (body.slug && !body.dry_run && !proof) {
+        return route.fulfill({ status: 403, json: { code: 'errors.forbidden', detail_code: 'auth.step_up_required', status: 403, params: { methods: 'PASSWORD', purpose: 'change_address' }, request_id: 'req_s' } });
+      }
+      return route.fulfill({ json: answer });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+
+  await page.goto(`${served.origin}/instance/workspaces`);
+  const row = page.getByRole('row').filter({ hasText: 'Meier family' });
+  await row.waitFor();
+  // The address line under the name.
+  await row.getByText('meier.tasks.example.net').waitFor();
+  await chooseInRow(row, 'Change address');
+  const dialog = page.getByRole('dialog', { name: 'Change the address of Meier family' });
+  await dialog.waitFor();
+
+  // Before anything is changed: the new address, what ends, who is told.
+  const field = dialog.getByLabel(/^New address/);
+  await field.fill('familie-meier');
+  const text = async () => (await dialog.textContent()) ?? '';
+  await dialog.getByText('familie-meier.tasks.example.net').waitFor();
+  await dialog.getByText('The 6 members with an email address are mailed the old and the new address.', { exact: false }).waitFor();
+  assert.match(await text(), /\.tasks\.example\.net/);
+  assert.match(await text(), /What the change ends/);
+  assert.match(await text(), /meier\.tasks\.example\.net stops answering at once, without sending anybody on/);
+  assert.match(await text(), /Everybody signs in again, at the new address\./);
+  assert.match(await text(), /Passkeys made at the old address stop working\./);
+  assert.match(await text(), /Links, calendar subscriptions, MCP and hubctl set up on the old address stop working/);
+  assert.match(await text(), /The 1 without one is told at their next sign-in\./);
+  assert.ok(sent.every((each) => each.body.dry_run === true), 'something was changed before it was confirmed');
+
+  // A name another workspace answers at is said at the field.
+  await field.fill('taken');
+  await dialog.getByText('taken', { exact: false }).first().waitFor();
+  const before = sent.length;
+  await dialog.getByRole('button', { name: 'Change address' }).click();
+  assert.equal(sent.length, before, 'a taken name was sent');
+
+  // The last owner's lockout is refused in the dialog, before any proof.
+  await field.fill('familie-meier');
+  await dialog.getByRole('button', { name: 'Change address' }).click();
+  await dialog.getByText("This would lock out the workspace's last owner").waitFor();
+  assert.match(await text(), /The only owner signs in with a passkey alone/);
+  assert.equal(await page.getByRole('dialog', { name: 'Prove it is you' }).count(), 0);
+
+  // Confirmed by the password, with the note why a passkey is not offered.
+  lockout = false;
+  await dialog.getByRole('button', { name: 'Change address' }).click();
+  const prove = page.getByRole('dialog', { name: 'Prove it is you' });
+  await prove.waitFor();
+  assert.match((await prove.textContent()) ?? '', /A passkey belongs to the old address, so it cannot confirm this\./);
+  assert.equal(await prove.getByRole('button', { name: 'Use a passkey or security key' }).count(), 0);
+  await prove.getByLabel('Your password').fill('the operator');
+  await prove.getByRole('button', { name: 'Prove it' }).click();
+  await dialog.waitFor({ state: 'hidden' });
+  const last = sent.at(-1);
+  assert.deepEqual(last, { body: { slug: 'familie-meier' }, proof: 'hbt_sup_tok' });
+});

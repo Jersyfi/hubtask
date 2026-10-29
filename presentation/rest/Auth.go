@@ -86,6 +86,10 @@ var PublicRoutes = map[string]bool{
 	// Where the return belongs is asked by the same signed-out browser, before :callback, with the
 	// same handle; it reads and spends nothing (multi-tenancy.md §3).
 	http.MethodPost + " " + APIBasePath + "/auth/oidc:locate": true,
+	// The device's list of workspaces is checked by the installation's own address, where nobody
+	// is signed in; the entries are signed by the installation and are the call's whole input
+	// (ADR-0095 §7).
+	http.MethodPost + " " + APIBasePath + "/auth/device-list:check": true,
 	// The token endpoint is public the way sign-in is: the single-use code, the PKCE
 	// verifier and - for a confidential client - the secret travel in the body and are the
 	// whole of what authenticates the exchange.

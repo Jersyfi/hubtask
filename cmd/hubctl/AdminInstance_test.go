@@ -453,3 +453,52 @@ func TestReservedShortNamesAreSetFromTheTerminal(t *testing.T) {
 		t.Error("a set without a name was taken")
 	}
 }
+
+// UC-INS-19 check 3: the operator lets owners change their workspace's address, and sets the
+// cooldown, from the terminal - beside the areas, with the rest of the level sent back as read.
+func TestOwnersChangingTheAddressIsSwitchedFromTheTerminal(t *testing.T) {
+	versioned := strings.Replace(wholeLevel, `"source": "database",`, `"source": "database", "version": 7,`, 1)
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(versioned))
+	})
+	sent := func() map[string]any {
+		t.Helper()
+		var body map[string]any
+		if err := json.Unmarshal([]byte(stub.body), &body); err != nil {
+			t.Fatalf("the body is not JSON: %v", err)
+		}
+		return body
+	}
+
+	if code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "settings", "set", "owners_change_address", "on"); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if body := sent(); stub.request.Method != http.MethodPut || body["owners_change_address"] != true || body["sign_in"] == nil {
+		t.Errorf("sent %s %v", stub.request.Method, body)
+	}
+	if got := stub.request.Header.Get("If-Match"); got != `"7"` {
+		t.Errorf("the save carried If-Match %q, want the version read", got)
+	}
+
+	if code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "settings", "set", "address_change_cooldown_days", "14"); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if body := sent(); body["address_change_cooldown_days"] != float64(14) {
+		t.Errorf("sent the cooldown %v", body["address_change_cooldown_days"])
+	}
+	if code, _, _ := invokeAgainst(t, stub, signedIn(stub), "", "admin", "settings", "set", "address_change_cooldown_days", "a month"); code == exitOK {
+		t.Error("a cooldown that is not a number was taken")
+	}
+	if code, _, _ := invokeAgainst(t, stub, signedIn(stub), "", "admin", "settings", "set", "owners_change_address", "maybe"); code == exitOK {
+		t.Error("a value that is neither on nor off was taken")
+	}
+
+	// UC-INS-15: the switch for own domains is set the same way.
+	if code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "settings", "set", "owners_own_domains", "on"); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if body := sent(); body["owners_own_domains"] != true {
+		t.Errorf("sent the own domains' switch %v", body["owners_own_domains"])
+	}
+}

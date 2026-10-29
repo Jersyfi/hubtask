@@ -6376,6 +6376,42 @@
         }
       }
     },
+    "/auth/device-list:check": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "checkDeviceList",
+        "security": [],
+        "summary": "Which entries of the device's list still open a workspace",
+        "description": "The installation's own address keeps the device's list of workspaces and asks this before it adds an entry and whenever it shows the list. An entry this installation did not sign is left out of the answer - so the answer never names a workspace for a host nobody was handed - and one it signed says whether its host is still a workspace's main address. Reads and writes nothing else; in single-tenant operation every entry is left out.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceListCheck"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The entries this installation signed, each with whether it still answers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceListChecked"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/auth/oidc:locate": {
       "post": {
         "tags": [
@@ -7443,6 +7479,124 @@
         "responses": {
           "204": {
             "description": "Withdrawn"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/tenants/{tenantId}:change-address": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AdminTenantId"
+        },
+        {
+          "$ref": "#/components/parameters/StepUpToken"
+        }
+      ],
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "changeTenantAddress",
+        "summary": "Change a workspace's address",
+        "description": "Gives the workspace a new main address: a new short name where workspaces answer beneath the installation's host, a new host where the installation assigns hosts. The old address is free at once - it answers like an address no workspace has, without a redirect, and another workspace may take it. Everybody signs in again; passkeys made at the old address stay listed and count as no factor; personal access tokens, service accounts and connected apps keep working once pointed at the new address. Every member with an email address is mailed the old and the new address, and a member without one is told at the next sign-in.\nA short name that is invalid, reserved or taken, and a host that is invalid, the installation's own or taken, are refused at the field as at provisioning; the address the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer beneath the installation's host, the same short name is accepted when the main address still names another host - how a workspace moves under a changed installation address.\nRefused with `admin.address_lockout_self` while it would leave the caller, and with `admin.address_lockout_owner` while it would leave every owner of the workspace, without a way in that survives it: a password or a connected provider, plus an authenticator app or recovery codes where a second factor is required. `reason` names what is missing: `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected provider where passwords are off - a passkey belongs to the old address and is refused with `auth.step_up_method_refused`, naming the methods that are accepted.\nWith `dry_run` it checks the new address and the lockout, answers what the change would be and writes nothing, without a step-up; a dry run without a new address answers the current address and who would be told. Refused with `admin.multi_mode_required` in single mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail and the installation's journal.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantAddressChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The workspace at its new address, or with `dry_run` as it would be",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantAddressChanged"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/own-domains": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "listOwnDomains",
+        "summary": "Every own domain the workspaces' owners set up",
+        "description": "Every own domain of every workspace, with its workspace and its state, the blocked ones included - a blocked domain keeps its row here, with the reason, after its workspace removed it. Newest first. In single mode and where the installation never allowed own domains the list is simply empty.\n",
+        "responses": {
+          "200": {
+            "description": "The installation's own domains",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminOwnDomain"
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/own-domains/{domain}:block": {
+      "parameters": [
+        {
+          "name": "domain",
+          "in": "path",
+          "required": true,
+          "description": "The own domain, as the list names it.",
+          "schema": {
+            "type": "string",
+            "maxLength": 253
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "blockOwnDomain",
+        "summary": "Block an own domain",
+        "description": "The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnDomainBlock"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The domain, blocked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOwnDomain"
+                }
+              }
+            }
           },
           "4XX": {
             "$ref": "#/components/responses/Problem"
@@ -8535,7 +8689,7 @@
         ],
         "operationId": "updateWorkspace",
         "summary": "Change how the workspace is set up",
-        "description": "Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.\n`require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its \"no loosening\" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.\nThe slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.\n`sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.\nSettings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.\n",
+        "description": "Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.\n`require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its \"no loosening\" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.\nThe slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` and, where the installation allows it, the owners' `POST /tenant:change-address` - never a patch. A body naming it is refused as an unknown field rather than accepted and quietly ignored.\n`sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.\nSettings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -8561,6 +8715,46 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Workspace"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/tenant:change-address": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/StepUpToken"
+        }
+      ],
+      "post": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "changeWorkspaceAddress",
+        "summary": "The workspace's owner changes its address",
+        "description": "The owners' door to the change `POST /admin/tenants/{tenantId}:change-address` makes, where the installation lets owners change the address (`owners_change_address`): the same new address, the same refusals at the field, the same lockout rule, the same proof by password or provider - never a passkey - and the same notices. The old address is free at once and everybody signs in again. In the workspace's trail.\nNeeds the caller to hold `OWNER` on the workspace (`access.owner_required`). Refused with `access.address_change_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode, and with `access.address_change_cooldown` while the last change of the address is more recent than the installation's cooldown; `params.possible_at` names the day from which a change is possible again. `GET /tenant` answers all of it beforehand as `address`.\nWith `dry_run` it checks everything but the proof and writes nothing.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantAddressChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The workspace's new address, or with `dry_run` what the change would be",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceAddressChanged"
                 }
               }
             }
@@ -8942,6 +9136,208 @@
                   "items": {
                     "$ref": "#/components/schemas/PrivateHubAccess"
                   }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/accounts/me/address-notices": {
+      "get": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "listAddressNotices",
+        "summary": "The change of the workspace's address the caller still has to be told of",
+        "description": "A member without an email address is told of a change of the workspace's address at their next sign-in: the old and the new address, that passkeys made at the old one ended and that everybody signs in again. At most one, the latest change; empty once acknowledged, and for a member who was mailed.\n",
+        "responses": {
+          "200": {
+            "description": "The notices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AddressChangeNotice"
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/accounts/me/address-notices:acknowledge": {
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "acknowledgeAddressNotices",
+        "summary": "Acknowledge the change of the workspace's address",
+        "description": "Records that the caller read it. Acknowledging twice is acknowledging once.",
+        "responses": {
+          "204": {
+            "description": "Acknowledged"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/tenant/device-list-entry": {
+      "get": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "issueDeviceListEntry",
+        "summary": "This workspace's entry for the device's list of workspaces",
+        "description": "In multi-tenant operation, after a person signs in, the browser carries this entry once to the installation's own address, where the device keeps its list of workspaces: the workspace's main address and its display name, signed by the installation, and nothing else - no address of a person, no token. The installation's address takes an entry only once `POST /auth/device-list:check` confirmed it. People only; in single-tenant operation there is no list and this is refused with `access.device_list_not_offered`.\n",
+        "responses": {
+          "200": {
+            "description": "The signed entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceListEntry"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/tenant/own-domain": {
+      "put": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "setUpOwnDomain",
+        "summary": "The workspace's owner sets up an own domain",
+        "description": "Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).\nRefused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnDomainSetUp"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The domain, waiting for its records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnDomain"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "removeOwnDomain",
+        "summary": "The workspace's owner removes its own domain",
+        "description": "The domain stops answering at once and another workspace may set it up. A domain the operator blocked leaves the workspace's view and stays blocked. Needs `OWNER` on the workspace (`access.owner_required`); `admin.own_domain_none` where there is none. In the workspace's trail.\n",
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/tenant/own-domain:make-main": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/StepUpToken"
+        }
+      ],
+      "post": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "makeOwnDomainMain",
+        "summary": "The workspace's owner makes its own domain the main address",
+        "description": "An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.\nNeeds `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MainAddressSwitch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The workspace's new main address, or with `dry_run` what the change would be",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceAddressChanged"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/tenant/own-domain:switch-back": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/StepUpToken"
+        }
+      ],
+      "post": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "switchBackFromOwnDomain",
+        "summary": "The workspace's owner makes its subdomain the main address again",
+        "description": "The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.\nNeeds `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MainAddressSwitch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The workspace's new main address, or with `dry_run` what the change would be",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceAddressChanged"
                 }
               }
             }
@@ -16165,7 +16561,12 @@
           },
           "slug": {
             "type": "string",
-            "description": "Multi mode only, and required there: the subdomain the workspace answers on, 3-40 characters of lower-case letters, digits and hyphens. Refused in single mode.\n"
+            "description": "Multi mode only: the workspace's short name, 3-40 characters of lower-case letters, digits and hyphens. With subdomains it is required and the subdomain the workspace answers on; with assigned hosts it is optional and made from the host when omitted. Refused in single mode.\n"
+          },
+          "host": {
+            "type": "string",
+            "maxLength": 253,
+            "description": "Multi mode with assigned hosts only, and required there: the full host name the workspace answers at. Refused like a provisioned workspace's host (`admin.host_required`, `admin.host_invalid`, `admin.host_installation`, `admin.host_taken`), and with `admin.host_not_assigned` where the installation uses subdomains or runs a single workspace.\n"
           },
           "owner_email": {
             "type": "string",
@@ -16428,6 +16829,83 @@
           "state": {
             "type": "string",
             "description": "The handle the start answered, as the provider carried it back."
+          }
+        }
+      },
+      "DeviceListEntry": {
+        "type": "object",
+        "required": [
+          "entry",
+          "host",
+          "display_name"
+        ],
+        "description": "One workspace as the device's list holds it: the signed entry, and what it says - the host and the display name, nothing else.\n",
+        "properties": {
+          "entry": {
+            "type": "string",
+            "description": "The entry as the installation signed it; opaque to a client."
+          },
+          "host": {
+            "type": "string",
+            "description": "The workspace's main address, a host without a scheme."
+          },
+          "display_name": {
+            "type": "string"
+          }
+        }
+      },
+      "DeviceListCheck": {
+        "type": "object",
+        "required": [
+          "entries"
+        ],
+        "properties": {
+          "entries": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          }
+        }
+      },
+      "DeviceListChecked": {
+        "type": "object",
+        "required": [
+          "entries"
+        ],
+        "properties": {
+          "entries": {
+            "type": "array",
+            "description": "The entries this installation signed, in the order asked; an entry it did not sign is not in it.\n",
+            "items": {
+              "$ref": "#/components/schemas/DeviceListEntryState"
+            }
+          }
+        }
+      },
+      "DeviceListEntryState": {
+        "type": "object",
+        "required": [
+          "entry",
+          "host",
+          "display_name",
+          "answers"
+        ],
+        "properties": {
+          "entry": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "answers": {
+            "type": "boolean",
+            "description": "Whether the host is still a workspace's main address. `false` for a workspace whose address changed or that is gone: the entry opens nothing and can only be forgotten.\n"
           }
         }
       },
@@ -17519,6 +17997,9 @@
             "type": "string",
             "description": "The subdomain label the workspace is reached by in multi mode. Read-only here - see the note on the `PATCH`.\n"
           },
+          "address": {
+            "$ref": "#/components/schemas/WorkspaceAddress"
+          },
           "display_name": {
             "type": "string"
           },
@@ -17610,12 +18091,309 @@
             "items": {
               "$ref": "#/components/schemas/WorkspaceHost"
             },
-            "description": "The hosts this workspace answers at. **Read-only, and nothing resolves a request through them yet**: a workspace is still found from its slug, and what this answers is the model a custom domain will need - one host per row, a state, and which of them is canonical.\nAbsent where there are none, which is every workspace provisioned before the table existed. An empty array would read as \"this workspace is reachable nowhere\".\n"
+            "description": "The hosts this workspace answers at, read-only: one host per row, a state, and which of them is canonical - the main address every link Hubtask writes names. In multi mode a request's host finds its workspace through them.\nAbsent where there are none: in single mode, and for a workspace whose main row the next start of a multi-mode server has not written yet. An empty array would read as \"this workspace is reachable nowhere\".\n"
           },
           "password_opening": {
             "$ref": "#/components/schemas/WorkspacePasswordOpening",
             "readOnly": true,
             "description": "The installation operator's opening of the password for this workspace, while it is in force: the password is open for every account that holds one, whatever `sign_in_policy.methods` says, until `until`. Absent otherwise. Written by the control plane alone; a body naming it on the `PATCH` is refused as an unknown field.\n"
+          }
+        }
+      },
+      "WorkspaceAddress": {
+        "type": "object",
+        "readOnly": true,
+        "required": [
+          "host",
+          "owners_may_change",
+          "may_change"
+        ],
+        "description": "The workspace's main address and who may change it. The operator always may; the owners where the installation allows it (`owners_change_address`) and the last change is older than its cooldown.\n",
+        "properties": {
+          "host": {
+            "type": "string",
+            "description": "The main address, the host every link Hubtask writes names."
+          },
+          "owners_may_change": {
+            "type": "boolean",
+            "description": "Whether this installation lets the workspace's owners change the address. Always false in single mode.\n"
+          },
+          "may_change": {
+            "type": "boolean",
+            "description": "Whether the reader may change it now (`POST /tenant:change-address`): the installation allows it, the reader holds `OWNER` on the workspace and the cooldown is over.\n"
+          },
+          "changed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "The last change of the address, by anybody; null where it never changed."
+          },
+          "changeable_from": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Where owners may change it and the cooldown runs, the moment from which they may again; null otherwise.\n"
+          },
+          "own_domains_allowed": {
+            "type": "boolean",
+            "description": "Whether this installation lets the workspace's owners set up an own domain (`owners_own_domains`). Always false in single mode.\n"
+          },
+          "may_manage_own_domain": {
+            "type": "boolean",
+            "description": "Whether the reader may set up the own domain where it is allowed, and remove it: the reader holds `OWNER` on the workspace. Always false in single mode.\n"
+          },
+          "own_domain": {
+            "$ref": "#/components/schemas/OwnDomain"
+          },
+          "address_host": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where the own domain is the main address, the workspace's subdomain (or assigned host) beside it: it sends browsers on to the own domain, still answers the API and is the way back. Null otherwise.\n"
+          }
+        }
+      },
+      "OwnDomain": {
+        "type": "object",
+        "readOnly": true,
+        "required": [
+          "domain",
+          "state",
+          "since",
+          "is_main",
+          "certificate_asked",
+          "records"
+        ],
+        "description": "A workspace's own domain as its owner sees it: the state, the two records and whether each was found at the last check.\n",
+        "properties": {
+          "domain": {
+            "type": "string",
+            "description": "The domain, as the DNS holds it - lower case, letters beyond ASCII encoded."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "VERIFIED",
+              "ACTIVE",
+              "BROKEN",
+              "BLOCKED"
+            ],
+            "description": "`PENDING` waits for its records; `VERIFIED` has both and answers, its certificate on its way; `ACTIVE` the ingress obtained a certificate for it and a request reached the workspace through it; `BROKEN` its proof is gone and it answers no more until the record is back; `BLOCKED` the operator blocked it.\n"
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it entered its state."
+          },
+          "checked_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "The last check of its records; null before the first."
+          },
+          "is_main": {
+            "type": "boolean",
+            "description": "Whether it is the workspace's main address."
+          },
+          "certificate_asked": {
+            "type": "boolean",
+            "description": "Whether the ingress asked for its certificate."
+          },
+          "blocked_reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The operator's reason, word for word, where it is blocked."
+          },
+          "fell_back_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it was the main address and broke, so the workspace's subdomain became the main address again by itself; null otherwise. It stays until the owner makes the domain the main address again or removes it. A blocked domain that was the main address says so by `is_main`.\n"
+          },
+          "records": {
+            "type": "array",
+            "description": "The CNAME and the TXT record, in that order. Empty where it is blocked.",
+            "items": {
+              "$ref": "#/components/schemas/OwnDomainRecord"
+            }
+          }
+        }
+      },
+      "OwnDomainRecord": {
+        "type": "object",
+        "readOnly": true,
+        "required": [
+          "type",
+          "name",
+          "value",
+          "found"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "CNAME",
+              "TXT"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "The record's name."
+          },
+          "value": {
+            "type": "string",
+            "description": "What it points to, or the text it carries."
+          },
+          "found": {
+            "type": "boolean",
+            "description": "Whether the last check found it as shown."
+          }
+        }
+      },
+      "OwnDomainSetUp": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "domain"
+        ],
+        "properties": {
+          "domain": {
+            "type": "string",
+            "maxLength": 253,
+            "description": "The domain, such as `tasks.example.com`."
+          }
+        }
+      },
+      "OwnDomainBlock": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Why - shown to the workspace's owner and kept in the installation's journal."
+          }
+        }
+      },
+      "AdminOwnDomain": {
+        "type": "object",
+        "readOnly": true,
+        "required": [
+          "domain",
+          "tenant_name",
+          "state",
+          "since",
+          "is_main"
+        ],
+        "properties": {
+          "domain": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The workspace; null for a blocked domain no workspace holds."
+          },
+          "tenant_name": {
+            "type": "string",
+            "description": "The workspace's display name; empty where no workspace holds it."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "VERIFIED",
+              "ACTIVE",
+              "BROKEN",
+              "BLOCKED"
+            ]
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "is_main": {
+            "type": "boolean",
+            "description": "Whether it is its workspace's main address; for a blocked one, whether it was when it was blocked.\n"
+          },
+          "blocked_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fell_back_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it was the main address and broke, so its workspace's subdomain became the main address again by itself; null otherwise.\n"
+          },
+          "address_host": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The workspace's subdomain (or assigned host), which becomes the main address where this domain falls back; null for a blocked domain no workspace holds.\n"
+          }
+        }
+      },
+      "MainAddressSwitch": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dry_run": {
+            "type": "boolean",
+            "description": "Check and answer without changing anything, and without a step-up."
+          }
+        }
+      },
+      "WorkspaceAddressChanged": {
+        "type": "object",
+        "required": [
+          "from",
+          "members_mailed",
+          "members_told_at_sign_in",
+          "dry_run"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "The main address before the change."
+          },
+          "to": {
+            "type": "string",
+            "description": "The main address after it. Absent on a dry run without a new address."
+          },
+          "members_mailed": {
+            "type": "integer",
+            "description": "The members with an email address, who are mailed the old and the new address."
+          },
+          "members_told_at_sign_in": {
+            "type": "integer",
+            "description": "The members without one, who are told at their next sign-in."
+          },
+          "dry_run": {
+            "type": "boolean"
           }
         }
       },
@@ -19231,6 +20009,20 @@
             },
             "description": "The operator's own short names no new workspace may take, beside the product's list - each also reserves its plural, and case does not count. Stored trimmed, in lower case, each once; an entry no short name could be is refused (`admin.reserved_short_name_invalid`). A workspace that already carries a name added here keeps it. Provisioning refuses a reserved name at the field with `admin.slug_reserved`.\n"
           },
+          "owners_change_address": {
+            "type": "boolean",
+            "description": "Whether a workspace's owners may change its address themselves (`POST /tenant:change-address`), in multi mode. Off by default: the operator's change is the only one. The installation's alone - no workspace switches it for itself.\n"
+          },
+          "owners_own_domains": {
+            "type": "boolean",
+            "description": "Whether a workspace's owners may set up an own domain (`PUT /tenant/own-domain`), in multi mode. Off by default. The installation's alone; the operator sees every own domain and may block one either way.\n"
+          },
+          "address_change_cooldown_days": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 365,
+            "description": "The days after a change of a workspace's address - by anybody - before its owners may change it again. 30 where the installation decides nothing; the operator is never held by it. A value outside 1-365 is refused (`admin.address_cooldown_invalid`).\n"
+          },
           "source": {
             "type": "string",
             "readOnly": true,
@@ -19888,6 +20680,10 @@
           },
           "slug": {
             "type": "string"
+          },
+          "host": {
+            "type": "string",
+            "description": "The host the workspace answers at, its main address. Absent in single mode, where the installation's own host is the workspace's.\n"
           },
           "display_name": {
             "type": "string"
@@ -20589,6 +21385,80 @@
           }
         ]
       },
+      "TenantAddressChange": {
+        "type": "object",
+        "description": "The new address: `slug` where workspaces answer beneath the installation's host, `host` where the installation assigns hosts - the other is refused.\n",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "description": "The new short name, 3-40 lower-case letters, digits and hyphens."
+          },
+          "host": {
+            "type": "string",
+            "description": "The new host, where the installation assigns hosts. No DNS is checked."
+          },
+          "dry_run": {
+            "type": "boolean",
+            "description": "Check and answer without changing anything, and without a step-up."
+          }
+        }
+      },
+      "TenantAddressChanged": {
+        "type": "object",
+        "required": [
+          "tenant",
+          "from",
+          "members_mailed",
+          "members_told_at_sign_in",
+          "dry_run"
+        ],
+        "properties": {
+          "tenant": {
+            "$ref": "#/components/schemas/AdminTenant"
+          },
+          "from": {
+            "type": "string",
+            "description": "The main address before the change."
+          },
+          "to": {
+            "type": "string",
+            "description": "The main address after it. Absent on a dry run without a new address."
+          },
+          "members_mailed": {
+            "type": "integer",
+            "description": "The members with an email address, who are mailed the old and the new address."
+          },
+          "members_told_at_sign_in": {
+            "type": "integer",
+            "description": "The members without one, who are told at their next sign-in."
+          },
+          "dry_run": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AddressChangeNotice": {
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "changed_at"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "The workspace's address before the change."
+          },
+          "to": {
+            "type": "string",
+            "description": "Its address since."
+          },
+          "changed_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "TenantPlanMove": {
         "type": "object",
         "required": [
@@ -20751,7 +21621,6 @@
       "TenantProvision": {
         "type": "object",
         "required": [
-          "slug",
           "display_name",
           "owner_email"
         ],
@@ -20759,7 +21628,12 @@
           "slug": {
             "type": "string",
             "pattern": "^[a-z0-9][a-z0-9-]{2,39}$",
-            "description": "The subdomain the workspace answers on. Unique across the installation (`admin.slug_taken`), and none the installation reserves for itself - the product's list or the operator's `reserved_short_names`, each with its plural (`admin.slug_reserved`).\n"
+            "description": "The workspace's short name, by which the API and `hubctl` name it. Unique across the installation (`admin.slug_taken`), and none the installation reserves for itself - the product's list or the operator's `reserved_short_names`, each with its plural (`admin.slug_reserved`). With subdomains it is required (`admin.slug_required`) and is the subdomain the workspace answers on; with assigned hosts it may be omitted and is then made from the host's first label.\n"
+          },
+          "host": {
+            "type": "string",
+            "maxLength": 253,
+            "description": "The full host name the workspace answers at, such as `tasks-hr.corp.example`: required where the installation assigns hosts (`admin.host_required`), refused where it uses subdomains (`admin.host_not_assigned`). No DNS is checked; the record and the certificate are the operator's. Refused at the field when it is no host name (`admin.host_invalid`), the installation's own host (`admin.host_installation`) or a host another workspace answers at (`admin.host_taken`).\n"
           },
           "display_name": {
             "type": "string",
@@ -21138,14 +22012,14 @@
         "required": [
           "client_id",
           "redirect_uri",
-          "scopes",
           "code_challenge",
           "code_challenge_method"
         ],
         "properties": {
           "client_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "A registered client, or the built-in client of the installed apps, which every workspace knows without registering it (`app_client_id` in `/meta/capabilities`).\n"
           },
           "redirect_uri": {
             "type": "string",
@@ -21153,11 +22027,31 @@
           },
           "scopes": {
             "type": "array",
-            "minItems": 1,
             "items": {
               "type": "string"
             },
-            "description": "From this installation's own catalogue - the scopes descriptors already declare, no parallel vocabulary. The issued pair is bounded by them exactly as a PAT's is.\n"
+            "description": "From this installation's own catalogue - the scopes descriptors already declare, no parallel vocabulary. The issued pair is bounded by them exactly as a PAT's is. At least one for a registered client; none for the built-in client, whose grant carries a session's scopes.\n"
+          },
+          "device": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120,
+            "description": "The built-in client only, and required there: the name the device's system gives it, which the consent and the grant list show.\n"
+          },
+          "platform": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "windows",
+              "linux",
+              "android",
+              null
+            ],
+            "description": "The built-in client only, and required there: the system the app runs on. The desktop's redirect is a loopback address on any port, Android's `eu.hubtask.app:/oauth`.\n"
           },
           "code_challenge": {
             "type": "string",
@@ -21267,7 +22161,21 @@
             "format": "uuid"
           },
           "client_name": {
-            "type": "string"
+            "type": "string",
+            "description": "The registered client's name, or for the built-in client of the installed apps the device's name it consented on.\n"
+          },
+          "app_platform": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "windows",
+              "linux",
+              "android",
+              null
+            ],
+            "description": "Set for a grant of the built-in client of the installed apps: the system the app runs on. Null for a registered client.\n"
           },
           "scopes": {
             "type": "array",
@@ -31349,13 +32257,46 @@
               "SET_ADD",
               "SET_REMOVE",
               "MOVE",
-              "COMMENT_ADD"
-            ]
+              "COMMENT_ADD",
+              "REMINDER_CREATE",
+              "REMINDER_PATCH",
+              "REMINDER_DELETE",
+              "RECURRENCE_CREATE",
+              "RECURRENCE_PATCH",
+              "RECURRENCE_DELETE",
+              "TEMPLATE_APPLY",
+              "CONTAINER_CREATE",
+              "CONTAINER_PATCH",
+              "CONTAINER_DELETE",
+              "LABEL_CREATE",
+              "LABEL_PATCH",
+              "LABEL_DELETE",
+              "BUCKET_CREATE",
+              "BUCKET_PATCH",
+              "BUCKET_DELETE"
+            ],
+            "description": "What the device did. The entry's kinds name it by `item_id`. A reminder, a recurrence\nrule, a container, a label and a bucket travel whole on creation (`*_CREATE`, the\nroute's body as `payload`) and deletion (`*_DELETE`, no payload), and field by field\nbetween (`*_PATCH`, `fields`), each field merged under its own clock; a field the server\ndecides (a reminder's `fire_at` and `state`, a rule's `last_materialized_at`, a\ncontainer's structure and privacy) is refused as `sync.field_not_mergeable`.\nA reminder and a rule name their entry by `item_id`; a recurrence rule is the entry's\none series, so a `RECURRENCE_CREATE` for an entry that has one merges field by field.\n`TEMPLATE_APPLY` carries the instantiation's body as `payload`; its entries arrive as\nordinary creations. A kind this build does not know is `sync.kind_unknown`.\n"
           },
           "item_id": {
             "type": "string",
             "format": "uuid",
             "description": "Assigned by the client (UUIDv7), including on CREATE"
+          },
+          "entity_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The reminder, recurrence rule, container, label or bucket the mutation is about,\nassigned by the client (UUIDv7) on its creation. Absent on the entry's kinds.\n"
+          },
+          "container_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The collection a label or a bucket belongs to, on its `*_PATCH` and `*_DELETE`: where\nthe server reads it back when the device's fields lost.\n"
           },
           "base_version": {
             "type": [
@@ -31992,6 +32933,24 @@
               "single",
               "multi"
             ]
+          },
+          "installation_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Multi mode only: the installation's own address, where the device's list of workspaces is kept and shown. Absent in single mode, which keeps no list.\n"
+          },
+          "app_client_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The built-in OAuth2 client of the installed apps, the same in every workspace and installation: public, without a secret, redirecting only to a loopback address or `eu.hubtask.app:/oauth`.\n"
+          },
+          "workspace_hosts": {
+            "type": "string",
+            "enum": [
+              "subdomain",
+              "assigned"
+            ],
+            "description": "Multi mode only: whether a workspace answers beneath the installation's own host or at a host the operator assigns, and therefore whether creating one asks for a short name or for a host. Absent in single mode.\n"
           },
           "item_types": {
             "type": "array",

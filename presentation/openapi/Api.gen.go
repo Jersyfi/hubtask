@@ -222,6 +222,33 @@ func (e ActorType) Valid() bool {
 	}
 }
 
+// Defines values for AdminOwnDomainState.
+const (
+	AdminOwnDomainStateACTIVE   AdminOwnDomainState = "ACTIVE"
+	AdminOwnDomainStateBLOCKED  AdminOwnDomainState = "BLOCKED"
+	AdminOwnDomainStateBROKEN   AdminOwnDomainState = "BROKEN"
+	AdminOwnDomainStatePENDING  AdminOwnDomainState = "PENDING"
+	AdminOwnDomainStateVERIFIED AdminOwnDomainState = "VERIFIED"
+)
+
+// Valid indicates whether the value is a known member of the AdminOwnDomainState enum.
+func (e AdminOwnDomainState) Valid() bool {
+	switch e {
+	case AdminOwnDomainStateACTIVE:
+		return true
+	case AdminOwnDomainStateBLOCKED:
+		return true
+	case AdminOwnDomainStateBROKEN:
+		return true
+	case AdminOwnDomainStatePENDING:
+		return true
+	case AdminOwnDomainStateVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminTenantStatus.
 const (
 	AdminTenantStatusACTIVE          AdminTenantStatus = "ACTIVE"
@@ -1317,6 +1344,24 @@ func (e CapabilitiesTenancyMode) Valid() bool {
 	case Multi:
 		return true
 	case Single:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CapabilitiesWorkspaceHosts.
+const (
+	Assigned  CapabilitiesWorkspaceHosts = "assigned"
+	Subdomain CapabilitiesWorkspaceHosts = "subdomain"
+)
+
+// Valid indicates whether the value is a known member of the CapabilitiesWorkspaceHosts enum.
+func (e CapabilitiesWorkspaceHosts) Valid() bool {
+	switch e {
+	case Assigned:
+		return true
+	case Subdomain:
 		return true
 	default:
 		return false
@@ -3090,6 +3135,54 @@ func (e OauthAuthorizationCodeChallengeMethod) Valid() bool {
 	}
 }
 
+// Defines values for OauthAuthorizationPlatform.
+const (
+	OauthAuthorizationPlatformAndroid     OauthAuthorizationPlatform = "android"
+	OauthAuthorizationPlatformLessThannil OauthAuthorizationPlatform = "<nil>"
+	OauthAuthorizationPlatformLinux       OauthAuthorizationPlatform = "linux"
+	OauthAuthorizationPlatformWindows     OauthAuthorizationPlatform = "windows"
+)
+
+// Valid indicates whether the value is a known member of the OauthAuthorizationPlatform enum.
+func (e OauthAuthorizationPlatform) Valid() bool {
+	switch e {
+	case OauthAuthorizationPlatformAndroid:
+		return true
+	case OauthAuthorizationPlatformLessThannil:
+		return true
+	case OauthAuthorizationPlatformLinux:
+		return true
+	case OauthAuthorizationPlatformWindows:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OauthGrantAppPlatform.
+const (
+	OauthGrantAppPlatformAndroid     OauthGrantAppPlatform = "android"
+	OauthGrantAppPlatformLessThannil OauthGrantAppPlatform = "<nil>"
+	OauthGrantAppPlatformLinux       OauthGrantAppPlatform = "linux"
+	OauthGrantAppPlatformWindows     OauthGrantAppPlatform = "windows"
+)
+
+// Valid indicates whether the value is a known member of the OauthGrantAppPlatform enum.
+func (e OauthGrantAppPlatform) Valid() bool {
+	switch e {
+	case OauthGrantAppPlatformAndroid:
+		return true
+	case OauthGrantAppPlatformLessThannil:
+		return true
+	case OauthGrantAppPlatformLinux:
+		return true
+	case OauthGrantAppPlatformWindows:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for OauthTokenRequestGrantType.
 const (
 	AuthorizationCode OauthTokenRequestGrantType = "authorization_code"
@@ -3117,6 +3210,51 @@ func (e OperatorKind) Valid() bool {
 	case OperatorKindSERVICEACCOUNT:
 		return true
 	case OperatorKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OwnDomainState.
+const (
+	OwnDomainStateACTIVE   OwnDomainState = "ACTIVE"
+	OwnDomainStateBLOCKED  OwnDomainState = "BLOCKED"
+	OwnDomainStateBROKEN   OwnDomainState = "BROKEN"
+	OwnDomainStatePENDING  OwnDomainState = "PENDING"
+	OwnDomainStateVERIFIED OwnDomainState = "VERIFIED"
+)
+
+// Valid indicates whether the value is a known member of the OwnDomainState enum.
+func (e OwnDomainState) Valid() bool {
+	switch e {
+	case OwnDomainStateACTIVE:
+		return true
+	case OwnDomainStateBLOCKED:
+		return true
+	case OwnDomainStateBROKEN:
+		return true
+	case OwnDomainStatePENDING:
+		return true
+	case OwnDomainStateVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OwnDomainRecordType.
+const (
+	CNAME OwnDomainRecordType = "CNAME"
+	TXT   OwnDomainRecordType = "TXT"
+)
+
+// Valid indicates whether the value is a known member of the OwnDomainRecordType enum.
+func (e OwnDomainRecordType) Valid() bool {
+	switch e {
+	case CNAME:
+		return true
+	case TXT:
 		return true
 	default:
 		return false
@@ -5003,19 +5141,47 @@ func (e SyncChangeOp) Valid() bool {
 
 // Defines values for SyncMutationKind.
 const (
-	COMMENTADD SyncMutationKind = "COMMENT_ADD"
-	ITEMCREATE SyncMutationKind = "ITEM_CREATE"
-	ITEMDELETE SyncMutationKind = "ITEM_DELETE"
-	ITEMPATCH  SyncMutationKind = "ITEM_PATCH"
-	MOVE       SyncMutationKind = "MOVE"
-	SETADD     SyncMutationKind = "SET_ADD"
-	SETREMOVE  SyncMutationKind = "SET_REMOVE"
+	BUCKETCREATE     SyncMutationKind = "BUCKET_CREATE"
+	BUCKETDELETE     SyncMutationKind = "BUCKET_DELETE"
+	BUCKETPATCH      SyncMutationKind = "BUCKET_PATCH"
+	COMMENTADD       SyncMutationKind = "COMMENT_ADD"
+	CONTAINERCREATE  SyncMutationKind = "CONTAINER_CREATE"
+	CONTAINERDELETE  SyncMutationKind = "CONTAINER_DELETE"
+	CONTAINERPATCH   SyncMutationKind = "CONTAINER_PATCH"
+	ITEMCREATE       SyncMutationKind = "ITEM_CREATE"
+	ITEMDELETE       SyncMutationKind = "ITEM_DELETE"
+	ITEMPATCH        SyncMutationKind = "ITEM_PATCH"
+	LABELCREATE      SyncMutationKind = "LABEL_CREATE"
+	LABELDELETE      SyncMutationKind = "LABEL_DELETE"
+	LABELPATCH       SyncMutationKind = "LABEL_PATCH"
+	MOVE             SyncMutationKind = "MOVE"
+	RECURRENCECREATE SyncMutationKind = "RECURRENCE_CREATE"
+	RECURRENCEDELETE SyncMutationKind = "RECURRENCE_DELETE"
+	RECURRENCEPATCH  SyncMutationKind = "RECURRENCE_PATCH"
+	REMINDERCREATE   SyncMutationKind = "REMINDER_CREATE"
+	REMINDERDELETE   SyncMutationKind = "REMINDER_DELETE"
+	REMINDERPATCH    SyncMutationKind = "REMINDER_PATCH"
+	SETADD           SyncMutationKind = "SET_ADD"
+	SETREMOVE        SyncMutationKind = "SET_REMOVE"
+	TEMPLATEAPPLY    SyncMutationKind = "TEMPLATE_APPLY"
 )
 
 // Valid indicates whether the value is a known member of the SyncMutationKind enum.
 func (e SyncMutationKind) Valid() bool {
 	switch e {
+	case BUCKETCREATE:
+		return true
+	case BUCKETDELETE:
+		return true
+	case BUCKETPATCH:
+		return true
 	case COMMENTADD:
+		return true
+	case CONTAINERCREATE:
+		return true
+	case CONTAINERDELETE:
+		return true
+	case CONTAINERPATCH:
 		return true
 	case ITEMCREATE:
 		return true
@@ -5023,11 +5189,31 @@ func (e SyncMutationKind) Valid() bool {
 		return true
 	case ITEMPATCH:
 		return true
+	case LABELCREATE:
+		return true
+	case LABELDELETE:
+		return true
+	case LABELPATCH:
+		return true
 	case MOVE:
+		return true
+	case RECURRENCECREATE:
+		return true
+	case RECURRENCEDELETE:
+		return true
+	case RECURRENCEPATCH:
+		return true
+	case REMINDERCREATE:
+		return true
+	case REMINDERDELETE:
+		return true
+	case REMINDERPATCH:
 		return true
 	case SETADD:
 		return true
 	case SETREMOVE:
+		return true
+	case TEMPLATEAPPLY:
 		return true
 	default:
 		return false
@@ -6038,6 +6224,17 @@ type Actor struct {
 // ActorType defines model for Actor.Type.
 type ActorType string
 
+// AddressChangeNotice defines model for AddressChangeNotice.
+type AddressChangeNotice struct {
+	ChangedAt time.Time `json:"changed_at"`
+
+	// From The workspace's address before the change.
+	From string `json:"from"`
+
+	// To Its address since.
+	To string `json:"to"`
+}
+
 // AddressConfirm defines model for AddressConfirm.
 type AddressConfirm struct {
 	// Token The token from the confirmation mail. It dies on use.
@@ -6055,6 +6252,31 @@ type AddressRequested struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
+// AdminOwnDomain defines model for AdminOwnDomain.
+type AdminOwnDomain struct {
+	// AddressHost The workspace's subdomain (or assigned host), which becomes the main address where this domain falls back; null for a blocked domain no workspace holds.
+	AddressHost   *string `json:"address_host,omitempty"`
+	BlockedReason *string `json:"blocked_reason,omitempty"`
+	Domain        string  `json:"domain"`
+
+	// FellBackAt When it was the main address and broke, so its workspace's subdomain became the main address again by itself; null otherwise.
+	FellBackAt *time.Time `json:"fell_back_at,omitempty"`
+
+	// IsMain Whether it is its workspace's main address; for a blocked one, whether it was when it was blocked.
+	IsMain bool                `json:"is_main"`
+	Since  time.Time           `json:"since"`
+	State  AdminOwnDomainState `json:"state"`
+
+	// TenantId The workspace; null for a blocked domain no workspace holds.
+	TenantId *openapi_types.UUID `json:"tenant_id,omitempty"`
+
+	// TenantName The workspace's display name; empty where no workspace holds it.
+	TenantName string `json:"tenant_name"`
+}
+
+// AdminOwnDomainState defines model for AdminOwnDomain.State.
+type AdminOwnDomainState string
+
 // AdminTenant defines model for AdminTenant.
 type AdminTenant struct {
 	CreatedAt       time.Time `json:"created_at"`
@@ -6063,8 +6285,11 @@ type AdminTenant struct {
 	DisplayName     string    `json:"display_name"`
 
 	// ExternalReference The purchase platform's own reference, where it set one.
-	ExternalReference *string            `json:"external_reference,omitempty"`
-	Id                openapi_types.UUID `json:"id"`
+	ExternalReference *string `json:"external_reference,omitempty"`
+
+	// Host The host the workspace answers at, its main address. Absent in single mode, where the installation's own host is the workspace's.
+	Host *string            `json:"host,omitempty"`
+	Id   openapi_types.UUID `json:"id"`
 
 	// LegalHold Whether a legal hold is in force in the workspace. While one is, a deletion request is refused, and a workspace already pending deletion stays pending until the last hold is lifted. Only the state: which hold, on what and why stay the workspace's.
 	LegalHold *bool `json:"legal_hold,omitempty"`
@@ -7020,6 +7245,9 @@ type Capabilities struct {
 	AccountLink *string `json:"account_link,omitempty"`
 	ApiVersion  *string `json:"api_version,omitempty"`
 
+	// AppClientId The built-in OAuth2 client of the installed apps, the same in every workspace and installation: public, without a secret, redirecting only to a loopback address or `eu.hubtask.app:/oauth`.
+	AppClientId *openapi_types.UUID `json:"app_client_id,omitempty"`
+
 	// AutoAssignStrategies The values an auto-assign policy's `strategy` may take, for the reason the completion policies are listed.
 	AutoAssignStrategies *[]AutoAssignStrategy `json:"auto_assign_strategies,omitempty"`
 
@@ -7053,6 +7281,9 @@ type Capabilities struct {
 	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both, and so does a person who keeps their own content out of AI - no AI action is offered to them. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
 	Features *map[string]bool `json:"features,omitempty"`
+
+	// InstallationUrl Multi mode only: the installation's own address, where the device's list of workspaces is kept and shown. Absent in single mode, which keeps no list.
+	InstallationUrl *string `json:"installation_url,omitempty"`
 
 	// Instance What this caller may do at the level above the workspaces. Caller-scoped, like `ai_suggestions` and `backup_targets` beside it: an anonymous read answers `reachable: false`, and the answer changes with the actor.
 	// **This is what decides whether a client draws a way into `/instance` at all.** Hubtask does not draw a control somebody may not use and then refuse it: what the installation permits is read, never compiled in, and a capability that is refused outright is absent rather than disabled.
@@ -7120,6 +7351,9 @@ type Capabilities struct {
 	TokenScopes *[]string `json:"token_scopes,omitempty"`
 	ViewLayouts *[]string `json:"view_layouts,omitempty"`
 
+	// WorkspaceHosts Multi mode only: whether a workspace answers beneath the installation's own host or at a host the operator assigns, and therefore whether creating one asks for a short name or for a host. Absent in single mode.
+	WorkspaceHosts *CapabilitiesWorkspaceHosts `json:"workspace_hosts,omitempty"`
+
 	// WorkspacePermissions The columns of the role matrix the caller holds on the workspace itself, from every membership they hold there - their own and their groups' - decided as every request is decided, and recording nothing: asking is not an attempt. Caller-scoped like `instance`: absent for an anonymous caller, empty for somebody whose roles sit only on hubs, collections or entries.
 	// It answers what a client offers at the level of the workspace before anybody presses anything - the administration (`STRUCTURE` or `READ_CONFIGURATION`), the jumble (`READ`), capturing into it (`WRITE_ITEMS`), its intake address (`AUTOMATION`) - rather than a client probing a route that refuses. It says nothing about a hub, a collection or an entry, where roles granted there add to these, and nothing about the presenting credential: a token's scopes bound it further.
 	WorkspacePermissions *[]CapabilitiesWorkspacePermissions `json:"workspace_permissions,omitempty"`
@@ -7133,6 +7367,9 @@ type CapabilitiesSupportedLocalesWeekStart string
 
 // CapabilitiesTenancyMode defines model for Capabilities.TenancyMode.
 type CapabilitiesTenancyMode string
+
+// CapabilitiesWorkspaceHosts Multi mode only: whether a workspace answers beneath the installation's own host or at a host the operator assigns, and therefore whether creating one asks for a short name or for a host. Absent in single mode.
+type CapabilitiesWorkspaceHosts string
 
 // CapabilitiesWorkspacePermissions defines model for Capabilities.WorkspacePermissions.
 type CapabilitiesWorkspacePermissions string
@@ -7687,6 +7924,37 @@ type DeprecatedField struct {
 
 	// Sunset The day it stops being accepted, once one is set. Null until then.
 	Sunset *openapi_types.Date `json:"sunset,omitempty"`
+}
+
+// DeviceListCheck defines model for DeviceListCheck.
+type DeviceListCheck struct {
+	Entries []string `json:"entries"`
+}
+
+// DeviceListChecked defines model for DeviceListChecked.
+type DeviceListChecked struct {
+	// Entries The entries this installation signed, in the order asked; an entry it did not sign is not in it.
+	Entries []DeviceListEntryState `json:"entries"`
+}
+
+// DeviceListEntry One workspace as the device's list holds it: the signed entry, and what it says - the host and the display name, nothing else.
+type DeviceListEntry struct {
+	DisplayName string `json:"display_name"`
+
+	// Entry The entry as the installation signed it; opaque to a client.
+	Entry string `json:"entry"`
+
+	// Host The workspace's main address, a host without a scheme.
+	Host string `json:"host"`
+}
+
+// DeviceListEntryState defines model for DeviceListEntryState.
+type DeviceListEntryState struct {
+	// Answers Whether the host is still a workspace's main address. `false` for a workspace whose address changed or that is gone: the entry opens nothing and can only be forgotten.
+	Answers     bool   `json:"answers"`
+	DisplayName string `json:"display_name"`
+	Entry       string `json:"entry"`
+	Host        string `json:"host"`
 }
 
 // DroppedReference defines model for DroppedReference.
@@ -8373,6 +8641,9 @@ type InstallationSetUp struct {
 	// DisplayName The workspace's name.
 	DisplayName string `json:"display_name"`
 
+	// Host Multi mode with assigned hosts only, and required there: the full host name the workspace answers at. Refused like a provisioned workspace's host (`admin.host_required`, `admin.host_invalid`, `admin.host_installation`, `admin.host_taken`), and with `admin.host_not_assigned` where the installation uses subdomains or runs a single workspace.
+	Host *string `json:"host,omitempty"`
+
 	// OwnerDisplayName The owner's name; the address stands in when it is omitted.
 	OwnerDisplayName *string `json:"owner_display_name,omitempty"`
 
@@ -8382,7 +8653,7 @@ type InstallationSetUp struct {
 	// Password The owner's password, under the product's password policy.
 	Password string `json:"password"`
 
-	// Slug Multi mode only, and required there: the subdomain the workspace answers on, 3-40 characters of lower-case letters, digits and hyphens. Refused in single mode.
+	// Slug Multi mode only: the workspace's short name, 3-40 characters of lower-case letters, digits and hyphens. With subdomains it is required and the subdomain the workspace answers on; with assigned hosts it is optional and made from the host when omitted. Refused in single mode.
 	Slug *string `json:"slug,omitempty"`
 }
 
@@ -8472,6 +8743,9 @@ type InstanceSettingWorkspaceMay string
 // InstanceSettings The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use.
 // **Every key of every area is answered**, decided or not, with `set` saying which. A reader has to be able to see that a setting exists and that this installation has left it to each workspace — a different fact from the setting not existing, and the only way a screen can draw the level without keeping a list that would be wrong the day one is added.
 type InstanceSettings struct {
+	// AddressChangeCooldownDays The days after a change of a workspace's address - by anybody - before its owners may change it again. 30 where the installation decides nothing; the operator is never held by it. A value outside 1-365 is refused (`admin.address_cooldown_invalid`).
+	AddressChangeCooldownDays *int `json:"address_change_cooldown_days,omitempty"`
+
 	// Ai Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this installation offers), `OWN` (only the workspace's own, the default) or `EITHER`; `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a workspace's own model must declare about where it processes content; `person_opt_out` is `OFFERED` only - each person may keep their own content out of AI - and with `locked` it holds every workspace there. `NOT_OFFERED` is refused here with `ai.opt_out_workspace_only`: only a workspace can make AI part of everybody's work, because only it can name the legal basis.
 	// A workspace may narrow `sources` where it is not locked, and may always choose no AI: a lock holds a workspace out of a source, never in one. No value here switches processing on - that is each workspace's own consent.
 	Ai *map[string]InstanceSetting `json:"ai,omitempty"`
@@ -8492,6 +8766,12 @@ type InstanceSettings struct {
 
 	// Metering Whether the use per workspace and day is offered for billing (`GET /admin/usage`). Off by default. The counts are recorded either way; this switch only offers them.
 	Metering *bool `json:"metering,omitempty"`
+
+	// OwnersChangeAddress Whether a workspace's owners may change its address themselves (`POST /tenant:change-address`), in multi mode. Off by default: the operator's change is the only one. The installation's alone - no workspace switches it for itself.
+	OwnersChangeAddress *bool `json:"owners_change_address,omitempty"`
+
+	// OwnersOwnDomains Whether a workspace's owners may set up an own domain (`PUT /tenant/own-domain`), in multi mode. Off by default. The installation's alone; the operator sees every own domain and may block one either way.
+	OwnersOwnDomains *bool `json:"owners_own_domains,omitempty"`
 
 	// Quotas One ceiling per quota, by the quota's own name — the middle level of `Effective(product, instance, plan, workspace)`. A workspace that sets none of its own gets these; one that does still wins, unless the ceiling is locked.
 	// Unlike the other areas a lock here is meaningful, which is what "Tarif, Ausnahme je Bereich" will mean once there are plans. `0` is unlimited and is a decision; absent is "the installation decides nothing", and the product's own default applies.
@@ -9381,6 +9661,12 @@ type MailboxPreset struct {
 // MailboxPresetProtocol defines model for MailboxPreset.Protocol.
 type MailboxPresetProtocol string
 
+// MainAddressSwitch defines model for MainAddressSwitch.
+type MainAddressSwitch struct {
+	// DryRun Check and answer without changing anything, and without a step-up.
+	DryRun *bool `json:"dry_run,omitempty"`
+}
+
 // ManagedAccountCreate defines model for ManagedAccountCreate.
 type ManagedAccountCreate struct {
 	DisplayName string `json:"display_name"`
@@ -9603,15 +9889,22 @@ type NotificationPreferenceUpdate struct {
 
 // OauthAuthorization defines model for OauthAuthorization.
 type OauthAuthorization struct {
+	// ClientId A registered client, or the built-in client of the installed apps, which every workspace knows without registering it (`app_client_id` in `/meta/capabilities`).
 	ClientId openapi_types.UUID `json:"client_id"`
 
 	// CodeChallenge BASE64URL(SHA256(code_verifier)), RFC 7636.
 	CodeChallenge       string                                `json:"code_challenge"`
 	CodeChallengeMethod OauthAuthorizationCodeChallengeMethod `json:"code_challenge_method"`
-	RedirectUri         string                                `json:"redirect_uri"`
 
-	// Scopes From this installation's own catalogue - the scopes descriptors already declare, no parallel vocabulary. The issued pair is bounded by them exactly as a PAT's is.
-	Scopes []string `json:"scopes"`
+	// Device The built-in client only, and required there: the name the device's system gives it, which the consent and the grant list show.
+	Device *string `json:"device,omitempty"`
+
+	// Platform The built-in client only, and required there: the system the app runs on. The desktop's redirect is a loopback address on any port, Android's `eu.hubtask.app:/oauth`.
+	Platform    *OauthAuthorizationPlatform `json:"platform,omitempty"`
+	RedirectUri string                      `json:"redirect_uri"`
+
+	// Scopes From this installation's own catalogue - the scopes descriptors already declare, no parallel vocabulary. The issued pair is bounded by them exactly as a PAT's is. At least one for a registered client; none for the built-in client, whose grant carries a session's scopes.
+	Scopes *[]string `json:"scopes,omitempty"`
 
 	// State Echoed back untouched, for the client's own CSRF binding.
 	State *string `json:"state,omitempty"`
@@ -9619,6 +9912,9 @@ type OauthAuthorization struct {
 
 // OauthAuthorizationCodeChallengeMethod defines model for OauthAuthorization.CodeChallengeMethod.
 type OauthAuthorizationCodeChallengeMethod string
+
+// OauthAuthorizationPlatform The built-in client only, and required there: the system the app runs on. The desktop's redirect is a loopback address on any port, Android's `eu.hubtask.app:/oauth`.
+type OauthAuthorizationPlatform string
 
 // OauthClient defines model for OauthClient.
 type OauthClient struct {
@@ -9670,7 +9966,11 @@ type OauthCode struct {
 
 // OauthGrant defines model for OauthGrant.
 type OauthGrant struct {
-	ClientId   openapi_types.UUID `json:"client_id"`
+	// AppPlatform Set for a grant of the built-in client of the installed apps: the system the app runs on. Null for a registered client.
+	AppPlatform *OauthGrantAppPlatform `json:"app_platform,omitempty"`
+	ClientId    openapi_types.UUID     `json:"client_id"`
+
+	// ClientName The registered client's name, or for the built-in client of the installed apps the device's name it consented on.
 	ClientName string             `json:"client_name"`
 	CreatedAt  time.Time          `json:"created_at"`
 	Id         openapi_types.UUID `json:"id"`
@@ -9679,6 +9979,9 @@ type OauthGrant struct {
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 	Scopes     []string   `json:"scopes"`
 }
+
+// OauthGrantAppPlatform Set for a grant of the built-in client of the installed apps: the system the app runs on. Null for a registered client.
+type OauthGrantAppPlatform string
 
 // OauthStandardTokens defines model for OauthStandardTokens.
 type OauthStandardTokens struct {
@@ -9917,6 +10220,67 @@ type OwnAiPosition struct {
 
 	// Since Since when AI is part of everybody's work. Absent with `OFFERED`.
 	Since *time.Time `json:"since,omitempty"`
+}
+
+// OwnDomain A workspace's own domain as its owner sees it: the state, the two records and whether each was found at the last check.
+type OwnDomain struct {
+	// BlockedReason The operator's reason, word for word, where it is blocked.
+	BlockedReason *string `json:"blocked_reason,omitempty"`
+
+	// CertificateAsked Whether the ingress asked for its certificate.
+	CertificateAsked bool `json:"certificate_asked"`
+
+	// CheckedAt The last check of its records; null before the first.
+	CheckedAt *time.Time `json:"checked_at,omitempty"`
+
+	// Domain The domain, as the DNS holds it - lower case, letters beyond ASCII encoded.
+	Domain string `json:"domain"`
+
+	// FellBackAt When it was the main address and broke, so the workspace's subdomain became the main address again by itself; null otherwise. It stays until the owner makes the domain the main address again or removes it. A blocked domain that was the main address says so by `is_main`.
+	FellBackAt *time.Time `json:"fell_back_at,omitempty"`
+
+	// IsMain Whether it is the workspace's main address.
+	IsMain bool `json:"is_main"`
+
+	// Records The CNAME and the TXT record, in that order. Empty where it is blocked.
+	Records []OwnDomainRecord `json:"records"`
+
+	// Since When it entered its state.
+	Since time.Time `json:"since"`
+
+	// State `PENDING` waits for its records; `VERIFIED` has both and answers, its certificate on its way; `ACTIVE` the ingress obtained a certificate for it and a request reached the workspace through it; `BROKEN` its proof is gone and it answers no more until the record is back; `BLOCKED` the operator blocked it.
+	State OwnDomainState `json:"state"`
+}
+
+// OwnDomainState `PENDING` waits for its records; `VERIFIED` has both and answers, its certificate on its way; `ACTIVE` the ingress obtained a certificate for it and a request reached the workspace through it; `BROKEN` its proof is gone and it answers no more until the record is back; `BLOCKED` the operator blocked it.
+type OwnDomainState string
+
+// OwnDomainBlock defines model for OwnDomainBlock.
+type OwnDomainBlock struct {
+	// Reason Why - shown to the workspace's owner and kept in the installation's journal.
+	Reason string `json:"reason"`
+}
+
+// OwnDomainRecord defines model for OwnDomainRecord.
+type OwnDomainRecord struct {
+	// Found Whether the last check found it as shown.
+	Found bool `json:"found"`
+
+	// Name The record's name.
+	Name string              `json:"name"`
+	Type OwnDomainRecordType `json:"type"`
+
+	// Value What it points to, or the text it carries.
+	Value string `json:"value"`
+}
+
+// OwnDomainRecordType defines model for OwnDomainRecord.Type.
+type OwnDomainRecordType string
+
+// OwnDomainSetUp defines model for OwnDomainSetUp.
+type OwnDomainSetUp struct {
+	// Domain The domain, such as `tasks.example.com`.
+	Domain string `json:"domain"`
 }
 
 // PageInfo defines model for PageInfo.
@@ -10706,8 +11070,11 @@ type ProvisionedTenant struct {
 	ExampleCollectionId openapi_types.UUID `json:"example_collection_id"`
 
 	// ExternalReference The purchase platform's own reference, where it set one.
-	ExternalReference *string            `json:"external_reference,omitempty"`
-	Id                openapi_types.UUID `json:"id"`
+	ExternalReference *string `json:"external_reference,omitempty"`
+
+	// Host The host the workspace answers at, its main address. Absent in single mode, where the installation's own host is the workspace's.
+	Host *string            `json:"host,omitempty"`
+	Id   openapi_types.UUID `json:"id"`
 
 	// LegalHold Whether a legal hold is in force in the workspace. While one is, a deletion request is refused, and a workspace already pending deletion stays pending until the last hold is lifted. Only the state: which hold, on what and why stay the workspace's.
 	LegalHold      *bool              `json:"legal_hold,omitempty"`
@@ -12098,8 +12465,16 @@ type SyncDevice struct {
 
 // SyncMutation defines model for SyncMutation.
 type SyncMutation struct {
-	BaseVersion *int                `json:"base_version,omitempty"`
+	BaseVersion *int `json:"base_version,omitempty"`
+
+	// ContainerId The collection a label or a bucket belongs to, on its `*_PATCH` and `*_DELETE`: where
+	// the server reads it back when the device's fields lost.
+	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
 	Element     *openapi_types.UUID `json:"element,omitempty"`
+
+	// EntityId The reminder, recurrence rule, container, label or bucket the mutation is about,
+	// assigned by the client (UUIDv7) on its creation. Absent on the entry's kinds.
+	EntityId *openapi_types.UUID `json:"entity_id,omitempty"`
 
 	// Fields Per-field changes, each field with its own HLC.
 	Fields *map[string]struct {
@@ -12110,7 +12485,18 @@ type SyncMutation struct {
 
 	// ItemId Assigned by the client (UUIDv7), including on CREATE
 	ItemId *openapi_types.UUID `json:"item_id,omitempty"`
-	Kind   SyncMutationKind    `json:"kind"`
+
+	// Kind What the device did. The entry's kinds name it by `item_id`. A reminder, a recurrence
+	// rule, a container, a label and a bucket travel whole on creation (`*_CREATE`, the
+	// route's body as `payload`) and deletion (`*_DELETE`, no payload), and field by field
+	// between (`*_PATCH`, `fields`), each field merged under its own clock; a field the server
+	// decides (a reminder's `fire_at` and `state`, a rule's `last_materialized_at`, a
+	// container's structure and privacy) is refused as `sync.field_not_mergeable`.
+	// A reminder and a rule name their entry by `item_id`; a recurrence rule is the entry's
+	// one series, so a `RECURRENCE_CREATE` for an entry that has one merges field by field.
+	// `TEMPLATE_APPLY` carries the instantiation's body as `payload`; its entries arrive as
+	// ordinary creations. A kind this build does not know is `sync.kind_unknown`.
+	Kind SyncMutationKind `json:"kind"`
 
 	// OpId The idempotency key. The server keeps it for the maximum offline window - the `tombstone_window_days` a pull answers, 90 days by default - so a mutation pushed again within that window takes effect exactly once.
 	OpId    openapi_types.UUID      `json:"op_id"`
@@ -12123,7 +12509,16 @@ type SyncMutation struct {
 	Set *SyncMutationSet `json:"set,omitempty"`
 }
 
-// SyncMutationKind defines model for SyncMutation.Kind.
+// SyncMutationKind What the device did. The entry's kinds name it by `item_id`. A reminder, a recurrence
+// rule, a container, a label and a bucket travel whole on creation (`*_CREATE`, the
+// route's body as `payload`) and deletion (`*_DELETE`, no payload), and field by field
+// between (`*_PATCH`, `fields`), each field merged under its own clock; a field the server
+// decides (a reminder's `fire_at` and `state`, a rule's `last_materialized_at`, a
+// container's structure and privacy) is refused as `sync.field_not_mergeable`.
+// A reminder and a rule name their entry by `item_id`; a recurrence rule is the entry's
+// one series, so a `RECURRENCE_CREATE` for an entry that has one merges field by field.
+// `TEMPLATE_APPLY` carries the instantiation's body as `payload`; its entries arrive as
+// ordinary creations. A kind this build does not know is `sync.kind_unknown`.
 type SyncMutationKind string
 
 // SyncMutationSet Which set of the entry the element belongs to. For `attachments`, a device that
@@ -12345,6 +12740,36 @@ type TemplateUpdate struct {
 	Nodes       *[]TemplateNode `json:"nodes,omitempty"`
 }
 
+// TenantAddressChange The new address: `slug` where workspaces answer beneath the installation's host, `host` where the installation assigns hosts - the other is refused.
+type TenantAddressChange struct {
+	// DryRun Check and answer without changing anything, and without a step-up.
+	DryRun *bool `json:"dry_run,omitempty"`
+
+	// Host The new host, where the installation assigns hosts. No DNS is checked.
+	Host *string `json:"host,omitempty"`
+
+	// Slug The new short name, 3-40 lower-case letters, digits and hyphens.
+	Slug *string `json:"slug,omitempty"`
+}
+
+// TenantAddressChanged defines model for TenantAddressChanged.
+type TenantAddressChanged struct {
+	DryRun bool `json:"dry_run"`
+
+	// From The main address before the change.
+	From string `json:"from"`
+
+	// MembersMailed The members with an email address, who are mailed the old and the new address.
+	MembersMailed int `json:"members_mailed"`
+
+	// MembersToldAtSignIn The members without one, who are told at their next sign-in.
+	MembersToldAtSignIn int         `json:"members_told_at_sign_in"`
+	Tenant              AdminTenant `json:"tenant"`
+
+	// To The main address after it. Absent on a dry run without a new address.
+	To *string `json:"to,omitempty"`
+}
+
 // TenantDeletionRequest defines model for TenantDeletionRequest.
 type TenantDeletionRequest struct {
 	// Confirmation The workspace's display name, typed exactly - the restore precedent.
@@ -12396,15 +12821,18 @@ type TenantProvision struct {
 	DisplayName     string  `json:"display_name"`
 
 	// ExternalReference The purchase platform's own reference for the workspace, unique on the installation - what it finds the workspace by when an answer was lost.
-	ExternalReference *string             `json:"external_reference,omitempty"`
-	OwnerDisplayName  *string             `json:"owner_display_name,omitempty"`
-	OwnerEmail        openapi_types.Email `json:"owner_email"`
+	ExternalReference *string `json:"external_reference,omitempty"`
+
+	// Host The full host name the workspace answers at, such as `tasks-hr.corp.example`: required where the installation assigns hosts (`admin.host_required`), refused where it uses subdomains (`admin.host_not_assigned`). No DNS is checked; the record and the certificate are the operator's. Refused at the field when it is no host name (`admin.host_invalid`), the installation's own host (`admin.host_installation`) or a host another workspace answers at (`admin.host_taken`).
+	Host             *string             `json:"host,omitempty"`
+	OwnerDisplayName *string             `json:"owner_display_name,omitempty"`
+	OwnerEmail       openapi_types.Email `json:"owner_email"`
 
 	// Plan The short name of the plan the workspace starts on, or none. An unknown or removed plan is refused before anything is written.
 	Plan *string `json:"plan,omitempty"`
 
-	// Slug The subdomain the workspace answers on. Unique across the installation (`admin.slug_taken`), and none the installation reserves for itself - the product's list or the operator's `reserved_short_names`, each with its plural (`admin.slug_reserved`).
-	Slug string `json:"slug"`
+	// Slug The workspace's short name, by which the API and `hubctl` name it. Unique across the installation (`admin.slug_taken`), and none the installation reserves for itself - the product's list or the operator's `reserved_short_names`, each with its plural (`admin.slug_reserved`). With subdomains it is required (`admin.slug_required`) and is the subdomain the workspace answers on; with assigned hosts it may be omitted and is then made from the host's first label.
+	Slug *string `json:"slug,omitempty"`
 }
 
 // TenantQuery defines model for TenantQuery.
@@ -12997,6 +13425,9 @@ type WorkItemUpdate struct {
 
 // Workspace A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on.
 type Workspace struct {
+	// Address The workspace's main address and who may change it. The operator always may; the owners where the installation allows it (`owners_change_address`) and the last change is older than its cooldown.
+	Address *WorkspaceAddress `json:"address,omitempty"`
+
 	// AuditAnchorTargetId The workspace's backup target the audit chain's end is anchored to once a day, or null where anchoring is off. Read here, because a screen that sets a value it cannot read back is guessing; written through `PUT /audit/anchoring` and nowhere else, which is where the write is audited with the target before and after. A body naming it on the `PATCH` is refused as an unknown field.
 	AuditAnchorTargetId *openapi_types.UUID `json:"audit_anchor_target_id,omitempty"`
 	CreatedAt           time.Time           `json:"created_at"`
@@ -13011,8 +13442,8 @@ type Workspace struct {
 	DefaultWeekStart *WorkspaceDefaultWeekStart `json:"default_week_start,omitempty"`
 	DisplayName      string                     `json:"display_name"`
 
-	// Hosts The hosts this workspace answers at. **Read-only, and nothing resolves a request through them yet**: a workspace is still found from its slug, and what this answers is the model a custom domain will need - one host per row, a state, and which of them is canonical.
-	// Absent where there are none, which is every workspace provisioned before the table existed. An empty array would read as "this workspace is reachable nowhere".
+	// Hosts The hosts this workspace answers at, read-only: one host per row, a state, and which of them is canonical - the main address every link Hubtask writes names. In multi mode a request's host finds its workspace through them.
+	// Absent where there are none: in single mode, and for a workspace whose main row the next start of a multi-mode server has not written yet. An empty array would read as "this workspace is reachable nowhere".
 	Hosts *[]WorkspaceHost   `json:"hosts,omitempty"`
 	Id    openapi_types.UUID `json:"id"`
 
@@ -13056,6 +13487,53 @@ type WorkspaceDefaultWeekStart string
 
 // WorkspaceStatus The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
 type WorkspaceStatus string
+
+// WorkspaceAddress The workspace's main address and who may change it. The operator always may; the owners where the installation allows it (`owners_change_address`) and the last change is older than its cooldown.
+type WorkspaceAddress struct {
+	// AddressHost Where the own domain is the main address, the workspace's subdomain (or assigned host) beside it: it sends browsers on to the own domain, still answers the API and is the way back. Null otherwise.
+	AddressHost *string `json:"address_host,omitempty"`
+
+	// ChangeableFrom Where owners may change it and the cooldown runs, the moment from which they may again; null otherwise.
+	ChangeableFrom *time.Time `json:"changeable_from,omitempty"`
+
+	// ChangedAt The last change of the address, by anybody; null where it never changed.
+	ChangedAt *time.Time `json:"changed_at,omitempty"`
+
+	// Host The main address, the host every link Hubtask writes names.
+	Host string `json:"host"`
+
+	// MayChange Whether the reader may change it now (`POST /tenant:change-address`): the installation allows it, the reader holds `OWNER` on the workspace and the cooldown is over.
+	MayChange bool `json:"may_change"`
+
+	// MayManageOwnDomain Whether the reader may set up the own domain where it is allowed, and remove it: the reader holds `OWNER` on the workspace. Always false in single mode.
+	MayManageOwnDomain *bool `json:"may_manage_own_domain,omitempty"`
+
+	// OwnDomain A workspace's own domain as its owner sees it: the state, the two records and whether each was found at the last check.
+	OwnDomain *OwnDomain `json:"own_domain,omitempty"`
+
+	// OwnDomainsAllowed Whether this installation lets the workspace's owners set up an own domain (`owners_own_domains`). Always false in single mode.
+	OwnDomainsAllowed *bool `json:"own_domains_allowed,omitempty"`
+
+	// OwnersMayChange Whether this installation lets the workspace's owners change the address. Always false in single mode.
+	OwnersMayChange bool `json:"owners_may_change"`
+}
+
+// WorkspaceAddressChanged defines model for WorkspaceAddressChanged.
+type WorkspaceAddressChanged struct {
+	DryRun bool `json:"dry_run"`
+
+	// From The main address before the change.
+	From string `json:"from"`
+
+	// MembersMailed The members with an email address, who are mailed the old and the new address.
+	MembersMailed int `json:"members_mailed"`
+
+	// MembersToldAtSignIn The members without one, who are told at their next sign-in.
+	MembersToldAtSignIn int `json:"members_told_at_sign_in"`
+
+	// To The main address after it. Absent on a dry run without a new address.
+	To *string `json:"to,omitempty"`
+}
 
 // WorkspaceHost One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish.
 type WorkspaceHost struct {
@@ -13479,6 +13957,12 @@ type ProvisionTenantParams struct {
 type UpdateTenantParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ChangeTenantAddressParams defines parameters for ChangeTenantAddress.
+type ChangeTenantAddressParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // RequestTenantDeletionParams defines parameters for RequestTenantDeletion.
@@ -14580,10 +15064,28 @@ type UpdateWorkspaceParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// MakeOwnDomainMainParams defines parameters for MakeOwnDomainMain.
+type MakeOwnDomainMainParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// SwitchBackFromOwnDomainParams defines parameters for SwitchBackFromOwnDomain.
+type SwitchBackFromOwnDomainParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // SetWorkspaceStructureParams defines parameters for SetWorkspaceStructure.
 type SetWorkspaceStructureParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ChangeWorkspaceAddressParams defines parameters for ChangeWorkspaceAddress.
+type ChangeWorkspaceAddressParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ListTrashParams defines parameters for ListTrash.
@@ -14711,6 +15213,9 @@ type WithdrawInstanceIdentityProviderJSONRequestBody = ProviderWithdrawal
 // AddOperatorJSONRequestBody defines body for AddOperator for application/json ContentType.
 type AddOperatorJSONRequestBody = OperatorAdd
 
+// BlockOwnDomainJSONRequestBody defines body for BlockOwnDomain for application/json ContentType.
+type BlockOwnDomainJSONRequestBody = OwnDomainBlock
+
 // CreatePlanJSONRequestBody defines body for CreatePlan for application/json ContentType.
 type CreatePlanJSONRequestBody = PlanCreate
 
@@ -14740,6 +15245,9 @@ type UpdateTenantJSONRequestBody = TenantUpdate
 
 // UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody defines body for UpdateTenantQuotas for application/merge-patch+json ContentType.
 type UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody = TenantQuotas
+
+// ChangeTenantAddressJSONRequestBody defines body for ChangeTenantAddress for application/json ContentType.
+type ChangeTenantAddressJSONRequestBody = TenantAddressChange
 
 // RequestTenantDeletionJSONRequestBody defines body for RequestTenantDeletion for application/json ContentType.
 type RequestTenantDeletionJSONRequestBody = TenantDeletionRequest
@@ -14791,6 +15299,9 @@ type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 
 // ConfirmAddressJSONRequestBody defines body for ConfirmAddress for application/json ContentType.
 type ConfirmAddressJSONRequestBody = AddressConfirm
+
+// CheckDeviceListJSONRequestBody defines body for CheckDeviceList for application/json ContentType.
+type CheckDeviceListJSONRequestBody = DeviceListCheck
 
 // SetUpInstallationJSONRequestBody defines body for SetUpInstallation for application/json ContentType.
 type SetUpInstallationJSONRequestBody = InstallationSetUp
@@ -15176,8 +15687,20 @@ type AiGenerateTemplateJSONRequestBody = TemplateGeneration
 // UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody defines body for UpdateWorkspace for application/merge-patch+json ContentType.
 type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
 
+// SetUpOwnDomainJSONRequestBody defines body for SetUpOwnDomain for application/json ContentType.
+type SetUpOwnDomainJSONRequestBody = OwnDomainSetUp
+
+// MakeOwnDomainMainJSONRequestBody defines body for MakeOwnDomainMain for application/json ContentType.
+type MakeOwnDomainMainJSONRequestBody = MainAddressSwitch
+
+// SwitchBackFromOwnDomainJSONRequestBody defines body for SwitchBackFromOwnDomain for application/json ContentType.
+type SwitchBackFromOwnDomainJSONRequestBody = MainAddressSwitch
+
 // SetWorkspaceStructureJSONRequestBody defines body for SetWorkspaceStructure for application/json ContentType.
 type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
+
+// ChangeWorkspaceAddressJSONRequestBody defines body for ChangeWorkspaceAddress for application/json ContentType.
+type ChangeWorkspaceAddressJSONRequestBody = TenantAddressChange
 
 // CreateSavedViewJSONRequestBody defines body for CreateSavedView for application/json ContentType.
 type CreateSavedViewJSONRequestBody = SavedViewCreate
@@ -15208,6 +15731,12 @@ type ServerInterface interface {
 	// UpdateOwnAccount Change what the caller is called
 	// (PATCH /accounts/me)
 	UpdateOwnAccount(w http.ResponseWriter, r *http.Request)
+	// ListAddressNotices The change of the workspace's address the caller still has to be told of
+	// (GET /accounts/me/address-notices)
+	ListAddressNotices(w http.ResponseWriter, r *http.Request)
+	// AcknowledgeAddressNotices Acknowledge the change of the workspace's address
+	// (POST /accounts/me/address-notices:acknowledge)
+	AcknowledgeAddressNotices(w http.ResponseWriter, r *http.Request)
 	// RemoveOwnAvatar Go back to the initials
 	// (DELETE /accounts/me/avatar)
 	RemoveOwnAvatar(w http.ResponseWriter, r *http.Request)
@@ -15337,6 +15866,12 @@ type ServerInterface interface {
 	// ReadInstanceOverview How big this installation is and how its workspaces stand
 	// (GET /admin/overview)
 	ReadInstanceOverview(w http.ResponseWriter, r *http.Request)
+	// ListOwnDomains Every own domain the workspaces' owners set up
+	// (GET /admin/own-domains)
+	ListOwnDomains(w http.ResponseWriter, r *http.Request)
+	// BlockOwnDomain Block an own domain
+	// (POST /admin/own-domains/{domain}:block)
+	BlockOwnDomain(w http.ResponseWriter, r *http.Request, domain string)
 	// ListPlans The installation's plans
 	// (GET /admin/plans)
 	ListPlans(w http.ResponseWriter, r *http.Request)
@@ -15412,6 +15947,9 @@ type ServerInterface interface {
 	// CancelTenantDeletion Call off a workspace's pending deletion
 	// (POST /admin/tenants/{tenantId}:cancel-deletion)
 	CancelTenantDeletion(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
+	// ChangeTenantAddress Change a workspace's address
+	// (POST /admin/tenants/{tenantId}:change-address)
+	ChangeTenantAddress(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params ChangeTenantAddressParams)
 	// CloseTenantPassword Close an operator's opening of the password early
 	// (POST /admin/tenants/{tenantId}:close-password)
 	CloseTenantPassword(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
@@ -15490,6 +16028,9 @@ type ServerInterface interface {
 	// ConfirmAddress Confirm a mail address with the link that was sent to it
 	// (POST /auth/address:confirm)
 	ConfirmAddress(w http.ResponseWriter, r *http.Request)
+	// CheckDeviceList Which entries of the device's list still open a workspace
+	// (POST /auth/device-list:check)
+	CheckDeviceList(w http.ResponseWriter, r *http.Request)
 	// SetUpInstallation Set up a fresh installation with the code its first start printed
 	// (POST /auth/installation:set-up)
 	SetUpInstallation(w http.ResponseWriter, r *http.Request)
@@ -16321,12 +16862,30 @@ type ServerInterface interface {
 	// CountAccountsWithoutProvider How many people here no provider switched on here signs in
 	// (GET /tenant/accounts-without-provider)
 	CountAccountsWithoutProvider(w http.ResponseWriter, r *http.Request)
+	// IssueDeviceListEntry This workspace's entry for the device's list of workspaces
+	// (GET /tenant/device-list-entry)
+	IssueDeviceListEntry(w http.ResponseWriter, r *http.Request)
+	// RemoveOwnDomain The workspace's owner removes its own domain
+	// (DELETE /tenant/own-domain)
+	RemoveOwnDomain(w http.ResponseWriter, r *http.Request)
+	// SetUpOwnDomain The workspace's owner sets up an own domain
+	// (PUT /tenant/own-domain)
+	SetUpOwnDomain(w http.ResponseWriter, r *http.Request)
+	// MakeOwnDomainMain The workspace's owner makes its own domain the main address
+	// (POST /tenant/own-domain:make-main)
+	MakeOwnDomainMain(w http.ResponseWriter, r *http.Request, params MakeOwnDomainMainParams)
+	// SwitchBackFromOwnDomain The workspace's owner makes its subdomain the main address again
+	// (POST /tenant/own-domain:switch-back)
+	SwitchBackFromOwnDomain(w http.ResponseWriter, r *http.Request, params SwitchBackFromOwnDomainParams)
 	// CloseStarter Answers the first start's question for good
 	// (POST /tenant/starter:close)
 	CloseStarter(w http.ResponseWriter, r *http.Request)
 
 	// (PATCH /tenant/structure)
 	SetWorkspaceStructure(w http.ResponseWriter, r *http.Request, params SetWorkspaceStructureParams)
+	// ChangeWorkspaceAddress The workspace's owner changes its address
+	// (POST /tenant:change-address)
+	ChangeWorkspaceAddress(w http.ResponseWriter, r *http.Request, params ChangeWorkspaceAddressParams)
 	// ListTrash What is in the trash
 	// (GET /trash)
 	ListTrash(w http.ResponseWriter, r *http.Request, params ListTrashParams)
@@ -16399,6 +16958,34 @@ func (siw *ServerInterfaceWrapper) UpdateOwnAccount(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateOwnAccount(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAddressNotices operation middleware
+func (siw *ServerInterfaceWrapper) ListAddressNotices(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAddressNotices(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AcknowledgeAddressNotices operation middleware
+func (siw *ServerInterfaceWrapper) AcknowledgeAddressNotices(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AcknowledgeAddressNotices(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -17700,6 +18287,46 @@ func (siw *ServerInterfaceWrapper) ReadInstanceOverview(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// ListOwnDomains operation middleware
+func (siw *ServerInterfaceWrapper) ListOwnDomains(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListOwnDomains(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// BlockOwnDomain operation middleware
+func (siw *ServerInterfaceWrapper) BlockOwnDomain(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "domain" -------------
+	var domain string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "domain", r.PathValue("domain"), &domain, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "domain", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.BlockOwnDomain(w, r, domain)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPlans operation middleware
 func (siw *ServerInterfaceWrapper) ListPlans(w http.ResponseWriter, r *http.Request) {
 
@@ -18581,6 +19208,56 @@ func (siw *ServerInterfaceWrapper) CancelTenantDeletion(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// ChangeTenantAddress operation middleware
+func (siw *ServerInterfaceWrapper) ChangeTenantAddress(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangeTenantAddressParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeTenantAddress(w, r, tenantId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CloseTenantPassword operation middleware
 func (siw *ServerInterfaceWrapper) CloseTenantPassword(w http.ResponseWriter, r *http.Request) {
 
@@ -19374,6 +20051,20 @@ func (siw *ServerInterfaceWrapper) ConfirmAddress(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ConfirmAddress(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CheckDeviceList operation middleware
+func (siw *ServerInterfaceWrapper) CheckDeviceList(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckDeviceList(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -29299,6 +29990,130 @@ func (siw *ServerInterfaceWrapper) CountAccountsWithoutProvider(w http.ResponseW
 	handler.ServeHTTP(w, r)
 }
 
+// IssueDeviceListEntry operation middleware
+func (siw *ServerInterfaceWrapper) IssueDeviceListEntry(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.IssueDeviceListEntry(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveOwnDomain operation middleware
+func (siw *ServerInterfaceWrapper) RemoveOwnDomain(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveOwnDomain(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetUpOwnDomain operation middleware
+func (siw *ServerInterfaceWrapper) SetUpOwnDomain(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetUpOwnDomain(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MakeOwnDomainMain operation middleware
+func (siw *ServerInterfaceWrapper) MakeOwnDomainMain(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params MakeOwnDomainMainParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MakeOwnDomainMain(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SwitchBackFromOwnDomain operation middleware
+func (siw *ServerInterfaceWrapper) SwitchBackFromOwnDomain(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SwitchBackFromOwnDomainParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SwitchBackFromOwnDomain(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CloseStarter operation middleware
 func (siw *ServerInterfaceWrapper) CloseStarter(w http.ResponseWriter, r *http.Request) {
 
@@ -29345,6 +30160,47 @@ func (siw *ServerInterfaceWrapper) SetWorkspaceStructure(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SetWorkspaceStructure(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangeWorkspaceAddress operation middleware
+func (siw *ServerInterfaceWrapper) ChangeWorkspaceAddress(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangeWorkspaceAddressParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeWorkspaceAddress(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -30161,6 +31017,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/service-accounts", wrapper.CreateServiceAccount)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/oidc:start", wrapper.StartOidcSignIn)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/oidc:callback", wrapper.CompleteOidcSignIn)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/device-list:check", wrapper.CheckDeviceList)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/oidc:locate", wrapper.LocateOidcFlow)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/tenants", wrapper.ListTenants)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants", wrapper.ProvisionTenant)
@@ -30191,6 +31048,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/presets", wrapper.CreateInstallationPreset)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/presets/{presetId}", wrapper.WithdrawInstallationPreset)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/presets/{presetId}", wrapper.ChangeInstallationPreset)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:change-address", wrapper.ChangeTenantAddress)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/own-domains", wrapper.ListOwnDomains)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/own-domains/{domain}:block", wrapper.BlockOwnDomain)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:move-plan", wrapper.MoveTenantPlan)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/operators", wrapper.ListOperators)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/operators", wrapper.AddOperator)
@@ -30223,6 +31083,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/quotas", wrapper.ReadQuotas)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant", wrapper.ReadWorkspace)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant", wrapper.UpdateWorkspace)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant:change-address", wrapper.ChangeWorkspaceAddress)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/private-hubs", wrapper.ListPrivateHubs)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/private-hubs/{hubId}/accesses", wrapper.ListPrivateHubAccesses)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/private-hubs/{hubId}/accesses", wrapper.OpenPrivateHub)
@@ -30235,6 +31096,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/accounts/me/passkeys/{passkeyId}", wrapper.RemoveOwnPasskey)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/me/passkeys/{passkeyId}", wrapper.RenameOwnPasskey)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/emergency-notices", wrapper.ListEmergencyNotices)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/address-notices", wrapper.ListAddressNotices)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/address-notices:acknowledge", wrapper.AcknowledgeAddressNotices)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/device-list-entry", wrapper.IssueDeviceListEntry)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/tenant/own-domain", wrapper.RemoveOwnDomain)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tenant/own-domain", wrapper.SetUpOwnDomain)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/own-domain:make-main", wrapper.MakeOwnDomainMain)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/own-domain:switch-back", wrapper.SwitchBackFromOwnDomain)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/accounts-without-provider", wrapper.CountAccountsWithoutProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureFirstIdentityProvider)

@@ -293,6 +293,9 @@ func isAuthRoute(r *http.Request) bool {
 		// Anonymous too, and a read keyed on a presented state: unbounded, it would be a way to try
 		// states at the speed of the network.
 		APIBasePath + "/auth/oidc:locate",
+		// Anonymous, and a check of signatures: unbounded, it would be a way to try forgeries at
+		// the speed of the network.
+		APIBasePath + "/auth/device-list:check",
 		// A passkey sign-in: an anonymous challenge row, and a guess at a signature.
 		APIBasePath + "/auth/sessions:passkey-options",
 		APIBasePath + "/auth/sessions:passkey":

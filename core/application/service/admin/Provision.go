@@ -89,7 +89,12 @@ type (
 
 // ProvisionTenantCommand is the input, typed.
 type ProvisionTenantCommand struct {
-	Slug            string
+	// Slug is the short name. Required with subdomains; with assigned hosts it may be empty and is
+	// then made from the host.
+	Slug string
+	// Host is the host the workspace answers at, asked only where the installation assigns hosts
+	// (ADR-0095 §6).
+	Host            string
 	DisplayName     string
 	DefaultLocale   string
 	DefaultTimeZone string
@@ -109,6 +114,8 @@ type ProvisionTenantCommand struct {
 // shown for the only time (T-18's "shown once").
 type ProvisionedTenant struct {
 	Tenant domain.Tenant
+	// Host is the workspace's main address, as its row was written; empty where none was.
+	Host string
 	// Plan is the plan the workspace started on, and Version the row's version once it is there.
 	Plan                string
 	ExternalReference   string
@@ -159,6 +166,9 @@ type ProvisionTenant struct {
 	// Tenancy is the installation's mode. Provisioning a second workspace only exists in multi
 	// mode: single mode's whole contract is "exactly one tenant, no selection" (§1).
 	Tenancy env.TenancyMode
+	// WorkspaceHosts is where a workspace of a multi-mode installation answers: beneath the
+	// installation's host under its short name, or at the host the operator names (ADR-0095 §6).
+	WorkspaceHosts env.WorkspaceHosts
 	// Hosts records the one host the new workspace answers at. Optional: a build wired
 	// without it provisions without a host - nothing resolves through the table, so a missing row
 	// costs nothing.
@@ -195,6 +205,12 @@ func (h ProvisionTenant) Execute(
 		}
 	}
 
+	host, slug, err := domain.AddressAtCreation(
+		h.WorkspaceHosts == env.HostsAssigned, cmd.Host, cmd.Slug, h.InstallationHost, h.Domains)
+	if err != nil {
+		return ProvisionedTenant{}, err
+	}
+
 	level, err := installationLevel(ctx, h.UnitOfWork, h.Instance)
 	if err != nil {
 		return ProvisionedTenant{}, err
@@ -203,7 +219,7 @@ func (h ProvisionTenant) Execute(
 
 	now := h.Clock.Now()
 	tenant, err := domain.NewTenant(domain.NewTenantInput{
-		ID: h.IDs.NewID(), Slug: cmd.Slug, DisplayName: cmd.DisplayName,
+		ID: h.IDs.NewID(), Slug: slug, DisplayName: cmd.DisplayName,
 		DefaultLocale: locale, DefaultTimeZone: zone, Now: now,
 		Text: h.Text,
 	})
@@ -260,7 +276,7 @@ func (h ProvisionTenant) Execute(
 			planID = held
 		}
 
-		hubID, collectionID, err := h.SeedWorkspace(ctx, actor, tenant, owner, now)
+		hubID, collectionID, err := h.SeedWorkspace(ctx, actor, tenant, owner, host, now)
 		if err != nil {
 			return err
 		}
@@ -312,6 +328,10 @@ func (h ProvisionTenant) Execute(
 	if err != nil {
 		return ProvisionedTenant{}, err
 	}
+	result.Host = host
+	if host == "" && h.Hosts != nil {
+		result.Host = domain.CanonicalHostOf(tenant.Slug, h.InstallationHost, true)
+	}
 	return result, nil
 }
 
@@ -325,7 +345,7 @@ func (h ProvisionTenant) Execute(
 // began; what differs - the owner's way in and the journal's entry - stays with each caller.
 func (h ProvisionTenant) SeedWorkspace(
 	ctx context.Context, actor appshared.ActorContext, tenant domain.Tenant, owner domain.Account,
-	now time.Time,
+	host string, now time.Time,
 ) (shared.ID, shared.ID, error) {
 	if err := h.Tenants.Insert(ctx, adminrepo.TenantRecord{
 		ID: tenant.ID, Slug: tenant.Slug, DisplayName: tenant.DisplayName,
@@ -348,7 +368,7 @@ func (h ProvisionTenant) SeedWorkspace(
 		return "", "", err
 	}
 
-	if err := h.seedHost(ctx, tenant, now); err != nil {
+	if err := h.seedHost(ctx, tenant, host, now); err != nil {
 		return "", "", err
 	}
 
@@ -558,9 +578,16 @@ func (h ProvisionTenant) Descriptor() usecase.Descriptor {
 		AlsoScope:  provisioningScope,
 		Input: []usecase.Field{
 			{
-				Name: "slug", Kind: usecase.KindString, Required: true,
-				Description: "The subdomain the workspace answers on: 3-40 characters of " +
-					"lower-case letters, digits and hyphens, unique across the installation.",
+				Name: "slug", Kind: usecase.KindString,
+				Description: "The workspace's short name: 3-40 characters of lower-case letters, " +
+					"digits and hyphens, unique across the installation. With subdomains it is " +
+					"required and the subdomain the workspace answers on; with assigned hosts it " +
+					"is made from the host when omitted.",
+			},
+			{
+				Name: "host", Kind: usecase.KindString,
+				Description: "The full host name the workspace answers at, required where the " +
+					"installation assigns hosts and refused where it does not. No DNS is checked.",
 			},
 			{Name: "display_name", Kind: usecase.KindString, Required: true},
 			{
@@ -596,6 +623,7 @@ func (h ProvisionTenant) invoke(
 ) (usecase.Output, error) {
 	provisioned, err := h.Execute(ctx, actor, ProvisionTenantCommand{
 		Slug:              in.String("slug"),
+		Host:              in.String("host"),
 		DisplayName:       in.String("display_name"),
 		DefaultLocale:     in.String("default_locale"),
 		DefaultTimeZone:   in.String("default_time_zone"),
@@ -616,6 +644,7 @@ func (h ProvisionTenant) invoke(
 		CreatedAt:       provisioned.Tenant.CreatedAt,
 		PlanName:        provisioned.Plan, Version: provisioned.Version,
 		ExternalReference: provisioned.ExternalReference,
+		Host:              provisioned.Host,
 	})
 	out["owner_account_id"] = provisioned.OwnerAccountID.String()
 	// The one appearance of the owner's way in (T-18's "shown once").
@@ -646,6 +675,9 @@ func adminTenantOutput(record adminrepo.TenantRecord) usecase.Output {
 	if record.ExternalReference != "" {
 		out["external_reference"] = record.ExternalReference
 	}
+	if record.Host != "" {
+		out["host"] = record.Host
+	}
 	if record.Version > 0 {
 		out["version"] = record.Version
 	}
@@ -665,10 +697,12 @@ func adminTenantOutput(record adminrepo.TenantRecord) usecase.Output {
 	return out
 }
 
-// seedHost writes the one host the new workspace answers at.
+// seedHost writes the one host the new workspace answers at: the assigned host where one is given,
+// else the subdomain its short name makes.
 //
-// ACTIVE and canonical on arrival: it is the installation's own host with this workspace's slug in
-// front of it, so the installation already answers at it and there is nobody to prove anything to.
+// ACTIVE and canonical on arrival: a subdomain is the installation's own host with this workspace's
+// slug in front of it, so the installation already answers at it and there is nobody to prove
+// anything to; an assigned host is the operator's, whose DNS and certificate are theirs (ADR-0095 §6).
 // The mark is drawn all the same, through the entropy port (rule 4), so that promoting a custom host
 // to canonical later is one update rather than a column that has to be filled in first.
 //
@@ -680,12 +714,22 @@ func adminTenantOutput(record adminrepo.TenantRecord) usecase.Output {
 // through here too, and the installation's own host is often one no workspace host may be
 // (`localhost`), so the mode is asked here rather than assumed from the caller.
 func (h ProvisionTenant) seedHost(
-	ctx context.Context, tenant domain.Tenant, now time.Time,
+	ctx context.Context, tenant domain.Tenant, assigned string, now time.Time,
 ) error {
-	if h.Hosts == nil || h.InstallationHost == "" || h.Tenancy != env.TenancyMulti {
+	if h.Tenancy != env.TenancyMulti {
 		return nil
 	}
-	host := domain.CanonicalHostOf(tenant.Slug, h.InstallationHost, h.Tenancy == env.TenancyMulti)
+	if assigned != "" && h.Hosts == nil {
+		// No later start writes an assigned host: a workspace without it would answer nowhere.
+		return shared.ErrInternal.WithDetail("admin.provisioning_incomplete")
+	}
+	if h.Hosts == nil || (assigned == "" && h.InstallationHost == "") {
+		return nil
+	}
+	host := assigned
+	if host == "" {
+		host = domain.CanonicalHostOf(tenant.Slug, h.InstallationHost, true)
+	}
 	if host == "" {
 		return nil
 	}

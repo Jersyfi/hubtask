@@ -15,9 +15,19 @@
  * (ADR-0025), which is what the `If-Match` here is for.
  */
 
-import type { ResourceState, WorkspaceStructure, WorkspaceStructureChange } from '@hubtask/sync-engine';
+import type {
+  MainAddressSwitch,
+  OwnDomain,
+  ResourceState,
+  TenantAddressChange,
+  WorkspaceAddress,
+  WorkspaceAddressChanged,
+  WorkspaceStructure,
+  WorkspaceStructureChange,
+} from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { stepUp } from './stepup.svelte.ts';
 
 const PATH = '/tenant';
 
@@ -57,6 +67,8 @@ export interface Workspace {
   readonly structure?: WorkspaceStructure;
   /** Whether to ask this reader, once, what the workspace is used for (UC-WRK-30 check 5). */
   readonly starter_offered?: boolean;
+  /** The main address, and whether this reader may change it now (UC-INS-19 check 3). */
+  readonly address?: WorkspaceAddress;
 }
 
 /** What may move. Every key optional, which is what merge-patch means. */
@@ -116,6 +128,49 @@ class WorkspaceStore {
    */
   async closeStarter(): Promise<void> {
     await engine.mutate<void>('POST', `${PATH}/starter:close`, undefined, { invalidates: [PATH] });
+  }
+
+  /**
+   * The owner changes the workspace's address where the installation allows it (UC-INS-19 check 3),
+   * or with `dry_run` asks what the change would be. The change takes a proof by password or
+   * provider, which the refusal names; it ends every session here, this one included.
+   */
+  async changeAddress(change: TenantAddressChange): Promise<WorkspaceAddressChanged> {
+    const path = `${PATH}:change-address`;
+    if (change.dry_run) {
+      return engine.mutate<WorkspaceAddressChanged>('POST', path, change, { invalidates: [] });
+    }
+    return stepUp.around((stepUpToken) =>
+      engine.mutate<WorkspaceAddressChanged>('POST', path, change, { stepUpToken, invalidates: [PATH] }),
+    );
+  }
+
+  /**
+   * The owner sets up an own domain where the installation allows it (UC-INS-15), and is answered
+   * the two records that prove it. Verification runs by itself on the server.
+   */
+  async setUpOwnDomain(domain: string): Promise<OwnDomain> {
+    return engine.mutate<OwnDomain>('PUT', `${PATH}/own-domain`, { domain }, { invalidates: [PATH] });
+  }
+
+  /**
+   * The owner moves the main address to the active own domain (`'own'`) or back to the subdomain
+   * (`'back'`), or with `dry_run` asks what the move would be (UC-INS-15 checks 6 and 8). Either
+   * takes a proof by password or provider and ends every session here, this one included.
+   */
+  async moveMainAddress(direction: 'own' | 'back', body: MainAddressSwitch): Promise<WorkspaceAddressChanged> {
+    const path = `${PATH}/own-domain:${direction === 'own' ? 'make-main' : 'switch-back'}`;
+    if (body.dry_run) {
+      return engine.mutate<WorkspaceAddressChanged>('POST', path, body, { invalidates: [] });
+    }
+    return stepUp.around((stepUpToken) =>
+      engine.mutate<WorkspaceAddressChanged>('POST', path, body, { stepUpToken, invalidates: [PATH] }),
+    );
+  }
+
+  /** The owner removes the own domain; a blocked one leaves this view and stays blocked. */
+  async removeOwnDomain(): Promise<void> {
+    await engine.mutate<void>('DELETE', `${PATH}/own-domain`, undefined, { invalidates: [PATH] });
   }
 
   async change(body: WorkspaceChange): Promise<Workspace> {

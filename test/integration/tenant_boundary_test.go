@@ -683,6 +683,8 @@ func TestTheTablesOutsideTheRuleAreTheDocumentedOnes(t *testing.T) {
 			"(migration 0103)",
 		"ai_provider": "NULL is a model the installation offers, which a workspace that chose it " +
 			"reads for the call and none writes - identity_provider's three policies (migration 0129)",
+		"blocked_domain": "a block is the installation's and outlives the workspace it was taken " +
+			"from, which it keeps naming until that workspace is gone (migration 0211)",
 	}
 
 	rows, err := admin.Query(ctx, `

@@ -21,11 +21,36 @@ const (
 	SetRemove  MutationKind = "SET_REMOVE"
 	Move       MutationKind = "MOVE"
 	CommentAdd MutationKind = "COMMENT_ADD"
+
+	ReminderCreate   MutationKind = "REMINDER_CREATE"
+	ReminderPatch    MutationKind = "REMINDER_PATCH"
+	ReminderDelete   MutationKind = "REMINDER_DELETE"
+	RecurrenceCreate MutationKind = "RECURRENCE_CREATE"
+	RecurrencePatch  MutationKind = "RECURRENCE_PATCH"
+	RecurrenceDelete MutationKind = "RECURRENCE_DELETE"
+	TemplateApply    MutationKind = "TEMPLATE_APPLY"
+	ContainerCreate  MutationKind = "CONTAINER_CREATE"
+	ContainerPatch   MutationKind = "CONTAINER_PATCH"
+	ContainerDelete  MutationKind = "CONTAINER_DELETE"
+	LabelCreate      MutationKind = "LABEL_CREATE"
+	LabelPatch       MutationKind = "LABEL_PATCH"
+	LabelDelete      MutationKind = "LABEL_DELETE"
+	BucketCreate     MutationKind = "BUCKET_CREATE"
+	BucketPatch      MutationKind = "BUCKET_PATCH"
+	BucketDelete     MutationKind = "BUCKET_DELETE"
 )
 
 // MutationKinds is the closed set, in the contract's order.
 func MutationKinds() []MutationKind {
-	return []MutationKind{ItemCreate, ItemPatch, ItemDelete, SetAdd, SetRemove, Move, CommentAdd}
+	return []MutationKind{
+		ItemCreate, ItemPatch, ItemDelete, SetAdd, SetRemove, Move, CommentAdd,
+		ReminderCreate, ReminderPatch, ReminderDelete,
+		RecurrenceCreate, RecurrencePatch, RecurrenceDelete,
+		TemplateApply,
+		ContainerCreate, ContainerPatch, ContainerDelete,
+		LabelCreate, LabelPatch, LabelDelete,
+		BucketCreate, BucketPatch, BucketDelete,
+	}
 }
 
 // Valid reports whether the kind is one the contract names.

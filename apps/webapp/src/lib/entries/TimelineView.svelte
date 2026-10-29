@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
+  import { platform } from '../platform/index.ts';
   // The entries of a collection against a window of days.
   //
   // **A layout over the same query, not a second kind of read.** The window is a filter and the
@@ -98,6 +99,7 @@
   function menuOf(entry: WorkItem) {
     return entryMenu(
       {
+        sendsLinks: platform.sendLink !== undefined,
         surface: 'timeline',
         item: { title: entry.title, isCompleted: entry.completion?.is_completed ?? false, hasDue: Boolean(entry.due_at) },
         archival: archivalOfItem(entry, false),

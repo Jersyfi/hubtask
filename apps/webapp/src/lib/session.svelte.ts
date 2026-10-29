@@ -132,6 +132,8 @@ class Session {
    * round trip in front of every first paint, for an answer the next request gives anyway.
    */
   #status = $state<SessionStatus>(platform.bearer() === undefined ? 'signed-out' : 'signed-in');
+  /** A sign-in in this page, not yet told to the device's list of workspaces. */
+  #fresh = $state(false);
   #problem = $state<RenderedProblem | undefined>(undefined);
   #intended = $state<string | undefined>(undefined);
   #owed = $state<SecondFactorOwed | undefined>(undefined);
@@ -236,7 +238,7 @@ class Session {
     if (this.#signingIn || this.#status === 'signed-out') return;
     this.#paused = {};
     this.#problem = undefined;
-    this.#discard();
+    void this.#discard();
   }
 
   /** Whether step one is back because the second step's time ran out. Cleared by the next attempt. */
@@ -481,6 +483,7 @@ class Session {
     engine.reset();
     instance.forget();
     platform.holdSession(pair);
+    this.#fresh = true;
     this.#pending = undefined;
     this.#owed = undefined;
     this.#problem = undefined;
@@ -558,6 +561,7 @@ class Session {
       engine.reset();
       instance.forget();
       platform.holdSession({ access: answer.access_token, refresh: answer.refresh_token });
+      this.#fresh = true;
       // Answered only where a recovery code was spent, and `0` is the number that matters - so
       // the test is against `null` and `undefined` rather than against falsiness.
       this.#recoveryLeft = answer.recovery_codes_remaining ?? undefined;
@@ -587,7 +591,7 @@ class Session {
           : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
       }
       if (error instanceof TransportError) options.onRefusal?.(error);
-      this.#discard();
+      void this.#discard();
       return false;
     } finally {
       this.#signingIn = false;
@@ -621,7 +625,7 @@ class Session {
     } catch {
       // Already expired, already revoked, or unreachable. All three end the same way here.
     }
-    this.#discard();
+    void this.#discard();
   }
 
   /**
@@ -640,10 +644,24 @@ class Session {
     // person who was in the middle of something.
     this.#ended = true;
     this.#problem = undefined;
-    this.#discard();
+    void this.#discard();
   }
 
   /** Takes the remembered path, once. A path that navigated twice is a path that fights the reader. */
+  /**
+   * Whether a sign-in happened in this page since it was last asked - not a session a reload found.
+   * Taken once: the device's list of workspaces is told of a sign-in once (UC-ID-25 check 1).
+   */
+  get isFreshSignIn(): boolean {
+    return this.#fresh;
+  }
+
+  takeFreshSignIn(): boolean {
+    const fresh = this.#fresh;
+    this.#fresh = false;
+    return fresh;
+  }
+
   takeIntendedPath(): string | undefined {
     const path = this.#intended;
     this.#intended = undefined;
@@ -657,14 +675,33 @@ class Session {
    * nothing and hold a credential the reader has just given up — and the per-credential cap counts
    * connections, not intentions.
    */
-  #discard(): void {
+  /**
+   * *Forget this workspace* in an installed app, for the workspace this window is open on: what
+   * sign-out discards, without the call to the server, which forgetting has made itself. Settles
+   * once the copy and its key are gone.
+   */
+  async endHere(): Promise<void> {
+    this.#problem = undefined;
+    this.#intended = undefined;
+    this.#owed = undefined;
+    this.#pending = undefined;
+    await this.#discard();
+  }
+
+  #discard(): Promise<void> {
     // The elevation belongs to the session that proved for it (ADR-0070 §4), and this store is a
     // module singleton whose clock outlived one. Signing out and back in inside one page load left
     // the countdown running for whoever signed in next.
     instance.forget();
     live.stop();
+    // Read before the pair goes, which takes the account with it.
+    const account = platform.lastAccount();
     platform.releaseBearer();
-    engine.reset();
+    // The copy's key after the copy (offline-sync.md §9.6): the reset deletes the store first, so
+    // nothing writes into a copy whose key is already gone and brings a new one into being.
+    const gone = engine.reset().then(async () => {
+      if (account !== undefined) await platform.forgetCopy(account);
+    }).catch(() => {});
     // A passing message - an *Undo* least of all - belongs to the account that caused it.
     toast.clear();
     // What this device remembered of the person who was signed in. Both hold their content - the
@@ -680,6 +717,7 @@ class Session {
     // screen is drawn from its supported locales, and reading it again is also what re-attaches
     // the listener the next sign-in needs.
     void manifest.refresh();
+    return gone;
   }
 }
 

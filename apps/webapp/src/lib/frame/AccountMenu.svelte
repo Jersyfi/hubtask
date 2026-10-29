@@ -32,28 +32,33 @@
     isSheet: boolean;
     /** The sheet's state, owned by the frame because the bottom bar is what opens it. */
     isSheetOpen?: boolean;
+    /**
+     * Where a row's area lives instead, for a build that leaves it to the web app: the row's second
+     * line ("In the web app at …"), and the outward mark after it (UC-SYN-07 check 7).
+     */
+    elsewhere?: (id: string) => string | undefined;
     onchoose: (id: string) => void;
   }
 
-  let { destinations, name, email, picture, isSheet, isSheetOpen = $bindable(false), onchoose }: Props = $props();
+  let { destinations, name, email, picture, isSheet, isSheetOpen = $bindable(false), elsewhere, onchoose }: Props = $props();
 
   /**
    * The list in three bands: the places that are the reader's own, the ways through, and signing
    * out - which is the last row and stands alone (ADR-0065 decision 5).
    *
    * Both rules are about the *shape* of the list rather than about which row is which, so this
-   * component still knows no ids: a separator opens the first row that performs something rather
-   * than going somewhere, and another opens the last row, because the last thing a reader does in
-   * a session has nothing under it.
+   * component still knows no ids: a separator opens the row the list marks as starting the ways
+   * through (`startsBand`), and another opens the last row, because the last thing a reader does
+   * in a session has nothing under it.
    */
-  const firstAction = $derived(destinations.find((each) => each.target.kind === 'action')?.id);
   const items = $derived(
     destinations.map((destination, index) => ({
       id: destination.id,
       label: t(destination.code),
       icon: destination.icon,
+      sub: elsewhere?.(destination.id),
       hasSeparatorBefore:
-        index > 0 && (destination.id === firstAction || index === destinations.length - 1),
+        index > 0 && (destination.startsBand === true || index === destinations.length - 1),
     })),
   );
 
@@ -86,7 +91,12 @@
           <li class:apart={item.hasSeparatorBefore}>
             <ListRow onactivate={() => choose(item.id)}>
               {#snippet leading()}<Icon name={item.icon} size="sm" />{/snippet}
-              {item.label}
+              {#if item.sub}
+                <span class="label">{item.label}<span class="sub">{item.sub}</span></span>
+              {:else}
+                {item.label}
+              {/if}
+              {#snippet trailing()}{#if item.sub}<Icon name="external-link" size="sm" />{/if}{/snippet}
             </ListRow>
           </li>
         {/each}
@@ -152,6 +162,10 @@
   .email { color: var(--text-subtle); font-size: var(--fs-075); overflow-wrap: anywhere; }
 
   .rows { margin: 0; padding: 0; list-style: none; }
+
+  .label { display: flex; flex-direction: column; min-width: 0; }
+
+  .sub { color: var(--text-subtle); font-size: var(--fs-075); overflow-wrap: anywhere; }
 
   .apart {
     margin-block-start: var(--sp-100);

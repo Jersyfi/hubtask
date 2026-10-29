@@ -25,8 +25,47 @@ against a real server, is in [`docs/evidence/README.md`](../../docs/evidence/REA
   place the language is applied — above the frame, because the signed-out card is not inside it.
 * **`src/lib/frame/`** is the shell every signed-in view sits inside: the app bar, the navigation,
   the page head, `SyncLine` (the copy and the server, on every route) and the tour guide.
-* **`src/lib/platform/`** is the seam between the bundle and where it runs. Today it has one
-  implementation, the browser's; a shell's build selects its own, never runtime sniffing.
+* **`src/lib/platform/`** is the seam between the bundle and where it runs: `browser.ts`, and
+  `desktop.ts` and `mobile.ts` for the shells, which share `shell.ts`. The build's mode chooses one
+  (`target.ts`, applied by `vite.config.ts`): `--mode desktop` and `--mode mobile` build the shells'
+  bundles, every other mode the browser's — never runtime sniffing. `--mode mobile` also puts
+  `views/InWebAppView.svelte` where `views/AdministrationArea.svelte` and `views/InstanceArea.svelte`
+  would be, so the Android app carries neither area (ADR-0032); `build/check-mobile-bundle.js`
+  refuses a bundle that does.
+* **`src-tauri/`** is the installed apps' shell ([ADR-0033](../../docs/adr/ADR-0033-shared-client-architecture.md)):
+  one Tauri project, outside the pnpm workspace and Go, built only by the `shell` lane of `ci.yml`.
+  Rust is pinned by its `rust-toolchain.toml`, the crates by `Cargo.lock` and held to the licence
+  policy by `deny.toml`. Its icons are generated from the design system's `app-icon.svg` and never
+  committed:
+
+  ```bash
+  pnpm --filter "@hubtask/webapp^..." build     # the design system's mark among it
+  pnpm --filter @hubtask/webapp desktop:icons   # the icons, then the check that they are the mark's
+  pnpm --filter @hubtask/webapp desktop:dev     # the app against `make run` (VITE_HUBTASK_SERVER)
+  pnpm --filter @hubtask/webapp desktop:build --debug
+  ```
+
+  The copy (`src/copy.rs`) is SQLCipher under a key in the system's keystore; its cipher links
+  OpenSSL's libcrypto on Linux (`libssl-dev`) and Windows (`OPENSSL_LIB_DIR` and
+  `OPENSSL_INCLUDE_DIR`, as the `shell` lane sets them), CommonCrypto on a Mac.
+
+  The Android app is the same project (`gen/android/`, with the Kotlin bridge to the Android
+  Keystore, the share sheet and the system bars in `HubtaskPlugin.kt`). Its SQLCipher links a
+  libcrypto the shell builds from OpenSSL's pinned release, since Android offers none to an app;
+  `../.cargo/config.toml` points Cargo at it. With the SDK, an NDK (`NDK_HOME`) and a JDK:
+
+  ```bash
+  rustup target add aarch64-linux-android        # and the other three for the universal APK
+  pnpm --filter @hubtask/webapp android:openssl aarch64-linux-android
+  pnpm --filter @hubtask/webapp android:build --debug --apk --target aarch64 --config '{"version":"0.0.1"}'
+  ```
+
+  The sign-in's code comes back to `eu.hubtask.app:/oauth`; a release gives the version and the
+  `versionCode` (ADR-0035's build counter) as `--config`.
+
+  The app is served from inside itself, so the server must admit its origin
+  (`HUBTASK_CORS_ALLOWED_ORIGINS=tauri://localhost,http://tauri.localhost`, and
+  `http://localhost:5173` under `desktop:dev`).
 * **`src/lib/data/`** is the application's side of `@hubtask/sync-engine`. `engine.ts` builds the
   one engine, attaches the replica per API origin and account, and performs the session exchange.
   `replica.ts` supplies `storeFor` and `mutationFor`, `live.ts` the `pathsFor` that says what a

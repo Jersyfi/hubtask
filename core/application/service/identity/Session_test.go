@@ -56,6 +56,8 @@ type sessionsStore struct {
 	// row that is not the caller's or already stamped.
 	revokeChanged bool
 	revokedAll    int
+	// appGrants are the grant and client of the installed apps behind a session, by session.
+	appGrants map[shared.ID][2]shared.ID
 	// elevated records what Elevate was asked for, and elevateChanged is what it reports - a real
 	// statement reports false for a session that is not the caller's or not live.
 	elevated       []elevation
@@ -135,6 +137,16 @@ func (s *sessionsStore) Revoke(_ context.Context, id, _ shared.ID, _ time.Time) 
 
 func (s *sessionsStore) RevokeAll(context.Context, shared.ID, time.Time) (int, error) {
 	return s.revokedAll, nil
+}
+
+// RevokeAppGrant answers the app grant a test placed behind a session, once.
+func (s *sessionsStore) RevokeAppGrant(_ context.Context, id, _ shared.ID, _ time.Time) (shared.ID, shared.ID, error) {
+	grant, ok := s.appGrants[id]
+	if !ok {
+		return "", "", nil
+	}
+	delete(s.appGrants, id)
+	return grant[0], grant[1], nil
 }
 
 // RevokeOthers records which session was kept - the one thing the use case decides.

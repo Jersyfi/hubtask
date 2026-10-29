@@ -29,7 +29,8 @@
 
   import { manifest } from '../data/capabilities.svelte.ts';
   import { attachmentsPath, media } from '../data/media.svelte.ts';
-  import { acceptFor, isReady, isWithinUploadLimit, uploadLimitOf } from '../data/media.ts';
+  import { engine } from '../data/engine.ts';
+  import { acceptFor, isReady, isWithinUploadLimit, keepsOffline, uploadLimitOf } from '../data/media.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { formatBytes } from '../i18n/bytes.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -113,9 +114,20 @@
       await media.attach(item.id, object.id);
       chosen = undefined;
     } catch (error) {
+      let cause = error;
+      // Without the server, the installed apps keep the file and send it later, like any change.
+      if (!abort.signal.aborted && keepsOffline(error, engine.holdsFiles)) {
+        try {
+          await media.keep(item.id, file);
+          chosen = undefined;
+          return;
+        } catch (refused) {
+          cause = refused;
+        }
+      }
       failure = abort.signal.aborted
         ? t('app.media.cancelled')
-        : renderProblem(error as never, messages).message;
+        : renderProblem(cause as never, messages).message;
     } finally {
       controller = undefined;
     }

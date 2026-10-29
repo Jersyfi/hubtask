@@ -8,10 +8,109 @@ permissions:
   contents: read
 
 jobs:
+  # The installed apps (UC-SYN-07 check 1, F7 Decision 9): the Windows installer, the AppImage and
+  # the `.deb`, and the universal APK, built from the tag's commit with the release's version and
+  # the platform build counter (ADR-0035; this workflow's run number, which only grows). Built
+  # without a secret and without a cache, as the image is: what is published is compiled here
+  # (ADR-0062). The signatures are the `release` job's, behind the environment's approval.
+  apps:
+    name: Apps (${{ matrix.system }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      matrix:
+        include:
+          - system: Linux
+            runner: ubuntu-latest
+            target: linux
+            built: |
+              apps/webapp/src-tauri/target/release/bundle/appimage/*.AppImage
+              apps/webapp/src-tauri/target/release/bundle/deb/*.deb
+          - system: Windows
+            runner: windows-latest
+            target: windows
+            built: apps/webapp/src-tauri/target/release/bundle/nsis/*-setup.exe
+          - system: Android
+            runner: ubuntu-latest
+            target: android
+            built: apps/webapp/src-tauri/gen/android/app/build/outputs/apk/universal/release/*.apk
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      # Not `make tools-node`: a Windows runner has no make. The same pin, read the same way.
+      - name: pnpm, as package.json pins it
+        run: |
+          version=$(sed -n 's/.*"packageManager": "pnpm@\([^"]*\)".*/\1/p' package.json)
+          corepack enable pnpm
+          corepack prepare "pnpm@$version" --activate
+      - name: The pinned Rust
+        working-directory: apps/webapp/src-tauri
+        run: rustup toolchain install
+      # As the `shell` lane in ci.yml, plus what the AppImage bundles: xdg-open for the system browser.
+      - name: The system's webview
+        if: matrix.target == 'linux'
+        timeout-minutes: 15
+        run: |
+          printf 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' |
+            sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev librsvg2-dev libxdo-dev libssl-dev file xdg-utils
+      # SQLCipher links OpenSSL's libcrypto dynamically on Windows (ADR-0033 §4), so the installer
+      # carries the DLL beside the executable; the `shell` lane in ci.yml finds it the same way.
+      - name: The system's OpenSSL
+        if: matrix.target == 'windows'
+        timeout-minutes: 10
+        run: |
+          found() { for root in "/c/Program Files/OpenSSL" "/c/Program Files/OpenSSL-Win64"; do
+            [ -d "$root/include/openssl" ] && return 0; done; return 1; }
+          found || { choco install openssl --no-progress -y && found; }
+          lib=$(find "$root/lib" -iname libcrypto.lib | grep -i 'x64/md/' | head -1)
+          [ -n "$lib" ] || lib=$(find "$root/lib" -iname libcrypto.lib | head -1)
+          test -n "$lib"
+          echo "OPENSSL_LIB_DIR=$(cygpath -w "$(dirname "$lib")")" >> "$GITHUB_ENV"
+          echo "OPENSSL_INCLUDE_DIR=$(cygpath -w "$root/include")" >> "$GITHUB_ENV"
+          mkdir -p apps/webapp/src-tauri/target/windows-dlls
+          cp "$root/bin/libcrypto-3-x64.dll" apps/webapp/src-tauri/target/windows-dlls/
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter "@hubtask/webapp^..." build
+      - run: pnpm --filter @hubtask/webapp desktop:icons
+      - name: The version and the build counter this build carries
+        run: |
+          config=$(node apps/webapp/build/release-apps.js config ${{ matrix.target }} "$GITHUB_REF_NAME" "$GITHUB_RUN_NUMBER" target/windows-dlls/libcrypto-3-x64.dll)
+          echo "APP_CONFIG=$config" >> "$GITHUB_ENV"
+          echo "$config"
+      - name: The desktop app
+        if: matrix.target != 'android'
+        run: pnpm --filter @hubtask/webapp desktop:build --ci --bundles ${{ matrix.target == 'windows' && 'nsis' || 'appimage,deb' }} --config "$APP_CONFIG"
+      # Every ABI in one APK, each with SQLCipher's libcrypto from OpenSSL's pinned release
+      # (`android-openssl.sh`). Unsigned here; the `release` job signs it.
+      - name: The Android app
+        if: matrix.target == 'android'
+        run: |
+          (cd apps/webapp/src-tauri && rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android)
+          export NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          pnpm --filter @hubtask/webapp android:openssl
+          pnpm --filter @hubtask/webapp android:build --apk --ci --config "$APP_CONFIG"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: app-${{ matrix.target }}
+          path: ${{ matrix.built }}
+          if-no-files-found: error
+          retention-days: 7
+
   release:
     name: Build, sign, publish
+    needs: apps
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 60
     environment: production          # a protection rule with manual approval (ADR-0022)
     permissions:
       contents: write                # create the GitHub release
@@ -127,6 +226,72 @@ jobs:
           .tools/helm package k8s --version "${GITHUB_REF_NAME#v}" --app-version "${GITHUB_REF_NAME#v}" -d dist/
           .tools/helm push dist/*.tgz "oci://ghcr.io/${{ env.OWNER }}/charts"
 
+      # The apps beside the image (UC-SYN-07 check 1): signed with the project's two keys, which
+      # live as secrets of this environment only (F7 Decision 10, versioning-release.md §9), and
+      # checked against what §9 records before anything is published.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: app-*
+          path: shells
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - run: make tools-node
+      - run: echo "$PWD/.tools" >> "$GITHUB_PATH"
+      - run: pnpm install --frozen-lockfile
+
+      - name: The apps under their published names
+        run: node apps/webapp/build/release-apps.js collect shells release "$GITHUB_REF_NAME"
+
+      - name: Sign the APK with the project's key
+        # Android installs an update only when it is signed with the key of the installed app, so
+        # the certificate is compared with the one §9 records, not merely checked for a signature.
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          tools=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          keystore="$RUNNER_TEMP/release.p12"
+          trap 'rm -f "$keystore"' EXIT
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$keystore"
+          apk="release/hubtask-${GITHUB_REF_NAME#v}-android-universal.apk"
+          "$tools/zipalign" -P 16 -f 4 "$apk" "$RUNNER_TEMP/aligned.apk"
+          "$tools/apksigner" sign --ks "$keystore" --ks-key-alias hubtask \
+            --ks-pass env:ANDROID_KEYSTORE_PASSWORD --key-pass env:ANDROID_KEYSTORE_PASSWORD \
+            --v4-signing-enabled false --out "$apk" "$RUNNER_TEMP/aligned.apk"
+          signed=$("$tools/apksigner" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          recorded=$(node apps/webapp/build/release-apps.js key apk docs/architecture/versioning-release.md)
+          if [ "$signed" != "$recorded" ]; then
+            echo "::error::the APK's certificate is $signed; versioning-release.md §9 records $recorded"
+            exit 1
+          fi
+
+      - name: Sign the apps and the update manifest with the update key
+        # The signature binds the version (`--app-version`), so a manifest cannot pair a new number
+        # with an older package. Checked against the public key §9 records, which the shell's
+        # updater must name too; `update.json` hands the updater the manifest with its signature.
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          version=$(node apps/webapp/build/release-apps.js version "$GITHUB_REF_NAME" "$GITHUB_RUN_NUMBER")
+          sign() { pnpm --filter @hubtask/webapp exec tauri signer sign --app-version "$version" "$PWD/$1" >/dev/null; }
+          for file in release/hubtask-*; do sign "$file"; done
+          node apps/webapp/build/release-apps.js manifest release "$GITHUB_REF_NAME" "$GITHUB_RUN_NUMBER" \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME" "$(git log -1 --format=%cI)"
+          sign release/latest.json
+          node apps/webapp/build/release-apps.js pointer release "$GITHUB_REF_NAME" "$GITHUB_RUN_NUMBER" \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
+          node apps/webapp/build/release-apps.js verify-signatures release "$GITHUB_REF_NAME" docs/architecture/versioning-release.md \
+            apps/webapp/src-tauri/tauri.conf.json
+
+      - name: One checksum file over everything the release publishes
+        run: |
+          cp sbom.cdx.json THIRD-PARTY-LICENSES.md dist/*.tgz release/
+          node apps/webapp/build/release-apps.js checksums release
+          node apps/webapp/build/release-apps.js check release
+          (cd release && sha256sum --check --strict SHA256SUMS)
+
       - name: GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
@@ -134,7 +299,4 @@ jobs:
           # Otherwise a release candidate appears on the repository front page as the current
           # version, which is the same mistake as the `latest` tag in a second place.
           prerelease: ${{ env.PRERELEASE }}
-          files: |
-            sbom.cdx.json
-            dist/*.tgz
-            THIRD-PARTY-LICENSES.md
+          files: release/*

@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
+  import { platform } from '../platform/index.ts';
   import AddRow from './AddRow.svelte';
   // The entries of a collection, one level at a time.
   //
@@ -852,6 +853,7 @@
   function menuItems(row: Row) {
     return entryMenu(
       {
+        sendsLinks: platform.sendLink !== undefined,
         surface: root ? 'subtree' : isSimple ? 'simple' : isSelectable ? 'list' : 'subtree',
         item: {
           title: row.item.title,

@@ -17,11 +17,11 @@ import { TransportError } from './errors.ts';
 import type { ByteTransfer, Clock, RequestOptions, Storage, Transport } from './ports.ts';
 import { systemClock } from './ports.ts';
 import type { ChangeRecord } from './schema.ts';
-import { Replica } from './replica.ts';
+import { Replica, collectionOf } from './replica.ts';
 import { boundedIdentity, mintUuidV7, type DeviceIdentity } from './device.ts';
 import { HybridClock, formatHlc } from './hlc.ts';
-import { Queue, mutationOf } from './queue.ts';
-import type { QueueState, QueuedWrite, SyncMutationResult } from './schema.ts';
+import { Queue, mutationOf, subjectOf } from './queue.ts';
+import type { PendingMutation, QueueState, QueuedWrite, SyncMutationResult } from './schema.ts';
 
 /** How long a read may take before it is abandoned. A number, because "no deadline" is not one. */
 export const DEFAULT_TIMEOUT_MS = 10_000;
@@ -44,6 +44,13 @@ export const RECONNECT_MAX_MS = 30_000;
 export const PULL_PAGE_SIZE = 500;
 /** How many mutations one push carries at most: the contract's `maxItems`. */
 export const PUSH_BATCH = 500;
+
+/**
+ * A captured file's upload deadline, sized by its bytes: a floor of 32 kB/s - slower than that
+ * has stopped rather than slowed - over a base for the round trip.
+ */
+const CAPTURE_BASE_MS = 30_000;
+const CAPTURE_FLOOR_BYTES_PER_SECOND = 32 * 1000;
 /** The snapshot's silence between lines: the server writes rows as it reads them. */
 export const DEFAULT_SNAPSHOT_IDLE_MS = 60_000;
 /**
@@ -295,6 +302,20 @@ export interface SyncEngineOptions {
    * what the single-flight below is for.
    */
   readonly onRefresh?: () => Promise<boolean>;
+  /**
+   * Whether the store is the installed apps' encrypted copy, which may hold a file captured
+   * offline until it can be uploaded (offline-sync.md §1). The browser's copy is not encrypted
+   * and holds no file: there a capture without the server is refused, `sync.needs_connection`.
+   */
+  readonly holdsFiles?: boolean;
+  /**
+   * How a store without a cursor is filled. `snapshot` (the default) reads one response, which a
+   * connection ending early leaves with no cursor - the next start begins again. `pages` walks
+   * `:pull` from nothing and holds each page's cursor, so a walk cut short - the network, the
+   * app closed - resumes after the last page it held (offline-sync.md §3.1, SY-B). The installed
+   * apps walk pages: their copy is the offline promise, and a phone is cut short more often.
+   */
+  readonly firstSynchronisation?: 'snapshot' | 'pages';
 }
 
 /**
@@ -315,6 +336,8 @@ export class SyncEngine {
   readonly #onRefresh: () => Promise<boolean>;
   readonly #storeFor: ((request: ResourceRequest, storage: Storage) => Promise<unknown>) | undefined;
   readonly #mutationFor: SyncEngineOptions['mutationFor'];
+  readonly #holdsFiles: boolean;
+  readonly #snapshotFirst: boolean;
   /** The queue, once a store is attached. */
   #queue: Queue | undefined;
   /** Whether the last call reached the server: the other half of offline-sync.md §1's write rule. */
@@ -344,6 +367,13 @@ export class SyncEngine {
     this.#onRefresh = options.onRefresh ?? (async () => false);
     this.#storeFor = options.storeFor;
     this.#mutationFor = options.mutationFor;
+    this.#holdsFiles = options.holdsFiles === true;
+    this.#snapshotFirst = options.firstSynchronisation !== 'pages';
+  }
+
+  /** Whether a file captured offline waits in this copy (`holdsFiles`). */
+  get holdsFiles(): boolean {
+    return this.#holdsFiles && this.#queue !== undefined;
   }
 
   /**
@@ -557,11 +587,14 @@ export class SyncEngine {
     const queue = this.#queue;
     const replica = this.#replica;
     if (!queue || !replica || !this.#mutationFor) return undefined;
-    const write = await this.#mutationFor(method, path, body, {
+    const answered = await this.#mutationFor(method, path, body, {
       storage: replica.store,
       mintId: () => mintUuidV7(this.#clock),
     });
-    if (!write) return undefined;
+    if (!answered) return undefined;
+    // As it will travel: plain JSON. A body a screen built from its reactive state can hold
+    // proxies, which a store's structured clone refuses - and the write would vanish unqueued.
+    const write = JSON.parse(JSON.stringify(answered)) as QueuedWrite;
     const mutation = mutationOf(
       { ...write, invalidates: write.invalidates ?? options.invalidates },
       mintUuidV7(this.#clock),
@@ -573,10 +606,75 @@ export class SyncEngine {
     // is where the prediction is, and from the server once the push has landed.
     this.#invalidate(write.invalidates ?? options.invalidates);
     if (this.#reachable) void this.push();
-    const entity = write.kind === 'COMMENT_ADD' ? 'comments' : 'items';
-    const entityId = write.kind === 'COMMENT_ADD' ? String(write.payload?.id ?? mutation.op_id) : write.itemId;
-    const held = await replica.store.get<{ document: unknown }>(entity, entityId);
-    return held?.document;
+    // Queued is answered, whatever the copy holds now: a deletion's prediction is the object gone,
+    // and a template applied predicts nothing.
+    const subject = subjectOf(write, String(mutation.op_id));
+    const held = await replica.store.get<{ document: unknown }>(collectionOf(subject.entity), subject.id);
+    return held?.document ?? {};
+  }
+
+  /**
+   * Keeps a file captured while the server cannot be reached (offline-sync.md §1, the installed
+   * apps only): its bytes wait in the encrypted copy, and on the next push they are uploaded,
+   * confirmed and attached to the entry, in the order the person worked. A refusal at upload -
+   * the size, the type, the quota - is shown on the change like any refused mutation (§9.5). In a
+   * browser, and before a store is attached, it is refused with `sync.needs_connection`.
+   */
+  async capture(file: {
+    readonly itemId: string;
+    readonly fileName?: string | null;
+    readonly contentType?: string | null;
+    readonly size: number;
+    readonly bytes: Blob | ArrayBuffer | Uint8Array;
+    readonly invalidates?: readonly string[];
+  }): Promise<void> {
+    const queue = this.#queue;
+    if (!this.#holdsFiles || !queue) {
+      throw new TransportError('offline', { detailCode: 'sync.needs_connection' });
+    }
+    await queue.capture({
+      itemId: file.itemId, fileName: file.fileName ?? null, contentType: file.contentType ?? null,
+      size: file.size, bytes: file.bytes, ...(file.invalidates ? { invalidates: file.invalidates } : {}),
+    }, mintUuidV7(this.#clock), this.#clock.now());
+    await this.#publishQueue();
+    this.#invalidate(file.invalidates);
+    if (this.#reachable) void this.push();
+  }
+
+  /**
+   * A captured file's upload: staged, its bytes put where the server says, confirmed, and the
+   * step turned into the `SET_ADD` that attaches it. False when the server could not be reached,
+   * which leaves the step where it was; a refusal is recorded on the change and the push goes on.
+   */
+  async #upload(queue: Queue, pending: PendingMutation): Promise<boolean> {
+    const file = pending.file;
+    const bytes = await queue.bytesOf(pending);
+    try {
+      if (!file || bytes === undefined) throw new TransportError('problem', { detailCode: 'sync.capture_lost' });
+      const staged = (await this.#attempt(() => this.#transport.send<{ id: string; upload?: { url?: string } }>('POST', '/media', {
+        file_name: file.fileName, content_type: file.contentType, size: file.size, usage: 'ATTACHMENT',
+      }, this.#options({ idempotencyKey: pending.id })))).body;
+      if (!staged.upload?.url) throw new TransportError('problem', { detailCode: 'media.upload_target_missing' });
+      await this.#transport.transfer({
+        url: staged.upload.url, method: 'PUT', body: bytes as Blob | ArrayBuffer | Uint8Array,
+        ...(file.contentType ? { contentType: file.contentType } : {}),
+        timeoutMs: CAPTURE_BASE_MS + Math.ceil((file.size / CAPTURE_FLOOR_BYTES_PER_SECOND) * 1000),
+      });
+      const sealed = (await this.#attempt(() => this.#transport.send<{ id: string }>(
+        'POST', `/media/${staged.id}:confirm`, undefined, this.#options({ idempotencyKey: pending.id }),
+      ))).body;
+      await queue.uploaded(pending, sealed.id, this.#stampNow());
+      return true;
+    } catch (cause) {
+      if (cause instanceof TransportError && unreachable(cause)) {
+        await queue.failed([pending]);
+        return false;
+      }
+      const error = cause instanceof TransportError ? cause : undefined;
+      await queue.refusedUpload(pending, error?.code ?? error?.detailCode ?? 'rejected', error?.detailCode, this.#clock.now());
+      this.#invalidate(pending.invalidates);
+      return true;
+    }
   }
 
   /** The next clock reading, formatted; the store is told afterwards without being waited for. */
@@ -606,9 +704,19 @@ export class SyncEngine {
     const replica = this.#replica;
     if (!queue || !replica) return;
     for (;;) {
-      const pending = (await queue.pending()).slice(0, PUSH_BATCH);
-      if (pending.length === 0) break;
+      const waiting = await queue.pending();
+      if (waiting.length === 0) break;
       await this.#publishQueue({ pushing: true });
+      if (waiting[0]?.kind === 'ATTACHMENT_CAPTURE') {
+        // A file first: its bytes go up before anything made after it is pushed.
+        if (!(await this.#upload(queue, waiting[0]))) {
+          await this.#publishQueue({ pushing: false });
+          return;
+        }
+        continue;
+      }
+      const capture = waiting.findIndex((each) => each.kind === 'ATTACHMENT_CAPTURE');
+      const pending = waiting.slice(0, capture < 0 ? PUSH_BATCH : Math.min(capture, PUSH_BATCH));
       let answer: { results?: readonly SyncMutationResult[]; cursor?: string | null };
       try {
         answer = (await this.#attempt(() => this.#transport.send<{ results?: readonly SyncMutationResult[]; cursor?: string | null }>(
@@ -1002,8 +1110,9 @@ export class SyncEngine {
   /**
    * The initial synchronisation: the snapshot, read line by line into the replica, and its
    * cursor kept. A snapshot that ends without its cursor line was cut short and is taken again;
-   * after `SNAPSHOT_ATTEMPTS` such endings the engine walks `:pull` from nothing, page by page,
-   * and keeps the cursor of the last page (offline-sync.md §3.1). The records of a cut-short
+   * after `SNAPSHOT_ATTEMPTS` such endings - or at once, where `firstSynchronisation` is `pages` -
+   * the engine walks `:pull` from nothing, page by page, holding each page's cursor
+   * (offline-sync.md §3.1). The records of a cut-short
    * snapshot stay in the store: they are the server's, and the next attempt writes them again.
    *
    * What follows the synchronisation is `#recover`, not an invalidation of everything: the reads
@@ -1019,7 +1128,7 @@ export class SyncEngine {
     if (!replica) return undefined;
     const body = this.#deviceBody();
 
-    for (let attempt = 0; attempt < SNAPSHOT_ATTEMPTS && !signal.aborted; attempt += 1) {
+    for (let attempt = 0; this.#snapshotFirst && attempt < SNAPSHOT_ATTEMPTS && !signal.aborted; attempt += 1) {
       const lines = await this.#attempt(() => this.#transport.snapshot('/sync:snapshot', body, {
         token: this.#token(),
         connectTimeoutMs: options.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS,
@@ -1043,7 +1152,8 @@ export class SyncEngine {
 
     // The page walk: `:pull` with no cursor, until the server says the walk is over. The cursor
     // a page in the middle carries names the kind and the key it resumes after, and the last
-    // page's is the delta cursor - the same one the snapshot would have ended on.
+    // page's is the delta cursor - the same one the snapshot would have ended on. `#pull` holds
+    // each one, so a walk cut short is continued by the next catch-up's delta, not begun again.
     let cursor: string | undefined;
     for (;;) {
       const page = await this.#pull(cursor ?? null, options);

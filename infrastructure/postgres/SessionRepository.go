@@ -449,6 +449,45 @@ func (r SessionRepository) RevokeAll(
 	return int(changed), nil
 }
 
+func (r SessionRepository) RevokeAppGrant(
+	ctx context.Context, sessionID, accountID shared.ID, at time.Time,
+) (shared.ID, shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", "", err
+	}
+	session, err := uuidOf(sessionID)
+	if err != nil {
+		return "", "", err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return "", "", err
+	}
+	row, err := queries.RevokeAppGrantOfSession(ctx, sqlc.RevokeAppGrantOfSessionParams{
+		RevokedAt: pgtype.Timestamptz{Time: at, Valid: true},
+		SessionID: session,
+		AccountID: account,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", "", nil
+	}
+	if err != nil {
+		return "", "", shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("withdrawing the app's grant: %w", err))
+	}
+	grantID, err := idFrom(row.ID)
+	if err != nil {
+		return "", "", err
+	}
+	clientID, err := idFrom(row.ClientID)
+	if err != nil {
+		return "", "", err
+	}
+	return grantID, clientID, nil
+}
+
 // Insert writes a freshly minted link of a session's chain. The hash is computed here and
 // nowhere else.
 func (r RefreshTokenRepository) Insert(

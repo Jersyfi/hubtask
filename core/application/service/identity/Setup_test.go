@@ -58,14 +58,17 @@ func (s *setupCodes) Claim(_ context.Context, code domain.SetupCode, now time.Ti
 
 // seeder records the workspace it was asked to write.
 type seeder struct {
+	hosts   []string
 	tenants []domain.Tenant
 	owners  []domain.Account
 	actor   appshared.ActorContext
 }
 
 func (s *seeder) SeedWorkspace(
-	_ context.Context, actor appshared.ActorContext, tenant domain.Tenant, owner domain.Account, _ time.Time,
+	_ context.Context, actor appshared.ActorContext, tenant domain.Tenant, owner domain.Account,
+	host string, _ time.Time,
 ) (shared.ID, shared.ID, error) {
+	s.hosts = append(s.hosts, host)
 	s.tenants = append(s.tenants, tenant)
 	s.owners = append(s.owners, owner)
 	s.actor = actor
@@ -254,6 +257,43 @@ func TestTheShortNameIsAskedInMultiModeOnly(t *testing.T) {
 	}
 	if multi.seeder.tenants[0].Slug != "acme" {
 		t.Errorf("slug = %q, want the one given", multi.seeder.tenants[0].Slug)
+	}
+}
+
+// UC-INS-20 checks 1 and 3 at the first start's door: an installation that assigns hosts asks the
+// first workspace's host as provisioning does, with the same refusals at the field and no DNS
+// proof, and makes the short name from it where none is given; with subdomains and in single mode
+// a host is refused.
+func TestTheSetupAsksForTheHostWhereTheInstallationAssignsHosts(t *testing.T) {
+	assigned := newSetupFixture(env.TenancyMulti)
+	assigned.handler.WorkspaceHosts = env.HostsAssigned
+	assigned.handler.InstallationHost = "tasks.corp.example"
+	for host, code := range map[string]string{
+		"":                   "admin.host_required",
+		"https://tasks hr/":  "admin.host_invalid",
+		"tasks.corp.example": "admin.host_installation",
+	} {
+		_, err := assigned.invoke(t, setupInput(map[string]any{"host": host}))
+		refusal := shared.AsError(err)
+		if refusal == nil || refusal.DetailCode != code || len(refusal.Fields) != 1 || refusal.Fields[0].Path != "/host" {
+			t.Errorf("the host %q answered %v, want %s at /host", host, err, code)
+		}
+	}
+	if assigned.codes.claims != 0 {
+		t.Error("a refused host spent a claim")
+	}
+	if _, err := assigned.invoke(t, setupInput(map[string]any{"host": "Tasks-HR.corp.example"})); err != nil {
+		t.Fatalf("the setup on an assigned host was refused: %v", err)
+	}
+	if assigned.seeder.hosts[0] != "tasks-hr.corp.example" || assigned.seeder.tenants[0].Slug != "tasks-hr" {
+		t.Errorf("seeded %q at %q, want tasks-hr at its host", assigned.seeder.tenants[0].Slug, assigned.seeder.hosts[0])
+	}
+
+	for _, tenancy := range []env.TenancyMode{env.TenancyMulti, env.TenancySingle} {
+		f := newSetupFixture(tenancy)
+		if _, err := f.invoke(t, setupInput(map[string]any{"slug": "acme", "host": "tasks.acme.example"})); detailOf(err) != "admin.host_not_assigned" {
+			t.Errorf("a host in %s mode without assigned hosts answered %v", tenancy, err)
+		}
 	}
 }
 

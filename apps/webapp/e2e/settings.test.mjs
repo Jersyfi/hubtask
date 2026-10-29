@@ -842,7 +842,7 @@ test('chromium: 1280 px — ending a session, an app and a token each asks first
 
   sent.length = 0;
   await page.goto(`${served.origin}/profile/apps`);
-  const app = page.getByRole('row', { name: /Calendar bridge/ });
+  const app = page.getByRole('listitem').filter({ hasText: 'Calendar bridge' });
   await app.waitFor({ timeout: 15_000 });
   await ask(app.getByRole('button', { name: 'Withdraw' }), 'Withdraw what Calendar bridge may do?', 'Withdraw');
   assert.equal(sent.length, 1, `withdrawing the app sent ${sent.join(', ')}`);

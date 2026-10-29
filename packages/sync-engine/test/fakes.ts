@@ -111,6 +111,7 @@ export class FakeTransport implements Transport {
    * Paging is the reason: a second page is the same path answering something else, and a fake
    * whose answer never changes cannot express that. The last entry repeats once the series is
    * exhausted, so a test that calls one time too many gets a stable answer rather than undefined.
+   * An `Error` in the series is thrown instead of answered: the connection gone mid-walk.
    */
   answerEach(path: string, bodies: readonly unknown[]): this {
     this.#sequences.set(path, [...bodies]);
@@ -259,6 +260,7 @@ export class FakeTransport implements Transport {
     const sequence = this.#sequences.get(path);
     if (sequence && sequence.length > 0) {
       const next = sequence.length > 1 ? sequence.shift() : sequence[0];
+      if (next instanceof Error) throw next;
       return { status: 200, body: next as T, etag: this.#etags.get(path) };
     }
     return { status: 200, body: this.#answers.get(path) as T, etag: this.#etags.get(path) };

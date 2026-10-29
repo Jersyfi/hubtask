@@ -98,6 +98,9 @@ export function documentOf(draft: InstanceSettings): InstanceSettings {
     blocklist_file: draft.blocklist_file,
     metering: draft.metering,
     reserved_short_names: draft.reserved_short_names,
+    owners_change_address: draft.owners_change_address,
+    address_change_cooldown_days: draft.address_change_cooldown_days,
+    owners_own_domains: draft.owners_own_domains,
   };
   for (const area of AREAS) {
     const entries: Record<string, InstanceSetting> = {};

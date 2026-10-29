@@ -128,5 +128,5 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0093](./ADR-0093-voice-assistants-through-a-skill-of-our-own.md) | Voice assistants through a skill of our own | accepted | Work, identity |
 | [0094](./ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md) | One mail intake, routed by handles and ticket keys | accepted | Jumble, mail, security |
 | [0095](./ADR-0095-a-workspaces-address-resolves-through-its-hosts.md) | A workspace's address resolves through its hosts | proposed | Tenancy, identity, security |
-| [0096](./ADR-0096-the-installed-apps-sign-in-through-the-system-browser.md) | The installed apps sign in through the system browser | proposed | Identity, clients |
+| [0096](./ADR-0096-the-installed-apps-sign-in-through-the-system-browser.md) | The installed apps sign in through the system browser | accepted | Identity, clients |
 | [0097](./ADR-0097-android-stays-current-by-a-notice.md) | Android stays current by a notice | accepted | Clients, release |

@@ -80,6 +80,8 @@ type CreateReminder struct {
 
 // CreateReminderCommand is the input, typed.
 type CreateReminderCommand struct {
+	// ID is the identifier an offline client minted, or zero for the server's.
+	ID         shared.ID
 	ItemID     shared.ID
 	OffsetSpec string
 	// Channels as the caller named them, and empty for the default. Strings rather than the
@@ -154,8 +156,12 @@ func (h CreateReminder) Execute(
 			return err
 		}
 
+		id, err := mintedOr(cmd.ID, w.IDs)
+		if err != nil {
+			return err
+		}
 		reminder, err := domain.NewReminder(domain.NewReminderInput{
-			ID:         w.IDs.NewID(),
+			ID:         id,
 			TenantID:   actor.TenantID,
 			ItemID:     item.ID,
 			OffsetSpec: cmd.OffsetSpec,
@@ -432,6 +438,7 @@ func (h CreateReminder) Descriptor() usecase.Descriptor {
 			"audit entry.",
 		TokenScope: remindersWrite,
 		Input: []usecase.Field{
+			clientIDField,
 			{
 				Name: "item_id", Kind: usecase.KindID, Required: true,
 				Description: "The entry to be reminded about.",
@@ -478,7 +485,12 @@ func (h CreateReminder) invoke(
 		return nil, err
 	}
 
+	id, err := in.ID("id")
+	if err != nil {
+		return nil, err
+	}
 	reminder, err := h.Execute(ctx, actor, CreateReminderCommand{
+		ID:         id,
 		ItemID:     itemID,
 		OffsetSpec: in.String("offset_spec"),
 		Channels:   channels,

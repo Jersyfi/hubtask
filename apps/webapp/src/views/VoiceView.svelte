@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
+  import { platform } from '../lib/platform/index.ts';
   // Voice assistants (ADR-0093, UC-WRK-35): a workspace's administrator switches spoken entries on,
   // picks the list a thing said without a place goes to, names the places by what people say, tries
   // a sentence, and connects Alexa.
@@ -166,7 +167,7 @@
   );
 
   // Connecting Alexa.
-  const origin = typeof location === 'undefined' ? '' : location.origin;
+  const origin = platform.webOrigin;
   const endpoint = `${origin}/api/v1/voice/alexa`;
   const authorizationUri = `${origin}/oauth/consent`;
   const tokenUri = `${origin}/api/v1/oauth/token`;

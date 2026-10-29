@@ -93,6 +93,8 @@ type Anchored interface {
 // CreateContainerCommand is the input, typed. The registry hands the use case an untyped map from
 // whichever channel the call arrived through; this is what that map becomes once, here.
 type CreateContainerCommand struct {
+	// ID is the identifier an offline client minted, or zero for the server's.
+	ID       shared.ID
 	Type     domain.ContainerType
 	ParentID shared.ID
 	Name     string
@@ -191,8 +193,12 @@ func (h CreateContainer) create(
 		}
 
 		now := h.Clock.Now()
+		id, err := mintedOr(cmd.ID, h.IDs)
+		if err != nil {
+			return err
+		}
 		container, err := domain.NewContainer(domain.NewContainerInput{
-			ID:          h.IDs.NewID(),
+			ID:          id,
 			TenantID:    actor.TenantID,
 			Type:        cmd.Type,
 			ParentID:    cmd.ParentID,
@@ -613,6 +619,7 @@ func (h CreateContainer) Descriptor() usecase.Descriptor {
 			"board is offered starts with its columns, each announced as " + string(event.BucketCreated) + ".",
 		TokenScope: containersWrite,
 		Input: []usecase.Field{
+			clientIDField,
 			{
 				Name: "type", Kind: usecase.KindString, Required: true,
 				Enum:        []string{string(domain.ContainerHub), string(domain.ContainerCollection)},
@@ -677,7 +684,12 @@ func (h CreateContainer) invoke(
 	if err != nil {
 		return nil, err
 	}
+	id, err := in.ID("id")
+	if err != nil {
+		return nil, err
+	}
 	container, structure, err := h.create(ctx, actor, CreateContainerCommand{
+		ID:          id,
 		Type:        domain.ContainerType(in.String("type")),
 		ParentID:    parentID,
 		Name:        in.String("name"),

@@ -430,6 +430,14 @@ type ActivityEntry struct {
 	CausationID   pgtype.UUID
 }
 
+type AddressChangeNotice struct {
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	FromHost  string
+	ToHost    string
+	ChangedAt pgtype.Timestamptz
+}
+
 type AiObjectionNotice struct {
 	TenantID  pgtype.UUID
 	AccountID pgtype.UUID
@@ -714,6 +722,15 @@ type BackupTarget struct {
 	CreatedAt       pgtype.Timestamptz
 	CreatedBy       pgtype.UUID
 	Version         int32
+}
+
+type BlockedDomain struct {
+	Host        string
+	TenantID    pgtype.UUID
+	Reason      string
+	BlockedAt   pgtype.Timestamptz
+	WasMain     bool
+	DismissedAt pgtype.Timestamptz
 }
 
 type Bucket struct {
@@ -1258,6 +1275,7 @@ type OauthClient struct {
 	CreatedAt    pgtype.Timestamptz
 	CreatedBy    pgtype.UUID
 	Version      int32
+	AppPlatform  *string
 }
 
 type OauthCode struct {
@@ -1697,16 +1715,24 @@ type Tenant struct {
 	PurgeStartedAt          pgtype.Timestamptz
 	ExternalReference       *string
 	StarterAnsweredAt       pgtype.Timestamptz
+	AddressChangedAt        pgtype.Timestamptz
 }
 
 type TenantHost struct {
-	TenantID     pgtype.UUID
-	Host         string
-	State        string
-	Verification string
-	VerifiedAt   pgtype.Timestamptz
-	IsCanonical  bool
-	CreatedAt    pgtype.Timestamptz
+	TenantID           pgtype.UUID
+	Host               string
+	State              string
+	Verification       string
+	VerifiedAt         pgtype.Timestamptz
+	IsCanonical        bool
+	CreatedAt          pgtype.Timestamptz
+	Kind               string
+	StateSince         pgtype.Timestamptz
+	CheckedAt          pgtype.Timestamptz
+	TargetFound        bool
+	ProofFound         bool
+	CertificateAskedAt pgtype.Timestamptz
+	FellBackAt         pgtype.Timestamptz
 }
 
 type Tombstone struct {

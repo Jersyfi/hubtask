@@ -8,6 +8,8 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
@@ -61,4 +63,36 @@ func (a WorkspaceAddress) Of(ctx context.Context) (string, error) {
 		return "", err
 	}
 	return domain.WorkspaceBase(a.BaseURL, workspace.Slug, true), nil
+}
+
+// BrowserAddress answers where a browser on a host that is not its workspace's main address is
+// sent (UC-INS-15 check 7): the subdomain beside a main own domain, and an own domain beside the
+// subdomain after switching back, send a browser on to the main address; the API answers on both.
+// Every other host answers empty and is served as it is.
+type BrowserAddress struct {
+	Hosts      repository.BrowserHosts
+	UnitOfWork persistence.UnitOfWork
+	// BaseURL is the installation's address, whose scheme and port the redirect keeps;
+	// InstallationHost its host, which no workspace's row is and which is never asked about.
+	BaseURL, InstallationHost string
+	Tenancy                   env.TenancyMode
+}
+
+// RedirectFor answers the main address's base - scheme, host and port - for a host a browser should
+// leave, or empty.
+func (b BrowserAddress) RedirectFor(ctx context.Context, rawHost string) (string, error) {
+	host := domain.RequestHost(rawHost)
+	if b.Tenancy != env.TenancyMulti || b.Hosts == nil || host == "" || host == domain.RequestHost(b.InstallationHost) {
+		return "", nil
+	}
+	var main string
+	err := b.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+		found, err := b.Hosts.BrowserHost(ctx, host)
+		main = found
+		return err
+	})
+	if err != nil || main == "" {
+		return "", err
+	}
+	return domain.WorkspaceBaseAt(b.BaseURL, main), nil
 }

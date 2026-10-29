@@ -29,7 +29,7 @@
 import { TransportError, type PasskeyAssertionOptions } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import { ceremonyEndOf, keyAnswerOf, keyRequestOptionsOf, type AssertedCredential } from './passkeys.ts';
+import { ceremonyEndOf, keyAnswerOf, keyRequestOptionsOf, type AssertedCredential, type KeyAnswer } from './passkeys.ts';
 import { messages } from '../i18n/i18n.svelte.ts';
 import { renderProblem, type RenderedProblem } from '../problem.ts';
 import type { Handoff } from './oidc.ts';
@@ -93,6 +93,8 @@ interface Pending {
   readonly methods: readonly StepUpMethod[];
   /** The provider a `PROVIDER` proof goes to, by the name the refusal gave it. */
   readonly provider?: string;
+  /** Why only these methods are named, where the refusal said (`change_address`). */
+  readonly purpose?: string;
   readonly settle: (token: string | undefined) => void;
 }
 
@@ -132,7 +134,7 @@ class StepUp {
    * not what it wanted, and asking a third time would be a dialog somebody cannot escape.
    */
   async around<T>(call: (stepUpToken?: string) => Promise<T>): Promise<T> {
-    return withStepUp(call, (methods, provider) => this.#ask(methods, provider), () => this.#take());
+    return withStepUp(call, (methods, provider, purpose) => this.#ask(methods, provider, purpose), () => this.#take());
   }
 
   /** The held grant, consumed by the call about to be made. */
@@ -143,10 +145,10 @@ class StepUp {
   }
 
   /** Opens the prompt and waits for it. `undefined` means the reader closed it. */
-  #ask(methods: readonly StepUpMethod[], provider?: string): Promise<string | undefined> {
+  #ask(methods: readonly StepUpMethod[], provider?: string, purpose?: string): Promise<string | undefined> {
     this.#failure = undefined;
     return new Promise<string | undefined>((resolve) => {
-      this.#pending = { methods, provider, settle: resolve };
+      this.#pending = { methods, provider, purpose, settle: resolve };
     });
   }
 
@@ -218,6 +220,21 @@ class StepUp {
   async proveWithKey(
     get: (options: CredentialRequestOptions) => Promise<Credential | null>,
   ): Promise<'proved' | 'cancelled' | 'refused'> {
+    return this.proveThrough(async (options) => {
+      const credential = await get(keyRequestOptionsOf(options));
+      return credential === null ? null : keyAnswerOf(credential as unknown as AssertedCredential);
+    });
+  }
+
+  /**
+   * Proves it with a key that answers elsewhere: `answer` takes the options and comes back with the
+   * key's answer, or `null` where nothing came. In the page it is the browser's own ceremony; in an
+   * installed app it is the system browser at the workspace's host (ADR-0096 decision 5), because
+   * a passkey answers only there.
+   */
+  async proveThrough(
+    answer: (options: PasskeyAssertionOptions) => Promise<KeyAnswer | null>,
+  ): Promise<'proved' | 'cancelled' | 'refused'> {
     const waiting = this.#pending;
     if (!waiting) return 'refused';
     this.#working = true;
@@ -236,18 +253,18 @@ class StepUp {
         }
         throw cause;
       }
-      let credential: Credential | null;
+      let given: KeyAnswer | null;
       try {
-        credential = await get(keyRequestOptionsOf(options));
+        given = await answer(options);
       } catch (cause) {
         if (ceremonyEndOf(cause) === 'cancelled') return 'cancelled';
         this.#failure = ownCode('app.sign_in.key_failed');
         return 'refused';
       }
-      if (credential === null) return 'cancelled';
-      const grant = await engine.mutate<Grant>(
-        'POST', STEP_UP, keyAnswerOf(credential as unknown as AssertedCredential), { timeoutMs: TIMEOUT_MS },
-      );
+      if (given === null) return 'cancelled';
+      // The prompt may have been closed while the key was answering elsewhere.
+      if (this.#pending?.settle !== waiting.settle) return 'cancelled';
+      const grant = await engine.mutate<Grant>('POST', STEP_UP, given, { timeoutMs: TIMEOUT_MS });
       this.#pending = undefined;
       waiting.settle(grant.step_up_token);
       return 'proved';
