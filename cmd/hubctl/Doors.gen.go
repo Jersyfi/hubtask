@@ -402,6 +402,14 @@ var generatedCommands = []door{
 			{Name: "trashed", Kind: "boolean", Help: "", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title", "version"}},
+	{Group: "whiteboard", Verb: "place-file", OperationID: "attachWhiteboardMedia", Method: "POST", Path: "/whiteboards/{whiteboardId}/media", Summary: "Place an uploaded file on a whiteboard",
+		PathParams: []doorParam{
+			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "media_id", Kind: "uuid", Help: "A confirmed upload", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"media_id"}},
 	{Group: "whiteboard", Verb: "restore", OperationID: "restoreWhiteboard", Method: "POST", Path: "/whiteboards/{whiteboardId}:restore", Summary: "Bring a whiteboard back from the trash",
 		PathParams: []doorParam{
 			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},

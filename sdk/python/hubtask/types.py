@@ -4179,6 +4179,9 @@ class PageCommentChange(TypedDict, total=False):
 class PageBacklinkList(TypedDict, total=False):
     data: Required[list[dict[str, Any]]]
 
+class WhiteboardMediaPlacement(TypedDict, total=False):
+    media_id: Required[str]
+
 class WhiteboardBacklinkList(TypedDict, total=False):
     data: Required[list[dict[str, Any]]]
 
@@ -4232,7 +4235,7 @@ class WhiteboardList(TypedDict, total=False):
 
 WhiteboardElement = TypedDict("WhiteboardElement", {
     "id": Required[str],
-    "kind": Required[Literal["STICKY", "SHAPE", "TEXT", "CONNECTOR", "FRAME", "CARD", "STROKE", "LINK"]],
+    "kind": Required[Literal["STICKY", "SHAPE", "TEXT", "CONNECTOR", "FRAME", "CARD", "STROKE", "LINK", "IMAGE", "FILE"]],
     "x": float,
     "y": float,
     "width": float,
@@ -4251,6 +4254,7 @@ WhiteboardElement = TypedDict("WhiteboardElement", {
     "points": list[float],
     "url": str,
     "group": str,
+    "media_id": str,
 }, total=False)
 
 class WhiteboardCreate(TypedDict, total=False):

@@ -2011,6 +2011,10 @@ class Client:
         """What points at a whiteboard"""
         return self._call("GET", "/whiteboards/{whiteboardId}/backlinks", {"whiteboardId": whiteboard_id}, None, {}, None, "none", None, "json")
 
+    def attach_whiteboard_media(self, whiteboard_id: str, body: "WhiteboardMediaPlacement") -> "WhiteboardMediaPlacement":
+        """Place an uploaded file on a whiteboard"""
+        return self._call("POST", "/whiteboards/{whiteboardId}/media", {"whiteboardId": whiteboard_id}, None, {}, body, "json", "application/json", "json")
+
     def list_whiteboard_versions(self, whiteboard_id: str, *, query: dict[str, Any] | None = None) -> "WhiteboardVersionList":
         """A whiteboard's history"""
         return self._call("GET", "/whiteboards/{whiteboardId}/versions", {"whiteboardId": whiteboard_id}, query, {}, None, "none", None, "json")

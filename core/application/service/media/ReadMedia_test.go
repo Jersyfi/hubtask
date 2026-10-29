@@ -571,3 +571,26 @@ func TestListingAnEntryThatIsNotThereIsReportedMissing(t *testing.T) {
 		t.Fatalf("error %v, want not found", err)
 	}
 }
+
+// UC-CNV-08 check 3: a picture placed on a board is read by whoever may read the board's hub,
+// asked along the hub's path; somebody who may not is told it does not exist.
+func TestAPictureOnABoardIsReadByTheBoardsReaders(t *testing.T) {
+	for _, allow := range []bool{true, false} {
+		handler, records, permission, _ := readingHarness()
+		records.stored[mintedID] = ready(strangerA)
+		records.boards = map[shared.ID][]shared.ID{mintedID: {hubID}}
+		permission.allow = allow
+
+		_, err := handler.Execute(t.Context(), actor(mediaRead), MediaQuery{MediaID: mintedID})
+		if allow && err != nil {
+			t.Fatalf("a reader of the board was refused: %v", err)
+		}
+		if !allow && !errors.Is(err, shared.ErrNotFound) {
+			t.Fatalf("somebody outside the hub got %v, want not found", err)
+		}
+		want := []identity.Scope{identity.TenantScope(), identity.HubScope(hubID)}
+		if len(permission.asked) != 1 || !samePath(permission.asked[0][0], want) {
+			t.Fatalf("asked %v, want the hub's path", permission.asked)
+		}
+	}
+}

@@ -76,6 +76,8 @@ type Studio struct {
 	Texts   Texts
 	Entries Entries
 	Reader  Reader
+	// Media reads the uploads placed on a board (UC-CNV-08); nil places none.
+	Media MediaObjects
 }
 
 func hubPath(hubID shared.ID) []identity.Scope {
@@ -224,6 +226,8 @@ func ElementsOutput(scene domain.Scene) []usecase.Output {
 			element["pen"], element["points"] = string(e.Pen), FlatPoints(e.Points)
 		case domain.KindLink:
 			element["url"] = e.URL
+		case domain.KindImage, domain.KindFile:
+			element["media_id"] = e.Media.String()
 		}
 		out[i] = element
 	}
@@ -304,6 +308,13 @@ func elementOf(raw any, path string) (domain.Element, error) {
 		Pen: domain.Pen(text("pen")), URL: text("url"), Group: text("group"),
 	}
 	element.Locked, _ = fields["locked"].(bool)
+	if raw := text("media_id"); raw != "" {
+		id, err := shared.ParseID(raw)
+		if err != nil {
+			return domain.Element{}, malformed(path + "/media_id")
+		}
+		element.Media = id
+	}
 	if raw, present := fields["points"]; present && raw != nil {
 		list, ok := raw.([]any)
 		if !ok || len(list)%2 != 0 || len(list) > 2*domain.MaxStrokePoints {

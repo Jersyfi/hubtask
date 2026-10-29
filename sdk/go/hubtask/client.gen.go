@@ -6538,7 +6538,9 @@ func (e WhiteboardElementEnd) Valid() bool {
 const (
 	WhiteboardElementKindCARD      WhiteboardElementKind = "CARD"
 	WhiteboardElementKindCONNECTOR WhiteboardElementKind = "CONNECTOR"
+	WhiteboardElementKindFILE      WhiteboardElementKind = "FILE"
 	WhiteboardElementKindFRAME     WhiteboardElementKind = "FRAME"
+	WhiteboardElementKindIMAGE     WhiteboardElementKind = "IMAGE"
 	WhiteboardElementKindLINK      WhiteboardElementKind = "LINK"
 	WhiteboardElementKindSHAPE     WhiteboardElementKind = "SHAPE"
 	WhiteboardElementKindSTICKY    WhiteboardElementKind = "STICKY"
@@ -6553,7 +6555,11 @@ func (e WhiteboardElementKind) Valid() bool {
 		return true
 	case WhiteboardElementKindCONNECTOR:
 		return true
+	case WhiteboardElementKindFILE:
+		return true
 	case WhiteboardElementKindFRAME:
+		return true
+	case WhiteboardElementKindIMAGE:
 		return true
 	case WhiteboardElementKindLINK:
 		return true
@@ -15896,6 +15902,9 @@ type WhiteboardElement struct {
 	// Locked Not moved or changed by a pointer until unlocked.
 	Locked *bool `json:"locked,omitempty"`
 
+	// MediaId The uploaded file a picture or a file draws, placed on the board first (attachWhiteboardMedia).
+	MediaId *openapi_types.UUID `json:"media_id,omitempty"`
+
 	// Pen What a stroke is drawn with; PEN when not sent.
 	Pen *WhiteboardElementPen `json:"pen,omitempty"`
 
@@ -15973,6 +15982,12 @@ type WhiteboardExportRequest struct {
 // WhiteboardList defines model for WhiteboardList.
 type WhiteboardList struct {
 	Data []Whiteboard `json:"data"`
+}
+
+// WhiteboardMediaPlacement defines model for WhiteboardMediaPlacement.
+type WhiteboardMediaPlacement struct {
+	// MediaId A confirmed upload.
+	MediaId openapi_types.UUID `json:"media_id"`
 }
 
 // WhiteboardRead A board with its objects and whether the reader may draw on it.
@@ -18915,6 +18930,9 @@ type TryVoiceSentenceJSONRequestBody = VoiceTry
 
 // UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody defines body for UpdateWhiteboard for application/merge-patch+json ContentType.
 type UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody = WhiteboardChange
+
+// AttachWhiteboardMediaJSONRequestBody defines body for AttachWhiteboardMedia for application/json ContentType.
+type AttachWhiteboardMediaJSONRequestBody = WhiteboardMediaPlacement
 
 // NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody defines body for NameWhiteboardVersion for application/merge-patch+json ContentType.
 type NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody = PageVersionName
@@ -23837,7 +23855,7 @@ type ClientInterface interface {
 
 	// GetMedia performs a GET /media/{mediaId} (the `GetMedia` operationId) request.
 	//
-	// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers, and - for a person's picture - by every member of the workspace.
+	// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers or a whiteboard it is placed on, and - for a person's picture - by every member of the workspace.
 	GetMedia(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ConfirmMediaUpload performs a POST /media/{mediaId}:confirm (the `ConfirmMediaUpload` operationId) request.
@@ -25519,6 +25537,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /whiteboards/{whiteboardId}/backlinks (the `ListWhiteboardBacklinks` operationId).
 	ListWhiteboardBacklinks(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AttachWhiteboardMediaWithBody Place an uploaded file on a whiteboard
+	//
+	// Makes a confirmed upload one of the board's files, so that its pictures and file objects can draw it and every reader of the board can read it. The file is one the caller uploaded, or one another board they may read already holds. Kept as long as the board; placing it twice is once. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}/media (the `AttachWhiteboardMedia` operationId).
+	AttachWhiteboardMediaWithBody(ctx context.Context, whiteboardId WhiteboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AttachWhiteboardMedia Place an uploaded file on a whiteboard
+	//
+	// Makes a confirmed upload one of the board's files, so that its pictures and file objects can draw it and every reader of the board can read it. The file is one the caller uploaded, or one another board they may read already holds. Kept as long as the board; placing it twice is once. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}/media (the `AttachWhiteboardMedia` operationId).
+	AttachWhiteboardMedia(ctx context.Context, whiteboardId WhiteboardId, body AttachWhiteboardMediaJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListWhiteboardVersions A whiteboard's history
 	//
@@ -35738,7 +35774,7 @@ func (c *Client) DeleteMedia(ctx context.Context, mediaId MediaId, reqEditors ..
 
 // GetMedia performs a GET /media/{mediaId} (the `GetMedia` operationId) request.
 //
-// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers, and - for a person's picture - by every member of the workspace.
+// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers or a whiteboard it is placed on, and - for a person's picture - by every member of the workspace.
 func (c *Client) GetMedia(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetMediaRequest(c.Server, mediaId)
 	if err != nil {
@@ -39051,6 +39087,44 @@ func (c *Client) UpdateWhiteboardWithApplicationMergePatchPlusJSONBody(ctx conte
 // Corresponds with GET /whiteboards/{whiteboardId}/backlinks (the `ListWhiteboardBacklinks` operationId).
 func (c *Client) ListWhiteboardBacklinks(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListWhiteboardBacklinksRequest(c.Server, whiteboardId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AttachWhiteboardMediaWithBody Place an uploaded file on a whiteboard
+//
+// Makes a confirmed upload one of the board's files, so that its pictures and file objects can draw it and every reader of the board can read it. The file is one the caller uploaded, or one another board they may read already holds. Kept as long as the board; placing it twice is once. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /whiteboards/{whiteboardId}/media (the `AttachWhiteboardMedia` operationId).
+func (c *Client) AttachWhiteboardMediaWithBody(ctx context.Context, whiteboardId WhiteboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAttachWhiteboardMediaRequestWithBody(c.Server, whiteboardId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AttachWhiteboardMedia Place an uploaded file on a whiteboard
+//
+// Makes a confirmed upload one of the board's files, so that its pictures and file objects can draw it and every reader of the board can read it. The file is one the caller uploaded, or one another board they may read already holds. Kept as long as the board; placing it twice is once. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /whiteboards/{whiteboardId}/media (the `AttachWhiteboardMedia` operationId).
+func (c *Client) AttachWhiteboardMedia(ctx context.Context, whiteboardId WhiteboardId, body AttachWhiteboardMediaJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAttachWhiteboardMediaRequest(c.Server, whiteboardId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -61576,6 +61650,53 @@ func NewListWhiteboardBacklinksRequest(server string, whiteboardId WhiteboardId)
 	return req, nil
 }
 
+// NewAttachWhiteboardMediaRequest calls the generic AttachWhiteboardMedia builder with application/json body
+func NewAttachWhiteboardMediaRequest(server string, whiteboardId WhiteboardId, body AttachWhiteboardMediaJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAttachWhiteboardMediaRequestWithBody(server, whiteboardId, "application/json", bodyReader)
+}
+
+// NewAttachWhiteboardMediaRequestWithBody constructs an http.Request for the AttachWhiteboardMedia method, with any body, and a specified content type
+func NewAttachWhiteboardMediaRequestWithBody(server string, whiteboardId WhiteboardId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "whiteboardId", whiteboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/whiteboards/%s/media", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListWhiteboardVersionsRequest constructs an http.Request for the ListWhiteboardVersions method
 func NewListWhiteboardVersionsRequest(server string, whiteboardId WhiteboardId, params *ListWhiteboardVersionsParams) (*http.Request, error) {
 	var err error
@@ -67521,7 +67642,7 @@ type ClientWithResponsesInterface interface {
 
 	// GetMediaWithResponse performs a GET /media/{mediaId} (the `GetMedia` operationId) request.
 	//
-	// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers, and - for a person's picture - by every member of the workspace.
+	// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers or a whiteboard it is placed on, and - for a person's picture - by every member of the workspace.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetMediaWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*GetMediaResult, error)
@@ -69353,6 +69474,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /whiteboards/{whiteboardId}/backlinks (the `ListWhiteboardBacklinks` operationId).
 	ListWhiteboardBacklinksWithResponse(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*ListWhiteboardBacklinksResult, error)
+
+	// AttachWhiteboardMediaWithBodyWithResponse Place an uploaded file on a whiteboard
+	//
+	// Makes a confirmed upload one of the board's files, so that its pictures and file objects can draw it and every reader of the board can read it. The file is one the caller uploaded, or one another board they may read already holds. Kept as long as the board; placing it twice is once. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}/media (the `AttachWhiteboardMedia` operationId).
+	AttachWhiteboardMediaWithBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AttachWhiteboardMediaResult, error)
+
+	// AttachWhiteboardMediaWithResponse Place an uploaded file on a whiteboard
+	//
+	// Makes a confirmed upload one of the board's files, so that its pictures and file objects can draw it and every reader of the board can read it. The file is one the caller uploaded, or one another board they may read already holds. Kept as long as the board; placing it twice is once. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}/media (the `AttachWhiteboardMedia` operationId).
+	AttachWhiteboardMediaWithResponse(ctx context.Context, whiteboardId WhiteboardId, body AttachWhiteboardMediaJSONRequestBody, reqEditors ...RequestEditorFn) (*AttachWhiteboardMediaResult, error)
 
 	// ListWhiteboardVersionsWithResponse A whiteboard's history
 	//
@@ -92440,6 +92579,54 @@ func (r ListWhiteboardBacklinksResult) ContentType() string {
 	return ""
 }
 
+type AttachWhiteboardMediaResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WhiteboardMediaPlacement
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AttachWhiteboardMediaResult) GetJSON200() *WhiteboardMediaPlacement {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AttachWhiteboardMediaResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AttachWhiteboardMediaResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AttachWhiteboardMediaResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AttachWhiteboardMediaResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AttachWhiteboardMediaResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListWhiteboardVersionsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -101492,7 +101679,7 @@ func (c *ClientWithResponses) DeleteMediaWithResponse(ctx context.Context, media
 
 // GetMediaWithResponse performs a GET /media/{mediaId} (the `GetMedia` operationId) request.
 //
-// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers, and - for a person's picture - by every member of the workspace.
+// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers or a whiteboard it is placed on, and - for a person's picture - by every member of the workspace.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetMediaWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*GetMediaResult, error) {
@@ -104307,6 +104494,36 @@ func (c *ClientWithResponses) ListWhiteboardBacklinksWithResponse(ctx context.Co
 		return nil, err
 	}
 	return ParseListWhiteboardBacklinksResult(rsp)
+}
+
+// AttachWhiteboardMediaWithBodyWithResponse Place an uploaded file on a whiteboard
+//
+// Makes a confirmed upload one of the board's files, so that its pictures and file objects can draw it and every reader of the board can read it. The file is one the caller uploaded, or one another board they may read already holds. Kept as long as the board; placing it twice is once. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /whiteboards/{whiteboardId}/media (the `AttachWhiteboardMedia` operationId).
+func (c *ClientWithResponses) AttachWhiteboardMediaWithBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AttachWhiteboardMediaResult, error) {
+	rsp, err := c.AttachWhiteboardMediaWithBody(ctx, whiteboardId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAttachWhiteboardMediaResult(rsp)
+}
+
+// AttachWhiteboardMediaWithResponse Place an uploaded file on a whiteboard
+//
+// Makes a confirmed upload one of the board's files, so that its pictures and file objects can draw it and every reader of the board can read it. The file is one the caller uploaded, or one another board they may read already holds. Kept as long as the board; placing it twice is once. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /whiteboards/{whiteboardId}/media (the `AttachWhiteboardMedia` operationId).
+func (c *ClientWithResponses) AttachWhiteboardMediaWithResponse(ctx context.Context, whiteboardId WhiteboardId, body AttachWhiteboardMediaJSONRequestBody, reqEditors ...RequestEditorFn) (*AttachWhiteboardMediaResult, error) {
+	rsp, err := c.AttachWhiteboardMedia(ctx, whiteboardId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAttachWhiteboardMediaResult(rsp)
 }
 
 // ListWhiteboardVersionsWithResponse A whiteboard's history
@@ -121069,6 +121286,39 @@ func ParseListWhiteboardBacklinksResult(rsp *http.Response) (*ListWhiteboardBack
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest WhiteboardBacklinkList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAttachWhiteboardMediaResult parses an HTTP response from a AttachWhiteboardMediaWithResponse call
+func ParseAttachWhiteboardMediaResult(rsp *http.Response) (*AttachWhiteboardMediaResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AttachWhiteboardMediaResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WhiteboardMediaPlacement
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

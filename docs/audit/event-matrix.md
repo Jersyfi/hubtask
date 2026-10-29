@@ -717,6 +717,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `whiteboard.changed` | UpdateWhiteboard | `whiteboard` | INFO | Every time |
 | `whiteboard.created` | CreateWhiteboard | `whiteboard` | INFO | Every time |
 | `whiteboard.exported` | ExportWhiteboard | `whiteboard` | INFO | Every time |
+| `whiteboard.media_placed` | AttachWhiteboardMedia | `whiteboard` | INFO | Every time |
 | `whiteboard.read` | ListWhiteboardBacklinks | `whiteboard` | INFO | When refused |
 | `whiteboard.read` | ListWhiteboardVersions | `whiteboard` | INFO | When refused |
 | `whiteboard.read` | ListWhiteboards | `whiteboard` | INFO | When refused |

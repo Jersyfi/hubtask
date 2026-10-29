@@ -291,7 +291,7 @@ func (h GetMedia) Descriptor() usecase.Descriptor {
 		Permission: service.PermissionRead,
 		Summary: "Reads one media object's record, with a download target when it is READY. " +
 			"Readable by whoever staged it, and by anybody who may read an entry it covers or is " +
-			"attached to - an object nobody may reach is reported missing rather than forbidden. " +
+			"attached to, or a whiteboard it is placed on - an object nobody may reach is reported missing rather than forbidden. " +
 			"The download target is a short-lived capability: a presigned object-storage URL, or " +
 			"this server's token-protected content route on a local-storage installation.",
 		SideEffects: "None. Reads only, and mints an expiring download target.",

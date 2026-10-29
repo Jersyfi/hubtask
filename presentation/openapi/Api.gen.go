@@ -6532,7 +6532,9 @@ func (e WhiteboardElementEnd) Valid() bool {
 const (
 	WhiteboardElementKindCARD      WhiteboardElementKind = "CARD"
 	WhiteboardElementKindCONNECTOR WhiteboardElementKind = "CONNECTOR"
+	WhiteboardElementKindFILE      WhiteboardElementKind = "FILE"
 	WhiteboardElementKindFRAME     WhiteboardElementKind = "FRAME"
+	WhiteboardElementKindIMAGE     WhiteboardElementKind = "IMAGE"
 	WhiteboardElementKindLINK      WhiteboardElementKind = "LINK"
 	WhiteboardElementKindSHAPE     WhiteboardElementKind = "SHAPE"
 	WhiteboardElementKindSTICKY    WhiteboardElementKind = "STICKY"
@@ -6547,7 +6549,11 @@ func (e WhiteboardElementKind) Valid() bool {
 		return true
 	case WhiteboardElementKindCONNECTOR:
 		return true
+	case WhiteboardElementKindFILE:
+		return true
 	case WhiteboardElementKindFRAME:
+		return true
+	case WhiteboardElementKindIMAGE:
 		return true
 	case WhiteboardElementKindLINK:
 		return true
@@ -15890,6 +15896,9 @@ type WhiteboardElement struct {
 	// Locked Not moved or changed by a pointer until unlocked.
 	Locked *bool `json:"locked,omitempty"`
 
+	// MediaId The uploaded file a picture or a file draws, placed on the board first (attachWhiteboardMedia).
+	MediaId *openapi_types.UUID `json:"media_id,omitempty"`
+
 	// Pen What a stroke is drawn with; PEN when not sent.
 	Pen *WhiteboardElementPen `json:"pen,omitempty"`
 
@@ -15967,6 +15976,12 @@ type WhiteboardExportRequest struct {
 // WhiteboardList defines model for WhiteboardList.
 type WhiteboardList struct {
 	Data []Whiteboard `json:"data"`
+}
+
+// WhiteboardMediaPlacement defines model for WhiteboardMediaPlacement.
+type WhiteboardMediaPlacement struct {
+	// MediaId A confirmed upload.
+	MediaId openapi_types.UUID `json:"media_id"`
 }
 
 // WhiteboardRead A board with its objects and whether the reader may draw on it.
@@ -18910,6 +18925,9 @@ type TryVoiceSentenceJSONRequestBody = VoiceTry
 // UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody defines body for UpdateWhiteboard for application/merge-patch+json ContentType.
 type UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody = WhiteboardChange
 
+// AttachWhiteboardMediaJSONRequestBody defines body for AttachWhiteboardMedia for application/json ContentType.
+type AttachWhiteboardMediaJSONRequestBody = WhiteboardMediaPlacement
+
 // NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody defines body for NameWhiteboardVersion for application/merge-patch+json ContentType.
 type NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody = PageVersionName
 
@@ -20337,6 +20355,9 @@ type ServerInterface interface {
 	// ListWhiteboardBacklinks What points at a whiteboard
 	// (GET /whiteboards/{whiteboardId}/backlinks)
 	ListWhiteboardBacklinks(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
+	// AttachWhiteboardMedia Place an uploaded file on a whiteboard
+	// (POST /whiteboards/{whiteboardId}/media)
+	AttachWhiteboardMedia(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
 	// ListWhiteboardVersions A whiteboard's history
 	// (GET /whiteboards/{whiteboardId}/versions)
 	ListWhiteboardVersions(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId, params ListWhiteboardVersionsParams)
@@ -36379,6 +36400,32 @@ func (siw *ServerInterfaceWrapper) ListWhiteboardBacklinks(w http.ResponseWriter
 	handler.ServeHTTP(w, r)
 }
 
+// AttachWhiteboardMedia operation middleware
+func (siw *ServerInterfaceWrapper) AttachWhiteboardMedia(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "whiteboardId" -------------
+	var whiteboardId WhiteboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "whiteboardId", r.PathValue("whiteboardId"), &whiteboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "whiteboardId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AttachWhiteboardMedia(w, r, whiteboardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListWhiteboardVersions operation middleware
 func (siw *ServerInterfaceWrapper) ListWhiteboardVersions(w http.ResponseWriter, r *http.Request) {
 
@@ -37396,6 +37443,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}:restore", wrapper.RestoreWhiteboard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}:export", wrapper.ExportWhiteboard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/whiteboards/{whiteboardId}/backlinks", wrapper.ListWhiteboardBacklinks)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}/media", wrapper.AttachWhiteboardMedia)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/whiteboards/{whiteboardId}/versions", wrapper.ListWhiteboardVersions)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/whiteboards/{whiteboardId}/versions/{seq}", wrapper.ReadWhiteboardVersion)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/whiteboards/{whiteboardId}/versions/{seq}", wrapper.NameWhiteboardVersion)

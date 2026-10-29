@@ -17503,7 +17503,7 @@
           "media"
         ],
         "operationId": "getMedia",
-        "description": "The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers, and - for a person's picture - by every member of the workspace.\n",
+        "description": "The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers or a whiteboard it is placed on, and - for a person's picture - by every member of the workspace.\n",
         "responses": {
           "200": {
             "description": "The media object",
@@ -18791,6 +18791,48 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WhiteboardBacklinkList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/whiteboards/{whiteboardId}/media": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/WhiteboardId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "whiteboards"
+        ],
+        "operationId": "attachWhiteboardMedia",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "whiteboard place-file",
+        "summary": "Place an uploaded file on a whiteboard",
+        "description": "Makes a confirmed upload one of the board's files, so that its pictures and file objects can draw it and every reader of the board can read it. The file is one the caller uploaded, or one another board they may read already holds. Kept as long as the board; placing it twice is once. Needs WRITE_ITEMS on the hub.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhiteboardMediaPlacement"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Placed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhiteboardMediaPlacement"
                 }
               }
             }
@@ -40582,6 +40624,19 @@
           }
         }
       },
+      "WhiteboardMediaPlacement": {
+        "type": "object",
+        "required": [
+          "media_id"
+        ],
+        "properties": {
+          "media_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A confirmed upload."
+          }
+        }
+      },
       "WhiteboardBacklinkList": {
         "type": "object",
         "required": [
@@ -40934,7 +40989,9 @@
               "FRAME",
               "CARD",
               "STROKE",
-              "LINK"
+              "LINK",
+              "IMAGE",
+              "FILE"
             ]
           },
           "x": {
@@ -41068,6 +41125,11 @@
             "type": "string",
             "pattern": "^[A-Za-z0-9_-]{1,64}$",
             "description": "The group the object belongs to: chosen, moved and copied together."
+          },
+          "media_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The uploaded file a picture or a file draws, placed on the board first (attachWhiteboardMedia)."
           }
         }
       },

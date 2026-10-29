@@ -2529,6 +2529,11 @@ export class HubtaskClient {
     return this.call("GET", "/whiteboards/{whiteboardId}/backlinks", { "whiteboardId": whiteboardId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Place an uploaded file on a whiteboard */
+  attachWhiteboardMedia(whiteboardId: string, body: NonNullable<operations["attachWhiteboardMedia"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["attachWhiteboardMedia"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/whiteboards/{whiteboardId}/media", { "whiteboardId": whiteboardId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** A whiteboard's history */
   listWhiteboardVersions(whiteboardId: string, options: CallOptions & { readonly query?: NonNullable<operations["listWhiteboardVersions"]['parameters']['query']> } = {}): Promise<operations["listWhiteboardVersions"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/whiteboards/{whiteboardId}/versions", { "whiteboardId": whiteboardId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

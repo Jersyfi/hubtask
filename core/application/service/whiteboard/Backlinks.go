@@ -106,7 +106,7 @@ func (h ListWhiteboardBacklinks) Execute(ctx context.Context, actor appshared.Ac
 	for _, other := range boards {
 		hubs = append(hubs, other.HubID)
 	}
-	readableHub, err := h.readableHubs(ctx, actor, hubs)
+	readableHub, err := h.Studio.readableHubs(ctx, actor, hubs)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func (h ListWhiteboardBacklinks) Execute(ctx context.Context, actor appshared.Ac
 }
 
 // readableHubs answers which of the hubs the reader may read, asked once each.
-func (h ListWhiteboardBacklinks) readableHubs(ctx context.Context, actor appshared.ActorContext, hubs []shared.ID) (map[shared.ID]bool, error) {
+func (s Studio) readableHubs(ctx context.Context, actor appshared.ActorContext, hubs []shared.ID) (map[shared.ID]bool, error) {
 	readable := map[shared.ID]bool{}
 	var unique []shared.ID
 	for _, hub := range hubs {
@@ -150,14 +150,14 @@ func (h ListWhiteboardBacklinks) readableHubs(ctx context.Context, actor appshar
 			unique = append(unique, hub)
 		}
 	}
-	if len(unique) == 0 || h.Studio.Reader == nil {
+	if len(unique) == 0 || s.Reader == nil {
 		return readable, nil
 	}
 	paths := make([][]identity.Scope, 0, len(unique))
 	for _, hub := range unique {
 		paths = append(paths, hubPath(hub))
 	}
-	allowed, err := h.Studio.Reader.Permitted(ctx, actor, access.Request{
+	allowed, err := s.Reader.Permitted(ctx, actor, access.Request{
 		Permission: service.PermissionRead, Action: BoardReadAction, TokenScope: boardsRead, TargetType: boardTarget,
 	}, paths)
 	if err != nil {
