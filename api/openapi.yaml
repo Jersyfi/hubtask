@@ -18270,7 +18270,7 @@ components:
 
     EntryLinks:
       type: object
-      required: [links, backlinks]
+      required: [links, backlinks, page_backlinks]
       properties:
         links:
           type: array
@@ -18295,6 +18295,15 @@ components:
               anchor: { type: [string, "null"] }
               strength: { $ref: "#/components/schemas/ReferenceStrength" }
               entry: { $ref: "#/components/schemas/ReferenceTarget" }
+        page_backlinks:
+          type: array
+          description: The pages that point at the entry, from hubs whose pages the reader may read.
+          items:
+            type: object
+            required: [strength, page]
+            properties:
+              strength: { $ref: "#/components/schemas/ReferenceStrength" }
+              page: { $ref: "#/components/schemas/ReferenceTarget" }
 
     ReferenceKind:
       type: string

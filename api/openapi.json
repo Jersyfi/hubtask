@@ -24846,7 +24846,8 @@
         "type": "object",
         "required": [
           "links",
-          "backlinks"
+          "backlinks",
+          "page_backlinks"
         ],
         "properties": {
           "links": {
@@ -24911,6 +24912,25 @@
                   "$ref": "#/components/schemas/ReferenceStrength"
                 },
                 "entry": {
+                  "$ref": "#/components/schemas/ReferenceTarget"
+                }
+              }
+            }
+          },
+          "page_backlinks": {
+            "type": "array",
+            "description": "The pages that point at the entry, from hubs whose pages the reader may read.",
+            "items": {
+              "type": "object",
+              "required": [
+                "strength",
+                "page"
+              ],
+              "properties": {
+                "strength": {
+                  "$ref": "#/components/schemas/ReferenceStrength"
+                },
+                "page": {
                   "$ref": "#/components/schemas/ReferenceTarget"
                 }
               }

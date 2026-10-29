@@ -82,9 +82,11 @@ type Linking struct {
 	Activity ActivityJournal
 }
 
-// PageSummaries answers the pages among identifiers that are not trashed.
+// PageSummaries answers the pages among identifiers that are not trashed, and the texts that
+// point at an object - of which an entry's links keep the pages.
 type PageSummaries interface {
 	Summaries(ctx context.Context, ids []shared.ID) ([]knowledgerepo.Summary, error)
+	Backlinks(ctx context.Context, targetKind string, targetID shared.ID, limit int) ([]knowledgerepo.Backlink, error)
 }
 
 // summaryPath is the scope chain an entry's summary is judged against, ending on the entry so
@@ -550,6 +552,14 @@ type EntryLinks struct {
 	Backlinks []repository.Backlink
 	// Sources are the entries the backlinks' texts belong to, all visible to the reader.
 	Sources map[shared.ID]repository.EntrySummary
+	// PageBacklinks are the pages pointing at the entry, each in a hub the reader may read (M3).
+	PageBacklinks []PageBacklink
+}
+
+// PageBacklink is a page that points at an entry, and how strongly.
+type PageBacklink struct {
+	Page     knowledgerepo.Summary
+	Strength reference.Strength
 }
 
 // ListEntryLinks reads an entry's links and backlinks (UC-PLN-01 checks 1, 4 and 7).
@@ -589,6 +599,9 @@ func (h ListEntryLinks) Execute(ctx context.Context, actor appshared.ActorContex
 	if err != nil {
 		return EntryLinks{}, err
 	}
+	if result.PageBacklinks, err = h.pageBacklinks(ctx, actor, item.ID); err != nil {
+		return EntryLinks{}, err
+	}
 	others := make([]shared.ID, 0, len(result.Links))
 	for _, link := range result.Links {
 		other, _ := link.Other(item.ID)
@@ -612,6 +625,58 @@ func (h ListEntryLinks) Execute(ctx context.Context, actor appshared.ActorContex
 	}
 	result.Backlinks = kept
 	return result, nil
+}
+
+// pageBacklinks answers the pages that point at the entry and that the reader may read; a page in
+// a hub out of reach is left out, as an entry's notes out of reach are (P-05).
+func (h ListEntryLinks) pageBacklinks(ctx context.Context, actor appshared.ActorContext, itemID shared.ID) ([]PageBacklink, error) {
+	if h.Linking.Pages == nil {
+		return nil, nil
+	}
+	strengths := map[shared.ID]reference.Strength{}
+	var ids []shared.ID
+	err := h.Linking.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		rows, err := h.Linking.Pages.Backlinks(ctx, string(reference.KindEntry), itemID, maxBacklinks)
+		for _, row := range rows {
+			if row.SourceKind != string(reference.KindPage) {
+				continue
+			}
+			if _, seen := strengths[row.SourceID]; !seen {
+				ids = append(ids, row.SourceID)
+			}
+			if strength := reference.Strength(row.Strength); rank(strength) >= rank(strengths[row.SourceID]) {
+				strengths[row.SourceID] = strength
+			}
+		}
+		return err
+	})
+	if err != nil || len(ids) == 0 {
+		return nil, err
+	}
+	visible, err := h.Linking.visiblePages(ctx, actor, ids, ItemReadAction)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]PageBacklink, 0, len(visible))
+	for _, id := range ids {
+		if page, ok := visible[id]; ok {
+			out = append(out, PageBacklink{Page: page, Strength: strengths[id]})
+		}
+	}
+	return out, nil
+}
+
+// rank orders the drawings, so a page that both mentions and shows an entry counts as showing it.
+func rank(s reference.Strength) int {
+	switch s {
+	case reference.Embed:
+		return 3
+	case reference.Card:
+		return 2
+	case reference.Mention:
+		return 1
+	}
+	return 0
 }
 
 // Output is the shape every door returns (schema EntryLinks).
@@ -639,7 +704,13 @@ func (r EntryLinks) Output(itemID shared.ID) usecase.Output {
 			"entry": EntrySummaryOutput(r.Sources[backlink.EntryID], ""),
 		})
 	}
-	return usecase.Output{"links": links, "backlinks": backlinks}
+	pageBacklinks := make([]usecase.Output, 0, len(r.PageBacklinks))
+	for _, backlink := range r.PageBacklinks {
+		pageBacklinks = append(pageBacklinks, usecase.Output{
+			"strength": string(backlink.Strength), "page": pageTarget(backlink.Page, nil),
+		})
+	}
+	return usecase.Output{"links": links, "backlinks": backlinks, "page_backlinks": pageBacklinks}
 }
 
 // Descriptor is the catalogue entry.
@@ -804,7 +875,7 @@ func (h ResolveReferences) Execute(ctx context.Context, actor appshared.ActorCon
 			pages = append(pages, ref.ID)
 		}
 	}
-	visiblePages, err := h.visiblePages(ctx, actor, pages)
+	visiblePages, err := h.Linking.visiblePages(ctx, actor, pages, ReferencesResolveAction)
 	if err != nil {
 		return nil, err
 	}
@@ -838,16 +909,9 @@ func (h ResolveReferences) Execute(ctx context.Context, actor appshared.ActorCon
 			}
 		case reference.KindPage:
 			if summary, ok := visiblePages[ref.ID]; ok {
-				icon := any(nil)
-				if summary.Icon != "" {
-					icon = summary.Icon
-				}
-				out = append(out, usecase.Output{
-					"kind": string(ref.Kind), "id": ref.ID.String(), "anchor": anchorOrNil(ref.Anchor),
-					"available": true, "title": summary.Title, "archived": summary.Archived,
-					"hub_id": summary.HubID.String(), "icon": icon,
-					"due_for_review": summary.VerifiedUntil != nil && !h.Linking.Clock.Now().Before(*summary.VerifiedUntil),
-				})
+				target := pageTarget(summary, h.Linking.Clock)
+				target["anchor"] = anchorOrNil(ref.Anchor)
+				out = append(out, target)
 				continue
 			}
 		case reference.KindView:
@@ -908,16 +972,16 @@ func (h ResolveReferences) visibleContainers(
 
 // visiblePages answers the pages among ids the reader may read: READ at the page's hub, the
 // knowledge module's rule.
-func (h ResolveReferences) visiblePages(
-	ctx context.Context, actor appshared.ActorContext, ids []shared.ID,
+func (l Linking) visiblePages(
+	ctx context.Context, actor appshared.ActorContext, ids []shared.ID, action audit.Action,
 ) (map[shared.ID]knowledgerepo.Summary, error) {
 	visible := map[shared.ID]knowledgerepo.Summary{}
-	if len(ids) == 0 || h.Linking.Pages == nil {
+	if len(ids) == 0 || l.Pages == nil {
 		return visible, nil
 	}
 	var summaries []knowledgerepo.Summary
-	err := h.Linking.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		read, err := h.Linking.Pages.Summaries(ctx, ids)
+	err := l.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		read, err := l.Pages.Summaries(ctx, ids)
 		summaries = read
 		return err
 	})
@@ -928,8 +992,8 @@ func (h ResolveReferences) visiblePages(
 	for _, s := range summaries {
 		paths = append(paths, []identity.Scope{identity.TenantScope(), identity.HubScope(s.HubID)})
 	}
-	allowed, err := h.Linking.Reader.Permitted(ctx, actor, access.Request{
-		Permission: service.PermissionRead, Action: ReferencesResolveAction, TokenScope: itemsRead, TargetType: "page",
+	allowed, err := l.Reader.Permitted(ctx, actor, access.Request{
+		Permission: service.PermissionRead, Action: action, TokenScope: itemsRead, TargetType: "page",
 	}, paths)
 	if err != nil {
 		return nil, err
@@ -1035,4 +1099,22 @@ func referencesOf(raw any) ([]reference.Reference, error) {
 
 func linkFieldInvalid(path, code string) error {
 	return shared.ErrValidation.WithDetail(code).WithFields(shared.FieldError{Path: path, Code: code})
+}
+
+// pageTarget is a readable page as a reference shows it (schema ReferenceTarget). Without a clock
+// it does not say whether the page is due for review.
+func pageTarget(summary knowledgerepo.Summary, clock interface{ Now() time.Time }) usecase.Output {
+	icon := any(nil)
+	if summary.Icon != "" {
+		icon = summary.Icon
+	}
+	out := usecase.Output{
+		"kind": string(reference.KindPage), "id": summary.ID.String(), "anchor": nil,
+		"available": true, "title": summary.Title, "archived": summary.Archived,
+		"hub_id": summary.HubID.String(), "icon": icon,
+	}
+	if clock != nil {
+		out["due_for_review"] = summary.VerifiedUntil != nil && !clock.Now().Before(*summary.VerifiedUntil)
+	}
+	return out
 }

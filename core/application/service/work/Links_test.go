@@ -513,6 +513,23 @@ func (p pageSummaries) Summaries(_ context.Context, ids []shared.ID) ([]knowledg
 	return out, nil
 }
 
+func (p pageSummaries) Backlinks(context.Context, string, shared.ID, int) ([]knowledgerepo.Backlink, error) {
+	return nil, nil
+}
+
+// pagesPointing are pages whose bodies point at every entry asked about.
+type pagesPointing struct {
+	pageSummaries
+	backlinks []knowledgerepo.Backlink
+}
+
+func (p pagesPointing) Backlinks(_ context.Context, kind string, _ shared.ID, _ int) ([]knowledgerepo.Backlink, error) {
+	if kind != string(reference.KindEntry) {
+		return nil, nil
+	}
+	return p.backlinks, nil
+}
+
 // P-19: a page resolves to its title for a reader of its hub; a page in a hub the reader may not
 // read answers its address alone, as a missing one does.
 func TestAPageReferenceResolvesForAReaderOfItsHub(t *testing.T) {
@@ -539,5 +556,39 @@ func TestAPageReferenceResolvesForAReaderOfItsHub(t *testing.T) {
 	}
 	if resolved[1]["available"] != false || len(resolved[1]) != 4 {
 		t.Errorf("a page out of reach resolves to %+v", resolved[1])
+	}
+}
+
+// An entry's backlinks name the pages pointing at it, the strongest drawing winning, and only the
+// pages of a hub the reader may read (UC-DOC-11 check 2; P-05).
+func TestAnEntrysBacklinksNameThePagesTheReaderMayRead(t *testing.T) {
+	ctx := context.Background()
+	h := newLinkHarness()
+	item := h.one.ID
+	open := shared.MustParseID("0192f000-0000-7000-8000-0000000005c1")
+	closed := shared.MustParseID("0192f000-0000-7000-8000-0000000005c2")
+	handbook := shared.MustParseID("0192f000-0000-7000-8000-0000000005d1")
+	salaries := shared.MustParseID("0192f000-0000-7000-8000-0000000005d2")
+	h.reader.hidden[closed] = true
+	linking := h.linking()
+	linking.Pages = pagesPointing{
+		pageSummaries: pageSummaries{{ID: handbook, HubID: open, Title: "Handbook"}, {ID: salaries, HubID: closed, Title: "Salaries"}},
+		backlinks: []knowledgerepo.Backlink{
+			{SourceKind: "PAGE", SourceID: handbook, HubID: open, Strength: "MENTION"},
+			{SourceKind: "PAGE", SourceID: handbook, HubID: open, Strength: "CARD"},
+			{SourceKind: "PAGE", SourceID: salaries, HubID: closed, Strength: "MENTION"},
+			{SourceKind: "ENTRY", SourceID: item, EntryID: item, Strength: "MENTION"},
+		},
+	}
+	links, err := ListEntryLinks{Linking: linking}.Execute(ctx, linkActor(), item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(links.PageBacklinks) != 1 || links.PageBacklinks[0].Page.ID != handbook || links.PageBacklinks[0].Strength != reference.Card {
+		t.Fatalf("page backlinks %+v", links.PageBacklinks)
+	}
+	out := links.Output(item)["page_backlinks"].([]usecase.Output)
+	if page := out[0]["page"].(usecase.Output); page["title"] != "Handbook" || page["available"] != true {
+		t.Errorf("a page backlink answers %+v", out[0])
 	}
 }

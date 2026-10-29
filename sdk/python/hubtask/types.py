@@ -1266,6 +1266,7 @@ class EntryLinkList(TypedDict, total=False):
 class EntryLinks(TypedDict, total=False):
     links: Required[list["EntryLink"]]
     backlinks: Required[list[dict[str, Any]]]
+    page_backlinks: Required[list[dict[str, Any]]]
 
 ReferenceKind = Literal["ENTRY", "HUB", "COLLECTION", "VIEW", "PAGE", "WHITEBOARD", "DASHBOARD", "GOAL", "SPRINT"]
 

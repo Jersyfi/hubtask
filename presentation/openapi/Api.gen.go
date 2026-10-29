@@ -9638,6 +9638,15 @@ type EntryLinks struct {
 		// Waits Which end waits for the other, by the link's type.
 		Waits *EntryLinksLinksWaits `json:"waits,omitempty"`
 	} `json:"links"`
+
+	// PageBacklinks The pages that point at the entry, from hubs whose pages the reader may read.
+	PageBacklinks []struct {
+		// Page What a reference shows the reader. Where the reader may not see the object, or it is not there, only `kind`, `id`, `anchor` and `available: false` are present.
+		Page ReferenceTarget `json:"page"`
+
+		// Strength How a reference is drawn where it stands - inline, as a card, or as a live view.
+		Strength ReferenceStrength `json:"strength"`
+	} `json:"page_backlinks"`
 }
 
 // EntryLinksBacklinksSourceKind An entry's notes, or one of its comments.
