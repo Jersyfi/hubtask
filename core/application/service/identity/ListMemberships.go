@@ -275,6 +275,7 @@ func (h ListMemberships) Descriptor() usecase.Descriptor {
 			"its hub and the workspace grant; walk the path yourself. A row carries an " +
 			"identifier and no name - resolve it through getAccount or getGroup.",
 		SideEffects: "None. Reads only.",
+		Permission:  service.PermissionRead,
 		TokenScope:  membersRead,
 		ReadOnly:    true,
 		Input: []usecase.Field{

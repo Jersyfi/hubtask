@@ -384,8 +384,12 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 
 // F-7: a use case declares the catalogue permission it asks for, which *who may do what* and *view
 // as* read. The declarations grow towards every use case; the bound only falls, so a new use case
-// declares one or names why it cannot.
-const undeclaredPermissionsAtMost = 152
+// declares one or names why it cannot. The 151 left ask none of the catalogue at their place: the
+// installation's (admin, sealing, legal holds), a person's own (sign-in, sessions, tokens, devices,
+// consent, their AI position), an open read of the workspace's vocabulary, one decided per entry
+// (exports, bulk changes, AI acts on an entry), or one asking only under a condition (a shared view,
+// a service account's token).
+const undeclaredPermissionsAtMost = 151
 
 func TestTheDeclaredPermissionsOnlyGrow(t *testing.T) {
 	undeclared := 0
