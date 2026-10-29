@@ -55,6 +55,10 @@ type Mutation struct {
 	Element shared.ID
 	HLC     string
 	Payload map[string]any
+	// Entity and EntityKey name what an ENTITY_* mutation is about: the entity, and its key or,
+	// for a link, the identifier the device minted.
+	Entity    domain.Entity
+	EntityKey string
 }
 
 // FieldChange is one field's new value and the reading it was written under.
@@ -413,6 +417,9 @@ func (p PushChanges) purged(ctx context.Context, actor appshared.ActorContext, m
 // patch - before it is applied. A refusal is recorded like any other; an "unavailable" is not,
 // so that a later build applies what this one does not (patchable).
 func (p PushChanges) judge(m Mutation) error {
+	if m.Kind.OnEntity() {
+		return judgeEntity(m)
+	}
 	switch m.Kind {
 	case domain.ItemPatch:
 		for field := range m.Fields {
@@ -443,13 +450,16 @@ func (p PushChanges) judge(m Mutation) error {
 // capability. Every kind the contract names is here.
 func (p PushChanges) appliers() map[domain.MutationKind]applier {
 	return map[domain.MutationKind]applier{
-		domain.ItemCreate: p.create,
-		domain.ItemPatch:  p.patch,
-		domain.ItemDelete: p.trash,
-		domain.Move:       p.move,
-		domain.SetAdd:     p.setChange,
-		domain.SetRemove:  p.setChange,
-		domain.CommentAdd: p.comment,
+		domain.ItemCreate:   p.create,
+		domain.ItemPatch:    p.patch,
+		domain.ItemDelete:   p.trash,
+		domain.Move:         p.move,
+		domain.SetAdd:       p.setChange,
+		domain.SetRemove:    p.setChange,
+		domain.CommentAdd:   p.comment,
+		domain.EntityUpsert: p.entity,
+		domain.EntityPatch:  p.entity,
+		domain.EntityDelete: p.entity,
 	}
 }
 
