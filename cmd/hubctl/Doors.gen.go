@@ -366,6 +366,11 @@ var generatedCommands = []door{
 			{Name: "viewId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"count", "group", "period", "value"}},
+	{Group: "whiteboard", Verb: "backlinks", OperationID: "listWhiteboardBacklinks", Method: "GET", Path: "/whiteboards/{whiteboardId}/backlinks", Summary: "What points at a whiteboard",
+		PathParams: []doorParam{
+			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"title"}},
 	{Group: "whiteboard", Verb: "create", OperationID: "createWhiteboard", Method: "POST", Path: "/hubs/{hubId}/whiteboards", Summary: "Make a new whiteboard",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},

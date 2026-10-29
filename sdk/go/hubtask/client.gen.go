@@ -6471,6 +6471,51 @@ func (e WebhookSubscriptionUpdateState) Valid() bool {
 	}
 }
 
+// Defines values for WhiteboardBacklinkListDataSourceKind.
+const (
+	WhiteboardBacklinkListDataSourceKindCOMMENT    WhiteboardBacklinkListDataSourceKind = "COMMENT"
+	WhiteboardBacklinkListDataSourceKindENTRY      WhiteboardBacklinkListDataSourceKind = "ENTRY"
+	WhiteboardBacklinkListDataSourceKindPAGE       WhiteboardBacklinkListDataSourceKind = "PAGE"
+	WhiteboardBacklinkListDataSourceKindWHITEBOARD WhiteboardBacklinkListDataSourceKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardBacklinkListDataSourceKind enum.
+func (e WhiteboardBacklinkListDataSourceKind) Valid() bool {
+	switch e {
+	case WhiteboardBacklinkListDataSourceKindCOMMENT:
+		return true
+	case WhiteboardBacklinkListDataSourceKindENTRY:
+		return true
+	case WhiteboardBacklinkListDataSourceKindPAGE:
+		return true
+	case WhiteboardBacklinkListDataSourceKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WhiteboardBacklinkListDataStrength.
+const (
+	WhiteboardBacklinkListDataStrengthCARD    WhiteboardBacklinkListDataStrength = "CARD"
+	WhiteboardBacklinkListDataStrengthEMBED   WhiteboardBacklinkListDataStrength = "EMBED"
+	WhiteboardBacklinkListDataStrengthMENTION WhiteboardBacklinkListDataStrength = "MENTION"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardBacklinkListDataStrength enum.
+func (e WhiteboardBacklinkListDataStrength) Valid() bool {
+	switch e {
+	case WhiteboardBacklinkListDataStrengthCARD:
+		return true
+	case WhiteboardBacklinkListDataStrengthEMBED:
+		return true
+	case WhiteboardBacklinkListDataStrengthMENTION:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for WhiteboardElementEnd.
 const (
 	WhiteboardElementEndARROW WhiteboardElementEnd = "ARROW"
@@ -15791,6 +15836,27 @@ type Whiteboard struct {
 	// Version The optimistic lock.
 	Version int `json:"version"`
 }
+
+// WhiteboardBacklinkList defines model for WhiteboardBacklinkList.
+type WhiteboardBacklinkList struct {
+	Data []struct {
+		EntryId  *openapi_types.UUID `json:"entry_id"`
+		PageId   *openapi_types.UUID `json:"page_id"`
+		SourceId openapi_types.UUID  `json:"source_id"`
+
+		// SourceKind A page, an entry's notes, one of its comments, or another board.
+		SourceKind   WhiteboardBacklinkListDataSourceKind `json:"source_kind"`
+		Strength     WhiteboardBacklinkListDataStrength   `json:"strength"`
+		Title        string                               `json:"title"`
+		WhiteboardId *openapi_types.UUID                  `json:"whiteboard_id"`
+	} `json:"data"`
+}
+
+// WhiteboardBacklinkListDataSourceKind A page, an entry's notes, one of its comments, or another board.
+type WhiteboardBacklinkListDataSourceKind string
+
+// WhiteboardBacklinkListDataStrength defines model for WhiteboardBacklinkList.Data.Strength.
+type WhiteboardBacklinkListDataStrength string
 
 // WhiteboardChange defines model for WhiteboardChange.
 type WhiteboardChange struct {
@@ -25446,6 +25512,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /whiteboards/{whiteboardId} (the `UpdateWhiteboard` operationId).
 	UpdateWhiteboardWithApplicationMergePatchPlusJSONBody(ctx context.Context, whiteboardId WhiteboardId, params *UpdateWhiteboardParams, body UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListWhiteboardBacklinks What points at a whiteboard
+	//
+	// The pages, entries' notes and comments and other boards that mention the board, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
+	//
+	// Corresponds with GET /whiteboards/{whiteboardId}/backlinks (the `ListWhiteboardBacklinks` operationId).
+	ListWhiteboardBacklinks(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListWhiteboardVersions A whiteboard's history
 	//
@@ -38961,6 +39034,23 @@ func (c *Client) UpdateWhiteboardWithBody(ctx context.Context, whiteboardId Whit
 // Corresponds with PATCH /whiteboards/{whiteboardId} (the `UpdateWhiteboard` operationId).
 func (c *Client) UpdateWhiteboardWithApplicationMergePatchPlusJSONBody(ctx context.Context, whiteboardId WhiteboardId, params *UpdateWhiteboardParams, body UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateWhiteboardRequestWithApplicationMergePatchPlusJSONBody(c.Server, whiteboardId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListWhiteboardBacklinks What points at a whiteboard
+//
+// The pages, entries' notes and comments and other boards that mention the board, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
+//
+// Corresponds with GET /whiteboards/{whiteboardId}/backlinks (the `ListWhiteboardBacklinks` operationId).
+func (c *Client) ListWhiteboardBacklinks(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListWhiteboardBacklinksRequest(c.Server, whiteboardId)
 	if err != nil {
 		return nil, err
 	}
@@ -61452,6 +61542,40 @@ func NewUpdateWhiteboardRequestWithBody(server string, whiteboardId WhiteboardId
 	return req, nil
 }
 
+// NewListWhiteboardBacklinksRequest constructs an http.Request for the ListWhiteboardBacklinks method
+func NewListWhiteboardBacklinksRequest(server string, whiteboardId WhiteboardId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "whiteboardId", whiteboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/whiteboards/%s/backlinks", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListWhiteboardVersionsRequest constructs an http.Request for the ListWhiteboardVersions method
 func NewListWhiteboardVersionsRequest(server string, whiteboardId WhiteboardId, params *ListWhiteboardVersionsParams) (*http.Request, error) {
 	var err error
@@ -69220,6 +69344,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PATCH /whiteboards/{whiteboardId} (the `UpdateWhiteboard` operationId).
 	UpdateWhiteboardWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, params *UpdateWhiteboardParams, body UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateWhiteboardResult, error)
+
+	// ListWhiteboardBacklinksWithResponse What points at a whiteboard
+	//
+	// The pages, entries' notes and comments and other boards that mention the board, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /whiteboards/{whiteboardId}/backlinks (the `ListWhiteboardBacklinks` operationId).
+	ListWhiteboardBacklinksWithResponse(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*ListWhiteboardBacklinksResult, error)
 
 	// ListWhiteboardVersionsWithResponse A whiteboard's history
 	//
@@ -92259,6 +92392,54 @@ func (r UpdateWhiteboardResult) ContentType() string {
 	return ""
 }
 
+type ListWhiteboardBacklinksResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WhiteboardBacklinkList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListWhiteboardBacklinksResult) GetJSON200() *WhiteboardBacklinkList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListWhiteboardBacklinksResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListWhiteboardBacklinksResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListWhiteboardBacklinksResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListWhiteboardBacklinksResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListWhiteboardBacklinksResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListWhiteboardVersionsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -104111,6 +104292,21 @@ func (c *ClientWithResponses) UpdateWhiteboardWithApplicationMergePatchPlusJSONB
 		return nil, err
 	}
 	return ParseUpdateWhiteboardResult(rsp)
+}
+
+// ListWhiteboardBacklinksWithResponse What points at a whiteboard
+//
+// The pages, entries' notes and comments and other boards that mention the board, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /whiteboards/{whiteboardId}/backlinks (the `ListWhiteboardBacklinks` operationId).
+func (c *ClientWithResponses) ListWhiteboardBacklinksWithResponse(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*ListWhiteboardBacklinksResult, error) {
+	rsp, err := c.ListWhiteboardBacklinks(ctx, whiteboardId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListWhiteboardBacklinksResult(rsp)
 }
 
 // ListWhiteboardVersionsWithResponse A whiteboard's history
@@ -120840,6 +121036,39 @@ func ParseUpdateWhiteboardResult(rsp *http.Response) (*UpdateWhiteboardResult, e
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest WhiteboardRead
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListWhiteboardBacklinksResult parses an HTTP response from a ListWhiteboardBacklinksWithResponse call
+func ParseListWhiteboardBacklinksResult(rsp *http.Response) (*ListWhiteboardBacklinksResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListWhiteboardBacklinksResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WhiteboardBacklinkList
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

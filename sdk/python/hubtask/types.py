@@ -4179,6 +4179,9 @@ class PageCommentChange(TypedDict, total=False):
 class PageBacklinkList(TypedDict, total=False):
     data: Required[list[dict[str, Any]]]
 
+class WhiteboardBacklinkList(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
+
 class PageExportRequest(TypedDict, total=False):
     subtree: bool
     format: Literal["MARKDOWN", "HTML", "DOCX"]

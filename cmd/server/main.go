@@ -1810,6 +1810,7 @@ func run() error {
 	boardStudio := whiteboardservice.Studio{
 		Boards: postgres.NewWhiteboardRepository(), Containers: containers, Authorizer: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		Texts: pageSpace.Pages, Entries: entryLinks, Reader: authorizer,
 	}
 	useCases, err := usecase.NewRegistry(
 		settingservice.ModuleGate{Modules: modules}.Wrap(entitlementGate.Wrap(observer.Registry())),
@@ -1843,6 +1844,7 @@ func run() error {
 		whiteboardservice.ListWhiteboardVersions{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.ReadWhiteboardVersion{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.NameWhiteboardVersion{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.ListWhiteboardBacklinks{Studio: boardStudio}.Descriptor(),
 		work.ListLinkTypes{Registry: linkTypeRegistry}.Descriptor(),
 		work.CreateLinkType{Registry: linkTypeRegistry}.Descriptor(),
 		work.ChangeLinkType{Registry: linkTypeRegistry}.Descriptor(),

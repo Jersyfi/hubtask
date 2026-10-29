@@ -71,6 +71,11 @@ type Studio struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	Text       text.Normalizer
+	// Texts, Entries and Reader answer a board's backlinks (UC-CNV-07); nil Texts lists only the
+	// boards pointing at it.
+	Texts   Texts
+	Entries Entries
+	Reader  Reader
 }
 
 func hubPath(hubID shared.ID) []identity.Scope {

@@ -18769,6 +18769,38 @@
         }
       }
     },
+    "/whiteboards/{whiteboardId}/backlinks": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/WhiteboardId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "whiteboards"
+        ],
+        "operationId": "listWhiteboardBacklinks",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "whiteboard backlinks",
+        "summary": "What points at a whiteboard",
+        "description": "The pages, entries' notes and comments and other boards that mention the board, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.\n",
+        "responses": {
+          "200": {
+            "description": "The backlinks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhiteboardBacklinkList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/whiteboards/{whiteboardId}/versions": {
       "parameters": [
         {
@@ -40528,6 +40560,77 @@
                   "format": "uuid"
                 },
                 "entry_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "strength": {
+                  "type": "string",
+                  "enum": [
+                    "MENTION",
+                    "CARD",
+                    "EMBED"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "WhiteboardBacklinkList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "source_kind",
+                "source_id",
+                "page_id",
+                "entry_id",
+                "whiteboard_id",
+                "title",
+                "strength"
+              ],
+              "properties": {
+                "source_kind": {
+                  "type": "string",
+                  "enum": [
+                    "PAGE",
+                    "ENTRY",
+                    "COMMENT",
+                    "WHITEBOARD"
+                  ],
+                  "description": "A page, an entry's notes, one of its comments, or another board."
+                },
+                "source_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "page_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "entry_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "whiteboard_id": {
                   "type": [
                     "string",
                     "null"

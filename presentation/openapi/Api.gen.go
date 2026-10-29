@@ -6465,6 +6465,51 @@ func (e WebhookSubscriptionUpdateState) Valid() bool {
 	}
 }
 
+// Defines values for WhiteboardBacklinkListDataSourceKind.
+const (
+	WhiteboardBacklinkListDataSourceKindCOMMENT    WhiteboardBacklinkListDataSourceKind = "COMMENT"
+	WhiteboardBacklinkListDataSourceKindENTRY      WhiteboardBacklinkListDataSourceKind = "ENTRY"
+	WhiteboardBacklinkListDataSourceKindPAGE       WhiteboardBacklinkListDataSourceKind = "PAGE"
+	WhiteboardBacklinkListDataSourceKindWHITEBOARD WhiteboardBacklinkListDataSourceKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardBacklinkListDataSourceKind enum.
+func (e WhiteboardBacklinkListDataSourceKind) Valid() bool {
+	switch e {
+	case WhiteboardBacklinkListDataSourceKindCOMMENT:
+		return true
+	case WhiteboardBacklinkListDataSourceKindENTRY:
+		return true
+	case WhiteboardBacklinkListDataSourceKindPAGE:
+		return true
+	case WhiteboardBacklinkListDataSourceKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WhiteboardBacklinkListDataStrength.
+const (
+	WhiteboardBacklinkListDataStrengthCARD    WhiteboardBacklinkListDataStrength = "CARD"
+	WhiteboardBacklinkListDataStrengthEMBED   WhiteboardBacklinkListDataStrength = "EMBED"
+	WhiteboardBacklinkListDataStrengthMENTION WhiteboardBacklinkListDataStrength = "MENTION"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardBacklinkListDataStrength enum.
+func (e WhiteboardBacklinkListDataStrength) Valid() bool {
+	switch e {
+	case WhiteboardBacklinkListDataStrengthCARD:
+		return true
+	case WhiteboardBacklinkListDataStrengthEMBED:
+		return true
+	case WhiteboardBacklinkListDataStrengthMENTION:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for WhiteboardElementEnd.
 const (
 	WhiteboardElementEndARROW WhiteboardElementEnd = "ARROW"
@@ -15786,6 +15831,27 @@ type Whiteboard struct {
 	Version int `json:"version"`
 }
 
+// WhiteboardBacklinkList defines model for WhiteboardBacklinkList.
+type WhiteboardBacklinkList struct {
+	Data []struct {
+		EntryId  *openapi_types.UUID `json:"entry_id"`
+		PageId   *openapi_types.UUID `json:"page_id"`
+		SourceId openapi_types.UUID  `json:"source_id"`
+
+		// SourceKind A page, an entry's notes, one of its comments, or another board.
+		SourceKind   WhiteboardBacklinkListDataSourceKind `json:"source_kind"`
+		Strength     WhiteboardBacklinkListDataStrength   `json:"strength"`
+		Title        string                               `json:"title"`
+		WhiteboardId *openapi_types.UUID                  `json:"whiteboard_id"`
+	} `json:"data"`
+}
+
+// WhiteboardBacklinkListDataSourceKind A page, an entry's notes, one of its comments, or another board.
+type WhiteboardBacklinkListDataSourceKind string
+
+// WhiteboardBacklinkListDataStrength defines model for WhiteboardBacklinkList.Data.Strength.
+type WhiteboardBacklinkListDataStrength string
+
 // WhiteboardChange defines model for WhiteboardChange.
 type WhiteboardChange struct {
 	// Elements The board's objects, sent whole in drawing order, the last on top.
@@ -20268,6 +20334,9 @@ type ServerInterface interface {
 	// UpdateWhiteboard Rename a whiteboard or save its objects
 	// (PATCH /whiteboards/{whiteboardId})
 	UpdateWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId, params UpdateWhiteboardParams)
+	// ListWhiteboardBacklinks What points at a whiteboard
+	// (GET /whiteboards/{whiteboardId}/backlinks)
+	ListWhiteboardBacklinks(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
 	// ListWhiteboardVersions A whiteboard's history
 	// (GET /whiteboards/{whiteboardId}/versions)
 	ListWhiteboardVersions(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId, params ListWhiteboardVersionsParams)
@@ -36284,6 +36353,32 @@ func (siw *ServerInterfaceWrapper) UpdateWhiteboard(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// ListWhiteboardBacklinks operation middleware
+func (siw *ServerInterfaceWrapper) ListWhiteboardBacklinks(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "whiteboardId" -------------
+	var whiteboardId WhiteboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "whiteboardId", r.PathValue("whiteboardId"), &whiteboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "whiteboardId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWhiteboardBacklinks(w, r, whiteboardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListWhiteboardVersions operation middleware
 func (siw *ServerInterfaceWrapper) ListWhiteboardVersions(w http.ResponseWriter, r *http.Request) {
 
@@ -37300,6 +37395,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/whiteboards/{whiteboardId}", wrapper.UpdateWhiteboard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}:restore", wrapper.RestoreWhiteboard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}:export", wrapper.ExportWhiteboard)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/whiteboards/{whiteboardId}/backlinks", wrapper.ListWhiteboardBacklinks)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/whiteboards/{whiteboardId}/versions", wrapper.ListWhiteboardVersions)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/whiteboards/{whiteboardId}/versions/{seq}", wrapper.ReadWhiteboardVersion)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/whiteboards/{whiteboardId}/versions/{seq}", wrapper.NameWhiteboardVersion)

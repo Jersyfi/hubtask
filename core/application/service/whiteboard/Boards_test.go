@@ -98,6 +98,7 @@ func (hubs) Find(_ context.Context, id shared.ID) (work.Container, error) {
 type store struct {
 	boards   map[shared.ID]domain.Board
 	versions map[shared.ID][]domain.Version
+	pointing []repository.Pointing
 }
 
 func (s *store) Insert(_ context.Context, board domain.Board) error {
@@ -142,7 +143,7 @@ func (s *store) Count(ctx context.Context, hubID shared.ID) (int, error) {
 }
 
 func (s *store) Referencing(context.Context, string, shared.ID, int) ([]repository.Pointing, error) {
-	return nil, nil
+	return s.pointing, nil
 }
 
 func (s *store) Summaries(context.Context, []shared.ID) ([]repository.Summary, error) {

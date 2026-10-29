@@ -1946,6 +1946,10 @@ func (pending) ExportWhiteboard(w http.ResponseWriter, r *http.Request, _ openap
 	notAvailable(w, r)
 }
 
+func (pending) ListWhiteboardBacklinks(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId) {
+	notAvailable(w, r)
+}
+
 func (pending) ListWhiteboardVersions(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId, _ openapi.ListWhiteboardVersionsParams) {
 	notAvailable(w, r)
 }

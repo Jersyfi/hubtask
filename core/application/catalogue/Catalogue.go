@@ -111,6 +111,7 @@ func Descriptors() []usecase.Descriptor {
 		whiteboardservice.ListWhiteboardVersions{}.Descriptor(),
 		whiteboardservice.ReadWhiteboardVersion{}.Descriptor(),
 		whiteboardservice.NameWhiteboardVersion{}.Descriptor(),
+		whiteboardservice.ListWhiteboardBacklinks{}.Descriptor(),
 		work.ListLinkTypes{}.Descriptor(),
 		work.CreateLinkType{}.Descriptor(),
 		work.ChangeLinkType{}.Descriptor(),

@@ -201,6 +201,7 @@ var restDoors = map[string]restDoor{
 	"listTrashedPages":                  {UseCase: "ListTrashedPages", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listWebhookDeliveries":             {UseCase: "ListWebhookDeliveries", Status: 200, Query: []string{"cursor", "size", "status"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listWebhookSubscriptions":          {UseCase: "ListWebhookSubscriptions", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listWhiteboardBacklinks":           {UseCase: "ListWhiteboardBacklinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listWhiteboardVersions":            {UseCase: "ListWhiteboardVersions", Status: 200, Query: []string{"before", "limit"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"before", "limit"}},
 	"listWhiteboards":                   {UseCase: "ListWhiteboards", Status: 200, Query: []string{"trashed"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listWorkflows":                     {UseCase: "ListWorkflows", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1402,6 +1403,12 @@ func (c *RestController) ListWebhookDeliveries(w http.ResponseWriter, r *http.Re
 // ListWebhookSubscriptions answers GET /integrations/webhooks by the generated mapping.
 func (c *RestController) ListWebhookSubscriptions(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["listWebhookSubscriptions"], usecase.Input{}, nil, nil, answerRows(webhookResponse))
+}
+
+// ListWhiteboardBacklinks answers GET /whiteboards/{whiteboardId}/backlinks by the generated mapping.
+func (c *RestController) ListWhiteboardBacklinks(w http.ResponseWriter, r *http.Request, whiteboardId openapi.WhiteboardId) {
+	var answer openapi.WhiteboardBacklinkList
+	c.door(w, r, restDoors["listWhiteboardBacklinks"], usecase.Input{"whiteboard_id": whiteboardId.String()}, nil, nil, &answer)
 }
 
 // ListWhiteboardVersions answers GET /whiteboards/{whiteboardId}/versions by the generated mapping.
