@@ -47,8 +47,8 @@ func (s FieldSight) Wired() bool { return s.Hidings != nil && s.Containers != ni
 // FieldLens is what one reader may not see, worked out collection by collection as an answer
 // meets them: one read of the hidden definitions, one held-along question per collection.
 type FieldLens struct {
-	sight   FieldSight
-	actor   appshared.ActorContext
+	sight    FieldSight
+	actor    appshared.ActorContext
 	hidings  []repository.FieldHiding
 	formulas []repository.FieldFormula
 	hidden   map[shared.ID][]string
