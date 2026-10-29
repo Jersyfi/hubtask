@@ -16,7 +16,7 @@
     Badge, Banner, Breadcrumb, Button, Dialog, EmptyState, IconButton, Inline, Input, SearchField, Select, Spinner, Stack, Switch, Tabs,
     Textarea,
   } from '@hubtask/design-system/components';
-  import { compareBodies } from '@hubtask/editor';
+  import { compareBodies, type Passage, type SelectedBlock } from '@hubtask/editor';
   import type {
     Page, PageBacklinkList, PageComment, PageCommentList, PageHitList, PageList, PageRead, PageVersionList, PageVersionRead,
   } from '@hubtask/sync-engine';
@@ -39,6 +39,7 @@
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import PageEditor from '../lib/pages/PageEditor.svelte';
+  import { levelThreads } from '../lib/pages/margin.ts';
   import { platform } from '../lib/platform/index.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -248,7 +249,7 @@
   // --- Beside the page: comments, history, backlinks ---------------------------------------------
 
   let side = $state('comments');
-  let block = $state<{ id: string; text: string } | undefined>(undefined);
+  let block = $state<SelectedBlock | undefined>(undefined);
   let reveal = $state<string | undefined>(undefined);
 
   let commentState = $state<PageComment[]>([]);
@@ -285,6 +286,39 @@
       .map((first) => ({ first, replies: commentState.filter((each) => each.parent_id === first.id) })),
   );
   let showResolved = $state(false);
+  const shownThreads = $derived(threads.filter((each) => showResolved || !each.first.resolved));
+
+  // The margin (UC-DOC-11 check 4): a thread about a passage is drawn level with it while the
+  // comments stand beside the page; under it, on a narrow screen, they are a list.
+  const passages = $derived<Passage[]>(
+    shownThreads
+      .filter((each) => each.first.quote && !each.first.deleted)
+      .map((each) => ({ id: each.first.id, anchor: each.first.anchor, quote: each.first.quote! })),
+  );
+  let bodyElement = $state<HTMLElement | undefined>(undefined);
+  let marginElement = $state<HTMLElement | undefined>(undefined);
+  let passageAt = $state<Map<string, number>>(new Map());
+  let marginTop = $state(0);
+  let isLevel = $state(false);
+  const heights = $state<Record<string, number>>({});
+  function passagesMoved(tops: Map<string, number>) {
+    passageAt = tops;
+    if (!marginElement || !bodyElement) return;
+    marginTop = marginElement.getBoundingClientRect().top;
+    isLevel = marginElement.getBoundingClientRect().left >= bodyElement.getBoundingClientRect().right;
+  }
+  const passageThreads = $derived(shownThreads.filter((each) => each.first.quote));
+  const pageThreads = $derived(shownThreads.filter((each) => !each.first.quote));
+  const margin = $derived.by(() => {
+    const gap = marginElement ? Number.parseFloat(getComputedStyle(marginElement).rowGap) || 0 : 0;
+    return levelThreads(passageThreads.map((each) => {
+      const at = passageAt.get(each.first.id);
+      return { id: each.first.id, top: at === undefined ? undefined : at - marginTop, height: heights[each.first.id] ?? 0 };
+    }), gap);
+  });
+  const passageOrder = $derived(
+    [...passageThreads].sort((a, b) => (margin.tops.get(a.first.id) ?? 0) - (margin.tops.get(b.first.id) ?? 0)),
+  );
 
   let commentDraft = $state('');
   let isAtBlock = $state(false);
@@ -297,7 +331,8 @@
     const made = await act(() =>
       pages.addComment(current.id, {
         body: commentDraft.trim(),
-        ...(anchored ? { anchor: block!.id, ...(block!.text ? { quote: block!.text.slice(0, 500) } : {}) } : {}),
+        // Exactly the words selected, else the block's.
+        ...(anchored ? { anchor: block!.id, ...((block!.selected ?? block!.text) ? { quote: (block!.selected ?? block!.text).slice(0, 500) } : {}) } : {}),
       }),
     );
     if (made) commentDraft = '';
@@ -504,56 +539,77 @@
           {/if}
 
           <div class="body-and-side">
-            <div class="body">
+            <div class="body" bind:this={bodyElement}>
               <PageEditor
                 page={current}
                 {spacePages}
                 views={hubViews}
                 {onnavigate}
                 {reveal}
-                onblock={(seen) => (block = seen)}
+                passages={side === 'comments' ? passages : []}
+                onpassages={passagesMoved}
+                onblock={(seen) => {
+                  block = seen;
+                  // Words selected are a comment's passage, unless the person chooses the page.
+                  if (seen?.selected) isAtBlock = true;
+                }}
               />
             </div>
 
             <aside class="side" aria-label={t('app.pages.side')}>
               <Tabs label={t('app.pages.side')} tabs={sideTabs} selected={side} onselect={(id) => (side = id)} />
 
+              {#snippet threadCard(thread: (typeof threads)[number])}
+                <article class="thread" class:resolved={thread.first.resolved}>
+                  {#if thread.first.quote}
+                    <button type="button" class="quote" onclick={() => (reveal = thread.first.anchor ?? undefined)}>{thread.first.quote}</button>
+                  {/if}
+                  {#each [thread.first, ...thread.replies] as comment (comment.id)}
+                    <div class="comment">
+                      <p class="meta">{nameOf(comment.author_id)} · {when(comment.created_at)}</p>
+                      <p class="text">{comment.deleted ? t('app.pages.comment_removed') : comment.body}</p>
+                      {#if comment.author_id === actor.account?.id && !comment.deleted}
+                        <Button size="sm" tone="subtle" onclick={() => act(() => pages.deleteComment(comment))}>{t('app.pages.comment_delete')}</Button>
+                      {/if}
+                    </div>
+                  {/each}
+                  <Inline gap="050">
+                    <Button size="sm" tone="subtle" onclick={() => act(() => pages.changeComment(thread.first, { resolved: !thread.first.resolved }))}>
+                      {thread.first.resolved ? t('app.pages.comment_reopen') : t('app.pages.comment_resolve')}
+                    </Button>
+                    {#if !thread.first.resolved}
+                      <Button size="sm" tone="subtle" onclick={() => { replyTo = thread.first.id; replyDraft = ''; }}>{t('app.pages.comment_reply')}</Button>
+                    {/if}
+                  </Inline>
+                  {#if replyTo === thread.first.id}
+                    <Textarea label={t('app.pages.comment_reply')} isLabelHidden rows={2} bind:value={replyDraft} />
+                    <Button size="sm" disabledReason={replyDraft.trim() === '' ? t('app.pages.comment_needs_words') : undefined} onclick={() => reply(thread.first)}>{t('app.pages.comment_send')}</Button>
+                  {/if}
+                </article>
+              {/snippet}
               {#if side === 'comments'}
                 <Stack gap="150">
                   <Switch label={t('app.pages.show_resolved')} checked={showResolved} onchange={(event: Event) => (showResolved = (event.currentTarget as HTMLInputElement).checked)} />
-                  {#each threads.filter((each) => showResolved || !each.first.resolved) as thread (thread.first.id)}
-                    <article class="thread" class:resolved={thread.first.resolved}>
-                      {#if thread.first.quote}
-                        <button type="button" class="quote" onclick={() => (reveal = thread.first.anchor ?? undefined)}>{thread.first.quote}</button>
-                      {/if}
-                      {#each [thread.first, ...thread.replies] as comment (comment.id)}
-                        <div class="comment">
-                          <p class="meta">{nameOf(comment.author_id)} · {when(comment.created_at)}</p>
-                          <p class="text">{comment.deleted ? t('app.pages.comment_removed') : comment.body}</p>
-                          {#if comment.author_id === actor.account?.id && !comment.deleted}
-                            <Button size="sm" tone="subtle" onclick={() => act(() => pages.deleteComment(comment))}>{t('app.pages.comment_delete')}</Button>
-                          {/if}
-                        </div>
-                      {/each}
-                      <Inline gap="050">
-                        <Button size="sm" tone="subtle" onclick={() => act(() => pages.changeComment(thread.first, { resolved: !thread.first.resolved }))}>
-                          {thread.first.resolved ? t('app.pages.comment_reopen') : t('app.pages.comment_resolve')}
-                        </Button>
-                        {#if !thread.first.resolved}
-                          <Button size="sm" tone="subtle" onclick={() => { replyTo = thread.first.id; replyDraft = ''; }}>{t('app.pages.comment_reply')}</Button>
-                        {/if}
-                      </Inline>
-                      {#if replyTo === thread.first.id}
-                        <Textarea label={t('app.pages.comment_reply')} isLabelHidden rows={2} bind:value={replyDraft} />
-                        <Button size="sm" disabledReason={replyDraft.trim() === '' ? t('app.pages.comment_needs_words') : undefined} onclick={() => reply(thread.first)}>{t('app.pages.comment_send')}</Button>
-                      {/if}
-                    </article>
-                  {:else}
+                  {#if shownThreads.length === 0}
                     <p class="quiet">{t('app.pages.no_comments')}</p>
+                  {/if}
+                  <div class="margin" class:level={isLevel} bind:this={marginElement} style:--margin-height={isLevel ? `${margin.height}px` : undefined}>
+                    {#each passageOrder as thread (thread.first.id)}
+                      <div
+                        class="placed"
+                        bind:offsetHeight={heights[thread.first.id]}
+                        style:--thread-top={isLevel ? `${margin.tops.get(thread.first.id) ?? 0}px` : undefined}
+                      >
+                        {@render threadCard(thread)}
+                      </div>
+                    {/each}
+                  </div>
+                  {#each pageThreads as thread (thread.first.id)}
+                    {@render threadCard(thread)}
                   {/each}
                   <Textarea label={t('app.pages.comment_new')} rows={3} bind:value={commentDraft} />
                   {#if block}
-                    <Switch label={t('app.pages.comment_at_block', { words: block.text.slice(0, 60) })} checked={isAtBlock} onchange={(event: Event) => (isAtBlock = (event.currentTarget as HTMLInputElement).checked)} />
+                    <Switch label={t('app.pages.comment_at_block', { words: (block.selected ?? block.text).slice(0, 60) })} checked={isAtBlock} onchange={(event: Event) => (isAtBlock = (event.currentTarget as HTMLInputElement).checked)} />
                   {/if}
                   <Button size="sm" disabledReason={commentDraft.trim() === '' ? t('app.pages.comment_needs_words') : undefined} onclick={addComment}>{t('app.pages.comment_send')}</Button>
                 </Stack>
@@ -743,6 +799,9 @@
     background: var(--bg-surface);
   }
   .thread.resolved { color: var(--text-secondary); }
+  .margin { position: relative; display: grid; row-gap: var(--sp-100); }
+  .margin.level { display: block; min-block-size: var(--margin-height); }
+  .margin.level > .placed { position: absolute; inset-inline: 0; inset-block-start: var(--thread-top); }
   .quote {
     text-align: start;
     padding-inline-start: var(--sp-100);

@@ -19,8 +19,9 @@
   import { untrack } from 'svelte';
   import { Button, Inline, Toolbar } from '@hubtask/design-system/components';
   import {
-    Doc, LiveDocument, createPageEditor, insertReference, markdownOf, parseAddress, revealBlock, seedFromMarkdown,
-    type Editor, type LiveSocket, type LiveStatus, type ReferenceAttrs, type ReferenceDrawing,
+    Doc, LiveDocument, createPageEditor, insertReference, markdownOf, parseAddress, passageTops, revealBlock, seedFromMarkdown,
+    setPassages, type Editor, type LiveSocket, type LiveStatus, type Passage, type ReferenceAttrs, type ReferenceDrawing,
+    type SelectedBlock,
   } from '@hubtask/editor';
   import type { PageRead, ReferenceTarget } from '@hubtask/sync-engine';
 
@@ -40,13 +41,17 @@
     /** The views along the hub, offered as live views. */
     views: readonly { id: string; name: string }[];
     onnavigate: (path: string) => void;
-    /** The block the caret stands in, for an inline comment. */
-    onblock?: (block: { id: string; text: string } | undefined) => void;
+    /** The block the caret stands in and the words selected in it, for an inline comment. */
+    onblock?: (block: SelectedBlock | undefined) => void;
     /** A block to scroll to, set by the comment margin. */
     reveal?: string;
+    /** The open threads' passages, marked in the page (UC-DOC-11 check 4). */
+    passages?: readonly Passage[];
+    /** Called with where each marked passage starts, from the viewport's top, whenever it moves. */
+    onpassages?: (tops: Map<string, number>) => void;
   }
 
-  const { page, spacePages, views, onnavigate, onblock, reveal }: Props = $props();
+  const { page, spacePages, views, onnavigate, onblock, reveal, passages = [], onpassages }: Props = $props();
 
   const SAVE_AFTER_MS = 1_500;
 
@@ -132,7 +137,7 @@
     return untrack(() => {
       const body = page.body ?? '';
       void resolve(body);
-      const blockSeen = (block: { id: string; text: string } | undefined) => onblock?.(block);
+      const blockSeen = (block: SelectedBlock | undefined) => onblock?.(block);
       let current = createPageEditor({
         element, body, editable: false, drawing, fallback: t('app.pages.reference_loading'), onBlock: blockSeen,
       });
@@ -175,6 +180,25 @@
 
   $effect(() => {
     if (reveal && editor) revealBlock(editor, reveal);
+  });
+
+  // The passages are marked again whenever the threads or the editor change, and their places are
+  // reported after every transaction - another writer's typing moves them too - and on a resize.
+  $effect(() => {
+    const current = editor;
+    const marked = passages;
+    if (!current) return;
+    return untrack(() => {
+      const report = () => onpassages?.(passageTops(current));
+      setPassages(current, marked);
+      report();
+      current.on('transaction', report);
+      window.addEventListener('resize', report);
+      return () => {
+        current.off('transaction', report);
+        window.removeEventListener('resize', report);
+      };
+    });
   });
 
   // --- The toolbar ---------------------------------------------------------------------------------
@@ -333,6 +357,10 @@
   .editor :global(.page-card[data-kind='view']),
   .editor :global(.page-card[data-kind='dashboard']),
   .editor :global(.page-card[data-kind='whiteboard']) { min-block-size: var(--sp-1000); }
+  .editor :global(.page-passage) {
+    background: var(--label-amber-bg);
+    border-block-end: var(--bw-thick) solid var(--label-amber-fg);
+  }
   .editor :global(.page-caret) {
     position: relative;
     margin-inline: calc(-1 * var(--bw-hairline));
