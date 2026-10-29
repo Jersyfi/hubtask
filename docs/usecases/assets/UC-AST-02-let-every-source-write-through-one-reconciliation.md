@@ -5,9 +5,9 @@ context: assets
 actors: [PE-admin, PE-integrator, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/cmdb/Cmdb_test.go, core/application/service/cmdb/Cmdb_test.go]
+checked_by: [core/domain/model/cmdb/Cmdb_test.go, core/application/service/cmdb/Cmdb_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
 ---
 
 # Let every source write through one reconciliation
@@ -33,7 +33,3 @@ The network team's inventory tool reports the servers every night; a scanner rep
 ## Where it ends
 
 * Connectors that pull from other systems and signed push intake are S-17's; relations no source confirms any more do not expire yet - the following release.
-
-## Today
-
-* Check 7: no *Assets* screen in the web app yet (S-16, the web app's part).

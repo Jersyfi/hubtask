@@ -5,9 +5,9 @@ context: assets
 actors: [PE-admin, PE-member, PE-handler, PE-auditor]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18, P-19]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/cmdb/Cmdb_test.go, core/application/service/cmdb/Cmdb_test.go, test/integration/cmdb_repository_test.go]
+checked_by: [core/domain/model/cmdb/Cmdb_test.go, core/application/service/cmdb/Cmdb_test.go, test/integration/cmdb_repository_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
 ---
 
 # See what a failure reaches
@@ -31,7 +31,3 @@ The host of the two virtual machines needs a firmware update. Before planning it
 ## Where it ends
 
 * No drawn service map, no impact on an incident or change (they come with the service desk, S-18), no change collision - the following release.
-
-## Today
-
-* Check 5: no *Assets* screen in the web app yet (S-16, the web app's part).

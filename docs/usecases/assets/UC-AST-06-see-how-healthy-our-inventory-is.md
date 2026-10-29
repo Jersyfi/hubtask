@@ -5,9 +5,9 @@ context: assets
 actors: [PE-admin, PE-auditor]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/cmdb/Cmdb_test.go, core/application/service/cmdb/Cmdb_test.go]
+checked_by: [core/domain/model/cmdb/Cmdb_test.go, core/application/service/cmdb/Cmdb_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
 ---
 
 # See how healthy our inventory is
@@ -32,7 +32,3 @@ Before the yearly review Dana opens the inventory's health: completeness is 82 %
 ## Where it ends
 
 * No certification campaigns asking owners to confirm their CIs, no source conflict rate, no lifecycle policies - the following release.
-
-## Today
-
-* Check 6: no *Assets* screen in the web app yet (S-16, the web app's part).

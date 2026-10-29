@@ -5,9 +5,9 @@ context: assets
 actors: [PE-admin, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/application/service/cmdb/Cmdb_test.go]
+checked_by: [core/application/service/cmdb/Cmdb_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
 ---
 
 # Bring an inventory in from a file
@@ -31,7 +31,3 @@ Dana exports the old asset spreadsheet as CSV, maps *Host* to the name, *Serial*
 ## Where it ends
 
 * No spreadsheet format other than CSV, no mapping packs per tool - the following release.
-
-## Today
-
-* Check 5: no *Assets* screen in the web app yet (S-16, the web app's part).

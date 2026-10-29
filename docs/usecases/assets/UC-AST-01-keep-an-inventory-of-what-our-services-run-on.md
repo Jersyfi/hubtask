@@ -5,9 +5,9 @@ context: assets
 actors: [PE-admin, PE-member, PE-auditor]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/cmdb/Cmdb_test.go, core/application/service/cmdb/Cmdb_test.go, test/integration/cmdb_repository_test.go]
+checked_by: [core/domain/model/cmdb/Cmdb_test.go, core/application/service/cmdb/Cmdb_test.go, test/integration/cmdb_repository_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
 ---
 
 # Keep an inventory of what our services run on
@@ -35,7 +35,3 @@ Dana runs IT for a practice of forty people. She records the booking application
 
 * No financial asset record (cost, purchase, warranty) beside the CI, no software licence position - the following release.
 * No deletion of a CI: a CI is retired; deleting one is the owner's decision.
-
-## Today
-
-* Check 8: no *Assets* screen in the web app yet (S-16, the web app's part).

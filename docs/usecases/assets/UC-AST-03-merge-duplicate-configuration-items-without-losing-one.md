@@ -5,9 +5,9 @@ context: assets
 actors: [PE-admin, PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/application/service/cmdb/Cmdb_test.go]
+checked_by: [core/application/service/cmdb/Cmdb_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
 ---
 
 # Merge duplicate configuration items without losing one
@@ -31,7 +31,3 @@ Two people had recorded the same laptop by hand under different names. The next 
 ## Where it ends
 
 * No automatic merge and no deletion: a person decides every merge.
-
-## Today
-
-* Check 5: no *Assets* screen in the web app yet (S-16, the web app's part).
