@@ -1863,6 +1863,90 @@ SELECT EXISTS (SELECT 1 FROM custom_role_grant WHERE id = (sqlc.arg('payload')::
 -- name: ClearCustomRoleGrant :execrows
 DELETE FROM custom_role_grant;
 
+-- name: ImportConfigRevision :execrows
+-- A version is evidence, written once: one the workspace holds is kept.
+INSERT INTO config_revision (
+  tenant_id, version, document, hash, plan_hash, actor_kind, actor_id, proposed_by, rolled_back_to,
+  template, added, changed, removed, created_at
+)
+SELECT r.tenant_id, r.version, r.document, r.hash, r.plan_hash, r.actor_kind, r.actor_id, r.proposed_by,
+       r.rolled_back_to, r.template, r.added, r.changed, r.removed, r.created_at
+FROM jsonb_populate_record(
+  NULL::config_revision,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT DO NOTHING;
+
+-- name: HoldsConfigRevision :one
+SELECT EXISTS (
+  SELECT 1 FROM config_revision WHERE version = (sqlc.arg('payload')::jsonb->>'version')::integer
+) AS held;
+
+-- name: ClearConfigRevision :execrows
+DELETE FROM config_revision;
+
+-- name: ImportConfigProposal :execrows
+INSERT INTO config_proposal (
+  id, tenant_id, state, document, mode, base_hash, plan_hash, template, added, changed, removed,
+  hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at
+)
+SELECT r.id, r.tenant_id, r.state, r.document, r.mode, r.base_hash, r.plan_hash, r.template, r.added,
+       r.changed, r.removed, r.hides_data, r.changes_permissions, r.proposed_by, r.decided_by,
+       r.created_at, r.decided_at
+FROM jsonb_populate_record(
+  NULL::config_proposal,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  state = EXCLUDED.state,
+  decided_by = EXCLUDED.decided_by,
+  decided_at = EXCLUDED.decided_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsConfigProposal :one
+SELECT EXISTS (SELECT 1 FROM config_proposal WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearConfigProposal :execrows
+DELETE FROM config_proposal;
+
+-- name: ImportConfigTemplate :execrows
+-- A template's version is never rewritten: one the workspace holds, by identity or by key and
+-- version, is kept.
+INSERT INTO config_template (id, tenant_id, key, version, name, origin, document, created_by, created_at)
+SELECT r.id, r.tenant_id, r.key, r.version, r.name, r.origin, r.document, r.created_by, r.created_at
+FROM jsonb_populate_record(
+  NULL::config_template,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT DO NOTHING;
+
+-- name: HoldsConfigTemplate :one
+SELECT EXISTS (SELECT 1 FROM config_template WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearConfigTemplate :execrows
+DELETE FROM config_template;
+
+-- name: ImportConfigTemplateUse :execrows
+INSERT INTO config_template_use (tenant_id, template_key, version, document, applied_at)
+SELECT r.tenant_id, r.template_key, r.version, r.document, r.applied_at
+FROM jsonb_populate_record(
+  NULL::config_template_use,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, template_key) DO UPDATE SET
+  version = EXCLUDED.version,
+  document = EXCLUDED.document,
+  applied_at = EXCLUDED.applied_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsConfigTemplateUse :one
+SELECT EXISTS (
+  SELECT 1 FROM config_template_use WHERE template_key = sqlc.arg('payload')::jsonb->>'template_key'
+) AS held;
+
+-- name: ClearConfigTemplateUse :execrows
+DELETE FROM config_template_use;
+
 -- name: ImportLinkType :execrows
 INSERT INTO link_type (
   id, tenant_id, key, name, inverse_name, direction, cardinality, cycles, waits, position,

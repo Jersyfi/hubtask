@@ -506,6 +506,186 @@ func (q *Queries) ExportComments(ctx context.Context, arg ExportCommentsParams) 
 	return items, nil
 }
 
+const exportConfigProposals = `-- name: ExportConfigProposals :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (p.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(p) - 'tenant_id')::jsonb AS payload,
+         p.id AS key_1
+  FROM config_proposal p
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportConfigProposalsParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportConfigProposalsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportConfigProposals(ctx context.Context, arg ExportConfigProposalsParams) ([]ExportConfigProposalsRow, error) {
+	rows, err := q.db.Query(ctx, exportConfigProposals, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportConfigProposalsRow{}
+	for rows.Next() {
+		var i ExportConfigProposalsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportConfigRevisions = `-- name: ExportConfigRevisions :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.version::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.version::bigint AS key_1
+  FROM config_revision r
+) s
+  WHERE s.key_1 > $1::bigint
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportConfigRevisionsParams struct {
+	AfterID int64
+	Batch   int32
+}
+
+type ExportConfigRevisionsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportConfigRevisions(ctx context.Context, arg ExportConfigRevisionsParams) ([]ExportConfigRevisionsRow, error) {
+	rows, err := q.db.Query(ctx, exportConfigRevisions, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportConfigRevisionsRow{}
+	for rows.Next() {
+		var i ExportConfigRevisionsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportConfigTemplateUses = `-- name: ExportConfigTemplateUses :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (u.template_key)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(u) - 'tenant_id')::jsonb AS payload,
+         u.template_key AS key_1
+  FROM config_template_use u
+) s
+  WHERE s.key_1 > $1::text
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportConfigTemplateUsesParams struct {
+	AfterID string
+	Batch   int32
+}
+
+type ExportConfigTemplateUsesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportConfigTemplateUses(ctx context.Context, arg ExportConfigTemplateUsesParams) ([]ExportConfigTemplateUsesRow, error) {
+	rows, err := q.db.Query(ctx, exportConfigTemplateUses, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportConfigTemplateUsesRow{}
+	for rows.Next() {
+		var i ExportConfigTemplateUsesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportConfigTemplates = `-- name: ExportConfigTemplates :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (t.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(t) - 'tenant_id')::jsonb AS payload,
+         t.id AS key_1
+  FROM config_template t
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportConfigTemplatesParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportConfigTemplatesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportConfigTemplates(ctx context.Context, arg ExportConfigTemplatesParams) ([]ExportConfigTemplatesRow, error) {
+	rows, err := q.db.Query(ctx, exportConfigTemplates, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportConfigTemplatesRow{}
+	for rows.Next() {
+		var i ExportConfigTemplatesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportConsentRecords = `-- name: ExportConsentRecords :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

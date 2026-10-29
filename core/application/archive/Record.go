@@ -567,6 +567,13 @@ var entities = []Entity{
 			{Field: "created_by", Table: "account", Clearable: true},
 		},
 	},
+	// The configuration document's versions, agents' proposals, templates and the templates the
+	// workspace took (migration 0221, F-6). Whole: none says when it changed. A version and a
+	// template version are written once, so one the workspace holds is kept.
+	{Name: "config_revisions", Table: "config_revision", Whole: true, Later: true, Keys: []string{"version"}},
+	{Name: "config_proposals", Table: "config_proposal", Whole: true, Later: true, Keys: []string{"id"}},
+	{Name: "config_templates", Table: "config_template", Whole: true, Later: true, Keys: []string{"id"}},
+	{Name: "config_template_uses", Table: "config_template_use", Whole: true, Later: true, Keys: []string{"template_key"}},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a

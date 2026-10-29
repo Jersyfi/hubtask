@@ -115,6 +115,58 @@ FROM (
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
 
+-- name: ExportConfigRevisions :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.version::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.version::bigint AS key_1
+  FROM config_revision r
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::bigint
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportConfigProposals :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (p.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(p) - 'tenant_id')::jsonb AS payload,
+         p.id AS key_1
+  FROM config_proposal p
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportConfigTemplates :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (t.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(t) - 'tenant_id')::jsonb AS payload,
+         t.id AS key_1
+  FROM config_template t
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportConfigTemplateUses :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (u.template_key)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(u) - 'tenant_id')::jsonb AS payload,
+         u.template_key AS key_1
+  FROM config_template_use u
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::text
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
 -- name: ExportContainers :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

@@ -381,10 +381,11 @@ CREATE TABLE config_template_use (
   applied_at   timestamptz NOT NULL,
   PRIMARY KEY (tenant_id, template_key)
 );
-GRANT SELECT, INSERT ON config_revision TO hubtask_app;
-GRANT SELECT, INSERT, UPDATE ON config_proposal TO hubtask_app;
-GRANT SELECT, INSERT ON config_template TO hubtask_app;
-GRANT SELECT, INSERT, UPDATE ON config_template_use TO hubtask_app;
+-- DELETE only for a replacing restore (migration 0222, tenant-export.md §6).
+GRANT SELECT, INSERT, DELETE ON config_revision TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON config_proposal TO hubtask_app;
+GRANT SELECT, INSERT, DELETE ON config_template TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON config_template_use TO hubtask_app;
 
 CREATE TABLE access_token (
   id            uuid PRIMARY KEY,

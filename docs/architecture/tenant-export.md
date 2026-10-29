@@ -156,7 +156,11 @@ re-mints identities must rewrite exactly these).
 | 38 | `entry_links` | `entry_link` | `id` | `source_id`→work_items, `target_id`→work_items, `created_by`→accounts (`link_type` names a shipped type or one of `link_types` by key) |
 | 39 | `custom_roles` | `custom_role` | `id` | — (the workspace's own roles from the permission catalogue, migration 0219; restored right after `memberships`, before their grants; the seven built-in roles have no row) |
 | 40 | `custom_role_grants` | `custom_role_grant` | `id` | `account_id`→accounts, `group_id`→account_groups, `role_id`→custom_roles (`scope_id` names the workspace's container as a membership's does) |
-| 41 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
+| 41 | `config_revisions` | `config_revision` | `version` | — (the configuration document's versions, migration 0221; written once, so a version the workspace holds is kept) |
+| 42 | `config_proposals` | `config_proposal` | `id` | — (agents' plans kept for a person, and how each was decided) |
+| 43 | `config_templates` | `config_template` | `id` | — (the workspace's template versions; one the workspace holds by identity or by key and version is kept) |
+| 44 | `config_template_uses` | `config_template_use` | `template_key` | — (the template version a workspace took, the base of a three-way upgrade) |
+| 45 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a
 reply's comment) are ordered within the file: the referenced row comes first.

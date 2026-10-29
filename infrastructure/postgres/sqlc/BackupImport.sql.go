@@ -123,6 +123,54 @@ func (q *Queries) ClearComment(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearConfigProposal = `-- name: ClearConfigProposal :execrows
+DELETE FROM config_proposal
+`
+
+func (q *Queries) ClearConfigProposal(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearConfigProposal)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearConfigRevision = `-- name: ClearConfigRevision :execrows
+DELETE FROM config_revision
+`
+
+func (q *Queries) ClearConfigRevision(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearConfigRevision)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearConfigTemplate = `-- name: ClearConfigTemplate :execrows
+DELETE FROM config_template
+`
+
+func (q *Queries) ClearConfigTemplate(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearConfigTemplate)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearConfigTemplateUse = `-- name: ClearConfigTemplateUse :execrows
+DELETE FROM config_template_use
+`
+
+func (q *Queries) ClearConfigTemplateUse(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearConfigTemplateUse)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearConsentRecord = `-- name: ClearConsentRecord :execrows
 DELETE FROM consent_record
 `
@@ -601,6 +649,54 @@ SELECT EXISTS (SELECT 1 FROM comment WHERE id = ($1::jsonb->>'id')::uuid) AS hel
 
 func (q *Queries) HoldsComment(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsComment, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsConfigProposal = `-- name: HoldsConfigProposal :one
+SELECT EXISTS (SELECT 1 FROM config_proposal WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsConfigProposal(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsConfigProposal, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsConfigRevision = `-- name: HoldsConfigRevision :one
+SELECT EXISTS (
+  SELECT 1 FROM config_revision WHERE version = ($1::jsonb->>'version')::integer
+) AS held
+`
+
+func (q *Queries) HoldsConfigRevision(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsConfigRevision, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsConfigTemplate = `-- name: HoldsConfigTemplate :one
+SELECT EXISTS (SELECT 1 FROM config_template WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsConfigTemplate(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsConfigTemplate, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsConfigTemplateUse = `-- name: HoldsConfigTemplateUse :one
+SELECT EXISTS (
+  SELECT 1 FROM config_template_use WHERE template_key = $1::jsonb->>'template_key'
+) AS held
+`
+
+func (q *Queries) HoldsConfigTemplateUse(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsConfigTemplateUse, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -1493,6 +1589,108 @@ type ImportCommentParams struct {
 
 func (q *Queries) ImportComment(ctx context.Context, arg ImportCommentParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importComment, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importConfigProposal = `-- name: ImportConfigProposal :execrows
+INSERT INTO config_proposal (
+  id, tenant_id, state, document, mode, base_hash, plan_hash, template, added, changed, removed,
+  hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at
+)
+SELECT r.id, r.tenant_id, r.state, r.document, r.mode, r.base_hash, r.plan_hash, r.template, r.added,
+       r.changed, r.removed, r.hides_data, r.changes_permissions, r.proposed_by, r.decided_by,
+       r.created_at, r.decided_at
+FROM jsonb_populate_record(
+  NULL::config_proposal,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  state = EXCLUDED.state,
+  decided_by = EXCLUDED.decided_by,
+  decided_at = EXCLUDED.decided_at
+WHERE $2::boolean
+`
+
+type ImportConfigProposalParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportConfigProposal(ctx context.Context, arg ImportConfigProposalParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importConfigProposal, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importConfigRevision = `-- name: ImportConfigRevision :execrows
+INSERT INTO config_revision (
+  tenant_id, version, document, hash, plan_hash, actor_kind, actor_id, proposed_by, rolled_back_to,
+  template, added, changed, removed, created_at
+)
+SELECT r.tenant_id, r.version, r.document, r.hash, r.plan_hash, r.actor_kind, r.actor_id, r.proposed_by,
+       r.rolled_back_to, r.template, r.added, r.changed, r.removed, r.created_at
+FROM jsonb_populate_record(
+  NULL::config_revision,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT DO NOTHING
+`
+
+// A version is evidence, written once: one the workspace holds is kept.
+func (q *Queries) ImportConfigRevision(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importConfigRevision, payload)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importConfigTemplate = `-- name: ImportConfigTemplate :execrows
+INSERT INTO config_template (id, tenant_id, key, version, name, origin, document, created_by, created_at)
+SELECT r.id, r.tenant_id, r.key, r.version, r.name, r.origin, r.document, r.created_by, r.created_at
+FROM jsonb_populate_record(
+  NULL::config_template,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT DO NOTHING
+`
+
+// A template's version is never rewritten: one the workspace holds, by identity or by key and
+// version, is kept.
+func (q *Queries) ImportConfigTemplate(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importConfigTemplate, payload)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importConfigTemplateUse = `-- name: ImportConfigTemplateUse :execrows
+INSERT INTO config_template_use (tenant_id, template_key, version, document, applied_at)
+SELECT r.tenant_id, r.template_key, r.version, r.document, r.applied_at
+FROM jsonb_populate_record(
+  NULL::config_template_use,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, template_key) DO UPDATE SET
+  version = EXCLUDED.version,
+  document = EXCLUDED.document,
+  applied_at = EXCLUDED.applied_at
+WHERE $2::boolean
+`
+
+type ImportConfigTemplateUseParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportConfigTemplateUse(ctx context.Context, arg ImportConfigTemplateUseParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importConfigTemplateUse, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}
