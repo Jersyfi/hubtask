@@ -366,3 +366,21 @@ func TestARefusalTravelsAsTheErrorModelsOwnFields(t *testing.T) {
 		t.Errorf("the findings are %v", problem["field_errors"])
 	}
 }
+
+// A bulk move to a status is the step route per entry (UC-FLW-03 check 7): each entry is judged by
+// its own workflow, so the refusals arrive per entry.
+func TestABulkTakesEachEntrysStep(t *testing.T) {
+	h := newBulkHarness()
+	result, err := h.handler.Execute(t.Context(), actor(), BulkUpdateWorkItemsCommand{
+		Operations: []BulkOperation{{Op: "TAKE_STEP", ItemID: bulkItemID, Payload: map[string]any{"to_status": "done"}}},
+	})
+	if err != nil {
+		t.Fatalf("the bulk was refused: %v", err)
+	}
+	if result.Applied != 1 || len(h.catalogue.invoked) != 1 || h.catalogue.invoked[0].name != TakeStepName {
+		t.Fatalf("the step ran as %+v", h.catalogue.invoked)
+	}
+	if h.catalogue.invoked[0].in["to_status"] != "done" || h.catalogue.invoked[0].in["item_id"] != bulkItemID.String() {
+		t.Errorf("the step was run with %v", h.catalogue.invoked[0].in)
+	}
+}
