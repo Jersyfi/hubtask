@@ -44,8 +44,11 @@ const (
 
 // Roles is what the role use cases share: the store, the decision point, the trail.
 type Roles struct {
-	Store       repository.CustomRoles
-	Authorizer  Authorizer
+	Store      repository.CustomRoles
+	Authorizer Authorizer
+	// Reach answers, without a record, whether the caller reaches a place: what narrows the reads
+	// to the places they may see, a private hub they hold nothing in left out (ADR-0073 §1).
+	Reach       Permitter
 	Held        HeldReader
 	Revocations Revoker
 	Audit       audit.Sink
@@ -100,7 +103,51 @@ func (h ListRoles) Execute(ctx context.Context, actor appshared.ActorContext) (R
 		out.Grants, err = h.Roles.Store.Grants(ctx, maxRoleGrants)
 		return err
 	})
-	return out, err
+	if err != nil {
+		return RoleCatalogue{}, err
+	}
+	if out.Grants, err = h.Roles.reachable(ctx, actor, out.Grants); err != nil {
+		return RoleCatalogue{}, err
+	}
+	return out, nil
+}
+
+// reachable leaves out the grants at a place the caller does not reach. The workspace right
+// ListRoles asks for is not READ inside a private hub (ADR-0073 §1), so each place is asked on its
+// own path, as ListMemberships asks, and once however many grants it holds.
+func (r Roles) reachable(
+	ctx context.Context, actor appshared.ActorContext, grants []repository.CustomGrantRow,
+) ([]repository.CustomGrantRow, error) {
+	reached := map[domain.Scope]bool{domain.TenantScope(): true}
+	out := make([]repository.CustomGrantRow, 0, len(grants))
+	for _, row := range grants {
+		scope := row.Grant.Scope
+		ok, asked := reached[scope]
+		if !asked {
+			var err error
+			if ok, err = r.reaches(ctx, actor, scope); err != nil {
+				return nil, err
+			}
+			reached[scope] = ok
+		}
+		if ok {
+			out = append(out, row)
+		}
+	}
+	return out, nil
+}
+
+// reaches asks READ on the scope's path without a record: a place left out of an answer is nobody
+// refused anything (audit.md §4).
+func (r Roles) reaches(ctx context.Context, actor appshared.ActorContext, scope domain.Scope) (bool, error) {
+	return r.Reach.Permits(ctx, actor, access.Request{
+		Permission: service.PermissionRead,
+		Path:       pathTo(scope),
+		Action:     RoleReadAction,
+		TokenScope: membersRead,
+		TargetType: roleTarget,
+		TargetID:   scope.ID,
+	})
 }
 
 func (h ListRoles) Descriptor() usecase.Descriptor {
@@ -572,7 +619,7 @@ type AccessExplained struct {
 
 // ExplainAccess answers what a person holds at a place and why (A6, A11). A person may always ask
 // about themselves; about somebody else, it takes MANAGE_MEMBERS or READ_CONFIGURATION on the
-// workspace, as reading who holds what does.
+// workspace, as reading who holds what does, and READ at the place itself.
 type ExplainAccess struct{ Roles Roles }
 
 func (h ExplainAccess) Execute(
@@ -603,6 +650,17 @@ func (h ExplainAccess) Execute(
 			TargetID:    accountID,
 		}); err != nil {
 			return AccessExplained{}, err
+		}
+		// What somebody else holds at a place the caller does not reach is not theirs to read: a
+		// private hub they hold nothing in is not found, in the words a missing one produces (T-04).
+		if scope.Type != domain.ScopeTenant {
+			reached, err := h.Roles.reaches(ctx, actor, scope)
+			if err != nil {
+				return AccessExplained{}, err
+			}
+			if !reached {
+				return AccessExplained{}, notReachable(scope)
+			}
 		}
 	} else if !actor.IsAuthenticated() {
 		return AccessExplained{}, shared.ErrUnauthenticated.WithDetail("access.credential_required")

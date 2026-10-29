@@ -848,7 +848,7 @@ func run() error {
 
 	// The workspace's own roles (UC-ID-26): shared by the seven role use cases.
 	customRoles := identity.Roles{
-		Store: postgres.NewCustomRoleRepository(), Authorizer: authorizer, Held: authorizer,
+		Store: postgres.NewCustomRoleRepository(), Authorizer: authorizer, Reach: authorizer, Held: authorizer,
 		Revocations: revocations, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids,
 	}

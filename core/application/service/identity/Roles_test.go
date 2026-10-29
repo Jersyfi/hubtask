@@ -19,7 +19,11 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-var customRoleID = shared.ID("01936f2a-7c1e-7000-8000-0000000000e1")
+var (
+	customRoleID = shared.ID("01936f2a-7c1e-7000-8000-0000000000e1")
+	otherGrantID = shared.ID("01936f2a-7c1e-7000-8000-0000000000e2")
+	tenantGrant  = shared.ID("01936f2a-7c1e-7000-8000-0000000000e3")
+)
 
 // roleStore is the custom role tables, in memory.
 type roleStore struct {
@@ -128,9 +132,17 @@ func (h *heldBy) HeldBy(_ context.Context, _ appshared.ActorContext, accountID s
 	return h.held, nil
 }
 
+// reach answers the unrecorded question for every scope but the hidden ones - a private hub the
+// caller holds nothing in, as the authorisation service would.
+type reach struct{ hidden map[shared.ID]bool }
+
+func (r reach) Permits(_ context.Context, _ appshared.ActorContext, request access.Request) (bool, error) {
+	return !r.hidden[request.Path[len(request.Path)-1].ID], nil
+}
+
 func rolesWith(store *roleStore, auth *authorizer, sink *auditSink, held *heldBy) Roles {
 	return Roles{
-		Store: store, Authorizer: auth, Held: held, Revocations: &revoker{}, Audit: sink,
+		Store: store, Authorizer: auth, Reach: reach{}, Held: held, Revocations: &revoker{}, Audit: sink,
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now), IDs: ids{next: customRoleID},
 	}
 }
@@ -271,5 +283,56 @@ func TestExplainAccessAnswersWhoHoldsWhatAndThroughWhichRole(t *testing.T) {
 	auth.refuse = shared.ErrForbidden
 	if _, err := explain.Execute(t.Context(), admin(), invitedID, domain.TenantScope(), ""); !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("refused: %v", err)
+	}
+}
+
+// UC-ID-16: a workspace administrator reads the custom-role grants of every place they reach and
+// none inside a private hub they hold nothing in.
+func TestListRolesLeavesOutTheGrantsOfAPrivateHubTheCallerCannotReach(t *testing.T) {
+	store := newRoleStore(serviceLead(t))
+	for id, scope := range map[shared.ID]domain.Scope{
+		membershipID: domain.HubScope(hubID),
+		otherGrantID: domain.HubScope(otherHubID),
+		tenantGrant:  domain.TenantScope(),
+	} {
+		store.grants[id] = repository.CustomGrantRow{RoleKey: "service_lead", Grant: domain.CustomGrant{
+			ID: id, TenantID: tenant, AccountID: invitedID, Scope: scope, RoleID: customRoleID,
+		}}
+	}
+	roles := rolesWith(store, &authorizer{}, &auditSink{}, &heldBy{})
+	roles.Reach = reach{hidden: map[shared.ID]bool{otherHubID: true}}
+
+	catalogue, err := ListRoles{Roles: roles}.Execute(t.Context(), reader())
+	if err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	got := map[shared.ID]bool{}
+	for _, row := range catalogue.Grants {
+		got[row.Grant.ID] = true
+	}
+	if got[otherGrantID] {
+		t.Fatal("a grant inside a private hub the caller cannot reach is listed")
+	}
+	if !got[membershipID] || !got[tenantGrant] || len(got) != 2 {
+		t.Fatalf("listed %v, want the shared hub's and the workspace's grant", got)
+	}
+}
+
+// UC-ID-16: what somebody else holds inside a private hub the caller cannot reach is not found, in
+// the words a missing hub produces, and nothing is read for it.
+func TestExplainAccessDoesNotLookIntoAPrivateHubTheCallerCannotReach(t *testing.T) {
+	held := &heldBy{held: access.Held{
+		Roles:   []string{"MEMBER"},
+		Sources: []access.Source{{Role: "service_lead", Custom: true, Scope: domain.HubScope(otherHubID)}},
+	}}
+	roles := rolesWith(newRoleStore(), &authorizer{}, &auditSink{}, held)
+	roles.Reach = reach{hidden: map[shared.ID]bool{otherHubID: true}}
+
+	_, err := ExplainAccess{Roles: roles}.Execute(t.Context(), reader(), invitedID, domain.HubScope(otherHubID), "")
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("about somebody else in a hidden private hub: %v, want not found", err)
+	}
+	if len(held.asked) != 0 {
+		t.Fatalf("read what %v holds in a hub the caller cannot reach", held.asked)
 	}
 }
