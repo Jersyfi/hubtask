@@ -68,7 +68,11 @@ workspace changes it; it is never archived, deleted or made a record. An entry n
 in `work_item.entry_type`, null for its level's system type. A type **narrows** its level's profile
 and never widens it: a *record* has no `COMPLETION` (D-07), a type that is not *schedulable* no
 `DUE_DATE`, `REMINDER` or `RECURRENCE` (`EntryType.Narrow`). A type in use is archived - no longer
-offered, still readable - and only an unused one is deleted. The registry belongs to the workflows
+offered, still readable - and only an unused one is deleted. Which types a collection offers on a
+level is its structure's ninth setting, `entry_types` (below): a level it names offers those keys in
+that order, the system type by default where it is among them and the first one in use otherwise,
+and a creation or change of type to another is refused with `entry_types.not_offered`
+(`EntryTypes.ChooseAmong`); an entry keeps the type it has when the list narrows. The registry belongs to the workflows
 module: its operations are refused with `module.off` where the module is off. The `item_type` enum
 and the level CHECKs on `work_item` stay as the level's: dropping the enum is a contract step for the
 release after the one whose statements stop casting to it (`versioning-release.md` §4).
@@ -105,7 +109,10 @@ CEL itself.
 **Levels and presets** (decisions #1619–#1622). A collection's *level* is a preset — *List*,
 *Tasks*, *Project*, *Flow*, or one a workspace or installation defines — that sets eight things:
 the levels and their names, the fields (capabilities), the views, what counts, what completion
-does, what capture recognises, how success is shown, and what runs by itself. Every setting can be
+does, what capture recognises, how success is shown, and what runs by itself. A ninth setting,
+`entry_types`, says which entry types each level offers; Hubtask's presets leave it to the layer
+above, because the types are a workspace's own, and an installation preset loses it like the
+categories. Every setting can be
 changed per hub or collection, and a collection inherits from its hub, its hub from the workspace,
 the workspace from the installation; an administrator may lock a setting (P-06, P-07). A setting
 **narrows** the system profile and never widens it. The effective profile is what the gate below
@@ -278,7 +285,7 @@ links (`identity.EffectiveLegal`), a new workspace's language and zone
 (`identity.StartingLocalisation`), the installation's and a plan's quotas (`quota.Resolve`; the
 operator's exception stays the last word over them), the AI rule above the workspace
 (`integration.EffectiveAi`; a workspace's narrowing to `NONE` under a lock stays its own) and the
-eight structure settings (`work.ResolveStructure`) resolve through it; golden tests hold each to
+nine structure settings (`work.ResolveStructure`) resolve through it; golden tests hold each to
 the resolution it had before. `setting.Catalogue` in `core/application/service/setting` is the
 one registry that assembles every area's declarations; `ReadSettingsCatalogue` (`GET /settings/catalogue`) answers it to a
 signed-in caller, without any place's value, and the client's settings search and *View as file* draw from it. A capability lock (`fields.TASK.DUE_DATE`) stays a refinement inside
