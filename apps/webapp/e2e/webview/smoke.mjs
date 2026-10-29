@@ -123,8 +123,10 @@ async function serverUp() {
   const env = {
     HUBTASK_ROLES: 'api',
     HUBTASK_DB_DSN: appDsn.href,
-    // A runner's PostgreSQL can be slow to admit the first connection just after the migration.
+    // A busy runner's PostgreSQL can take longer than a server's defaults for the first connection
+    // and its schema types just after the migration.
     HUBTASK_DB_CONNECT_TIMEOUT: '30s',
+    HUBTASK_DB_STATEMENT_TIMEOUT: '30s',
     // Every loopback address: `localhost` is ::1 first on some systems and 127.0.0.1 on others.
     HUBTASK_HTTP_ADDR: `:${HTTP}`,
     HUBTASK_OPS_ADDR: `127.0.0.1:${OPS}`,
@@ -210,7 +212,10 @@ async function driverUp() {
   const env = { TAURI_WEBVIEW_AUTOMATION: 'true' };
   if (engine === 'windows') await windowsAppUp();
   if (engine === 'android') await androidAppUp();
-  start('driver', options.driver, [`--port=${DRIVER}`], env);
+  // The emulator's system WebView is older than the runner's chromedriver, which otherwise refuses
+  // it; the walk's commands are in both.
+  const flags = engine === 'android' ? ['--disable-build-check'] : [];
+  start('driver', options.driver, [`--port=${DRIVER}`, ...flags], env);
   await until('the driver', async () => (await fetch(`http://127.0.0.1:${DRIVER}/status`)).ok, 60_000);
   // WebKitWebDriver starts the app itself; on the other two the walk started it and the driver
   // attaches to its webview.

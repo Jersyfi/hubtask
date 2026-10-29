@@ -1111,7 +1111,7 @@ jobs:
           echo "OPENSSL_LIB_DIR=$(cygpath -w "$(dirname "$lib")")" >> "$GITHUB_ENV"
           echo "OPENSSL_INCLUDE_DIR=$(cygpath -w "$root/include")" >> "$GITHUB_ENV"
           # The walk runs the app, which loads libcrypto's DLL from the path.
-          echo "$(cygpath -w "$root/bin")" >> "$GITHUB_PATH"
+          cygpath -w "$root/bin" >> "$GITHUB_PATH"
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter "@hubtask/webapp^..." build
       # UC-WRK-33 check 5: the icons on every size from the mark's app-icon source, and the check
