@@ -1817,7 +1817,7 @@ func (pending) ReadConfigVersion(w http.ResponseWriter, r *http.Request, _ int) 
 func (pending) ListConfigProposals(w http.ResponseWriter, r *http.Request, _ openapi.ListConfigProposalsParams) {
 	notAvailable(w, r)
 }
-func (pending) DecideConfigProposal(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+func (pending) DecideConfigProposal(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.DecideConfigProposalParams) {
 	notAvailable(w, r)
 }
 func (pending) SetConfigPolicy(w http.ResponseWriter, r *http.Request)       { notAvailable(w, r) }

@@ -79,8 +79,11 @@ func (c *RestController) ProposeConfig(w http.ResponseWriter, r *http.Request) {
 
 // ApplyConfig answers POST /config:apply; If-Match carries the hash of the configuration the plan
 // was made on, as the export's ETag gave it.
-func (c *RestController) ApplyConfig(w http.ResponseWriter, r *http.Request, _ openapi.ApplyConfigParams) {
+func (c *RestController) ApplyConfig(w http.ResponseWriter, r *http.Request, params openapi.ApplyConfigParams) {
 	extra := usecase.Input{}
+	if token := stepUpHeaderField(params.XHubtaskStepUp); token != nil {
+		extra["step_up_token"] = token
+	}
 	if match := ifMatchOf(r); match != nil {
 		extra["base_hash"] = strings.Trim(strings.TrimPrefix(*match, "W/"), `"`)
 	}
@@ -113,8 +116,12 @@ func (c *RestController) ListConfigProposals(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-func (c *RestController) DecideConfigProposal(w http.ResponseWriter, r *http.Request, proposalID openapi_types.UUID) {
-	c.configCall(w, r, "DecideConfigProposal", usecase.Input{"proposal_id": proposalID.String()}, http.StatusOK)
+func (c *RestController) DecideConfigProposal(w http.ResponseWriter, r *http.Request, proposalID openapi_types.UUID, params openapi.DecideConfigProposalParams) {
+	extra := usecase.Input{"proposal_id": proposalID.String()}
+	if token := stepUpHeaderField(params.XHubtaskStepUp); token != nil {
+		extra["step_up_token"] = token
+	}
+	c.configCall(w, r, "DecideConfigProposal", extra, http.StatusOK)
 }
 
 func (c *RestController) SetConfigPolicy(w http.ResponseWriter, r *http.Request) {

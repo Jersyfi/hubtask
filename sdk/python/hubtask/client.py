@@ -1467,9 +1467,9 @@ class Client:
         """Propose a planned change for a person to decide"""
         return self._call("POST", "/config:propose", {}, None, {}, body, "json", "application/json", "json")
 
-    def apply_config(self, body: "ConfigApplyRequest", *, if_match: str | None = None) -> "ConfigApplyResult":
+    def apply_config(self, body: "ConfigApplyRequest", *, if_match: str | None = None, step_up: str | None = None) -> "ConfigApplyResult":
         """Apply a planned configuration change"""
-        return self._call("POST", "/config:apply", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+        return self._call("POST", "/config:apply", {}, None, {"If-Match": if_match, "X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
 
     def list_config_versions(self, *, query: dict[str, Any] | None = None) -> "ConfigVersionList":
         """The configuration's versions"""
@@ -1483,9 +1483,9 @@ class Client:
         """The proposed configuration changes"""
         return self._call("GET", "/config/proposals", {}, query, {}, None, "none", None, "json")
 
-    def decide_config_proposal(self, proposal_id: str, body: "ConfigDecision") -> "ConfigApplyResult":
+    def decide_config_proposal(self, proposal_id: str, body: "ConfigDecision", *, step_up: str | None = None) -> "ConfigApplyResult":
         """Apply or decline a proposed change"""
-        return self._call("POST", "/config/proposals/{proposalId}:decide", {"proposalId": proposal_id}, None, {}, body, "json", "application/json", "json")
+        return self._call("POST", "/config/proposals/{proposalId}:decide", {"proposalId": proposal_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
 
     def set_config_policy(self, body: "ConfigPolicy") -> "ConfigPolicy":
         """Set what an agent's apply does"""

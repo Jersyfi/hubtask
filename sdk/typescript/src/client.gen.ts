@@ -1848,8 +1848,8 @@ export class HubtaskClient {
   }
 
   /** Apply a planned configuration change */
-  applyConfig(body: NonNullable<operations["applyConfig"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["applyConfig"]['responses'][200]['content']["application/json"]> {
-    return this.call("POST", "/config:apply", {  }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  applyConfig(body: NonNullable<operations["applyConfig"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string; readonly stepUp?: string } = {}): Promise<operations["applyConfig"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/config:apply", {  }, undefined, { "If-Match": options.ifMatch, "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
   }
 
   /** The configuration's versions */
@@ -1868,8 +1868,8 @@ export class HubtaskClient {
   }
 
   /** Apply or decline a proposed change */
-  decideConfigProposal(proposalId: string, body: NonNullable<operations["decideConfigProposal"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["decideConfigProposal"]['responses'][200]['content']["application/json"]> {
-    return this.call("POST", "/config/proposals/{proposalId}:decide", { "proposalId": proposalId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  decideConfigProposal(proposalId: string, body: NonNullable<operations["decideConfigProposal"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["decideConfigProposal"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/config/proposals/{proposalId}:decide", { "proposalId": proposalId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Set what an agent's apply does */

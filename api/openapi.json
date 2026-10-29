@@ -12760,10 +12760,13 @@
         ],
         "operationId": "applyConfig",
         "summary": "Apply a planned configuration change",
-        "description": "Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`.\n",
+        "description": "Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/StepUpToken"
           }
         ],
         "requestBody": {
@@ -12923,7 +12926,12 @@
         ],
         "operationId": "decideConfigProposal",
         "summary": "Apply or decline a proposed change",
-        "description": "Applying re-plans the proposal against the configuration in force and refuses it as `config.version_conflict` where that moved since; a plan that hides data or changes permissions needs `acknowledge`. An agent cannot decide a proposal.\n",
+        "description": "Applying re-plans the proposal against the configuration in force and refuses it as `config.version_conflict` where that moved since; a plan that hides data or changes permissions needs `acknowledge`, and one that changes the sign-in rule a fresh proof in `X-Hubtask-Step-Up`. An agent cannot decide a proposal.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -24664,6 +24672,10 @@
                 "type": "boolean"
               }
             }
+          },
+          "step_up": {
+            "type": "boolean",
+            "description": "True where the plan changes the sign-in rule, so its apply needs a fresh proof."
           },
           "counts": {
             "$ref": "#/components/schemas/ConfigCounts"

@@ -1539,6 +1539,7 @@ class ConfigPlan(TypedDict, total=False):
     operations: Required[list[dict[str, Any]]]
     refusals: Required[list["ConfigRefusal"]]
     flags: Required[dict[str, Any]]
+    step_up: bool
     counts: Required["ConfigCounts"]
 
 class ConfigCounts(TypedDict, total=False):
@@ -1643,6 +1644,7 @@ class ConfigTemplatePlan(TypedDict, total=False):
     operations: Required[list[dict[str, Any]]]
     refusals: Required[list["ConfigRefusal"]]
     flags: Required[dict[str, Any]]
+    step_up: bool
     counts: Required["ConfigCounts"]
     template: Required[str]
     from_version: int | None

@@ -8288,6 +8288,9 @@ type ConfigPlan struct {
 	// PlanHash Null where the plan refuses.
 	PlanHash *string         `json:"plan_hash"`
 	Refusals []ConfigRefusal `json:"refusals"`
+
+	// StepUp True where the plan changes the sign-in rule, so its apply needs a fresh proof.
+	StepUp *bool `json:"step_up,omitempty"`
 }
 
 // ConfigPlanRequest defines model for ConfigPlanRequest.
@@ -8403,8 +8406,11 @@ type ConfigTemplatePlan struct {
 	} `json:"operations"`
 
 	// PlanHash Null where the plan refuses.
-	PlanHash *string               `json:"plan_hash"`
-	Refusals []ConfigRefusal       `json:"refusals"`
+	PlanHash *string         `json:"plan_hash"`
+	Refusals []ConfigRefusal `json:"refusals"`
+
+	// StepUp True where the plan changes the sign-in rule, so its apply needs a fresh proof.
+	StepUp   *bool                 `json:"step_up,omitempty"`
 	Template string                `json:"template"`
 	Upgrade  []ConfigUpgradeChange `json:"upgrade"`
 }
@@ -15762,6 +15768,12 @@ type ListConfigProposalsParams struct {
 // ListConfigProposalsParamsState defines parameters for ListConfigProposals.
 type ListConfigProposalsParamsState string
 
+// DecideConfigProposalParams defines parameters for DecideConfigProposal.
+type DecideConfigProposalParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ListConfigVersionsParams defines parameters for ListConfigVersions.
 type ListConfigVersionsParams struct {
 	Before *int `form:"before,omitempty" json:"before,omitempty"`
@@ -15771,6 +15783,9 @@ type ListConfigVersionsParams struct {
 type ApplyConfigParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ListContainersParams defines parameters for ListContainers.
@@ -17963,7 +17978,7 @@ type ServerInterface interface {
 	ListConfigProposals(w http.ResponseWriter, r *http.Request, params ListConfigProposalsParams)
 	// DecideConfigProposal Apply or decline a proposed change
 	// (POST /config/proposals/{proposalId}:decide)
-	DecideConfigProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID)
+	DecideConfigProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID, params DecideConfigProposalParams)
 	// ListConfigTemplates The workspace's templates
 	// (GET /config/templates)
 	ListConfigTemplates(w http.ResponseWriter, r *http.Request)
@@ -23845,8 +23860,32 @@ func (siw *ServerInterfaceWrapper) DecideConfigProposal(w http.ResponseWriter, r
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DecideConfigProposalParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DecideConfigProposal(w, r, proposalId)
+		siw.Handler.DecideConfigProposal(w, r, proposalId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -23996,6 +24035,25 @@ func (siw *ServerInterfaceWrapper) ApplyConfig(w http.ResponseWriter, r *http.Re
 		}
 
 		params.IfMatch = &IfMatch
+
+	}
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
 
 	}
 
