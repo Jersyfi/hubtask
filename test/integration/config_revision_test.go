@@ -85,7 +85,7 @@ func TestAWorkspacesConfigurationHistoryIsItsOwn(t *testing.T) {
 		if _, err := store.Find(ctx, 1); err == nil {
 			t.Fatal("B finds A's version")
 		}
-		if versions, err := store.List(ctx, 0, 50); err != nil || len(versions) != 0 {
+		if versions, err := store.List(ctx, "", 0, 50); err != nil || len(versions) != 0 {
 			t.Fatalf("B lists A's versions: %v %v", versions, err)
 		}
 		if _, err := store.FindProposal(ctx, proposal.ID); err == nil {
@@ -127,6 +127,37 @@ func TestAWorkspacesConfigurationHistoryIsItsOwn(t *testing.T) {
 		uses, err := store.TemplateUses(ctx)
 		if err != nil || len(uses) != 1 || uses[0].Version != 1 {
 			t.Fatalf("the template A took: %+v %v", uses, err)
+		}
+		return nil
+	})
+
+	// A hub's version (migration 0223) takes the workspace's next number, names its hub, and is
+	// listed in the hub's history only - never in the workspace's, never next door.
+	// A bare identifier, as the actors are: no hub row is needed.
+	hubA := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc03")
+	hubVersion := revision
+	hubVersion.Version, hubVersion.HubID = 2, hubA
+	inTenant(t, uow, tenantA, func(ctx context.Context) error {
+		if err := store.Insert(ctx, hubVersion); err != nil {
+			t.Fatalf("writing the hub's version: %v", err)
+		}
+		found, err := store.Find(ctx, 2)
+		if err != nil || found.HubID != hubA {
+			t.Fatalf("the hub's version does not name its hub: %+v %v", found, err)
+		}
+		workspace, err := store.List(ctx, "", 0, 50)
+		if err != nil || len(workspace) != 1 || workspace[0].Version != 1 {
+			t.Fatalf("the workspace's history: %+v %v", workspace, err)
+		}
+		hub, err := store.List(ctx, hubA, 0, 50)
+		if err != nil || len(hub) != 1 || hub[0].Version != 2 {
+			t.Fatalf("the hub's history: %+v %v", hub, err)
+		}
+		return nil
+	})
+	inTenant(t, uow, tenantB, func(ctx context.Context) error {
+		if versions, err := store.List(ctx, hubA, 0, 50); err != nil || len(versions) != 0 {
+			t.Fatalf("B lists A's hub's versions: %v %v", versions, err)
 		}
 		return nil
 	})

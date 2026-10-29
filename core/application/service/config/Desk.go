@@ -86,16 +86,35 @@ type current struct {
 	// the key prefixes of the settings areas the reader may not read.
 	Withheld         []string
 	WithheldSettings []string
+	// Hub is the hub whose own document this is, empty for the workspace's.
+	Hub shared.ID
 }
 
 func (c current) hash() string { return domain.Hash(c.Document) }
 
+// sections is the shape of the document in force: the workspace's, or a hub's.
+func (c current) sections() []section {
+	if c.Hub.IsZero() {
+		return sections()
+	}
+	return hubSections(c.Hub)
+}
+
 // authorize asks for the workspace's configuration: STRUCTURE to change it, or READ_CONFIGURATION
 // besides for a read, so an auditor reads what the workspace is configured to do (A-4).
 func (d Desk) authorize(ctx context.Context, actor appshared.ActorContext, action audit.Action, scope string, read bool) error {
+	return d.authorizeAt(ctx, actor, "", action, scope, read)
+}
+
+// authorizeAt asks the same at a hub for the hub's own document: STRUCTURE there, which a
+// workspace's holds on every hub it reaches.
+func (d Desk) authorizeAt(ctx context.Context, actor appshared.ActorContext, hub shared.ID, action audit.Action, scope string, read bool) error {
 	request := access.Request{
 		Permission: service.PermissionStructure, Path: []identity.Scope{identity.TenantScope()},
 		Action: action, TokenScope: scope, TargetType: target, TargetID: actor.TenantID,
+	}
+	if !hub.IsZero() {
+		request.Path = append(request.Path, identity.HubScope(hub))
 	}
 	if read {
 		request.Alternative = service.PermissionReadConfiguration
@@ -103,10 +122,16 @@ func (d Desk) authorize(ctx context.Context, actor appshared.ActorContext, actio
 	return d.Authorizer.Authorize(ctx, actor, request)
 }
 
-// export reads every section through its list use case, in the transaction the caller runs in.
-func (d Desk) export(ctx context.Context, actor appshared.ActorContext) (current, error) {
-	out := current{Document: domain.Document{}, Rows: map[string]map[string]map[string]any{}}
-	for _, s := range sections() {
+// export reads every section through its list use case, in the transaction the caller runs in:
+// the workspace's document, or for a hub the hub's own.
+func (d Desk) export(ctx context.Context, actor appshared.ActorContext, hub shared.ID) (current, error) {
+	out := current{Document: domain.Document{}, Rows: map[string]map[string]map[string]any{}, Hub: hub}
+	if !hub.IsZero() {
+		if err := d.isHub(ctx, actor, hub); err != nil {
+			return current{}, err
+		}
+	}
+	for _, s := range out.sections() {
 		answer, err := d.Catalogue.Invoke(ctx, s.list, actor, s.listInput)
 		if err != nil {
 			if withheld(err) {
@@ -139,6 +164,9 @@ func (d Desk) export(ctx context.Context, actor appshared.ActorContext) (current
 		}
 		out.Document[s.name] = blocks
 		out.Rows[s.name] = byKey
+	}
+	if !hub.IsZero() {
+		return out, nil
 	}
 	policy, err := d.agentApply(ctx, actor.TenantID)
 	if err != nil {
@@ -261,19 +289,21 @@ type plan struct {
 	StepUp bool
 	// Reach is what the changes touch beyond the configuration, where a plan is read for a person.
 	Reach []reach
+	// Hub is the hub whose own document the plan changes, empty for the workspace's.
+	Hub shared.ID
 }
 
 // planOf compares a desired document, in its mode, with the one in force and checks every change
 // against its section's declaration and the input its use case declares - refusals only, nothing
 // run.
 func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) plan {
-	p := plan{Base: now.hash()}
+	p := plan{Base: now.hash(), Hub: now.Hub}
 	known := map[string]section{}
-	for _, s := range sections() {
+	for _, s := range now.sections() {
 		known[s.name] = s
 	}
 	for _, name := range desired.Sections() {
-		if _, held := known[name]; !held && name != sectionSettings {
+		if _, held := known[name]; !held && (name != sectionSettings || !now.Hub.IsZero()) {
 			p.Refusals = append(p.Refusals, domain.Refusal("config.section_unknown", name, nil))
 		}
 		for _, w := range now.Withheld {
@@ -312,7 +342,7 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 	changes := domain.Diff(now.Document, p.Target)
 	var removals []operation
 	var settingChanges []domain.BlockChange
-	for _, s := range append(sections(), section{name: sectionSettings}) {
+	for _, s := range append(now.sections(), section{name: sectionSettings}) {
 		for _, change := range changes {
 			if change.Section != s.name {
 				continue
@@ -537,7 +567,7 @@ func (d Desk) applied(
 	ctx context.Context, actor appshared.ActorContext, p plan, proposedBy shared.ID, rolledBackTo int,
 	template string, now time.Time,
 ) (domain.Revision, error) {
-	after, err := d.export(ctx, actor)
+	after, err := d.export(ctx, actor, p.Hub)
 	if err != nil {
 		return domain.Revision{}, err
 	}
@@ -549,6 +579,7 @@ func (d Desk) applied(
 		TenantID: actor.TenantID, Version: latest.Version + 1, Document: after.Document, Hash: after.hash(),
 		PlanHash: p.Hash, ActorKind: actor.Kind, ActorID: actor.AccountID, ProposedBy: proposedBy,
 		RolledBackTo: rolledBackTo, Template: template, Counts: domain.CountsOf(p.Changes), At: now,
+		HubID: p.Hub,
 	}
 	if err := d.Store.Insert(ctx, revision); err != nil {
 		return domain.Revision{}, err
@@ -564,6 +595,9 @@ func (d Desk) applied(
 	}
 	if template != "" {
 		changes = append(changes, audit.Change{Field: "template", Classification: audit.Open, To: template})
+	}
+	if !p.Hub.IsZero() {
+		changes = append(changes, audit.Change{Field: "hub_id", Classification: audit.Open, To: p.Hub.String()})
 	}
 	return revision, d.trail(ctx, actor, AppliedAction, now, changes...)
 }

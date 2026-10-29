@@ -337,6 +337,8 @@ CREATE TABLE config_revision (
   changed        integer NOT NULL DEFAULT 0,
   removed        integer NOT NULL DEFAULT 0,
   created_at     timestamptz NOT NULL,
+  -- The hub whose document this version is, NULL for the workspace's (migration 0223).
+  hub_id         uuid,
   PRIMARY KEY (tenant_id, version)
 );
 CREATE TABLE config_proposal (
@@ -357,6 +359,7 @@ CREATE TABLE config_proposal (
   decided_by          uuid,
   created_at          timestamptz NOT NULL,
   decided_at          timestamptz,
+  hub_id              uuid,
   UNIQUE (tenant_id, id)
 );
 CREATE INDEX config_proposal_waiting_idx ON config_proposal (tenant_id, created_at DESC) WHERE state = 'WAITING';

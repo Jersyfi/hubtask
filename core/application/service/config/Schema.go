@@ -23,8 +23,24 @@ const keyPattern = "^[a-z][a-z0-9_]{0,62}$"
 // their declared fields, kinds, allowed values and descriptions - rather than kept beside them, so
 // it cannot say less or more than the use cases accept (configuration/model.md §4).
 func (d Desk) Schema() map[string]any {
+	properties := d.sectionsSchema(sections())
+	properties[sectionSettings] = settingsSchema()
+	hub := d.sectionsSchema(hubSections(""))
+	return map[string]any{
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"title":   "Hubtask configuration document",
+		"type":    "object", "properties": properties, "additionalProperties": false,
+		// A hub's own document, read and written with hub_id (config-document.md §1).
+		"$defs": map[string]any{"hub": map[string]any{
+			"title": "A hub's configuration document",
+			"type":  "object", "properties": hub, "additionalProperties": false,
+		}},
+	}
+}
+
+func (d Desk) sectionsSchema(list []section) map[string]any {
 	properties := map[string]any{}
-	for _, s := range sections() {
+	for _, s := range list {
 		attributes := map[string]any{}
 		for _, attribute := range s.attributes {
 			attributes[attribute] = d.attributeSchema(s, attribute)
@@ -43,19 +59,17 @@ func (d Desk) Schema() map[string]any {
 			for _, key := range work.StructureSettingNames() {
 				keys = append(keys, string(key))
 			}
-			names = map[string]any{"enum": append(keys, structureLocks, structureDefaultPreset)}
+			if s.list == ReadWorkspaceName {
+				keys = append(keys, structureLocks, structureDefaultPreset)
+			}
+			names = map[string]any{"enum": keys}
 		}
 		properties[s.name] = map[string]any{
 			"type": "object", "propertyNames": names,
 			"additionalProperties": map[string]any{"oneOf": []any{block, map[string]any{"type": "null"}}},
 		}
 	}
-	properties[sectionSettings] = settingsSchema()
-	return map[string]any{
-		"$schema": "https://json-schema.org/draft/2020-12/schema",
-		"title":   "Hubtask configuration document",
-		"type":    "object", "properties": properties, "additionalProperties": false,
-	}
+	return properties
 }
 
 // attributeSchema reads an attribute's declaration from the first operation of its section that

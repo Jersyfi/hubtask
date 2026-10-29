@@ -109,16 +109,20 @@ func revisionFrom(row sqlc.ConfigRevision) (domain.Revision, error) {
 		return domain.Revision{}, err
 	}
 	revision, err := revisionHead(row.TenantID, row.Version, row.Hash, row.PlanHash, row.ActorKind, row.ActorID,
-		row.ProposedBy, row.RolledBackTo, row.Template, row.Added, row.Changed, row.Removed, row.CreatedAt)
+		row.ProposedBy, row.RolledBackTo, row.Template, row.Added, row.Changed, row.Removed, row.CreatedAt, row.HubID)
 	revision.Document = document
 	return revision, err
 }
 
 func revisionHead(
 	tenantID pgtype.UUID, version int32, hash, planHash, actorKind string, actorID, proposedBy pgtype.UUID,
-	rolledBackTo *int32, template *string, added, changed, removed int32, at pgtype.Timestamptz,
+	rolledBackTo *int32, template *string, added, changed, removed int32, at pgtype.Timestamptz, hubID pgtype.UUID,
 ) (domain.Revision, error) {
 	tenant, err := idFrom(tenantID)
+	if err != nil {
+		return domain.Revision{}, err
+	}
+	hub, err := optionalID(hubID)
 	if err != nil {
 		return domain.Revision{}, err
 	}
@@ -133,7 +137,7 @@ func revisionHead(
 	revision := domain.Revision{
 		TenantID: tenant, Version: int(version), Hash: hash, PlanHash: planHash,
 		ActorKind: shared.ActorKind(actorKind), ActorID: actor, ProposedBy: proposer,
-		Template: textOf(template), At: timeFrom(at),
+		Template: textOf(template), At: timeFrom(at), HubID: hub,
 		Counts: domain.Counts{Added: int(added), Changed: int(changed), Removed: int(removed)},
 	}
 	if rolledBackTo != nil {
@@ -142,12 +146,16 @@ func revisionHead(
 	return revision, nil
 }
 
-func (ConfigRepository) List(ctx context.Context, before, limit int) ([]domain.Revision, error) {
+func (ConfigRepository) List(ctx context.Context, hub shared.ID, before, limit int) ([]domain.Revision, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
-	params := sqlc.ListConfigRevisionsParams{MaxRows: int32(limit)}
+	hubID, err := optionalUUID(hub)
+	if err != nil {
+		return nil, err
+	}
+	params := sqlc.ListConfigRevisionsParams{MaxRows: int32(limit), HubID: hubID}
 	if before > 0 {
 		b := int32(before)
 		params.Before = &b
@@ -159,7 +167,7 @@ func (ConfigRepository) List(ctx context.Context, before, limit int) ([]domain.R
 	out := make([]domain.Revision, 0, len(rows))
 	for _, row := range rows {
 		revision, err := revisionHead(row.TenantID, row.Version, row.Hash, row.PlanHash, row.ActorKind, row.ActorID,
-			row.ProposedBy, row.RolledBackTo, row.Template, row.Added, row.Changed, row.Removed, row.CreatedAt)
+			row.ProposedBy, row.RolledBackTo, row.Template, row.Added, row.Changed, row.Removed, row.CreatedAt, row.HubID)
 		if err != nil {
 			return nil, err
 		}
@@ -185,7 +193,12 @@ func (ConfigRepository) Insert(ctx context.Context, revision domain.Revision) er
 	if err != nil {
 		return err
 	}
+	hub, err := optionalUUID(revision.HubID)
+	if err != nil {
+		return err
+	}
 	params := sqlc.InsertConfigRevisionParams{
+		HubID:   hub,
 		Version: int32(revision.Version), Document: document, Hash: revision.Hash, PlanHash: revision.PlanHash,
 		ActorKind: string(revision.ActorKind), ActorID: actor, ProposedBy: proposer,
 		Template: optionalText(revision.Template), Added: int32(revision.Counts.Added),
@@ -224,8 +237,12 @@ func (ConfigRepository) InsertProposal(ctx context.Context, p domain.Proposal) e
 	if err != nil {
 		return err
 	}
+	hub, err := optionalUUID(p.HubID)
+	if err != nil {
+		return err
+	}
 	err = queries.InsertConfigProposal(ctx, sqlc.InsertConfigProposalParams{
-		ID: id, Document: document, Mode: string(p.Mode), BaseHash: p.BaseHash, PlanHash: p.PlanHash,
+		ID: id, HubID: hub, Document: document, Mode: string(p.Mode), BaseHash: p.BaseHash, PlanHash: p.PlanHash,
 		Template: optionalText(p.Template), Added: int32(p.Counts.Added), Changed: int32(p.Counts.Changed),
 		Removed: int32(p.Counts.Removed), HidesData: p.Flags.HidesData,
 		ChangesPermissions: p.Flags.ChangesPermissions, ProposedBy: proposer, At: timestampOf(p.CreatedAt),
@@ -260,8 +277,8 @@ func proposalFrom(row sqlc.ConfigProposal) (domain.Proposal, error) {
 	if err != nil {
 		return domain.Proposal{}, err
 	}
-	ids := make([]shared.ID, 4)
-	for i, value := range []pgtype.UUID{row.ID, row.TenantID, row.ProposedBy, row.DecidedBy} {
+	ids := make([]shared.ID, 5)
+	for i, value := range []pgtype.UUID{row.ID, row.TenantID, row.ProposedBy, row.DecidedBy, row.HubID} {
 		id, err := optionalID(value)
 		if err != nil {
 			return domain.Proposal{}, err
@@ -273,7 +290,7 @@ func proposalFrom(row sqlc.ConfigProposal) (domain.Proposal, error) {
 		Mode: domain.Mode(row.Mode), BaseHash: row.BaseHash, PlanHash: row.PlanHash, Template: textOf(row.Template),
 		Counts:     domain.Counts{Added: int(row.Added), Changed: int(row.Changed), Removed: int(row.Removed)},
 		Flags:      domain.Flags{HidesData: row.HidesData, ChangesPermissions: row.ChangesPermissions},
-		ProposedBy: ids[2], DecidedBy: ids[3], CreatedAt: timeFrom(row.CreatedAt), DecidedAt: optionalTime(row.DecidedAt),
+		ProposedBy: ids[2], DecidedBy: ids[3], HubID: ids[4], CreatedAt: timeFrom(row.CreatedAt), DecidedAt: optionalTime(row.DecidedAt),
 	}, nil
 }
 

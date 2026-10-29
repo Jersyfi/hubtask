@@ -2,52 +2,56 @@
 -- is the transaction's in every statement (ADR-0010).
 
 -- name: LatestConfigRevision :one
+-- The newest of every scope: the workspace numbers its versions once, whatever they configured.
 SELECT tenant_id, version, document, hash, plan_hash, actor_kind, actor_id, proposed_by,
-       rolled_back_to, template, added, changed, removed, created_at
+       rolled_back_to, template, added, changed, removed, created_at, hub_id
 FROM config_revision
 ORDER BY version DESC
 LIMIT 1;
 
 -- name: FindConfigRevision :one
 SELECT tenant_id, version, document, hash, plan_hash, actor_kind, actor_id, proposed_by,
-       rolled_back_to, template, added, changed, removed, created_at
+       rolled_back_to, template, added, changed, removed, created_at, hub_id
 FROM config_revision WHERE version = sqlc.arg('version');
 
 -- name: ListConfigRevisions :many
 -- Newest first, without the documents: a history lists, a comparison reads two versions.
+-- One scope's: the workspace's document where hub_id is NULL, one hub's otherwise.
 SELECT tenant_id, version, hash, plan_hash, actor_kind, actor_id, proposed_by,
-       rolled_back_to, template, added, changed, removed, created_at
+       rolled_back_to, template, added, changed, removed, created_at, hub_id
 FROM config_revision
-WHERE sqlc.narg('before')::integer IS NULL OR version < sqlc.narg('before')::integer
+WHERE (sqlc.narg('before')::integer IS NULL OR version < sqlc.narg('before')::integer)
+  AND hub_id IS NOT DISTINCT FROM sqlc.narg('hub_id')::uuid
 ORDER BY version DESC
 LIMIT sqlc.arg('max_rows');
 
 -- name: InsertConfigRevision :exec
 -- The version is the next of the workspace's; the primary key refuses two applies taking one.
 INSERT INTO config_revision (tenant_id, version, document, hash, plan_hash, actor_kind, actor_id,
-                             proposed_by, rolled_back_to, template, added, changed, removed, created_at)
+                             proposed_by, rolled_back_to, template, added, changed, removed, created_at,
+                             hub_id)
 VALUES (current_tenant_id(), sqlc.arg('version'), sqlc.arg('document'), sqlc.arg('hash'),
         sqlc.arg('plan_hash'), sqlc.arg('actor_kind'), sqlc.narg('actor_id'), sqlc.narg('proposed_by'),
         sqlc.narg('rolled_back_to'), sqlc.narg('template'), sqlc.arg('added'), sqlc.arg('changed'),
-        sqlc.arg('removed'), sqlc.arg('at'));
+        sqlc.arg('removed'), sqlc.arg('at'), sqlc.narg('hub_id'));
 
 -- name: InsertConfigProposal :exec
 INSERT INTO config_proposal (id, tenant_id, state, document, mode, base_hash, plan_hash, template,
                              added, changed, removed, hides_data, changes_permissions, proposed_by,
-                             created_at)
+                             created_at, hub_id)
 VALUES (sqlc.arg('id'), current_tenant_id(), 'WAITING', sqlc.arg('document'), sqlc.arg('mode'),
         sqlc.arg('base_hash'), sqlc.arg('plan_hash'), sqlc.narg('template'), sqlc.arg('added'),
         sqlc.arg('changed'), sqlc.arg('removed'), sqlc.arg('hides_data'),
-        sqlc.arg('changes_permissions'), sqlc.narg('proposed_by'), sqlc.arg('at'));
+        sqlc.arg('changes_permissions'), sqlc.narg('proposed_by'), sqlc.arg('at'), sqlc.narg('hub_id'));
 
 -- name: FindConfigProposal :one
 SELECT id, tenant_id, state, document, mode, base_hash, plan_hash, template, added, changed, removed,
-       hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at
+       hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at, hub_id
 FROM config_proposal WHERE id = sqlc.arg('id');
 
 -- name: ListConfigProposals :many
 SELECT id, tenant_id, state, document, mode, base_hash, plan_hash, template, added, changed, removed,
-       hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at
+       hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at, hub_id
 FROM config_proposal
 WHERE sqlc.narg('state')::text IS NULL OR state = sqlc.narg('state')::text
 ORDER BY created_at DESC

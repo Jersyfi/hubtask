@@ -19,9 +19,9 @@ type Store interface {
 	Latest(ctx context.Context) (domain.Revision, bool, error)
 	// Find answers one version with its document; not found is `config.version_unknown`.
 	Find(ctx context.Context, version int) (domain.Revision, error)
-	// List answers versions newest first, without their documents, before a version (0 for the
-	// newest).
-	List(ctx context.Context, before, limit int) ([]domain.Revision, error)
+	// List answers one scope's versions newest first, without their documents, before a version
+	// (0 for the newest): the workspace's document for an empty hub, one hub's otherwise.
+	List(ctx context.Context, hub shared.ID, before, limit int) ([]domain.Revision, error)
 	// Insert writes the next version; a version taken by a concurrent apply is
 	// `config.version_conflict`.
 	Insert(ctx context.Context, revision domain.Revision) error

@@ -178,7 +178,7 @@ func (d Desk) publish(ctx context.Context, actor appshared.ActorContext, in usec
 	}
 	var out usecase.Output
 	err := d.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		now, err := d.export(ctx, actor)
+		now, err := d.export(ctx, actor, "")
 		if err != nil {
 			return err
 		}
@@ -309,7 +309,7 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, ke
 		if err != nil {
 			return err
 		}
-		now, err := d.export(ctx, actor)
+		now, err := d.export(ctx, actor, "")
 		if err != nil {
 			return err
 		}

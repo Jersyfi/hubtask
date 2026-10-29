@@ -40,6 +40,7 @@ func documentFields(required bool) []usecase.Field {
 	return []usecase.Field{
 		{Name: "document", Kind: usecase.KindObject, Required: required, Description: "The configuration document or the part of it to change: sections of blocks by stable key (schema at ReadConfigSchema). A null block removes it."},
 		{Name: "mode", Kind: usecase.KindString, Enum: modes, Description: "MERGE (default) changes only what the document names; REPLACE states every section it names whole."},
+		hubField(),
 	}
 }
 
@@ -50,6 +51,10 @@ func (d Desk) desired(ctx context.Context, in usecase.Input) (domain.Document, d
 		revision, err := d.Store.Find(ctx, version)
 		if err != nil {
 			return nil, "", 0, err
+		}
+		// A version restores the document it was of: a hub's never becomes the workspace's.
+		if hub, err := hubOf(in); err != nil || hub != revision.HubID {
+			return nil, "", 0, domain.ErrRefused([]shared.FieldError{{Path: "/to_version", Code: "config.version_other_scope"}})
 		}
 		return revision.Document, domain.ModeReplace, version, nil
 	}
@@ -81,7 +86,11 @@ func (d Desk) planned(ctx context.Context, actor appshared.ActorContext, in usec
 			return err
 		}
 		mode, version = m, v
-		now, err = d.export(ctx, actor)
+		hub, err := hubOf(in)
+		if err != nil {
+			return err
+		}
+		now, err = d.export(ctx, actor, hub)
 		if err != nil {
 			return err
 		}
@@ -177,8 +186,8 @@ func (h ReadConfigSchema) Descriptor() usecase.Descriptor {
 // ExportConfig answers the document in force.
 type ExportConfig struct{ Desk Desk }
 
-func (h ExportConfig) Execute(ctx context.Context, actor appshared.ActorContext) (current, int, error) {
-	if err := h.Desk.authorize(ctx, actor, ReadAction, scopeRead, true); err != nil {
+func (h ExportConfig) Execute(ctx context.Context, actor appshared.ActorContext, hub shared.ID) (current, int, error) {
+	if err := h.Desk.authorizeAt(ctx, actor, hub, ReadAction, scopeRead, true); err != nil {
 		return current{}, 0, err
 	}
 	var (
@@ -187,7 +196,7 @@ func (h ExportConfig) Execute(ctx context.Context, actor appshared.ActorContext)
 	)
 	err := h.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		if now, err = h.Desk.export(ctx, actor); err != nil {
+		if now, err = h.Desk.export(ctx, actor, hub); err != nil {
 			return err
 		}
 		latest, _, err := h.Desk.Store.Latest(ctx)
@@ -204,20 +213,26 @@ func (h ExportConfig) Descriptor() usecase.Descriptor {
 		Summary: "The workspace's configuration document as it is in force: modules, roles, fields, " +
 			"link types, entry types with their forms, workflows and the configuration settings, " +
 			"each block by its stable key. Its hash is what a plan is made against; a section the " +
-			"reader may not read, or whose module is off, is listed as withheld.",
+			"reader may not read, or whose module is off, is listed as withheld. Given a hub, the " +
+			"hub's own document: its modules, structure settings and workflow scheme.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  scopeRead,
 		ReadOnly:    true,
+		Input:       []usecase.Field{hubField()},
 		Audit:       usecase.AuditDeclaration{Action: ReadAction, TargetType: target, Severity: audit.SeverityInfo},
 		Activity:    usecase.ActivityDeclaration{Exempt: "a read changes nothing."},
-		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, _ usecase.Input) (usecase.Output, error) {
-			now, version, err := h.Execute(ctx, actor)
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			hub, err := hubOf(in)
+			if err != nil {
+				return nil, err
+			}
+			now, version, err := h.Execute(ctx, actor, hub)
 			if err != nil {
 				return nil, err
 			}
 			return usecase.Output{
 				"document": map[string]any(documentMap(now.Document)), "hash": now.hash(), "version": version,
-				"withheld": nonNil(now.Withheld),
+				"withheld": nonNil(now.Withheld), "hub_id": idOrNil(hub),
 			}, nil
 		}),
 	}
@@ -251,24 +266,29 @@ func (h ExplainConfig) Descriptor() usecase.Descriptor {
 		ReadOnly:    true,
 		Input: []usecase.Field{
 			{Name: "key", Kind: usecase.KindString, Required: true, Description: "The key path: a section and a block key, dotted."},
+			hubField(),
 		},
 		Audit:    usecase.AuditDeclaration{Action: ReadAction, TargetType: target, Severity: audit.SeverityInfo},
 		Activity: usecase.ActivityDeclaration{Exempt: "a read changes nothing."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
-			return h.Desk.explain(ctx, actor, in.String("key"))
+			hub, err := hubOf(in)
+			if err != nil {
+				return nil, err
+			}
+			return h.Desk.explain(ctx, actor, in.String("key"), hub)
 		}),
 	}
 }
 
-func (d Desk) explain(ctx context.Context, actor appshared.ActorContext, path string) (usecase.Output, error) {
-	if err := d.authorize(ctx, actor, ReadAction, scopeRead, true); err != nil {
+func (d Desk) explain(ctx context.Context, actor appshared.ActorContext, path string, hub shared.ID) (usecase.Output, error) {
+	if err := d.authorizeAt(ctx, actor, hub, ReadAction, scopeRead, true); err != nil {
 		return nil, err
 	}
 	name, key, _ := strings.Cut(path, ".")
 	unknown := domain.ErrRefused([]shared.FieldError{domain.Refusal("config.key_unknown", path, nil)})
 	var out usecase.Output
 	err := d.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		now, err := d.export(ctx, actor)
+		now, err := d.export(ctx, actor, hub)
 		if err != nil {
 			return err
 		}
@@ -280,6 +300,9 @@ func (d Desk) explain(ctx context.Context, actor appshared.ActorContext, path st
 		out = usecase.Output{
 			"key": path, "value": map[string]any(block), "source": string(setting.LevelWorkspace),
 			"locked_by": nil, "permission": string(service.PermissionStructure), "applies_to": "WORKSPACE",
+		}
+		if !hub.IsZero() {
+			out["source"], out["applies_to"] = sourceHub, sourceHub
 		}
 		if name == sectionSettings && read {
 			// A catalogue setting is explained even where the workspace left it to the level
@@ -316,7 +339,7 @@ func (d Desk) explain(ctx context.Context, actor appshared.ActorContext, path st
 			out["operation"] = SetConfigPolicyName
 			return nil
 		}
-		for _, s := range sections() {
+		for _, s := range now.sections() {
 			if s.name != name {
 				continue
 			}
@@ -359,7 +382,11 @@ func (h ValidateConfig) Descriptor() usecase.Descriptor {
 		Audit:       usecase.AuditDeclaration{Action: PlannedAction, TargetType: target, Severity: audit.SeverityInfo},
 		Activity:    usecase.ActivityDeclaration{Exempt: "a check changes nothing."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
-			if err := h.Desk.authorize(ctx, actor, PlannedAction, scopePlan, true); err != nil {
+			hub, err := hubOf(in)
+			if err != nil {
+				return nil, err
+			}
+			if err := h.Desk.authorizeAt(ctx, actor, hub, PlannedAction, scopePlan, true); err != nil {
 				return nil, err
 			}
 			p, _, _, _, err := h.Desk.planned(ctx, actor, in)
@@ -405,7 +432,11 @@ func (h PlanConfig) Descriptor() usecase.Descriptor {
 		Audit:       usecase.AuditDeclaration{Action: PlannedAction, TargetType: target, Severity: audit.SeverityInfo},
 		Activity:    usecase.ActivityDeclaration{Exempt: "a plan changes nothing."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
-			if err := h.Desk.authorize(ctx, actor, PlannedAction, scopePlan, true); err != nil {
+			hub, err := hubOf(in)
+			if err != nil {
+				return nil, err
+			}
+			if err := h.Desk.authorizeAt(ctx, actor, hub, PlannedAction, scopePlan, true); err != nil {
 				return nil, err
 			}
 			p, _, _, _, err := h.Desk.planned(ctx, actor, in)
@@ -443,7 +474,11 @@ func (h ProposeConfig) Descriptor() usecase.Descriptor {
 		Audit:       usecase.AuditDeclaration{Action: ProposedAction, TargetType: target, Severity: audit.SeverityInfo, Required: true},
 		Activity:    usecase.ActivityDeclaration{Exempt: "configuration is not an item; the proposal is in the trail."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
-			if err := h.Desk.authorize(ctx, actor, ProposedAction, scopePlan, false); err != nil {
+			hub, err := hubOf(in)
+			if err != nil {
+				return nil, err
+			}
+			if err := h.Desk.authorizeAt(ctx, actor, hub, ProposedAction, scopePlan, false); err != nil {
 				return nil, err
 			}
 			return h.Desk.propose(ctx, actor, in)
@@ -458,7 +493,11 @@ func (d Desk) propose(ctx context.Context, actor appshared.ActorContext, in usec
 		if err != nil {
 			return err
 		}
-		now, err := d.export(ctx, actor)
+		hub, err := hubOf(in)
+		if err != nil {
+			return err
+		}
+		now, err := d.export(ctx, actor, hub)
 		if err != nil {
 			return err
 		}
@@ -471,6 +510,7 @@ func (d Desk) propose(ctx context.Context, actor appshared.ActorContext, in usec
 			ID: d.IDs.NewID(), TenantID: actor.TenantID, State: domain.ProposalWaiting, Document: document,
 			Mode: mode, BaseHash: p.Base, PlanHash: p.Hash, Template: in.String("template"),
 			Counts: domain.CountsOf(p.Changes), Flags: p.Flags, ProposedBy: actor.AccountID, CreatedAt: at,
+			HubID: hub,
 		}
 		if err := d.Store.InsertProposal(ctx, proposal); err != nil {
 			return err
@@ -515,8 +555,16 @@ func (h ApplyConfig) Descriptor() usecase.Descriptor {
 		Audit:       usecase.AuditDeclaration{Action: AppliedAction, TargetType: target, Severity: audit.SeverityInfo, Required: true},
 		Activity:    usecase.ActivityDeclaration{Exempt: "configuration is not an item; the version and the trail hold the change."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
-			if err := h.Desk.authorize(ctx, actor, AppliedAction, scopeApply, false); err != nil {
+			hub, err := hubOf(in)
+			if err != nil {
 				return nil, err
+			}
+			if err := h.Desk.authorizeAt(ctx, actor, hub, AppliedAction, scopeApply, false); err != nil {
+				return nil, err
+			}
+			// A template is the workspace's provenance: a hub's document takes none.
+			if !hub.IsZero() && in.String("template") != "" {
+				return nil, domain.ErrRefused([]shared.FieldError{{Path: "/template", Code: "config.template_workspace_only"}})
 			}
 			return h.Desk.apply(ctx, actor, in)
 		}),
@@ -556,7 +604,11 @@ func (d Desk) apply(ctx context.Context, actor appshared.ActorContext, in usecas
 		if err != nil {
 			return err
 		}
-		now, err := d.export(ctx, actor)
+		hub, err := hubOf(in)
+		if err != nil {
+			return err
+		}
+		now, err := d.export(ctx, actor, hub)
 		if err != nil {
 			return err
 		}
@@ -610,16 +662,21 @@ func (h ListConfigVersions) Descriptor() usecase.Descriptor {
 		ReadOnly:    true,
 		Input: []usecase.Field{
 			{Name: "before", Kind: usecase.KindInt, Description: "Lists the versions before this one; omitted lists the newest."},
+			hubField(),
 		},
 		Audit:    usecase.AuditDeclaration{Action: ReadAction, TargetType: target, Severity: audit.SeverityInfo},
 		Activity: usecase.ActivityDeclaration{Exempt: "a read changes nothing."},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
-			if err := h.Desk.authorize(ctx, actor, ReadAction, scopeRead, true); err != nil {
+			hub, err := hubOf(in)
+			if err != nil {
+				return nil, err
+			}
+			if err := h.Desk.authorizeAt(ctx, actor, hub, ReadAction, scopeRead, true); err != nil {
 				return nil, err
 			}
 			var rows []usecase.Output
-			err := h.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-				revisions, err := h.Desk.Store.List(ctx, in.Int("before"), maxListed)
+			err = h.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				revisions, err := h.Desk.Store.List(ctx, hub, in.Int("before"), maxListed)
 				for _, revision := range revisions {
 					rows = append(rows, RevisionOutput(revision))
 				}
@@ -639,7 +696,7 @@ func RevisionOutput(r domain.Revision) usecase.Output {
 		"version": r.Version, "hash": r.Hash, "plan_hash": r.PlanHash, "actor_kind": string(r.ActorKind),
 		"actor_id": idOrNil(r.ActorID), "proposed_by": idOrNil(r.ProposedBy), "rolled_back_to": nil,
 		"template": nil, "added": r.Counts.Added, "changed": r.Counts.Changed, "removed": r.Counts.Removed,
-		"created_at": r.At,
+		"created_at": r.At, "hub_id": idOrNil(r.HubID),
 	}
 	if r.RolledBackTo > 0 {
 		out["rolled_back_to"] = r.RolledBackTo
@@ -700,7 +757,7 @@ func ProposalOutput(p domain.Proposal) usecase.Output {
 		"added": p.Counts.Added, "changed": p.Counts.Changed, "removed": p.Counts.Removed,
 		"hides_data": p.Flags.HidesData, "changes_permissions": p.Flags.ChangesPermissions,
 		"proposed_by": idOrNil(p.ProposedBy), "decided_by": idOrNil(p.DecidedBy),
-		"created_at": p.CreatedAt, "decided_at": nil,
+		"created_at": p.CreatedAt, "decided_at": nil, "hub_id": idOrNil(p.HubID),
 	}
 	if p.Template != "" {
 		out["template"] = p.Template
@@ -809,7 +866,7 @@ func (d Desk) decide(ctx context.Context, actor appshared.ActorContext, id share
 			return d.trail(ctx, actor, DeclinedAction, at,
 				audit.Change{Field: "proposal", Classification: audit.Open, To: id.String()})
 		}
-		now, err := d.export(ctx, actor)
+		now, err := d.export(ctx, actor, proposal.HubID)
 		if err != nil {
 			return err
 		}

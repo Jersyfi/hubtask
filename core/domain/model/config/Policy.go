@@ -88,6 +88,9 @@ type Revision struct {
 	Template string
 	Counts   Counts
 	At       time.Time
+	// HubID is the hub whose document the version is, empty for the workspace's. The workspace
+	// numbers the versions of every scope once.
+	HubID shared.ID
 }
 
 // Counts is how many blocks a plan adds, changes and removes.
@@ -139,6 +142,8 @@ type Proposal struct {
 	DecidedBy  shared.ID
 	CreatedAt  time.Time
 	DecidedAt  *time.Time
+	// HubID is the hub whose document the proposal changes, empty for the workspace's.
+	HubID shared.ID
 }
 
 // ErrProposalDecided refuses a decision on a proposal that is no longer waiting.

@@ -46,11 +46,17 @@ type world struct {
 	workflows map[string]map[string]any
 	preview   usecase.Output
 	grants    []any
+	// hub is the one hub GetContainer answers, hubStructure its own structure values and scheme
+	// the workflow scheme ListWorkflows answers.
+	hub          string
+	hubStructure map[string]any
+	scheme       []any
 }
 
 func (w *world) clone() *world {
 	out := &world{types: map[string]map[string]any{}, roles: map[string]map[string]any{}, failOn: w.failOn,
-		workspace: w.workspace, ai: w.ai, inputs: maps.Clone(w.inputs), workflows: w.workflows, preview: w.preview, grants: w.grants}
+		workspace: w.workspace, ai: w.ai, inputs: maps.Clone(w.inputs), workflows: w.workflows, preview: w.preview, grants: w.grants,
+		hub: w.hub, hubStructure: maps.Clone(w.hubStructure), scheme: w.scheme}
 	if w.structure != nil {
 		out.structure = maps.Clone(w.structure)
 	}
@@ -92,8 +98,32 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 		if w.workflows == nil {
 			return nil, shared.ErrValidation.WithDetail("module.off")
 		}
-		return usecase.Output{"data": rowsOf(w.workflows)}, nil
-	case "PreviewWorkflowPublish":
+		return usecase.Output{"data": rowsOf(w.workflows), "scheme": w.scheme}, nil
+	case "GetContainer":
+		if w.hub == "" || in.String("container_id") != w.hub {
+			return usecase.Output{"type": "COLLECTION"}, nil
+		}
+		sources := map[string]any{}
+		for name := range w.hubStructure {
+			sources[name] = "HUB"
+		}
+		return usecase.Output{"type": "HUB", "structure": map[string]any{
+			"settings": maps.Clone(w.hubStructure), "sources": sources,
+		}}, nil
+	case "SetContainerStructure", "SetWorkflowScheme":
+		if w.inputs == nil {
+			w.inputs = map[string][]usecase.Input{}
+		}
+		w.inputs[name] = append(w.inputs[name], in)
+		if values, held := in["settings"].(map[string]any); held {
+			maps.Copy(w.hubStructure, values)
+		}
+		if reset, held := in["reset"].([]any); held {
+			for _, name := range reset {
+				delete(w.hubStructure, name.(string))
+			}
+		}
+	case "PreviewWorkflowPublish", "PreviewWorkflowScheme":
 		if w.inputs == nil {
 			w.inputs = map[string][]usecase.Input{}
 		}
@@ -238,7 +268,15 @@ func (s *store) Find(_ context.Context, version int) (domain.Revision, error) {
 	return domain.Revision{}, shared.ErrNotFound.WithDetail("config.version_unknown")
 }
 
-func (s *store) List(context.Context, int, int) ([]domain.Revision, error) { return s.revisions, nil }
+func (s *store) List(_ context.Context, hub shared.ID, _, _ int) ([]domain.Revision, error) {
+	var out []domain.Revision
+	for _, r := range s.revisions {
+		if r.HubID == hub {
+			out = append(out, r)
+		}
+	}
+	return out, nil
+}
 func (s *store) Insert(_ context.Context, r domain.Revision) error {
 	s.revisions = append(s.revisions, r)
 	return nil

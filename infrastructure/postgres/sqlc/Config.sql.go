@@ -40,7 +40,7 @@ func (q *Queries) DecideConfigProposal(ctx context.Context, arg DecideConfigProp
 
 const findConfigProposal = `-- name: FindConfigProposal :one
 SELECT id, tenant_id, state, document, mode, base_hash, plan_hash, template, added, changed, removed,
-       hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at
+       hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at, hub_id
 FROM config_proposal WHERE id = $1
 `
 
@@ -65,13 +65,14 @@ func (q *Queries) FindConfigProposal(ctx context.Context, id pgtype.UUID) (Confi
 		&i.DecidedBy,
 		&i.CreatedAt,
 		&i.DecidedAt,
+		&i.HubID,
 	)
 	return i, err
 }
 
 const findConfigRevision = `-- name: FindConfigRevision :one
 SELECT tenant_id, version, document, hash, plan_hash, actor_kind, actor_id, proposed_by,
-       rolled_back_to, template, added, changed, removed, created_at
+       rolled_back_to, template, added, changed, removed, created_at, hub_id
 FROM config_revision WHERE version = $1
 `
 
@@ -93,6 +94,7 @@ func (q *Queries) FindConfigRevision(ctx context.Context, version int32) (Config
 		&i.Changed,
 		&i.Removed,
 		&i.CreatedAt,
+		&i.HubID,
 	)
 	return i, err
 }
@@ -127,11 +129,11 @@ func (q *Queries) FindConfigTemplate(ctx context.Context, arg FindConfigTemplate
 const insertConfigProposal = `-- name: InsertConfigProposal :exec
 INSERT INTO config_proposal (id, tenant_id, state, document, mode, base_hash, plan_hash, template,
                              added, changed, removed, hides_data, changes_permissions, proposed_by,
-                             created_at)
+                             created_at, hub_id)
 VALUES ($1, current_tenant_id(), 'WAITING', $2, $3,
         $4, $5, $6, $7,
         $8, $9, $10,
-        $11, $12, $13)
+        $11, $12, $13, $14)
 `
 
 type InsertConfigProposalParams struct {
@@ -148,6 +150,7 @@ type InsertConfigProposalParams struct {
 	ChangesPermissions bool
 	ProposedBy         pgtype.UUID
 	At                 pgtype.Timestamptz
+	HubID              pgtype.UUID
 }
 
 func (q *Queries) InsertConfigProposal(ctx context.Context, arg InsertConfigProposalParams) error {
@@ -165,17 +168,19 @@ func (q *Queries) InsertConfigProposal(ctx context.Context, arg InsertConfigProp
 		arg.ChangesPermissions,
 		arg.ProposedBy,
 		arg.At,
+		arg.HubID,
 	)
 	return err
 }
 
 const insertConfigRevision = `-- name: InsertConfigRevision :exec
 INSERT INTO config_revision (tenant_id, version, document, hash, plan_hash, actor_kind, actor_id,
-                             proposed_by, rolled_back_to, template, added, changed, removed, created_at)
+                             proposed_by, rolled_back_to, template, added, changed, removed, created_at,
+                             hub_id)
 VALUES (current_tenant_id(), $1, $2, $3,
         $4, $5, $6, $7,
         $8, $9, $10, $11,
-        $12, $13)
+        $12, $13, $14)
 `
 
 type InsertConfigRevisionParams struct {
@@ -192,6 +197,7 @@ type InsertConfigRevisionParams struct {
 	Changed      int32
 	Removed      int32
 	At           pgtype.Timestamptz
+	HubID        pgtype.UUID
 }
 
 // The version is the next of the workspace's; the primary key refuses two applies taking one.
@@ -210,6 +216,7 @@ func (q *Queries) InsertConfigRevision(ctx context.Context, arg InsertConfigRevi
 		arg.Changed,
 		arg.Removed,
 		arg.At,
+		arg.HubID,
 	)
 	return err
 }
@@ -248,7 +255,7 @@ func (q *Queries) InsertConfigTemplate(ctx context.Context, arg InsertConfigTemp
 const latestConfigRevision = `-- name: LatestConfigRevision :one
 
 SELECT tenant_id, version, document, hash, plan_hash, actor_kind, actor_id, proposed_by,
-       rolled_back_to, template, added, changed, removed, created_at
+       rolled_back_to, template, added, changed, removed, created_at, hub_id
 FROM config_revision
 ORDER BY version DESC
 LIMIT 1
@@ -256,6 +263,7 @@ LIMIT 1
 
 // The configuration document's versions, proposals and templates (migration 0221, F-6). The tenant
 // is the transaction's in every statement (ADR-0010).
+// The newest of every scope: the workspace numbers its versions once, whatever they configured.
 func (q *Queries) LatestConfigRevision(ctx context.Context) (ConfigRevision, error) {
 	row := q.db.QueryRow(ctx, latestConfigRevision)
 	var i ConfigRevision
@@ -274,13 +282,14 @@ func (q *Queries) LatestConfigRevision(ctx context.Context) (ConfigRevision, err
 		&i.Changed,
 		&i.Removed,
 		&i.CreatedAt,
+		&i.HubID,
 	)
 	return i, err
 }
 
 const listConfigProposals = `-- name: ListConfigProposals :many
 SELECT id, tenant_id, state, document, mode, base_hash, plan_hash, template, added, changed, removed,
-       hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at
+       hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at, hub_id
 FROM config_proposal
 WHERE $1::text IS NULL OR state = $1::text
 ORDER BY created_at DESC
@@ -319,6 +328,7 @@ func (q *Queries) ListConfigProposals(ctx context.Context, arg ListConfigProposa
 			&i.DecidedBy,
 			&i.CreatedAt,
 			&i.DecidedAt,
+			&i.HubID,
 		); err != nil {
 			return nil, err
 		}
@@ -332,15 +342,17 @@ func (q *Queries) ListConfigProposals(ctx context.Context, arg ListConfigProposa
 
 const listConfigRevisions = `-- name: ListConfigRevisions :many
 SELECT tenant_id, version, hash, plan_hash, actor_kind, actor_id, proposed_by,
-       rolled_back_to, template, added, changed, removed, created_at
+       rolled_back_to, template, added, changed, removed, created_at, hub_id
 FROM config_revision
-WHERE $1::integer IS NULL OR version < $1::integer
+WHERE ($1::integer IS NULL OR version < $1::integer)
+  AND hub_id IS NOT DISTINCT FROM $2::uuid
 ORDER BY version DESC
-LIMIT $2
+LIMIT $3
 `
 
 type ListConfigRevisionsParams struct {
 	Before  *int32
+	HubID   pgtype.UUID
 	MaxRows int32
 }
 
@@ -358,11 +370,13 @@ type ListConfigRevisionsRow struct {
 	Changed      int32
 	Removed      int32
 	CreatedAt    pgtype.Timestamptz
+	HubID        pgtype.UUID
 }
 
 // Newest first, without the documents: a history lists, a comparison reads two versions.
+// One scope's: the workspace's document where hub_id is NULL, one hub's otherwise.
 func (q *Queries) ListConfigRevisions(ctx context.Context, arg ListConfigRevisionsParams) ([]ListConfigRevisionsRow, error) {
-	rows, err := q.db.Query(ctx, listConfigRevisions, arg.Before, arg.MaxRows)
+	rows, err := q.db.Query(ctx, listConfigRevisions, arg.Before, arg.HubID, arg.MaxRows)
 	if err != nil {
 		return nil, err
 	}
@@ -384,6 +398,7 @@ func (q *Queries) ListConfigRevisions(ctx context.Context, arg ListConfigRevisio
 			&i.Changed,
 			&i.Removed,
 			&i.CreatedAt,
+			&i.HubID,
 		); err != nil {
 			return nil, err
 		}

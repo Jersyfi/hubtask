@@ -1598,11 +1598,11 @@ func (q *Queries) ImportComment(ctx context.Context, arg ImportCommentParams) (i
 const importConfigProposal = `-- name: ImportConfigProposal :execrows
 INSERT INTO config_proposal (
   id, tenant_id, state, document, mode, base_hash, plan_hash, template, added, changed, removed,
-  hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at
+  hides_data, changes_permissions, proposed_by, decided_by, created_at, decided_at, hub_id
 )
 SELECT r.id, r.tenant_id, r.state, r.document, r.mode, r.base_hash, r.plan_hash, r.template, r.added,
        r.changed, r.removed, r.hides_data, r.changes_permissions, r.proposed_by, r.decided_by,
-       r.created_at, r.decided_at
+       r.created_at, r.decided_at, r.hub_id
 FROM jsonb_populate_record(
   NULL::config_proposal,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -1630,10 +1630,10 @@ func (q *Queries) ImportConfigProposal(ctx context.Context, arg ImportConfigProp
 const importConfigRevision = `-- name: ImportConfigRevision :execrows
 INSERT INTO config_revision (
   tenant_id, version, document, hash, plan_hash, actor_kind, actor_id, proposed_by, rolled_back_to,
-  template, added, changed, removed, created_at
+  template, added, changed, removed, created_at, hub_id
 )
 SELECT r.tenant_id, r.version, r.document, r.hash, r.plan_hash, r.actor_kind, r.actor_id, r.proposed_by,
-       r.rolled_back_to, r.template, r.added, r.changed, r.removed, r.created_at
+       r.rolled_back_to, r.template, r.added, r.changed, r.removed, r.created_at, r.hub_id
 FROM jsonb_populate_record(
   NULL::config_revision,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())

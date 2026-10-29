@@ -815,6 +815,7 @@ type ConfigProposal struct {
 	DecidedBy          pgtype.UUID
 	CreatedAt          pgtype.Timestamptz
 	DecidedAt          pgtype.Timestamptz
+	HubID              pgtype.UUID
 }
 
 type ConfigRevision struct {
@@ -832,6 +833,7 @@ type ConfigRevision struct {
 	Changed      int32
 	Removed      int32
 	CreatedAt    pgtype.Timestamptz
+	HubID        pgtype.UUID
 }
 
 type ConfigTemplate struct {

@@ -34,7 +34,8 @@ const (
 )
 
 // reachOf asks the use cases that know what a change touches, in the plan's read: a workflow's
-// publish preview for the shape the plan sets, the role grants for a changed role. A shape that
+// publish preview for the shape the plan sets, a hub scheme's preview, the role grants for a
+// changed role. A shape that
 // removes a status entries are in is refused here, as its publish would refuse the apply.
 func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan) error {
 	var grants []any
@@ -66,6 +67,35 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 					p.Refusals = append(p.Refusals, domain.Refusal("workflows.mapping_required", change.Path()+".shape",
 						map[string]string{"status": text(removed["status"]), "count": strconv.Itoa(whole(removed["count"]))}))
 				}
+			}
+			p.Reach = append(p.Reach, r)
+		case change.Section == sectionScheme && !p.Hub.IsZero():
+			// The scheme's own preview: the entries that take another status where the hub runs
+			// another workflow for the type.
+			entryType := change.Key
+			if entryType == schemeEveryType {
+				entryType = ""
+			}
+			answer, err := d.Catalogue.Invoke(ctx, "PreviewWorkflowScheme", actor, usecase.Input{
+				"container_id": p.Hub.String(), "entry_type": entryType, "workflow": text(change.After[workflowAttribute]),
+			})
+			if err != nil {
+				if withheld(err) {
+					continue
+				}
+				p.Refusals = append(p.Refusals, fieldsOf(err, change.Path())...)
+				continue
+			}
+			normal, err := normalise(map[string]any(answer))
+			if err != nil {
+				return err
+			}
+			preview, _ := normal.(map[string]any)
+			r := reach{Path: change.Path(), Entries: whole(preview["entries"])}
+			r.Moves, _ = preview["moves"].([]any)
+			r.Removed, _ = preview["removed"].([]any)
+			if r.Moves == nil {
+				r.Moves = []any{}
 			}
 			p.Reach = append(p.Reach, r)
 		case change.Section == sectionRoles && change.Op != domain.OpAdd:
