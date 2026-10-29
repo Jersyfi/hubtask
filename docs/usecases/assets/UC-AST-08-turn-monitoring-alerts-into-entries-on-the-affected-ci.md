@@ -5,9 +5,9 @@ context: assets
 actors: [PE-admin, PE-integrator, PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18, P-19]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/cmdb/Connector_test.go, core/application/service/cmdb/Connectors_test.go, presentation/intake/AlertIntake_test.go, test/integration/cmdb_repository_test.go]
+checked_by: [core/domain/model/cmdb/Connector_test.go, core/application/service/cmdb/Connectors_test.go, presentation/intake/AlertIntake_test.go, test/integration/cmdb_repository_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
 ---
 
 # Turn monitoring alerts into entries on the affected configuration item
@@ -33,7 +33,3 @@ Ole points the team's Alertmanager at the hub's intake with the secret Hubtask d
 ## Where it ends
 
 * No on-call schedules, routing or escalation, no deduplication across intakes, no affected CIs on an entry beyond the reference in its notes (S-18's incidents) - the following release.
-
-## Today
-
-* Check 7: the *Assets* screen has no *Alerts* section yet (S-17, the web app's part).

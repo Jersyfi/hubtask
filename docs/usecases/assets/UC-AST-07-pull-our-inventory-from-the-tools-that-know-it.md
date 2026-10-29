@@ -5,9 +5,9 @@ context: assets
 actors: [PE-admin, PE-integrator]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/cmdb/Connector_test.go, core/application/service/cmdb/Connectors_test.go, infrastructure/connector/Pullers_test.go, presentation/worker/CmdbConnectorPull_test.go, test/integration/cmdb_repository_test.go]
+checked_by: [core/domain/model/cmdb/Connector_test.go, core/application/service/cmdb/Connectors_test.go, infrastructure/connector/Pullers_test.go, presentation/worker/CmdbConnectorPull_test.go, test/integration/cmdb_repository_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
 ---
 
 # Pull our inventory from the tools that already know it
@@ -34,7 +34,3 @@ Dana connects the hub *Data centre* to NetBox with a token, ranks NetBox above t
 
 * No relay agent for sources inside a customer's network, no versioned mapping packs, no Snipe-IT, i-doit, Jamf, Wazuh or cloud inventories of AWS, Azure or GCP, and no NetBox change webhook - the following release (research itsm-cmdb-ai §4.6, C7, C9).
 * A connector is switched off, never deleted: deleting one would take its alerts with it, which is the owner's decision (irrecoverable deletion).
-
-## Today
-
-* Check 7: the *Assets* screen has no *Connectors* section yet (S-17, the web app's part).
