@@ -5,9 +5,9 @@ context: knowledge
 actors: [PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-19]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/knowledge/Page_test.go, core/application/service/knowledge/Pages_test.go]
+checked_by: [core/domain/model/knowledge/Page_test.go, core/application/service/knowledge/Pages_test.go, packages/editor/test/passages.test.ts, apps/webapp/src/lib/pages/margin.test.ts]
 ---
 
 # Discuss a page beside its words
@@ -30,7 +30,3 @@ Bert marks "the budget" in the plan and asks why it is so high. Anna answers in 
 ## Where it ends
 
 * No reactions or watchers in this release.
-
-## Today
-
-* Check 4: not met - the web app comments at the block the caret stands in, quoting that block's words, and draws the thread in the margin beside the page with the quote leading back to the block; a comment on exactly the words selected, and a thread drawn level with its passage, are not built.
