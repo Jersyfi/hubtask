@@ -9615,7 +9615,7 @@ type CiSourceList struct {
 	Data []CiSource `json:"data"`
 }
 
-// CmdbHealth A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem.
+// CmdbHealth A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's class; each service scored by the share of the CIs it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept.
 type CmdbHealth struct {
 	Classes []struct {
 		Class        string  `json:"class"`
@@ -9636,9 +9636,30 @@ type CmdbHealth struct {
 		Missing *[]string                 `json:"missing,omitempty"`
 	} `json:"problems"`
 	ReviewOverdue int `json:"review_overdue"`
-	Stale         int `json:"stale"`
-	Total         int `json:"total"`
-	WithoutOwner  int `json:"without_owner"`
+	Services      []struct {
+		CiId openapi_types.UUID `json:"ci_id"`
+
+		// Cis The active CIs it rests on, itself included.
+		Cis   int    `json:"cis"`
+		Class string `json:"class"`
+		Name  string `json:"name"`
+
+		// Score 1 less the share wanting, from 0 to 1.
+		Score float32 `json:"score"`
+
+		// Wanting Of those, the ones health finds wanting.
+		Wanting int `json:"wanting"`
+	} `json:"services"`
+	Sources []struct {
+		ConflictRate float32 `json:"conflict_rate"`
+		Kept         int     `json:"kept"`
+		Reported     int     `json:"reported"`
+		Source       string  `json:"source"`
+	} `json:"sources"`
+	Stale          int `json:"stale"`
+	StaleRelations int `json:"stale_relations"`
+	Total          int `json:"total"`
+	WithoutOwner   int `json:"without_owner"`
 }
 
 // CmdbHealthProblemsKinds defines model for CmdbHealth.Problems.Kinds.

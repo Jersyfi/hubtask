@@ -43499,7 +43499,7 @@
       },
       "CmdbHealth": {
         "type": "object",
-        "description": "A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem.\n",
+        "description": "A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's class; each service scored by the share of the CIs it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept.\n",
         "required": [
           "total",
           "completeness",
@@ -43510,7 +43510,10 @@
           "without_owner",
           "review_overdue",
           "classes",
-          "problems"
+          "problems",
+          "stale_relations",
+          "services",
+          "sources"
         ],
         "properties": {
           "total": {
@@ -43607,6 +43610,73 @@
                   "items": {
                     "type": "string"
                   }
+                }
+              }
+            }
+          },
+          "stale_relations": {
+            "type": "integer"
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "ci_id",
+                "class",
+                "name",
+                "cis",
+                "wanting",
+                "score"
+              ],
+              "properties": {
+                "ci_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "class": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "cis": {
+                  "type": "integer",
+                  "description": "The active CIs it rests on, itself included."
+                },
+                "wanting": {
+                  "type": "integer",
+                  "description": "Of those, the ones health finds wanting."
+                },
+                "score": {
+                  "type": "number",
+                  "description": "1 less the share wanting, from 0 to 1."
+                }
+              }
+            }
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "source",
+                "reported",
+                "kept",
+                "conflict_rate"
+              ],
+              "properties": {
+                "source": {
+                  "type": "string"
+                },
+                "reported": {
+                  "type": "integer"
+                },
+                "kept": {
+                  "type": "integer"
+                },
+                "conflict_rate": {
+                  "type": "number"
                 }
               }
             }

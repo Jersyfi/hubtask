@@ -4549,7 +4549,7 @@ class CiBacklinkList(TypedDict, total=False):
     data: Required[list[dict[str, Any]]]
 
 class CmdbHealth(TypedDict, total=False):
-    """A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem."""
+    """A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's class; each service scored by the share of the CIs it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept."""
     total: Required[int]
     completeness: Required[float]
     correctness: Required[float]
@@ -4560,6 +4560,9 @@ class CmdbHealth(TypedDict, total=False):
     review_overdue: Required[int]
     classes: Required[list[dict[str, Any]]]
     problems: Required[list[dict[str, Any]]]
+    stale_relations: Required[int]
+    services: Required[list[dict[str, Any]]]
+    sources: Required[list[dict[str, Any]]]
 
 class WhiteboardList(TypedDict, total=False):
     data: Required[list["Whiteboard"]]
