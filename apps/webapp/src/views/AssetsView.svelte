@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Assets* in a hub (M6, UC-AST-01 … UC-AST-06): the inventory by class, the reconciliation's runs
-  // with the items held, the open duplicates, a file's import and the inventory's health, one
-  // section each at its own address; and one configuration item at `/cis/:id`.
+  // *Assets* in a hub (M6, UC-AST-01 … UC-AST-08): the inventory by class, the reconciliation's runs
+  // with the items held, the open duplicates, a file's import, the connectors, the alerts and the
+  // inventory's health, one section each at its own address; and one configuration item at `/cis/:id`.
   //
   // **What the reader may never do is not drawn** (P-05): a reader without WRITE_ITEMS on the hub
   // reads every section and is offered no write; the import section is not offered to them at all.
@@ -12,7 +12,9 @@
   import { Banner, Spinner, Stack, Tabs } from '@hubtask/design-system/components';
   import type { CiClassList, CiRelationTypeList, ConfigurationItem } from '@hubtask/sync-engine';
 
+  import Alerts from '../lib/assets/Alerts.svelte';
   import CiDetail from '../lib/assets/CiDetail.svelte';
+  import Connectors from '../lib/assets/Connectors.svelte';
   import Duplicates from '../lib/assets/Duplicates.svelte';
   import Health from '../lib/assets/Health.svelte';
   import ImportFile from '../lib/assets/ImportFile.svelte';
@@ -103,6 +105,10 @@
           <Duplicates {hubId} {classes} {words} {mayWrite} />
         {:else if shown === 'import' && mayWrite}
           <ImportFile {hubId} {classes} {words} />
+        {:else if shown === 'connectors'}
+          <Connectors {hubId} {classes} {words} {mayWrite} />
+        {:else if shown === 'alerts'}
+          <Alerts {hubId} />
         {:else if shown === 'health'}
           <Health {hubId} {classes} {words} />
         {/if}
