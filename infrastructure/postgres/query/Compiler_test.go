@@ -809,6 +809,24 @@ func TestAnAttachedHitIsRanked(t *testing.T) {
 	}
 }
 
+// `linked_to` reads a link of any type from either end (F-9), the identifiers bound.
+func TestLinkedToReadsEitherEnd(t *testing.T) {
+	id := "0190a4c2-7b1e-7000-8000-000000000001"
+	got := compile(t, map[string]any{"field": "linked_to", "op": "EQ", "value": id}, view.Spec{})
+	for _, want := range []string{
+		"EXISTS (SELECT 1 FROM entry_link ln WHERE ln.tenant_id = wi.tenant_id",
+		"((ln.source_id = wi.id AND ln.target_id = ANY($",
+		"OR (ln.target_id = wi.id AND ln.source_id = ANY($",
+	} {
+		if !strings.Contains(got.SQL, want) {
+			t.Errorf("compiled to\n  %s\nand should contain\n  %s", got.SQL, want)
+		}
+	}
+	if strings.Contains(got.SQL, id) {
+		t.Fatalf("the identifier reached the text:\n  %s", got.SQL)
+	}
+}
+
 // `blocking` traverses the same links the other way (F-9): this entry is the one waited for, and
 // the open entry across the link is the one waiting.
 func TestBlockingTraversesTheLinksTheOtherWay(t *testing.T) {

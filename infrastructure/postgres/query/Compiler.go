@@ -729,6 +729,9 @@ func (b *builder) leaf(node view.Node) {
 	case view.FieldBlocking:
 		b.waitingLink(node, false)
 		return
+	case view.FieldLinkedTo:
+		b.linkedTo(node)
+		return
 	}
 
 	if key, isCustom := view.CustomField(node.Field.Name); isCustom {
@@ -830,6 +833,18 @@ func (b *builder) waitingLink(node view.Node, held bool) {
 		b.write(` = `)
 	}
 	b.value(node.Field, node.Values[0])
+}
+
+// linkedTo writes whether a link of any type joins the entry to one of the given entries, from
+// either end. EQ and IN bind the same array, so one value is a list of one; the identifiers are
+// parameters, never text (ADR-0026).
+func (b *builder) linkedTo(node view.Node) {
+	b.write(`EXISTS (SELECT 1 FROM entry_link ln WHERE ln.tenant_id = wi.tenant_id`)
+	b.write(` AND ((ln.source_id = wi.id AND ln.target_id = ANY(`)
+	b.array(node.Field, node.Values)
+	b.write(`)) OR (ln.target_id = wi.id AND ln.source_id = ANY(`)
+	b.array(node.Field, node.Values)
+	b.write(`))))`)
 }
 
 // customField writes a comparison against one key of the entry's custom field document.

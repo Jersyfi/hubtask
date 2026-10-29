@@ -124,6 +124,7 @@ One endpoint serves list, board, and timeline: `POST /api/v1/items:query`.
 | Entry type | `entry_type` is the key of the entry's type, its level's system key (`task`, `work_package`, `activity`) when it has none of its own; `EQ`, `NEQ`, `IN`, `NOT_IN` and a grouping, no sort. `/entry-types` says which keys exist |
 | Blocked | `blocked` is whether an open entry holds the entry up - over a link whose type waits - the source of a `blocks` link to it, the target of a `depends_on` link from it, or the other end of a workspace's own type as its `waits` says; `EQ` and `NEQ` with a boolean, no sort or grouping, cost 2 |
 | Blocking | `blocking` is the other direction: whether the entry holds up an open one over a link whose type waits; `EQ` and `NEQ` with a boolean, no sort or grouping, cost 2 |
+| Linked to | `linked_to` is whether a link of any type joins the entry to one of the given entries, from either end; `EQ` and `IN` with identifiers, no sort or grouping, cost 2 |
 | Status | `status` is the key of the entry's status in the workflow its collection runs for its type, absent where none runs; `EQ`, `NEQ`, `IN`, `NOT_IN`, `IS_NULL` and a grouping, no sort - a workflow collection's board is grouped by it. `/workflows` says which keys exist |
 | `group_by` | Groups, each with its own cursor, so board columns page independently; a group is continued by asking for it (its key as a filter, its cursor as the cursor). A cursor together with `group_by` is refused |
 | `expand` | `labels` is served; any other relation is refused as `items.expand_not_supported` |

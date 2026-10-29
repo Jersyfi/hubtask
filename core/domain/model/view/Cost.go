@@ -58,7 +58,8 @@ func Cost(node *Node) int {
 			total += Cost(&node.Nodes[i])
 		}
 		return total
-	case node.Field.Name == FieldBlocked || node.Field.Name == FieldBlocking:
+	case node.Field.Name == FieldBlocked || node.Field.Name == FieldBlocking ||
+		node.Field.Name == FieldLinkedTo:
 		return costTraversal
 	case node.Op == OpContains || node.Op == OpMatches:
 		return costText

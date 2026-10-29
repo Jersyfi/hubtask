@@ -119,6 +119,9 @@ const (
 	// FieldBlocking is blocked's other direction: whether this entry holds up an open one over a
 	// link whose type waits - the question "what should I finish first".
 	FieldBlocking = "blocking"
+	// FieldLinkedTo is whether a link of any type joins the entry to one of the given entries, in
+	// either direction - the entries related to the one on screen.
+	FieldLinkedTo = "linked_to"
 
 	// CustomFieldPrefix names the family (api-guidelines.md §3). The one field name in the
 	// grammar that carries a value: everything after the dot is a key, which is why it is a
@@ -308,6 +311,10 @@ var catalogue = []Field{
 	{
 		Name: FieldBlocking, Kind: KindBool,
 		Operators: []Operator{OpEq, OpNeq},
+	},
+	{
+		Name: FieldLinkedTo, Kind: KindID,
+		Operators: []Operator{OpEq, OpIn},
 	},
 }
 

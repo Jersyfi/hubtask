@@ -60,4 +60,11 @@ func TestTheQueryFindsTheEntriesAnOpenOneBlocks(t *testing.T) {
 	if len(holding.Items) != 1 || holding.Items[0].ID != blocker {
 		t.Errorf("blocking answered %v", titlesOf(holding.Items))
 	}
+
+	// And any link from either end: the waiting entry is the one linked to the blocker.
+	related := queried(ctx, t, tenantA, searchIn(t, collection,
+		map[string]any{"field": "linked_to", "op": "EQ", "value": blocker.String()}, view.Spec{}))
+	if len(related.Items) != 1 || related.Items[0].ID != waiting {
+		t.Errorf("linked_to answered %v", titlesOf(related.Items))
+	}
 }
