@@ -483,7 +483,7 @@
   .note { color: var(--text-subtle); font-size: var(--fs-075); }
   .flag { color: var(--text-danger); font-size: var(--fs-075); }
 
-  .open { color: var(--text-link); font-size: var(--fs-075); }
+  .open { color: var(--text-brand); font-size: var(--fs-075); }
   .pick { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-150); margin-block-end: var(--sp-150); }
   .difference {
     display: grid;
@@ -492,7 +492,7 @@
     border-block-start: var(--bw-hairline) solid var(--border-subtle);
   }
   .difference:first-child { border-block-start: none; }
-  .sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: var(--sp-100); }
+  .sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--layout-compare-side)), 1fr)); gap: var(--sp-100); }
   .side {
     margin: 0;
     padding: var(--sp-100);
