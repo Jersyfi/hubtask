@@ -88,7 +88,9 @@ field or a rule of its own (`model.md` §6 of the suite plan). The channels are 
 tells apart - `APP` (the REST door the web app and hubctl share), `MCP`, `RULE`, `SYNC`, `IMPORT`,
 `MAIL` - and the adapter sets one on the actor (`ActorContext.Channel`); a channel the server could
 not tell apart would be a narrowing anybody could step around. A condition is CEL over `entry`,
-`actor` (`role`, `kind`), `channel` and `step` (empty until workflows). Saving a form compiles each
+`actor` (`role`, the built-in role; `roles` and `permissions`, every role key - custom ones
+included - and every permission held along the path, a list tested with `in`; `kind`), `channel`
+and `step`. Saving a form compiles each
 condition in the **type's environment**, where `entry` and `entry.custom_fields` are typed maps
 (`expression.Variable.Fields`): a field the form does not hold is refused with
 `expression.unknown_name` when it is written. One gate holds every write - `EntryGate.Forms`
@@ -520,7 +522,7 @@ permissions), `REQUEST`, and two families that name an object - a restricted fie
 path, and decides by the union over what counts: its per-entry reach is the shipped rows spelled as
 permissions (`READ` reads, `WRITE_ITEMS` changes, `WRITE_ASSIGNED` changes what is assigned,
 `COMMENT` comments). It is no rung on the ladder: it never hands out a shipped role and is not the
-form's `actor.role`. **Nobody hands out a permission they do not hold** (`service.MayHandOut`):
+form's `actor.role`; a form reads it in `actor.roles`. **Nobody hands out a permission they do not hold** (`service.MayHandOut`):
 defining, changing (what it adds and takes away), granting, revoking or deleting a custom role
 needs `MANAGE_MEMBERS` and every permission concerned at that place, or is refused with
 `access.permission_above_own` naming what is lacking. *Who may do what* and *view as* read

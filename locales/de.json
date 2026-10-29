@@ -1978,7 +1978,7 @@
   "app.entry_forms.required_when": "Pflicht, wenn",
   "app.entry_forms.read_only_when": "Nur lesbar, wenn",
   "app.entry_forms.hidden_when": "Verborgen, wenn",
-  "app.entry_forms.condition_hint": "Eine Bedingung über entry, actor.role, channel und step - zum Beispiel entry.custom_fields.severity == \"high\". Leer heißt nie.",
+  "app.entry_forms.condition_hint": "Eine Bedingung über entry, actor.role, actor.roles, actor.permissions, channel und step - zum Beispiel entry.custom_fields.severity == \"high\". Leer heißt nie.",
   "app.entry_forms.default": "Beginnt mit",
   "app.entry_forms.help": "Hilfe unter dem Feld",
   "app.entry_forms.add_field": "Feld hinzufügen",

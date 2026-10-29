@@ -299,6 +299,8 @@ func typeOf(kind port.Kind) (*cel.Type, error) {
 		return cel.IntType, nil
 	case port.KindBool:
 		return cel.BoolType, nil
+	case port.KindStrings:
+		return cel.ListType(cel.StringType), nil
 	default:
 		return nil, shared.ErrInternal.
 			WithDetail("expression.environment_invalid").

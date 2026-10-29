@@ -6,6 +6,7 @@ package work
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -178,5 +179,52 @@ func TestARestrictedFieldIsWrittenOnlyWithItsPermission(t *testing.T) {
 	admin := FormGate{Fields: fields, Roles: roleOf{role: identity.RoleAdmin}}
 	if err := admin.checkEdit(ctx, itemActor(), collection, before, priced); err != nil {
 		t.Fatalf("an administrator was refused: %v", err)
+	}
+}
+
+// actorSeen is a compiler whose condition holds when the actor it reads names a role.
+type actorSeen struct{ role string }
+
+func (a actorSeen) Compile(string, expression.Environment, expression.Result) (expression.Program, error) {
+	return a, nil
+}
+
+func (a actorSeen) Evaluate(ctx context.Context, in expression.Activation) (expression.Value, error) {
+	actor, _, _ := in.Resolve(ctx, "actor")
+	roles, _ := actor.(map[string]any)["roles"].([]string)
+	return expression.Value{Bool: slices.Contains(roles, a.role)}, nil
+}
+
+// A form's condition reads the custom roles and permissions the writer holds along the path as
+// `actor.roles` and `actor.permissions` (domain-model.md, custom roles): a validation asking for a
+// custom role holds for its holder and refuses anybody else.
+func TestAFormConditionReadsTheCustomRolesHeld(t *testing.T) {
+	ctx := context.Background()
+	form := domain.Form{Validations: []domain.FormValidation{
+		{Key: "finance_only", Field: "title", Holds: "'finance' in actor.roles"},
+	}}
+	collection := domain.Container{ID: collectionID}
+	entry := domain.WorkItem{Type: domain.ItemTask, Title: "Invoice"}
+
+	finance := FormGate{Types: formedTypes(form), Compiler: actorSeen{role: "finance"},
+		Roles: roleOf{role: identity.RoleMember, custom: []string{"finance"}}}
+	if err := finance.checkCreate(ctx, itemActor(), collection, entry); err != nil {
+		t.Fatalf("the holder of the custom role was refused: %v", err)
+	}
+	member := FormGate{Types: formedTypes(form), Compiler: actorSeen{role: "finance"}, Roles: roleOf{role: identity.RoleMember}}
+	formRefusal(t, member.checkCreate(ctx, itemActor(), collection, entry), "forms.refused")
+
+	environment := FormEnvironment(nil)
+	for _, variable := range environment.Variables {
+		if variable.Name != "actor" {
+			continue
+		}
+		kinds := map[string]expression.Kind{}
+		for _, field := range variable.Fields {
+			kinds[field.Name] = field.Kind
+		}
+		if kinds["roles"] != expression.KindStrings || kinds["permissions"] != expression.KindStrings {
+			t.Fatalf("actor's fields: %v", kinds)
+		}
 	}
 }

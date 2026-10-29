@@ -103,6 +103,9 @@ const (
 	KindString Kind = "string"
 	KindInt    Kind = "int"
 	KindBool   Kind = "bool"
+	// KindStrings is a list of strings an expression tests with `in`: the roles and permissions
+	// an actor holds (`'reviewer' in actor.roles`).
+	KindStrings Kind = "strings"
 )
 
 // Variable is one name an expression may use.

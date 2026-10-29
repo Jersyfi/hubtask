@@ -712,3 +712,34 @@ func TestCompileRefusesAnUndeclaredFieldOfATypedMap(t *testing.T) {
 		}
 	}
 }
+
+// A list of strings is a kind of its own (port.KindStrings): a top-level one is typed, and one a
+// map carries - a form's `actor.roles` - answers `in` over the Go slice the activation hands over.
+func TestAListOfStringsAnswersIn(t *testing.T) {
+	environment := port.Environment{Variables: []port.Variable{
+		{Name: "held", Kind: port.KindStrings},
+		{Name: "actor", Kind: port.KindMap, Fields: []port.Variable{{Name: "roles", Kind: port.KindStrings}}},
+	}}
+	rows := map[string]any{
+		"held":  []string{"finance"},
+		"actor": map[string]any{"roles": []string{"MEMBER", "finance"}},
+	}
+	for text, want := range map[string]bool{
+		`'finance' in held`:        true,
+		`'finance' in actor.roles`: true,
+		`'auditor' in actor.roles`: false,
+		`size(actor.roles) == 2`:   true,
+	} {
+		program, err := expression.New().Compile(text, environment, port.Boolean)
+		if err != nil {
+			t.Fatalf("compiling %q: %v", text, err)
+		}
+		out, err := program.Evaluate(context.Background(), newValues(rows))
+		if err != nil || out.Bool != want {
+			t.Fatalf("%q answered %v, %v; want %v", text, out.Bool, err, want)
+		}
+	}
+	if _, err := expression.New().Compile(`held == 'finance'`, environment, port.Boolean); err == nil {
+		t.Fatal("a list compared with a string compiled")
+	}
+}

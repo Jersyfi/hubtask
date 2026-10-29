@@ -73,6 +73,7 @@ type formCheck struct {
 	keys       []string
 	channel    domain.FormChannel
 	role       *string
+	held       *access.Held
 	programs   map[string]expression.Program
 	// step is the workflow step the write takes, empty for none: what a form's `step` reads.
 	step string
@@ -148,9 +149,15 @@ func (c *formCheck) activation(ctx context.Context, item domain.WorkItem) (formA
 	if err != nil {
 		return formActivation{}, err
 	}
+	roles, permissions, err := c.heldFor(ctx)
+	if err != nil {
+		return formActivation{}, err
+	}
 	return formActivation{values: map[string]any{
-		"entry":   entry,
-		"actor":   map[string]any{"role": role, "kind": string(c.actor.Kind)},
+		"entry": entry,
+		"actor": map[string]any{
+			"role": role, "roles": roles, "permissions": permissions, "kind": string(c.actor.Kind),
+		},
 		"channel": string(c.channel),
 		"step":    c.step,
 	}}, nil
@@ -177,6 +184,33 @@ func (c *formCheck) roleFor(ctx context.Context) (string, error) {
 	}
 	c.role = &role
 	return role, nil
+}
+
+// heldFor reads every role key (built-in and custom) and every permission the actor holds along
+// the path, only where a condition of the form names `actor.roles` or `actor.permissions`. A custom
+// role is no rung of `actor.role` (domain-model.md, custom roles), so it is read here.
+func (c *formCheck) heldFor(ctx context.Context) ([]string, []string, error) {
+	if c.held == nil {
+		held := access.Held{}
+		asks := false
+		for _, condition := range c.entryType.Form.Expressions() {
+			asks = asks || strings.Contains(condition.Text, "actor.roles") ||
+				strings.Contains(condition.Text, "actor.permissions")
+		}
+		if asks && c.gate.Roles != nil {
+			var err error
+			if held, err = c.gate.Roles.HeldAlong(ctx, c.actor, containerPath(c.collection)); err != nil {
+				return nil, nil, err
+			}
+		}
+		c.held = &held
+	}
+	roles := append([]string{}, c.held.Roles...)
+	permissions := make([]string, 0, len(c.held.Permissions))
+	for _, permission := range c.held.Permissions {
+		permissions = append(permissions, string(permission))
+	}
+	return roles, permissions, nil
 }
 
 type formActivation struct{ values map[string]any }
@@ -288,8 +322,9 @@ func (g FormGate) Evaluate(
 }
 
 // FormEnvironment is a form's CEL environment (domain-model.md §2, "Forms"): the entry with its own
-// values and its custom fields, the actor's role and kind, the channel and the step. Typed by the
-// custom field keys given; nil keeps the custom fields open.
+// values and its custom fields, the actor's built-in role, the roles and permissions it holds, its
+// kind, the channel and the step. Typed by the custom field keys given; nil keeps the custom fields
+// open.
 func FormEnvironment(customKeys []string) expression.Environment {
 	var custom []expression.Variable
 	for _, key := range customKeys {
@@ -307,8 +342,9 @@ func FormEnvironment(customKeys []string) expression.Environment {
 			{Name: "completed", Kind: expression.KindBool}, {Name: "due_date", Kind: expression.KindString},
 			{Name: "start_at", Kind: expression.KindString}, customField,
 		}},
-		{Name: "actor", Kind: expression.KindMap, Description: "Who writes: role, kind.", Fields: []expression.Variable{
-			{Name: "role", Kind: expression.KindString}, {Name: "kind", Kind: expression.KindString},
+		{Name: "actor", Kind: expression.KindMap, Description: "Who writes: the built-in role, every role and permission held, kind.", Fields: []expression.Variable{
+			{Name: "role", Kind: expression.KindString}, {Name: "roles", Kind: expression.KindStrings},
+			{Name: "permissions", Kind: expression.KindStrings}, {Name: "kind", Kind: expression.KindString},
 		}},
 		{Name: "channel", Kind: expression.KindString, Description: "The door: APP, MCP, RULE, SYNC, IMPORT, MAIL."},
 		{Name: "step", Kind: expression.KindString, Description: "The workflow step the write takes, empty for none."},

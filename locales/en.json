@@ -1981,7 +1981,7 @@
   "app.entry_forms.required_when": "Required when",
   "app.entry_forms.read_only_when": "Read-only when",
   "app.entry_forms.hidden_when": "Hidden when",
-  "app.entry_forms.condition_hint": "A condition over entry, actor.role, channel and step - for example entry.custom_fields.severity == \"high\". Empty is never.",
+  "app.entry_forms.condition_hint": "A condition over entry, actor.role, actor.roles, actor.permissions, channel and step - for example entry.custom_fields.severity == \"high\". Empty is never.",
   "app.entry_forms.default": "Starts with",
   "app.entry_forms.help": "Help shown under the field",
   "app.entry_forms.add_field": "Add a field",
