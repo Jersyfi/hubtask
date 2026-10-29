@@ -2,8 +2,9 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // *Changes* (configuration/ui.md §1, config-document.md §5): the changes proposed by agents
-  // waiting for a person (D-16), the configuration's versions with a rollback, and the
-  // configuration file - the document every door reads, never a second representation.
+  // waiting for a person (D-16), the drafts not yet published, the configuration's versions with a
+  // rollback and two of them compared, and the configuration file - the document every door reads,
+  // never a second representation.
   //
   // **A rollback is a plan first**: the dialog shows what it changes and what it must have
   // acknowledged, and applies exactly that plan by its hash. **What the reader may never do is
@@ -16,6 +17,8 @@
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { config, needsAcknowledge } from '../lib/data/config.svelte.ts';
   import { compareDocuments, type BlockDifference } from '../lib/data/configdiff.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { workflows } from '../lib/data/workflows.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -33,6 +36,15 @@
   $effect(() => untrack(() => config.document((next) => (current = next))));
 
   const mayChange = $derived(holdsHere('STRUCTURE') === true);
+
+  // *Drafts* (configuration/ui.md A4): the blocks edited and not yet published - today the
+  // workflows, the one block kept as a draft - each opening where it is published.
+  const workflowsOn = $derived(manifest.value?.modules_on?.includes('WORKFLOWS') === true);
+  $effect(() => {
+    if (!workflowsOn) return;
+    return untrack(() => workflows.open());
+  });
+  const drafts = $derived((workflows.list?.data ?? []).filter((each) => each.draft !== null && each.draft !== undefined));
   const at = (iso: string) => formatDateTime(iso, messages.locale);
   const refusalOf = (state: ResourceState<unknown> | undefined) =>
     state?.status === 'failed' ? renderProblem(state.error, messages) : undefined;
@@ -215,6 +227,28 @@
     {/if}
   </section>
 
+  {#if workflowsOn}
+    <section class="panel" data-drafts>
+      <h2>{t('app.changes.drafts')}</h2>
+      {#if drafts.length === 0}
+        <p class="quiet">{t('app.changes.no_drafts')}</p>
+      {:else}
+        <ul class="rows">
+          {#each drafts as workflow (workflow.key)}
+            <li class="row" data-draft={`workflows.${workflow.key}`}>
+              <div class="identity">
+                <code class="name">workflows.{workflow.key}</code>
+                {#if workflow.name}<span class="note">{workflow.name}</span>{/if}
+                <span class="note">{t('app.changes.draft_unpublished')}</span>
+              </div>
+              <a class="open" href="/administration/workflows">{t('app.changes.open_draft')}</a>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </section>
+  {/if}
+
   {#if versions?.status === 'ready' && versions.data.data.length > 1}
     <section class="panel" data-compare>
       <h2>{t('app.changes.compare')}</h2>
@@ -318,6 +352,7 @@
   .note { color: var(--text-subtle); font-size: var(--fs-075); }
   .flag { color: var(--text-danger); font-size: var(--fs-075); }
 
+  .open { color: var(--text-link); font-size: var(--fs-075); }
   .pick { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-150); margin-block-end: var(--sp-150); }
   .difference {
     display: grid;
