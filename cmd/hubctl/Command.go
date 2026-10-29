@@ -126,13 +126,13 @@ var errHelpRequested = errors.New("help requested")
 
 // groups is the command tree. One entry per noun, each in its own file.
 func groups() []group {
-	return []group{
+	return withDoors([]group{
 		loginGroup(), authGroup(), sessionGroup(), mfaGroup(), stepUpGroup(), tokenGroup(), serviceAccountGroup(), containerGroup(), presetGroup(), itemGroup(), dueGroup(), reminderGroup(), recurrenceGroup(),
 		templateGroup(), viewGroup(), calendarGroup(), commentGroup(), fieldGroup(), mediaGroup(),
 		trashGroup(), searchGroup(), importGroup(), watchGroup(), syncGroup(), conformanceGroup(), jobGroup(), backupGroup(), restoreGroup(), retentionGroup(), holdGroup(), auditGroup(), dsrGroup(),
 		ruleGroup(), webhookGroup(), jumbleGroup(), eventsGroup(), oauthGroup(), quotaGroup(), moduleGroup(), configGroup(), entryTypeGroup(), peopleGroup(), workspaceGroup(), adminGroup(),
 		aiGroup(), suggestionGroup(), mcpGroup(),
-	}
+	})
 }
 
 // Run is main without the process. It returns the exit code rather than calling os.Exit, which is
@@ -222,16 +222,13 @@ func dispatch(ctx context.Context, cli *CLI, args []string) error {
 		if len(args) == 1 {
 			return usagef("%s needs a command: %s", g.name, strings.Join(verbs(g), ", "))
 		}
-		for _, c := range g.commands {
-			if c.name != args[1] {
-				continue
-			}
+		if c, rest, found := verbOf(g, args[1:]); found {
 			if !c.waits {
 				bounded, cancel := context.WithTimeout(ctx, cli.Timeout)
 				defer cancel()
 				ctx = bounded
 			}
-			return c.run(ctx, cli, args[2:])
+			return c.run(ctx, cli, rest)
 		}
 		return usagef("%s has no command %q: %s", g.name, args[1], strings.Join(verbs(g), ", "))
 	}

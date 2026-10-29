@@ -59,6 +59,13 @@ tags:
   - name: ai
   - name: suggestions
 
+x-hubtask-cli-groups:
+  workflow: "the workspace's workflows and which collection runs which"
+  link-type: "the kinds of link between entries: blocks, relates to, duplicates"
+  link: "an entry's links to other entries, and references resolved"
+  role: "the workspace's own roles, who holds them, and why a person may do what"
+  setting: "the settings catalogue: every setting, its level and its source"
+
 paths:
   /templates:
     get:
@@ -8654,6 +8661,7 @@ paths:
     get:
       tags: [identity]
       operationId: listRoles
+      x-hubtask-cli: "role ls"
       summary: The permission catalogue and the roles
       description: |
         The closed catalogue of permissions a role is built from, the seven shipped roles with
@@ -8674,6 +8682,7 @@ paths:
     post:
       tags: [identity]
       operationId: createRole
+      x-hubtask-cli: "role create"
       summary: Define a role of the workspace's own
       description: |
         A lower-case key that never spells a shipped role, a name, and permissions from the
@@ -8707,6 +8716,7 @@ paths:
     patch:
       tags: [identity]
       operationId: changeRole
+      x-hubtask-cli: "role set"
       summary: Change a role of the workspace's own
       description: |
         Renames the role and replaces what it carries; everybody who holds it holds the new set
@@ -8732,6 +8742,7 @@ paths:
     delete:
       tags: [identity]
       operationId: deleteRole
+      x-hubtask-cli: "role rm"
       summary: Delete a role of the workspace's own
       description: |
         Removes the role and every grant of it; whoever held it loses what it carried on the next
@@ -8747,6 +8758,7 @@ paths:
     post:
       tags: [identity]
       operationId: grantRole
+      x-hubtask-cli: "role grant"
       summary: Give a role of the workspace's own at a place
       description: |
         To an account or to a group, at the workspace, a hub or a collection; it applies downwards
@@ -8779,6 +8791,7 @@ paths:
     delete:
       tags: [identity]
       operationId: revokeRoleGrant
+      x-hubtask-cli: "role revoke"
       summary: Take a role of the workspace's own away
       description: Takes effect on the next request; needs what giving it needed.
       responses:
@@ -8791,6 +8804,7 @@ paths:
     get:
       tags: [identity]
       operationId: explainAccess
+      x-hubtask-cli: "role explain"
       summary: What a person holds at a place, and why
       description: |
         The roles that count for the person at the workspace, a hub or a collection, where each is
@@ -9100,6 +9114,7 @@ paths:
     put:
       tags: [structure]
       operationId: setEntryTypeForm
+      x-hubtask-cli: "type form set"
       summary: Set an entry type's form
       description: >
         Replaces the type's form: its sections, its fields in order with required, read-only and
@@ -9135,6 +9150,7 @@ paths:
     post:
       tags: [items]
       operationId: evaluateEntryForm
+      x-hubtask-cli: "type form evaluate"
       summary: Answer a type's form for a draft
       description: >
         Answers how the type's form stands for a draft - an entry being edited (`item_id`) or a
@@ -9162,6 +9178,7 @@ paths:
     get:
       tags: [structure]
       operationId: listWorkflows
+      x-hubtask-cli: "workflow ls"
       summary: List the workflows and the scheme
       description: >
         The workspace's workflows - the shipped one, keyed `default`, and its own - each with the
@@ -9179,6 +9196,7 @@ paths:
     post:
       tags: [structure]
       operationId: createWorkflow
+      x-hubtask-cli: "workflow create"
       summary: Add a workflow
       description: >
         Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it.
@@ -9211,6 +9229,7 @@ paths:
     patch:
       tags: [structure]
       operationId: saveWorkflowDraft
+      x-hubtask-cli: "workflow draft"
       summary: Save a draft, rename, or discard the draft
       description: >
         Saves a draft beside the shape in force, which stays in force until the draft is published;
@@ -9238,6 +9257,7 @@ paths:
     delete:
       tags: [structure]
       operationId: deleteWorkflow
+      x-hubtask-cli: "workflow rm"
       summary: Delete an unused workflow
       description: >
         Deletes a workflow of the workspace's own that no hub or collection uses; one in use is
@@ -9257,6 +9277,7 @@ paths:
     post:
       tags: [structure]
       operationId: previewWorkflowPublish
+      x-hubtask-cli: "workflow preview"
       summary: Show what publishing the draft would do
       description: >
         Answers, changing nothing, which statuses in use the draft removes with their counts, how
@@ -9288,6 +9309,7 @@ paths:
     post:
       tags: [structure]
       operationId: publishWorkflow
+      x-hubtask-cli: "workflow publish"
       summary: Publish the draft
       description: >
         Puts the draft in force. Every removed status that entries are in needs a target in
@@ -9328,6 +9350,7 @@ paths:
     post:
       tags: [structure]
       operationId: tryWorkflowStep
+      x-hubtask-cli: "workflow try"
       summary: Try a step against an entry
       description: >
         Judges a step - of the draft where `draft` is true and there is one - against an entry,
@@ -9357,6 +9380,7 @@ paths:
     put:
       tags: [structure]
       operationId: setWorkflowScheme
+      x-hubtask-cli: "workflow scheme set"
       summary: Use a workflow in a hub or collection
       description: >
         Names the workflow a hub or collection runs for a type - or for every type when
@@ -9383,6 +9407,7 @@ paths:
     post:
       tags: [structure]
       operationId: previewWorkflowScheme
+      x-hubtask-cli: "workflow scheme preview"
       summary: Show what using a workflow would do
       description: >
         Answers, changing nothing, which status every existing entry would get - by collection,
@@ -9409,6 +9434,7 @@ paths:
     get:
       tags: [items]
       operationId: listEntrySteps
+      x-hubtask-cli: "item steps"
       summary: The entry's status and the steps the person may take
       description: >
         The workflow the entry's collection runs for its type, the entry's status, and the steps
@@ -9430,6 +9456,7 @@ paths:
     post:
       tags: [items]
       operationId: takeStep
+      x-hubtask-cli: "item step"
       summary: Move an entry on by one step
       description: >
         Takes a step of the workflow the entry's collection runs for its type - by `step`, or the
@@ -9500,6 +9527,7 @@ paths:
     get:
       tags: [items]
       operationId: listLinkTypes
+      x-hubtask-cli: "link-type ls"
       summary: The workspace's link types
       description: >
         Every link type of the workspace: the six every workspace has (`blocks`, `depends_on`,
@@ -9519,6 +9547,7 @@ paths:
     post:
       tags: [items]
       operationId: createLinkType
+      x-hubtask-cli: "link-type create"
       summary: Add a link type
       description: >
         Adds a link type of the workspace's own with a key free in the workspace and its two names.
@@ -9550,6 +9579,7 @@ paths:
     patch:
       tags: [items]
       operationId: changeLinkType
+      x-hubtask-cli: "link-type set"
       summary: Change a link type
       description: >
         Renames, reorders, archives or restores one of the workspace's own link types. An archived
@@ -9575,6 +9605,7 @@ paths:
     delete:
       tags: [items]
       operationId: deleteLinkType
+      x-hubtask-cli: "link-type rm"
       summary: Delete an unused link type
       description: >
         Deletes one of the workspace's own link types that no link names. A type in use is refused
@@ -9591,6 +9622,7 @@ paths:
     get:
       tags: [items]
       operationId: listEntryLinks
+      x-hubtask-cli: "link ls"
       summary: An entry's links and backlinks
       description: >
         The entry's links from both ends, each with the far end as the reader may see it - its
@@ -9609,6 +9641,7 @@ paths:
     post:
       tags: [items]
       operationId: linkEntries
+      x-hubtask-cli: "link add"
       summary: Link the entry to another
       description: >
         Draws a link of a type from this entry to another. Needs WRITE_ITEMS on this entry and
@@ -9641,6 +9674,7 @@ paths:
     delete:
       tags: [items]
       operationId: unlinkEntries
+      x-hubtask-cli: "link rm"
       summary: Remove a link
       description: Removes a link between two entries. Whoever may change either end may remove it.
       responses:
@@ -9653,6 +9687,7 @@ paths:
     post:
       tags: [items]
       operationId: listLinksAmong
+      x-hubtask-cli: "link among"
       summary: The links between the entries a view shows
       description: >
         The links with both ends among the given entries, at most 500 of them, each with which end
@@ -9685,6 +9720,7 @@ paths:
     post:
       tags: [items]
       operationId: resolveReferences
+      x-hubtask-cli: "link resolve"
       summary: Resolve references for the caller
       description: >
         Resolves up to 100 references to what a mention, a card or a live view shows of each: the
@@ -9723,6 +9759,7 @@ paths:
     get:
       tags: [meta]
       operationId: readSettingsCatalogue
+      x-hubtask-cli: "setting catalogue"
       summary: Every setting the product declares
       description: >
         The one catalogue of settings: for every setting its key, the shape of its value, its
@@ -10507,6 +10544,7 @@ paths:
     post:
       tags: [containers]
       operationId: previewContainerStructure
+      x-hubtask-cli: "container structure preview"
       description: >
         Answers what a change of a hub's or collection's own structure would stop showing, before
         it is made, and writes nothing: the levels whose entries would no longer be shown with how
