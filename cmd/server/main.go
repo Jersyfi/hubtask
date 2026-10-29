@@ -647,6 +647,10 @@ func run() error {
 		security.NewInboundTokenHasher(cfg.SecretKey))
 
 	ruleCatalogue := &deferredCatalogue{}
+	// The STEP_TAKEN rules a step runs in its own transaction (UC-FLW-04 check 4). Its engine is
+	// the queue's, completed below once that exists: the engine dispatches into the registry this
+	// step is an entry of.
+	stepRules := &automationservice.StepTaken{}
 	ruleReader := automationservice.Reader{
 		Runs:       postgres.NewAutomationRunRepository(cursors),
 		Rules:      postgres.NewAutomationRuleRepository(cursors),
@@ -1792,7 +1796,7 @@ func run() error {
 		workflowservice.PreviewWorkflowScheme{Desk: workflowDesk}.Descriptor(),
 		workflowservice.SetWorkflowScheme{Desk: workflowDesk}.Descriptor(),
 		workflowservice.TryWorkflowStep{Desk: workflowDesk}.Descriptor(),
-		work.TakeStep{Completion: completion}.Descriptor(),
+		work.TakeStep{Completion: completion, Rules: stepRules}.Descriptor(),
 		work.ListEntrySteps{Completion: completion}.Descriptor(),
 		work.SetItemEntryType{
 			Gate:  entryGate,
@@ -3795,6 +3799,10 @@ func run() error {
 		},
 		Rules: postgres.NewAutomationRuleRepository(cursors),
 	}
+	stepRules.Rules = automationRuns
+	stepRules.Containers = containers
+	stepRules.Entitlements = postgres.NewPlanRepository()
+	stepRules.Engine = automationRun.Engine
 
 	// The installation's sweep of what it keeps for a purchase platform (UC-INS-14): one job
 	// without a tenant, seeded below when a worker starts.

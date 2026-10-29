@@ -33,6 +33,18 @@ const (
 // entry, with the roll-up a completion makes (D-02).
 type TakeStep struct {
 	Completion CompletionWriter
+	// Rules runs the STEP_TAKEN rules on the step inside its transaction (UC-FLW-04 check 4). Nil
+	// runs none: a build without the engine.
+	Rules StepRules
+}
+
+// StepRules runs the rules a step starts, in the step's own change: what their actions change on
+// the entry commits with the step or not at all.
+type StepRules interface {
+	StepTaken(
+		ctx context.Context, actor appshared.ActorContext, item domain.WorkItem,
+		workflow shared.ID, step string, announced event.Envelope,
+	) error
 }
 
 // TakeStepCommand is the input, typed: the step by key, or the status the step leads to - what a
@@ -158,7 +170,23 @@ func (h TakeStep) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 				return err
 			}
 		}
-		return h.recordStep(ctx, actor, before, changed, *step, announcement)
+		announced, err := h.recordStep(ctx, actor, before, changed, *step, announcement)
+		if err != nil {
+			return err
+		}
+		if h.Rules == nil || workflow.ID.IsZero() {
+			return nil
+		}
+		if err := h.Rules.StepTaken(ctx, actor, changed, workflow.ID, step.Key, announced); err != nil {
+			return err
+		}
+		// An action may have changed the entry: answered as it now stands.
+		current, err := w.findItem(ctx, changed.ID)
+		if err != nil {
+			return err
+		}
+		changed = current
+		return nil
 	})
 	if err != nil {
 		return domain.WorkItem{}, err
@@ -215,14 +243,14 @@ func (h TakeStep) choose(
 func (h TakeStep) recordStep(
 	ctx context.Context, actor appshared.ActorContext, before, after domain.WorkItem, step domain.WorkflowStep,
 	cause event.Envelope,
-) error {
+) (event.Envelope, error) {
 	w := h.Completion
 	now := after.UpdatedAt
 	if err := w.Activity.record(ctx, actor, after, activity.ItemStepTaken, activity.ChangeSet(activity.Full,
 		activity.Field{Name: "step", Detail: activity.WithValues, To: step.Key},
 		activity.Field{Name: domain.FieldStatus, Detail: activity.WithValues, From: before.Status, To: after.Status},
 	), now); err != nil {
-		return err
+		return event.Envelope{}, err
 	}
 	causedBy := event.Cause{}
 	if !cause.ID.IsZero() {
@@ -233,12 +261,12 @@ func (h TakeStep) recordStep(
 		{Field: "step", To: step.Key},
 	}, event.Actor{Kind: actor.Kind, ID: actor.AccountID}, now, causedBy)
 	if err != nil {
-		return err
+		return event.Envelope{}, err
 	}
 	if err := w.Events.Append(ctx, announcement); err != nil {
-		return err
+		return event.Envelope{}, err
 	}
-	return w.Audit.Append(ctx, audit.Entry{
+	return announcement, w.Audit.Append(ctx, audit.Entry{
 		TenantID: after.TenantID, OccurredAt: now, Action: ItemStepTakenAction,
 		Outcome: audit.OutcomeSuccess, Severity: audit.SeverityInfo,
 		ActorKind: actor.Kind, ActorID: actor.AccountID, ActorLabel: actor.AccountName,
@@ -262,8 +290,8 @@ func (h TakeStep) Descriptor() usecase.Descriptor {
 			"entry's status, the person may not take it, a field it requires is empty or a check " +
 			"fails - each named. Into a done status it completes the entry, out of one it reopens it.",
 		SideEffects: "Writes the status (and the completion it decides), announces " + string(event.ItemUpdated) +
-			" with the status and the step, records a change for offline clients, the entry's history " +
-			"and an audit entry.",
+			" with the status and the step, runs the STEP_TAKEN rules on the step in the same change, " +
+			"records a change for offline clients, the entry's history and an audit entry.",
 		TokenScope: itemsWrite,
 		Module:     module.Workflows,
 		Input: []usecase.Field{

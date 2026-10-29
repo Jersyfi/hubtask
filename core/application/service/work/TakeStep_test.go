@@ -11,6 +11,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -288,5 +289,54 @@ func TestAMovedEntrySettlesInTheDestinationsWorkflow(t *testing.T) {
 		if to, ok := want[move.EntryType+"/"+move.From]; !ok || to != move.To {
 			t.Errorf("%s from %q went to %q", move.EntryType, move.From, move.To)
 		}
+	}
+}
+
+// stepRulesProbe is a StepRules that changes the entry as an action would, or refuses.
+type stepRulesProbe struct {
+	items    *items
+	refuse   error
+	workflow shared.ID
+	step     string
+	event    event.Envelope
+}
+
+func (p *stepRulesProbe) StepTaken(
+	_ context.Context, _ appshared.ActorContext, item domain.WorkItem,
+	workflow shared.ID, step string, announced event.Envelope,
+) error {
+	p.workflow, p.step, p.event = workflow, step, announced
+	if p.refuse != nil {
+		return p.refuse
+	}
+	changed := p.items.stored[item.ID]
+	changed.Title = "changed by the step's rule"
+	p.items.stored[item.ID] = changed
+	return nil
+}
+
+// UC-FLW-04 check 4: a step runs its STEP_TAKEN rules inside its own change - given the workflow,
+// the step and the step's announcement, answered with what they changed, and refused with them.
+func TestAStepRunsItsRulesInItsOwnChange(t *testing.T) {
+	h, _ := workflowHarness(t)
+	probe := &stepRulesProbe{items: h.items}
+	take := TakeStep{Completion: h.writer, Rules: probe}
+	item, err := take.Execute(t.Context(), actorFixture(), TakeStepCommand{ItemID: taskID, Step: "back"})
+	if err != nil {
+		t.Fatalf("the step was refused: %v", err)
+	}
+	if probe.workflow != reviewWorkflow().ID || probe.step != "back" || probe.event.Type != event.ItemUpdated {
+		t.Fatalf("the rules were asked about %s %q on %s", probe.workflow, probe.step, probe.event.Type)
+	}
+	if item.Title != "changed by the step's rule" || item.Status != "todo" {
+		t.Fatalf("the step answers the entry as its rules left it: %+v", item)
+	}
+
+	probe.refuse = shared.ErrForbidden.WithDetail("automation.action_forbidden")
+	task := h.items.stored[taskID]
+	task.Status = "review"
+	h.items.stored[taskID] = task
+	if _, err := take.Execute(t.Context(), actorFixture(), TakeStepCommand{ItemID: taskID, Step: "back"}); !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("a rule that cannot run refuses the step with it: %v", err)
 	}
 }
