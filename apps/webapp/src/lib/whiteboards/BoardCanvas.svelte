@@ -23,7 +23,7 @@
   import { tokens } from '@hubtask/design-system';
   import { Button, Checkbox, Dialog, IconButton, Inline, Input, Select, Stack, Textarea } from '@hubtask/design-system/components';
   import { LiveDocument, type LiveSocket, type LiveStatus } from '@hubtask/editor';
-  import type { ReferenceTarget, WhiteboardRead, WorkItem } from '@hubtask/sync-engine';
+  import type { ReferenceTarget, WhiteboardRead, WhiteboardVersion, WorkItem } from '@hubtask/sync-engine';
   import {
     Board, DEFAULT_SIZE, Doc, Facilitation, PEN_WIDTH, ROUTES, SHAPES, TEMPLATES, align, bounds, box, connectorPath, copy, culled,
     elementId, fit, fromMinimap, hit, labelPoint, lines, linkHost, minimap, outlinePath, paste, pdfOfJpeg, readCopied, snap, strokePath,
@@ -43,6 +43,7 @@
     BOARD_COLOURS, boardFileName, cardEntries, clockOf, notesInFrame, peerColour, pictureColours, voterKey, whiteboards,
   } from '../data/whiteboards.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
+  import { formatDateTime } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { platform } from '../platform/index.ts';
   import { renderProblem } from '../problem.ts';
@@ -757,6 +758,44 @@
     }
   }
 
+  // --- The history (UC-CNV-06) --------------------------------------------------------------------
+
+  let history = $state<readonly WhiteboardVersion[] | undefined>(undefined);
+  let namingSeq = $state<number | undefined>(undefined);
+  let nameDraft = $state('');
+
+  async function openHistory() {
+    try {
+      history = await whiteboards.versions(board.id);
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    }
+  }
+
+  /** An older version brought back: its objects in place of the scene, for everyone drawing; the save that follows is a version of its own. */
+  async function bringBack(seq: number) {
+    try {
+      const version = await whiteboards.version(board.id, seq);
+      if (!model.replace((version.elements ?? []) as Element[])) return;
+      selected = [];
+      toast.show({ text: t('app.whiteboards.version_back', { when: formatDateTime(version.created_at, messages.locale) }), tone: 'success' });
+      await save();
+      await openHistory();
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    }
+  }
+
+  async function nameVersion(seq: number) {
+    namingSeq = undefined;
+    try {
+      await whiteboards.nameVersion(board.id, seq, nameDraft);
+      await openHistory();
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    }
+  }
+
   // --- The minimap ---------------------------------------------------------------------------------
 
   const map = $derived(isMapShown ? minimap(elements, view, MAP) : undefined);
@@ -1148,6 +1187,35 @@
       </Stack>
 
       <Stack gap="050">
+        <h3 class="heading">{t('app.whiteboards.history')}</h3>
+        {#if !history}
+          <Button size="sm" tone="subtle" icon="clock" onclick={() => void openHistory()}>{t('app.whiteboards.history_show')}</Button>
+        {:else}
+          <ol class="choices" aria-label={t('app.whiteboards.history')}>
+            {#each history as version (version.seq)}
+              <li class="version">
+                <span>{version.name ?? formatDateTime(version.created_at, messages.locale)} · {t('app.whiteboards.objects', { count: String(version.element_count) })}</span>
+                {#if writable && isLive}
+                  <Inline gap="050">
+                    <Button size="sm" tone="subtle" icon="rotate-ccw" onclick={() => void bringBack(version.seq)}>{t('app.whiteboards.version_restore')}</Button>
+                    <Button size="sm" tone="subtle" icon="tag" onclick={() => { namingSeq = version.seq; nameDraft = version.name ?? ''; }}>{t('app.whiteboards.version_name')}</Button>
+                  </Inline>
+                  {#if namingSeq === version.seq}
+                    <Inline gap="050" align="end">
+                      <Input size="sm" label={t('app.whiteboards.version_name')} bind:value={nameDraft} maxlength={120} />
+                      <Button size="sm" tone="primary" onclick={() => void nameVersion(version.seq)}>{t('app.whiteboards.version_name_save')}</Button>
+                    </Inline>
+                  {/if}
+                {/if}
+              </li>
+            {:else}
+              <li class="quiet">{t('app.whiteboards.history_empty')}</li>
+            {/each}
+          </ol>
+        {/if}
+      </Stack>
+
+      <Stack gap="050">
         <h3 class="heading">{t('app.whiteboards.frames')}</h3>
         {#each frames as frame (frame.id)}
           <button type="button" class="choice" onclick={() => { view = fit(view, box(frame)); choose([frame.id]); }}>{frame.text || t('app.whiteboards.kind_frame')}</button>
@@ -1273,6 +1341,7 @@
   .swatch { inline-size: var(--sp-300); block-size: var(--sp-300); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-sm); cursor: pointer; }
   .swatch[aria-checked='true'] { outline: var(--bw-ring) solid var(--focus-ring); }
   .choices { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
+  .version { display: grid; gap: var(--sp-025); }
   .choice { all: unset; cursor: pointer; padding: var(--sp-050); border-radius: var(--r-sm); color: var(--text-primary); }
   .choice:hover, .choice:focus-visible { background: var(--bg-surface-hover); }
 </style>

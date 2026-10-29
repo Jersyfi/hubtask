@@ -267,6 +267,9 @@ export type WhiteboardChange = components['schemas']['WhiteboardChange'];
 export type WhiteboardElement = components['schemas']['WhiteboardElement'];
 export type WhiteboardExport = components['schemas']['WhiteboardExport'];
 export type WhiteboardExportRequest = components['schemas']['WhiteboardExportRequest'];
+export type WhiteboardVersion = components['schemas']['WhiteboardVersion'];
+export type WhiteboardVersionRead = components['schemas']['WhiteboardVersionRead'];
+export type WhiteboardVersionList = components['schemas']['WhiteboardVersionList'];
 /** A link between two entries, an entry's links from both sides with its backlinks, and a view's links. */
 export type EntryLink = components['schemas']['EntryLink'];
 export type EntryLinkCreate = components['schemas']['EntryLinkCreate'];

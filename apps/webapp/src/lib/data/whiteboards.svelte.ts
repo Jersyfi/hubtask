@@ -10,7 +10,9 @@
  * so two writers' saves never refuse each other. A title is written with the board's version.
  */
 
-import type { Whiteboard, WhiteboardChange, WhiteboardCreate, WhiteboardExport, WhiteboardRead } from '@hubtask/sync-engine';
+import type {
+  Whiteboard, WhiteboardChange, WhiteboardCreate, WhiteboardExport, WhiteboardRead, WhiteboardVersionList, WhiteboardVersionRead,
+} from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { liveBoardPath } from './whiteboards.ts';
@@ -60,6 +62,24 @@ class Whiteboards {
   /** The native document of the board, or of one frame of it. */
   exportNative(boardId: string, frame?: string): Promise<WhiteboardExport> {
     return engine.mutate<WhiteboardExport>('POST', `${boardPath(boardId)}:export`, frame ? { frame } : {}, { invalidates: [] });
+  }
+
+  /** The board's history, newest first (UC-CNV-06). */
+  async versions(boardId: string): Promise<WhiteboardVersionList['data']> {
+    const state = await engine.refresh<WhiteboardVersionList>({ path: `${boardPath(boardId)}/versions` });
+    if (state.status === 'failed') throw state.error;
+    return state.status === 'ready' ? state.data.data : [];
+  }
+
+  /** One version with its objects, to bring back. */
+  async version(boardId: string, seq: number): Promise<WhiteboardVersionRead> {
+    const state = await engine.refresh<WhiteboardVersionRead>({ path: `${boardPath(boardId)}/versions/${seq}` });
+    if (state.status !== 'ready') throw state.status === 'failed' ? state.error : new Error('version');
+    return state.data;
+  }
+
+  nameVersion(boardId: string, seq: number, name: string): Promise<{ seq: number; name: string | null }> {
+    return engine.mutate('PATCH', `${boardPath(boardId)}/versions/${seq}`, { name }, { invalidates: [`${boardPath(boardId)}/versions`] });
   }
 
   /** The board's live document socket; the connection asks for a new one on every reconnect. */

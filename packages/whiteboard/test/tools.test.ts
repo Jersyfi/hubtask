@@ -162,3 +162,14 @@ test('a stroke and a web link are drawn in the picture', () => {
   assert.match(svg, />example.org</);
   assert.match(svg, /a=1&amp;b=2/);
 });
+
+test('an older version brought back stands in place of the scene, for everyone at once (UC-CNV-06 check 3)', () => {
+  const a = new Y.Doc();
+  const b = new Y.Doc();
+  a.on('update', (u: Uint8Array) => Y.applyUpdate(b, u));
+  const board = new Board(a);
+  board.addAll([sticky('x'), sticky('y', 200)]);
+  const older: Element[] = [sticky('a'), { id: 'l', kind: 'CONNECTOR', from: 'a', to: 'a', x: 0, y: 0, width: 0, height: 0 }];
+  assert.ok(board.replace(older));
+  assert.deepEqual(new Board(b).elements().map((e) => e.id), ['a', 'l']);
+});

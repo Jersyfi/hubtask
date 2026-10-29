@@ -203,6 +203,24 @@ export class Board {
     return true;
   }
 
+  /**
+   * Puts a whole scene in place of what stands, in one change everyone sees at once: an older
+   * version brought back (UC-CNV-06). Past the board's limit nothing changes.
+   */
+  replace(elements: readonly Element[]): boolean {
+    if (elements.length > MAX_ELEMENTS) return false;
+    this.doc.transact(() => {
+      for (const id of [...this.#map.keys()]) this.#map.delete(id);
+      elements.forEach((element, index) => {
+        const stored = new Y.Map<unknown>();
+        write(stored, element);
+        stored.set('z', index);
+        this.#map.set(element.id, stored);
+      });
+    });
+    return true;
+  }
+
   /** Writes a saved scene into an empty document - the first writer's job. */
   seed(elements: readonly Element[]): boolean {
     if (this.#map.size > 0 || elements.length === 0) return false;
