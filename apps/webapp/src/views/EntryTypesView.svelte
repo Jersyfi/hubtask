@@ -20,6 +20,8 @@
   import type { EntryType } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../lib/data/capability.svelte.ts';
+  import { hasForm } from '../lib/data/entryforms.ts';
+  import EntryFormEditor from '../lib/entries/EntryFormEditor.svelte';
   import {
     TYPE_ICONS, TYPE_LEVELS, entryTypes, iconOf, keyFrom, levelTypes, reorder,
   } from '../lib/data/entrytypes.svelte.ts';
@@ -158,6 +160,11 @@
   const iconOptions = TYPE_ICONS.map((icon) => ({ value: icon, label: icon }));
   const colourOptions = labelTokens.map((token) => ({ value: token, label: t(`app.colour.${token}`) }));
 
+  // --- The type's form: its own dialog, one save for the whole form ---------------------------
+
+  let forming = $state<EntryType | undefined>(undefined);
+  let isFormOpen = $state(false);
+
   // --- Deleting asks first ----------------------------------------------------------------------
 
   let deleting = $state<EntryType | undefined>(undefined);
@@ -222,6 +229,7 @@
                   {#if type.record}<span class="note">{t('app.entry_types.record')}</span>{/if}
                   {#if !type.schedulable}<span class="note">{t('app.entry_types.not_scheduled')}</span>{/if}
                   {#if type.archived}<span class="note">{t('app.entry_types.archived')}</span>{/if}
+                  {#if hasForm(type.form)}<span class="note" data-has-form>{t('app.entry_types.has_form')}</span>{/if}
                 </div>
                 {#if mayShape}
                   <Inline gap="100" align="center">
@@ -239,6 +247,9 @@
                     {/if}
                     <Button tone="subtle" size="sm" data-edit={type.key} onclick={() => startEdit(type)}>
                       {t('app.entry_types.edit')}
+                    </Button>
+                    <Button tone="subtle" size="sm" data-edit-form={type.key} onclick={() => { forming = type; isFormOpen = true; }}>
+                      {t('app.entry_types.form')}
                     </Button>
                     {#if !type.system}
                       <Button tone="subtle" size="sm" data-archive={type.key} onclick={() => archive(type, !type.archived)}>
@@ -312,6 +323,12 @@
       <Button tone="primary" data-save-type isBusy={isSaving} onclick={save}>{t('app.entry_types.save')}</Button>
     {/snippet}
   </Dialog>
+{/if}
+
+{#if forming}
+  {#key forming.key}
+    <EntryFormEditor type={forming} name={nameOf(forming)} bind:isOpen={isFormOpen} onClose={() => (forming = undefined)} />
+  {/key}
 {/if}
 
 {#if deleting}
