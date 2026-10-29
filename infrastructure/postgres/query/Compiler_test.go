@@ -788,8 +788,8 @@ func TestASearchReadsCommentsAndTextFields(t *testing.T) {
 	}
 }
 
-// `blocked` traverses the links (F-9): an open entry that blocks this one, or one this one depends
-// on, makes it blocked. True and false compile to one text, so the value is never statement text.
+// `blocked` traverses the links that wait (F-9): the system types by their key, a workspace's own
+// by its `waits`. True and false compile to one text, so the value is never statement text.
 func TestBlockedTraversesTheWaitingLinks(t *testing.T) {
 	yes := compile(t, map[string]any{"field": "blocked", "op": "EQ", "value": true}, view.Spec{})
 	no := compile(t, map[string]any{"field": "blocked", "op": "EQ", "value": false}, view.Spec{})
@@ -797,9 +797,9 @@ func TestBlockedTraversesTheWaitingLinks(t *testing.T) {
 		t.Fatalf("the value changed the text:\n  %s\n  %s", yes.SQL, no.SQL)
 	}
 	for _, want := range []string{
-		"FROM entry_link bl JOIN work_item bw ON bw.tenant_id = bl.tenant_id",
-		"(bl.link_type = 'blocks' AND bl.target_id = wi.id)",
-		"(bl.link_type = 'depends_on' AND bl.source_id = wi.id)",
+		"LEFT JOIN link_type lt ON lt.tenant_id = bl.tenant_id AND lt.key = bl.own_type",
+		"CASE bl.link_type WHEN 'blocks' THEN 'TARGET' WHEN 'depends_on' THEN 'SOURCE' ELSE lt.waits END",
+		"((lw.waits = 'TARGET' AND bl.target_id = wi.id) OR (lw.waits = 'SOURCE' AND bl.source_id = wi.id))",
 		"AND NOT bw.is_completed AND bw.deleted_at IS NULL)) = $",
 	} {
 		if !strings.Contains(yes.SQL, want) {

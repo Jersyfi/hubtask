@@ -113,7 +113,7 @@ const (
 	// notes would be reading a lie about which field it asked for.
 	FieldText = "text"
 	// FieldBlocked is the first field answered by traversing links (F-9): whether an open entry
-	// holds this one up, through a `blocks` link pointing at it or a `depends_on` link from it.
+	// holds this one up over a link whose type waits (work.LinkWaits).
 	// Virtual, like text: it is a question about other rows, not a column of this one.
 	FieldBlocked = "blocked"
 
