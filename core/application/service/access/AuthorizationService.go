@@ -14,6 +14,8 @@ package access
 import (
 	"context"
 	"log/slog"
+	"slices"
+	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -65,6 +67,9 @@ type Request struct {
 	// MANAGE_MEMBERS alone would let an administrator make somebody an owner, or unmake one.
 	// A revocation and a change of who is in a group name it as a grant does - one rule, one name.
 	Grants identity.Role
+	// HandsOut are the permissions of a custom role the request defines or grants, empty where it
+	// touches none: the actor must hold every one along the path (service.MayHandOut, D-05).
+	HandsOut []string
 }
 
 // ItemSubject is what the per-entry half of the role matrix needs in order to be applied: the
@@ -159,6 +164,13 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 		return shared.ErrForbidden.
 			WithDetail("access.role_above_own").
 			WithParams(map[string]string{"role": string(request.Grants)})
+	}
+	if len(request.HandsOut) > 0 && !service.MayHandOut(memberships, path.path, path.privacy, request.HandsOut) {
+		s.recordRefusal(ctx, actor, request, "role")
+		lacking := service.Lacking(memberships, path.path, path.privacy, request.HandsOut)
+		return shared.ErrForbidden.
+			WithDetail("access.permission_above_own").
+			WithParams(map[string]string{"permissions": strings.Join(lacking, ",")})
 	}
 	return nil
 }
@@ -328,7 +340,8 @@ func (s Service) decideAboutTheEntry(
 	ctx context.Context, actor appshared.ActorContext, request Request,
 	memberships []identity.Membership, at resolved,
 ) error {
-	role, found := service.EffectiveRole(memberships, at.path, at.privacy)
+	verdict, found := service.AllowsItemActionAlong(
+		memberships, at.path, at.privacy, request.On.Does, actor.AccountID, request.On.Assignee)
 	if !found {
 		s.recordRefusal(ctx, actor, request, "sharing")
 		if request.On.ID.IsZero() {
@@ -344,7 +357,7 @@ func (s Service) decideAboutTheEntry(
 		return appshared.ItemNotFound(request.On.ID)
 	}
 
-	switch service.AllowsItemAction(role, request.On.Does, actor.AccountID, request.On.Assignee) {
+	switch verdict {
 	case service.ItemPermitted:
 		return nil
 	case service.ItemRefusedByAssignment:
@@ -366,8 +379,7 @@ func hidden(memberships []identity.Membership, at resolved) bool {
 	if at.privacy != service.PrivatePath {
 		return false
 	}
-	_, found := service.EffectiveRole(memberships, at.path, at.privacy)
-	return !found
+	return !service.HoldsAnything(memberships, at.path, at.privacy)
 }
 
 // deepestContainer is the lowest hub or collection on a path: the one a caller named.
@@ -528,11 +540,16 @@ func (s Service) RoleOf(
 func (s Service) WritesOnlyWhatIsAssigned(
 	ctx context.Context, actor appshared.ActorContext, path []identity.Scope,
 ) (bool, error) {
-	role, found, err := s.RoleAlong(ctx, actor, path)
-	if err != nil || !found {
+	if !actor.IsAuthenticated() {
+		return false, nil
+	}
+	memberships, at, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, path,
+		opensFor(actor, actor.AccountID))
+	if err != nil {
 		return false, err
 	}
-	return service.ItemAccessOf(role, service.ItemChange) == service.AccessAssigned, nil
+	reach, found := service.ItemReach(memberships, at.path, at.privacy, service.ItemChange)
+	return found && reach == service.AccessAssigned, nil
 }
 
 // union flattens the paths into the scopes to ask about, without duplicates. The resolution ignores
@@ -612,4 +629,52 @@ func (s Service) writeRefusal(ctx context.Context, actor appshared.ActorContext,
 			slog.String("action", string(request.Action)),
 			slog.String("error", err.Error()))
 	}
+}
+
+// Held is what an account holds along one path: every role by key - a built-in role's name, a
+// custom role's key - and every permission, as Allows decides them.
+type Held struct {
+	Roles       []string
+	Permissions []service.Permission
+}
+
+// HeldAlong answers what the actor holds along the path, and records nothing: for a step limited
+// by role, a field or step permission, and the person a screen is shown as (A6).
+func (s Service) HeldAlong(
+	ctx context.Context, actor appshared.ActorContext, path []identity.Scope,
+) (Held, error) {
+	if !actor.IsAuthenticated() {
+		return Held{}, nil
+	}
+	return s.HeldBy(ctx, actor, actor.AccountID, path)
+}
+
+// HeldBy is HeldAlong about another account, read in the actor's tenant: what *view as* and *who
+// may do what* show for a person (A6, A11). Whether the actor may ask is the caller's
+// authorisation.
+func (s Service) HeldBy(
+	ctx context.Context, actor appshared.ActorContext, accountID shared.ID, path []identity.Scope,
+) (Held, error) {
+	if accountID.IsZero() {
+		return Held{}, nil
+	}
+	memberships, at, err := s.heldAlong(ctx, actor.PersistenceScope(), accountID, path, opensFor(actor, accountID))
+	if err != nil {
+		return Held{}, err
+	}
+	return heldOf(memberships, at), nil
+}
+
+func heldOf(memberships []identity.Membership, at resolved) Held {
+	held := Held{Roles: []string{}, Permissions: service.Held(memberships, at.path, at.privacy)}
+	for _, membership := range service.Counting(memberships, at.path, at.privacy) {
+		key := string(membership.Role)
+		if membership.IsCustom() {
+			key = membership.Custom
+		}
+		if !slices.Contains(held.Roles, key) {
+			held.Roles = append(held.Roles, key)
+		}
+	}
+	return held
 }

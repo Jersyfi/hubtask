@@ -4,6 +4,8 @@
 package service
 
 import (
+	"slices"
+
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 )
 
@@ -101,7 +103,13 @@ func PermissionsOf(role identity.Role) []Permission {
 }
 
 // RoleAllows reports whether the role carries the permission.
+//
+// A field or step permission is held by the roles that shape the workspace (familyHolders): a
+// restricted field or step is restricted for every other shipped role.
 func RoleAllows(role identity.Role, permission Permission) bool {
+	if permission.Kind() != KindBase {
+		return slices.Contains(familyHolders(), role)
+	}
 	for _, granted := range rolePermissions[role] {
 		if granted == permission {
 			return true
@@ -146,7 +154,8 @@ func EffectiveRole(
 	found := false
 
 	for _, membership := range memberships {
-		if !counts(membership, path, privacy) {
+		if !counts(membership, path, privacy) || membership.IsCustom() {
+			// A custom role is not a rung on the ladder; ItemReach and Allows read it.
 			continue
 		}
 		if !found || membership.Role.AtLeast(best) {
@@ -158,7 +167,7 @@ func EffectiveRole(
 
 // counts is whether one membership takes part in the decision about this path.
 func counts(membership identity.Membership, path []identity.Scope, privacy Privacy) bool {
-	if !membership.Role.Valid() || !onPath(membership.Scope, path) {
+	if !(membership.Role.Valid() || membership.IsCustom()) || !onPath(membership.Scope, path) {
 		return false
 	}
 	return privacy == SharedPath || membership.Scope.Type != identity.ScopeTenant
@@ -189,6 +198,12 @@ func Allows(
 		if !counts(membership, path, privacy) {
 			continue
 		}
+		if membership.IsCustom() {
+			if customAllows(membership.Permissions, permission) {
+				return true
+			}
+			continue
+		}
 		if RoleAllows(membership.Role, permission) {
 			return true
 		}
@@ -197,9 +212,13 @@ func Allows(
 }
 
 // columns is every permission, in the order the matrix's columns are written.
+//
+// The three a custom role names as such come after the eight, so what a shipped role is told is
+// unchanged (their cells are the ItemAccess rows).
 var columns = []Permission{
 	PermissionRead, PermissionWriteItems, PermissionStructure, PermissionManageMembers,
 	PermissionAutomation, PermissionDeleteContainer, PermissionReadConfiguration, PermissionAuditRead,
+	PermissionWriteAssigned, PermissionComment, PermissionRequest,
 }
 
 // Held is every permission Allows grants along the path, in the order of the matrix's columns:
@@ -210,6 +229,18 @@ func Held(memberships []identity.Membership, path []identity.Scope, privacy Priv
 	for _, permission := range columns {
 		if Allows(memberships, path, privacy, permission) {
 			held = append(held, permission)
+		}
+	}
+	// The field and step permissions a custom role names; a shipped role's are every one, which
+	// no list can spell.
+	for _, membership := range memberships {
+		if !membership.IsCustom() || !counts(membership, path, privacy) {
+			continue
+		}
+		for _, name := range membership.Permissions {
+			if permission := Permission(name); permission.Kind() != KindBase && !slices.Contains(held, permission) {
+				held = append(held, permission)
+			}
 		}
 	}
 	return held
