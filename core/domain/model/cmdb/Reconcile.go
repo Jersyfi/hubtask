@@ -305,16 +305,21 @@ func Apply(ci CI, item Item, class Resolved, source string, run shared.ID, prece
 	var taken []string
 	var kept []Kept
 	write := func(key string, value any, set func()) {
+		if reflect.DeepEqual(current(next, key), value) {
+			// The same value confirmed: the writer it came from is seen again, nobody takes it over.
+			if last, ok := next.Provenance[key]; !ok || last.Source == source {
+				next.Provenance[key] = Provenance{Source: source, Run: run, At: now}
+			}
+			return
+		}
 		last, ok := next.Provenance[key]
 		if !precedence.mayWrite(source, last, ok, stale, now) {
 			kept = append(kept, Kept{Attribute: key, By: last.Source})
 			return
 		}
 		next.Provenance[key] = Provenance{Source: source, Run: run, At: now}
-		if !reflect.DeepEqual(current(next, key), value) {
-			set()
-			taken = append(taken, key)
-		}
+		set()
+		taken = append(taken, key)
 	}
 	if name := strings.TrimSpace(item.Name); name != "" {
 		if err := CheckName(name); err != nil {
