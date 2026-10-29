@@ -5943,6 +5943,7 @@
   "app.level.add_inside": "{level} in {title} hinzufügen",
   "app.level.new_in": "Neu: {level} in {name}",
   "app.level.capability_not_supported": "„{level}“ {capability, select, COMPLETION {kann nicht erledigt werden} DUE_DATE {hat kein Fälligkeitsdatum} REMINDER {hat keine Erinnerungen} ASSIGNMENT {kann niemandem zugewiesen werden} MEMBERS {hat keine Mitglieder} BUCKET {hat keine Spalte im Board} NOTES {hat keine Notizen} LABELS {hat keine Labels} COMMENTS {hat keine Kommentare} COVER {hat kein Titelbild} ATTACHMENTS {hat keine Anhänge} HISTORY {hat keinen Verlauf} RECURRENCE {kann sich nicht wiederholen} CUSTOM_FIELDS {hat keine eigenen Felder} AMOUNT {hat hier keine Menge} other {unterstützt das nicht}}.",
+  "app.item.entry_type": "Typ",
   "app.level.capability_hidden": "Diese Sammlung zeigt {capability, select, COMPLETION {die Erledigung} DUE_DATE {Fälligkeitsdaten} REMINDER {Erinnerungen} ASSIGNMENT {Zuständige} MEMBERS {Mitglieder} BUCKET {Spalten im Board} NOTES {Notizen} LABELS {Labels} COMMENTS {Kommentare} COVER {Titelbilder} ATTACHMENTS {Anhänge} HISTORY {den Verlauf} RECURRENCE {Wiederholungen} CUSTOM_FIELDS {eigene Felder} AMOUNT {Mengen} other {dieses Feld}} bei „{level}“ nicht. Was gespeichert ist, bleibt; biete es in der Struktur der Sammlung an, um das zu ändern.",
   "app.level.level_hidden": "Diese Sammlung zeigt „{level}“ hier nicht. Was gespeichert ist, bleibt; biete die Ebene in der Struktur der Sammlung an, um das zu ändern.",
   "app.level.parent_item_required": "„{level}“ muss in einem anderen Eintrag liegen.",

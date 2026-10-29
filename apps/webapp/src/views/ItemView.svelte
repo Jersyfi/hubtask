@@ -41,6 +41,7 @@
     PageHeader,
     provideReasonGroup,
     ReadOnlyNotice,
+    Select,
     Skeleton,
     Stack,
     Tabs,
@@ -68,7 +69,7 @@
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { definitionsFor, valueText } from '../lib/data/customfields.ts';
   import { hasForm, panelRows } from '../lib/data/entryforms.ts';
-  import { entryTypes, typeOf, typesShown } from '../lib/data/entrytypes.svelte.ts';
+  import { entryTypes, offeredTypes, typeOf, typesShown } from '../lib/data/entrytypes.svelte.ts';
   import type { EntryFormState } from '@hubtask/sync-engine';
   import { formatDecimal } from '../lib/i18n/number.ts';
   import { formatDuration } from '../lib/i18n/duration.ts';
@@ -360,6 +361,29 @@
     item && typesShown(manifest.value) ? typeOf(entryTypes.all, item.type as string, item.entry_type ?? undefined) : undefined,
   );
   const itemForm = $derived(itemType && hasForm(itemType.form) ? itemType.form : undefined);
+  // The entry's type, changed in place (UC-FLW-01 check 4): the types of its level still offered,
+  // the one it has kept even when archived. A row only where there is a choice.
+  const typeChoices = $derived.by(() => {
+    if (!item || !itemType) return [];
+    const offered = offeredTypes(entryTypes.all, item.type as string);
+    return offered.some((each) => each.key === itemType.key) ? offered : [itemType, ...offered];
+  });
+  const entryTypeName = (type: { name?: string | null; level: string }) => type.name ?? t('app.entry_types.level', { level: type.level });
+  let typeDraft = $state('');
+  $effect(() => {
+    typeDraft = itemType?.key ?? '';
+  });
+  async function saveType() {
+    if (!item || !itemType || typeDraft === '' || typeDraft === itemType.key) return;
+    writeFailure = undefined;
+    try {
+      await items.setEntryType(item.id, typeDraft, item.version);
+      announcer.say(t('app.entries.saved_announced'));
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+
   let formAnswer = $state<EntryFormState | undefined>(undefined);
   $effect(() => {
     const key = itemForm && itemType ? itemType.key : undefined;
@@ -1415,6 +1439,16 @@
             {#if carries('RECURRENCE')}
               <DetailRow id="recurrence" label={t('app.recurrence.title')} value={repeatValue} isReadOnly={!isWritable}>
                 <RecurrencePanel {item} />
+              </DetailRow>
+            {/if}
+            {#if itemType && typeChoices.length > 1}
+              <DetailRow id="entry-type" label={t('app.item.entry_type')} value={entryTypeName(itemType)} isReadOnly={!isWritable}>
+                <Stack gap="150">
+                  <Select label={t('app.item.entry_type')} bind:value={typeDraft} options={typeChoices.map((each) => ({ value: each.key, label: entryTypeName(each) }))} />
+                  <div>
+                    <Button size="sm" onclick={() => void saveType()}>{t('app.workspace.save')}</Button>
+                  </div>
+                </Stack>
               </DetailRow>
             {/if}
             <DetailRow id="language" label={t('app.entries.language')} value={item.content_language ? languageName(item.content_language, messages.locale) : undefined} isReadOnly={!isWritable}>
