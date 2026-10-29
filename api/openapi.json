@@ -24378,7 +24378,7 @@
       },
       "ConfigDocument": {
         "type": "object",
-        "description": "Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.\n",
+        "description": "Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.\n",
         "additionalProperties": {
           "type": "object",
           "additionalProperties": {

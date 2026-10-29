@@ -8182,7 +8182,7 @@ type CompletionPolicy string
 type ConfigApplyRequest struct {
 	Acknowledge *bool `json:"acknowledge,omitempty"`
 
-	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document *ConfigDocument         `json:"document,omitempty"`
 	Mode     *ConfigApplyRequestMode `json:"mode,omitempty"`
 	PlanHash string                  `json:"plan_hash"`
@@ -8235,12 +8235,12 @@ type ConfigDecision struct {
 // ConfigDecisionDecision defines model for ConfigDecision.Decision.
 type ConfigDecisionDecision string
 
-// ConfigDocument Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+// ConfigDocument Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 type ConfigDocument map[string]map[string]*map[string]interface{}
 
 // ConfigDocumentRequest defines model for ConfigDocumentRequest.
 type ConfigDocumentRequest struct {
-	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document ConfigDocument             `json:"document"`
 	Mode     *ConfigDocumentRequestMode `json:"mode,omitempty"`
 }
@@ -8262,7 +8262,7 @@ type ConfigExplanation struct {
 
 // ConfigExport defines model for ConfigExport.
 type ConfigExport struct {
-	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document ConfigDocument `json:"document"`
 	Hash     string         `json:"hash"`
 
@@ -8292,7 +8292,7 @@ type ConfigPlan struct {
 
 // ConfigPlanRequest defines model for ConfigPlanRequest.
 type ConfigPlanRequest struct {
-	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document  *ConfigDocument        `json:"document,omitempty"`
 	Mode      *ConfigPlanRequestMode `json:"mode,omitempty"`
 	ToVersion *int                   `json:"to_version,omitempty"`
@@ -8319,7 +8319,7 @@ type ConfigProposal struct {
 	DecidedAt          *time.Time          `json:"decided_at,omitempty"`
 	DecidedBy          *openapi_types.UUID `json:"decided_by,omitempty"`
 
-	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document   ConfigDocument      `json:"document"`
 	HidesData  bool                `json:"hides_data"`
 	Id         openapi_types.UUID  `json:"id"`
@@ -8360,7 +8360,7 @@ type ConfigSchema struct {
 type ConfigTemplate struct {
 	CreatedAt time.Time `json:"created_at"`
 
-	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document ConfigDocument `json:"document"`
 	Key      string         `json:"key"`
 
@@ -8389,7 +8389,7 @@ type ConfigTemplatePlan struct {
 	Changes  []ConfigChange `json:"changes"`
 	Counts   ConfigCounts   `json:"counts"`
 
-	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document ConfigDocument `json:"document"`
 	Flags    struct {
 		ChangesPermissions bool `json:"changes_permissions"`
@@ -8420,7 +8420,7 @@ type ConfigTemplatePlanRequest struct {
 
 // ConfigTemplatePublish defines model for ConfigTemplatePublish.
 type ConfigTemplatePublish struct {
-	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document *ConfigDocument `json:"document,omitempty"`
 	Key      string          `json:"key"`
 	Name     string          `json:"name"`
@@ -8453,7 +8453,7 @@ type ConfigVersion struct {
 	Changed   int                 `json:"changed"`
 	CreatedAt time.Time           `json:"created_at"`
 
-	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document     *ConfigDocument     `json:"document,omitempty"`
 	Hash         string              `json:"hash"`
 	PlanHash     string              `json:"plan_hash"`
