@@ -419,7 +419,8 @@ func reminderOutput(reminder domain.Reminder) usecase.Output {
 // REST, MCP and automation at once (arc42 §4).
 func (h CreateReminder) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateReminderName,
+		Name:       CreateReminderName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Puts a reminder on an entry. offset_spec has two forms: REL: with an ISO-8601 " +
 			"duration counted from the entry's due date - negative for before it, and the entry " +
 			"needs a due date at all - or ABS: with an RFC 3339 instant no due date moves. Years " +
@@ -554,7 +555,8 @@ func (h ListReminders) Execute(
 // Descriptor is the catalogue entry.
 func (h ListReminders) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListRemindersName,
+		Name:       ListRemindersName,
+		Permission: service.PermissionRead,
 		Summary: "Reads an entry's reminders, oldest first, all of them: what one entry may " +
 			"carry is bounded, so there is no page to ask for. Readable by whoever may read the " +
 			"entry.",

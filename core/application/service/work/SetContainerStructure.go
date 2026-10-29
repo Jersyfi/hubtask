@@ -428,7 +428,8 @@ func settingText(setting domain.StructureSetting, values domain.StructureValues)
 // Descriptor is the catalogue entry.
 func (h SetContainerStructure) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SetContainerStructureName,
+		Name:       SetContainerStructureName,
+		Permission: service.PermissionStructure,
 		Summary: "Changes how much structure a hub or a collection has: chooses a preset (its " +
 			"settings are copied, replacing the container's own), sets settings one by one, or " +
 			"resets them to what the hub or the workspace says. A value beyond what the " +

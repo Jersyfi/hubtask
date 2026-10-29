@@ -117,7 +117,8 @@ func (h MakeEntries) Execute(
 // Descriptor is the catalogue entry.
 func (h MakeEntries) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: MakeEntriesName,
+		Name:       MakeEntriesName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Asks the workspace's AI provider which entries a piece of pasted text holds - a " +
 			"recipe, an e-mail, meeting notes - for one collection. Each proposed entry carries a " +
 			"title and only the fields the collection carries at the level its entries are " +

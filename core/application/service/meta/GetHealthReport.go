@@ -121,7 +121,8 @@ func reduced(report health.Report) health.Report {
 // Descriptor is the catalogue entry.
 func (h GetHealthReport) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: GetHealthReportName,
+		Name:       GetHealthReportName,
+		Permission: service.PermissionStructure,
 		Summary: "Reads the installation's deep self-diagnosis: its status, its version and the " +
 			"features it is currently not serving fully. A credential holding `admin:tenants` " +
 			"reads the whole report as well - every dependency with its latency, last error code " +

@@ -557,7 +557,8 @@ func customValueLabel(value any) string {
 // Descriptor is the catalogue entry.
 func (h SetCustomField) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SetCustomFieldName,
+		Name:       SetCustomFieldName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Writes one custom field on an entry. The value is validated against the " +
 			"definition in force for the entry's collection - its own, or the workspace-wide one " +
 			"under the same key - and a SELECT value outside its options, a NUMBER arriving as a " +

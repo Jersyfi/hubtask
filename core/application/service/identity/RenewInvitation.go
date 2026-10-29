@@ -170,7 +170,8 @@ func (h RenewInvitation) recordAudit(
 // Descriptor registers the use case in all three channels.
 func (h RenewInvitation) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RenewInvitationName,
+		Name:       RenewInvitationName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Renews an invitation that has not been accepted yet: the invitation mail is sent " +
 			"again, or - where this installation sends no mail - a new invitation link is answered " +
 			"once. The earlier link stops working.",

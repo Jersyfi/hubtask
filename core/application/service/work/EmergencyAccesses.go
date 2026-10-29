@@ -77,7 +77,8 @@ func (h ListPrivateHubAccesses) Execute(
 // Descriptor is the catalogue entry.
 func (h ListPrivateHubAccesses) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListPrivateHubAccessesName,
+		Name:       ListPrivateHubAccessesName,
+		Permission: service.PermissionRead,
 		Summary: "Lists every emergency access to a private hub, newest first: who opened it, when, " +
 			"until when and the reason they gave. For whoever reads the hub.",
 		SideEffects: "None. Reads only.",

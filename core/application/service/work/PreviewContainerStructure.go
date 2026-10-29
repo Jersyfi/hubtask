@@ -203,7 +203,8 @@ func entryShapesByCollection(shapes []repository.EntryShape) map[shared.ID][]dom
 // Descriptor is the catalogue entry.
 func (h PreviewContainerStructure) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: PreviewContainerStructureName,
+		Name:       PreviewContainerStructureName,
+		Permission: service.PermissionStructure,
 		Summary: "Answers what a change of a hub's or a collection's own structure would stop " +
 			"showing, before it is made: the levels whose entries would be hidden with how many, " +
 			"the fields whose values would be hidden with on how many entries, the views no longer " +

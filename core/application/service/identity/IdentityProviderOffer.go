@@ -361,7 +361,8 @@ func (w IdentityProviderWriter) recordOffer(
 
 func (h OfferIdentityProvider) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: OfferIdentityProviderName,
+		Name:       OfferIdentityProviderName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Switches a provider on or off as a way into this workspace. For the workspace's " +
 			"own provider that is the row's switch; for one the installation offers, it is this " +
 			"workspace's own - the row belongs to the installation and is not the workspace's to " +

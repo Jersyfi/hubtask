@@ -379,7 +379,8 @@ func (h AddComment) FileDisplaced(
 // REST, MCP and automation at once (arc42 §4).
 func (h AddComment) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: AddCommentName,
+		Name:       AddCommentName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Adds a comment to an entry's discussion. A reply names the comment it answers " +
 			"with parent_comment_id; threading is one level, so a reply cannot itself be replied " +
 			"to. A type without the COMMENTS capability - an activity - carries no discussion " +

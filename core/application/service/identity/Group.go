@@ -142,7 +142,8 @@ func addMembers(
 // Descriptor registers the use case in all three channels.
 func (h CreateGroup) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateGroupName,
+		Name:       CreateGroupName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Creates a group: a named set of accounts that a role can be granted to, so that " +
 			"the people who hold it change when the group does.",
 		SideEffects: "Writes the group, its members, and an audit entry.",
@@ -599,7 +600,8 @@ func (h UpdateGroup) recordAudit(
 // Descriptor registers the use case in all three channels.
 func (h UpdateGroup) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateGroupName,
+		Name:       UpdateGroupName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Renames a group, changes its description, or replaces who is in it. The member " +
 			"list, when given, is the complete membership afterwards rather than an addition.",
 		SideEffects: "Writes the group, its members, and an audit entry.",
@@ -809,7 +811,8 @@ func (h DeleteGroup) Execute(
 // Descriptor registers the use case in all three channels.
 func (h DeleteGroup) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteGroupName,
+		Name:       DeleteGroupName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Deletes a group. Whatever it granted, nobody holds afterwards; what its members " +
 			"hold in their own right is untouched.",
 		SideEffects: "Removes the group and its memberships, and writes an audit entry.",

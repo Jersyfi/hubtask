@@ -106,7 +106,8 @@ func (h GetContainer) Execute(
 // Descriptor is the catalogue entry.
 func (h GetContainer) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: GetContainerName,
+		Name:       GetContainerName,
+		Permission: service.PermissionRead,
 		Summary: "Reads one hub or collection by its identifier. An archived or trashed container " +
 			"is returned as it is, with the timestamp saying so, rather than reported as missing.",
 		SideEffects: "None. Reads only.",
@@ -307,7 +308,8 @@ func (h ListContainers) visible(
 // Descriptor is the catalogue entry.
 func (h ListContainers) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListContainersName,
+		Name:       ListContainersName,
+		Permission: service.PermissionRead,
 		Summary: "Lists one level of the workspace tree in its manual order: the hubs when no " +
 			"parent is given, that hub's collections when one is. Paged with an opaque cursor; " +
 			"a page carries the cursor for the next one until there are none left.",

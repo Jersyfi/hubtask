@@ -397,7 +397,8 @@ func (h ConfigureAiProvider) invoke(
 
 func (h ReadAiProvider) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReadAiProviderName,
+		Name:       ReadAiProviderName,
+		Permission: service.PermissionReadConfiguration,
 		Summary: "How this workspace uses AI, if it does: the adapter kind, the endpoint, the " +
 			"models, the jurisdiction, and whether processing is allowed here. The API key is " +
 			"not among the fields, and there is no call that answers it.",

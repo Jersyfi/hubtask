@@ -527,7 +527,8 @@ func readAll(from io.Reader) ([]byte, error) {
 // Descriptor registers the creation in all three channels.
 func (h CreateBackupTarget) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateBackupTargetName,
+		Name:       CreateBackupTargetName,
+		Permission: service.PermissionDeleteContainer,
 		Summary: "Writes down where backups go: the kind of target, where it points, and what it " +
 			"authenticates with. Credentials are stored encrypted and are never returned by any " +
 			"read. Storing an archive unencrypted, or reaching a target over a protocol that " +
@@ -584,7 +585,8 @@ func (h CreateBackupTarget) Descriptor() usecase.Descriptor {
 // Descriptor registers the listing.
 func (h ListBackupTargets) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListBackupTargetsName,
+		Name:       ListBackupTargetsName,
+		Permission: service.PermissionStructure,
 		Summary: "Lists the targets configured for this tenant, by name. Never a credential: what " +
 			"comes back is where a target points, how it is encrypted, what it warns about, and " +
 			"how its last connection test went.",
@@ -602,7 +604,8 @@ func (h ListBackupTargets) Descriptor() usecase.Descriptor {
 // Descriptor registers the connection test.
 func (h TestBackupTarget) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: TestBackupTargetName,
+		Name:       TestBackupTargetName,
+		Permission: service.PermissionStructure,
 		Summary: "Writes a small probe object to the target, reads it back, and removes it. " +
 			"Answers whether it worked, how long it took, whether the target is writable, how " +
 			"much room is left where the protocol can say, and a message code when it did not " +

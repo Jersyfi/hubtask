@@ -181,7 +181,8 @@ func (h UpdateAccountPreferences) recordAudit(
 // Descriptor registers the use case in all three channels.
 func (h UpdateAccountPreferences) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateAccountPreferencesName,
+		Name:       UpdateAccountPreferencesName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Sets the locale, the time zone and the first day of the week for an account, " +
 			"and its moments - whether celebrations are marked, and when the first-run tour ended. " +
 			"Omitting a field leaves it; sending it empty clears it, so the default applies again.",

@@ -413,6 +413,7 @@ func (h UnlinkEntries) Execute(ctx context.Context, actor appshared.ActorContext
 func (h UnlinkEntries) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name:        UnlinkEntriesName,
+		Permission:  service.PermissionWriteItems,
 		Summary:     "Removes a link between two entries. Whoever may change either end may remove it.",
 		SideEffects: "Deletes the link, publishes " + string(event.ItemUnlinked) + " and writes an audit entry.",
 		TokenScope:  itemsWrite,
@@ -543,7 +544,8 @@ func (r EntryLinks) Output(itemID shared.ID) usecase.Output {
 // Descriptor is the catalogue entry.
 func (h ListEntryLinks) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListEntryLinksName,
+		Name:       ListEntryLinksName,
+		Permission: service.PermissionRead,
 		Summary: "Reads an entry's links from both ends - each with the far end's title, key and state, " +
 			"or only its identifier and available: false where the reader may not see it - and its " +
 			"backlinks: the notes and comments that mention it, as a card or inline, from entries the " +
@@ -813,7 +815,8 @@ func (h ResolveReferences) view(ctx context.Context, actor appshared.ActorContex
 // Descriptor is the catalogue entry.
 func (h ResolveReferences) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ResolveReferencesName,
+		Name:       ResolveReferencesName,
+		Permission: service.PermissionRead,
 		Summary: "Resolves up to 100 references - each a kind (ENTRY, HUB, COLLECTION, VIEW, and the " +
 			"later modules' PAGE, WHITEBOARD, DASHBOARD, GOAL, SPRINT), an id and an optional anchor - " +
 			"to what a mention, a card or a live view shows: the title, key and state the caller may " +

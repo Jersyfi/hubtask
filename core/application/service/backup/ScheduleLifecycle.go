@@ -305,7 +305,8 @@ func boolText(value bool) string {
 
 func (h ListBackupSchedules) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListBackupSchedulesName,
+		Name:       ListBackupSchedulesName,
+		Permission: service.PermissionStructure,
 		Summary: "What the workspace has decided will happen on its own: the rule, the zone it " +
 			"is read in, what each occurrence produces, the generation plan, and when it is next " +
 			"owed. A schedule that is switched off, or whose recurrence is spent, owes no next " +
@@ -337,7 +338,8 @@ func (h ListBackupSchedules) invoke(
 
 func (h UpdateBackupSchedule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateBackupScheduleName,
+		Name:       UpdateBackupScheduleName,
+		Permission: service.PermissionDeleteContainer,
 		Summary: "Changes a schedule, or switches it off. A field the caller does not send does " +
 			"not move. `enabled: false` keeps the rule and owes nothing, which is what somebody " +
 			"reaches for while a target is being replaced; switching it back on computes the " +
@@ -430,7 +432,8 @@ func (h UpdateBackupSchedule) invoke(
 
 func (h DeleteBackupSchedule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteBackupScheduleName,
+		Name:       DeleteBackupScheduleName,
+		Permission: service.PermissionDeleteContainer,
 		Summary: "Removes a schedule. The archives it produced stay at the target and the runs " +
 			"it started stay in the log; what stops is the recurrence. Switching one off is " +
 			"usually the right operation and this one is not - it keeps the rule for the night " +

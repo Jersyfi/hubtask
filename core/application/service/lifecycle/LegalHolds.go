@@ -269,7 +269,8 @@ func (h Holds) record(
 // Descriptor registers placing a hold in all three channels.
 func (h PlaceLegalHold) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: PlaceLegalHoldName,
+		Name:       PlaceLegalHoldName,
+		Permission: service.PermissionDeleteContainer,
 		Summary: "Freezes something against every kind of deletion: a retention rule, a person " +
 			"emptying their own trash, a hard delete somebody asked for. A hold on the workspace " +
 			"covers everything, one on a hub or a collection covers what is below it, one on " +
@@ -330,7 +331,8 @@ func (h PlaceLegalHold) invoke(
 // Descriptor registers lifting one.
 func (h ReleaseLegalHold) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReleaseLegalHoldName,
+		Name:       ReleaseLegalHoldName,
+		Permission: service.PermissionDeleteContainer,
 		Summary: "Lifts a hold, and records who lifted it, when, and why. The hold is not deleted " +
 			"- it gains an end - because an auditor has to be able to tell \"there was never a " +
 			"hold\" from \"somebody lifted it\". Lifting one twice is refused.",
@@ -371,7 +373,8 @@ func (h ReleaseLegalHold) invoke(
 // Descriptor registers the listing.
 func (h ListLegalHolds) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListLegalHoldsName,
+		Name:       ListLegalHoldsName,
+		Permission: service.PermissionStructure,
 		Summary: "The legal holds this workspace has, newest first. The ones in force by " +
 			"default, because that is what \"what is frozen\" means - and the lifted ones when " +
 			"asked for, because a hold that has been lifted is what shows it was.",

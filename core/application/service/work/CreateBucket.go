@@ -360,7 +360,8 @@ func bucketOutput(bucket domain.Bucket) usecase.Output {
 // REST, MCP and automation at once (arc42 §4).
 func (h CreateBucket) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateBucketName,
+		Name:       CreateBucketName,
+		Permission: service.PermissionStructure,
 		Summary: "Adds a column to a collection's board. The name has to be unique in the " +
 			"collection, compared without regard to case or accents. Only a collection has a " +
 			"board: a hub holds collections and no entries, so a column on one would have nothing " +
@@ -506,7 +507,8 @@ func (h ListBuckets) Execute(
 // Descriptor is the catalogue entry.
 func (h ListBuckets) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListBucketsName,
+		Name:       ListBucketsName,
+		Permission: service.PermissionRead,
 		Summary: "Lists a collection's board, left to right. Deleted columns are not in it. Not " +
 			"paged: a board has as many columns as fit on a screen. A hub has no board and comes " +
 			"back empty.",

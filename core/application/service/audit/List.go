@@ -188,7 +188,8 @@ func PageSize(requested int) int {
 // Descriptor registers the read in all three channels.
 func (h ListAuditEntries) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListAuditEntriesName,
+		Name:       ListAuditEntriesName,
+		Permission: service.PermissionRead,
 		Summary: "Reads the evidence trail: who did what, when, from where, and whether it " +
 			"worked - newest first. Never the content of anything. An owner, an administrator " +
 			"or an auditor reads the whole workspace's trail; everybody else reads their own " +

@@ -274,7 +274,8 @@ func labelOutput(label domain.Label) usecase.Output {
 // Descriptor is the catalogue entry.
 func (h CreateLabel) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateLabelName,
+		Name:       CreateLabelName,
+		Permission: service.PermissionStructure,
 		Summary: "Adds a label to a collection's vocabulary. The name has to be free in the " +
 			"collection, compared without regard to case or accents. The colour is required: a " +
 			"label is rendered as a chip and nothing else, so with none a client would have to " +
@@ -402,7 +403,8 @@ func (h ListLabels) Execute(
 // Descriptor is the catalogue entry.
 func (h ListLabels) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListLabelsName,
+		Name:       ListLabelsName,
+		Permission: service.PermissionRead,
 		Summary: "Lists a collection's labels by name. Deleted ones are not in it unless asked for, " +
 			"and then carry when they were deleted. Not paged: a " +
 			"vocabulary people have to agree on is as long as a person can hold in their head. A " +

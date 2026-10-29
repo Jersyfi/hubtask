@@ -409,7 +409,8 @@ func textOrNil(text string) any {
 // REST, MCP and automation at once (arc42 §4).
 func (h CreateTemplate) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateTemplateName,
+		Name:       CreateTemplateName,
+		Permission: service.PermissionStructure,
 		Summary: "Defines a template: a name, a scope, and the tree it stamps out. The tree is " +
 			"validated here rather than at instantiation - the types have to be permitted under " +
 			"one another by this installation's profiles, and the whole tree has to stay inside " +
@@ -549,7 +550,8 @@ func (h ListTemplates) Execute(
 // Descriptor is the catalogue entry.
 func (h ListTemplates) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListTemplatesName,
+		Name:       ListTemplatesName,
+		Permission: service.PermissionRead,
 		Summary: "The templates a person can pick from, newest first. Naming a container answers " +
 			"the ones defined along its path and the workspace-wide ones; naming none answers " +
 			"the workspace-wide ones alone.",
@@ -642,6 +644,7 @@ func (h GetTemplate) Execute(
 func (h GetTemplate) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name:        GetTemplateName,
+		Permission:  service.PermissionRead,
 		Summary:     "Reads one template, tree and all. What the caller may not see answers that there is no such template.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  templatesRead,

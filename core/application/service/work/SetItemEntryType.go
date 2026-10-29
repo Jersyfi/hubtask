@@ -186,7 +186,8 @@ func entryTypeKeyOf(item domain.WorkItem) string {
 // Descriptor is the catalogue entry.
 func (h SetItemEntryType) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SetItemEntryTypeName,
+		Name:       SetItemEntryTypeName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Gives an entry another type of its level; the level's own key (task, work_package, " +
 			"activity) gives it back its level's type. An archived type, another level's, or one the " +
 			"parent's type does not allow underneath is refused. A type that would not carry a value " +

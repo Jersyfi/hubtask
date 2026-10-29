@@ -62,7 +62,8 @@ func (h GetImport) Execute(ctx context.Context, actor appshared.ActorContext, id
 // Descriptor is the catalogue entry.
 func (h GetImport) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: GetImportName,
+		Name:       GetImportName,
+		Permission: domainservice.PermissionRead,
 		Summary: "An import and its report: what landed, in the restore's shape, and the rows the " +
 			"converter refused by number. Visible to whoever may read the hub it landed in.",
 		SideEffects: "None.",

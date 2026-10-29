@@ -202,7 +202,8 @@ func StandingOutputs(standings []Standing) []usecase.Output {
 // Descriptor is the catalogue entry.
 func (h ReadQuotas) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReadQuotasName,
+		Name:       ReadQuotasName,
+		Permission: service.PermissionStructure,
 		Summary: "Answers every quota limit as it applies to this workspace: the resolved ceiling " +
 			"(0 means unlimited), the live count where one exists, and the approach ratio.",
 		TokenScope: quotasRead,

@@ -259,7 +259,8 @@ func (r Restorer) open(
 // Descriptor registers the listing.
 func (h ListBackupsAtTarget) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListBackupsAtTargetName,
+		Name:       ListBackupsAtTargetName,
+		Permission: service.PermissionStructure,
 		Summary: "Lists the archives one backup target holds for this tenant, read from the " +
 			"manifests at the target rather than from the database. That is what makes it the " +
 			"reading that survives a total loss: with the target's credentials and nothing else, " +
@@ -708,7 +709,8 @@ func selectionIn(in usecase.Input) (domain.Selection, error) {
 // Descriptor registers the restore resource.
 func (h GetRestoreRun) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: GetRestoreRunName,
+		Name:       GetRestoreRunName,
+		Permission: service.PermissionStructure,
 		Summary: "What one restore did, or is about to do. It carries the report of the dry run - " +
 			"new, overwritten, skipped, duplicated, in conflict, and what was deliberately " +
 			"withheld - which is what to read before asking for the same restore without " +

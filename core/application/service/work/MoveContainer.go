@@ -306,7 +306,8 @@ func (h MoveContainer) authorize(
 // Descriptor is the catalogue entry.
 func (h MoveContainer) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: MoveContainerName,
+		Name:       MoveContainerName,
+		Permission: service.PermissionStructure,
 		Summary: "Moves a collection into another hub and ranks it there. Naming the hub it already " +
 			"sits in reorders it. The name has to be free at the destination; a collision is refused " +
 			"rather than resolved. A hub is the top level and cannot be moved. Idempotent: a move " +

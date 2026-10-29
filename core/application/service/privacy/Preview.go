@@ -112,7 +112,8 @@ func (h PreviewErasure) Execute(
 // Descriptor registers the preview in all three channels.
 func (h PreviewErasure) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: PreviewErasureName,
+		Name:       PreviewErasureName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Before an erasure is started, what the legal holds in force would keep of it: a " +
 			"hold wins over an erasure as far as it reaches, so what it covers is kept and the case " +
 			"closes as partly completed. Per hold, how many of the person's comments, assignments, " +

@@ -320,7 +320,8 @@ func pathTo(scope domain.Scope) []domain.Scope {
 // Descriptor registers the use case in all three channels.
 func (h GrantMembership) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: GrantMembershipName,
+		Name:       GrantMembershipName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Gives an account or a group a role at a scope. The role applies downwards: a " +
 			"role at a hub applies to its collections and their items, and the strongest role " +
 			"along the path is the one that counts.",
@@ -604,7 +605,8 @@ func (h RevokeMembership) recordAudit(
 // Descriptor registers the use case in all three channels.
 func (h RevokeMembership) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RevokeMembershipName,
+		Name:       RevokeMembershipName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Takes a role away. It stops applying on the next request. What the account " +
 			"holds through a group is unaffected - that is the group's membership.",
 		SideEffects: "Removes the membership and writes an audit entry.",

@@ -282,7 +282,8 @@ func deletionOutput(deletion BucketDeletion) usecase.Output {
 // Descriptor is the catalogue entry.
 func (h DeleteBucket) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteBucketName,
+		Name:       DeleteBucketName,
+		Permission: service.PermissionStructure,
 		Summary: "Takes a column off a collection's board. Its entries are not deleted with it: " +
 			"they move to the leftmost remaining column, or out of any column when this was the " +
 			"last one. What became of them is in the answer. Idempotent: deleting a column that is " +

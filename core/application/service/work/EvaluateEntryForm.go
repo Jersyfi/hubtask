@@ -133,7 +133,8 @@ func (h EvaluateEntryForm) Execute(
 // Descriptor is the catalogue entry.
 func (h EvaluateEntryForm) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: EvaluateEntryFormName,
+		Name:       EvaluateEntryFormName,
+		Permission: service.PermissionRead,
 		Summary: "Answers how an entry type's form stands for a draft: which fields are required, " +
 			"read-only or hidden, which validations do not hold, and whether this door may create " +
 			"the type. Nothing is written. A type without a form answers no fields.",

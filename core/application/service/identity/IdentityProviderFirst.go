@@ -136,7 +136,8 @@ func (h ConfigureFirstIdentityProvider) Execute(
 
 func (h ReadIdentityProvider) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReadIdentityProviderName,
+		Name:       ReadIdentityProviderName,
+		Permission: service.PermissionManageMembers,
 		Summary: "The workspace's first identity provider — the singular surface, kept from before " +
 			"providers were plural. It reads the workspace's own first one and never a provider " +
 			"the installation offers. The client secret is not among the fields, and there is no " +
@@ -165,6 +166,7 @@ func (h ReadIdentityProvider) invoke(
 func (h ConfigureFirstIdentityProvider) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name:        ConfigureFirstIdentityProviderName,
+		Permission:  service.PermissionManageMembers,
 		Entitlement: entitlement.OwnSignInProviders,
 		Summary: "Sets the workspace's first identity provider whole, creating it where the " +
 			"workspace has none — the singular surface, kept. The same rules the collection " +

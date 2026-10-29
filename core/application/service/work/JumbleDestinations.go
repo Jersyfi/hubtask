@@ -97,7 +97,8 @@ func (h ListJumbleDestinations) Execute(
 // Descriptor is the catalogue entry.
 func (h ListJumbleDestinations) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListJumbleDestinationsName,
+		Name:       ListJumbleDestinationsName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Where a jumble entry may become work for the caller: the collections that are " +
 			"neither trashed nor archived and where the caller may create an entry, private hubs " +
 			"they are in included, each with its hub, in the order of the tree. Paged; a page may " +

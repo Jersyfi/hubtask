@@ -78,7 +78,8 @@ func (h CountAccountsWithoutProvider) Execute(
 // Descriptor is the catalogue entry.
 func (h CountAccountsWithoutProvider) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CountAccountsWithoutProviderName,
+		Name:       CountAccountsWithoutProviderName,
+		Permission: service.PermissionManageMembers,
 		Summary: "How many active people of this workspace no provider switched on here signs in: " +
 			"the number the password switch says before the password is switched off. Invited " +
 			"accounts and service accounts are not counted. A number, never a list.",

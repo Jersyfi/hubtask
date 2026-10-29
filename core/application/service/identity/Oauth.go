@@ -711,7 +711,8 @@ func clientOutput(client domain.OauthClient) usecase.Output {
 // Descriptor is the catalogue entry.
 func (h RegisterOauthClient) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RegisterOauthClientName,
+		Name:       RegisterOauthClientName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Registers a third-party app: a name, the exact redirect URIs, and whether it " +
 			"can keep a secret. A confidential client's secret is answered once and stored as " +
 			"a hash; a public client gets none and must bring PKCE to every authorization.",
@@ -762,7 +763,8 @@ func (h RegisterOauthClient) invoke(
 // Descriptor is the catalogue entry.
 func (h ListOauthClients) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListOauthClientsName,
+		Name:       ListOauthClientsName,
+		Permission: service.PermissionManageMembers,
 		Summary: "The registry of third-party apps: name, kind, redirect URIs. The secrets are " +
 			"not among the fields - each was answered once, at registration.",
 		SideEffects: "None. Reads only.",
@@ -793,7 +795,8 @@ func (h ListOauthClients) invoke(
 // Descriptor is the catalogue entry.
 func (h ReadOauthClient) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReadOauthClientName,
+		Name:       ReadOauthClientName,
+		Permission: service.PermissionRead,
 		Summary: "What one registered app is called, for the person being asked to allow it. " +
 			"The name and nothing else: the redirect URIs and the kind are the administrator's, " +
 			"and the listing that would let somebody walk the workspace's apps is theirs too.",
@@ -832,7 +835,8 @@ func (h ReadOauthClient) invoke(
 // Descriptor is the catalogue entry.
 func (h DeleteOauthClient) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteOauthClientName,
+		Name:       DeleteOauthClientName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Removes a registered app. Every grant that pointed at it goes too, and the " +
 			"sessions those grants leashed refuse on their next request: a door is removed " +
 			"with every key that opened it.",

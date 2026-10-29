@@ -173,7 +173,8 @@ func withLabels(out usecase.Output, item domain.WorkItem, carried map[shared.ID]
 // Descriptor is the catalogue entry.
 func (h GetWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: GetWorkItemName,
+		Name:       GetWorkItemName,
+		Permission: service.PermissionRead,
 		Summary: "Reads one task, work package or activity by its identifier. An archived or " +
 			"trashed item is returned as it is, with the timestamp saying so, rather than reported " +
 			"as missing.",
@@ -325,7 +326,8 @@ func (h ListWorkItems) Execute(
 // Descriptor is the catalogue entry.
 func (h ListWorkItems) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListWorkItemsName,
+		Name:       ListWorkItemsName,
+		Permission: service.PermissionRead,
 		Summary: "Lists one level of a collection in its manual order: the items directly in the " +
 			"collection when no parent is given, that item's children when one is. A whole subtree, " +
 			"and every other filter, is what the query operation is for. Paged with an opaque cursor.",

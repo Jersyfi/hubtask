@@ -284,7 +284,8 @@ func (h TakeStep) recordStep(
 // handler (UC-FLW-03 check 2).
 func (h TakeStep) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: TakeStepName,
+		Name:       TakeStepName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Moves an entry on by one step of the workflow its collection runs for its type: " +
 			"the step by key, or the status it leads to. Refused when the step does not leave the " +
 			"entry's status, the person may not take it, a field it requires is empty or a check " +

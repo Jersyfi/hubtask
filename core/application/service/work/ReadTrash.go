@@ -306,7 +306,8 @@ func trashEntryPath(entry domain.TrashEntry) []identity.Scope {
 // Descriptor is the catalogue entry.
 func (h ListTrash) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListTrashName,
+		Name:       ListTrashName,
+		Permission: service.PermissionRead,
 		Summary: "Lists what is in the trash, newest deletion first: one entry per deletion, not " +
 			"one per deleted row. What is listed is the root of each deletion - the thing somebody " +
 			"deleted - with the batch that took the rest beside it. The list spans hubs and is " +

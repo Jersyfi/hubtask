@@ -378,7 +378,8 @@ func (h CommentJumbleEntry) Execute(
 // Descriptor is the catalogue entry.
 func (h CommentJumbleEntry) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CommentJumbleEntryName,
+		Name:       CommentJumbleEntryName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Settles a jumble entry as a comment on an entry - by default the entry a mail " +
 			"was meant for - with its files attached to that entry. Exactly once, like a conversion.",
 		SideEffects: "Adds the comment and the files, settles the entry, publishes " +

@@ -111,7 +111,8 @@ func (h ListActivity) collectionOf(
 // Descriptor is the catalogue entry.
 func (h ListActivity) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListActivityName,
+		Name:       ListActivityName,
+		Permission: service.PermissionRead,
 		Summary: "Reads what has happened to a task, work package or activity: who did what, and " +
 			"when, newest first. This is the product's history rather than the audit trail - it is " +
 			"readable by whoever may read the entry, and it goes when the entry does. Each step " +

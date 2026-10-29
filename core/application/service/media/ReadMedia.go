@@ -279,7 +279,8 @@ func viewedOutput(viewed ViewedMedia) usecase.Output {
 // Descriptor is the catalogue entry.
 func (h GetMedia) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: GetMediaName,
+		Name:       GetMediaName,
+		Permission: service.PermissionRead,
 		Summary: "Reads one media object's record, with a download target when it is READY. " +
 			"Readable by whoever staged it, and by anybody who may read an entry it covers or is " +
 			"attached to - an object nobody may reach is reported missing rather than forbidden. " +

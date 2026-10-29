@@ -377,7 +377,8 @@ func (h UpdateWorkItem) collectionOf(
 // REST, MCP and automation at once (arc42 §4).
 func (h UpdateWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateWorkItemName,
+		Name:       UpdateWorkItemName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Changes an item's own fields: its title, its notes where the type carries them, " +
 			"the language they are written in, its start, and its due date. " +
 			"A field that is not sent is left alone; sending `notes` as null clears it, and sending " +

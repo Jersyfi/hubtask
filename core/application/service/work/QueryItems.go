@@ -248,7 +248,8 @@ func scopeNotFound(path string, id shared.ID) error {
 // (ai-first.md §1.1).
 func (h QueryItems) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: QueryItemsName,
+		Name:       QueryItemsName,
+		Permission: service.PermissionRead,
 		Summary: "Searches tasks, work packages and activities inside one hub, collection or " +
 			"entry: a filter of field, operator and value combined with AND, OR and NOT, an " +
 			"ordering, cursor paging, and an optional grouping into the columns a board draws. " +

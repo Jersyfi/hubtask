@@ -300,7 +300,8 @@ func boolText(value bool) string {
 
 func (h UpdateRetentionPolicy) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateRetentionPolicyName,
+		Name:       UpdateRetentionPolicyName,
+		Permission: service.PermissionDeleteContainer,
 		Summary: "Corrects a retention rule, or takes it out of enforcement. A field the caller " +
 			"does not send does not move. `enabled: false` stops the rule entirely and " +
 			"`action: NOTIFY_ONLY` keeps it reporting what it would remove while removing " +
@@ -407,7 +408,8 @@ func (h UpdateRetentionPolicy) invoke(
 
 func (h DeleteRetentionPolicy) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteRetentionPolicyName,
+		Name:       DeleteRetentionPolicyName,
+		Permission: service.PermissionDeleteContainer,
 		Summary: "Withdraws a retention rule. What it already did stands - retention deletes, " +
 			"and a deletion is not undone by withdrawing the instruction that caused it - and " +
 			"what it had marked for a future pass stops counting down, because an entry waiting " +

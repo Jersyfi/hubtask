@@ -101,7 +101,8 @@ func (h ListComments) collectionOf(
 // Descriptor is the catalogue entry.
 func (h ListComments) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListCommentsName,
+		Name:       ListCommentsName,
+		Permission: service.PermissionRead,
 		Summary: "Reads an entry's discussion, oldest first. Deleted comments are in it as " +
 			"tombstones - identifier, author and timestamps with a null body - so a reply never " +
 			"dangles. Readable by whoever may read the entry.",

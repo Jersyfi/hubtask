@@ -156,7 +156,8 @@ func (h WithdrawConsent) Execute(
 // Descriptor registers the withdrawal in all three channels.
 func (h WithdrawConsent) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: WithdrawConsentName,
+		Name:       WithdrawConsentName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Takes back an agreement to an optional processing purpose - AI, metering, " +
 			"notification content. The optional processing stops and the core features keep " +
 			"working. Withdrawing something that was never granted is recorded too: the person " +

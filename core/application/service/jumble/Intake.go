@@ -122,7 +122,8 @@ func (h RotateJumbleIntake) record(
 // Descriptor is the catalogue entry.
 func (h RotateJumbleIntake) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RotateJumbleIntakeName,
+		Name:       RotateJumbleIntakeName,
+		Permission: service.PermissionAutomation,
 		Summary: "Mints the address the jumble accepts webhooks on, replacing any previous one " +
 			"in the same statement - the old token and the new one never both open the intake. " +
 			"The token is answered once and stored hashed; every later read shows only when it " +

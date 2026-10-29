@@ -1046,7 +1046,8 @@ func dueZoneOrNil(due *domain.DueDate) any {
 // REST, MCP and automation at once (arc42 §4).
 func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateWorkItemName,
+		Name:       CreateWorkItemName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Creates a task, a work package or an activity. A task sits directly in a " +
 			"collection; a work package sits in a task, and an activity in a task or a work package. " +
 			"Which combinations are permitted is configured per workspace rather than fixed, " +

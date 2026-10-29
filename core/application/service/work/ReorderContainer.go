@@ -210,7 +210,8 @@ func (h ReorderContainer) authorize(
 // Descriptor is the catalogue entry.
 func (h ReorderContainer) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReorderContainerName,
+		Name:       ReorderContainerName,
+		Permission: service.PermissionStructure,
 		Summary: "Ranks a container within the level it already sits in: a hub among the tenant's " +
 			"hubs, a collection among its hub's collections. The only way to rank a hub, which " +
 			"sits in nothing and so cannot be moved. The rank is a fractional index, so an " +

@@ -457,7 +457,8 @@ func AiSourceOutput(state AiState) usecase.Output {
 
 func (h ReadAiSource) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReadAiSourceName,
+		Name:       ReadAiSourceName,
+		Permission: service.PermissionReadConfiguration,
 		Summary: "Which AI answers this workspace: its own model, a model the installation offers, " +
 			"or none - and what the installation allows, with who set it. An offered model is " +
 			"named with its processor and where it processes content, and nothing more.",

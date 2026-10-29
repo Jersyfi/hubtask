@@ -624,7 +624,8 @@ func LegalBasisOf(kind domain.Kind) string {
 // Descriptor registers recording a case in all three channels.
 func (h CreateDataSubjectRequest) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateDataSubjectRequestName,
+		Name:       CreateDataSubjectRequestName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Records a right somebody has exercised - access, erasure, portability, " +
 			"restriction, objection or rectification - as a case with the statutory deadline it " +
 			"has to be answered within. Nothing is collected, exported or erased by this: what " +
@@ -726,7 +727,8 @@ func (h CreateDataSubjectRequest) invoke(
 // Descriptor registers the listing.
 func (h ListDataSubjectRequests) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListDataSubjectRequestsName,
+		Name:       ListDataSubjectRequestsName,
+		Permission: service.PermissionManageMembers,
 		Summary: "The data subject requests this workspace is handling, the soonest deadline " +
 			"first - which is the order the work has to be done in. The open ones by default, " +
 			"because \"what do we still owe\" is the question; the answered and refused ones " +

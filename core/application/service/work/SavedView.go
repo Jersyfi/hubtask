@@ -577,7 +577,8 @@ func (h CreateSavedView) invoke(
 // Descriptor is the catalogue entry.
 func (h ListSavedViews) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListSavedViewsName,
+		Name:       ListSavedViewsName,
+		Permission: service.PermissionRead,
 		Summary: "The saved views the caller may see. Naming a container answers the caller's " +
 			"own views plus what is shared into that container's path - the collection's, its " +
 			"hub's and the workspace-wide ones. Naming none answers the caller's own alone.",

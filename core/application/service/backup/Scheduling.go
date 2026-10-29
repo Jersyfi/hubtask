@@ -220,7 +220,8 @@ func (s Scheduling) record(
 // Descriptor registers the schedule in all three channels.
 func (h CreateBackupSchedule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateBackupScheduleName,
+		Name:       CreateBackupScheduleName,
+		Permission: service.PermissionDeleteContainer,
 		Summary: "Writes down that a backup should happen on its own from now on: an RFC 5545 " +
 			"rule, a time zone so that its hour survives the clocks changing, and a generation " +
 			"plan for what to keep. The rule counts from the moment the schedule was created, " +

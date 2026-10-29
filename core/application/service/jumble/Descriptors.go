@@ -11,13 +11,15 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
 // Descriptor is the catalogue entry.
 func (h SubmitJumbleEntry) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SubmitJumbleEntryName,
+		Name:       SubmitJumbleEntryName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Puts something in the jumble over a near channel - a quick capture or a plain " +
 			"API call - and announces the arrival, which is what fires a JUMBLE_ENTRY automation " +
 			"rule. The far channels EMAIL and WEBHOOK belong to the intakes that authenticate " +
@@ -59,7 +61,8 @@ func (h SubmitJumbleEntry) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h ListJumbleEntries) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListJumbleEntriesName,
+		Name:       ListJumbleEntriesName,
+		Permission: service.PermissionRead,
 		Summary: "The jumble, newest first: everything that arrived and what became of it. The " +
 			"raw content is answered here - to a credential that may read the workspace's " +
 			"entries - and nowhere that travels.",
@@ -97,7 +100,8 @@ func (h ListJumbleEntries) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h GetJumbleEntry) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: GetJumbleEntryName,
+		Name:       GetJumbleEntryName,
+		Permission: service.PermissionRead,
 		Summary: "One jumble entry, whatever its state: what arrived and what became of it. The " +
 			"raw content is answered here - to a credential that may read the workspace's " +
 			"entries - and nowhere that travels.",
@@ -198,7 +202,8 @@ func (h ListJumbleEntries) invoke(
 // runs as the rule's run_as account with its real rights.
 func (h ConvertJumbleEntry) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ConvertJumbleEntryName,
+		Name:       ConvertJumbleEntryName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Turns a jumble entry into a work item at a named destination - through the " +
 			"same use case a plain create goes through, with the destination's rights checked " +
 			"there - records the provenance on both sides, settles the entry as PROCESSED and " +
@@ -244,7 +249,8 @@ func (h ConvertJumbleEntry) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry - and DISMISS_JUMBLE_ENTRY.
 func (h DismissJumbleEntry) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DismissJumbleEntryName,
+		Name:       DismissJumbleEntryName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Decides against a jumble entry. A state, not a deletion: the entry stays " +
 			"readable, and the retention engine ages it out by rule rather than by hand. Only a " +
 			"NEW entry - an entry is decided about exactly once.",

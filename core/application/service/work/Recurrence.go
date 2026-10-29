@@ -602,7 +602,8 @@ func recurrenceOutput(rule domain.RecurrenceRule) usecase.Output {
 // REST, MCP and automation at once (arc42 §4).
 func (h SetRecurrence) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SetRecurrenceName,
+		Name:       SetRecurrenceName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Puts a series on an entry, or changes the one it has - one call for both, " +
 			"because a series is one document. Only a TASK may carry one: a series applies to the " +
 			"whole subtree. The rule is RFC 5545 without a DTSTART and without an end of its own; " +
@@ -700,7 +701,8 @@ func (h SetRecurrence) invoke(
 // Descriptor is the catalogue entry.
 func (h RemoveRecurrence) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RemoveRecurrenceName,
+		Name:       RemoveRecurrenceName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Takes the series off an entry. Occurrences that were already materialised stay " +
 			"exactly where they are - they are ordinary entries the moment they exist. " +
 			"Idempotent: an entry with no series succeeds and announces nothing.",
@@ -798,7 +800,8 @@ func (h GetRecurrence) Execute(
 // Descriptor is the catalogue entry.
 func (h GetRecurrence) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: GetRecurrenceName,
+		Name:       GetRecurrenceName,
+		Permission: service.PermissionRead,
 		Summary: "Reads an entry's series, or answers that it has none. Readable by whoever may " +
 			"read the entry.",
 		SideEffects: "None. Reads only.",
@@ -998,7 +1001,8 @@ func (w RecurrenceWriter) nextUnmade(
 // Descriptor is the catalogue entry.
 func (h SkipOccurrence) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SkipOccurrenceName,
+		Name:       SkipOccurrenceName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Skips the next occurrence a series has not produced yet, leaving everything that " +
 			"already exists alone - a materialised occurrence is an ordinary entry, and skipping " +
 			"it would be deleting somebody's work. Called twice it skips two, which is what " +

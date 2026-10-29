@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
@@ -66,6 +67,7 @@ func (h ListMailReceipts) Descriptor() usecase.Descriptor {
 func (h SetCollectionHandle) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name:        SetCollectionHandleName,
+		Permission:  service.PermissionStructure,
 		Summary:     "Gives a collection another handle - the short name a mail subject, an address and its entries' ticket keys use for it.",
 		SideEffects: "Changes the handle and writes an audit entry; mail to the old handle no longer reaches the collection.",
 		TokenScope:  containersWrite,

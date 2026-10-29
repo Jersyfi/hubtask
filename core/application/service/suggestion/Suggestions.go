@@ -1272,7 +1272,8 @@ func suggestionOutput(proposal domain.Suggestion) usecase.Output {
 
 func (h ListSuggestions) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListSuggestionsName,
+		Name:       ListSuggestionsName,
+		Permission: service.PermissionRead,
 		Summary: "What AI has proposed about one entry, newest first. Nothing here has changed " +
 			"anything: a suggestion is a record carrying the model, the prompt version and the " +
 			"moment it was produced, and it becomes a change only when somebody accepts it.",

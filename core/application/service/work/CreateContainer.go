@@ -604,7 +604,8 @@ func stringOrNil(value string) any {
 // at once (arc42 §4).
 func (h CreateContainer) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateContainerName,
+		Name:       CreateContainerName,
+		Permission: service.PermissionStructure,
 		Summary: "Creates a hub or a collection. A hub is a top level workspace and takes no " +
 			"parent; a collection takes the identifier of the hub it belongs to. The name has to " +
 			"be unique among the containers at the same level.",

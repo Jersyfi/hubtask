@@ -320,7 +320,8 @@ func (h SetWorkspaceStructure) Descriptor() usecase.Descriptor {
 		string(domain.PresetProject), string(domain.PresetFlow),
 	}
 	return usecase.Descriptor{
-		Name: SetWorkspaceStructureName,
+		Name:       SetWorkspaceStructureName,
+		Permission: service.PermissionStructure,
 		Summary: "Changes the workspace's own structure: the values every hub and collection " +
 			"inherits unless it has its own (a preset copied, settings set, settings reset), the " +
 			"locks that bind every hub and collection (a setting such as views, or one capability " +

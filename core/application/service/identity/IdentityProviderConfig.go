@@ -844,7 +844,8 @@ func (h ListIdentityProviderPresets) Execute(
 
 func (h ListIdentityProviders) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListIdentityProvidersName,
+		Name:       ListIdentityProvidersName,
+		Permission: service.PermissionManageMembers,
 		Summary: "The providers people can sign in to this workspace through: the workspace's " +
 			"own and the ones its installation offers every workspace, each with its issuer, the " +
 			"mark it draws, whom it lets in, and whether it is switched on. The client secret is " +
@@ -877,6 +878,7 @@ func (h ListIdentityProviders) invoke(
 func (h ConfigureIdentityProvider) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name:        ConfigureIdentityProviderName,
+		Permission:  service.PermissionManageMembers,
 		Entitlement: entitlement.OwnSignInProviders,
 		Summary: "Adds or replaces one of the providers this workspace signs its people in " +
 			"through: the issuer, the client registration, whom the provider may bring in, and " +
@@ -1010,7 +1012,8 @@ var EnabledFieldOfAWorkspace = usecase.Field{
 
 func (h RemoveIdentityProvider) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RemoveIdentityProviderName,
+		Name:       RemoveIdentityProviderName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Removes one of the workspace's identity providers and its sealed secret. The " +
 			"accounts it provisioned keep their rows and their live sessions; what they lose is " +
 			"the way to sign in again.",
@@ -1048,7 +1051,8 @@ func (h RemoveIdentityProvider) invoke(
 
 func (h ListIdentityProviderPresets) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListIdentityProviderPresetsName,
+		Name:       ListIdentityProviderPresetsName,
+		Permission: service.PermissionManageMembers,
 		Summary: "The providers Hubtask has a preset for, and what registering with each of them " +
 			"takes: the scopes it asks for, whether it may sign in people nobody invited, the one " +
 			"thing about it that is not like the others, and this installation's own callback " +

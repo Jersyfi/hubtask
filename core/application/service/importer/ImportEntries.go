@@ -273,7 +273,8 @@ func (h ImportEntries) serves(kind domain.Kind) bool {
 // Descriptor is the catalogue entry.
 func (h ImportEntries) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ImportEntriesName,
+		Name:       ImportEntriesName,
+		Permission: domainservice.PermissionStructure,
 		Summary: "Imports entries from another system - a CSV, a Trello board, a Google Tasks " +
 			"export, a Microsoft To Do dump - as collections under a hub, or as entries in one of its " +
 			"collections, through the same path a " +

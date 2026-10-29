@@ -83,6 +83,7 @@ func (h DescribeRule) Execute(
 func (h DescribeRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name:        DescribeRuleName,
+		Permission:  service.PermissionAutomation,
 		Entitlement: entitlement.AutomationRules,
 		Summary: "Asks the workspace's AI provider to draft an automation rule from one sentence " +
 			"in the caller's own words. The draft uses only the triggers the workspace serves, " +

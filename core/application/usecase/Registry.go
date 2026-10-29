@@ -25,6 +25,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
@@ -113,6 +114,12 @@ type Descriptor struct {
 	// middleware refuses it with `module.off` where the module is off at the caller's workspace,
 	// through every door alike. Empty for every operation of the base product.
 	Module module.Key
+	// Permission is the catalogue's permission the use case asks for at the place it acts on
+	// (F-7): what *who may do what* and *view as* read (A6, A11). The handler still asks it, at
+	// the path the input names - an answer that depends on the entry or the place stays there.
+	// Empty where the use case asks none of the catalogue: a person's own, the installation's,
+	// or one decided by the entry alone.
+	Permission service.Permission
 
 	Input    []Field
 	Audit    AuditDeclaration
@@ -199,6 +206,8 @@ func check(d Descriptor) error {
 		return incomplete("entitlement " + string(d.Entitlement))
 	case d.Module != "" && !d.Module.Valid():
 		return incomplete("module " + string(d.Module))
+	case d.Permission != "" && !declarable(d.Permission):
+		return incomplete("permission " + string(d.Permission))
 	}
 
 	seen := make(map[string]bool, len(d.Input))
@@ -344,4 +353,11 @@ func isPascalCase(name string) bool {
 		}
 	}
 	return true
+}
+
+// declarable is whether a descriptor may declare the permission: one of the catalogue's
+// permissions over a place. A field or step permission names an object no descriptor knows.
+func declarable(permission service.Permission) bool {
+	_, err := service.ParsePermission(string(permission))
+	return err == nil && permission.Kind() == service.KindBase
 }

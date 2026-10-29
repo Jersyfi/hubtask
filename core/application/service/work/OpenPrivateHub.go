@@ -205,7 +205,8 @@ func (h OpenPrivateHub) entry(
 // Descriptor is the catalogue entry.
 func (h OpenPrivateHub) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: OpenPrivateHubName,
+		Name:       OpenPrivateHubName,
+		Permission: service.PermissionDeleteContainer,
 		Summary: "Opens a private hub the workspace's owner holds nothing in, for one hour, through " +
 			"the emergency access: a fresh proof and a reason the hub's members read. Every member " +
 			"is told at once, and the opening is in the workspace's trail. Not extended; a second " +

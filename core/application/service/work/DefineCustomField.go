@@ -317,7 +317,8 @@ func customFieldOutput(definition domain.CustomFieldDefinition) usecase.Output {
 // REST, MCP and automation at once (arc42 §4).
 func (h DefineCustomField) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DefineCustomFieldName,
+		Name:       DefineCustomFieldName,
+		Permission: service.PermissionStructure,
 		Summary: "Defines a custom field, for one collection or for the whole workspace. The key " +
 			"has to be free in its scope and is an identifier rather than a label - lower case, " +
 			"digits and underscores - and it never changes afterwards: it appears in a " +
@@ -514,7 +515,8 @@ func (h ListCustomFields) Execute(
 // Descriptor is the catalogue entry.
 func (h ListCustomFields) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListCustomFieldsName,
+		Name:       ListCustomFieldsName,
+		Permission: service.PermissionRead,
 		Summary: "The custom field definitions in force, by key. Naming a collection answers the " +
 			"ones that apply inside it: its own, and the workspace-wide ones above it. Naming none " +
 			"answers the workspace-wide ones alone. Deleted definitions are not in the answer - " +

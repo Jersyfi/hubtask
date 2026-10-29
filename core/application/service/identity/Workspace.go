@@ -486,7 +486,8 @@ func workspaceOutput(
 
 func (h ReadWorkspace) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReadWorkspaceName,
+		Name:       ReadWorkspaceName,
+		Permission: service.PermissionRead,
 		Summary: "The workspace the caller is in: the slug it is reached by, its display name, " +
 			"its standing, the locale and time zone every member without a preference of their " +
 			"own falls back to, and its sign-in rule - `require_admin_totp` among it, read from " +
@@ -522,7 +523,8 @@ func (h ReadWorkspace) invoke(
 
 func (h UpdateWorkspace) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateWorkspaceName,
+		Name:       UpdateWorkspaceName,
+		Permission: service.PermissionStructure,
 		Summary: "Changes how the workspace is set up: its display name, the locale and time " +
 			"zone its members fall back to, and its sign-in rule. A field the caller does not " +
 			"send does not move. The " +

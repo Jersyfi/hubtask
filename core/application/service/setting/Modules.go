@@ -259,7 +259,8 @@ func (m Modules) recordAudit(
 // Descriptor is ListModules' catalogue entry.
 func (h ListModules) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListModulesName,
+		Name:       ListModulesName,
+		Permission: service.PermissionStructure,
 		Summary: "Lists every module of the suite at the workspace, or at one hub, with whether it " +
 			"is on, which level decided it, and which level locked it.",
 		ReadOnly:   true,
@@ -292,7 +293,8 @@ func (h SetModule) Descriptor() usecase.Descriptor {
 		modules = append(modules, string(key))
 	}
 	return usecase.Descriptor{
-		Name: SetModuleName,
+		Name:       SetModuleName,
+		Permission: service.PermissionStructure,
 		Summary: "Switches one module of the suite on or off for the workspace or one hub, or " +
 			"leaves it to the level above. A hub only switches off what the workspace has on; a " +
 			"module a plan or the installation locks is refused as setting.locked.",

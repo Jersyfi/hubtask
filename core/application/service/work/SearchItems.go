@@ -327,7 +327,8 @@ func hitPath(hit repository.ItemHit) []identity.Scope {
 // Descriptor is the catalogue entry.
 func (h SearchItems) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SearchItemsName,
+		Name:       SearchItemsName,
+		Permission: service.PermissionRead,
 		Summary: "Searches the text of tasks, work packages and activities - their titles and " +
 			"their notes - and answers them in the order they match, best first. The words are " +
 			"read in a language: an entry is indexed under the language it was written in, and " +

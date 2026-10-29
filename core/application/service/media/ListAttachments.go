@@ -174,7 +174,8 @@ func pageOutput(data []usecase.Output, info workrepo.PageInfo) usecase.Output {
 // Descriptor is the catalogue entry.
 func (h ListAttachments) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListAttachmentsName,
+		Name:       ListAttachmentsName,
+		Permission: service.PermissionRead,
 		Summary: "Reads an entry's attachments as media objects, oldest upload first. Readable by " +
 			"whoever may read the entry. No download target per row - a client that wants the " +
 			"bytes of one reads it through GetMedia, which mints one capability rather than a " +

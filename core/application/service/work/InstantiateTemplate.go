@@ -528,7 +528,8 @@ func (h InstantiateTemplate) parentOf(
 // Descriptor is the catalogue entry.
 func (h InstantiateTemplate) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: InstantiateTemplateName,
+		Name:       InstantiateTemplateName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Stamps a template out into a collection: an entry tree whose relative dates " +
 			"have become absolute ones, anchored either at a date the request names or at today " +
 			"in the caller's own time zone. What the destination cannot carry is reported rather " +
