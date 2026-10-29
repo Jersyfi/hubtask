@@ -120,7 +120,9 @@ starts again, and after two such snapshots walks `:pull` instead.
 ```
 
 The kinds are `ITEM_CREATE`, `ITEM_PATCH`, `ITEM_DELETE`, `SET_ADD`, `SET_REMOVE`, `MOVE` and
-`COMMENT_ADD`; a new kind is an additive enum value. Each mutation is answered `applied`, `merged`
+`COMMENT_ADD` for an entry, and `ENTITY_UPSERT`, `ENTITY_PATCH` and `ENTITY_DELETE` for the
+workspace's vocabulary (`entity` and `entity_key` name what, §4.4); a new kind is an additive enum
+value. Each mutation is answered `applied`, `merged`
 (with the resulting object), `rejected` (with a stable code) or `conflict` (with both values, §5).
 
 * **The client assigns IDs** (UUIDv7): a repeated push is idempotent, and an item created offline has its final identity at once.
@@ -218,6 +220,29 @@ The `auto_assign` key of a collection's policies merges as one scalar, like `com
 `ROUND_ROBIN` rotation state is the server's, advanced under a row lock in the assigning transaction
 and never sent to a client; the `item.assigned` record carries the answer.
 
+
+### 4.4 Entity mutations: the vocabulary written offline
+
+An `ENTITY_*` mutation writes one entity of the replica's vocabulary through the use case a person
+would call - `entry_type` (`CreateEntryType`, `ChangeEntryType`, `DeleteEntryType`), `link_type`,
+`workflow` (`CreateWorkflow`, `SaveWorkflowDraft`, `DeleteWorkflow`), `custom_role` (`CreateRole`,
+`ChangeRole`, `DeleteRole`) and `entry_link` (`LinkEntries`, `UnlinkEntries`). Each entity declares
+one merge rule (`core/domain/model/sync`, `Entity.Rule`):
+
+* **Versioned** - types, link types, workflows, roles. A patch or upsert carrying `base_version` is
+  applied only on that version; a stale one is `rejected` with the entity's own version conflict
+  (`roles.version_conflict`, …) and the device adopts the server's copy from the next pull. There is
+  no field-wise merge: a type, a workflow or a role is read and decided as a whole. An upsert asks the
+  change first and creates on "not found"; of a held entity it leaves out what only a creation sets
+  (a type's level, a link type's direction, cardinality, cycles and waits), so the server's stands.
+* **Presence** - links. A link is drawn under the identifier the device minted (UUIDv7) or removed;
+  `ENTITY_PATCH` is refused `sync.entity_not_patchable`.
+
+Under either rule a deletion of an entity already gone is `applied`, and a deletion is not versioned:
+the use case's own guards (a type in use, a system type) decide. A workflow is written to its
+draft; publishing it moves entries and stays online, as does the scheme. Custom field definitions,
+grants of a role, the configuration document and settings are not in the replica and have no entity
+mutation; they are written online.
 ---
 
 ## 5. Conflicts are visible, not silent
