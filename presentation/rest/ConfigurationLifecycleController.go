@@ -19,7 +19,6 @@ const (
 	listBackupSchedulesUseCase   = "ListBackupSchedules"
 	updateBackupScheduleUseCase  = "UpdateBackupSchedule"
 	deleteBackupScheduleUseCase  = "DeleteBackupSchedule"
-	deleteBackupTargetUseCase    = "DeleteBackupTarget"
 	updateRetentionPolicyUseCase = "UpdateRetentionPolicy"
 	deleteRetentionPolicyUseCase = "DeleteRetentionPolicy"
 )
@@ -98,18 +97,6 @@ func (c *RestController) DeleteBackupSchedule(
 ) {
 	if _, ok := c.read(w, r, deleteBackupScheduleUseCase, usecase.Input{
 		"schedule_id": scheduleID.String(),
-	}); !ok {
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
-// DeleteBackupTarget answers DELETE /backup-targets/{targetId}.
-func (c *RestController) DeleteBackupTarget(
-	w http.ResponseWriter, r *http.Request, targetID openapi_types.UUID,
-) {
-	if _, ok := c.read(w, r, deleteBackupTargetUseCase, usecase.Input{
-		"target_id": targetID.String(),
 	}); !ok {
 		return
 	}

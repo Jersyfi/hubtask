@@ -22,12 +22,10 @@ const (
 	listIdentityProvidersUseCase          = "ListIdentityProviders"
 	countAccountsWithoutProviderUseCase   = "CountAccountsWithoutProvider"
 	configureIdentityProviderUseCase      = "ConfigureIdentityProvider"
-	removeIdentityProviderUseCase         = "RemoveIdentityProvider"
 	listIdentityProviderPresetsUseCase    = "ListIdentityProviderPresets"
 
 	listInstanceIdentityProvidersUseCase     = "ListInstanceIdentityProviders"
 	configureInstanceIdentityProviderUseCase = "ConfigureInstanceIdentityProvider"
-	removeInstanceIdentityProviderUseCase    = "RemoveInstanceIdentityProvider"
 
 	withdrawInstanceIdentityProviderUseCase         = "WithdrawInstanceIdentityProvider"
 	cancelInstanceIdentityProviderWithdrawalUseCase = "CancelInstanceIdentityProviderWithdrawal"
@@ -208,42 +206,6 @@ func (c *RestController) writeProvider(
 		return
 	}
 	writeJSON(w, r, created, identityProviderResponse(out))
-}
-
-// RemoveIdentityProvider answers DELETE /identity-providers/{providerId}.
-func (c *RestController) RemoveIdentityProvider(
-	w http.ResponseWriter, r *http.Request, providerID openapi.ProviderId,
-	params openapi.RemoveIdentityProviderParams,
-) {
-	c.removeProvider(w, r, removeIdentityProviderUseCase, providerID, params.XHubtaskStepUp)
-}
-
-// RemoveInstanceIdentityProvider answers DELETE /admin/identity-providers/{providerId}.
-func (c *RestController) RemoveInstanceIdentityProvider(
-	w http.ResponseWriter, r *http.Request, providerID openapi.ProviderId,
-	params openapi.RemoveInstanceIdentityProviderParams,
-) {
-	c.removeProvider(w, r, removeInstanceIdentityProviderUseCase, providerID, params.XHubtaskStepUp)
-}
-
-func (c *RestController) removeProvider(
-	w http.ResponseWriter, r *http.Request, useCase string, providerID openapi.ProviderId,
-	stepUp *openapi.StepUpToken,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	if _, err := c.UseCases.Invoke(r.Context(), useCase, actorOf(r), usecase.Input{
-		"id":            providerID.String(),
-		"step_up_token": stepUpHeaderField(stepUp),
-	}); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 // WithdrawInstanceIdentityProvider answers POST /admin/identity-providers/{providerId}:withdraw.

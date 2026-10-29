@@ -2553,6 +2553,8 @@ paths:
     get:
       tags: [backup]
       operationId: listBackupTargets
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: backupTargetResponse
       summary: List the backup targets
       responses:
         "200":
@@ -2592,6 +2594,7 @@ paths:
     delete:
       tags: [backup]
       operationId: deleteBackupTarget
+      x-hubtask-rest: generated
       summary: Remove a backup target from the workspace's configuration
       description: >
         Removes the target and its sealed credential. **Nothing at the target is touched.**
@@ -2613,6 +2616,8 @@ paths:
     post:
       tags: [backup]
       operationId: testBackupTarget
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: backupProbeResponse
       summary: Test the connection to the target
       description: A write/read/delete probe. Runs through the GuardedClient (SSRF protection).
       parameters:
@@ -5638,6 +5643,8 @@ paths:
     get:
       tags: [admin]
       operationId: listInstanceBackupTargets
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: backupTargetResponse
       summary: The installation's own backup targets
       description: >
         Targets that belong to no workspace: where the operator writes a workspace's export when
@@ -5685,6 +5692,7 @@ paths:
     delete:
       tags: [admin]
       operationId: deleteInstanceBackupTarget
+      x-hubtask-rest: generated
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
       summary: Remove a backup target of the installation
@@ -5703,6 +5711,8 @@ paths:
     post:
       tags: [admin]
       operationId: testInstanceBackupTarget
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: backupProbeResponse
       summary: Test the connection to a target of the installation
       description: A write/read/delete probe, through the GuardedClient as every target's.
       responses:
@@ -6600,6 +6610,8 @@ paths:
     delete:
       tags: [admin]
       operationId: removeInstanceIdentityProvider
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: { providerId: id }
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
       summary: Remove a provider whose offer has ended
@@ -7390,6 +7402,8 @@ paths:
     delete:
       tags: [auth]
       operationId: removeIdentityProvider
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: { providerId: id }
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
       summary: Remove one of the workspace's identity providers

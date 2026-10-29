@@ -3434,6 +3434,8 @@
           "backup"
         ],
         "operationId": "listBackupTargets",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "backupTargetResponse",
         "summary": "List the backup targets",
         "responses": {
           "200": {
@@ -3508,6 +3510,7 @@
           "backup"
         ],
         "operationId": "deleteBackupTarget",
+        "x-hubtask-rest": "generated",
         "summary": "Remove a backup target from the workspace's configuration",
         "description": "Removes the target and its sealed credential. **Nothing at the target is touched.** The rule that Hubtask never deletes a file it did not write applies at least as strongly to the files it did write: the archives stay where they are, and an operator who wants them gone removes them at the target.\nA target a schedule still names is refused with `409` and the schedules named in the problem document. Deleting one silently would disarm a backup that runs every night, and the disarming would be discovered by whoever needed the archive.\nDeleting one that is not there is not an error. Auditable.\n",
         "responses": {
@@ -3526,6 +3529,8 @@
           "backup"
         ],
         "operationId": "testBackupTarget",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "backupProbeResponse",
         "summary": "Test the connection to the target",
         "description": "A write/read/delete probe. Runs through the GuardedClient (SSRF protection).",
         "parameters": [
@@ -7099,6 +7104,8 @@
           "admin"
         ],
         "operationId": "listInstanceBackupTargets",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "backupTargetResponse",
         "summary": "The installation's own backup targets",
         "description": "Targets that belong to no workspace: where the operator writes a workspace's export when the workspace has no target of its own, as in provider operation with tenant targets off. No workspace lists, names or uses one. Behind `admin:tenants` **and** the operator register, both. The credential is not among the fields.\n",
         "responses": {
@@ -7176,6 +7183,7 @@
           "admin"
         ],
         "operationId": "deleteInstanceBackupTarget",
+        "x-hubtask-rest": "generated",
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"
@@ -7210,6 +7218,8 @@
           "admin"
         ],
         "operationId": "testInstanceBackupTarget",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "backupProbeResponse",
         "summary": "Test the connection to a target of the installation",
         "description": "A write/read/delete probe, through the GuardedClient as every target's.",
         "responses": {
@@ -8479,6 +8489,10 @@
           "admin"
         ],
         "operationId": "removeInstanceIdentityProvider",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "providerId": "id"
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"
@@ -9361,6 +9375,10 @@
           "auth"
         ],
         "operationId": "removeIdentityProvider",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "providerId": "id"
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"

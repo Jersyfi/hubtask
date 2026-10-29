@@ -6,8 +6,6 @@ package rest
 import (
 	"net/http"
 
-	openapi_types "github.com/oapi-codegen/runtime/types"
-
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -15,26 +13,7 @@ import (
 
 const (
 	createBackupTargetUseCase = "CreateBackupTarget"
-	listBackupTargetsUseCase  = "ListBackupTargets"
-	testBackupTargetUseCase   = "TestBackupTarget"
 )
-
-// ListBackupTargets answers GET /backup-targets.
-//
-// An array rather than a page: a tenant has a handful of targets, and the 3-2-1 rule the document
-// recommends tops out at three. A cursor over three rows would be ceremony.
-func (c *RestController) ListBackupTargets(w http.ResponseWriter, r *http.Request) {
-	out, ok := c.read(w, r, listBackupTargetsUseCase, usecase.Input{})
-	if !ok {
-		return
-	}
-
-	targets := []openapi.BackupTarget{}
-	for _, row := range rowsOf(out) {
-		targets = append(targets, backupTargetResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, targets)
-}
 
 // CreateBackupTarget answers POST /backup-targets.
 func (c *RestController) CreateBackupTarget(w http.ResponseWriter, r *http.Request) {
@@ -57,22 +36,6 @@ func (c *RestController) CreateBackupTarget(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	writeJSON(w, r, http.StatusCreated, backupTargetResponse(out))
-}
-
-// TestBackupTarget answers POST /backup-targets/{targetId}:test.
-//
-// 200 with a result even when the target could not be reached: "it does not work and here is the
-// code" is what the caller asked to find out, and a 502 would say this server failed instead.
-func (c *RestController) TestBackupTarget(
-	w http.ResponseWriter, r *http.Request, targetID openapi_types.UUID,
-) {
-	out, ok := c.read(w, r, testBackupTargetUseCase, usecase.Input{
-		"target_id": targetID.String(),
-	})
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, backupProbeResponse(out))
 }
 
 // backupTargetInput is a target's body as the catalogue reads it - for a workspace's target and
