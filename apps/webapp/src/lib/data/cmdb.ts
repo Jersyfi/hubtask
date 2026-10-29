@@ -373,3 +373,21 @@ export const ciReferenceText = (ciId: string, strength: 'MENTION' | 'CARD' = 'ME
   `${strength === 'CARD' ? '!' : ''}[](hubtask:ci/${ciId})`;
 
 export const backlinksPath = (ciId: string) => `/cis/${ciId}/backlinks`;
+
+/**
+ * The CIs a writer is offered for a mention: not merged away, their names containing every word
+ * typed, whatever the case, those whose name starts with the words first; all of them, by name,
+ * while nothing is typed.
+ */
+export function matchingCis(cis: readonly ConfigurationItem[], term: string, limit: number): ConfigurationItem[] {
+  const words = term.toLocaleLowerCase().split(/\s+/u).filter(Boolean);
+  const wanted = term.trim().toLocaleLowerCase();
+  return cis
+    .filter((ci) => !ci.merged_into && words.every((word) => ci.name.toLocaleLowerCase().includes(word)))
+    .sort((a, b) => {
+      const x = a.name.toLocaleLowerCase().startsWith(wanted) ? 0 : 1;
+      const y = b.name.toLocaleLowerCase().startsWith(wanted) ? 0 : 1;
+      return x - y || a.name.localeCompare(b.name);
+    })
+    .slice(0, limit);
+}

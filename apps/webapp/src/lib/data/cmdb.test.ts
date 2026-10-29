@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import type { CiAttribute, CiClass, CiRelationType, ConfigurationItem } from '@hubtask/sync-engine';
 
 import {
-  changedAttributes, ciReferenceText, cisPath, classDefine, classDraft, keyIsWellFormed, classWord, fileColumns, fileFormat, guessMapping, impactByDepth, instantiable, inventoryByClass,
+  changedAttributes, ciReferenceText, cisPath, classDefine, matchingCis, classDraft, keyIsWellFormed, classWord, fileColumns, fileFormat, guessMapping, impactByDepth, instantiable, inventoryByClass,
   missingRequired, outcomeTone, parseAttribute, percent, protectionRows, refinements, relationRows, relationWord, sectionOf,
   sideBySide, typeAllows,
 } from './cmdb.ts';
@@ -185,4 +185,14 @@ test('a CI is pointed at by an address the server keeps as a reference (UC-AST-0
   const id = '0192f000-0000-7000-8000-0000000007b1';
   assert.equal(ciReferenceText(id), `[](hubtask:ci/${id})`);
   assert.deepEqual(referencesIn(`runs on ${ciReferenceText(id, 'CARD')}`), [{ reference: { kind: 'CI', id }, strength: 'CARD' }]);
+});
+
+// A CI is offered while writing by its name (UC-AST-01 check 11): every word typed, whatever the
+// case, the names that start with it first, never a CI merged away.
+test('the CIs offered for a mention match every word and leave the merged out', () => {
+  const ci = (id: string, name: string, merged?: string) => ({ id, name, merged_into: merged ?? null }) as unknown as ConfigurationItem;
+  const held = [ci('1', 'Web server two'), ci('2', 'Booking web'), ci('3', 'web old', '1'), ci('4', 'Mail')];
+  assert.deepEqual(matchingCis(held, 'WEB', 8).map((each) => each.id), ['1', '2']);
+  assert.deepEqual(matchingCis(held, 'web booking', 8).map((each) => each.id), ['2']);
+  assert.deepEqual(matchingCis(held, '', 2).map((each) => each.id), ['2', '4']);
 });
