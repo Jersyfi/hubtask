@@ -2454,7 +2454,7 @@ func run() error {
 			Set: work.SetWorkspaceStructure{
 				Structure: structures, Authorizer: authorizer, UnitOfWork: unitOfWork, Text: forms,
 			},
-			Shapes: items,
+			Shapes: items, Reader: authorizer,
 		}.Descriptor(),
 		work.SavePreset{Desk: presetDesk}.Descriptor(),
 		work.ChangePreset{Desk: presetDesk}.Descriptor(),

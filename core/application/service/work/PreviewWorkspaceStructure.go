@@ -29,6 +29,9 @@ const WorkspaceStructurePreviewedAction audit.Action = "workspace.structure_prev
 type PreviewWorkspaceStructure struct {
 	Set    SetWorkspaceStructure
 	Shapes repository.EntryShapes
+	// Reader keeps a hub or collection the actor does not read - a private hub above all
+	// (ADR-0073) - out of the named containers; the counts name nothing.
+	Reader Reader
 }
 
 // Execute decides the change and counts what it would hide, in a read-only transaction.
@@ -45,7 +48,7 @@ func (h PreviewWorkspaceStructure) Execute(
 	}); err != nil {
 		return StructurePreview{}, err
 	}
-	if !h.Set.Structure.Wired() || h.Shapes == nil {
+	if !h.Set.Structure.Wired() || h.Shapes == nil || h.Reader == nil {
 		return StructurePreview{}, shared.ErrInternal.WithDetail("containers.structure_unwired")
 	}
 	var preview StructurePreview
@@ -54,7 +57,39 @@ func (h PreviewWorkspaceStructure) Execute(
 		preview = counted
 		return err
 	})
+	if err != nil {
+		return StructurePreview{}, err
+	}
+	preview.Keeping, err = h.readable(ctx, actor, preview.Keeping)
 	return preview, err
+}
+
+// readable leaves out the kept containers the actor does not read, each judged at its own path.
+func (h PreviewWorkspaceStructure) readable(
+	ctx context.Context, actor appshared.ActorContext, kept []KeptOwnValue,
+) ([]KeptOwnValue, error) {
+	if len(kept) == 0 {
+		return kept, nil
+	}
+	paths := make([][]identity.Scope, 0, len(kept))
+	for _, k := range kept {
+		paths = append(paths, containerPath(k.Container))
+	}
+	allowed, err := h.Reader.Permitted(ctx, actor, access.Request{
+		Permission: service.PermissionRead,
+		Action:     WorkspaceStructurePreviewedAction,
+		TargetType: containerTarget,
+	}, paths)
+	if err != nil {
+		return nil, err
+	}
+	visible := make([]KeptOwnValue, 0, len(kept))
+	for i, k := range kept {
+		if i < len(allowed) && allowed[i] {
+			visible = append(visible, k)
+		}
+	}
+	return visible, nil
 }
 
 func (h PreviewWorkspaceStructure) count(

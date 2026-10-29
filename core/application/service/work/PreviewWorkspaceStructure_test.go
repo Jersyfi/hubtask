@@ -18,6 +18,11 @@ import (
 // The summer party's hub follows the workspace; Hardware keeps its own views.
 func newWorkspacePreviewHarness(t *testing.T) (*structureHarness, *usecase.Registry) {
 	t.Helper()
+	return newWorkspacePreviewHarnessReading(t, &reader{})
+}
+
+func newWorkspacePreviewHarnessReading(t *testing.T, sees *reader) (*structureHarness, *usecase.Registry) {
+	t.Helper()
 	h, _ := newPreviewHarness(t)
 	hub := h.containers.stored[hubID]
 	hub.Structure = domain.StructureLayer{}
@@ -31,6 +36,7 @@ func newWorkspacePreviewHarness(t *testing.T) (*structureHarness, *usecase.Regis
 			Audit: h.audit, UnitOfWork: h.uow, Clock: clock.Fixed(now), HLC: &hlcSource{},
 		},
 		Shapes: summerPartyShapes(),
+		Reader: sees,
 	}
 	registry, err := usecase.NewRegistry(nil, preview.Descriptor())
 	if err != nil {
@@ -71,6 +77,21 @@ func TestAPreviewOfTheWorkspaceCountsEveryCollectionThatFollowsIt(t *testing.T) 
 	}
 	if len(h.audit.entries) != 0 || len(h.changes.recorded) != 0 {
 		t.Errorf("the preview wrote: audit %d, changes %d", len(h.audit.entries), len(h.changes.recorded))
+	}
+}
+
+// A collection the actor does not read - one in somebody's private hub - is not named as keeping
+// its own value: the preview answers counts, and a name would be the private hub's content.
+func TestAPreviewOfTheWorkspaceNamesNoContainerTheActorDoesNotRead(t *testing.T) {
+	_, registry := newWorkspacePreviewHarnessReading(t, &reader{permit: map[shared.ID]bool{}})
+
+	out, err := registry.Invoke(context.Background(), PreviewWorkspaceStructureName, actor(),
+		usecase.Input{"preset": "LIST"})
+	if err != nil {
+		t.Fatalf("the preview failed: %v", err)
+	}
+	if keeping, _ := out["keeping"].([]any); len(keeping) != 0 {
+		t.Errorf("keeping = %v, want no container the actor does not read", out["keeping"])
 	}
 }
 
