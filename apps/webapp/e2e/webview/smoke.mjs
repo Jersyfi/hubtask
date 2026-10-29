@@ -120,9 +120,11 @@ async function serverUp() {
   appDsn.username = 'hubtask_app';
   appDsn.password = appPassword;
   const data = join(out, 'server-data');
-  const server = start('server', options.server, [], {
+  const env = {
     HUBTASK_ROLES: 'api',
     HUBTASK_DB_DSN: appDsn.href,
+    // A runner's PostgreSQL can be slow to admit the first connection just after the migration.
+    HUBTASK_DB_CONNECT_TIMEOUT: '30s',
     // Every loopback address: `localhost` is ::1 first on some systems and 127.0.0.1 on others.
     HUBTASK_HTTP_ADDR: `:${HTTP}`,
     HUBTASK_OPS_ADDR: `127.0.0.1:${OPS}`,
@@ -133,11 +135,21 @@ async function serverUp() {
     HUBTASK_BACKUP_LOCAL_PATH: join(data, 'backups'),
     // docs/evidence/README.md, "How to walk": a cold page is a burst of requests.
     HUBTASK_RATE_LIMIT_BURST: '600',
-  });
-  await until('the server to be ready', async () => {
-    if (server.child.exitCode !== null) throw new Error(`the server ended with ${server.child.exitCode}`);
-    return (await fetch(`http://127.0.0.1:${OPS}/readyz`, { signal: AbortSignal.timeout(5_000) })).ok;
-  }, 120_000).catch((error) => { throw new Error(`${error.message}\nthe server said:\n${server.log().slice(-3000)}`); });
+  };
+  // A server that cannot reach its database ends at once (ADR-0015) and its supervisor starts it
+  // again; the walk is that supervisor, three times at most.
+  let server;
+  for (let attempt = 1; ; attempt++) {
+    server = start(`server-${attempt}`, options.server, [], env);
+    const ready = await until('the server to be ready', async () => server.child.exitCode !== null
+      ? 'ended'
+      : (await fetch(`http://127.0.0.1:${OPS}/readyz`, { signal: AbortSignal.timeout(5_000) })).ok, 120_000)
+      .catch((error) => { throw new Error(`${error.message}\nthe server said:\n${server.log().slice(-3000)}`); });
+    if (ready !== 'ended') break;
+    console.log(`the server ended with ${server.child.exitCode}:\n${server.log().slice(-1500)}`);
+    if (attempt === 3) throw new Error('the server did not start three times');
+    await new Promise((resolve) => setTimeout(resolve, 5_000));
+  }
   const code = await until('the setup code', () => server.log().match(/\b[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}\b/u)?.[0]);
   const setUp = await json('POST', '/auth/installation:set-up', {
     body: { code, display_name: WORKSPACE, owner_email: OWNER.email, password: OWNER.password },
