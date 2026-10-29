@@ -306,7 +306,7 @@ import ContainerView from './views/ContainerView.svelte';
   {:else if route.name === 'presets'}
     <PresetsView />
   {:else if route.name === 'people'}
-    <PeopleView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
+    <PeopleView tab={route.query['tab']} person={route.query['person']} onnavigate={(path) => router.replace(path)} />
   {:else if route.name === 'machines'}
     <MachinesView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
   {:else if route.name === 'rules'}

@@ -63,15 +63,19 @@
   import { sorting } from '../lib/sorting.svelte.ts';
   import GroupsView from './GroupsView.svelte';
   import PermissionsView from './PermissionsView.svelte';
+  import RolesView from './RolesView.svelte';
+  import { holdsHere } from '../lib/data/capability.svelte.ts';
 
   interface Props {
     /** The tab the address names (`?tab=`); the people where it names none or an unknown one. */
     tab?: string;
+    /** The person *view as* chose (`?person=`), for the permissions tab. */
+    person?: string;
     /** Replaces the address when the tab changes, so a reload or a link keeps it. */
     onnavigate?: (path: string) => void;
   }
 
-  let { tab, onnavigate }: Props = $props();
+  let { tab, person, onnavigate }: Props = $props();
 
   // The groups and what each role means are tabs here (ux-inventory §E8): both answer "who may do
   // what in this workspace", and a reader comparing a group's reach with a role's meaning should
@@ -79,9 +83,13 @@
   const TABS = [
     { id: 'people', code: 'app.people.tab_people' },
     { id: 'groups', code: 'app.groups.title' },
+    { id: 'roles', code: 'app.people.tab_roles' },
     { id: 'permissions', code: 'app.people.tab_permissions' },
   ] as const;
   const current = $derived(TABS.some((each) => each.id === tab) ? (tab as string) : 'people');
+
+  /** Whether the reader may ask what somebody else holds: what `GET /access/explain` asks. */
+  const mayViewAs = $derived(holdsHere('MANAGE_MEMBERS') === true || holdsHere('READ_CONFIGURATION') === true);
 
   function select(next: string): void {
     onnavigate?.(next === 'people' ? '/administration/people' : `/administration/people?tab=${next}`);
@@ -487,8 +495,10 @@
   >
     {#if current === 'groups'}
       <GroupsView />
+    {:else if current === 'roles'}
+      <RolesView />
     {:else if current === 'permissions'}
-      <PermissionsView />
+      <PermissionsView {person} />
     {:else}
     <Stack gap="300">
     <p class="quiet">{t('app.people.intro')}</p>
@@ -660,6 +670,13 @@
             </td>
             <td>
               <div class="actions">
+                {#if holder.accountId && mayViewAs}
+                  <!-- View as (A6): the administration's answer for this person - their roles at a
+                       place, what they may do, and whether and why for a chosen permission. -->
+                  <Button size="sm" tone="subtle" onclick={() => onnavigate?.(`/administration/people?tab=permissions&person=${holder.accountId}`)}>
+                    {t('app.people.view_as')}
+                  </Button>
+                {/if}
                 {#if statusOf(holder.accountId) === 'INVITED' && (way === 'mail' || mayWayIn(holder))}
                   <!-- An invitation not yet accepted can be given a new way to arrive: a link lost
                        or run out would otherwise leave the address taken for good. A link is a way
