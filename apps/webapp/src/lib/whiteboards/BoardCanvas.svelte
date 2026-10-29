@@ -40,7 +40,7 @@
   import { items } from '../data/items.svelte.ts';
   import { resolveRequest } from '../data/links.svelte.ts';
   import {
-    BOARD_COLOURS, boardFileName, cardEntries, clockOf, notesInFrame, peerColour, pictureColours, voterKey, whiteboards,
+    BOARD_COLOURS, boardFileName, cardEntries, clockOf, entryOfNote, notesInFrame, peerColour, pictureColours, voterKey, whiteboards,
   } from '../data/whiteboards.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
@@ -581,13 +581,10 @@
     let made = 0;
     let lastTitle = '';
     for (const note of notes) {
-      const title = (note.text ?? '').trim();
-      if (!title) continue;
+      const body = entryOfNote(collectionId, note.text ?? '', kind);
+      if (!body) continue;
       try {
-        const entry = await items.create(
-          { type: 'TASK', collection_id: collectionId, title, ...(kind && !kind.system ? { entry_type: kind.key } : {}) } as never,
-          crypto.randomUUID(),
-        );
+        const entry = await items.create(body as never, crypto.randomUUID());
         model.toCard(note.id, entry.id);
         made += 1;
         lastTitle = entry.title;

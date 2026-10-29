@@ -397,7 +397,7 @@ func TestABoardGoesToTheTrashAndComesBack(t *testing.T) {
 	}
 }
 
-// UC-CNV-01 check 1: a freehand stroke, a web link and a group are read back as drawn.
+// UC-CNV-01 check 8: a freehand stroke, a web link and a group are read back as drawn.
 func TestAStrokeALinkAndAGroupAreReadBack(t *testing.T) {
 	s, _, _ := studio(gate{})
 	out, err := CreateWhiteboard{Studio: s}.Descriptor().Handler.Invoke(context.Background(), actor(anna), usecase.Input{

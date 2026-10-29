@@ -134,7 +134,7 @@ test('the timer everyone sees runs, pauses and resumes by each device\'s clock (
   assert.equal(session.remaining(0), undefined);
 });
 
-test('the board exports as a PDF of one page holding its picture (UC-CNV-03 check 4)', () => {
+test('the board exports as a PDF of one page holding its picture (UC-CNV-03 check 5)', () => {
   const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
   const pdf = pdfOfJpeg(jpeg, 800, 600, 'Retro – März');
   const text = new TextDecoder('latin1').decode(pdf);

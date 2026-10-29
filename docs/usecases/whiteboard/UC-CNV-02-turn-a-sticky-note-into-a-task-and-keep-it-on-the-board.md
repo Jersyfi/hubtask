@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18, P-19]
 state: built
 tasks: []
-checked_by: [packages/whiteboard/test/scene.test.ts, core/application/service/work/LinksWhiteboard_test.go, test/integration/whiteboard_repository_test.go, core/domain/model/whiteboard/Scene_test.go]
+checked_by: [packages/whiteboard/test/scene.test.ts, apps/webapp/src/lib/data/whiteboards.test.ts, core/application/service/work/LinksWhiteboard_test.go, test/integration/whiteboard_repository_test.go, core/domain/model/whiteboard/Scene_test.go]
 ---
 
 # Turn a sticky note into a task and keep it on the board
@@ -27,8 +27,11 @@ At the end of the retro, Anna turns the note "Book the room earlier" into a task
 3. A card shows its entry's key, title and completion as the reader may see the entry, and an entry the reader may not see as not available; ticking a card completes or reopens the entry, and a refusal is shown in words.
 4. An entry's links name the boards drawing it as a card or linking to it (`whiteboard_backlinks`), each only where the reader may read the board's hub; a board in the trash names none.
 5. A reference to a board (`hubtask:whiteboard/<id>`, `#<frame>` for one frame) resolves to its title and number of objects for a reader of its hub, and to its address alone for anybody else.
+6. Turning a note, the writer chooses the entry type among those the collection offers at the task level (where the workflows module is on); the entry is created of that type, held to its form.
+7. A frame's sticky notes with words are turned into entries at once, each becoming its entry's card in its place; a refusal stops the turning and is shown in words.
 
 ## Where it ends
 
-* One note at a time, made a `TASK`; no turning a frame of notes into entries at once, and no other type chosen on the board.
+* A note becomes an entry of the task level; a level above or below is not offered on the board.
+* A column's notes are not mapped to statuses when they are turned.
 * A connector between two cards is a line on the board, not a dependency between the entries.

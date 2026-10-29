@@ -731,7 +731,9 @@ one moment and brings them back together.
 A hub holds `Board`s (at most 1,000 outside the trash), judged at the hub as its pages are: READ to
 read, WRITE_ITEMS to draw. A board's `Scene` is its objects in drawing order, at most 5,000:
 `STICKY` notes, `SHAPE`s (rectangle, rounded, ellipse, diamond, parallelogram, triangle - the basic
-and the flowchart set), `TEXT`, `CONNECTOR`s, `FRAME`s and `CARD`s. Each object has an identifier
+and the flowchart set), `TEXT`, `CONNECTOR`s, `FRAME`s, `CARD`s, freehand `STROKE`s (pen or highlighter, at most 1,000
+points relative to the stroke's box) and web `LINK`s (an http or https address drawn as its card,
+never loaded). Any object may carry a `group`, chosen, moved and copied with the others of it. Each object has an identifier
 unique on the board and shaped as a reference's anchor, so `hubtask:whiteboard/<id>#<frame>` names
 a frame. A connector is attached to the objects at its ends (`from`, `to`) and follows them; an end
 attached to nothing is a point. A colour is a label token's name, never a value (rule 15). A card
@@ -744,6 +746,14 @@ through the ordinary creation of an entry, held to the type's form, and is then 
 entry's card. Export writes the native document (`hubtask.whiteboard`, version 1) that making a
 board reads back; pictures are drawn by the client, which holds the colours. Trash keeps a board
 whole and brings it back; nothing removes one but its hub's or its workspace's deletion.
+
+A board's history is `Version`s (`whiteboard_version`): every save of the scene or the title leaves
+one, folded into the last within a drawing session (`SessionGap`, ten minutes, whoever saved - a
+board is drawn by several people at once) unless that one is named. Bringing a version back is the
+client's write of its objects into the live document; the save that follows is a version of its
+own (P-03). A voting session and a timer live in the live document beside the objects
+(`facilitation`, `votes`), never in the scene: an anonymous vote keeps each person's votes under a
+key their device minted.
 
 ## 4. Domain events
 

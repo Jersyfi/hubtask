@@ -75,6 +75,18 @@ export function voterKey(anonymous: boolean, accountId: string, minted: () => st
   return anonymous ? kept ?? minted() : accountId;
 }
 
+/**
+ * What a sticky note made an entry is created with (UC-CNV-02): a task of the collection chosen,
+ * the note's words its title, and the entry type chosen where it is not the level's own.
+ */
+export function entryOfNote(collectionId: string, words: string, kind?: { key: string; system: boolean }): {
+  type: 'TASK'; collection_id: string; title: string; entry_type?: string;
+} | undefined {
+  const title = words.trim();
+  if (!title) return undefined;
+  return { type: 'TASK', collection_id: collectionId, title, ...(kind && !kind.system ? { entry_type: kind.key } : {}) };
+}
+
 /** A timer's time left as minutes and seconds. */
 export function clockOf(ms: number): string {
   const seconds = Math.ceil(Math.max(0, ms) / 1000);

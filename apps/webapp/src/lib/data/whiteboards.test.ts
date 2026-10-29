@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { boardFileName, cardEntries, clockOf, liveBoardPath, notesInFrame, peerColour, pictureColours, readNative, voterKey } from './whiteboards.ts';
+import { boardFileName, cardEntries, clockOf, entryOfNote, liveBoardPath, notesInFrame, peerColour, pictureColours, readNative, voterKey } from './whiteboards.ts';
 
 test('a board lives at its own live document', () => {
   assert.equal(liveBoardPath('b1'), '/realtime/documents/whiteboard/b1');
@@ -31,7 +31,7 @@ test('the entries a board draws are asked for once each', () => {
   assert.deepEqual(cardEntries([card('a', 'e1'), card('b', 'e1'), card('c', 'e2')]), ['e1', 'e2']);
 });
 
-test('a frame made entries turns the sticky notes with words inside it (UC-CNV-02 check 4)', () => {
+test('a frame made entries turns the sticky notes with words inside it (UC-CNV-02 check 7)', () => {
   const frame = { id: 'f', kind: 'FRAME' as const, x: 0, y: 0, width: 500, height: 500 };
   const note = (id: string, x: number, text: string) => ({ id, kind: 'STICKY' as const, x, y: 10, width: 100, height: 100, text });
   const shape = { id: 's', kind: 'SHAPE' as const, x: 10, y: 10, width: 50, height: 50, text: 'not a note' };
@@ -49,4 +49,10 @@ test('a timer reads as minutes and seconds, and a cursor colour is the same on e
   assert.equal(clockOf(61_001), '1:02');
   assert.equal(clockOf(-1), '0:00');
   assert.equal(peerColour(12), peerColour(12));
+});
+
+test('a sticky note becomes an entry of the type chosen, its words the title (UC-CNV-02 check 6)', () => {
+  assert.deepEqual(entryOfNote('c1', '  Book the room ', { key: 'bug', system: false }), { type: 'TASK', collection_id: 'c1', title: 'Book the room', entry_type: 'bug' });
+  assert.deepEqual(entryOfNote('c1', 'Book', { key: 'task', system: true }), { type: 'TASK', collection_id: 'c1', title: 'Book' });
+  assert.equal(entryOfNote('c1', '   '), undefined, 'a note without words is not turned');
 });
