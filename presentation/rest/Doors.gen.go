@@ -82,6 +82,7 @@ var restDoors = map[string]restDoor{
 	"renameContainer":        {UseCase: "RenameContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
 	"reopenWorkItem":         {UseCase: "ReopenWorkItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reorderBucket":          {UseCase: "ReorderBucket", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"reorderWorkItem":        {UseCase: "ReorderWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"resolveReferences":      {UseCase: "ResolveReferences", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"restoreContainer":       {UseCase: "RestoreContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"restoreLabel":           {UseCase: "RestoreLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -517,6 +518,12 @@ func (c *RestController) ReopenWorkItem(w http.ResponseWriter, r *http.Request, 
 func (c *RestController) ReorderBucket(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId, bucketId openapi.BucketId, params openapi.ReorderBucketParams) {
 	var body openapi.ReorderBucketJSONRequestBody
 	c.door(w, r, restDoors["reorderBucket"], usecase.Input{"bucket_id": bucketId.String()}, params, &body, answerBy(bucketResponse))
+}
+
+// ReorderWorkItem answers POST /items/{itemId}:reorder by the generated mapping.
+func (c *RestController) ReorderWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.ReorderWorkItemParams) {
+	var body openapi.ReorderWorkItemJSONRequestBody
+	c.door(w, r, restDoors["reorderWorkItem"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(workItemResponse))
 }
 
 // ResolveReferences answers POST /references:resolve by the generated mapping.

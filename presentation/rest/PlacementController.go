@@ -18,10 +18,7 @@ import (
 // the subtree rewrite all happen in the application and domain layers, once, whichever channel the call came
 // through (ADR-0005, arc42 §4).
 
-const (
-	moveWorkItemUseCase    = "MoveWorkItem"
-	reorderWorkItemUseCase = "ReorderWorkItem"
-)
+const moveWorkItemUseCase = "MoveWorkItem"
 
 // MoveWorkItem answers POST /items/{itemId}:move.
 func (c *RestController) MoveWorkItem(
@@ -77,45 +74,6 @@ func (c *RestController) MoveWorkItem(
 	item, result := moveResultResponse(out)
 	w.Header().Set("ETag", etag(item.Version))
 	writeJSON(w, r, http.StatusOK, result)
-}
-
-// ReorderWorkItem answers POST /items/{itemId}:reorder.
-func (c *RestController) ReorderWorkItem(
-	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId, _ openapi.ReorderWorkItemParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	in := usecase.Input{"item_id": itemID.String()}
-
-	// The body is optional: no body at all means "move it to the end", which is a position like any other.
-	if r.ContentLength > 0 {
-		var body openapi.ReorderWorkItemJSONBody
-		if err := decodeJSON(r, &body); err != nil {
-			WriteProblem(w, err, requestID)
-			return
-		}
-		if body.BeforeItemId != nil {
-			in["before_item_id"] = body.BeforeItemId.String()
-		}
-	}
-	if version, ok := versionFromIfMatch(ifMatchOf(r)); ok {
-		in["expected_version"] = version
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), reorderWorkItemUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	item := workItemResponse(out)
-	w.Header().Set("ETag", etag(out.Int("version")))
-	writeJSON(w, r, http.StatusOK, item)
 }
 
 // moveResultResponse maps the catalogue's answer onto the contract's MoveResult.
