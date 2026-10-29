@@ -5,9 +5,9 @@ context: knowledge
 actors: [PE-member, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-17, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/application/service/knowledge/Pages_test.go]
+checked_by: [core/application/service/knowledge/Pages_test.go, apps/webapp/src/lib/data/pages.test.ts]
 ---
 
 # Start a page from a template
@@ -30,7 +30,3 @@ The team marks its "Weekly meeting" page as a template. Every Monday somebody st
 ## Where it ends
 
 * No space templates that create several pages at once in this release.
-
-## Today
-
-* Check 4: not met - the shipped templates are the web app's words and come with its part.

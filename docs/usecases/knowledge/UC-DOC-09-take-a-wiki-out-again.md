@@ -5,9 +5,9 @@ context: knowledge
 actors: [PE-member, PE-owner, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-08]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/knowledge/Page_test.go, core/application/archive/Record_test.go]
+checked_by: [core/domain/model/knowledge/Page_test.go, core/application/archive/Record_test.go, core/domain/model/knowledge/Render_test.go, apps/webapp/src/lib/data/pages.test.ts]
 ---
 
 # Take a wiki out again
@@ -31,7 +31,3 @@ The handbook moves to a printed binder: the editor exports "Handbook" with every
 
 * Bringing a wiki in from elsewhere is S-23 (D-10).
 * PDF export is the browser's print of a page.
-
-## Today
-
-* Check 4: not met - only Markdown today; HTML and DOCX follow in a later S-14 part.

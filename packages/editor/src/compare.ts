@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * Two versions of a page side by side (UC-DOC-04): their bodies compared line by line, the longest
+ * Two versions of a page side by side (UC-DOC-06): their bodies compared line by line, the longest
  * common run kept and the rest marked as taken out or put in. Over Markdown lines, because the
  * version history keeps bodies, not live documents.
  */

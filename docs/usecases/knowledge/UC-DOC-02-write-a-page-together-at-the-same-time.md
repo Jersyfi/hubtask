@@ -5,9 +5,9 @@ context: knowledge
 actors: [PE-member, PE-person]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-05, P-19]
-state: partial
+state: built
 tasks: []
-checked_by: [core/application/service/knowledge/Pages_test.go]
+checked_by: [core/application/service/knowledge/Pages_test.go, packages/editor/test/live.test.ts, packages/editor/test/markdown.test.ts]
 ---
 
 # Write a page together at the same time
@@ -30,9 +30,3 @@ Three people take notes in the retro page during the meeting. Each sees the othe
 ## Where it ends
 
 * No suggestion mode (tracked changes) - the following release.
-
-## Today
-
-* Check 2: not met - no browser client of live documents yet (S-14, web app part).
-* Check 3: not met - as check 2.
-* Check 4: not met - the editor saving the body beside the live document comes with the web app part.

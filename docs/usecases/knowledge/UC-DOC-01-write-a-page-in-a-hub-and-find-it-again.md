@@ -5,9 +5,9 @@ context: knowledge
 actors: [PE-member, PE-person, PE-admin, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-08, P-19]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/knowledge/Page_test.go, core/application/service/knowledge/Pages_test.go, test/integration/page_repository_test.go]
+checked_by: [core/domain/model/knowledge/Page_test.go, core/application/service/knowledge/Pages_test.go, test/integration/page_repository_test.go, apps/webapp/src/lib/data/pages.test.ts]
 ---
 
 # Write a page in a hub and find it again
@@ -35,7 +35,3 @@ The web team writes "How we release" in its hub and puts "Checklist" and "Rollba
 * A page is not an entry: no level, completion, status or assignee.
 * No public website and no publishing for the portal here - the service desk's knowledge base comes with M5.
 * No import from other wikis here (S-23).
-
-## Today
-
-* Check 6: not met - the web app has no *Pages* screen yet (S-14, web app part).

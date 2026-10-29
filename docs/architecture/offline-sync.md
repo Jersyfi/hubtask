@@ -417,6 +417,13 @@ it, order it and decide who may touch it.
   change stream's caps.
 * **Awareness** - a cursor, a selection, a name - is relayed to the document's other connections in
   the same process and never stored.
+* **The browser client** is `packages/editor`: a Yjs document per page bound to the block editor,
+  its connection in this framing (a reader sends no update; a writer answers `101` with a `100`)
+  and a reconnect with a doubling wait up to thirty seconds. The socket comes from the sync engine
+  (`liveSocket`), which adds the bearer as the subprotocol. A writer's editor starts once the
+  server's state has arrived and seeds an empty document from the page's Markdown body; the
+  editor saves that body beside the document a moment after the typing stops. A reader is not
+  connected and reads the body as last saved.
 * **Retention and erasure.** A snapshot marks the updates it covers and the snapshot it replaces;
   `DOCUMENT_HISTORY` removes them after thirty days ([data-retention.md](./data-retention.md) §3),
   held by a workspace hold. The document itself - the newest snapshot and the updates after it - is

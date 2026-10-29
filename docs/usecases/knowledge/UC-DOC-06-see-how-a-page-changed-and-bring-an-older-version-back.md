@@ -5,9 +5,9 @@ context: knowledge
 actors: [PE-member, PE-auditor]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/knowledge/Page_test.go, core/application/service/knowledge/Pages_test.go, test/integration/page_repository_test.go]
+checked_by: [core/domain/model/knowledge/Page_test.go, core/application/service/knowledge/Pages_test.go, test/integration/page_repository_test.go, packages/editor/test/markdown.test.ts]
 ---
 
 # See how a page changed and bring an older version back
@@ -31,7 +31,3 @@ Somebody rewrote the travel policy last week. Anna opens its history, compares T
 
 * No diff computed by the server: the client compares two versions.
 * No retention rule for page history in this release.
-
-## Today
-
-* Check 3: not met - the web app's comparison screen comes with its part.

@@ -5,9 +5,9 @@ context: knowledge
 actors: [PE-member, PE-planner, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18, P-19]
-state: partial
+state: built
 tasks: []
-checked_by: [core/application/service/knowledge/Pages_test.go, test/integration/page_repository_test.go, core/application/service/work/Links_test.go]
+checked_by: [core/application/service/knowledge/Pages_test.go, test/integration/page_repository_test.go, core/application/service/work/Links_test.go, packages/editor/test/markdown.test.ts]
 ---
 
 # Link pages and entries and see what links here
@@ -30,7 +30,3 @@ The release page mentions the ticket "SUP-128" and embeds the sprint board. The 
 ## Where it ends
 
 * A link between two pages is a reference in the text, not a typed link: typed links stay between entries.
-
-## Today
-
-* Check 4: not met - an entry's backlinks read entries' notes and comments only; pages join them in a later S-14 part.

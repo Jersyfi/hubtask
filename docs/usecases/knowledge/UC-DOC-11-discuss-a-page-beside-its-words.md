@@ -33,4 +33,4 @@ Bert marks "the budget" in the plan and asks why it is so high. Anna answers in 
 
 ## Today
 
-* Check 4: not met - the web app's comment margin comes with its part.
+* Check 4: not met - the web app comments at the block the caret stands in, quoting that block's words, and draws the thread in the margin beside the page with the quote leading back to the block; a comment on exactly the words selected, and a thread drawn level with its passage, are not built.
