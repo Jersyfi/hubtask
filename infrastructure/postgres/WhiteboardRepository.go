@@ -53,6 +53,7 @@ type sceneElement struct {
 	Pen        string       `json:"pen,omitempty"`
 	URL        string       `json:"url,omitempty"`
 	Group      string       `json:"group,omitempty"`
+	MediaID    string       `json:"media_id,omitempty"`
 }
 
 type sceneTarget struct {
@@ -68,6 +69,7 @@ func EncodeScene(scene whiteboard.Scene) ([]byte, error) {
 			ID: e.ID, Kind: string(e.Kind), X: e.X, Y: e.Y, Width: e.Width, Height: e.Height, Text: e.Text,
 			ColorToken: string(e.Colour), Shape: string(e.Shape), From: e.From, To: e.To, Route: string(e.Route),
 			Start: string(e.Start), End: string(e.End), Locked: e.Locked, Pen: string(e.Pen), URL: e.URL, Group: e.Group,
+			MediaID: e.Media.String(),
 		}
 		for _, point := range e.Points {
 			out[i].Points = append(out[i].Points, point.X, point.Y)
@@ -91,7 +93,7 @@ func DecodeScene(raw []byte) (whiteboard.Scene, error) {
 			ID: e.ID, Kind: whiteboard.Kind(e.Kind), X: e.X, Y: e.Y, Width: e.Width, Height: e.Height, Text: e.Text,
 			Colour: shared.LabelToken(e.ColorToken), Shape: whiteboard.Shape(e.Shape), From: e.From, To: e.To,
 			Route: whiteboard.Route(e.Route), Start: whiteboard.Head(e.Start), End: whiteboard.Head(e.End), Locked: e.Locked,
-			Pen: whiteboard.Pen(e.Pen), URL: e.URL, Group: e.Group,
+			Pen: whiteboard.Pen(e.Pen), URL: e.URL, Group: e.Group, Media: shared.ID(e.MediaID),
 		}
 		for j := 0; j+1 < len(e.Points); j += 2 {
 			scene.Elements[i].Points = append(scene.Elements[i].Points, whiteboard.Point{X: e.Points[j], Y: e.Points[j+1]})
@@ -457,4 +459,41 @@ func boardVersionFrom(boardID shared.ID, row sqlc.FindWhiteboardVersionRow) (whi
 		BoardID: boardID, Seq: int(row.Seq), Title: row.Title, Scene: scene, AuthorID: author, Name: row.Name,
 		CreatedAt: timeFrom(row.CreatedAt),
 	}, nil
+}
+
+// AttachMedia places a media object on a board; placing it twice is once.
+func (WhiteboardRepository) AttachMedia(ctx context.Context, boardID, mediaID shared.ID) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	board, err := uuidOf(boardID)
+	if err != nil {
+		return err
+	}
+	object, err := uuidOf(mediaID)
+	if err != nil {
+		return err
+	}
+	if err := queries.AttachWhiteboardMedia(ctx, sqlc.AttachWhiteboardMediaParams{WhiteboardID: board, MediaID: object}); err != nil {
+		return boardFailed("placing a file", err)
+	}
+	return nil
+}
+
+// CountMedia answers how many media objects a board holds.
+func (WhiteboardRepository) CountMedia(ctx context.Context, boardID shared.ID) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	board, err := uuidOf(boardID)
+	if err != nil {
+		return 0, err
+	}
+	count, err := queries.CountWhiteboardMedia(ctx, board)
+	if err != nil {
+		return 0, boardFailed("counting the files", err)
+	}
+	return int(count), nil
 }

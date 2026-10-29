@@ -56,9 +56,13 @@ const (
 	// KindLink is a web address drawn as its card; the board never loads the page (no frame of a
 	// foreign origin, security.md §9).
 	KindLink Kind = "LINK"
+	// KindImage draws an uploaded picture, KindFile an uploaded file as its card; both name a
+	// media object the board holds, read by whoever may read the board (UC-CNV-08).
+	KindImage Kind = "IMAGE"
+	KindFile  Kind = "FILE"
 )
 
-var kinds = []Kind{KindSticky, KindShape, KindText, KindConnector, KindFrame, KindCard, KindStroke, KindLink}
+var kinds = []Kind{KindSticky, KindShape, KindText, KindConnector, KindFrame, KindCard, KindStroke, KindLink, KindImage, KindFile}
 
 // Kinds are every kind of object.
 func Kinds() []string { return names(kinds) }
@@ -154,6 +158,8 @@ type Element struct {
 	URL string
 	// Group names the group an object belongs to: chosen, moved and copied together.
 	Group string
+	// Media is the uploaded object an image or a file draws.
+	Media shared.ID
 }
 
 // Equal reports whether two objects are the same.
@@ -178,9 +184,10 @@ func (e Element) comparable() any {
 		Target                         reference.Reference
 		Locked                         bool
 		Pen                            Pen
+		Media                          shared.ID
 	}
 	return flat{e.ID, e.Text, e.From, e.To, e.URL, e.Group, e.Kind, e.X, e.Y, e.Width, e.Height, e.Colour, e.Shape,
-		e.Route, e.Start, e.End, e.Target, e.Locked, e.Pen}
+		e.Route, e.Start, e.End, e.Target, e.Locked, e.Pen, e.Media}
 }
 
 // Scene is the board's objects in drawing order, the last on top.
@@ -266,6 +273,17 @@ func (s Scene) References(self shared.ID) []reference.Found {
 		}
 	}
 	return found
+}
+
+// Media are the uploaded objects the board's images and files draw, in drawing order, each once.
+func (s Scene) Media() []shared.ID {
+	var out []shared.ID
+	for _, element := range s.Elements {
+		if (element.Kind == KindImage || element.Kind == KindFile) && !slices.Contains(out, element.Media) {
+			out = append(out, element.Media)
+		}
+	}
+	return out
 }
 
 // Cards are the identifiers of the entries the board draws as cards, in drawing order.
@@ -410,6 +428,13 @@ func checkElement(e Element, kindOf map[string]Kind, path string, form text.Norm
 		}
 	} else {
 		e.URL = ""
+	}
+	if e.Kind == KindImage || e.Kind == KindFile {
+		if e.Media.IsZero() {
+			return Element{}, invalid(path+"/media_id", "whiteboards.media_missing")
+		}
+	} else {
+		e.Media = ""
 	}
 	if e.Kind == KindCard {
 		if e.Target.Kind != reference.KindEntry {

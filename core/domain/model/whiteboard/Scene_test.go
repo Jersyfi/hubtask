@@ -222,3 +222,27 @@ func TestBoardChanged(t *testing.T) {
 		t.Fatalf("an empty title: %v", err)
 	}
 }
+
+// UC-CNV-08 check 1: an image and a file name the uploaded object they draw; another kind keeps
+// none, and the board answers each object once.
+func TestImagesAndFilesNameTheirMedia(t *testing.T) {
+	const picture = shared.ID("0190a000-0000-7000-8000-000000000003")
+	scene, err := whiteboard.CheckScene(whiteboard.Scene{Elements: []whiteboard.Element{
+		{ID: "i", Kind: whiteboard.KindImage, Width: 320, Height: 200, Media: picture},
+		{ID: "f", Kind: whiteboard.KindFile, Width: 240, Height: 80, Media: picture, Text: "Plan"},
+		{ID: "a", Kind: whiteboard.KindSticky, Media: picture},
+	}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if scene.Elements[2].Media != "" {
+		t.Fatalf("a sticky note kept a media object: %+v", scene.Elements[2])
+	}
+	if got := scene.Media(); len(got) != 1 || got[0] != picture {
+		t.Fatalf("media %v", got)
+	}
+	_, err = whiteboard.CheckScene(whiteboard.Scene{Elements: []whiteboard.Element{{ID: "i", Kind: whiteboard.KindImage}}}, nil)
+	if detail(err) != "whiteboards.media_missing" {
+		t.Fatalf("an image without its object: %v", err)
+	}
+}
