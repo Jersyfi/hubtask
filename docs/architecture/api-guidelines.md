@@ -55,6 +55,9 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
   says `step_up` (it changes the sign-in rule) is applied with `X-Hubtask-Step-Up`. Every refusal
   of a plan is a message code with the key path (`types.incident.level`), never prose. The same use
   cases are MCP tools by the registry's names (`plan_config`, `apply_config`, …) and `hubctl config`.
+  A hub's own document is the same doors with `hub_id` (a query parameter on the reads, a body
+  field on the actions); the sandbox is `/config/sandbox` (`GET` with its promotion's plan, `POST`
+  to change, `reset` or `discard` it), promoted by `:plan` and `:apply` with `from_sandbox`.
 * `/mcp` (streamable HTTP, [ai-first.md](./ai-first.md)) and `/caldav/` (WebDAV, §7) are outside the
   OpenAPI document.
 

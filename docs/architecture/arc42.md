@@ -378,7 +378,9 @@ A workspace's configuration is one document of sections by stable key, read and 
 through the use cases each section declares, so a plan applied by `hubctl`, an agent or the
 *Changes* screen is held to what the settings screens are held to; every apply is a version, an
 agent's plan waits for a person by default, and templates are versioned documents taken with
-provenance and upgraded three ways (domain-model.md, "The configuration document"; F-6).
+provenance and upgraded three ways; a hub has its own document by the same doors, and a sandbox
+lets an agent change a copy freely, promoted with a plan (domain-model.md, "The configuration
+document"; F-6).
 
 ### 8.2 Persistence
 PostgreSQL is the only mandatory component ([ADR-0003](../adr/ADR-0003-postgresql-as-single-datastore.md)):

@@ -362,6 +362,24 @@ the workspace's and a person's own by identifier (`installation_<id>`, `preset_<
 the preset's version); a workspace template may not take one of those keys
 (`config.template_key_shipped`). The four tables are in the workspace
 archive (tenant-export.md §6).
+A plan also says what it **reaches** beyond the configuration, in counts: the entries a workflow's
+new shape moves (its publish preview, `PreviewWorkflowPublish`, given the shape the plan sets - a
+status entries are in that the shape removes is refused at the plan, as the publish would refuse
+the apply), the entries a hub's scheme change moves (`PreviewWorkflowScheme`), and for a changed
+role the people and groups that hold it and the permissions gained and lost.
+**A hub's own document** is read and written with `hub_id`: the sections `modules` (its switches),
+`structure` (the settings the hub decides itself, through `SetContainerStructure`) and `scheme`
+(which workflow it runs per entry type, `every_type` for the row without one), authorised as
+`STRUCTURE` at the hub. The hub is named by the request and never inside the document, so one hub's
+document applies to another unchanged; its versions are the workspace's numbering with `hub_id`
+set (migration 0223), listed in the hub's history only, and a version restores only its own scope
+(`config.version_other_scope`). **The sandbox** (`config_sandbox`, migration 0224, one per
+workspace) is a copy of the document without content and the copy it started from:
+`WriteConfigSandbox` changes it by a document - nothing runs, so the plan scope is enough - held to
+the refusals its promotion would meet; promoting is a plan and apply with `from_sandbox`, which asks
+only what the sandbox changed since its copy, as `MERGE`, so a change made in force meanwhile is
+kept, and an agent's promotion follows `config.agent_apply` like any apply. The archive leaves the
+sandbox out (a scratch copy; what its promotion wrote is a version).
 
 **Modules** (UC-INS-21, package `core/domain/model/module`) are catalogue entries `module.<name>`
 of kind `FLAG`, off by default: the installation and a plan lock one on or off, the workspace
