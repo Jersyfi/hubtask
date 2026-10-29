@@ -797,6 +797,63 @@ type Comment struct {
 	SystemParams    []byte
 }
 
+type ConfigProposal struct {
+	ID                 pgtype.UUID
+	TenantID           pgtype.UUID
+	State              string
+	Document           []byte
+	Mode               string
+	BaseHash           string
+	PlanHash           string
+	Template           *string
+	Added              int32
+	Changed            int32
+	Removed            int32
+	HidesData          bool
+	ChangesPermissions bool
+	ProposedBy         pgtype.UUID
+	DecidedBy          pgtype.UUID
+	CreatedAt          pgtype.Timestamptz
+	DecidedAt          pgtype.Timestamptz
+}
+
+type ConfigRevision struct {
+	TenantID     pgtype.UUID
+	Version      int32
+	Document     []byte
+	Hash         string
+	PlanHash     string
+	ActorKind    string
+	ActorID      pgtype.UUID
+	ProposedBy   pgtype.UUID
+	RolledBackTo *int32
+	Template     *string
+	Added        int32
+	Changed      int32
+	Removed      int32
+	CreatedAt    pgtype.Timestamptz
+}
+
+type ConfigTemplate struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	Key       string
+	Version   int32
+	Name      string
+	Origin    string
+	Document  []byte
+	CreatedBy pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+type ConfigTemplateUse struct {
+	TenantID    pgtype.UUID
+	TemplateKey string
+	Version     int32
+	Document    []byte
+	AppliedAt   pgtype.Timestamptz
+}
+
 type ConsentRecord struct {
 	ID        pgtype.UUID
 	TenantID  pgtype.UUID

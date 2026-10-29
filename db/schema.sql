@@ -320,6 +320,72 @@ CREATE INDEX custom_role_grant_role_idx ON custom_role_grant (tenant_id, role_id
 GRANT SELECT, INSERT, UPDATE, DELETE ON custom_role TO hubtask_app;
 GRANT SELECT, INSERT, DELETE ON custom_role_grant TO hubtask_app;
 
+-- The configuration document's versions, agents' plans waiting for a person, and templates
+-- (migration 0221, F-6, D-16, D-17). Configuration and counts only, never content (rule 10).
+CREATE TABLE config_revision (
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  version        integer NOT NULL CHECK (version > 0),
+  document       jsonb NOT NULL,
+  hash           text NOT NULL,
+  plan_hash      text NOT NULL,
+  actor_kind     text NOT NULL,
+  actor_id       uuid,
+  proposed_by    uuid,
+  rolled_back_to integer,
+  template       text,
+  added          integer NOT NULL DEFAULT 0,
+  changed        integer NOT NULL DEFAULT 0,
+  removed        integer NOT NULL DEFAULT 0,
+  created_at     timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, version)
+);
+CREATE TABLE config_proposal (
+  id                  uuid PRIMARY KEY,
+  tenant_id           uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  state               text NOT NULL CHECK (state IN ('WAITING', 'APPLIED', 'DECLINED')),
+  document            jsonb NOT NULL,
+  mode                text NOT NULL CHECK (mode IN ('MERGE', 'REPLACE')),
+  base_hash           text NOT NULL,
+  plan_hash           text NOT NULL,
+  template            text,
+  added               integer NOT NULL DEFAULT 0,
+  changed             integer NOT NULL DEFAULT 0,
+  removed             integer NOT NULL DEFAULT 0,
+  hides_data          boolean NOT NULL DEFAULT false,
+  changes_permissions boolean NOT NULL DEFAULT false,
+  proposed_by         uuid,
+  decided_by          uuid,
+  created_at          timestamptz NOT NULL,
+  decided_at          timestamptz,
+  UNIQUE (tenant_id, id)
+);
+CREATE INDEX config_proposal_waiting_idx ON config_proposal (tenant_id, created_at DESC) WHERE state = 'WAITING';
+CREATE TABLE config_template (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key        text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,62}$'),
+  version    integer NOT NULL CHECK (version > 0),
+  name       text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  origin     text NOT NULL CHECK (origin IN ('WORKSPACE', 'OWN')),
+  document   jsonb NOT NULL,
+  created_by uuid,
+  created_at timestamptz NOT NULL,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT config_template_version_uq UNIQUE (tenant_id, key, version)
+);
+CREATE TABLE config_template_use (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  template_key text NOT NULL,
+  version      integer NOT NULL,
+  document     jsonb NOT NULL,
+  applied_at   timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, template_key)
+);
+GRANT SELECT, INSERT ON config_revision TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE ON config_proposal TO hubtask_app;
+GRANT SELECT, INSERT ON config_template TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE ON config_template_use TO hubtask_app;
+
 CREATE TABLE access_token (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -3060,7 +3126,8 @@ BEGIN
     'legal_hold','tombstone','sync_device','sync_op_log','set_element','field_clock',
     'import_run','quota_reached','entry_type','entry_field_value',
     'link_type','entry_link','entry_reference','workflow','workflow_scheme',
-    'custom_role','custom_role_grant'
+    'custom_role','custom_role_grant',
+    'config_revision','config_proposal','config_template','config_template_use'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
