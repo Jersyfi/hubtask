@@ -120,7 +120,7 @@ One endpoint serves list, board, and timeline: `POST /api/v1/items:query`.
 | Nesting | Maximum depth 5, maximum 50 nodes |
 | Cost | An estimate over the parsed tree, capped at 50: a plain comparison costs 1, a prefix 2, a text scan (`CONTAINS`/`MATCHES`) 5, a list 1 plus one per twenty values, a `NOT` doubles its subtree. Past the cap → `422 query.filter_too_expensive` naming the estimate and the ceiling, refused before it runs ([multi-tenancy.md](./multi-tenancy.md) §4) |
 | Fields | Only the fields `/meta/capabilities` lists under `query_fields`. An unknown field, or one no use case writes yet, is refused by name as `422 query.field_unknown` |
-| Custom fields | `custom_fields.<key>` is recognised by its shape, the key bound as a parameter, and not listed in `query_fields`; `/custom-fields` says which keys exist, and a client offers those defined for the collection on screen. A key nothing defines matches nothing. The equalities, `IN`, `CONTAINS` and `IS_NULL` read the document; `LT`, `LTE`, `GT`, `GTE`, `BETWEEN`, a sort and a grouping read the typed value (numbers, amounts and durations as numbers, dates as days `YYYY-MM-DD`, text by its first 256 characters). The use case reads the kinds of the definitions under the key in the query's scope first: a range over people, references or formatted text, a sort by a set, a person, a reference or formatted text, a grouping by a set or formatted text, and any of these over a key whose kinds disagree in the scope are refused (`query.operator_unsupported`, `query.field_not_sortable`, `query.field_not_groupable`) |
+| Custom fields | `custom_fields.<key>` is recognised by its shape, the key bound as a parameter, and not listed in `query_fields`; `/custom-fields` says which keys exist, and a client offers those defined for the collection on screen. A key nothing defines matches nothing. The equalities, `IN`, `CONTAINS`, `IS_NULL`, `CONTAINS_ANY` and `CONTAINS_ALL` (a field holding several values: any or every element) and `STARTS_WITH` (a field holding one text, case-insensitive) read the document; `LT`, `LTE`, `GT`, `GTE`, `BETWEEN`, a sort and a grouping read the typed value (numbers, amounts and durations as numbers, dates as days `YYYY-MM-DD`, text by its first 256 characters). The use case reads the kinds of the definitions under the key in the query's scope first: a range over people, references or formatted text, a sort by a set, a person, a reference or formatted text, a grouping by a set or formatted text, `CONTAINS_ANY` or `CONTAINS_ALL` over a field holding one value, `STARTS_WITH` over anything but one text, and any of these over a key whose kinds disagree in the scope are refused (`query.operator_unsupported`, `query.field_not_sortable`, `query.field_not_groupable`) |
 | Entry type | `entry_type` is the key of the entry's type, its level's system key (`task`, `work_package`, `activity`) when it has none of its own; `EQ`, `NEQ`, `IN`, `NOT_IN` and a grouping, no sort. `/entry-types` says which keys exist |
 | Blocked | `blocked` is whether an open entry holds the entry up - over a link whose type waits - the source of a `blocks` link to it, the target of a `depends_on` link from it, or the other end of a workspace's own type as its `waits` says; `EQ` and `NEQ` with a boolean, no sort or grouping, cost 2 |
 | Blocking | `blocking` is the other direction: whether the entry holds up an open one over a link whose type waits; `EQ` and `NEQ` with a boolean, no sort or grouping, cost 2 |
@@ -137,10 +137,18 @@ needs no backend change.
 
 `POST /items:aggregate` takes the same scope and filter, with the same limits, cost estimate and
 permission, and an `aggregate` instead of a sort, page or grouping: `function` (`COUNT`, `SUM`,
-`AVG`, `MIN`, `MAX`), `field` (a `custom_fields.<key>` holding a number, money or a duration;
-refused for `COUNT`, `query.field_not_aggregatable` for anything else), `group_by` (a field a query
-may group by) and `bucket` (`field`, a timestamp or a custom date, and `period`: `day`, `week`,
-`month`, cut in the actor's time zone, a week starting on Monday). It answers at most 5000 rows of
+`AVG`, `MIN`, `MAX`), `field` (a `custom_fields.<key>` holding a number, money or a duration, or a
+built-in quantity in whole minutes - `lead_time`, `created_at` to `completed_at`, and
+`scheduled_span`, `start_at` to `due_at`, none where a stamp is missing; refused for `COUNT`,
+`query.field_not_aggregatable` for anything else), `group_by` (a field a query may group by) and
+`bucket` (`field`, a timestamp or a custom date, `period`: `day`, `week`, `month`, cut in the
+actor's time zone, and for a week `week_start`: `monday`, the default, or `sunday`). Its scope may
+instead be `workspace: true`: the use case asks a read of every live collection at its own path, at
+most 2000 (`query.workspace_too_large`), and binds the readable ones as one array, so the
+narrowing is inside the statement; an entry shared with the actor alone counts only where its
+collection is readable. A saved view may store `aggregate` (and then `scope_workspace: true`
+instead of an anchor); `POST /views/{viewId}:aggregate` runs it under the caller's authorisation,
+and a view without one is refused (`views.aggregate_missing`). It answers at most 5000 rows of
 `group`, `period`, `count` and `value` (a decimal string, so money keeps its digits), in the
 group's order and then the period's, and `truncated`. A field hidden from the reader is refused as
 in a filter. The function and the period are closed vocabulary like the operators; the time zone
