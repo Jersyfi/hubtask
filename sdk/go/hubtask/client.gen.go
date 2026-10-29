@@ -2895,6 +2895,24 @@ func (e ItemAggregateQueryAggregateBucketPeriod) Valid() bool {
 	}
 }
 
+// Defines values for ItemAggregateQueryAggregateBucketWeekStart.
+const (
+	Monday ItemAggregateQueryAggregateBucketWeekStart = "monday"
+	Sunday ItemAggregateQueryAggregateBucketWeekStart = "sunday"
+)
+
+// Valid indicates whether the value is a known member of the ItemAggregateQueryAggregateBucketWeekStart enum.
+func (e ItemAggregateQueryAggregateBucketWeekStart) Valid() bool {
+	switch e {
+	case Monday:
+		return true
+	case Sunday:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ItemAggregateQueryAggregateFunction.
 const (
 	ItemAggregateQueryAggregateFunctionAVG   ItemAggregateQueryAggregateFunction = "AVG"
@@ -10359,9 +10377,12 @@ type ItemAggregateQuery struct {
 			// Field A timestamp field, or `custom_fields.<key>` of a date.
 			Field  string                                  `json:"field"`
 			Period ItemAggregateQueryAggregateBucketPeriod `json:"period"`
+
+			// WeekStart The first day of a `week`; `monday` when omitted, refused for another period.
+			WeekStart *ItemAggregateQueryAggregateBucketWeekStart `json:"week_start,omitempty"`
 		} `json:"bucket,omitempty"`
 
-		// Field The measure, `custom_fields.<key>` of a number, money or a duration; required for every function but `COUNT`, refused for `COUNT`.
+		// Field The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none. Required for every function but `COUNT`, refused for `COUNT`.
 		Field    *string                             `json:"field,omitempty"`
 		Function ItemAggregateQueryAggregateFunction `json:"function"`
 
@@ -10379,16 +10400,20 @@ type ItemAggregateQuery struct {
 	IncludeArchived *bool       `json:"include_archived,omitempty"`
 	IncludeTrashed  *bool       `json:"include_trashed,omitempty"`
 
-	// Scope Where to look, exactly as `POST /items:query` takes it.
+	// Scope Where to look, exactly as `POST /items:query` takes it - or `workspace`, instead of either identifier, for every collection the caller may read (at most 2000). An entry shared with the caller alone counts only where its collection is readable.
 	Scope struct {
 		ContainerId        *openapi_types.UUID `json:"container_id,omitempty"`
 		IncludeDescendants *bool               `json:"include_descendants,omitempty"`
 		ItemId             *openapi_types.UUID `json:"item_id,omitempty"`
+		Workspace          *bool               `json:"workspace,omitempty"`
 	} `json:"scope"`
 }
 
 // ItemAggregateQueryAggregateBucketPeriod defines model for ItemAggregateQuery.Aggregate.Bucket.Period.
 type ItemAggregateQueryAggregateBucketPeriod string
+
+// ItemAggregateQueryAggregateBucketWeekStart The first day of a `week`; `monday` when omitted, refused for another period.
+type ItemAggregateQueryAggregateBucketWeekStart string
 
 // ItemAggregateQueryAggregateFunction defines model for ItemAggregateQuery.Aggregate.Function.
 type ItemAggregateQueryAggregateFunction string
@@ -13387,6 +13412,8 @@ type SavedView struct {
 	// Query The query a view asks, in the shape the use case takes rather than the shape `POST /items:query` takes as a body: the anchor is flat - `scope_container_id` or `scope_item_id` - because the server flattens the request body's `scope` object before any use case sees it, and this document is read back as an input.
 	//
 	// It carries an anchor, because `POST /views/{viewId}:export` executes it. A view that stored only the question - a filter and an order, so that it could be asked anywhere - is a view nobody can export.
+	//
+	// A summary view also stores `aggregate`, as `POST /items:aggregate` takes it, and may then name `scope_workspace: true` instead of an anchor; `POST /views/{viewId}:aggregate` runs it.
 	Query map[string]interface{} `json:"query"`
 
 	// ScopeId The container the scope names, the owner's account for ACCOUNT, and null for TENANT.
@@ -22000,11 +22027,12 @@ type ClientInterface interface {
 	// AggregateItemsWithBody A summary of what a query keeps
 	//
 	// How many entries the query's scope and filter keep, and the sum, average, least or greatest
-	// of a custom field holding a number, money or a duration - optionally per value of a field a
-	// query may group by, and per day, week or month of a timestamp, cut in the caller's time
-	// zone (a week starts on Monday). The permission is the query's: checked against the scope
-	// once. At most 5000 rows, in the group's order and then the period's; `truncated` says a
-	// longer answer was cut.
+	// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
+	// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
+	// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
+	// `week_start` says Sunday). The permission is the query's: checked against the scope once;
+	// a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
+	// group's order and then the period's; `truncated` says a longer answer was cut.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -22014,11 +22042,12 @@ type ClientInterface interface {
 	// AggregateItems A summary of what a query keeps
 	//
 	// How many entries the query's scope and filter keep, and the sum, average, least or greatest
-	// of a custom field holding a number, money or a duration - optionally per value of a field a
-	// query may group by, and per day, week or month of a timestamp, cut in the caller's time
-	// zone (a week starts on Monday). The permission is the query's: checked against the scope
-	// once. At most 5000 rows, in the group's order and then the period's; `truncated` says a
-	// longer answer was cut.
+	// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
+	// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
+	// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
+	// `week_start` says Sunday). The permission is the query's: checked against the scope once;
+	// a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
+	// group's order and then the period's; `truncated` says a longer answer was cut.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -23841,6 +23870,13 @@ type ClientInterface interface {
 	//
 	// Changes a view's own fields. A field that is not sent is left alone. The scope and the sharing are not among them: where a view lives is decided when it is created, and sharing is :share - one decision with its own permission, not a field of an edit.
 	UpdateSavedViewWithApplicationMergePatchPlusJSONBody(ctx context.Context, viewId ViewId, params *UpdateSavedViewParams, body UpdateSavedViewApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AggregateView The summary a saved view stores
+	//
+	// Runs the view's stored scope, filter and `aggregate` as `POST /items:aggregate` would, under the caller's own authorisation - two readers of one shared view may see two different numbers. A view that stores no `aggregate` is refused; one the caller cannot read answers not found.
+	//
+	// Corresponds with POST /views/{viewId}:aggregate (the `AggregateView` operationId).
+	AggregateView(ctx context.Context, viewId ViewId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ExportViewWithBody performs a POST /views/{viewId}:export (the `ExportView` operationId) request,
 	// with any type of body and a specified content type.
@@ -32812,11 +32848,12 @@ func (c *Client) UnassignWorkItem(ctx context.Context, itemId ItemId, params *Un
 // AggregateItemsWithBody A summary of what a query keeps
 //
 // How many entries the query's scope and filter keep, and the sum, average, least or greatest
-// of a custom field holding a number, money or a duration - optionally per value of a field a
-// query may group by, and per day, week or month of a timestamp, cut in the caller's time
-// zone (a week starts on Monday). The permission is the query's: checked against the scope
-// once. At most 5000 rows, in the group's order and then the period's; `truncated` says a
-// longer answer was cut.
+// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
+// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
+// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
+// `week_start` says Sunday). The permission is the query's: checked against the scope once;
+// a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
+// group's order and then the period's; `truncated` says a longer answer was cut.
 //
 // Takes any type of body and a specified content type.
 //
@@ -32836,11 +32873,12 @@ func (c *Client) AggregateItemsWithBody(ctx context.Context, contentType string,
 // AggregateItems A summary of what a query keeps
 //
 // How many entries the query's scope and filter keep, and the sum, average, least or greatest
-// of a custom field holding a number, money or a duration - optionally per value of a field a
-// query may group by, and per day, week or month of a timestamp, cut in the caller's time
-// zone (a week starts on Monday). The permission is the query's: checked against the scope
-// once. At most 5000 rows, in the group's order and then the period's; `truncated` says a
-// longer answer was cut.
+// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
+// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
+// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
+// `week_start` says Sunday). The permission is the query's: checked against the scope once;
+// a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
+// group's order and then the period's; `truncated` says a longer answer was cut.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -36394,6 +36432,23 @@ func (c *Client) UpdateSavedViewWithBody(ctx context.Context, viewId ViewId, par
 // Changes a view's own fields. A field that is not sent is left alone. The scope and the sharing are not among them: where a view lives is decided when it is created, and sharing is :share - one decision with its own permission, not a field of an edit.
 func (c *Client) UpdateSavedViewWithApplicationMergePatchPlusJSONBody(ctx context.Context, viewId ViewId, params *UpdateSavedViewParams, body UpdateSavedViewApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateSavedViewRequestWithApplicationMergePatchPlusJSONBody(c.Server, viewId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AggregateView The summary a saved view stores
+//
+// Runs the view's stored scope, filter and `aggregate` as `POST /items:aggregate` would, under the caller's own authorisation - two readers of one shared view may see two different numbers. A view that stores no `aggregate` is refused; one the caller cannot read answers not found.
+//
+// Corresponds with POST /views/{viewId}:aggregate (the `AggregateView` operationId).
+func (c *Client) AggregateView(ctx context.Context, viewId ViewId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAggregateViewRequest(c.Server, viewId)
 	if err != nil {
 		return nil, err
 	}
@@ -57212,6 +57267,40 @@ func NewUpdateSavedViewRequestWithBody(server string, viewId ViewId, params *Upd
 	return req, nil
 }
 
+// NewAggregateViewRequest constructs an http.Request for the AggregateView method
+func NewAggregateViewRequest(server string, viewId ViewId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "viewId", viewId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/views/%s:aggregate", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewExportViewRequest calls the generic ExportView builder with application/json body
 func NewExportViewRequest(server string, viewId ViewId, params *ExportViewParams, body ExportViewJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -62586,11 +62675,12 @@ type ClientWithResponsesInterface interface {
 	// AggregateItemsWithBodyWithResponse A summary of what a query keeps
 	//
 	// How many entries the query's scope and filter keep, and the sum, average, least or greatest
-	// of a custom field holding a number, money or a duration - optionally per value of a field a
-	// query may group by, and per day, week or month of a timestamp, cut in the caller's time
-	// zone (a week starts on Monday). The permission is the query's: checked against the scope
-	// once. At most 5000 rows, in the group's order and then the period's; `truncated` says a
-	// longer answer was cut.
+	// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
+	// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
+	// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
+	// `week_start` says Sunday). The permission is the query's: checked against the scope once;
+	// a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
+	// group's order and then the period's; `truncated` says a longer answer was cut.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -62600,11 +62690,12 @@ type ClientWithResponsesInterface interface {
 	// AggregateItemsWithResponse A summary of what a query keeps
 	//
 	// How many entries the query's scope and filter keep, and the sum, average, least or greatest
-	// of a custom field holding a number, money or a duration - optionally per value of a field a
-	// query may group by, and per day, week or month of a timestamp, cut in the caller's time
-	// zone (a week starts on Monday). The permission is the query's: checked against the scope
-	// once. At most 5000 rows, in the group's order and then the period's; `truncated` says a
-	// longer answer was cut.
+	// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
+	// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
+	// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
+	// `week_start` says Sunday). The permission is the query's: checked against the scope once;
+	// a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
+	// group's order and then the period's; `truncated` says a longer answer was cut.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -64579,6 +64670,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Changes a view's own fields. A field that is not sent is left alone. The scope and the sharing are not among them: where a view lives is decided when it is created, and sharing is :share - one decision with its own permission, not a field of an edit.
 	UpdateSavedViewWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, viewId ViewId, params *UpdateSavedViewParams, body UpdateSavedViewApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateSavedViewResult, error)
+
+	// AggregateViewWithResponse The summary a saved view stores
+	//
+	// Runs the view's stored scope, filter and `aggregate` as `POST /items:aggregate` would, under the caller's own authorisation - two readers of one shared view may see two different numbers. A view that stores no `aggregate` is refused; one the caller cannot read answers not found.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /views/{viewId}:aggregate (the `AggregateView` operationId).
+	AggregateViewWithResponse(ctx context.Context, viewId ViewId, reqEditors ...RequestEditorFn) (*AggregateViewResult, error)
 
 	// ExportViewWithBodyWithResponse performs a POST /views/{viewId}:export (the `ExportView` operationId) request,
 	// with any type of body and a specified content type.
@@ -85860,6 +85960,61 @@ func (r UpdateSavedViewResult) ContentType() string {
 	return ""
 }
 
+type AggregateViewResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ItemAggregateResult
+	// ApplicationproblemJSON422 the response for an HTTP 422 `application/problem+json` response
+	ApplicationproblemJSON422 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AggregateViewResult) GetJSON200() *ItemAggregateResult {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON422 returns the response for an HTTP 422 `application/problem+json` response
+func (r AggregateViewResult) GetApplicationproblemJSON422() *Problem {
+	return r.ApplicationproblemJSON422
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AggregateViewResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AggregateViewResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AggregateViewResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AggregateViewResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AggregateViewResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // ExportViewResult200Headers the declared response headers of an HTTP 200 response for ExportView
 type ExportViewResult200Headers struct {
 	ExportTruncated *bool
@@ -93953,11 +94108,12 @@ func (c *ClientWithResponses) UnassignWorkItemWithResponse(ctx context.Context, 
 // AggregateItemsWithBodyWithResponse A summary of what a query keeps
 //
 // How many entries the query's scope and filter keep, and the sum, average, least or greatest
-// of a custom field holding a number, money or a duration - optionally per value of a field a
-// query may group by, and per day, week or month of a timestamp, cut in the caller's time
-// zone (a week starts on Monday). The permission is the query's: checked against the scope
-// once. At most 5000 rows, in the group's order and then the period's; `truncated` says a
-// longer answer was cut.
+// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
+// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
+// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
+// `week_start` says Sunday). The permission is the query's: checked against the scope once;
+// a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
+// group's order and then the period's; `truncated` says a longer answer was cut.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -93973,11 +94129,12 @@ func (c *ClientWithResponses) AggregateItemsWithBodyWithResponse(ctx context.Con
 // AggregateItemsWithResponse A summary of what a query keeps
 //
 // How many entries the query's scope and filter keep, and the sum, average, least or greatest
-// of a custom field holding a number, money or a duration - optionally per value of a field a
-// query may group by, and per day, week or month of a timestamp, cut in the caller's time
-// zone (a week starts on Monday). The permission is the query's: checked against the scope
-// once. At most 5000 rows, in the group's order and then the period's; `truncated` says a
-// longer answer was cut.
+// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
+// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
+// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
+// `week_start` says Sunday). The permission is the query's: checked against the scope once;
+// a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
+// group's order and then the period's; `truncated` says a longer answer was cut.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -96995,6 +97152,21 @@ func (c *ClientWithResponses) UpdateSavedViewWithApplicationMergePatchPlusJSONBo
 		return nil, err
 	}
 	return ParseUpdateSavedViewResult(rsp)
+}
+
+// AggregateViewWithResponse The summary a saved view stores
+//
+// Runs the view's stored scope, filter and `aggregate` as `POST /items:aggregate` would, under the caller's own authorisation - two readers of one shared view may see two different numbers. A view that stores no `aggregate` is refused; one the caller cannot read answers not found.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /views/{viewId}:aggregate (the `AggregateView` operationId).
+func (c *ClientWithResponses) AggregateViewWithResponse(ctx context.Context, viewId ViewId, reqEditors ...RequestEditorFn) (*AggregateViewResult, error) {
+	rsp, err := c.AggregateView(ctx, viewId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAggregateViewResult(rsp)
 }
 
 // ExportViewWithBodyWithResponse performs a POST /views/{viewId}:export (the `ExportView` operationId) request,
@@ -112536,6 +112708,46 @@ func ParseUpdateSavedViewResult(rsp *http.Response) (*UpdateSavedViewResult, err
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseAggregateViewResult parses an HTTP response from a AggregateViewWithResponse call
+func ParseAggregateViewResult(rsp *http.Response) (*AggregateViewResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AggregateViewResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ItemAggregateResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

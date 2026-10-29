@@ -625,6 +625,41 @@
         }
       }
     },
+    "/views/{viewId}:aggregate": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ViewId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "views"
+        ],
+        "operationId": "aggregateView",
+        "x-hubtask-cli": "view aggregate",
+        "x-hubtask-rest": "generated",
+        "summary": "The summary a saved view stores",
+        "description": "Runs the view's stored scope, filter and `aggregate` as `POST /items:aggregate` would, under the caller's own authorisation - two readers of one shared view may see two different numbers. A view that stores no `aggregate` is refused; one the caller cannot read answers not found.\n",
+        "responses": {
+          "200": {
+            "description": "The summary's rows",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemAggregateResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/views/{viewId}:export": {
       "parameters": [
         {
@@ -14388,8 +14423,9 @@
           "items"
         ],
         "operationId": "aggregateItems",
+        "x-hubtask-cli": "item aggregate",
         "summary": "A summary of what a query keeps",
-        "description": "How many entries the query's scope and filter keep, and the sum, average, least or greatest\nof a custom field holding a number, money or a duration - optionally per value of a field a\nquery may group by, and per day, week or month of a timestamp, cut in the caller's time\nzone (a week starts on Monday). The permission is the query's: checked against the scope\nonce. At most 5000 rows, in the group's order and then the period's; `truncated` says a\nlonger answer was cut.\n",
+        "description": "How many entries the query's scope and filter keep, and the sum, average, least or greatest\nof a custom field holding a number, money or a duration, or of an entry's `lead_time` or\n`scheduled_span` - optionally per value of a field a query may group by, and per day, week\nor month of a timestamp, cut in the caller's time zone (a week starts on Monday unless\n`week_start` says Sunday). The permission is the query's: checked against the scope once;\na `workspace` scope counts every collection the caller may read. At most 5000 rows, in the\ngroup's order and then the period's; `truncated` says a longer answer was cut.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -29154,7 +29190,7 @@
           "query": {
             "type": "object",
             "additionalProperties": true,
-            "description": "The query a view asks, in the shape the use case takes rather than the shape `POST /items:query` takes as a body: the anchor is flat - `scope_container_id` or `scope_item_id` - because the server flattens the request body's `scope` object before any use case sees it, and this document is read back as an input.\n\nIt carries an anchor, because `POST /views/{viewId}:export` executes it. A view that stored only the question - a filter and an order, so that it could be asked anywhere - is a view nobody can export.\n",
+            "description": "The query a view asks, in the shape the use case takes rather than the shape `POST /items:query` takes as a body: the anchor is flat - `scope_container_id` or `scope_item_id` - because the server flattens the request body's `scope` object before any use case sees it, and this document is read back as an input.\n\nIt carries an anchor, because `POST /views/{viewId}:export` executes it. A view that stored only the question - a filter and an order, so that it could be asked anywhere - is a view nobody can export.\n\nA summary view also stores `aggregate`, as `POST /items:aggregate` takes it, and may then name `scope_workspace: true` instead of an anchor; `POST /views/{viewId}:aggregate` runs it.\n",
             "example": {
               "scope_container_id": "0192f000-0000-7000-8000-0000000000c0",
               "filter": {
@@ -32688,7 +32724,7 @@
         "properties": {
           "scope": {
             "type": "object",
-            "description": "Where to look, exactly as `POST /items:query` takes it.",
+            "description": "Where to look, exactly as `POST /items:query` takes it - or `workspace`, instead of either identifier, for every collection the caller may read (at most 2000). An entry shared with the caller alone counts only where its collection is readable.\n",
             "properties": {
               "container_id": {
                 "type": "string",
@@ -32701,6 +32737,10 @@
               "include_descendants": {
                 "type": "boolean",
                 "default": true
+              },
+              "workspace": {
+                "type": "boolean",
+                "default": false
               }
             }
           },
@@ -32733,7 +32773,7 @@
               },
               "field": {
                 "type": "string",
-                "description": "The measure, `custom_fields.<key>` of a number, money or a duration; required for every function but `COUNT`, refused for `COUNT`.\n"
+                "description": "The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none. Required for every function but `COUNT`, refused for `COUNT`.\n"
               },
               "group_by": {
                 "type": "string",
@@ -32757,6 +32797,14 @@
                       "week",
                       "month"
                     ]
+                  },
+                  "week_start": {
+                    "type": "string",
+                    "enum": [
+                      "monday",
+                      "sunday"
+                    ],
+                    "description": "The first day of a `week`; `monday` when omitted, refused for another period."
                   }
                 }
               }

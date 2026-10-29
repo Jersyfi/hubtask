@@ -53,6 +53,9 @@ func (c *RestController) AggregateItems(w http.ResponseWriter, r *http.Request) 
 	if body.Scope.IncludeDescendants != nil {
 		in["include_descendants"] = *body.Scope.IncludeDescendants
 	}
+	if body.Scope.Workspace != nil {
+		in["scope_workspace"] = *body.Scope.Workspace
+	}
 	for _, part := range []string{"filter", "aggregate"} {
 		if value, present := document[part]; present && value != nil {
 			in[part] = value

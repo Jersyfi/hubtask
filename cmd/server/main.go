@@ -2471,7 +2471,18 @@ func run() error {
 				Items: items, Containers: containers, Fields: customFields,
 				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			},
-			Aggregates: items,
+			Aggregates: items, Collections: containers, Reader: authorizer,
+		}.Descriptor(),
+		work.AggregateView{
+			Views: savedViews, Containers: containers, Permits: authorizer, UnitOfWork: unitOfWork,
+			Aggregate: work.AggregateItems{
+				Query: work.QueryItems{
+					Gate:  entryGate,
+					Items: items, Containers: containers, Fields: customFields,
+					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+				},
+				Aggregates: items, Collections: containers, Reader: authorizer,
+			},
 		}.Descriptor(),
 		// The authorisation service under three names, because a search asks the question in three
 		// shapes: about a hub the client named, about how far the caller reaches into a collection,

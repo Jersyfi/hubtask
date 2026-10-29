@@ -1232,6 +1232,10 @@ func (pending) GetCalendarFeedDocument(w http.ResponseWriter, r *http.Request, _
 	notAvailable(w, r)
 }
 
+func (pending) AggregateView(w http.ResponseWriter, r *http.Request, _ openapi.ViewId) {
+	notAvailable(w, r)
+}
+
 func (pending) ExportView(w http.ResponseWriter, r *http.Request, _ openapi.ViewId, _ openapi.ExportViewParams) {
 	notAvailable(w, r)
 }

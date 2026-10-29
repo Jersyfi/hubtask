@@ -15,6 +15,7 @@ import (
 var restDoors = map[string]restDoor{
 	"addLabel":               {UseCase: "AddLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addMember":              {UseCase: "AddMember", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"aggregateView":          {UseCase: "AggregateView", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"applyConfig":            {UseCase: "ApplyConfig", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "base_hash", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
 	"archiveContainer":       {UseCase: "ArchiveContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"archiveWorkItem":        {UseCase: "ArchiveWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -118,6 +119,12 @@ func (c *RestController) AddLabel(w http.ResponseWriter, r *http.Request, itemId
 // AddMember answers PUT /items/{itemId}/members/{accountId} by the generated mapping.
 func (c *RestController) AddMember(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, accountId openapi.AccountId) {
 	c.door(w, r, restDoors["addMember"], usecase.Input{"item_id": itemId.String(), "account_id": accountId.String()}, nil, nil, answerBy(itemMembersResponse))
+}
+
+// AggregateView answers POST /views/{viewId}:aggregate by the generated mapping.
+func (c *RestController) AggregateView(w http.ResponseWriter, r *http.Request, viewId openapi.ViewId) {
+	var answer openapi.ItemAggregateResult
+	c.door(w, r, restDoors["aggregateView"], usecase.Input{"view_id": viewId.String()}, nil, nil, &answer)
 }
 
 // ApplyConfig answers POST /config:apply by the generated mapping.

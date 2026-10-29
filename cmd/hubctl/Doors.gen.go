@@ -42,6 +42,15 @@ var generatedCommands = []door{
 			{Name: "settings", Kind: "json", Help: "How much structure a hub or collection has: nine settings", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"narrows"}},
+	{Group: "item", Verb: "aggregate", OperationID: "aggregateItems", Method: "POST", Path: "/items:aggregate", Summary: "A summary of what a query keeps",
+		Body: []doorParam{
+			{Name: "aggregate", Kind: "json", Help: "", Required: true},
+			{Name: "filter", Kind: "json", Help: "Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with `nodes`)", Required: false},
+			{Name: "include_archived", Kind: "boolean", Help: "", Required: false},
+			{Name: "include_trashed", Kind: "boolean", Help: "", Required: false},
+			{Name: "scope", Kind: "json", Help: "Where to look, exactly as `POST /items:query` takes it - or `workspace`, instead of either …", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: true, Columns: []string{"count", "group", "period", "value"}},
 	{Group: "item", Verb: "step", OperationID: "takeStep", Method: "POST", Path: "/items/{itemId}:step", Summary: "Move an entry on by one step",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
@@ -185,6 +194,11 @@ var generatedCommands = []door{
 			{Name: "validations", Kind: "json", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "name", "level", "version"}},
+	{Group: "view", Verb: "aggregate", OperationID: "aggregateView", Method: "POST", Path: "/views/{viewId}:aggregate", Summary: "The summary a saved view stores",
+		PathParams: []doorParam{
+			{Name: "viewId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"count", "group", "period", "value"}},
 	{Group: "workflow", Verb: "create", OperationID: "createWorkflow", Method: "POST", Path: "/workflows", Summary: "Add a workflow",
 		Body: []doorParam{
 			{Name: "key", Kind: "string", Help: "", Required: true},

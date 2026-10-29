@@ -2889,6 +2889,24 @@ func (e ItemAggregateQueryAggregateBucketPeriod) Valid() bool {
 	}
 }
 
+// Defines values for ItemAggregateQueryAggregateBucketWeekStart.
+const (
+	Monday ItemAggregateQueryAggregateBucketWeekStart = "monday"
+	Sunday ItemAggregateQueryAggregateBucketWeekStart = "sunday"
+)
+
+// Valid indicates whether the value is a known member of the ItemAggregateQueryAggregateBucketWeekStart enum.
+func (e ItemAggregateQueryAggregateBucketWeekStart) Valid() bool {
+	switch e {
+	case Monday:
+		return true
+	case Sunday:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ItemAggregateQueryAggregateFunction.
 const (
 	ItemAggregateQueryAggregateFunctionAVG   ItemAggregateQueryAggregateFunction = "AVG"
@@ -10353,9 +10371,12 @@ type ItemAggregateQuery struct {
 			// Field A timestamp field, or `custom_fields.<key>` of a date.
 			Field  string                                  `json:"field"`
 			Period ItemAggregateQueryAggregateBucketPeriod `json:"period"`
+
+			// WeekStart The first day of a `week`; `monday` when omitted, refused for another period.
+			WeekStart *ItemAggregateQueryAggregateBucketWeekStart `json:"week_start,omitempty"`
 		} `json:"bucket,omitempty"`
 
-		// Field The measure, `custom_fields.<key>` of a number, money or a duration; required for every function but `COUNT`, refused for `COUNT`.
+		// Field The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none. Required for every function but `COUNT`, refused for `COUNT`.
 		Field    *string                             `json:"field,omitempty"`
 		Function ItemAggregateQueryAggregateFunction `json:"function"`
 
@@ -10373,16 +10394,20 @@ type ItemAggregateQuery struct {
 	IncludeArchived *bool       `json:"include_archived,omitempty"`
 	IncludeTrashed  *bool       `json:"include_trashed,omitempty"`
 
-	// Scope Where to look, exactly as `POST /items:query` takes it.
+	// Scope Where to look, exactly as `POST /items:query` takes it - or `workspace`, instead of either identifier, for every collection the caller may read (at most 2000). An entry shared with the caller alone counts only where its collection is readable.
 	Scope struct {
 		ContainerId        *openapi_types.UUID `json:"container_id,omitempty"`
 		IncludeDescendants *bool               `json:"include_descendants,omitempty"`
 		ItemId             *openapi_types.UUID `json:"item_id,omitempty"`
+		Workspace          *bool               `json:"workspace,omitempty"`
 	} `json:"scope"`
 }
 
 // ItemAggregateQueryAggregateBucketPeriod defines model for ItemAggregateQuery.Aggregate.Bucket.Period.
 type ItemAggregateQueryAggregateBucketPeriod string
+
+// ItemAggregateQueryAggregateBucketWeekStart The first day of a `week`; `monday` when omitted, refused for another period.
+type ItemAggregateQueryAggregateBucketWeekStart string
 
 // ItemAggregateQueryAggregateFunction defines model for ItemAggregateQuery.Aggregate.Function.
 type ItemAggregateQueryAggregateFunction string
@@ -13381,6 +13406,8 @@ type SavedView struct {
 	// Query The query a view asks, in the shape the use case takes rather than the shape `POST /items:query` takes as a body: the anchor is flat - `scope_container_id` or `scope_item_id` - because the server flattens the request body's `scope` object before any use case sees it, and this document is read back as an input.
 	//
 	// It carries an anchor, because `POST /views/{viewId}:export` executes it. A view that stored only the question - a filter and an order, so that it could be asked anywhere - is a view nobody can export.
+	//
+	// A summary view also stores `aggregate`, as `POST /items:aggregate` takes it, and may then name `scope_workspace: true` instead of an anchor; `POST /views/{viewId}:aggregate` runs it.
 	Query map[string]interface{} `json:"query"`
 
 	// ScopeId The container the scope names, the owner's account for ACCOUNT, and null for TENANT.
@@ -19011,6 +19038,9 @@ type ServerInterface interface {
 
 	// (PATCH /views/{viewId})
 	UpdateSavedView(w http.ResponseWriter, r *http.Request, viewId ViewId, params UpdateSavedViewParams)
+	// AggregateView The summary a saved view stores
+	// (POST /views/{viewId}:aggregate)
+	AggregateView(w http.ResponseWriter, r *http.Request, viewId ViewId)
 
 	// (POST /views/{viewId}:export)
 	ExportView(w http.ResponseWriter, r *http.Request, viewId ViewId, params ExportViewParams)
@@ -33783,6 +33813,32 @@ func (siw *ServerInterfaceWrapper) UpdateSavedView(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// AggregateView operation middleware
+func (siw *ServerInterfaceWrapper) AggregateView(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId ViewId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", r.PathValue("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "viewId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AggregateView(w, r, viewId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ExportView operation middleware
 func (siw *ServerInterfaceWrapper) ExportView(w http.ResponseWriter, r *http.Request) {
 
@@ -34394,6 +34450,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/views/{viewId}", wrapper.GetSavedView)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/views/{viewId}", wrapper.UpdateSavedView)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:share", wrapper.ShareSavedView)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:aggregate", wrapper.AggregateView)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:export", wrapper.ExportView)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/jumble/entries", wrapper.ListJumbleEntries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries", wrapper.SubmitJumbleEntry)

@@ -234,6 +234,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `item.moved` | ReorderWorkItem | `item` | INFO | Every time |
 | `item.purged` | PurgeWorkItem | `item` | WARNING | Every time |
 | `item.read` | AggregateItems | `item` | INFO | When refused |
+| `item.read` | AggregateView | `item` | INFO | When refused |
 | `item.read` | EvaluateEntryForm | `item` | INFO | When refused |
 | `item.read` | GetWorkItem | `item` | INFO | When refused |
 | `item.read` | ListEntryLinks | `item` | INFO | When refused |

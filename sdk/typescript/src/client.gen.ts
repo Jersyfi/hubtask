@@ -176,6 +176,11 @@ export class HubtaskClient {
     return this.call("POST", "/views/{viewId}:share", { "viewId": viewId }, undefined, { "Idempotency-Key": options.idempotencyKey, "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The summary a saved view stores */
+  aggregateView(viewId: string, options: CallOptions = {}): Promise<operations["aggregateView"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/views/{viewId}:aggregate", { "viewId": viewId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** POST /views/{viewId}:export */
   exportView(viewId: string, body: NonNullable<operations["exportView"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<Response> {
     return this.call("POST", "/views/{viewId}:export", { "viewId": viewId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "raw", options.signal);

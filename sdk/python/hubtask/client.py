@@ -155,6 +155,10 @@ class Client:
         """POST /views/{viewId}:share"""
         return self._call("POST", "/views/{viewId}:share", {"viewId": view_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, body, "json", "application/json", "json")
 
+    def aggregate_view(self, view_id: str) -> "ItemAggregateResult":
+        """The summary a saved view stores"""
+        return self._call("POST", "/views/{viewId}:aggregate", {"viewId": view_id}, None, {}, None, "none", None, "json")
+
     def export_view(self, view_id: str, body: "ViewExport", *, idempotency_key: str | None = None) -> bytes:
         """POST /views/{viewId}:export"""
         return self._call("POST", "/views/{viewId}:export", {"viewId": view_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "raw")
