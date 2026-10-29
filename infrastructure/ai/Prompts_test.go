@@ -75,6 +75,8 @@ func TestAPromptSaysWhichKeysItAsksFor(t *testing.T) {
 		// The one prompt written for an agent rather than for this product's provider. It
 		// asks for prose, so there is no shape to read.
 		"weekly-review": nil,
+		// The agent guide to the configuration document: prose, the procedure.
+		"configure-workspace": nil,
 	} {
 		prompt, err := store.Get(id)
 		if err != nil {
@@ -178,6 +180,9 @@ func TestOnlyThePromptsWrittenForAnAgentArePublished(t *testing.T) {
 
 	if !published[ai.PromptWeeklyReview] {
 		t.Error("the weekly review is not published, and it is the one prompt written for an agent")
+	}
+	if !published[ai.PromptConfigureWorkspace] {
+		t.Error("the agent guide to the configuration document is not published")
 	}
 	// The four the product asks its provider stay unpublished: each is written for one call site
 	// with one expected answer shape, and offering one to an agent would be offering it a tool

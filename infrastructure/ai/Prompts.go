@@ -346,6 +346,9 @@ const (
 	// PromptWeeklyReview is the one prompt written for an agent rather than for this product's own
 	// provider. It is published over MCP and never asked by anything in `core`.
 	PromptWeeklyReview = "weekly-review"
+	// PromptConfigureWorkspace is the agent guide to the configuration document
+	// (configuration/config-document.md §4): published over MCP, never asked by `core`.
+	PromptConfigureWorkspace = "configure-workspace"
 )
 
 // Published answers the prompts an agent may ask for, in the store's own order.
