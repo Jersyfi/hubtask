@@ -116,6 +116,9 @@ const (
 	// holds this one up over a link whose type waits (work.LinkWaits).
 	// Virtual, like text: it is a question about other rows, not a column of this one.
 	FieldBlocked = "blocked"
+	// FieldBlocking is blocked's other direction: whether this entry holds up an open one over a
+	// link whose type waits - the question "what should I finish first".
+	FieldBlocking = "blocking"
 
 	// CustomFieldPrefix names the family (api-guidelines.md §3). The one field name in the
 	// grammar that carries a value: everything after the dot is a key, which is why it is a
@@ -300,6 +303,10 @@ var catalogue = []Field{
 	},
 	{
 		Name: FieldBlocked, Kind: KindBool,
+		Operators: []Operator{OpEq, OpNeq},
+	},
+	{
+		Name: FieldBlocking, Kind: KindBool,
 		Operators: []Operator{OpEq, OpNeq},
 	},
 }

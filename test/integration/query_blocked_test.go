@@ -53,4 +53,11 @@ func TestTheQueryFindsTheEntriesAnOpenOneBlocks(t *testing.T) {
 	if len(free.Items) != 1 || free.Items[0].ID != blocker {
 		t.Errorf("not blocked answered %v", titlesOf(free.Items))
 	}
+
+	// And the other direction: the blocker is the one entry holding an open one up.
+	holding := queried(ctx, t, tenantA, searchIn(t, collection,
+		map[string]any{"field": "blocking", "op": "EQ", "value": true}, view.Spec{}))
+	if len(holding.Items) != 1 || holding.Items[0].ID != blocker {
+		t.Errorf("blocking answered %v", titlesOf(holding.Items))
+	}
 }

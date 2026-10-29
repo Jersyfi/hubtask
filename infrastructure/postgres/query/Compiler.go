@@ -724,7 +724,10 @@ func (b *builder) leaf(node view.Node) {
 		b.fullText(node.Values[0])
 		return
 	case view.FieldBlocked:
-		b.blocked(node)
+		b.waitingLink(node, true)
+		return
+	case view.FieldBlocking:
+		b.waitingLink(node, false)
 		return
 	}
 
@@ -798,19 +801,28 @@ func (b *builder) leaf(node view.Node) {
 	}
 }
 
-// blocked writes whether an open entry holds this one up over a link whose type waits: the
-// target waits for the source of a `blocks` link, the source for the target of a `depends_on`
-// link, and a workspace's own type as its `waits` says (work.LinkWaits). The value stays a
-// parameter compared with the EXISTS, so the text is the same for true and false (ADR-0026).
-func (b *builder) blocked(node view.Node) {
+// waitingLink writes whether an open entry stands across a link whose type waits: for `blocked`,
+// one that holds this entry up; for `blocking`, one this entry holds up. The waiting side is the
+// target of a `blocks` link, the source of a `depends_on` link, and a workspace's own type's as
+// its `waits` says (work.LinkWaits). The value stays a parameter compared with the EXISTS, so the
+// text is the same for true and false (ADR-0026); the direction is a constant of this package.
+func (b *builder) waitingLink(node view.Node, held bool) {
 	b.write(`(EXISTS (SELECT 1 FROM entry_link bl`)
 	b.write(` LEFT JOIN link_type lt ON lt.tenant_id = bl.tenant_id AND lt.key = bl.own_type`)
 	b.write(` CROSS JOIN LATERAL (SELECT CASE bl.link_type WHEN 'blocks' THEN 'TARGET'`)
 	b.write(` WHEN 'depends_on' THEN 'SOURCE' ELSE lt.waits END AS waits) lw`)
 	b.write(` JOIN work_item bw ON bw.tenant_id = bl.tenant_id`)
-	b.write(` AND bw.id = CASE lw.waits WHEN 'TARGET' THEN bl.source_id ELSE bl.target_id END`)
-	b.write(` WHERE bl.tenant_id = wi.tenant_id`)
-	b.write(` AND ((lw.waits = 'TARGET' AND bl.target_id = wi.id) OR (lw.waits = 'SOURCE' AND bl.source_id = wi.id))`)
+	if held {
+		// The other entry is the one waited for: the source when the target waits.
+		b.write(` AND bw.id = CASE lw.waits WHEN 'TARGET' THEN bl.source_id ELSE bl.target_id END`)
+		b.write(` WHERE bl.tenant_id = wi.tenant_id`)
+		b.write(` AND ((lw.waits = 'TARGET' AND bl.target_id = wi.id) OR (lw.waits = 'SOURCE' AND bl.source_id = wi.id))`)
+	} else {
+		// The other entry is the one waiting: the target when the target waits.
+		b.write(` AND bw.id = CASE lw.waits WHEN 'TARGET' THEN bl.target_id ELSE bl.source_id END`)
+		b.write(` WHERE bl.tenant_id = wi.tenant_id`)
+		b.write(` AND ((lw.waits = 'TARGET' AND bl.source_id = wi.id) OR (lw.waits = 'SOURCE' AND bl.target_id = wi.id))`)
+	}
 	b.write(` AND NOT bw.is_completed AND bw.deleted_at IS NULL))`)
 	if node.Op == view.OpNeq {
 		b.write(` IS DISTINCT FROM `)

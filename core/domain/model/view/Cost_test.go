@@ -100,4 +100,8 @@ func TestATraversalCostsMoreThanAComparison(t *testing.T) {
 	if got := view.Cost(&node); got != 2 {
 		t.Errorf("blocked costs %d, want 2", got)
 	}
+	node.Field.Name = view.FieldBlocking
+	if got := view.Cost(&node); got != 2 {
+		t.Errorf("blocking costs %d, want 2", got)
+	}
 }

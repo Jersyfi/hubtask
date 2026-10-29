@@ -809,6 +809,29 @@ func TestAnAttachedHitIsRanked(t *testing.T) {
 	}
 }
 
+// `blocking` traverses the same links the other way (F-9): this entry is the one waited for, and
+// the open entry across the link is the one waiting.
+func TestBlockingTraversesTheLinksTheOtherWay(t *testing.T) {
+	yes := compile(t, map[string]any{"field": "blocking", "op": "EQ", "value": true}, view.Spec{})
+	no := compile(t, map[string]any{"field": "blocking", "op": "EQ", "value": false}, view.Spec{})
+	if yes.SQL != no.SQL {
+		t.Fatalf("the value changed the text:\n  %s\n  %s", yes.SQL, no.SQL)
+	}
+	for _, want := range []string{
+		"AND bw.id = CASE lw.waits WHEN 'TARGET' THEN bl.target_id ELSE bl.source_id END",
+		"((lw.waits = 'TARGET' AND bl.source_id = wi.id) OR (lw.waits = 'SOURCE' AND bl.target_id = wi.id))",
+		"AND NOT bw.is_completed AND bw.deleted_at IS NULL)) = $",
+	} {
+		if !strings.Contains(yes.SQL, want) {
+			t.Errorf("compiled to\n  %s\nand should contain\n  %s", yes.SQL, want)
+		}
+	}
+	held := compile(t, map[string]any{"field": "blocked", "op": "EQ", "value": true}, view.Spec{})
+	if held.SQL == yes.SQL {
+		t.Fatalf("blocking compiled to blocked's text")
+	}
+}
+
 // `blocked` traverses the links that wait (F-9): the system types by their key, a workspace's own
 // by its `waits`. True and false compile to one text, so the value is never statement text.
 func TestBlockedTraversesTheWaitingLinks(t *testing.T) {
