@@ -32,6 +32,8 @@ const (
 	RevokeRoleGrantName = "RevokeRoleGrant"
 	ExplainAccessName   = "ExplainAccess"
 	roleTarget          = "custom_role"
+	// RoleGrantEntity is a grant of a custom role in its holder's replica (offline-sync.md §4.3).
+	RoleGrantEntity = "role_grant"
 
 	RoleCreatedAction audit.Action = "role.created"
 	RoleChangedAction audit.Action = "role.changed"
@@ -75,6 +77,88 @@ func (r Roles) announce(ctx context.Context, actor appshared.ActorContext, row r
 		TenantID: actor.TenantID, Entity: roleTarget, EntityID: row.Role.ID, Op: op,
 		ActorID: actor.AccountID, HLC: r.HLC.Next(), Payload: payload,
 	})
+}
+
+// announceGrant files a grant for its holder's devices: an upsert reaches the account it names or
+// the members of its group, a removal every device, since it names only an identifier. A removal
+// addressed to one account - its holder leaving a group - names that account and reaches it alone.
+func (r Roles) announceGrant(
+	ctx context.Context, actor appshared.ActorContext, row repository.CustomGrantRow, op changelog.Operation,
+	addressedTo shared.ID,
+) error {
+	if r.Changes == nil {
+		return nil
+	}
+	var payload map[string]any
+	switch {
+	case op != changelog.Delete:
+		payload = CustomGrantOutput(row)
+	case !addressedTo.IsZero():
+		payload = map[string]any{"account_id": addressedTo.String()}
+	}
+	return r.Changes.Record(ctx, changelog.Change{
+		TenantID: actor.TenantID, Entity: RoleGrantEntity, EntityID: row.Grant.ID, Op: op,
+		ActorID: actor.AccountID, HLC: r.HLC.Next(), Payload: payload,
+	})
+}
+
+// GroupMembersMoved tells the devices of the people who joined a group of its grants, and those
+// of the people who left it that they hold them no more. UpdateGroup calls it in its transaction.
+func (r Roles) GroupMembersMoved(
+	ctx context.Context, actor appshared.ActorContext, groupID shared.ID, joined, left []shared.ID,
+) error {
+	if r.Changes == nil || (len(joined) == 0 && len(left) == 0) {
+		return nil
+	}
+	grants, err := r.groupGrants(ctx, groupID)
+	if err != nil {
+		return err
+	}
+	for _, grant := range grants {
+		if len(joined) > 0 {
+			if err := r.announceGrant(ctx, actor, grant, changelog.Upsert, ""); err != nil {
+				return err
+			}
+		}
+		for _, accountID := range left {
+			if err := r.announceGrant(ctx, actor, grant, changelog.Delete, accountID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// GroupDeleting tells every device that the group's grants go with it; DeleteGroup calls it in its
+// transaction before the rows cascade away.
+func (r Roles) GroupDeleting(ctx context.Context, actor appshared.ActorContext, groupID shared.ID) error {
+	if r.Changes == nil {
+		return nil
+	}
+	grants, err := r.groupGrants(ctx, groupID)
+	if err != nil {
+		return err
+	}
+	for _, grant := range grants {
+		if err := r.announceGrant(ctx, actor, grant, changelog.Delete, ""); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r Roles) groupGrants(ctx context.Context, groupID shared.ID) ([]repository.CustomGrantRow, error) {
+	grants, err := r.Store.Grants(ctx, maxRoleGrants)
+	if err != nil {
+		return nil, err
+	}
+	out := grants[:0]
+	for _, grant := range grants {
+		if grant.Grant.GroupID == groupID {
+			out = append(out, grant)
+		}
+	}
+	return out, nil
 }
 
 // HeldReader answers what an account holds along a path: the authorisation service's HeldBy.
@@ -209,7 +293,7 @@ func RoleCatalogueOutput(c RoleCatalogue) usecase.Output {
 	}
 	grants := make([]map[string]any, 0, len(c.Grants))
 	for _, row := range c.Grants {
-		grants = append(grants, customGrantOutput(row))
+		grants = append(grants, CustomGrantOutput(row))
 	}
 	return usecase.Output{"catalogue": catalogue, "shipped": shipped, "custom": custom, "grants": grants}
 }
@@ -223,7 +307,8 @@ func CustomRoleOutput(row repository.CustomRoleRow) map[string]any {
 	}
 }
 
-func customGrantOutput(row repository.CustomGrantRow) map[string]any {
+// CustomGrantOutput is one grant of a custom role as every door, and a holder's replica, has it.
+func CustomGrantOutput(row repository.CustomGrantRow) map[string]any {
 	out := map[string]any{
 		"id": row.Grant.ID.String(), "role": row.RoleKey, "scope_type": string(row.Grant.Scope.Type),
 	}
@@ -398,7 +483,13 @@ func (h DeleteRole) Execute(ctx context.Context, actor appshared.ActorContext, k
 		}
 		var losses []access.Loss
 		for _, grant := range grants {
-			if grant.Grant.RoleID != current.Role.ID || h.Roles.Revocations == nil {
+			if grant.Grant.RoleID != current.Role.ID {
+				continue
+			}
+			if err := h.Roles.announceGrant(ctx, actor, grant, changelog.Delete, ""); err != nil {
+				return err
+			}
+			if h.Roles.Revocations == nil {
 				continue
 			}
 			loss, err := h.Roles.Revocations.AfterGrantRevoked(ctx, asGrant(grant.Grant))
@@ -499,6 +590,10 @@ func (h GrantRole) Execute(ctx context.Context, actor appshared.ActorContext, cm
 		if err != nil || !created {
 			return err
 		}
+		row := repository.CustomGrantRow{Grant: grant, RoleKey: role.Role.Key}
+		if err := h.Roles.announceGrant(ctx, actor, row, changelog.Upsert, ""); err != nil {
+			return err
+		}
 		return h.Roles.Audit.Append(ctx, customGrantEntry(ctx, MembershipGrantedAction, grant, role.Role.Key, actor, now))
 	})
 	if err != nil {
@@ -548,7 +643,7 @@ func (h GrantRole) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			return customGrantOutput(row), nil
+			return CustomGrantOutput(row), nil
 		}),
 	}
 }
@@ -604,6 +699,9 @@ func (h RevokeRoleGrant) Execute(ctx context.Context, actor appshared.ActorConte
 			if err := h.Roles.Revocations.Announce(ctx, actor.TenantID, loss); err != nil {
 				return err
 			}
+		}
+		if err := h.Roles.announceGrant(ctx, actor, grant, changelog.Delete, ""); err != nil {
+			return err
 		}
 		return h.Roles.Audit.Append(ctx, customGrantEntry(ctx, MembershipRevokedAction, grant.Grant, grant.RoleKey, actor, now))
 	})

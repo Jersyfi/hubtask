@@ -1960,11 +1960,13 @@ func run() error {
 			Groups: groups, Accounts: accounts, Grants: grants, Authorizer: authorizer, Revocations: revocations,
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
 			Owners: grants, StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Platform: platformEvents,
+			Notices: customRoles,
 		}.Descriptor(),
 		identity.DeleteGroup{
 			Groups: groups, Grants: grants, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Owners: grants,
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Platform: platformEvents,
+			Notices: customRoles,
 		}.Descriptor(),
 		identity.ChangePassword{Writer: passwordWriter}.Descriptor(),
 		identity.CheckPassword{Writer: passwordWriter}.Descriptor(),
@@ -2995,6 +2997,8 @@ func run() error {
 		changeStream := syncservice.StreamChanges{
 			Changes: changes, Containers: containers, Authorizer: authorizer, Fields: fieldSight,
 			UnitOfWork: unitOfWork, Cursors: streamCursors,
+			// A group's grant of a custom role reaches its members' devices only.
+			Groups: postgres.NewSnapshotRepository(),
 			// The workspace's synchronisation epoch: a restore advances it, and a cursor
 			// minted before is refused.
 			Epochs: postgres.NewEpochRepository(),

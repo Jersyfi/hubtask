@@ -403,6 +403,50 @@ func (SnapshotRepository) CustomRoles(ctx context.Context, after shared.ID, batc
 	return mapRows(rows, customRoleFrom)
 }
 
+// OwnRoleGrants pages the grants of custom roles the account holds itself or through a group.
+func (SnapshotRepository) OwnRoleGrants(
+	ctx context.Context, accountID, after shared.ID, batch int,
+) ([]identityrepo.CustomGrantRow, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotOwnRoleGrants(ctx, sqlc.SnapshotOwnRoleGrantsParams{
+		After: key, AccountID: account, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("role grants", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotOwnRoleGrantsRow) (identityrepo.CustomGrantRow, error) {
+		return customGrantFrom(sqlc.ListCustomRoleGrantsRow(row))
+	})
+}
+
+// InGroup reports whether the account is a member of the group.
+func (SnapshotRepository) InGroup(ctx context.Context, accountID, groupID shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	group, err := uuidOf(groupID)
+	if err != nil {
+		return false, err
+	}
+	member, err := queries.IsAccountGroupMember(ctx, sqlc.IsAccountGroupMemberParams{GroupID: group, AccountID: account})
+	if err != nil {
+		return false, snapshotFailed("group membership", err)
+	}
+	return member, nil
+}
+
 // mapRows turns a page of rows into the port's values, failing on the first that does not read.
 func mapRows[R, T any](rows []R, from func(R) (T, error)) ([]T, error) {
 	out := make([]T, 0, len(rows))

@@ -357,6 +357,26 @@ func (q *Queries) HoldsTombstone(ctx context.Context, arg HoldsTombstoneParams) 
 	return held, err
 }
 
+const isAccountGroupMember = `-- name: IsAccountGroupMember :one
+SELECT EXISTS (
+  SELECT 1 FROM account_group_member
+  WHERE tenant_id = current_tenant_id() AND group_id = $1 AND account_id = $2
+) AS member
+`
+
+type IsAccountGroupMemberParams struct {
+	GroupID   pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+// Whether the account is in the group: a group's grant reaches its members' devices only.
+func (q *Queries) IsAccountGroupMember(ctx context.Context, arg IsAccountGroupMemberParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isAccountGroupMember, arg.GroupID, arg.AccountID)
+	var member bool
+	err := row.Scan(&member)
+	return member, err
+}
+
 const latestChangeSeq = `-- name: LatestChangeSeq :one
 SELECT coalesce(max(seq), 0)::bigint FROM change_log WHERE tenant_id = current_tenant_id()
 `
@@ -1052,6 +1072,67 @@ func (q *Queries) SnapshotLinkTypes(ctx context.Context, arg SnapshotLinkTypesPa
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotOwnRoleGrants = `-- name: SnapshotOwnRoleGrants :many
+SELECT g.id, g.tenant_id, g.account_id, g.group_id, g.scope_type, g.scope_id, g.role_id, r.key AS role_key
+FROM custom_role_grant g
+JOIN custom_role r ON r.tenant_id = g.tenant_id AND r.id = g.role_id
+WHERE g.tenant_id = current_tenant_id() AND g.id > $1
+  AND (g.account_id = $2::uuid
+    OR g.group_id IN (
+      SELECT m.group_id FROM account_group_member m
+      WHERE m.tenant_id = current_tenant_id() AND m.account_id = $2::uuid))
+ORDER BY g.id
+LIMIT $3
+`
+
+type SnapshotOwnRoleGrantsParams struct {
+	After     pgtype.UUID
+	AccountID pgtype.UUID
+	Batch     int32
+}
+
+type SnapshotOwnRoleGrantsRow struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	GroupID   pgtype.UUID
+	ScopeType MembershipScope
+	ScopeID   pgtype.UUID
+	RoleID    pgtype.UUID
+	RoleKey   string
+}
+
+// The grants of custom roles the reader holds, named to them or to a group they are in: a
+// person's own, never another's (offline-sync.md §4.3).
+func (q *Queries) SnapshotOwnRoleGrants(ctx context.Context, arg SnapshotOwnRoleGrantsParams) ([]SnapshotOwnRoleGrantsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotOwnRoleGrants, arg.After, arg.AccountID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotOwnRoleGrantsRow{}
+	for rows.Next() {
+		var i SnapshotOwnRoleGrantsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.AccountID,
+			&i.GroupID,
+			&i.ScopeType,
+			&i.ScopeID,
+			&i.RoleID,
+			&i.RoleKey,
 		); err != nil {
 			return nil, err
 		}

@@ -69,6 +69,8 @@ export function collectionOf(entity: string): string {
       return 'workflows';
     case 'custom_role':
       return 'custom_roles';
+    case 'role_grant':
+      return 'role_grants';
     default:
       return entity;
   }

@@ -29,7 +29,7 @@ import (
 var walkKinds = []string{
 	entityContainer, entityBucket, entityLabel, entityItem, kindSet,
 	entityComment, entityReminder, entityRecurrence, entityTemplate, entityEntryType,
-	entityLinkType, entityWorkflow, entityCustomRole, entityEntryLink,
+	entityLinkType, entityWorkflow, entityCustomRole, entityEntryLink, entityRoleGrant,
 }
 
 const (
@@ -51,6 +51,9 @@ const (
 	// entityEntryLink is filed under its source's collection and reaches a reader only when they
 	// may read the target's as well: a link never tells of an entry its reader cannot see.
 	entityEntryLink = "entry_link"
+	// entityRoleGrant is a grant of a custom role, walked for its holder alone: what a device
+	// may predict offline is what its own person holds (offline-sync.md §4.3).
+	entityRoleGrant = identityservice.RoleGrantEntity
 	// kindSet is the walk's own name for the set element pass. Not an entity: its records are the
 	// entry's.
 	kindSet = "set"
@@ -156,10 +159,32 @@ func (p PullChanges) readKind(
 	var rows []walkRow
 	err := p.Stream.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
+		if kind == entityRoleGrant {
+			rows, err = p.ownGrants(ctx, actor, after, batch)
+			return err
+		}
 		rows, err = p.pageOf(ctx, kind, after, batch)
 		return err
 	})
 	return rows, err
+}
+
+// ownGrants pages the reader's own grants of custom roles; the only kind read for one person.
+func (p PullChanges) ownGrants(
+	ctx context.Context, actor appshared.ActorContext, after string, batch int,
+) ([]walkRow, error) {
+	grants, err := p.Snapshot.OwnRoleGrants(ctx, actor.AccountID, shared.ID(after), batch)
+	if err != nil {
+		return nil, err
+	}
+	rows := make([]walkRow, 0, len(grants))
+	for _, grant := range grants {
+		rows = append(rows, walkRow{
+			entity: entityRoleGrant, entityID: grant.Grant.ID,
+			payload: identityservice.CustomGrantOutput(grant), key: grant.Grant.ID.String(),
+		})
+	}
+	return rows, nil
 }
 
 // pageOf is the table of kinds: what each one reads, and how its rows become records.

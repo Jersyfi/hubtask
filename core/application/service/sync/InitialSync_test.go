@@ -34,6 +34,9 @@ type snapshotStore struct {
 	linkTypes   []work.LinkType
 	links       []repository.LinkBetween
 	roles       []identityrepo.CustomRoleRow
+	grants      []identityrepo.CustomGrantRow
+	// groups are the groups the reader is in.
+	groups map[shared.ID]bool
 	// reads counts the pages asked for, so a test can say how much of the store a walk touched.
 	reads int
 }

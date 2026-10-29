@@ -157,6 +157,9 @@ type Snapshot interface {
 	EntryLinks(ctx context.Context, after shared.ID, batch int) ([]LinkBetween, error)
 	// CustomRoles pages the workspace's own roles (UC-ID-26).
 	CustomRoles(ctx context.Context, after shared.ID, batch int) ([]identityrepo.CustomRoleRow, error)
+	// OwnRoleGrants pages the grants of custom roles the account holds, named to it or to a
+	// group it is in: a person's own (offline-sync.md §4.3).
+	OwnRoleGrants(ctx context.Context, accountID, after shared.ID, batch int) ([]identityrepo.CustomGrantRow, error)
 }
 
 // LinkBetween is a link with the collection each of its ends is in: a reader is told of it only

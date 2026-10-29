@@ -85,13 +85,15 @@ moment it was minted (against the window, §7) and the workspace's synchronisati
 
 A **null cursor is the initial synchronisation**: the current state, one kind at a time
 (containers, buckets, labels, entries, set elements, comments, reminders, recurrence rules,
-templates, entry types, link types, workflows, custom roles, links), paged by identifier, each row
+templates, entry types, link types, workflows, custom roles, links, the reader's own role grants), paged by identifier, each row
 judged by the same permission as a delta record, with the log position taken *before* the first
 page so a change landing mid-walk is the first delta's. Entry types, link types and workflows are
 the workspace's vocabulary and reach every member; a custom role reaches whoever may read at the
 workspace; a link is filed under its source's collection and reaches a reader only when they may
 read its target's as well (`target_collection_id`), so that a link never tells of an entry out of
-reach. A device learns which custom roles it holds from the server's answers, not from the replica. A
+reach. A reader's own grants of custom roles (`role_grant`) are walked for that reader alone - named to
+them or to a group they are in - so a device predicts a form's `actor.roles` and `actor.permissions`
+offline; the server still decides (§4.3). A
 mid-walk page cursor names the kind and key it resumes after; the pull continues it, the stream
 refuses it.
 
@@ -215,6 +217,15 @@ server.
 Permissions, the tenant boundary, the capability matrix's invariants (which type under which, the
 maximum depth), uniqueness, quotas, recurring follow-up instances, automatic assignment. A client may
 predict them to show something at once, but adopts the server's result.
+
+To predict, a device holds **its own person's grants of custom roles** and nobody else's. A grant
+given is recorded as `role_grant` with the role's key, the place and its holder (`account_id` or
+`group_id`); the stream delivers it to that account or to the group's members, asked at the moment
+it is read. A grant taken away, a role deleted and a group deleted record a removal naming no
+holder, delivered to every device - it carries an identifier only, and a device holding nothing
+under it drops nothing. A person joining a group is sent the group's grants again; a person leaving
+it is sent their removal addressed to them alone (`account_id`), so the members who stay keep
+them. Built-in memberships stay out of the replica: the device learns them from `/access/explain`.
 
 The `auto_assign` key of a collection's policies merges as one scalar, like `completion_policy`. A
 `ROUND_ROBIN` rotation state is the server's, advanced under a row lock in the assigning transaction

@@ -126,9 +126,17 @@ type StreamChanges struct {
 	// Fields takes from an entry's record the fields hidden from the reader (UC-ID-27 check 3).
 	// Optional: a build without it narrows nothing.
 	Fields workservice.FieldSight
+	// Groups answers whether the reader is in the group a grant of a custom role names. Nil
+	// withholds every group's grant, the answer that does not leak one.
+	Groups GroupMembers
 	// Batch is how many entries one round reads. A bound rather than a tuning knob: a round is a
 	// read inside one transaction, and an unbounded one would hold it open across a backlog.
 	Batch int
+}
+
+// GroupMembers answers whether an account is a member of a group.
+type GroupMembers interface {
+	InGroup(ctx context.Context, accountID, groupID shared.ID) (bool, error)
 }
 
 // Resume decides where a connection starts.
@@ -275,6 +283,16 @@ func (s StreamChanges) page(
 			}
 			continue
 		}
+		if entry.Entity == entityRoleGrant {
+			held, err := s.holds(ctx, actor, entry.Op, entry.Payload)
+			if err != nil {
+				return Batch{}, err
+			}
+			if held {
+				records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq, from.Epoch)})
+			}
+			continue
+		}
 		seen, err := s.mayRead(ctx, actor, entry.Entity, entry.ContainerID, resolved)
 		if err != nil {
 			return Batch{}, err
@@ -405,6 +423,9 @@ func (s StreamChanges) mayReadWorkspaceWide(
 	case entityEntryType, entityLinkType, entityWorkflow:
 		// What ListEntryTypes, ListLinkTypes and ListWorkflows answer every member.
 		return visibility{allowed: true}, nil
+	case entityRoleGrant:
+		// The walk reads the reader's own grants only; the stream decides each record by holds.
+		return visibility{allowed: true}, nil
 	}
 	if seen, decided := resolved[shared.ID("")]; decided {
 		return seen, nil
@@ -442,6 +463,33 @@ func (s StreamChanges) mayReadOtherEnd(
 		return false, err
 	}
 	return seen.allowed, nil
+}
+
+// holds decides a record of a custom role grant: it reaches the account it names, or the members
+// of the group it names. A removal naming nobody reaches every device - it carries an identifier
+// only, and a device holding nothing under it drops nothing; one naming an account, its holder
+// leaving a group, reaches that account alone.
+func (s StreamChanges) holds(
+	ctx context.Context, actor appshared.ActorContext, op repository.Operation, payload map[string]any,
+) (bool, error) {
+	account, _ := payload["account_id"].(string)
+	if account != "" {
+		return shared.ID(account) == actor.AccountID, nil
+	}
+	if op == repository.Delete {
+		return true, nil
+	}
+	group, _ := payload["group_id"].(string)
+	if group == "" || s.Groups == nil {
+		return false, nil
+	}
+	var member bool
+	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		member, err = s.Groups.InGroup(ctx, actor.AccountID, shared.ID(group))
+		return err
+	})
+	return member, err
 }
 
 // knownEntity reports whether the reader can place a change of this kind: the entities the walk

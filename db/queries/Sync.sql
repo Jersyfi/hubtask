@@ -377,3 +377,24 @@ FROM custom_role
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
 ORDER BY id
 LIMIT sqlc.arg('batch');
+
+-- name: SnapshotOwnRoleGrants :many
+-- The grants of custom roles the reader holds, named to them or to a group they are in: a
+-- person's own, never another's (offline-sync.md §4.3).
+SELECT g.id, g.tenant_id, g.account_id, g.group_id, g.scope_type, g.scope_id, g.role_id, r.key AS role_key
+FROM custom_role_grant g
+JOIN custom_role r ON r.tenant_id = g.tenant_id AND r.id = g.role_id
+WHERE g.tenant_id = current_tenant_id() AND g.id > sqlc.arg('after')
+  AND (g.account_id = sqlc.arg('account_id')::uuid
+    OR g.group_id IN (
+      SELECT m.group_id FROM account_group_member m
+      WHERE m.tenant_id = current_tenant_id() AND m.account_id = sqlc.arg('account_id')::uuid))
+ORDER BY g.id
+LIMIT sqlc.arg('batch');
+
+-- name: IsAccountGroupMember :one
+-- Whether the account is in the group: a group's grant reaches its members' devices only.
+SELECT EXISTS (
+  SELECT 1 FROM account_group_member
+  WHERE tenant_id = current_tenant_id() AND group_id = sqlc.arg('group_id') AND account_id = sqlc.arg('account_id')
+) AS member;
