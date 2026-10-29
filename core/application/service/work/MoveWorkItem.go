@@ -389,6 +389,11 @@ func (w PlacementWriter) perform(
 		if err := offer.requireLevel(fresh.item.Type, "/target_parent_id"); err != nil {
 			return err
 		}
+		if fresh.destination.ID != fresh.source.ID {
+			if err := offer.requireEntryType(fresh.item); err != nil {
+				return err
+			}
+		}
 
 		if err := w.ensureBucketAt(ctx, fresh, spot, offer); err != nil {
 			return err

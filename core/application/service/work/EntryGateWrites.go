@@ -39,6 +39,20 @@ func (o entryOffer) entryTypesOn(level domain.ItemType) []string {
 	return o.offered.EntryTypesOn(level)
 }
 
+// requireEntryType refuses an entry whose type the collection does not offer on its level: a move
+// into it is refused rather than keeping a type nothing there may create, or silently changing it
+// (UC-FLW-01 check 3). The entry's type is changed first, with its drops confirmed.
+func (o entryOffer) requireEntryType(item domain.WorkItem) error {
+	offered := o.entryTypesOn(item.Type)
+	key := entryTypeKeyOf(item)
+	if offered == nil || slices.Contains(offered, key) {
+		return nil
+	}
+	return shared.ErrValidation.WithDetail("entry_types.not_offered").
+		WithParams(map[string]string{"entry_type": key}).
+		WithFields(shared.FieldError{Path: "/entry_type", Code: "entry_types.not_offered"})
+}
+
 // narrow is the profile the writer gates its values with.
 func (o entryOffer) narrow(profile domain.CapabilityProfile) domain.CapabilityProfile {
 	if !o.wired {

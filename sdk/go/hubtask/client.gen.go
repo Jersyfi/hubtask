@@ -21877,13 +21877,13 @@ type ClientInterface interface {
 	// MoveWorkItemWithBody performs a POST /items/{itemId}:move (the `MoveWorkItem` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Moves the item and its subtree; checks the capability profile and reference resolution.
+	// Moves the item and its subtree; checks the capability profile and reference resolution. A move into another collection that does not offer the entry's type on its level is refused with `entry_types.not_offered`; its type is changed first.
 	MoveWorkItemWithBody(ctx context.Context, itemId ItemId, params *MoveWorkItemParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// MoveWorkItem performs a POST /items/{itemId}:move (the `MoveWorkItem` operationId) request.
 	// Takes a body of the `application/json` content type.
 	//
-	// Moves the item and its subtree; checks the capability profile and reference resolution.
+	// Moves the item and its subtree; checks the capability profile and reference resolution. A move into another collection that does not offer the entry's type on its level is refused with `entry_types.not_offered`; its type is changed first.
 	MoveWorkItem(ctx context.Context, itemId ItemId, params *MoveWorkItemParams, body MoveWorkItemJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PurgeWorkItem performs a POST /items/{itemId}:purge (the `PurgeWorkItem` operationId) request.
@@ -32498,7 +32498,7 @@ func (c *Client) SuggestDuplicates(ctx context.Context, itemId ItemId, reqEditor
 // MoveWorkItemWithBody performs a POST /items/{itemId}:move (the `MoveWorkItem` operationId) request,
 // with any type of body and a specified content type.
 //
-// Moves the item and its subtree; checks the capability profile and reference resolution.
+// Moves the item and its subtree; checks the capability profile and reference resolution. A move into another collection that does not offer the entry's type on its level is refused with `entry_types.not_offered`; its type is changed first.
 func (c *Client) MoveWorkItemWithBody(ctx context.Context, itemId ItemId, params *MoveWorkItemParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewMoveWorkItemRequestWithBody(c.Server, itemId, params, contentType, body)
 	if err != nil {
@@ -32514,7 +32514,7 @@ func (c *Client) MoveWorkItemWithBody(ctx context.Context, itemId ItemId, params
 // MoveWorkItem performs a POST /items/{itemId}:move (the `MoveWorkItem` operationId) request.
 // Takes a body of the `application/json` content type.
 //
-// Moves the item and its subtree; checks the capability profile and reference resolution.
+// Moves the item and its subtree; checks the capability profile and reference resolution. A move into another collection that does not offer the entry's type on its level is refused with `entry_types.not_offered`; its type is changed first.
 func (c *Client) MoveWorkItem(ctx context.Context, itemId ItemId, params *MoveWorkItemParams, body MoveWorkItemJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewMoveWorkItemRequest(c.Server, itemId, params, body)
 	if err != nil {
@@ -62509,7 +62509,7 @@ type ClientWithResponsesInterface interface {
 	// MoveWorkItemWithBodyWithResponse performs a POST /items/{itemId}:move (the `MoveWorkItem` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Moves the item and its subtree; checks the capability profile and reference resolution.
+	// Moves the item and its subtree; checks the capability profile and reference resolution. A move into another collection that does not offer the entry's type on its level is refused with `entry_types.not_offered`; its type is changed first.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	MoveWorkItemWithBodyWithResponse(ctx context.Context, itemId ItemId, params *MoveWorkItemParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveWorkItemResult, error)
@@ -62517,7 +62517,7 @@ type ClientWithResponsesInterface interface {
 	// MoveWorkItemWithResponse performs a POST /items/{itemId}:move (the `MoveWorkItem` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Moves the item and its subtree; checks the capability profile and reference resolution.
+	// Moves the item and its subtree; checks the capability profile and reference resolution. A move into another collection that does not offer the entry's type on its level is refused with `entry_types.not_offered`; its type is changed first.
 	MoveWorkItemWithResponse(ctx context.Context, itemId ItemId, params *MoveWorkItemParams, body MoveWorkItemJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveWorkItemResult, error)
 
 	// PurgeWorkItemWithResponse performs a POST /items/{itemId}:purge (the `PurgeWorkItem` operationId) request.
@@ -93822,7 +93822,7 @@ func (c *ClientWithResponses) SuggestDuplicatesWithResponse(ctx context.Context,
 // MoveWorkItemWithBodyWithResponse performs a POST /items/{itemId}:move (the `MoveWorkItem` operationId) request,
 // with any type of body and a specified content type.
 //
-// Moves the item and its subtree; checks the capability profile and reference resolution.
+// Moves the item and its subtree; checks the capability profile and reference resolution. A move into another collection that does not offer the entry's type on its level is refused with `entry_types.not_offered`; its type is changed first.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) MoveWorkItemWithBodyWithResponse(ctx context.Context, itemId ItemId, params *MoveWorkItemParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveWorkItemResult, error) {
@@ -93836,7 +93836,7 @@ func (c *ClientWithResponses) MoveWorkItemWithBodyWithResponse(ctx context.Conte
 // MoveWorkItemWithResponse performs a POST /items/{itemId}:move (the `MoveWorkItem` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Moves the item and its subtree; checks the capability profile and reference resolution.
+// Moves the item and its subtree; checks the capability profile and reference resolution. A move into another collection that does not offer the entry's type on its level is refused with `entry_types.not_offered`; its type is changed first.
 func (c *ClientWithResponses) MoveWorkItemWithResponse(ctx context.Context, itemId ItemId, params *MoveWorkItemParams, body MoveWorkItemJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveWorkItemResult, error) {
 	rsp, err := c.MoveWorkItem(ctx, itemId, params, body, reqEditors...)
 	if err != nil {

@@ -15073,7 +15073,7 @@
           "items"
         ],
         "operationId": "moveWorkItem",
-        "description": "Moves the item and its subtree; checks the capability profile and reference resolution.",
+        "description": "Moves the item and its subtree; checks the capability profile and reference resolution. A move into another collection that does not offer the entry's type on its level is refused with `entry_types.not_offered`; its type is changed first.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
