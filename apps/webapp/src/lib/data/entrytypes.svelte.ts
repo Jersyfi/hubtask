@@ -12,8 +12,9 @@ import {
   type EntryTypeList, type ResourceState, type StoredRecord, type WorkItem,
 } from '@hubtask/sync-engine';
 
+import type { FormActor } from '@hubtask/expression';
 import { engine } from './engine.ts';
-import { actorOf, offlineFormState } from './entryforms.ts';
+import { actorOf, offlineFormState, withOwnGrants, type HeldGrant, type HeldRole } from './entryforms.ts';
 import { etagFor } from './etag.ts';
 import { roles } from './roles.svelte.ts';
 
@@ -103,7 +104,9 @@ class EntryTypes {
         ? (await engine.storage?.get<StoredRecord<WorkItem>>('items', draft.item_id))?.document
         : undefined;
       const collectionId = draft.collection_id ?? held?.collection_id;
-      const actor = actorOf(collectionId ? roles.mineAt(collectionId) : undefined);
+      const actor = collectionId
+        ? await withHeldGrants(actorOf(roles.mineAt(collectionId)), collectionId)
+        : actorOf(undefined);
       const state = offlineFormState(this.all.find((type) => type.key === key), draft, held, actor);
       if (!state) throw cause;
       return state;
@@ -117,6 +120,17 @@ class EntryTypes {
       invalidates: [PATH],
     });
   }
+}
+
+/** The reader's own grants of custom roles along a collection's path, from the copy. */
+async function withHeldGrants(actor: FormActor, collectionId: string): Promise<FormActor> {
+  const storage = engine.storage;
+  if (!storage) return actor;
+  const collection = (await storage.get<StoredRecord<{ parent_id?: string }>>('containers', collectionId))?.document;
+  const path = [collectionId, ...(collection?.parent_id ? [collection.parent_id] : [])];
+  const grants = (await storage.all<StoredRecord<HeldGrant>>('role_grants')).flatMap((record) => (record.document ? [record.document] : []));
+  const defined = (await storage.all<StoredRecord<HeldRole>>('custom_roles')).flatMap((record) => (record.document ? [record.document] : []));
+  return withOwnGrants(actor, grants, defined, path);
 }
 
 export const entryTypes = new EntryTypes();

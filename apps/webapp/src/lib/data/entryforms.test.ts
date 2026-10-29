@@ -114,7 +114,7 @@ test('the entry panel lays the custom fields out by the form, hidden ones left o
 
 // Offline: the browser's evaluator stands in for `form:evaluate`, over the copy and the door the
 // push arrives by.
-import { actorOf, offlineFormState } from './entryforms.ts';
+import { actorOf, offlineFormState, withOwnGrants } from './entryforms.ts';
 import type { EntryType, WorkItem } from '@hubtask/sync-engine';
 
 test('offline, the form is answered in the browser through SYNC, the draft over the entry the copy holds', () => {
@@ -142,4 +142,20 @@ test('offline, the form is answered in the browser through SYNC, the draft over 
 test('the built-in role a condition reads is the strongest the reader holds there', () => {
   assert.equal(actorOf({ roles: ['auditor', 'VIEWER', 'MEMBER'], permissions: ['READ'] } as never).role, 'MEMBER');
   assert.equal(actorOf(undefined).role, undefined);
+});
+
+test('offline, the actor holds the custom roles its replica grants along the path, with what they carry', () => {
+  const actor = withOwnGrants(
+    actorOf({ roles: ['MEMBER'], permissions: ['READ'] } as never),
+    [
+      { role: 'auditor', scope_type: 'TENANT' },
+      { role: 'triage', scope_type: 'COLLECTION', scope_id: 'c-1' },
+      { role: 'lead', scope_type: 'HUB', scope_id: 'h-other' },
+    ],
+    [{ key: 'auditor', permissions: ['READ_CONFIGURATION'] }, { key: 'triage', permissions: ['WRITE'] }, { key: 'lead', permissions: ['MANAGE_MEMBERS'] }],
+    ['c-1', 'h-1'],
+  );
+  assert.deepEqual([...(actor.roles ?? [])].sort(), ['MEMBER', 'auditor', 'triage']);
+  assert.deepEqual([...(actor.permissions ?? [])].sort(), ['READ', 'READ_CONFIGURATION', 'WRITE']);
+  assert.equal(actor.role, 'MEMBER');
 });

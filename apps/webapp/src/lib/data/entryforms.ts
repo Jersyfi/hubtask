@@ -316,6 +316,38 @@ export function actorOf(explanation: AccessExplanation | null | undefined): Form
   return { ...(role ? { role } : {}), roles, permissions: explanation?.permissions ?? [], kind: 'HUMAN' };
 }
 
+/** A grant of a custom role as the reader's replica holds it (offline-sync.md §4.3). */
+export interface HeldGrant {
+  readonly role: string;
+  readonly scope_type: string;
+  readonly scope_id?: string;
+}
+
+/** A custom role's definition as the replica holds it. */
+export interface HeldRole {
+  readonly key: string;
+  readonly permissions?: readonly string[];
+}
+
+/**
+ * The actor with the custom roles the replica says the reader holds along the path - the
+ * workspace, the hub, the collection - and what those roles carry. What the server last explained
+ * stays; the replica adds what was granted since, and is what a device without an answer has.
+ */
+export function withOwnGrants(
+  actor: FormActor, grants: readonly HeldGrant[], defined: readonly HeldRole[], path: readonly string[],
+): FormActor {
+  const along = grants.filter((grant) => grant.scope_type === 'TENANT' || (grant.scope_id !== undefined && path.includes(grant.scope_id)));
+  if (along.length === 0) return actor;
+  const roles = new Set(actor.roles ?? []);
+  const permissions = new Set(actor.permissions ?? []);
+  for (const grant of along) {
+    roles.add(grant.role);
+    for (const permission of defined.find((role) => role.key === grant.role)?.permissions ?? []) permissions.add(permission);
+  }
+  return { ...actor, roles: [...roles], permissions: [...permissions] };
+}
+
 /**
  * How a type's form stands for a draft while the server cannot answer: the entry the copy holds
  * with the draft's values over it, judged as the push will be judged - through `SYNC`. `undefined`
