@@ -250,6 +250,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-PLN-01](./planning/UC-PLN-01-say-that-one-piece-of-work-waits-for-another.md) | Say that one piece of work waits for another | planning |
 | [UC-DOC-01](./knowledge/UC-DOC-01-write-a-page-in-a-hub-and-find-it-again.md) | Write a page in a hub and find it again | knowledge |
 | [UC-DOC-02](./knowledge/UC-DOC-02-write-a-page-together-at-the-same-time.md) | Write a page together at the same time | knowledge |
+| [UC-DOC-03](./knowledge/UC-DOC-03-turn-a-line-of-a-page-into-a-task-and-keep-them-linked.md) | Turn a line of a page into a task and keep them linked | knowledge |
 | [UC-DOC-04](./knowledge/UC-DOC-04-link-pages-and-entries-and-see-what-links-here.md) | Link pages and entries and see what links here | knowledge |
 | [UC-DOC-05](./knowledge/UC-DOC-05-start-a-page-from-a-template.md) | Start a page from a template | knowledge |
 | [UC-DOC-06](./knowledge/UC-DOC-06-see-how-a-page-changed-and-bring-an-older-version-back.md) | See how a page changed and bring an older version back | knowledge |
