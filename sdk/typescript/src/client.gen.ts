@@ -191,6 +191,37 @@ export class HubtaskClient {
     return this.call("POST", "/ci-duplicates/{duplicateId}:resolve", { "duplicateId": duplicateId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** A hub's connectors */
+  listCiConnectors(hubId: string, options: CallOptions = {}): Promise<operations["listCiConnectors"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/cmdb-connectors", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add or change a connector */
+  defineCiConnector(hubId: string, connectorKey: string, body: NonNullable<operations["defineCiConnector"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["defineCiConnector"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/hubs/{hubId}/cmdb-connectors/{connectorKey}", { "hubId": hubId, "connectorKey": connectorKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Set a connector's credential */
+  setCiConnectorCredential(connectorId: string, body: NonNullable<operations["setCiConnectorCredential"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setCiConnectorCredential"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/cmdb-connectors/{connectorId}/credential", { "connectorId": connectorId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Pull a connector's source now */
+  runCiConnector(connectorId: string, body: NonNullable<operations["runCiConnector"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["runCiConnector"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/cmdb-connectors/{connectorId}:run", { "connectorId": connectorId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** A hub's alerts */
+  listCiAlerts(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listCiAlerts"]['parameters']['query']> } = {}): Promise<operations["listCiAlerts"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/ci-alerts", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Post alerts to an intake
+   * Public: sent without a bearer where the client holds none. */
+  deliverCiAlerts(tenantId: string, connectorId: string, body: NonNullable<operations["deliverCiAlerts"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly xHubtaskSignature?: string; readonly xHubtaskTimestamp?: string } = {}): Promise<operations["deliverCiAlerts"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/cmdb/alert-intake/{tenantId}/{connectorId}", { "tenantId": tenantId, "connectorId": connectorId }, undefined, { "X-Hubtask-Signature": options.xHubtaskSignature, "X-Hubtask-Timestamp": options.xHubtaskTimestamp }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** A hub's inventory judged */
   readCmdbHealth(hubId: string, options: CallOptions = {}): Promise<operations["readCmdbHealth"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/cmdb-health", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

@@ -471,6 +471,196 @@ paths:
               schema: { $ref: "#/components/schemas/CiDuplicateResolved" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /hubs/{hubId}/cmdb-connectors:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cmdb]
+      operationId: listCiConnectors
+      x-hubtask-rest: generated
+      x-hubtask-cli: "cmdb connector ls"
+      summary: A hub's connectors
+      description: >
+        The programs the hub's configuration items are pulled from and the monitoring programs that
+        post alerts to it, with the source each writes as, the hosts it may reach, its period,
+        whether a credential is set - never the credential - and how its last run ended. Needs READ
+        on the hub.
+      responses:
+        "200":
+          description: The connectors
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiConnectorList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /hubs/{hubId}/cmdb-connectors/{connectorKey}:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: connectorKey
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [cmdb]
+      operationId: defineCiConnector
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: { connectorKey: key }
+      x-hubtask-cli: "cmdb connector define"
+      summary: Add or change a connector
+      description: >
+        Its kind (fixed once made), the connector source it writes as, the https address it pulls
+        from, the kind's settings, further hosts it may reach, a period of 15 minutes to a week or
+        none, whether it is on and an alert intake's collection. A connector is switched off, never
+        deleted. Needs STRUCTURE in the workspace.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CiConnectorDefine" }
+      responses:
+        "200":
+          description: The connector
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiConnector" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /cmdb-connectors/{connectorId}/credential:
+    parameters:
+      - name: connectorId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [cmdb]
+      operationId: setCiConnectorCredential
+      x-hubtask-rest: generated
+      x-hubtask-cli: "cmdb connector credential"
+      summary: Set a connector's credential
+      description: >
+        Sealed at rest and never answered again. A pull takes the secret its program gave; an alert
+        intake draws its own and answers it once in `secret`, which the monitoring program presents
+        as a bearer token or signs each delivery with. Needs STRUCTURE in the workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CiConnectorCredential" }
+      responses:
+        "200":
+          description: The connector, with an intake's new secret
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiConnector" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /cmdb-connectors/{connectorId}:run:
+    parameters:
+      - name: connectorId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [cmdb]
+      operationId: runCiConnector
+      x-hubtask-rest: generated
+      x-hubtask-cli: "cmdb connector run"
+      summary: Pull a connector's source now
+      description: >
+        Page by page from where its last run ended, or from the beginning with `full`, each page
+        through the reconciliation as the connector's source, up to 50 pages. A dry run fetches the
+        first page and answers what would happen. A failure is answered by its message code and the
+        cursor stays. Needs WRITE_ITEMS on the hub.
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CiConnectorRunRequest" }
+      responses:
+        "200":
+          description: What the run did
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiConnectorRun" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /hubs/{hubId}/ci-alerts:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cmdb]
+      operationId: listCiAlerts
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci alert ls"
+      summary: A hub's alerts
+      description: >
+        The alerts monitoring programs posted to the hub's intakes, the latest first, each problem
+        once by its key, with the CI its host names and the entry opened for it. Needs READ on the
+        hub.
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [FIRING, RESOLVED] } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200 } }
+      responses:
+        "200":
+          description: The alerts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiAlertList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /cmdb/alert-intake/{tenantId}/{connectorId}:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: The workspace the intake belongs to, which the lookup needs before it can happen.
+        schema: { type: string, format: uuid }
+      - name: connectorId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [cmdb]
+      operationId: deliverCiAlerts
+      security: []
+      summary: Post alerts to an intake
+      description: >
+        An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in
+        its own format. The intake's secret is the credential: presented as
+        `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in
+        Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp,
+        a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its
+        key, bound to the CI its host names, and opens an entry in the intake's collection while it
+        fires and completes it when it resolves.
+
+        Every reason not to serve answers the same `404` - an unknown intake, one switched off, a
+        wrong secret, a stale or replayed signature.
+      parameters:
+        - { name: X-Hubtask-Signature, in: header, schema: { type: string } }
+        - { name: X-Hubtask-Timestamp, in: header, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "202":
+          description: Taken in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiAlertReceipt" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /hubs/{hubId}/cmdb-health:
     parameters:
       - name: hubId
@@ -18920,12 +19110,13 @@ components:
       properties:
         store:
           type: string
-          enum: [account_mfa, identity_provider, webhook_subscription, backup_target, ai_provider, automation_rule, automation_http_job, backup_archive]
+          enum: [account_mfa, identity_provider, webhook_subscription, backup_target, ai_provider, automation_rule, automation_http_job, backup_archive, cmdb_connector]
           description: >
             The kind of value: second factors, sign-in provider secrets, webhook signing secrets,
             backup target credentials, AI provider keys, rule header secrets, header secrets of
-            HTTP calls still waiting to be made or retried, and backup archives still kept, which
-            a re-seal cannot move and which leave the count only as they expire. Further kinds may
+            HTTP calls still waiting to be made or retried, backup archives still kept, which
+            a re-seal cannot move and which leave the count only as they expire, and CMDB
+            connector credentials. Further kinds may
             be added; a client names an unknown one generically.
         sealed_values:
           type: integer
@@ -27928,6 +28119,116 @@ components:
         counts: { $ref: "#/components/schemas/CiRunCounts" }
         decisions: { type: array, items: { $ref: "#/components/schemas/CiDecision" } }
         skipped_rows: { type: array, items: { type: integer } }
+
+    CiConnector:
+      type: object
+      description: >
+        A program a hub's CIs are pulled from, or that posts alerts to it. Never its credential;
+        `secret` is present once, in the answer that drew an alert intake's.
+      required: [id, hub_id, key, kind, source, push, settings, allowed_hosts, hosts, every_minutes, enabled, has_credential, failures, version]
+      properties:
+        id: { type: string, format: uuid }
+        hub_id: { type: string, format: uuid }
+        key: { type: string }
+        kind: { type: string, enum: [GLPI, NETBOX, INTUNE, ENTRA, HETZNER, OPENSTACK, ALERTMANAGER, ZABBIX, CHECKMK] }
+        source: { type: string }
+        push: { type: boolean, description: An alert intake rather than a pull. }
+        base_url: { type: string }
+        settings: { type: object, additionalProperties: { type: string } }
+        allowed_hosts: { type: array, items: { type: string } }
+        hosts: { type: array, items: { type: string }, description: Every host it may reach. }
+        every_minutes: { type: integer }
+        enabled: { type: boolean }
+        collection_id: { type: string, format: uuid, nullable: true }
+        run_as: { type: string, format: uuid, nullable: true }
+        has_credential: { type: boolean }
+        next_run_at: { type: string, format: date-time, nullable: true }
+        last_run_at: { type: string, format: date-time, nullable: true }
+        last_run_id: { type: string, format: uuid, nullable: true }
+        last_outcome: { type: string, enum: ["", OK, EMPTY, FAILED] }
+        last_error: { type: string, description: The last failure's message code. }
+        failures: { type: integer }
+        secret: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        version: { type: integer }
+
+    CiConnectorList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/CiConnector" } }
+
+    CiConnectorDefine:
+      type: object
+      required: [kind, source]
+      properties:
+        kind: { type: string, enum: [GLPI, NETBOX, INTUNE, ENTRA, HETZNER, OPENSTACK, ALERTMANAGER, ZABBIX, CHECKMK] }
+        source: { type: string }
+        base_url: { type: string, maxLength: 2000 }
+        settings: { type: object, additionalProperties: { type: string, maxLength: 500 } }
+        allowed_hosts: { type: array, maxItems: 10, items: { type: string } }
+        every_minutes: { type: integer, minimum: 0, maximum: 10080 }
+        enabled: { type: boolean }
+        collection_id: { type: string, format: uuid }
+
+    CiConnectorCredential:
+      type: object
+      properties:
+        credential: { type: string, maxLength: 4096, description: A pull's secret; absent for an alert intake. }
+
+    CiConnectorRunRequest:
+      type: object
+      properties:
+        full: { type: boolean }
+        dry_run: { type: boolean }
+
+    CiConnectorRun:
+      type: object
+      required: [connector, dry_run, pages, run_ids, counts, outcome]
+      properties:
+        connector: { $ref: "#/components/schemas/CiConnector" }
+        dry_run: { type: boolean }
+        pages: { type: integer }
+        run_ids: { type: array, items: { type: string, format: uuid } }
+        counts: { $ref: "#/components/schemas/CiRunCounts" }
+        decisions: { type: array, items: { $ref: "#/components/schemas/CiDecision" } }
+        outcome: { type: string, enum: [OK, FAILED] }
+        error: { type: string, description: The failure's message code. }
+
+    CiAlert:
+      type: object
+      required: [id, hub_id, connector_id, key, status, severity, title, first_at, last_at, count]
+      properties:
+        id: { type: string, format: uuid }
+        hub_id: { type: string, format: uuid }
+        connector_id: { type: string, format: uuid }
+        key: { type: string }
+        status: { type: string, enum: [FIRING, RESOLVED] }
+        severity: { type: string }
+        title: { type: string }
+        ci_id: { type: string, format: uuid, nullable: true }
+        entry_id: { type: string, format: uuid, nullable: true }
+        first_at: { type: string, format: date-time }
+        last_at: { type: string, format: date-time }
+        resolved_at: { type: string, format: date-time, nullable: true }
+        count: { type: integer }
+
+    CiAlertList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/CiAlert" } }
+
+    CiAlertReceipt:
+      type: object
+      required: [received, opened, resolved, unchanged, entries_failed]
+      properties:
+        received: { type: integer }
+        opened: { type: integer }
+        resolved: { type: integer }
+        unchanged: { type: integer }
+        entries_failed: { type: integer }
 
     CiRunList:
       type: object

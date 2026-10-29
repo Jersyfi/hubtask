@@ -2004,6 +2004,30 @@ func (pending) DefineCiSource(w http.ResponseWriter, r *http.Request, _ string, 
 	notAvailable(w, r)
 }
 
+func (pending) ListCiConnectors(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) DefineCiConnector(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ string, _ openapi.DefineCiConnectorParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SetCiConnectorCredential(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) RunCiConnector(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiAlerts(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCiAlertsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeliverCiAlerts(w http.ResponseWriter, r *http.Request, _, _ openapi_types.UUID, _ openapi.DeliverCiAlertsParams) {
+	notAvailable(w, r)
+}
+
 func (pending) DismissCiHold(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }

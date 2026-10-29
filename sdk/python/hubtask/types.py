@@ -1133,7 +1133,7 @@ class EncryptionKeyUsage(TypedDict, total=False):
     stores: Required[list["EncryptionStoreCount"]]
 
 class EncryptionStoreCount(TypedDict, total=False):
-    store: Required[Literal["account_mfa", "identity_provider", "webhook_subscription", "backup_target", "ai_provider", "automation_rule", "automation_http_job", "backup_archive"]]
+    store: Required[Literal["account_mfa", "identity_provider", "webhook_subscription", "backup_target", "ai_provider", "automation_rule", "automation_http_job", "backup_archive", "cmdb_connector"]]
     sealed_values: Required[int]
 
 class ResealAccepted(TypedDict, total=False):
@@ -4480,6 +4480,89 @@ class CiRun(TypedDict, total=False):
     counts: Required["CiRunCounts"]
     decisions: list["CiDecision"]
     skipped_rows: list[int]
+
+class CiConnector(TypedDict, total=False):
+    """A program a hub's CIs are pulled from, or that posts alerts to it. Never its credential; `secret` is present once, in the answer that drew an alert intake's."""
+    id: Required[str]
+    hub_id: Required[str]
+    key: Required[str]
+    kind: Required[Literal["GLPI", "NETBOX", "INTUNE", "ENTRA", "HETZNER", "OPENSTACK", "ALERTMANAGER", "ZABBIX", "CHECKMK"]]
+    source: Required[str]
+    push: Required[bool]
+    base_url: str
+    settings: Required[dict[str, Any]]
+    allowed_hosts: Required[list[str]]
+    hosts: Required[list[str]]
+    every_minutes: Required[int]
+    enabled: Required[bool]
+    collection_id: str | None
+    run_as: str | None
+    has_credential: Required[bool]
+    next_run_at: str | None
+    last_run_at: str | None
+    last_run_id: str | None
+    last_outcome: Literal["", "OK", "EMPTY", "FAILED"]
+    last_error: str
+    failures: Required[int]
+    secret: str
+    created_at: str
+    updated_at: str
+    version: Required[int]
+
+class CiConnectorList(TypedDict, total=False):
+    data: Required[list["CiConnector"]]
+
+class CiConnectorDefine(TypedDict, total=False):
+    kind: Required[Literal["GLPI", "NETBOX", "INTUNE", "ENTRA", "HETZNER", "OPENSTACK", "ALERTMANAGER", "ZABBIX", "CHECKMK"]]
+    source: Required[str]
+    base_url: str
+    settings: dict[str, Any]
+    allowed_hosts: list[str]
+    every_minutes: int
+    enabled: bool
+    collection_id: str
+
+class CiConnectorCredential(TypedDict, total=False):
+    credential: str
+
+class CiConnectorRunRequest(TypedDict, total=False):
+    full: bool
+    dry_run: bool
+
+class CiConnectorRun(TypedDict, total=False):
+    connector: Required["CiConnector"]
+    dry_run: Required[bool]
+    pages: Required[int]
+    run_ids: Required[list[str]]
+    counts: Required["CiRunCounts"]
+    decisions: list["CiDecision"]
+    outcome: Required[Literal["OK", "FAILED"]]
+    error: str
+
+class CiAlert(TypedDict, total=False):
+    id: Required[str]
+    hub_id: Required[str]
+    connector_id: Required[str]
+    key: Required[str]
+    status: Required[Literal["FIRING", "RESOLVED"]]
+    severity: Required[str]
+    title: Required[str]
+    ci_id: str | None
+    entry_id: str | None
+    first_at: Required[str]
+    last_at: Required[str]
+    resolved_at: str | None
+    count: Required[int]
+
+class CiAlertList(TypedDict, total=False):
+    data: Required[list["CiAlert"]]
+
+class CiAlertReceipt(TypedDict, total=False):
+    received: Required[int]
+    opened: Required[int]
+    resolved: Required[int]
+    unchanged: Required[int]
+    entries_failed: Required[int]
 
 class CiRunList(TypedDict, total=False):
     data: Required[list["CiRun"]]

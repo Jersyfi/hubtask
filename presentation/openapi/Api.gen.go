@@ -1407,6 +1407,24 @@ func (e CapabilitiesWorkspacePermissions) Valid() bool {
 	}
 }
 
+// Defines values for CiAlertStatus.
+const (
+	CiAlertStatusFIRING   CiAlertStatus = "FIRING"
+	CiAlertStatusRESOLVED CiAlertStatus = "RESOLVED"
+)
+
+// Valid indicates whether the value is a known member of the CiAlertStatus enum.
+func (e CiAlertStatus) Valid() bool {
+	switch e {
+	case CiAlertStatusFIRING:
+		return true
+	case CiAlertStatusRESOLVED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CiAttributeKind.
 const (
 	CiAttributeKindACCOUNT CiAttributeKind = "ACCOUNT"
@@ -1557,6 +1575,126 @@ func (e CiComplianceStatus) Valid() bool {
 	case CiComplianceStatusOK:
 		return true
 	case CiComplianceStatusPENDING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiConnectorKind.
+const (
+	CiConnectorKindALERTMANAGER CiConnectorKind = "ALERTMANAGER"
+	CiConnectorKindCHECKMK      CiConnectorKind = "CHECKMK"
+	CiConnectorKindENTRA        CiConnectorKind = "ENTRA"
+	CiConnectorKindGLPI         CiConnectorKind = "GLPI"
+	CiConnectorKindHETZNER      CiConnectorKind = "HETZNER"
+	CiConnectorKindINTUNE       CiConnectorKind = "INTUNE"
+	CiConnectorKindNETBOX       CiConnectorKind = "NETBOX"
+	CiConnectorKindOPENSTACK    CiConnectorKind = "OPENSTACK"
+	CiConnectorKindZABBIX       CiConnectorKind = "ZABBIX"
+)
+
+// Valid indicates whether the value is a known member of the CiConnectorKind enum.
+func (e CiConnectorKind) Valid() bool {
+	switch e {
+	case CiConnectorKindALERTMANAGER:
+		return true
+	case CiConnectorKindCHECKMK:
+		return true
+	case CiConnectorKindENTRA:
+		return true
+	case CiConnectorKindGLPI:
+		return true
+	case CiConnectorKindHETZNER:
+		return true
+	case CiConnectorKindINTUNE:
+		return true
+	case CiConnectorKindNETBOX:
+		return true
+	case CiConnectorKindOPENSTACK:
+		return true
+	case CiConnectorKindZABBIX:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiConnectorLastOutcome.
+const (
+	CiConnectorLastOutcomeEMPTY  CiConnectorLastOutcome = "EMPTY"
+	CiConnectorLastOutcomeEmpty  CiConnectorLastOutcome = ""
+	CiConnectorLastOutcomeFAILED CiConnectorLastOutcome = "FAILED"
+	CiConnectorLastOutcomeOK     CiConnectorLastOutcome = "OK"
+)
+
+// Valid indicates whether the value is a known member of the CiConnectorLastOutcome enum.
+func (e CiConnectorLastOutcome) Valid() bool {
+	switch e {
+	case CiConnectorLastOutcomeEMPTY:
+		return true
+	case CiConnectorLastOutcomeEmpty:
+		return true
+	case CiConnectorLastOutcomeFAILED:
+		return true
+	case CiConnectorLastOutcomeOK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiConnectorDefineKind.
+const (
+	CiConnectorDefineKindALERTMANAGER CiConnectorDefineKind = "ALERTMANAGER"
+	CiConnectorDefineKindCHECKMK      CiConnectorDefineKind = "CHECKMK"
+	CiConnectorDefineKindENTRA        CiConnectorDefineKind = "ENTRA"
+	CiConnectorDefineKindGLPI         CiConnectorDefineKind = "GLPI"
+	CiConnectorDefineKindHETZNER      CiConnectorDefineKind = "HETZNER"
+	CiConnectorDefineKindINTUNE       CiConnectorDefineKind = "INTUNE"
+	CiConnectorDefineKindNETBOX       CiConnectorDefineKind = "NETBOX"
+	CiConnectorDefineKindOPENSTACK    CiConnectorDefineKind = "OPENSTACK"
+	CiConnectorDefineKindZABBIX       CiConnectorDefineKind = "ZABBIX"
+)
+
+// Valid indicates whether the value is a known member of the CiConnectorDefineKind enum.
+func (e CiConnectorDefineKind) Valid() bool {
+	switch e {
+	case CiConnectorDefineKindALERTMANAGER:
+		return true
+	case CiConnectorDefineKindCHECKMK:
+		return true
+	case CiConnectorDefineKindENTRA:
+		return true
+	case CiConnectorDefineKindGLPI:
+		return true
+	case CiConnectorDefineKindHETZNER:
+		return true
+	case CiConnectorDefineKindINTUNE:
+		return true
+	case CiConnectorDefineKindNETBOX:
+		return true
+	case CiConnectorDefineKindOPENSTACK:
+		return true
+	case CiConnectorDefineKindZABBIX:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiConnectorRunOutcome.
+const (
+	CiConnectorRunOutcomeFAILED CiConnectorRunOutcome = "FAILED"
+	CiConnectorRunOutcomeOK     CiConnectorRunOutcome = "OK"
+)
+
+// Valid indicates whether the value is a known member of the CiConnectorRunOutcome enum.
+func (e CiConnectorRunOutcome) Valid() bool {
+	switch e {
+	case CiConnectorRunOutcomeFAILED:
+		return true
+	case CiConnectorRunOutcomeOK:
 		return true
 	default:
 		return false
@@ -2702,6 +2840,7 @@ const (
 	EncryptionStoreCountStoreAutomationRule      EncryptionStoreCountStore = "automation_rule"
 	EncryptionStoreCountStoreBackupArchive       EncryptionStoreCountStore = "backup_archive"
 	EncryptionStoreCountStoreBackupTarget        EncryptionStoreCountStore = "backup_target"
+	EncryptionStoreCountStoreCmdbConnector       EncryptionStoreCountStore = "cmdb_connector"
 	EncryptionStoreCountStoreIdentityProvider    EncryptionStoreCountStore = "identity_provider"
 	EncryptionStoreCountStoreWebhookSubscription EncryptionStoreCountStore = "webhook_subscription"
 )
@@ -2720,6 +2859,8 @@ func (e EncryptionStoreCountStore) Valid() bool {
 	case EncryptionStoreCountStoreBackupArchive:
 		return true
 	case EncryptionStoreCountStoreBackupTarget:
+		return true
+	case EncryptionStoreCountStoreCmdbConnector:
 		return true
 	case EncryptionStoreCountStoreIdentityProvider:
 		return true
@@ -7662,6 +7803,24 @@ func (e ListConfigProposalsParamsState) Valid() bool {
 	}
 }
 
+// Defines values for ListCiAlertsParamsStatus.
+const (
+	ListCiAlertsParamsStatusFIRING   ListCiAlertsParamsStatus = "FIRING"
+	ListCiAlertsParamsStatusRESOLVED ListCiAlertsParamsStatus = "RESOLVED"
+)
+
+// Valid indicates whether the value is a known member of the ListCiAlertsParamsStatus enum.
+func (e ListCiAlertsParamsStatus) Valid() bool {
+	switch e {
+	case ListCiAlertsParamsStatusFIRING:
+		return true
+	case ListCiAlertsParamsStatusRESOLVED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListWebhookDeliveriesParamsStatus.
 const (
 	ListWebhookDeliveriesParamsStatusDEADLETTER   ListWebhookDeliveriesParamsStatus = "DEAD_LETTER"
@@ -9184,6 +9343,40 @@ type CapabilitiesTenancyMode string
 // CapabilitiesWorkspacePermissions defines model for Capabilities.WorkspacePermissions.
 type CapabilitiesWorkspacePermissions string
 
+// CiAlert defines model for CiAlert.
+type CiAlert struct {
+	CiId        *openapi_types.UUID `json:"ci_id,omitempty"`
+	ConnectorId openapi_types.UUID  `json:"connector_id"`
+	Count       int                 `json:"count"`
+	EntryId     *openapi_types.UUID `json:"entry_id,omitempty"`
+	FirstAt     time.Time           `json:"first_at"`
+	HubId       openapi_types.UUID  `json:"hub_id"`
+	Id          openapi_types.UUID  `json:"id"`
+	Key         string              `json:"key"`
+	LastAt      time.Time           `json:"last_at"`
+	ResolvedAt  *time.Time          `json:"resolved_at,omitempty"`
+	Severity    string              `json:"severity"`
+	Status      CiAlertStatus       `json:"status"`
+	Title       string              `json:"title"`
+}
+
+// CiAlertStatus defines model for CiAlert.Status.
+type CiAlertStatus string
+
+// CiAlertList defines model for CiAlertList.
+type CiAlertList struct {
+	Data []CiAlert `json:"data"`
+}
+
+// CiAlertReceipt defines model for CiAlertReceipt.
+type CiAlertReceipt struct {
+	EntriesFailed int `json:"entries_failed"`
+	Opened        int `json:"opened"`
+	Received      int `json:"received"`
+	Resolved      int `json:"resolved"`
+	Unchanged     int `json:"unchanged"`
+}
+
 // CiAttribute defines model for CiAttribute.
 type CiAttribute struct {
 	Identifier *bool            `json:"identifier,omitempty"`
@@ -9281,6 +9474,97 @@ type CiComplianceStage string
 
 // CiComplianceStatus defines model for CiCompliance.Status.
 type CiComplianceStatus string
+
+// CiConnector A program a hub's CIs are pulled from, or that posts alerts to it. Never its credential; `secret` is present once, in the answer that drew an alert intake's.
+type CiConnector struct {
+	AllowedHosts  []string            `json:"allowed_hosts"`
+	BaseUrl       *string             `json:"base_url,omitempty"`
+	CollectionId  *openapi_types.UUID `json:"collection_id,omitempty"`
+	CreatedAt     *time.Time          `json:"created_at,omitempty"`
+	Enabled       bool                `json:"enabled"`
+	EveryMinutes  int                 `json:"every_minutes"`
+	Failures      int                 `json:"failures"`
+	HasCredential bool                `json:"has_credential"`
+
+	// Hosts Every host it may reach.
+	Hosts []string           `json:"hosts"`
+	HubId openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID `json:"id"`
+	Key   string             `json:"key"`
+	Kind  CiConnectorKind    `json:"kind"`
+
+	// LastError The last failure's message code.
+	LastError   *string                 `json:"last_error,omitempty"`
+	LastOutcome *CiConnectorLastOutcome `json:"last_outcome,omitempty"`
+	LastRunAt   *time.Time              `json:"last_run_at,omitempty"`
+	LastRunId   *openapi_types.UUID     `json:"last_run_id,omitempty"`
+	NextRunAt   *time.Time              `json:"next_run_at,omitempty"`
+
+	// Push An alert intake rather than a pull.
+	Push      bool                `json:"push"`
+	RunAs     *openapi_types.UUID `json:"run_as,omitempty"`
+	Secret    *string             `json:"secret,omitempty"`
+	Settings  map[string]string   `json:"settings"`
+	Source    string              `json:"source"`
+	UpdatedAt *time.Time          `json:"updated_at,omitempty"`
+	Version   int                 `json:"version"`
+}
+
+// CiConnectorKind defines model for CiConnector.Kind.
+type CiConnectorKind string
+
+// CiConnectorLastOutcome defines model for CiConnector.LastOutcome.
+type CiConnectorLastOutcome string
+
+// CiConnectorCredential defines model for CiConnectorCredential.
+type CiConnectorCredential struct {
+	// Credential A pull's secret; absent for an alert intake.
+	Credential *string `json:"credential,omitempty"`
+}
+
+// CiConnectorDefine defines model for CiConnectorDefine.
+type CiConnectorDefine struct {
+	AllowedHosts *[]string             `json:"allowed_hosts,omitempty"`
+	BaseUrl      *string               `json:"base_url,omitempty"`
+	CollectionId *openapi_types.UUID   `json:"collection_id,omitempty"`
+	Enabled      *bool                 `json:"enabled,omitempty"`
+	EveryMinutes *int                  `json:"every_minutes,omitempty"`
+	Kind         CiConnectorDefineKind `json:"kind"`
+	Settings     *map[string]string    `json:"settings,omitempty"`
+	Source       string                `json:"source"`
+}
+
+// CiConnectorDefineKind defines model for CiConnectorDefine.Kind.
+type CiConnectorDefineKind string
+
+// CiConnectorList defines model for CiConnectorList.
+type CiConnectorList struct {
+	Data []CiConnector `json:"data"`
+}
+
+// CiConnectorRun defines model for CiConnectorRun.
+type CiConnectorRun struct {
+	// Connector A program a hub's CIs are pulled from, or that posts alerts to it. Never its credential; `secret` is present once, in the answer that drew an alert intake's.
+	Connector CiConnector   `json:"connector"`
+	Counts    CiRunCounts   `json:"counts"`
+	Decisions *[]CiDecision `json:"decisions,omitempty"`
+	DryRun    bool          `json:"dry_run"`
+
+	// Error The failure's message code.
+	Error   *string               `json:"error,omitempty"`
+	Outcome CiConnectorRunOutcome `json:"outcome"`
+	Pages   int                   `json:"pages"`
+	RunIds  []openapi_types.UUID  `json:"run_ids"`
+}
+
+// CiConnectorRunOutcome defines model for CiConnectorRun.Outcome.
+type CiConnectorRunOutcome string
+
+// CiConnectorRunRequest defines model for CiConnectorRunRequest.
+type CiConnectorRunRequest struct {
+	DryRun *bool `json:"dry_run,omitempty"`
+	Full   *bool `json:"full,omitempty"`
+}
 
 // CiDecision What the reconciliation did with one item and why: the rule that matched, the attributes taken, those kept and by which source, a duplicate's candidates, a hold's or refusal's reason as a message code. It names attributes, never values.
 type CiDecision struct {
@@ -10843,11 +11127,11 @@ type EncryptionStatus struct {
 type EncryptionStoreCount struct {
 	SealedValues int64 `json:"sealed_values"`
 
-	// Store The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, and backup archives still kept, which a re-seal cannot move and which leave the count only as they expire. Further kinds may be added; a client names an unknown one generically.
+	// Store The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, backup archives still kept, which a re-seal cannot move and which leave the count only as they expire, and CMDB connector credentials. Further kinds may be added; a client names an unknown one generically.
 	Store EncryptionStoreCountStore `json:"store"`
 }
 
-// EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, and backup archives still kept, which a re-seal cannot move and which leave the count only as they expire. Further kinds may be added; a client names an unknown one generically.
+// EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, backup archives still kept, which a re-seal cannot move and which leave the count only as they expire, and CMDB connector credentials. Further kinds may be added; a client names an unknown one generically.
 type EncryptionStoreCountStore string
 
 // EntriesText The text to turn into entries.
@@ -18231,6 +18515,15 @@ type ReadCiImpactParams struct {
 // ReadCiImpactParamsDirection defines parameters for ReadCiImpact.
 type ReadCiImpactParamsDirection string
 
+// DeliverCiAlertsJSONBody defines parameters for DeliverCiAlerts.
+type DeliverCiAlertsJSONBody map[string]interface{}
+
+// DeliverCiAlertsParams defines parameters for DeliverCiAlerts.
+type DeliverCiAlertsParams struct {
+	XHubtaskSignature *string `json:"X-Hubtask-Signature,omitempty"`
+	XHubtaskTimestamp *string `json:"X-Hubtask-Timestamp,omitempty"`
+}
+
 // DefineCiClassParams defines parameters for DefineCiClass.
 type DefineCiClassParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -18519,6 +18812,15 @@ type UpdateGroupParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ListCiAlertsParams defines parameters for ListCiAlerts.
+type ListCiAlertsParams struct {
+	Status *ListCiAlertsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+	Limit  *int                      `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListCiAlertsParamsStatus defines parameters for ListCiAlerts.
+type ListCiAlertsParamsStatus string
+
 // ListCiDuplicatesParams defines parameters for ListCiDuplicates.
 type ListCiDuplicatesParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
@@ -18540,6 +18842,12 @@ type ListCisParams struct {
 	After         *openapi_types.UUID `form:"after,omitempty" json:"after,omitempty"`
 	Limit         *int                `form:"limit,omitempty" json:"limit,omitempty"`
 	IncludeMerged *bool               `form:"include_merged,omitempty" json:"include_merged,omitempty"`
+}
+
+// DefineCiConnectorParams defines parameters for DefineCiConnector.
+type DefineCiConnectorParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
 // ListPagesParams defines parameters for ListPages.
@@ -19702,6 +20010,15 @@ type UpdateCiJSONRequestBody = ConfigurationItemUpdate
 // SetCiComplianceJSONRequestBody defines body for SetCiCompliance for application/json ContentType.
 type SetCiComplianceJSONRequestBody = CiCompliance
 
+// SetCiConnectorCredentialJSONRequestBody defines body for SetCiConnectorCredential for application/json ContentType.
+type SetCiConnectorCredentialJSONRequestBody = CiConnectorCredential
+
+// RunCiConnectorJSONRequestBody defines body for RunCiConnector for application/json ContentType.
+type RunCiConnectorJSONRequestBody = CiConnectorRunRequest
+
+// DeliverCiAlertsJSONRequestBody defines body for DeliverCiAlerts for application/json ContentType.
+type DeliverCiAlertsJSONRequestBody DeliverCiAlertsJSONBody
+
 // DefineCiClassJSONRequestBody defines body for DefineCiClass for application/json ContentType.
 type DefineCiClassJSONRequestBody = CiClassDefine
 
@@ -19818,6 +20135,9 @@ type ImportCiFileJSONRequestBody = CiFileImport
 
 // ReconcileCisJSONRequestBody defines body for ReconcileCis for application/json ContentType.
 type ReconcileCisJSONRequestBody = CiPayload
+
+// DefineCiConnectorJSONRequestBody defines body for DefineCiConnector for application/json ContentType.
+type DefineCiConnectorJSONRequestBody = CiConnectorDefine
 
 // CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
 type CreatePageJSONRequestBody = PageCreate
@@ -20694,6 +21014,15 @@ type ServerInterface interface {
 	// ReadCiImpact What a configuration item's failure reaches
 	// (GET /cis/{ciId}/impact)
 	ReadCiImpact(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params ReadCiImpactParams)
+	// SetCiConnectorCredential Set a connector's credential
+	// (PUT /cmdb-connectors/{connectorId}/credential)
+	SetCiConnectorCredential(w http.ResponseWriter, r *http.Request, connectorId openapi_types.UUID)
+	// RunCiConnector Pull a connector's source now
+	// (POST /cmdb-connectors/{connectorId}:run)
+	RunCiConnector(w http.ResponseWriter, r *http.Request, connectorId openapi_types.UUID)
+	// DeliverCiAlerts Post alerts to an intake
+	// (POST /cmdb/alert-intake/{tenantId}/{connectorId})
+	DeliverCiAlerts(w http.ResponseWriter, r *http.Request, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params DeliverCiAlertsParams)
 	// ListCiClasses The configuration item classes
 	// (GET /cmdb/classes)
 	ListCiClasses(w http.ResponseWriter, r *http.Request)
@@ -20889,6 +21218,9 @@ type ServerInterface interface {
 	// UpdateGroup Rename a group or change its description
 	// (PATCH /groups/{groupId})
 	UpdateGroup(w http.ResponseWriter, r *http.Request, groupId GroupId, params UpdateGroupParams)
+	// ListCiAlerts A hub's alerts
+	// (GET /hubs/{hubId}/ci-alerts)
+	ListCiAlerts(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiAlertsParams)
 	// ListCiDuplicates Open duplicates
 	// (GET /hubs/{hubId}/ci-duplicates)
 	ListCiDuplicates(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiDuplicatesParams)
@@ -20910,6 +21242,12 @@ type ServerInterface interface {
 	// ReconcileCis Reconcile a source's payload
 	// (POST /hubs/{hubId}/cis:reconcile)
 	ReconcileCis(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// ListCiConnectors A hub's connectors
+	// (GET /hubs/{hubId}/cmdb-connectors)
+	ListCiConnectors(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// DefineCiConnector Add or change a connector
+	// (PUT /hubs/{hubId}/cmdb-connectors/{connectorKey})
+	DefineCiConnector(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, connectorKey string, params DefineCiConnectorParams)
 	// ReadCmdbHealth A hub's inventory judged
 	// (GET /hubs/{hubId}/cmdb-health)
 	ReadCmdbHealth(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
@@ -26921,6 +27259,136 @@ func (siw *ServerInterfaceWrapper) ReadCiImpact(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// SetCiConnectorCredential operation middleware
+func (siw *ServerInterfaceWrapper) SetCiConnectorCredential(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "connectorId" -------------
+	var connectorId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "connectorId", r.PathValue("connectorId"), &connectorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectorId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetCiConnectorCredential(w, r, connectorId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RunCiConnector operation middleware
+func (siw *ServerInterfaceWrapper) RunCiConnector(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "connectorId" -------------
+	var connectorId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "connectorId", r.PathValue("connectorId"), &connectorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectorId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RunCiConnector(w, r, connectorId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeliverCiAlerts operation middleware
+func (siw *ServerInterfaceWrapper) DeliverCiAlerts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "connectorId" -------------
+	var connectorId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "connectorId", r.PathValue("connectorId"), &connectorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectorId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeliverCiAlertsParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Signature" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Signature")]; found {
+		var XHubtaskSignature string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Signature", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Signature", valueList[0], &XHubtaskSignature, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Signature", Err: err})
+			return
+		}
+
+		params.XHubtaskSignature = &XHubtaskSignature
+
+	}
+
+	// ------------- Optional header parameter "X-Hubtask-Timestamp" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Timestamp")]; found {
+		var XHubtaskTimestamp string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Timestamp", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Timestamp", valueList[0], &XHubtaskTimestamp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Timestamp", Err: err})
+			return
+		}
+
+		params.XHubtaskTimestamp = &XHubtaskTimestamp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeliverCiAlerts(w, r, tenantId, connectorId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListCiClasses operation middleware
 func (siw *ServerInterfaceWrapper) ListCiClasses(w http.ResponseWriter, r *http.Request) {
 
@@ -29511,6 +29979,61 @@ func (siw *ServerInterfaceWrapper) UpdateGroup(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// ListCiAlerts operation middleware
+func (siw *ServerInterfaceWrapper) ListCiAlerts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCiAlertsParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiAlerts(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListCiDuplicates operation middleware
 func (siw *ServerInterfaceWrapper) ListCiDuplicates(w http.ResponseWriter, r *http.Request) {
 
@@ -29787,6 +30310,91 @@ func (siw *ServerInterfaceWrapper) ReconcileCis(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReconcileCis(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCiConnectors operation middleware
+func (siw *ServerInterfaceWrapper) ListCiConnectors(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiConnectors(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DefineCiConnector operation middleware
+func (siw *ServerInterfaceWrapper) DefineCiConnector(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "connectorKey" -------------
+	var connectorKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "connectorKey", r.PathValue("connectorKey"), &connectorKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connectorKey", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DefineCiConnectorParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DefineCiConnector(w, r, hubId, connectorKey, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -39091,6 +39699,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/ci-holds/{holdId}:dismiss", wrapper.DismissCiHold)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/ci-duplicates", wrapper.ListCiDuplicates)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/ci-duplicates/{duplicateId}:resolve", wrapper.ResolveCiDuplicate)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/cmdb-connectors", wrapper.ListCiConnectors)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/hubs/{hubId}/cmdb-connectors/{connectorKey}", wrapper.DefineCiConnector)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/cmdb-connectors/{connectorId}/credential", wrapper.SetCiConnectorCredential)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/cmdb-connectors/{connectorId}:run", wrapper.RunCiConnector)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/ci-alerts", wrapper.ListCiAlerts)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/cmdb/alert-intake/{tenantId}/{connectorId}", wrapper.DeliverCiAlerts)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/cmdb-health", wrapper.ReadCmdbHealth)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}", wrapper.ReadCi)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/cis/{ciId}", wrapper.UpdateCi)

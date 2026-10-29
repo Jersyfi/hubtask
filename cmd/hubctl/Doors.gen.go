@@ -17,6 +17,15 @@ var generatedGroups = map[string]string{
 
 // generatedCommands is every operation the contract names a command for, in a stable order.
 var generatedCommands = []door{
+	{Group: "ci", Verb: "alert ls", OperationID: "listCiAlerts", Method: "GET", Path: "/hubs/{hubId}/ci-alerts", Summary: "A hub's alerts",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "limit", Kind: "integer", Help: "", Required: false},
+			{Name: "status", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "key", "title", "status"}},
 	{Group: "ci", Verb: "backlinks", OperationID: "listCiBacklinks", Method: "GET", Path: "/cis/{ciId}/backlinks", Summary: "What points at a configuration item",
 		PathParams: []doorParam{
 			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
@@ -177,6 +186,44 @@ var generatedCommands = []door{
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "name", "version"}},
 	{Group: "cmdb", Verb: "class ls", OperationID: "listCiClasses", Method: "GET", Path: "/cmdb/classes", Summary: "The configuration item classes",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name", "version"}},
+	{Group: "cmdb", Verb: "connector credential", OperationID: "setCiConnectorCredential", Method: "PUT", Path: "/cmdb-connectors/{connectorId}/credential", Summary: "Set a connector's credential",
+		PathParams: []doorParam{
+			{Name: "connectorId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "credential", Kind: "string", Help: "A pull's secret; absent for an alert intake", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "key", "kind", "version"}},
+	{Group: "cmdb", Verb: "connector define", OperationID: "defineCiConnector", Method: "PUT", Path: "/hubs/{hubId}/cmdb-connectors/{connectorKey}", Summary: "Add or change a connector",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+			{Name: "connectorKey", Kind: "string", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "allowed_hosts", Kind: "strings", Help: "", Required: false},
+			{Name: "base_url", Kind: "string", Help: "", Required: false},
+			{Name: "collection_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "enabled", Kind: "boolean", Help: "", Required: false},
+			{Name: "every_minutes", Kind: "integer", Help: "", Required: false},
+			{Name: "kind", Kind: "string", Help: "", Required: true},
+			{Name: "settings", Kind: "json", Help: "", Required: false},
+			{Name: "source", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "key", "kind", "version"}},
+	{Group: "cmdb", Verb: "connector ls", OperationID: "listCiConnectors", Method: "GET", Path: "/hubs/{hubId}/cmdb-connectors", Summary: "A hub's connectors",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "key", "kind", "version"}},
+	{Group: "cmdb", Verb: "connector run", OperationID: "runCiConnector", Method: "POST", Path: "/cmdb-connectors/{connectorId}:run", Summary: "Pull a connector's source now",
+		PathParams: []doorParam{
+			{Name: "connectorId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "dry_run", Kind: "boolean", Help: "", Required: false},
+			{Name: "full", Kind: "boolean", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"dry_run", "error", "outcome", "pages"}},
 	{Group: "cmdb", Verb: "health", OperationID: "readCmdbHealth", Method: "GET", Path: "/hubs/{hubId}/cmdb-health", Summary: "A hub's inventory judged",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},

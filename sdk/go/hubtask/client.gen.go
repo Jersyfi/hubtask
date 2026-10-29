@@ -1413,6 +1413,24 @@ func (e CapabilitiesWorkspacePermissions) Valid() bool {
 	}
 }
 
+// Defines values for CiAlertStatus.
+const (
+	CiAlertStatusFIRING   CiAlertStatus = "FIRING"
+	CiAlertStatusRESOLVED CiAlertStatus = "RESOLVED"
+)
+
+// Valid indicates whether the value is a known member of the CiAlertStatus enum.
+func (e CiAlertStatus) Valid() bool {
+	switch e {
+	case CiAlertStatusFIRING:
+		return true
+	case CiAlertStatusRESOLVED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CiAttributeKind.
 const (
 	CiAttributeKindACCOUNT CiAttributeKind = "ACCOUNT"
@@ -1563,6 +1581,126 @@ func (e CiComplianceStatus) Valid() bool {
 	case CiComplianceStatusOK:
 		return true
 	case CiComplianceStatusPENDING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiConnectorKind.
+const (
+	CiConnectorKindALERTMANAGER CiConnectorKind = "ALERTMANAGER"
+	CiConnectorKindCHECKMK      CiConnectorKind = "CHECKMK"
+	CiConnectorKindENTRA        CiConnectorKind = "ENTRA"
+	CiConnectorKindGLPI         CiConnectorKind = "GLPI"
+	CiConnectorKindHETZNER      CiConnectorKind = "HETZNER"
+	CiConnectorKindINTUNE       CiConnectorKind = "INTUNE"
+	CiConnectorKindNETBOX       CiConnectorKind = "NETBOX"
+	CiConnectorKindOPENSTACK    CiConnectorKind = "OPENSTACK"
+	CiConnectorKindZABBIX       CiConnectorKind = "ZABBIX"
+)
+
+// Valid indicates whether the value is a known member of the CiConnectorKind enum.
+func (e CiConnectorKind) Valid() bool {
+	switch e {
+	case CiConnectorKindALERTMANAGER:
+		return true
+	case CiConnectorKindCHECKMK:
+		return true
+	case CiConnectorKindENTRA:
+		return true
+	case CiConnectorKindGLPI:
+		return true
+	case CiConnectorKindHETZNER:
+		return true
+	case CiConnectorKindINTUNE:
+		return true
+	case CiConnectorKindNETBOX:
+		return true
+	case CiConnectorKindOPENSTACK:
+		return true
+	case CiConnectorKindZABBIX:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiConnectorLastOutcome.
+const (
+	CiConnectorLastOutcomeEMPTY  CiConnectorLastOutcome = "EMPTY"
+	CiConnectorLastOutcomeEmpty  CiConnectorLastOutcome = ""
+	CiConnectorLastOutcomeFAILED CiConnectorLastOutcome = "FAILED"
+	CiConnectorLastOutcomeOK     CiConnectorLastOutcome = "OK"
+)
+
+// Valid indicates whether the value is a known member of the CiConnectorLastOutcome enum.
+func (e CiConnectorLastOutcome) Valid() bool {
+	switch e {
+	case CiConnectorLastOutcomeEMPTY:
+		return true
+	case CiConnectorLastOutcomeEmpty:
+		return true
+	case CiConnectorLastOutcomeFAILED:
+		return true
+	case CiConnectorLastOutcomeOK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiConnectorDefineKind.
+const (
+	CiConnectorDefineKindALERTMANAGER CiConnectorDefineKind = "ALERTMANAGER"
+	CiConnectorDefineKindCHECKMK      CiConnectorDefineKind = "CHECKMK"
+	CiConnectorDefineKindENTRA        CiConnectorDefineKind = "ENTRA"
+	CiConnectorDefineKindGLPI         CiConnectorDefineKind = "GLPI"
+	CiConnectorDefineKindHETZNER      CiConnectorDefineKind = "HETZNER"
+	CiConnectorDefineKindINTUNE       CiConnectorDefineKind = "INTUNE"
+	CiConnectorDefineKindNETBOX       CiConnectorDefineKind = "NETBOX"
+	CiConnectorDefineKindOPENSTACK    CiConnectorDefineKind = "OPENSTACK"
+	CiConnectorDefineKindZABBIX       CiConnectorDefineKind = "ZABBIX"
+)
+
+// Valid indicates whether the value is a known member of the CiConnectorDefineKind enum.
+func (e CiConnectorDefineKind) Valid() bool {
+	switch e {
+	case CiConnectorDefineKindALERTMANAGER:
+		return true
+	case CiConnectorDefineKindCHECKMK:
+		return true
+	case CiConnectorDefineKindENTRA:
+		return true
+	case CiConnectorDefineKindGLPI:
+		return true
+	case CiConnectorDefineKindHETZNER:
+		return true
+	case CiConnectorDefineKindINTUNE:
+		return true
+	case CiConnectorDefineKindNETBOX:
+		return true
+	case CiConnectorDefineKindOPENSTACK:
+		return true
+	case CiConnectorDefineKindZABBIX:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiConnectorRunOutcome.
+const (
+	CiConnectorRunOutcomeFAILED CiConnectorRunOutcome = "FAILED"
+	CiConnectorRunOutcomeOK     CiConnectorRunOutcome = "OK"
+)
+
+// Valid indicates whether the value is a known member of the CiConnectorRunOutcome enum.
+func (e CiConnectorRunOutcome) Valid() bool {
+	switch e {
+	case CiConnectorRunOutcomeFAILED:
+		return true
+	case CiConnectorRunOutcomeOK:
 		return true
 	default:
 		return false
@@ -2708,6 +2846,7 @@ const (
 	EncryptionStoreCountStoreAutomationRule      EncryptionStoreCountStore = "automation_rule"
 	EncryptionStoreCountStoreBackupArchive       EncryptionStoreCountStore = "backup_archive"
 	EncryptionStoreCountStoreBackupTarget        EncryptionStoreCountStore = "backup_target"
+	EncryptionStoreCountStoreCmdbConnector       EncryptionStoreCountStore = "cmdb_connector"
 	EncryptionStoreCountStoreIdentityProvider    EncryptionStoreCountStore = "identity_provider"
 	EncryptionStoreCountStoreWebhookSubscription EncryptionStoreCountStore = "webhook_subscription"
 )
@@ -2726,6 +2865,8 @@ func (e EncryptionStoreCountStore) Valid() bool {
 	case EncryptionStoreCountStoreBackupArchive:
 		return true
 	case EncryptionStoreCountStoreBackupTarget:
+		return true
+	case EncryptionStoreCountStoreCmdbConnector:
 		return true
 	case EncryptionStoreCountStoreIdentityProvider:
 		return true
@@ -7668,6 +7809,24 @@ func (e ListConfigProposalsParamsState) Valid() bool {
 	}
 }
 
+// Defines values for ListCiAlertsParamsStatus.
+const (
+	ListCiAlertsParamsStatusFIRING   ListCiAlertsParamsStatus = "FIRING"
+	ListCiAlertsParamsStatusRESOLVED ListCiAlertsParamsStatus = "RESOLVED"
+)
+
+// Valid indicates whether the value is a known member of the ListCiAlertsParamsStatus enum.
+func (e ListCiAlertsParamsStatus) Valid() bool {
+	switch e {
+	case ListCiAlertsParamsStatusFIRING:
+		return true
+	case ListCiAlertsParamsStatusRESOLVED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListWebhookDeliveriesParamsStatus.
 const (
 	ListWebhookDeliveriesParamsStatusDEADLETTER   ListWebhookDeliveriesParamsStatus = "DEAD_LETTER"
@@ -9190,6 +9349,40 @@ type CapabilitiesTenancyMode string
 // CapabilitiesWorkspacePermissions defines model for Capabilities.WorkspacePermissions.
 type CapabilitiesWorkspacePermissions string
 
+// CiAlert defines model for CiAlert.
+type CiAlert struct {
+	CiId        *openapi_types.UUID `json:"ci_id,omitempty"`
+	ConnectorId openapi_types.UUID  `json:"connector_id"`
+	Count       int                 `json:"count"`
+	EntryId     *openapi_types.UUID `json:"entry_id,omitempty"`
+	FirstAt     time.Time           `json:"first_at"`
+	HubId       openapi_types.UUID  `json:"hub_id"`
+	Id          openapi_types.UUID  `json:"id"`
+	Key         string              `json:"key"`
+	LastAt      time.Time           `json:"last_at"`
+	ResolvedAt  *time.Time          `json:"resolved_at,omitempty"`
+	Severity    string              `json:"severity"`
+	Status      CiAlertStatus       `json:"status"`
+	Title       string              `json:"title"`
+}
+
+// CiAlertStatus defines model for CiAlert.Status.
+type CiAlertStatus string
+
+// CiAlertList defines model for CiAlertList.
+type CiAlertList struct {
+	Data []CiAlert `json:"data"`
+}
+
+// CiAlertReceipt defines model for CiAlertReceipt.
+type CiAlertReceipt struct {
+	EntriesFailed int `json:"entries_failed"`
+	Opened        int `json:"opened"`
+	Received      int `json:"received"`
+	Resolved      int `json:"resolved"`
+	Unchanged     int `json:"unchanged"`
+}
+
 // CiAttribute defines model for CiAttribute.
 type CiAttribute struct {
 	Identifier *bool            `json:"identifier,omitempty"`
@@ -9287,6 +9480,97 @@ type CiComplianceStage string
 
 // CiComplianceStatus defines model for CiCompliance.Status.
 type CiComplianceStatus string
+
+// CiConnector A program a hub's CIs are pulled from, or that posts alerts to it. Never its credential; `secret` is present once, in the answer that drew an alert intake's.
+type CiConnector struct {
+	AllowedHosts  []string            `json:"allowed_hosts"`
+	BaseUrl       *string             `json:"base_url,omitempty"`
+	CollectionId  *openapi_types.UUID `json:"collection_id,omitempty"`
+	CreatedAt     *time.Time          `json:"created_at,omitempty"`
+	Enabled       bool                `json:"enabled"`
+	EveryMinutes  int                 `json:"every_minutes"`
+	Failures      int                 `json:"failures"`
+	HasCredential bool                `json:"has_credential"`
+
+	// Hosts Every host it may reach.
+	Hosts []string           `json:"hosts"`
+	HubId openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID `json:"id"`
+	Key   string             `json:"key"`
+	Kind  CiConnectorKind    `json:"kind"`
+
+	// LastError The last failure's message code.
+	LastError   *string                 `json:"last_error,omitempty"`
+	LastOutcome *CiConnectorLastOutcome `json:"last_outcome,omitempty"`
+	LastRunAt   *time.Time              `json:"last_run_at,omitempty"`
+	LastRunId   *openapi_types.UUID     `json:"last_run_id,omitempty"`
+	NextRunAt   *time.Time              `json:"next_run_at,omitempty"`
+
+	// Push An alert intake rather than a pull.
+	Push      bool                `json:"push"`
+	RunAs     *openapi_types.UUID `json:"run_as,omitempty"`
+	Secret    *string             `json:"secret,omitempty"`
+	Settings  map[string]string   `json:"settings"`
+	Source    string              `json:"source"`
+	UpdatedAt *time.Time          `json:"updated_at,omitempty"`
+	Version   int                 `json:"version"`
+}
+
+// CiConnectorKind defines model for CiConnector.Kind.
+type CiConnectorKind string
+
+// CiConnectorLastOutcome defines model for CiConnector.LastOutcome.
+type CiConnectorLastOutcome string
+
+// CiConnectorCredential defines model for CiConnectorCredential.
+type CiConnectorCredential struct {
+	// Credential A pull's secret; absent for an alert intake.
+	Credential *string `json:"credential,omitempty"`
+}
+
+// CiConnectorDefine defines model for CiConnectorDefine.
+type CiConnectorDefine struct {
+	AllowedHosts *[]string             `json:"allowed_hosts,omitempty"`
+	BaseUrl      *string               `json:"base_url,omitempty"`
+	CollectionId *openapi_types.UUID   `json:"collection_id,omitempty"`
+	Enabled      *bool                 `json:"enabled,omitempty"`
+	EveryMinutes *int                  `json:"every_minutes,omitempty"`
+	Kind         CiConnectorDefineKind `json:"kind"`
+	Settings     *map[string]string    `json:"settings,omitempty"`
+	Source       string                `json:"source"`
+}
+
+// CiConnectorDefineKind defines model for CiConnectorDefine.Kind.
+type CiConnectorDefineKind string
+
+// CiConnectorList defines model for CiConnectorList.
+type CiConnectorList struct {
+	Data []CiConnector `json:"data"`
+}
+
+// CiConnectorRun defines model for CiConnectorRun.
+type CiConnectorRun struct {
+	// Connector A program a hub's CIs are pulled from, or that posts alerts to it. Never its credential; `secret` is present once, in the answer that drew an alert intake's.
+	Connector CiConnector   `json:"connector"`
+	Counts    CiRunCounts   `json:"counts"`
+	Decisions *[]CiDecision `json:"decisions,omitempty"`
+	DryRun    bool          `json:"dry_run"`
+
+	// Error The failure's message code.
+	Error   *string               `json:"error,omitempty"`
+	Outcome CiConnectorRunOutcome `json:"outcome"`
+	Pages   int                   `json:"pages"`
+	RunIds  []openapi_types.UUID  `json:"run_ids"`
+}
+
+// CiConnectorRunOutcome defines model for CiConnectorRun.Outcome.
+type CiConnectorRunOutcome string
+
+// CiConnectorRunRequest defines model for CiConnectorRunRequest.
+type CiConnectorRunRequest struct {
+	DryRun *bool `json:"dry_run,omitempty"`
+	Full   *bool `json:"full,omitempty"`
+}
 
 // CiDecision What the reconciliation did with one item and why: the rule that matched, the attributes taken, those kept and by which source, a duplicate's candidates, a hold's or refusal's reason as a message code. It names attributes, never values.
 type CiDecision struct {
@@ -10849,11 +11133,11 @@ type EncryptionStatus struct {
 type EncryptionStoreCount struct {
 	SealedValues int64 `json:"sealed_values"`
 
-	// Store The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, and backup archives still kept, which a re-seal cannot move and which leave the count only as they expire. Further kinds may be added; a client names an unknown one generically.
+	// Store The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, backup archives still kept, which a re-seal cannot move and which leave the count only as they expire, and CMDB connector credentials. Further kinds may be added; a client names an unknown one generically.
 	Store EncryptionStoreCountStore `json:"store"`
 }
 
-// EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, and backup archives still kept, which a re-seal cannot move and which leave the count only as they expire. Further kinds may be added; a client names an unknown one generically.
+// EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, backup archives still kept, which a re-seal cannot move and which leave the count only as they expire, and CMDB connector credentials. Further kinds may be added; a client names an unknown one generically.
 type EncryptionStoreCountStore string
 
 // EntriesText The text to turn into entries.
@@ -18237,6 +18521,15 @@ type ReadCiImpactParams struct {
 // ReadCiImpactParamsDirection defines parameters for ReadCiImpact.
 type ReadCiImpactParamsDirection string
 
+// DeliverCiAlertsJSONBody defines parameters for DeliverCiAlerts.
+type DeliverCiAlertsJSONBody map[string]interface{}
+
+// DeliverCiAlertsParams defines parameters for DeliverCiAlerts.
+type DeliverCiAlertsParams struct {
+	XHubtaskSignature *string `json:"X-Hubtask-Signature,omitempty"`
+	XHubtaskTimestamp *string `json:"X-Hubtask-Timestamp,omitempty"`
+}
+
 // DefineCiClassParams defines parameters for DefineCiClass.
 type DefineCiClassParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -18525,6 +18818,15 @@ type UpdateGroupParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ListCiAlertsParams defines parameters for ListCiAlerts.
+type ListCiAlertsParams struct {
+	Status *ListCiAlertsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+	Limit  *int                      `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListCiAlertsParamsStatus defines parameters for ListCiAlerts.
+type ListCiAlertsParamsStatus string
+
 // ListCiDuplicatesParams defines parameters for ListCiDuplicates.
 type ListCiDuplicatesParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
@@ -18546,6 +18848,12 @@ type ListCisParams struct {
 	After         *openapi_types.UUID `form:"after,omitempty" json:"after,omitempty"`
 	Limit         *int                `form:"limit,omitempty" json:"limit,omitempty"`
 	IncludeMerged *bool               `form:"include_merged,omitempty" json:"include_merged,omitempty"`
+}
+
+// DefineCiConnectorParams defines parameters for DefineCiConnector.
+type DefineCiConnectorParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
 // ListPagesParams defines parameters for ListPages.
@@ -19708,6 +20016,15 @@ type UpdateCiJSONRequestBody = ConfigurationItemUpdate
 // SetCiComplianceJSONRequestBody defines body for SetCiCompliance for application/json ContentType.
 type SetCiComplianceJSONRequestBody = CiCompliance
 
+// SetCiConnectorCredentialJSONRequestBody defines body for SetCiConnectorCredential for application/json ContentType.
+type SetCiConnectorCredentialJSONRequestBody = CiConnectorCredential
+
+// RunCiConnectorJSONRequestBody defines body for RunCiConnector for application/json ContentType.
+type RunCiConnectorJSONRequestBody = CiConnectorRunRequest
+
+// DeliverCiAlertsJSONRequestBody defines body for DeliverCiAlerts for application/json ContentType.
+type DeliverCiAlertsJSONRequestBody DeliverCiAlertsJSONBody
+
 // DefineCiClassJSONRequestBody defines body for DefineCiClass for application/json ContentType.
 type DefineCiClassJSONRequestBody = CiClassDefine
 
@@ -19824,6 +20141,9 @@ type ImportCiFileJSONRequestBody = CiFileImport
 
 // ReconcileCisJSONRequestBody defines body for ReconcileCis for application/json ContentType.
 type ReconcileCisJSONRequestBody = CiPayload
+
+// DefineCiConnectorJSONRequestBody defines body for DefineCiConnector for application/json ContentType.
+type DefineCiConnectorJSONRequestBody = CiConnectorDefine
 
 // CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
 type CreatePageJSONRequestBody = PageCreate
@@ -23017,6 +23337,62 @@ type ClientInterface interface {
 	// Corresponds with GET /cis/{ciId}/impact (the `ReadCiImpact` operationId).
 	ReadCiImpact(ctx context.Context, ciId openapi_types.UUID, params *ReadCiImpactParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// SetCiConnectorCredentialWithBody Set a connector's credential
+	//
+	// Sealed at rest and never answered again. A pull takes the secret its program gave; an alert intake draws its own and answers it once in `secret`, which the monitoring program presents as a bearer token or signs each delivery with. Needs STRUCTURE in the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /cmdb-connectors/{connectorId}/credential (the `SetCiConnectorCredential` operationId).
+	SetCiConnectorCredentialWithBody(ctx context.Context, connectorId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetCiConnectorCredential Set a connector's credential
+	//
+	// Sealed at rest and never answered again. A pull takes the secret its program gave; an alert intake draws its own and answers it once in `secret`, which the monitoring program presents as a bearer token or signs each delivery with. Needs STRUCTURE in the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /cmdb-connectors/{connectorId}/credential (the `SetCiConnectorCredential` operationId).
+	SetCiConnectorCredential(ctx context.Context, connectorId openapi_types.UUID, body SetCiConnectorCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RunCiConnectorWithBody Pull a connector's source now
+	//
+	// Page by page from where its last run ended, or from the beginning with `full`, each page through the reconciliation as the connector's source, up to 50 pages. A dry run fetches the first page and answers what would happen. A failure is answered by its message code and the cursor stays. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /cmdb-connectors/{connectorId}:run (the `RunCiConnector` operationId).
+	RunCiConnectorWithBody(ctx context.Context, connectorId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RunCiConnector Pull a connector's source now
+	//
+	// Page by page from where its last run ended, or from the beginning with `full`, each page through the reconciliation as the connector's source, up to 50 pages. A dry run fetches the first page and answers what would happen. A failure is answered by its message code and the cursor stays. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /cmdb-connectors/{connectorId}:run (the `RunCiConnector` operationId).
+	RunCiConnector(ctx context.Context, connectorId openapi_types.UUID, body RunCiConnectorJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeliverCiAlertsWithBody Post alerts to an intake
+	//
+	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+	// Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /cmdb/alert-intake/{tenantId}/{connectorId} (the `DeliverCiAlerts` operationId).
+	DeliverCiAlertsWithBody(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiAlertsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeliverCiAlerts Post alerts to an intake
+	//
+	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+	// Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /cmdb/alert-intake/{tenantId}/{connectorId} (the `DeliverCiAlerts` operationId).
+	DeliverCiAlerts(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiAlertsParams, body DeliverCiAlertsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListCiClasses The configuration item classes
 	//
 	// The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations a CI of it needs. Needs READ in the workspace and the assets module switched on.
@@ -23760,6 +24136,13 @@ type ClientInterface interface {
 	// Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
 	UpdateGroupWithApplicationMergePatchPlusJSONBody(ctx context.Context, groupId GroupId, params *UpdateGroupParams, body UpdateGroupApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListCiAlerts A hub's alerts
+	//
+	// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/ci-alerts (the `ListCiAlerts` operationId).
+	ListCiAlerts(ctx context.Context, hubId openapi_types.UUID, params *ListCiAlertsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListCiDuplicates Open duplicates
 	//
 	// Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
@@ -23841,6 +24224,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /hubs/{hubId}/cis:reconcile (the `ReconcileCis` operationId).
 	ReconcileCis(ctx context.Context, hubId openapi_types.UUID, body ReconcileCisJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCiConnectors A hub's connectors
+	//
+	// The programs the hub's configuration items are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/cmdb-connectors (the `ListCiConnectors` operationId).
+	ListCiConnectors(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineCiConnectorWithBody Add or change a connector
+	//
+	// Its kind (fixed once made), the connector source it writes as, the https address it pulls from, the kind's settings, further hosts it may reach, a period of 15 minutes to a week or none, whether it is on and an alert intake's collection. A connector is switched off, never deleted. Needs STRUCTURE in the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /hubs/{hubId}/cmdb-connectors/{connectorKey} (the `DefineCiConnector` operationId).
+	DefineCiConnectorWithBody(ctx context.Context, hubId openapi_types.UUID, connectorKey string, params *DefineCiConnectorParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineCiConnector Add or change a connector
+	//
+	// Its kind (fixed once made), the connector source it writes as, the https address it pulls from, the kind's settings, further hosts it may reach, a period of 15 minutes to a week or none, whether it is on and an alert intake's collection. A connector is switched off, never deleted. Needs STRUCTURE in the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /hubs/{hubId}/cmdb-connectors/{connectorKey} (the `DefineCiConnector` operationId).
+	DefineCiConnector(ctx context.Context, hubId openapi_types.UUID, connectorKey string, params *DefineCiConnectorParams, body DefineCiConnectorJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadCmdbHealth A hub's inventory judged
 	//
@@ -32624,6 +33032,122 @@ func (c *Client) ReadCiImpact(ctx context.Context, ciId openapi_types.UUID, para
 	return c.Client.Do(req)
 }
 
+// SetCiConnectorCredentialWithBody Set a connector's credential
+//
+// Sealed at rest and never answered again. A pull takes the secret its program gave; an alert intake draws its own and answers it once in `secret`, which the monitoring program presents as a bearer token or signs each delivery with. Needs STRUCTURE in the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /cmdb-connectors/{connectorId}/credential (the `SetCiConnectorCredential` operationId).
+func (c *Client) SetCiConnectorCredentialWithBody(ctx context.Context, connectorId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetCiConnectorCredentialRequestWithBody(c.Server, connectorId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetCiConnectorCredential Set a connector's credential
+//
+// Sealed at rest and never answered again. A pull takes the secret its program gave; an alert intake draws its own and answers it once in `secret`, which the monitoring program presents as a bearer token or signs each delivery with. Needs STRUCTURE in the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /cmdb-connectors/{connectorId}/credential (the `SetCiConnectorCredential` operationId).
+func (c *Client) SetCiConnectorCredential(ctx context.Context, connectorId openapi_types.UUID, body SetCiConnectorCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetCiConnectorCredentialRequest(c.Server, connectorId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RunCiConnectorWithBody Pull a connector's source now
+//
+// Page by page from where its last run ended, or from the beginning with `full`, each page through the reconciliation as the connector's source, up to 50 pages. A dry run fetches the first page and answers what would happen. A failure is answered by its message code and the cursor stays. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /cmdb-connectors/{connectorId}:run (the `RunCiConnector` operationId).
+func (c *Client) RunCiConnectorWithBody(ctx context.Context, connectorId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRunCiConnectorRequestWithBody(c.Server, connectorId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RunCiConnector Pull a connector's source now
+//
+// Page by page from where its last run ended, or from the beginning with `full`, each page through the reconciliation as the connector's source, up to 50 pages. A dry run fetches the first page and answers what would happen. A failure is answered by its message code and the cursor stays. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /cmdb-connectors/{connectorId}:run (the `RunCiConnector` operationId).
+func (c *Client) RunCiConnector(ctx context.Context, connectorId openapi_types.UUID, body RunCiConnectorJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRunCiConnectorRequest(c.Server, connectorId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeliverCiAlertsWithBody Post alerts to an intake
+//
+// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+// Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /cmdb/alert-intake/{tenantId}/{connectorId} (the `DeliverCiAlerts` operationId).
+func (c *Client) DeliverCiAlertsWithBody(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiAlertsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeliverCiAlertsRequestWithBody(c.Server, tenantId, connectorId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeliverCiAlerts Post alerts to an intake
+//
+// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+// Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /cmdb/alert-intake/{tenantId}/{connectorId} (the `DeliverCiAlerts` operationId).
+func (c *Client) DeliverCiAlerts(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiAlertsParams, body DeliverCiAlertsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeliverCiAlertsRequest(c.Server, tenantId, connectorId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListCiClasses The configuration item classes
 //
 // The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations a CI of it needs. Needs READ in the workspace and the assets module switched on.
@@ -34377,6 +34901,23 @@ func (c *Client) UpdateGroupWithApplicationMergePatchPlusJSONBody(ctx context.Co
 	return c.Client.Do(req)
 }
 
+// ListCiAlerts A hub's alerts
+//
+// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/ci-alerts (the `ListCiAlerts` operationId).
+func (c *Client) ListCiAlerts(ctx context.Context, hubId openapi_types.UUID, params *ListCiAlertsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiAlertsRequest(c.Server, hubId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListCiDuplicates Open duplicates
 //
 // Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
@@ -34549,6 +35090,61 @@ func (c *Client) ReconcileCisWithBody(ctx context.Context, hubId openapi_types.U
 // Corresponds with POST /hubs/{hubId}/cis:reconcile (the `ReconcileCis` operationId).
 func (c *Client) ReconcileCis(ctx context.Context, hubId openapi_types.UUID, body ReconcileCisJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReconcileCisRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCiConnectors A hub's connectors
+//
+// The programs the hub's configuration items are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/cmdb-connectors (the `ListCiConnectors` operationId).
+func (c *Client) ListCiConnectors(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiConnectorsRequest(c.Server, hubId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineCiConnectorWithBody Add or change a connector
+//
+// Its kind (fixed once made), the connector source it writes as, the https address it pulls from, the kind's settings, further hosts it may reach, a period of 15 minutes to a week or none, whether it is on and an alert intake's collection. A connector is switched off, never deleted. Needs STRUCTURE in the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /hubs/{hubId}/cmdb-connectors/{connectorKey} (the `DefineCiConnector` operationId).
+func (c *Client) DefineCiConnectorWithBody(ctx context.Context, hubId openapi_types.UUID, connectorKey string, params *DefineCiConnectorParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineCiConnectorRequestWithBody(c.Server, hubId, connectorKey, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineCiConnector Add or change a connector
+//
+// Its kind (fixed once made), the connector source it writes as, the https address it pulls from, the kind's settings, further hosts it may reach, a period of 15 minutes to a week or none, whether it is on and an alert intake's collection. A connector is switched off, never deleted. Needs STRUCTURE in the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /hubs/{hubId}/cmdb-connectors/{connectorKey} (the `DefineCiConnector` operationId).
+func (c *Client) DefineCiConnector(ctx context.Context, hubId openapi_types.UUID, connectorKey string, params *DefineCiConnectorParams, body DefineCiConnectorJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineCiConnectorRequest(c.Server, hubId, connectorKey, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -49460,6 +50056,180 @@ func NewReadCiImpactRequest(server string, ciId openapi_types.UUID, params *Read
 	return req, nil
 }
 
+// NewSetCiConnectorCredentialRequest calls the generic SetCiConnectorCredential builder with application/json body
+func NewSetCiConnectorCredentialRequest(server string, connectorId openapi_types.UUID, body SetCiConnectorCredentialJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetCiConnectorCredentialRequestWithBody(server, connectorId, "application/json", bodyReader)
+}
+
+// NewSetCiConnectorCredentialRequestWithBody constructs an http.Request for the SetCiConnectorCredential method, with any body, and a specified content type
+func NewSetCiConnectorCredentialRequestWithBody(server string, connectorId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "connectorId", connectorId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cmdb-connectors/%s/credential", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRunCiConnectorRequest calls the generic RunCiConnector builder with application/json body
+func NewRunCiConnectorRequest(server string, connectorId openapi_types.UUID, body RunCiConnectorJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRunCiConnectorRequestWithBody(server, connectorId, "application/json", bodyReader)
+}
+
+// NewRunCiConnectorRequestWithBody constructs an http.Request for the RunCiConnector method, with any body, and a specified content type
+func NewRunCiConnectorRequestWithBody(server string, connectorId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "connectorId", connectorId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cmdb-connectors/%s:run", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeliverCiAlertsRequest calls the generic DeliverCiAlerts builder with application/json body
+func NewDeliverCiAlertsRequest(server string, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiAlertsParams, body DeliverCiAlertsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDeliverCiAlertsRequestWithBody(server, tenantId, connectorId, params, "application/json", bodyReader)
+}
+
+// NewDeliverCiAlertsRequestWithBody constructs an http.Request for the DeliverCiAlerts method, with any body, and a specified content type
+func NewDeliverCiAlertsRequestWithBody(server string, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiAlertsParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "tenantId", tenantId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "connectorId", connectorId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cmdb/alert-intake/%s/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskSignature != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Signature", *params.XHubtaskSignature, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Signature", headerParam0)
+		}
+
+		if params.XHubtaskTimestamp != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Timestamp", *params.XHubtaskTimestamp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Timestamp", headerParam1)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewListCiClassesRequest constructs an http.Request for the ListCiClasses method
 func NewListCiClassesRequest(server string) (*http.Request, error) {
 	var err error
@@ -52854,6 +53624,79 @@ func NewUpdateGroupRequestWithBody(server string, groupId GroupId, params *Updat
 	return req, nil
 }
 
+// NewListCiAlertsRequest constructs an http.Request for the ListCiAlerts method
+func NewListCiAlertsRequest(server string, hubId openapi_types.UUID, params *ListCiAlertsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/ci-alerts", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Status != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "status", *params.Status, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListCiDuplicatesRequest constructs an http.Request for the ListCiDuplicates method
 func NewListCiDuplicatesRequest(server string, hubId openapi_types.UUID, params *ListCiDuplicatesParams) (*http.Request, error) {
 	var err error
@@ -53271,6 +54114,109 @@ func NewReconcileCisRequestWithBody(server string, hubId openapi_types.UUID, con
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListCiConnectorsRequest constructs an http.Request for the ListCiConnectors method
+func NewListCiConnectorsRequest(server string, hubId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/cmdb-connectors", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDefineCiConnectorRequest calls the generic DefineCiConnector builder with application/json body
+func NewDefineCiConnectorRequest(server string, hubId openapi_types.UUID, connectorKey string, params *DefineCiConnectorParams, body DefineCiConnectorJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDefineCiConnectorRequestWithBody(server, hubId, connectorKey, params, "application/json", bodyReader)
+}
+
+// NewDefineCiConnectorRequestWithBody constructs an http.Request for the DefineCiConnector method, with any body, and a specified content type
+func NewDefineCiConnectorRequestWithBody(server string, hubId openapi_types.UUID, connectorKey string, params *DefineCiConnectorParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "connectorKey", connectorKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/cmdb-connectors/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -68632,6 +69578,62 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /cis/{ciId}/impact (the `ReadCiImpact` operationId).
 	ReadCiImpactWithResponse(ctx context.Context, ciId openapi_types.UUID, params *ReadCiImpactParams, reqEditors ...RequestEditorFn) (*ReadCiImpactResult, error)
 
+	// SetCiConnectorCredentialWithBodyWithResponse Set a connector's credential
+	//
+	// Sealed at rest and never answered again. A pull takes the secret its program gave; an alert intake draws its own and answers it once in `secret`, which the monitoring program presents as a bearer token or signs each delivery with. Needs STRUCTURE in the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /cmdb-connectors/{connectorId}/credential (the `SetCiConnectorCredential` operationId).
+	SetCiConnectorCredentialWithBodyWithResponse(ctx context.Context, connectorId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetCiConnectorCredentialResult, error)
+
+	// SetCiConnectorCredentialWithResponse Set a connector's credential
+	//
+	// Sealed at rest and never answered again. A pull takes the secret its program gave; an alert intake draws its own and answers it once in `secret`, which the monitoring program presents as a bearer token or signs each delivery with. Needs STRUCTURE in the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /cmdb-connectors/{connectorId}/credential (the `SetCiConnectorCredential` operationId).
+	SetCiConnectorCredentialWithResponse(ctx context.Context, connectorId openapi_types.UUID, body SetCiConnectorCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*SetCiConnectorCredentialResult, error)
+
+	// RunCiConnectorWithBodyWithResponse Pull a connector's source now
+	//
+	// Page by page from where its last run ended, or from the beginning with `full`, each page through the reconciliation as the connector's source, up to 50 pages. A dry run fetches the first page and answers what would happen. A failure is answered by its message code and the cursor stays. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /cmdb-connectors/{connectorId}:run (the `RunCiConnector` operationId).
+	RunCiConnectorWithBodyWithResponse(ctx context.Context, connectorId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RunCiConnectorResult, error)
+
+	// RunCiConnectorWithResponse Pull a connector's source now
+	//
+	// Page by page from where its last run ended, or from the beginning with `full`, each page through the reconciliation as the connector's source, up to 50 pages. A dry run fetches the first page and answers what would happen. A failure is answered by its message code and the cursor stays. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /cmdb-connectors/{connectorId}:run (the `RunCiConnector` operationId).
+	RunCiConnectorWithResponse(ctx context.Context, connectorId openapi_types.UUID, body RunCiConnectorJSONRequestBody, reqEditors ...RequestEditorFn) (*RunCiConnectorResult, error)
+
+	// DeliverCiAlertsWithBodyWithResponse Post alerts to an intake
+	//
+	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+	// Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /cmdb/alert-intake/{tenantId}/{connectorId} (the `DeliverCiAlerts` operationId).
+	DeliverCiAlertsWithBodyWithResponse(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiAlertsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DeliverCiAlertsResult, error)
+
+	// DeliverCiAlertsWithResponse Post alerts to an intake
+	//
+	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+	// Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /cmdb/alert-intake/{tenantId}/{connectorId} (the `DeliverCiAlerts` operationId).
+	DeliverCiAlertsWithResponse(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiAlertsParams, body DeliverCiAlertsJSONRequestBody, reqEditors ...RequestEditorFn) (*DeliverCiAlertsResult, error)
+
 	// ListCiClassesWithResponse The configuration item classes
 	//
 	// The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations a CI of it needs. Needs READ in the workspace and the assets module switched on.
@@ -69463,6 +70465,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
 	UpdateGroupWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, groupId GroupId, params *UpdateGroupParams, body UpdateGroupApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateGroupResult, error)
 
+	// ListCiAlertsWithResponse A hub's alerts
+	//
+	// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/ci-alerts (the `ListCiAlerts` operationId).
+	ListCiAlertsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiAlertsParams, reqEditors ...RequestEditorFn) (*ListCiAlertsResult, error)
+
 	// ListCiDuplicatesWithResponse Open duplicates
 	//
 	// Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
@@ -69552,6 +70563,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /hubs/{hubId}/cis:reconcile (the `ReconcileCis` operationId).
 	ReconcileCisWithResponse(ctx context.Context, hubId openapi_types.UUID, body ReconcileCisJSONRequestBody, reqEditors ...RequestEditorFn) (*ReconcileCisResult, error)
+
+	// ListCiConnectorsWithResponse A hub's connectors
+	//
+	// The programs the hub's configuration items are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/cmdb-connectors (the `ListCiConnectors` operationId).
+	ListCiConnectorsWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiConnectorsResult, error)
+
+	// DefineCiConnectorWithBodyWithResponse Add or change a connector
+	//
+	// Its kind (fixed once made), the connector source it writes as, the https address it pulls from, the kind's settings, further hosts it may reach, a period of 15 minutes to a week or none, whether it is on and an alert intake's collection. A connector is switched off, never deleted. Needs STRUCTURE in the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /hubs/{hubId}/cmdb-connectors/{connectorKey} (the `DefineCiConnector` operationId).
+	DefineCiConnectorWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, connectorKey string, params *DefineCiConnectorParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineCiConnectorResult, error)
+
+	// DefineCiConnectorWithResponse Add or change a connector
+	//
+	// Its kind (fixed once made), the connector source it writes as, the https address it pulls from, the kind's settings, further hosts it may reach, a period of 15 minutes to a week or none, whether it is on and an alert intake's collection. A connector is switched off, never deleted. Needs STRUCTURE in the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /hubs/{hubId}/cmdb-connectors/{connectorKey} (the `DefineCiConnector` operationId).
+	DefineCiConnectorWithResponse(ctx context.Context, hubId openapi_types.UUID, connectorKey string, params *DefineCiConnectorParams, body DefineCiConnectorJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCiConnectorResult, error)
 
 	// ReadCmdbHealthWithResponse A hub's inventory judged
 	//
@@ -81825,6 +82863,150 @@ func (r ReadCiImpactResult) ContentType() string {
 	return ""
 }
 
+type SetCiConnectorCredentialResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiConnector
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetCiConnectorCredentialResult) GetJSON200() *CiConnector {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetCiConnectorCredentialResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetCiConnectorCredentialResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetCiConnectorCredentialResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetCiConnectorCredentialResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetCiConnectorCredentialResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RunCiConnectorResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiConnectorRun
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RunCiConnectorResult) GetJSON200() *CiConnectorRun {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RunCiConnectorResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RunCiConnectorResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RunCiConnectorResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RunCiConnectorResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RunCiConnectorResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeliverCiAlertsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *CiAlertReceipt
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r DeliverCiAlertsResult) GetJSON202() *CiAlertReceipt {
+	return r.JSON202
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeliverCiAlertsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeliverCiAlertsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeliverCiAlertsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeliverCiAlertsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeliverCiAlertsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListCiClassesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -85085,6 +86267,54 @@ func (r UpdateGroupResult) ContentType() string {
 	return ""
 }
 
+type ListCiAlertsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiAlertList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiAlertsResult) GetJSON200() *CiAlertList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiAlertsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiAlertsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiAlertsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiAlertsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiAlertsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListCiDuplicatesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -85415,6 +86645,102 @@ func (r ReconcileCisResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReconcileCisResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListCiConnectorsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiConnectorList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiConnectorsResult) GetJSON200() *CiConnectorList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiConnectorsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiConnectorsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiConnectorsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiConnectorsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiConnectorsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DefineCiConnectorResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiConnector
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DefineCiConnectorResult) GetJSON200() *CiConnector {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DefineCiConnectorResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DefineCiConnectorResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DefineCiConnectorResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DefineCiConnectorResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DefineCiConnectorResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -102573,6 +103899,98 @@ func (c *ClientWithResponses) ReadCiImpactWithResponse(ctx context.Context, ciId
 	return ParseReadCiImpactResult(rsp)
 }
 
+// SetCiConnectorCredentialWithBodyWithResponse Set a connector's credential
+//
+// Sealed at rest and never answered again. A pull takes the secret its program gave; an alert intake draws its own and answers it once in `secret`, which the monitoring program presents as a bearer token or signs each delivery with. Needs STRUCTURE in the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /cmdb-connectors/{connectorId}/credential (the `SetCiConnectorCredential` operationId).
+func (c *ClientWithResponses) SetCiConnectorCredentialWithBodyWithResponse(ctx context.Context, connectorId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetCiConnectorCredentialResult, error) {
+	rsp, err := c.SetCiConnectorCredentialWithBody(ctx, connectorId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetCiConnectorCredentialResult(rsp)
+}
+
+// SetCiConnectorCredentialWithResponse Set a connector's credential
+//
+// Sealed at rest and never answered again. A pull takes the secret its program gave; an alert intake draws its own and answers it once in `secret`, which the monitoring program presents as a bearer token or signs each delivery with. Needs STRUCTURE in the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /cmdb-connectors/{connectorId}/credential (the `SetCiConnectorCredential` operationId).
+func (c *ClientWithResponses) SetCiConnectorCredentialWithResponse(ctx context.Context, connectorId openapi_types.UUID, body SetCiConnectorCredentialJSONRequestBody, reqEditors ...RequestEditorFn) (*SetCiConnectorCredentialResult, error) {
+	rsp, err := c.SetCiConnectorCredential(ctx, connectorId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetCiConnectorCredentialResult(rsp)
+}
+
+// RunCiConnectorWithBodyWithResponse Pull a connector's source now
+//
+// Page by page from where its last run ended, or from the beginning with `full`, each page through the reconciliation as the connector's source, up to 50 pages. A dry run fetches the first page and answers what would happen. A failure is answered by its message code and the cursor stays. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /cmdb-connectors/{connectorId}:run (the `RunCiConnector` operationId).
+func (c *ClientWithResponses) RunCiConnectorWithBodyWithResponse(ctx context.Context, connectorId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RunCiConnectorResult, error) {
+	rsp, err := c.RunCiConnectorWithBody(ctx, connectorId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRunCiConnectorResult(rsp)
+}
+
+// RunCiConnectorWithResponse Pull a connector's source now
+//
+// Page by page from where its last run ended, or from the beginning with `full`, each page through the reconciliation as the connector's source, up to 50 pages. A dry run fetches the first page and answers what would happen. A failure is answered by its message code and the cursor stays. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /cmdb-connectors/{connectorId}:run (the `RunCiConnector` operationId).
+func (c *ClientWithResponses) RunCiConnectorWithResponse(ctx context.Context, connectorId openapi_types.UUID, body RunCiConnectorJSONRequestBody, reqEditors ...RequestEditorFn) (*RunCiConnectorResult, error) {
+	rsp, err := c.RunCiConnector(ctx, connectorId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRunCiConnectorResult(rsp)
+}
+
+// DeliverCiAlertsWithBodyWithResponse Post alerts to an intake
+//
+// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+// Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /cmdb/alert-intake/{tenantId}/{connectorId} (the `DeliverCiAlerts` operationId).
+func (c *ClientWithResponses) DeliverCiAlertsWithBodyWithResponse(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiAlertsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DeliverCiAlertsResult, error) {
+	rsp, err := c.DeliverCiAlertsWithBody(ctx, tenantId, connectorId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeliverCiAlertsResult(rsp)
+}
+
+// DeliverCiAlertsWithResponse Post alerts to an intake
+//
+// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+// Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /cmdb/alert-intake/{tenantId}/{connectorId} (the `DeliverCiAlerts` operationId).
+func (c *ClientWithResponses) DeliverCiAlertsWithResponse(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiAlertsParams, body DeliverCiAlertsJSONRequestBody, reqEditors ...RequestEditorFn) (*DeliverCiAlertsResult, error) {
+	rsp, err := c.DeliverCiAlerts(ctx, tenantId, connectorId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeliverCiAlertsResult(rsp)
+}
+
 // ListCiClassesWithResponse The configuration item classes
 //
 // The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations a CI of it needs. Needs READ in the workspace and the assets module switched on.
@@ -104010,6 +105428,21 @@ func (c *ClientWithResponses) UpdateGroupWithApplicationMergePatchPlusJSONBodyWi
 	return ParseUpdateGroupResult(rsp)
 }
 
+// ListCiAlertsWithResponse A hub's alerts
+//
+// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/ci-alerts (the `ListCiAlerts` operationId).
+func (c *ClientWithResponses) ListCiAlertsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiAlertsParams, reqEditors ...RequestEditorFn) (*ListCiAlertsResult, error) {
+	rsp, err := c.ListCiAlerts(ctx, hubId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiAlertsResult(rsp)
+}
+
 // ListCiDuplicatesWithResponse Open duplicates
 //
 // Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
@@ -104158,6 +105591,51 @@ func (c *ClientWithResponses) ReconcileCisWithResponse(ctx context.Context, hubI
 		return nil, err
 	}
 	return ParseReconcileCisResult(rsp)
+}
+
+// ListCiConnectorsWithResponse A hub's connectors
+//
+// The programs the hub's configuration items are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/cmdb-connectors (the `ListCiConnectors` operationId).
+func (c *ClientWithResponses) ListCiConnectorsWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiConnectorsResult, error) {
+	rsp, err := c.ListCiConnectors(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiConnectorsResult(rsp)
+}
+
+// DefineCiConnectorWithBodyWithResponse Add or change a connector
+//
+// Its kind (fixed once made), the connector source it writes as, the https address it pulls from, the kind's settings, further hosts it may reach, a period of 15 minutes to a week or none, whether it is on and an alert intake's collection. A connector is switched off, never deleted. Needs STRUCTURE in the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /hubs/{hubId}/cmdb-connectors/{connectorKey} (the `DefineCiConnector` operationId).
+func (c *ClientWithResponses) DefineCiConnectorWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, connectorKey string, params *DefineCiConnectorParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineCiConnectorResult, error) {
+	rsp, err := c.DefineCiConnectorWithBody(ctx, hubId, connectorKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineCiConnectorResult(rsp)
+}
+
+// DefineCiConnectorWithResponse Add or change a connector
+//
+// Its kind (fixed once made), the connector source it writes as, the https address it pulls from, the kind's settings, further hosts it may reach, a period of 15 minutes to a week or none, whether it is on and an alert intake's collection. A connector is switched off, never deleted. Needs STRUCTURE in the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /hubs/{hubId}/cmdb-connectors/{connectorKey} (the `DefineCiConnector` operationId).
+func (c *ClientWithResponses) DefineCiConnectorWithResponse(ctx context.Context, hubId openapi_types.UUID, connectorKey string, params *DefineCiConnectorParams, body DefineCiConnectorJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCiConnectorResult, error) {
+	rsp, err := c.DefineCiConnector(ctx, hubId, connectorKey, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineCiConnectorResult(rsp)
 }
 
 // ReadCmdbHealthWithResponse A hub's inventory judged
@@ -116102,6 +117580,105 @@ func ParseReadCiImpactResult(rsp *http.Response) (*ReadCiImpactResult, error) {
 	return response, nil
 }
 
+// ParseSetCiConnectorCredentialResult parses an HTTP response from a SetCiConnectorCredentialWithResponse call
+func ParseSetCiConnectorCredentialResult(rsp *http.Response) (*SetCiConnectorCredentialResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetCiConnectorCredentialResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiConnector
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRunCiConnectorResult parses an HTTP response from a RunCiConnectorWithResponse call
+func ParseRunCiConnectorResult(rsp *http.Response) (*RunCiConnectorResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RunCiConnectorResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiConnectorRun
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeliverCiAlertsResult parses an HTTP response from a DeliverCiAlertsWithResponse call
+func ParseDeliverCiAlertsResult(rsp *http.Response) (*DeliverCiAlertsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeliverCiAlertsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest CiAlertReceipt
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListCiClassesResult parses an HTTP response from a ListCiClassesWithResponse call
 func ParseListCiClassesResult(rsp *http.Response) (*ListCiClassesResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -118534,6 +120111,39 @@ func ParseUpdateGroupResult(rsp *http.Response) (*UpdateGroupResult, error) {
 	return response, nil
 }
 
+// ParseListCiAlertsResult parses an HTTP response from a ListCiAlertsWithResponse call
+func ParseListCiAlertsResult(rsp *http.Response) (*ListCiAlertsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiAlertsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiAlertList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListCiDuplicatesResult parses an HTTP response from a ListCiDuplicatesWithResponse call
 func ParseListCiDuplicatesResult(rsp *http.Response) (*ListCiDuplicatesResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -118748,6 +120358,72 @@ func ParseReconcileCisResult(rsp *http.Response) (*ReconcileCisResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest CiRun
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCiConnectorsResult parses an HTTP response from a ListCiConnectorsWithResponse call
+func ParseListCiConnectorsResult(rsp *http.Response) (*ListCiConnectorsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiConnectorsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiConnectorList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDefineCiConnectorResult parses an HTTP response from a DefineCiConnectorWithResponse call
+func ParseDefineCiConnectorResult(rsp *http.Response) (*DefineCiConnectorResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DefineCiConnectorResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiConnector
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

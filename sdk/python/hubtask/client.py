@@ -167,6 +167,30 @@ class Client:
         """Merge a duplicate or call it distinct"""
         return self._call("POST", "/ci-duplicates/{duplicateId}:resolve", {"duplicateId": duplicate_id}, None, {}, body, "json", "application/json", "json")
 
+    def list_ci_connectors(self, hub_id: str) -> "CiConnectorList":
+        """A hub's connectors"""
+        return self._call("GET", "/hubs/{hubId}/cmdb-connectors", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def define_ci_connector(self, hub_id: str, connector_key: str, body: "CiConnectorDefine", *, if_match: str | None = None) -> "CiConnector":
+        """Add or change a connector"""
+        return self._call("PUT", "/hubs/{hubId}/cmdb-connectors/{connectorKey}", {"hubId": hub_id, "connectorKey": connector_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def set_ci_connector_credential(self, connector_id: str, body: "CiConnectorCredential") -> "CiConnector":
+        """Set a connector's credential"""
+        return self._call("PUT", "/cmdb-connectors/{connectorId}/credential", {"connectorId": connector_id}, None, {}, body, "json", "application/json", "json")
+
+    def run_ci_connector(self, connector_id: str, body: "CiConnectorRunRequest") -> "CiConnectorRun":
+        """Pull a connector's source now"""
+        return self._call("POST", "/cmdb-connectors/{connectorId}:run", {"connectorId": connector_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_ci_alerts(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiAlertList":
+        """A hub's alerts"""
+        return self._call("GET", "/hubs/{hubId}/ci-alerts", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def deliver_ci_alerts(self, tenant_id: str, connector_id: str, body: dict[str, Any], *, x_hubtask_signature: str | None = None, x_hubtask_timestamp: str | None = None) -> "CiAlertReceipt":
+        """Post alerts to an intake"""
+        return self._call("POST", "/cmdb/alert-intake/{tenantId}/{connectorId}", {"tenantId": tenant_id, "connectorId": connector_id}, None, {"X-Hubtask-Signature": x_hubtask_signature, "X-Hubtask-Timestamp": x_hubtask_timestamp}, body, "json", "application/json", "json")
+
     def read_cmdb_health(self, hub_id: str) -> "CmdbHealth":
         """A hub's inventory judged"""
         return self._call("GET", "/hubs/{hubId}/cmdb-health", {"hubId": hub_id}, None, {}, None, "none", None, "json")
