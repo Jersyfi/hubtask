@@ -1672,11 +1672,13 @@ func (q *Queries) ImportEntryLink(ctx context.Context, arg ImportEntryLinkParams
 const importEntryType = `-- name: ImportEntryType :execrows
 INSERT INTO entry_type (
   id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
-  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version
+  schedulable, estimable, allowed_children, form, position, archived_at, created_at, updated_at, version
 )
 SELECT
+  -- An archive from before 0214 carries no form: the type then has the empty one.
   r.id, r.tenant_id, r.key, r.level, r.system, r.name, r.icon, r.color_token, r.completable,
-  r.workflow, r.record, r.schedulable, r.estimable, r.allowed_children, r.position, r.archived_at,
+  r.workflow, r.record, r.schedulable, r.estimable, r.allowed_children, COALESCE(r.form, '{}'::jsonb),
+  r.position, r.archived_at,
   r.created_at, r.updated_at, r.version
 FROM jsonb_populate_record(
   NULL::entry_type,
@@ -1692,6 +1694,7 @@ ON CONFLICT (id) DO UPDATE SET
   schedulable = EXCLUDED.schedulable,
   estimable = EXCLUDED.estimable,
   allowed_children = EXCLUDED.allowed_children,
+  form = EXCLUDED.form,
   position = EXCLUDED.position,
   archived_at = EXCLUDED.archived_at,
   updated_at = EXCLUDED.updated_at,

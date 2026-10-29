@@ -813,7 +813,7 @@ func (q *Queries) SnapshotContainers(ctx context.Context, arg SnapshotContainers
 
 const snapshotEntryTypes = `-- name: SnapshotEntryTypes :many
 SELECT id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
-  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version
+  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version, form
 FROM entry_type
 WHERE tenant_id = current_tenant_id() AND id > $1
 ORDER BY id
@@ -855,6 +855,7 @@ func (q *Queries) SnapshotEntryTypes(ctx context.Context, arg SnapshotEntryTypes
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.Form,
 		); err != nil {
 			return nil, err
 		}

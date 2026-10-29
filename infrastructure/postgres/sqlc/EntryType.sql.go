@@ -45,7 +45,7 @@ func (q *Queries) EntryTypeInUse(ctx context.Context, key string) (bool, error) 
 
 const findEntryType = `-- name: FindEntryType :one
 SELECT id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
-  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version
+  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version, form
 FROM entry_type
 WHERE tenant_id = current_tenant_id() AND key = $1::text
 `
@@ -73,6 +73,7 @@ func (q *Queries) FindEntryType(ctx context.Context, key string) (EntryType, err
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.Form,
 	)
 	return i, err
 }
@@ -80,13 +81,13 @@ func (q *Queries) FindEntryType(ctx context.Context, key string) (EntryType, err
 const insertEntryType = `-- name: InsertEntryType :exec
 INSERT INTO entry_type (
   id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
-  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version
+  schedulable, estimable, allowed_children, form, position, archived_at, created_at, updated_at, version
 ) VALUES (
   $1, current_tenant_id(), $2, $3, $4,
   normalize($5::text, NFC), $6, $7,
   $8, $9, $10, $11,
-  $12, $13::text[], $14,
-  $15, $16, $16, 1
+  $12, $13::text[], $14::jsonb, $15,
+  $16, $17, $17, 1
 )
 `
 
@@ -104,6 +105,7 @@ type InsertEntryTypeParams struct {
 	Schedulable     bool
 	Estimable       bool
 	AllowedChildren []string
+	Form            []byte
 	Position        int32
 	ArchivedAt      pgtype.Timestamptz
 	CreatedAt       pgtype.Timestamptz
@@ -124,6 +126,7 @@ func (q *Queries) InsertEntryType(ctx context.Context, arg InsertEntryTypeParams
 		arg.Schedulable,
 		arg.Estimable,
 		arg.AllowedChildren,
+		arg.Form,
 		arg.Position,
 		arg.ArchivedAt,
 		arg.CreatedAt,
@@ -134,7 +137,7 @@ func (q *Queries) InsertEntryType(ctx context.Context, arg InsertEntryTypeParams
 const listEntryTypes = `-- name: ListEntryTypes :many
 
 SELECT id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
-  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version
+  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version, form
 FROM entry_type
 WHERE tenant_id = current_tenant_id()
 ORDER BY level, position, key
@@ -171,6 +174,7 @@ func (q *Queries) ListEntryTypes(ctx context.Context) ([]EntryType, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.Form,
 		); err != nil {
 			return nil, err
 		}
@@ -223,12 +227,13 @@ UPDATE entry_type SET
   schedulable      = $7,
   estimable        = $8,
   allowed_children = $9::text[],
-  position         = $10,
-  archived_at      = $11,
-  updated_at       = $12,
+  form             = $10::jsonb,
+  position         = $11,
+  archived_at      = $12,
+  updated_at       = $13,
   version          = version + 1
-WHERE tenant_id = current_tenant_id() AND key = $13::text
-  AND version = $14
+WHERE tenant_id = current_tenant_id() AND key = $14::text
+  AND version = $15
 `
 
 type UpdateEntryTypeParams struct {
@@ -241,6 +246,7 @@ type UpdateEntryTypeParams struct {
 	Schedulable     bool
 	Estimable       bool
 	AllowedChildren []string
+	Form            []byte
 	Position        int32
 	ArchivedAt      pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
@@ -261,6 +267,7 @@ func (q *Queries) UpdateEntryType(ctx context.Context, arg UpdateEntryTypeParams
 		arg.Schedulable,
 		arg.Estimable,
 		arg.AllowedChildren,
+		arg.Form,
 		arg.Position,
 		arg.ArchivedAt,
 		arg.UpdatedAt,

@@ -241,7 +241,7 @@ LIMIT sqlc.arg('batch');
 -- name: SnapshotEntryTypes :many
 -- The workspace's type rows (migration 0209); the system types it never changed are the domain's.
 SELECT id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
-  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version
+  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version, form
 FROM entry_type
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
 ORDER BY id

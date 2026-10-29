@@ -3,26 +3,26 @@
 
 -- name: ListEntryTypes :many
 SELECT id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
-  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version
+  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version, form
 FROM entry_type
 WHERE tenant_id = current_tenant_id()
 ORDER BY level, position, key;
 
 -- name: FindEntryType :one
 SELECT id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
-  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version
+  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version, form
 FROM entry_type
 WHERE tenant_id = current_tenant_id() AND key = sqlc.arg('key')::text;
 
 -- name: InsertEntryType :exec
 INSERT INTO entry_type (
   id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
-  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version
+  schedulable, estimable, allowed_children, form, position, archived_at, created_at, updated_at, version
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('key'), sqlc.arg('level'), sqlc.arg('system'),
   normalize(sqlc.arg('name')::text, NFC), sqlc.arg('icon'), sqlc.arg('color_token'),
   sqlc.arg('completable'), sqlc.arg('workflow'), sqlc.arg('record'), sqlc.arg('schedulable'),
-  sqlc.arg('estimable'), sqlc.arg('allowed_children')::text[], sqlc.arg('position'),
+  sqlc.arg('estimable'), sqlc.arg('allowed_children')::text[], sqlc.arg('form')::jsonb, sqlc.arg('position'),
   sqlc.narg('archived_at'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1
 );
 
@@ -39,6 +39,7 @@ UPDATE entry_type SET
   schedulable      = sqlc.arg('schedulable'),
   estimable        = sqlc.arg('estimable'),
   allowed_children = sqlc.arg('allowed_children')::text[],
+  form             = sqlc.arg('form')::jsonb,
   position         = sqlc.arg('position'),
   archived_at      = sqlc.narg('archived_at'),
   updated_at       = sqlc.arg('updated_at'),

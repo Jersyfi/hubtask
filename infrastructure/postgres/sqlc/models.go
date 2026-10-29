@@ -939,6 +939,7 @@ type EntryType struct {
 	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
 	Version         int32
+	Form            []byte
 }
 
 type ErasureKept struct {

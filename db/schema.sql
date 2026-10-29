@@ -935,6 +935,9 @@ CREATE TABLE entry_type (
   schedulable      boolean NOT NULL DEFAULT true,
   estimable        boolean NOT NULL DEFAULT false,
   allowed_children text[] NOT NULL DEFAULT '{}',
+  -- The type's form (0214): one document, read and written whole.
+  form             jsonb NOT NULL DEFAULT '{}'::jsonb
+                     CHECK (jsonb_typeof(form) = 'object' AND pg_column_size(form) <= 262144),
   position         integer NOT NULL DEFAULT 0,
   archived_at      timestamptz,
   created_at       timestamptz NOT NULL,
