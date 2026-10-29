@@ -166,7 +166,7 @@ test('the administration is grouped in the suite\u2019s six groups (configuratio
   assert.deepEqual(ADMINISTRATION.map((group) => group.id), ['back', 'how', 'people', 'connections', 'data']);
   const of = (id: string) => ADMINISTRATION.find((group) => group.id === id)?.rows.map((row) => row.id);
   assert.deepEqual(of('back'), ['back', 'overview']);
-  assert.deepEqual(of('how'), ['workspace', 'presets', 'modules', 'entry-types', 'link-types', 'rules', 'runs']);
+  assert.deepEqual(of('how'), ['workspace', 'presets', 'modules', 'entry-types', 'workflows', 'link-types', 'rules', 'runs']);
   assert.deepEqual(of('people'), ['people', 'sign-in-settings', 'legal', 'machines']);
   assert.deepEqual(of('connections'), ['mail', 'webhooks', 'voice', 'ai']);
   assert.deepEqual(of('data'), ['private-hubs', 'backup', 'retention', 'restore', 'audit', 'privacy', 'quotas']);

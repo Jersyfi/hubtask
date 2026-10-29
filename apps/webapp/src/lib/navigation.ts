@@ -205,6 +205,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       { id: 'presets', icon: 'sliders-horizontal', code: 'app.presets.title', path: '/administration/presets', routes: ['presets'] },
       { id: 'modules', icon: 'layout-template', code: 'app.modules.title', path: '/administration/modules', routes: ['modules'] },
       { id: 'entry-types', icon: 'tag', code: 'app.entry_types.title', path: '/administration/types', routes: ['entry-types'], module: 'WORKFLOWS' },
+      { id: 'workflows', icon: 'git-branch', code: 'app.workflow_designer.title', path: '/administration/workflows', routes: ['workflows'], module: 'WORKFLOWS' },
       // Links are the core's, not a module's (UC-PLN-01 check 5): the row is there in every workspace.
       { id: 'link-types', icon: 'link', code: 'app.link_types.title', path: '/administration/link-types', routes: ['link-types'] },
       // The editor's two routes are the rules' row as well: a reader inside a rule is inside
