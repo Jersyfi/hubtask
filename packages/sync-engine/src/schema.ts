@@ -178,6 +178,21 @@ export type EntryType = components['schemas']['EntryType'];
 export type EntryTypeList = components['schemas']['EntryTypeList'];
 export type EntryTypeCreate = components['schemas']['EntryTypeCreate'];
 export type EntryTypeChange = components['schemas']['EntryTypeChange'];
+/** A kind of relation between two entries, with its direction, cardinality and cycle rule (UC-PLN-01). */
+export type LinkType = components['schemas']['LinkType'];
+export type LinkTypeList = components['schemas']['LinkTypeList'];
+export type LinkTypeCreate = components['schemas']['LinkTypeCreate'];
+export type LinkTypeChange = components['schemas']['LinkTypeChange'];
+/** A link between two entries, an entry's links from both sides with its backlinks, and a view's links. */
+export type EntryLink = components['schemas']['EntryLink'];
+export type EntryLinkCreate = components['schemas']['EntryLinkCreate'];
+export type EntryLinkList = components['schemas']['EntryLinkList'];
+export type EntryLinks = components['schemas']['EntryLinks'];
+/** A polymorphic reference and what it shows the reader - only its address where they may not see it. */
+export type Reference = components['schemas']['Reference'];
+export type ReferenceKind = components['schemas']['ReferenceKind'];
+export type ReferenceStrength = components['schemas']['ReferenceStrength'];
+export type ReferenceTarget = components['schemas']['ReferenceTarget'];
 /** A provider identity connected to the reader's own account: which provider, since when. */
 export type ConnectedIdentity = components['schemas']['ConnectedIdentity'];
 /** Where to send the browser to connect a provider from a signed-in session (ADR-0078 §1). */
