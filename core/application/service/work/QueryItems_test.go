@@ -5,6 +5,7 @@ package work
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -89,7 +90,7 @@ func TestQueryItemsAnchorsOnWhatTheScopeNames(t *testing.T) {
 			if len(store.searched) != 1 {
 				t.Fatalf("%d queries ran, want 1", len(store.searched))
 			}
-			if got := store.searched[0].Anchor; got != test.want {
+			if got := store.searched[0].Anchor; !reflect.DeepEqual(got, test.want) {
 				t.Errorf("anchored on %+v, want %+v", got, test.want)
 			}
 			if uow.writes != 0 {

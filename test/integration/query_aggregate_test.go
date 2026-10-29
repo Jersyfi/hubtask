@@ -73,3 +73,40 @@ func TestAnAggregationCountsWhatTheQueryKeeps(t *testing.T) {
 		t.Errorf("another tenant counted %+v", other)
 	}
 }
+
+// A Sunday week begins on a Sunday and a Monday week on a Monday; a workspace summary counts the
+// bound collections and nothing else; an open entry holds no lead time (S-11).
+func TestAWorkspaceSummaryCountsTheBoundCollectionsByWeek(t *testing.T) {
+	ctx := context.Background()
+	kept := collectionFor(ctx, t, tenantA, authorA)
+	left := collectionFor(ctx, t, tenantA, authorA)
+	seedTask(ctx, t, tenantA, authorA, kept)
+	seedTask(ctx, t, tenantA, authorA, left)
+
+	search := searchIn(t, kept, nil, view.Spec{})
+	search.Anchor = repository.Anchor{Kind: repository.AnchorCollections, CollectionIDs: []shared.ID{kept}}
+	for start, weekday := range map[string]time.Weekday{"monday": time.Monday, "sunday": time.Sunday} {
+		result := aggregated(ctx, t, tenantA, search, map[string]any{
+			"function": "COUNT",
+			"bucket":   map[string]any{"field": "created_at", "period": "week", "week_start": start},
+		})
+		if len(result.Rows) != 1 || result.Rows[0].Count != 1 {
+			t.Fatalf("the %s week answered %+v, want the one entry of the bound collection", start, result)
+		}
+		day, err := time.Parse(time.DateOnly, result.Rows[0].Period)
+		if err != nil || day.Weekday() != weekday {
+			t.Errorf("the %s week begins on %q", start, result.Rows[0].Period)
+		}
+	}
+
+	lead := aggregated(ctx, t, tenantA, search, map[string]any{"function": "AVG", "field": "lead_time"})
+	if len(lead.Rows) != 1 || lead.Rows[0].Value != nil {
+		t.Errorf("an open entry held a lead time: %+v", lead)
+	}
+
+	search.Anchor.CollectionIDs = nil
+	none := aggregated(ctx, t, tenantA, search, map[string]any{"function": "COUNT"})
+	if len(none.Rows) != 1 || none.Rows[0].Count != 0 {
+		t.Errorf("no collection counted %+v", none)
+	}
+}
