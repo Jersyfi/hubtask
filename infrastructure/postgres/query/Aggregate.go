@@ -9,8 +9,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 )
 
-// Aggregate compiles a summary over the entries the search keeps: one row per group and period,
-// each carrying the group key, the period's first day, the entry count and the function's value.
+// Aggregate compiles a summary over the entries the search keeps, or over the links between them:
+// one row per group and period, each carrying the group key, the period's first day, the count and
+// the function's value.
 //
 // The four columns are always there - a NULL::text where nothing groups or buckets, a
 // NULL::numeric for a plain count - so one scan reads every shape. The period is cut in the time
@@ -30,8 +31,20 @@ func Aggregate(
 	b.aggregateBucket(aggregation, timeZone)
 	b.write(`, count(*)::bigint, `)
 	b.aggregateValue(aggregation)
-	b.write(` FROM work_item wi WHERE `)
+	b.write(` FROM work_item wi`)
+	if aggregation.CountsLinks() {
+		b.write(` JOIN entry_link lk ON lk.tenant_id = wi.tenant_id AND lk.source_id = wi.id`)
+	}
+	b.write(` WHERE `)
 	b.predicates(search)
+	if aggregation.CountsLinks() {
+		// The target is held to the same predicates by an inner `wi` that shadows the outer one,
+		// so a link counts only where the query keeps both its ends - an end the reader cannot see
+		// is never counted (the scope and the restriction are part of the predicates).
+		b.write(` AND lk.target_id IN (SELECT wi.id FROM work_item wi WHERE `)
+		b.predicates(search)
+		b.write(`)`)
+	}
 	// A plain total is not grouped, so an empty scope answers one row of zero rather than none.
 	if aggregation.IsGrouped() || aggregation.IsBucketed() {
 		b.write(` GROUP BY 1, 2 ORDER BY 1 ASC NULLS LAST, 2 ASC NULLS LAST`)
@@ -45,6 +58,10 @@ func Aggregate(
 func (b *builder) aggregateGroupKey(aggregation view.Aggregation) {
 	if !aggregation.IsGrouped() {
 		b.write(`NULL::text`)
+		return
+	}
+	if aggregation.ByLinkType {
+		b.write(`lk.link_type`)
 		return
 	}
 	if _, custom := view.CustomField(aggregation.GroupBy.Name); custom {

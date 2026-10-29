@@ -53,6 +53,20 @@ const (
 // Quantities lists the built-in measures, for a door that offers them.
 func Quantities() []Quantity { return []Quantity{QuantityLeadTime, QuantityScheduledSpan} }
 
+// AggregateSource is what an aggregation counts: the entries a query keeps, or the links between
+// them (F-9). Records are entries; time records and pages have no store yet.
+type AggregateSource string
+
+const (
+	SourceEntries AggregateSource = "entries"
+	// SourceLinks counts the links whose two ends the query both keeps - the links a view of those
+	// entries draws (`POST /links:query`), so an end the reader cannot see is never counted.
+	SourceLinks AggregateSource = "links"
+)
+
+// GroupByLinkType is the one grouping a links summary has beside its source end's fields.
+const GroupByLinkType = "link_type"
+
 // MaxAggregateRows bounds the rows one aggregation answers: groups times buckets. A year of days
 // over a dozen statuses fits; past it the answer says it was cut rather than growing without end.
 const MaxAggregateRows = 5000
@@ -63,6 +77,9 @@ const MaxAggregateRows = 5000
 // It reads the same Spec's scope and filter; its own fields are parsed into this catalogue before
 // any adapter sees them, so the compiler meets nothing but typed constants and fields.
 type Aggregation struct {
+	// Source is SourceEntries or SourceLinks; a links summary is a COUNT, and its fields are its
+	// source end's.
+	Source   AggregateSource
 	Function AggregateFunction
 	// Measure is the summed field - a custom field holding a number, money or a duration. Zero for
 	// COUNT and for a built-in quantity.
@@ -71,6 +88,8 @@ type Aggregation struct {
 	Quantity Quantity
 	// GroupBy is the field the rows are split by; zero for one total.
 	GroupBy Field
+	// ByLinkType splits a links summary by the link's type instead of a field.
+	ByLinkType bool
 	// Bucket and BucketField cut the rows by period; both or neither.
 	Bucket      TimeBucket
 	BucketField Field
@@ -79,17 +98,29 @@ type Aggregation struct {
 }
 
 // IsGrouped reports whether the aggregation is split by a field.
-func (a Aggregation) IsGrouped() bool { return a.GroupBy.Name != "" }
+func (a Aggregation) IsGrouped() bool { return a.GroupBy.Name != "" || a.ByLinkType }
+
+// CountsLinks reports whether the aggregation counts links rather than entries.
+func (a Aggregation) CountsLinks() bool { return a.Source == SourceLinks }
 
 // IsBucketed reports whether the aggregation is split by period.
 func (a Aggregation) IsBucketed() bool { return a.Bucket != "" }
 
-// ParseAggregation reads `{function, field?, group_by?, bucket?: {field, period, week_start?}}`.
-// The field is a custom field or a built-in Quantity.
+// ParseAggregation reads `{source?, function, field?, group_by?, bucket?: {field, period,
+// week_start?}}`. The field is a custom field or a built-in Quantity; a links summary is a COUNT
+// and may group by GroupByLinkType.
 func ParseAggregation(raw any, path string) (Aggregation, error) {
 	document, ok := raw.(map[string]any)
 	if !ok {
 		return Aggregation{}, fieldError(path, "query.aggregate_malformed", nil)
+	}
+
+	source := AggregateSource(stringOf(document["source"]))
+	switch {
+	case source == "":
+		source = SourceEntries
+	case !slices.Contains([]AggregateSource{SourceEntries, SourceLinks}, source):
+		return Aggregation{}, fieldError(path+"/source", "query.aggregate_source_unknown", nil)
 	}
 
 	function := AggregateFunction(stringOf(document["function"]))
@@ -98,7 +129,12 @@ func ParseAggregation(raw any, path string) (Aggregation, error) {
 	}, function) {
 		return Aggregation{}, fieldError(path+"/function", "query.aggregate_function_unknown", nil)
 	}
-	result := Aggregation{Function: function}
+	// A link holds no measure of its own; summing its source end's would count an entry once per
+	// link, which is no question anybody asks.
+	if source == SourceLinks && function != AggregateCount {
+		return Aggregation{}, fieldError(path+"/function", "query.aggregate_links_count_only", nil)
+	}
+	result := Aggregation{Source: source, Function: function}
 
 	measure, present := document["field"]
 	switch {
@@ -120,7 +156,9 @@ func ParseAggregation(raw any, path string) (Aggregation, error) {
 		result.Measure = target
 	}
 
-	if name := stringOf(document["group_by"]); name != "" {
+	if name := stringOf(document["group_by"]); name == GroupByLinkType && source == SourceLinks {
+		result.ByLinkType = true
+	} else if name != "" {
 		target, err := field(name, path+"/group_by")
 		if err != nil {
 			return Aggregation{}, err

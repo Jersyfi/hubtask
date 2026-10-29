@@ -138,6 +138,8 @@ func FuzzCompile(f *testing.F) {
 			{"function": "AVG", "field": "lead_time",
 				"bucket": map[string]any{"field": "completed_at", "period": "week", "week_start": "sunday"}},
 			{"function": "SUM", "field": "scheduled_span", "group_by": "assignee_id"},
+			{"source": "links", "function": "COUNT", "group_by": "link_type",
+				"bucket": map[string]any{"field": "created_at", "period": "month"}},
 		} {
 			counted, err := view.ParseAggregation(raw, "/aggregate")
 			if err != nil {

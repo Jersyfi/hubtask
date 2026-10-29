@@ -110,3 +110,43 @@ func TestAWorkspaceSummaryCountsTheBoundCollectionsByWeek(t *testing.T) {
 		t.Errorf("no collection counted %+v", none)
 	}
 }
+
+// A links summary counts a link only where the scope keeps both its ends, per type, and never
+// another tenant's (F-9): a link into a collection outside the scope is not counted.
+func TestALinksSummaryCountsTheLinksBetweenTheKeptEntries(t *testing.T) {
+	ctx := context.Background()
+	kept := collectionFor(ctx, t, tenantA, authorA)
+	outside := collectionFor(ctx, t, tenantA, authorA)
+	first := seedTask(ctx, t, tenantA, authorA, kept)
+	second := seedTask(ctx, t, tenantA, authorA, kept)
+	away := seedTask(ctx, t, tenantA, authorA, outside)
+
+	pool := adminPool(ctx, t)
+	for _, link := range [][3]string{
+		{"blocks", first.String(), second.String()},
+		{"duplicates", first.String(), away.String()},
+	} {
+		if _, err := pool.Exec(ctx, `INSERT INTO entry_link (id, tenant_id, link_type, source_id, target_id, created_at)
+			VALUES ($1, $2, $3, $4, $5, now())`,
+			freshID(t).String(), tenantA.String(), link[0], link[1], link[2]); err != nil {
+			t.Fatalf("linking: %v", err)
+		}
+	}
+
+	byType := map[string]any{"source": "links", "function": "COUNT", "group_by": "link_type"}
+	inside := aggregated(ctx, t, tenantA, searchIn(t, kept, nil, view.Spec{}), byType)
+	if len(inside.Rows) != 1 || inside.Rows[0].Group != "blocks" || inside.Rows[0].Count != 1 {
+		t.Errorf("the collection's links answered %+v, want the one blocks link inside it", inside)
+	}
+
+	both := searchIn(t, kept, nil, view.Spec{})
+	both.Anchor = repository.Anchor{Kind: repository.AnchorCollections, CollectionIDs: []shared.ID{kept, outside}}
+	across := aggregated(ctx, t, tenantA, both, byType)
+	if len(across.Rows) != 2 {
+		t.Errorf("both collections' links answered %+v, want blocks and duplicates", across)
+	}
+
+	if other := aggregated(ctx, t, tenantB, both, byType); len(other.Rows) != 0 {
+		t.Errorf("another tenant counted %+v", other)
+	}
+}

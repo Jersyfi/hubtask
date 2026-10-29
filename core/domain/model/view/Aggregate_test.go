@@ -52,6 +52,17 @@ func TestAnAggregationIsReadFromTheClosedVocabulary(t *testing.T) {
 		{"a bucket over a non-time field", map[string]any{"function": "COUNT",
 			"bucket": map[string]any{"field": "depth", "period": "day"}}, "query.field_not_bucketable"},
 		{"a malformed bucket", map[string]any{"function": "COUNT", "bucket": "day"}, "query.aggregate_malformed"},
+		{"a count of links", map[string]any{"source": "links", "function": "COUNT"}, ""},
+		{"links per type", map[string]any{"source": "links", "function": "COUNT", "group_by": "link_type"}, ""},
+		{"links per week of their source", map[string]any{"source": "links", "function": "COUNT",
+			"group_by": "status", "bucket": map[string]any{"field": "created_at", "period": "week"}}, ""},
+		{"entries named as the source", map[string]any{"source": "entries", "function": "COUNT"}, ""},
+		{"an unknown source", map[string]any{"source": "pages", "function": "COUNT"},
+			"query.aggregate_source_unknown"},
+		{"a sum of links", map[string]any{"source": "links", "function": "SUM", "field": "lead_time"},
+			"query.aggregate_links_count_only"},
+		{"entries per link type", map[string]any{"function": "COUNT", "group_by": "link_type"},
+			"query.field_unknown"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

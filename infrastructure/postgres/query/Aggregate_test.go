@@ -173,3 +173,39 @@ func TestTheSetAndPrefixOperatorsCompileOverACustomField(t *testing.T) {
 		}
 	}
 }
+
+// A links summary counts a link only where the query keeps both its ends: the target is held to
+// the same predicates, every value bound again, and the type is the one grouping of its own.
+func TestALinksSummaryCountsLinksWithBothEndsKept(t *testing.T) {
+	search := searchOf(t, map[string]any{"field": "is_completed", "op": "EQ", "value": false}, view.Spec{})
+	search.RestrictTo = []shared.ID{shared.MustParseID("0192f000-0000-7000-8000-00000000000f")}
+	aggregation := aggregationOf(t, map[string]any{"source": "links", "function": "COUNT", "group_by": "link_type"}, nil)
+
+	statement, err := Aggregate(search, aggregation, "UTC", 5001)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+	for _, fragment := range []string{
+		`SELECT lk.link_type, NULL::text, count(*)::bigint, NULL::numeric FROM work_item wi JOIN entry_link lk ON lk.tenant_id = wi.tenant_id AND lk.source_id = wi.id WHERE `,
+		` AND lk.target_id IN (SELECT wi.id FROM work_item wi WHERE `,
+		` GROUP BY 1, 2`,
+	} {
+		if !strings.Contains(statement.SQL, fragment) {
+			t.Errorf("missing %q in\n%s", fragment, statement.SQL)
+		}
+	}
+	if got := strings.Count(statement.SQL, "wi.id = ANY("); got != 2 {
+		t.Errorf("the restriction holds %d ends, want both:\n%s", got, statement.SQL)
+	}
+	if strings.Count(statement.SQL, "$") != len(statement.Args) {
+		t.Errorf("placeholders and arguments disagree:\n%s", statement.SQL)
+	}
+
+	entries, err := Aggregate(search, aggregationOf(t, map[string]any{"function": "COUNT"}, nil), "UTC", 5001)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+	if strings.Contains(entries.SQL, "entry_link") {
+		t.Errorf("an entries summary reads links:\n%s", entries.SQL)
+	}
+}
