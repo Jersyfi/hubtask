@@ -6825,6 +6825,24 @@ func (e ListJumbleEntriesParamsChannel) Valid() bool {
 	}
 }
 
+// Defines values for PreviewModuleReachParamsSwitch.
+const (
+	PreviewModuleReachParamsSwitchINHERIT PreviewModuleReachParamsSwitch = "INHERIT"
+	PreviewModuleReachParamsSwitchOFF     PreviewModuleReachParamsSwitch = "OFF"
+)
+
+// Valid indicates whether the value is a known member of the PreviewModuleReachParamsSwitch enum.
+func (e PreviewModuleReachParamsSwitch) Valid() bool {
+	switch e {
+	case PreviewModuleReachParamsSwitchINHERIT:
+		return true
+	case PreviewModuleReachParamsSwitchOFF:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ShowAlexaModelParamsLocale.
 const (
 	DeDE ShowAlexaModelParamsLocale = "de-DE"
@@ -17187,7 +17205,13 @@ type ListModulesParams struct {
 // PreviewModuleReachParams defines parameters for PreviewModuleReach.
 type PreviewModuleReachParams struct {
 	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+
+	// Switch OFF, the default, or INHERIT to leave the module to the level above.
+	Switch *PreviewModuleReachParamsSwitch `form:"switch,omitempty" json:"switch,omitempty"`
 }
+
+// PreviewModuleReachParamsSwitch defines parameters for PreviewModuleReach.
+type PreviewModuleReachParamsSwitch string
 
 // SetWorkspaceStructureParams defines parameters for SetWorkspaceStructure.
 type SetWorkspaceStructureParams struct {
@@ -24002,7 +24026,7 @@ type ClientInterface interface {
 
 	// PreviewModuleReach How many people switching a module off would leave without it
 	//
-	// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. A count, never who. Needs what the switch needs.
+	// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. With `switch=INHERIT`, leaving the module to the level above: the same count when the level above has it off, 0 when it stays on. A count, never who. Needs what the switch needs.
 	//
 	// Corresponds with GET /tenant/modules/{module}/reach (the `PreviewModuleReach` operationId).
 	PreviewModuleReach(ctx context.Context, module Module, params *PreviewModuleReachParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -36533,7 +36557,7 @@ func (c *Client) SetModule(ctx context.Context, module Module, body SetModuleJSO
 
 // PreviewModuleReach How many people switching a module off would leave without it
 //
-// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. A count, never who. Needs what the switch needs.
+// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. With `switch=INHERIT`, leaving the module to the level above: the same count when the level above has it off, 0 when it stays on. A count, never who. Needs what the switch needs.
 //
 // Corresponds with GET /tenant/modules/{module}/reach (the `PreviewModuleReach` operationId).
 func (c *Client) PreviewModuleReach(ctx context.Context, module Module, params *PreviewModuleReachParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -57283,6 +57307,18 @@ func NewPreviewModuleReachRequest(server string, module Module, params *PreviewM
 
 		}
 
+		if params.Switch != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "switch", *params.Switch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
 		if encoded := queryValues.Encode(); encoded != "" {
 			rawQueryFragments = append(rawQueryFragments, encoded)
 		}
@@ -65134,7 +65170,7 @@ type ClientWithResponsesInterface interface {
 
 	// PreviewModuleReachWithResponse How many people switching a module off would leave without it
 	//
-	// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. A count, never who. Needs what the switch needs.
+	// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. With `switch=INHERIT`, leaving the module to the level above: the same count when the level above has it off, 0 when it stays on. A count, never who. Needs what the switch needs.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -97822,7 +97858,7 @@ func (c *ClientWithResponses) SetModuleWithResponse(ctx context.Context, module 
 
 // PreviewModuleReachWithResponse How many people switching a module off would leave without it
 //
-// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. A count, never who. Needs what the switch needs.
+// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. With `switch=INHERIT`, leaving the module to the level above: the same count when the level above has it off, 0 when it stays on. A count, never who. Needs what the switch needs.
 //
 // Returns a wrapper object for the known response body format(s).
 //

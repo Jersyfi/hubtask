@@ -31,7 +31,9 @@ type People interface {
 
 // PreviewModuleReach answers how many people switching a module off at the workspace or one hub
 // would leave without it, before the switch: everyone who reaches the place while the module is
-// on there, and nobody where it is off already. A count, never who (rule 10).
+// on there, and nobody where it is off already. Leaving it to the level above (INHERIT) counts
+// the same people when the level above has it off, and nobody when the module stays on. A count,
+// never who (rule 10).
 type PreviewModuleReach struct {
 	Modules Modules
 	People  People
@@ -47,12 +49,16 @@ type ModuleReach struct {
 
 // Execute counts in a read-only transaction, asked as the switch itself is.
 func (h PreviewModuleReach) Execute(
-	ctx context.Context, actor appshared.ActorContext, key module.Key, hubID shared.ID,
+	ctx context.Context, actor appshared.ActorContext, key module.Key, hubID shared.ID, to Switch,
 ) (ModuleReach, error) {
 	m := h.Modules
 	if !key.Valid() {
 		return ModuleReach{}, shared.ErrValidation.WithDetail("module.switch_invalid").
 			WithFields(shared.FieldError{Path: "/module", Code: "module.switch_invalid"})
+	}
+	if to != SwitchOff && to != SwitchInherit {
+		return ModuleReach{}, shared.ErrValidation.WithDetail("module.switch_invalid").
+			WithFields(shared.FieldError{Path: "/switch", Code: "module.switch_invalid"})
 	}
 	where, err := m.read(ctx, actor, hubID)
 	if err != nil {
@@ -77,6 +83,13 @@ func (h PreviewModuleReach) Execute(
 		reach.On, _ = resolved.Effective.(bool)
 		if !reach.On {
 			return nil
+		}
+		if to == SwitchInherit {
+			// The place's own layer is the last one; without it the level above decides.
+			above := domain.Resolve(key.Definition(), layers[:len(layers)-1]...)
+			if stays, _ := above.Effective.(bool); stays {
+				return nil
+			}
 		}
 		reach.People, err = h.People.PeopleReaching(ctx, hubID)
 		return err
@@ -104,6 +117,8 @@ func (h PreviewModuleReach) Descriptor() usecase.Descriptor {
 			{Name: "module", Kind: usecase.KindString, Required: true, Enum: modules,
 				Description: "The module."},
 			{Name: "hub_id", Kind: usecase.KindID, Description: "A hub of the workspace; omitted is the workspace."},
+			{Name: "switch", Kind: usecase.KindString, Enum: []string{string(SwitchOff), string(SwitchInherit)},
+				Description: "OFF, the default, or INHERIT to leave the module to the level above."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ModuleReachPreviewedAction, TargetType: moduleTarget, Severity: audit.SeverityInfo, Required: false,
@@ -118,7 +133,11 @@ func (h PreviewModuleReach) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			reach, err := h.Execute(ctx, actor, key, hubID)
+			to := SwitchOff
+			if raw := in.String("switch"); raw != "" {
+				to = Switch(raw)
+			}
+			reach, err := h.Execute(ctx, actor, key, hubID, to)
 			if err != nil {
 				return nil, err
 			}

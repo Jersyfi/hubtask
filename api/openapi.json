@@ -13472,7 +13472,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "module reach",
         "summary": "How many people switching a module off would leave without it",
-        "description": "How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. A count, never who. Needs what the switch needs.\n",
+        "description": "How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. With `switch=INHERIT`, leaving the module to the level above: the same count when the level above has it off, 0 when it stays on. A count, never who. Needs what the switch needs.\n",
         "parameters": [
           {
             "name": "module",
@@ -13489,6 +13489,20 @@
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "name": "switch",
+            "in": "query",
+            "required": false,
+            "description": "OFF, the default, or INHERIT to leave the module to the level above.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OFF",
+                "INHERIT"
+              ],
+              "default": "OFF"
             }
           }
         ],

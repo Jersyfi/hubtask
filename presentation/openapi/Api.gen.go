@@ -6819,6 +6819,24 @@ func (e ListJumbleEntriesParamsChannel) Valid() bool {
 	}
 }
 
+// Defines values for PreviewModuleReachParamsSwitch.
+const (
+	PreviewModuleReachParamsSwitchINHERIT PreviewModuleReachParamsSwitch = "INHERIT"
+	PreviewModuleReachParamsSwitchOFF     PreviewModuleReachParamsSwitch = "OFF"
+)
+
+// Valid indicates whether the value is a known member of the PreviewModuleReachParamsSwitch enum.
+func (e PreviewModuleReachParamsSwitch) Valid() bool {
+	switch e {
+	case PreviewModuleReachParamsSwitchINHERIT:
+		return true
+	case PreviewModuleReachParamsSwitchOFF:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ShowAlexaModelParamsLocale.
 const (
 	DeDE ShowAlexaModelParamsLocale = "de-DE"
@@ -17181,7 +17199,13 @@ type ListModulesParams struct {
 // PreviewModuleReachParams defines parameters for PreviewModuleReach.
 type PreviewModuleReachParams struct {
 	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+
+	// Switch OFF, the default, or INHERIT to leave the module to the level above.
+	Switch *PreviewModuleReachParamsSwitch `form:"switch,omitempty" json:"switch,omitempty"`
 }
+
+// PreviewModuleReachParamsSwitch defines parameters for PreviewModuleReach.
+type PreviewModuleReachParamsSwitch string
 
 // SetWorkspaceStructureParams defines parameters for SetWorkspaceStructure.
 type SetWorkspaceStructureParams struct {
@@ -33739,6 +33763,19 @@ func (siw *ServerInterfaceWrapper) PreviewModuleReach(w http.ResponseWriter, r *
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "hub_id"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hub_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "switch" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "switch", r.URL.Query(), &params.Switch, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "switch"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "switch", Err: err})
 		}
 		return
 	}

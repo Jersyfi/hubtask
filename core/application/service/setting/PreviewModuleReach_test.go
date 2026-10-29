@@ -79,8 +79,45 @@ func TestAModuleReachIsRefusedAsTheSwitchWouldBe(t *testing.T) {
 	modules, _, _ := fixture()
 	modules.Authorizer = authorizer{refuse: true}
 	_, err := settingservice.PreviewModuleReach{Modules: modules, People: &people{}}.
-		Execute(context.Background(), actor(), module.Planning, "")
+		Execute(context.Background(), actor(), module.Planning, "", settingservice.SwitchOff)
 	if !errors.Is(err, shared.ErrForbidden) {
 		t.Errorf("err = %v", err)
+	}
+}
+
+// S-09's gap: leaving the workspace's module to the installation, whose default is off, counts
+// the workspace's people; leaving a hub's to a workspace that has it on counts nobody.
+func TestAModuleLeftToTheLevelAboveCountsOnlyWhenItTurnsOff(t *testing.T) {
+	ctx := context.Background()
+	modules, _, _ := fixture()
+	preview := settingservice.PreviewModuleReach{Modules: modules, People: &people{}}
+	registry, err := usecase.NewRegistry(nil, preview.Descriptor())
+	if err != nil {
+		t.Fatal(err)
+	}
+	set := settingservice.SetModule{Modules: modules}
+	for _, at := range []shared.ID{shared.ID(""), hub} {
+		if _, err := set.Execute(ctx, actor(), settingservice.SetModuleCommand{
+			Module: module.Planning, Switch: settingservice.SwitchOn, HubID: at,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	out, err := registry.Invoke(ctx, settingservice.PreviewModuleReachName, actor(),
+		usecase.Input{"module": "PLANNING", "switch": "INHERIT"})
+	if err != nil || out["on"] != true || out["people"] != 12 {
+		t.Errorf("leaving it to an installation that has it off answered %v, %v", out, err)
+	}
+	out, err = registry.Invoke(ctx, settingservice.PreviewModuleReachName, actor(),
+		usecase.Input{"module": "PLANNING", "hub_id": hub.String(), "switch": "INHERIT"})
+	if err != nil || out["on"] != true || out["people"] != 0 {
+		t.Errorf("leaving it to a workspace that has it on answered %v, %v", out, err)
+	}
+
+	_, err = registry.Invoke(ctx, settingservice.PreviewModuleReachName, actor(),
+		usecase.Input{"module": "PLANNING", "switch": "ON"})
+	if err == nil {
+		t.Error("a switch on was counted")
 	}
 }

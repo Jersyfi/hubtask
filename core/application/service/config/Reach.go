@@ -62,8 +62,8 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 	reset := []any{}
 	for _, change := range p.Changes {
 		switch {
-		case change.Section == sectionModules && text(change.After[switchAttribute]) == "OFF":
-			in := usecase.Input{"module": strings.ToUpper(change.Key)}
+		case change.Section == sectionModules && slices.Contains([]string{"OFF", "INHERIT"}, text(change.After[switchAttribute])):
+			in := usecase.Input{"module": strings.ToUpper(change.Key), "switch": text(change.After[switchAttribute])}
 			if !p.Hub.IsZero() {
 				in["hub_id"] = p.Hub.String()
 			}

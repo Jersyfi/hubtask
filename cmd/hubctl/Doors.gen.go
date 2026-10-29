@@ -130,6 +130,7 @@ var generatedCommands = []door{
 		},
 		Query: []doorParam{
 			{Name: "hub_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "switch", Kind: "string", Help: "OFF, the default, or INHERIT to leave the module to the level above", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"hub_id", "module", "on", "people"}},
 	{Group: "role", Verb: "create", OperationID: "createRole", Method: "POST", Path: "/roles", Summary: "Define a role of the workspace's own",

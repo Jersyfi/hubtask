@@ -173,8 +173,16 @@ func TestAPlanCountsThePeopleAModuleSwitchedOffLeaves(t *testing.T) {
 		t.Fatalf("reach %v", reached)
 	}
 	asked := f.world.inputs["PreviewModuleReach"]
-	if len(asked) != 1 || asked[0]["module"] != "WORKFLOWS" || asked[0]["hub_id"] != nil {
+	if len(asked) != 1 || asked[0]["module"] != "WORKFLOWS" || asked[0]["hub_id"] != nil || asked[0]["switch"] != "OFF" {
 		t.Fatalf("the count was asked %v", asked)
+	}
+
+	plan = invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{
+		"document": map[string]any{"modules": map[string]any{"workflows": map[string]any{"switch": "INHERIT"}}},
+	})
+	asked = f.world.inputs["PreviewModuleReach"]
+	if reached, _ := plan["reach"].([]usecase.Output); len(reached) != 1 || len(asked) != 2 || asked[1]["switch"] != "INHERIT" {
+		t.Fatalf("a module left to the level above was not counted: %v, asked %v", reached, asked)
 	}
 
 	f.world.previewWithheld = true
