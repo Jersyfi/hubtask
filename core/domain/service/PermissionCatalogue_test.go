@@ -36,6 +36,9 @@ func TestTheCatalogueKnowsItsPermissionsAndRefusesOthers(t *testing.T) {
 		{"WRITE_ASSIGNED", true},
 		{"REQUEST", true},
 		{"FIELD_WRITE:cost", true},
+		{"FIELD_READ:cost", true},
+		{"FIELD_READ:", false},
+		{"FIELD_READ:FIELD_WRITE:cost", false},
 		{"TAKE_STEP:change/approve", true},
 		{"FIELD_WRITE:", false},
 		{"FIELD_WRITE:Cost", false},
@@ -165,6 +168,35 @@ func TestFieldAndStepPermissionsAreTheShapersAndTheCustomRolesThatNameThem(t *te
 	}
 	if !slices.Contains(service.Held(held, collectionPth, service.SharedPath), approve) {
 		t.Fatal("the step permission is not reported as held")
+	}
+}
+
+func TestAFieldRestrictedForReadingIsSeenWithItsReadOrWritePermission(t *testing.T) {
+	cases := []struct {
+		name string
+		held []service.Permission
+		sees bool
+	}{
+		{"nothing", nil, false},
+		{"its read permission", []service.Permission{service.FieldRead("cost")}, true},
+		{"its write permission", []service.Permission{service.FieldWrite("cost")}, true},
+		{"another field's", []service.Permission{service.FieldRead("salary"), service.FieldWrite("band")}, false},
+		{"reading the entry", []service.Permission{service.PermissionRead, service.PermissionWriteItems}, false},
+	}
+	for _, c := range cases {
+		got := service.SeesField(func(p service.Permission) bool { return slices.Contains(c.held, p) }, "cost")
+		if got != c.sees {
+			t.Errorf("%s: sees = %v, want %v", c.name, got, c.sees)
+		}
+	}
+	for _, role := range identity.Roles() {
+		want := role == identity.RoleOwner || role == identity.RoleAdmin
+		if got := service.SeesField(func(p service.Permission) bool { return service.RoleAllows(role, p) }, "cost"); got != want {
+			t.Errorf("%s sees a restricted field: %v, want %v", role, got, want)
+		}
+	}
+	if service.FieldRead("cost").Kind() != service.KindField {
+		t.Fatal("FIELD_READ is not of the field family")
 	}
 }
 

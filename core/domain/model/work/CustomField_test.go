@@ -373,3 +373,46 @@ func sameValue(got, want any) bool {
 	}
 	return true
 }
+
+func TestAFieldHiddenFromReadersIsRestrictedForWritingAsWell(t *testing.T) {
+	built, err := work.NewCustomFieldDefinition(work.NewCustomFieldInput{
+		ID: fieldID, TenantID: fieldTenant, Key: "cost", Kind: work.CustomFieldMoney, Currency: "EUR",
+		ReadRestricted: true, AppliesTo: []work.ItemType{work.ItemTask}, Now: fieldNow, Text: text.Composing{},
+	})
+	if err != nil {
+		t.Fatalf("defining a hidden field: %v", err)
+	}
+	if !built.Restricted || !built.ReadRestricted {
+		t.Fatalf("restricted/read = %v/%v, want both", built.Restricted, built.ReadRestricted)
+	}
+
+	yes, no := true, false
+	cases := []struct {
+		name           string
+		attributes     work.CustomFieldAttributes
+		restricted     bool
+		readRestricted bool
+	}{
+		{"lifting the restriction lifts the hiding", work.CustomFieldAttributes{Restricted: &no}, false, false},
+		{"lifting only the hiding keeps the writing restricted", work.CustomFieldAttributes{ReadRestricted: &no}, true, false},
+		{"hiding again restricts", work.CustomFieldAttributes{Restricted: &no, ReadRestricted: &yes}, true, true},
+	}
+	for _, c := range cases {
+		updated, _, err := built.Updated(c.attributes, text.Composing{}, fieldNow)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if updated.Restricted != c.restricted || updated.ReadRestricted != c.readRestricted {
+			t.Errorf("%s: restricted/read = %v/%v, want %v/%v",
+				c.name, updated.Restricted, updated.ReadRestricted, c.restricted, c.readRestricted)
+		}
+	}
+
+	_, err = work.NewCustomFieldDefinition(work.NewCustomFieldInput{
+		ID: fieldID, TenantID: fieldTenant, Key: "total", Kind: work.CustomFieldCalculated, Formula: "1",
+		ReadRestricted: true, AppliesTo: []work.ItemType{work.ItemTask}, Now: fieldNow, Text: text.Composing{},
+	})
+	if !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("a hidden calculated field: %v, want a validation error", err)
+	}
+}

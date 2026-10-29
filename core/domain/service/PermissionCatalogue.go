@@ -28,15 +28,26 @@ const (
 // The two families of the catalogue that name an object: a field's permission and a step's.
 const (
 	fieldWritePrefix = "FIELD_WRITE:"
+	fieldReadPrefix  = "FIELD_READ:"
 	takeStepPrefix   = "TAKE_STEP:"
 )
 
 // FieldWrite is the permission to write a restricted field (UC-ID-27).
 func FieldWrite(fieldKey string) Permission { return Permission(fieldWritePrefix + fieldKey) }
 
+// FieldRead is the permission to see a field restricted for reading (UC-ID-27 check 3). Its
+// FieldWrite carries it as well: whoever may write a value sees what they write.
+func FieldRead(fieldKey string) Permission { return Permission(fieldReadPrefix + fieldKey) }
+
 // TakeStep is the permission to take a workflow's step whoever its *who* names (UC-FLW-04).
 func TakeStep(workflowKey, stepKey string) Permission {
 	return Permission(takeStepPrefix + workflowKey + "/" + stepKey)
+}
+
+// SeesField reports whether what a reader holds shows them a field restricted for reading: its
+// read permission, or its write permission, which carries the reading (UC-ID-27 check 3).
+func SeesField(carries func(Permission) bool, fieldKey string) bool {
+	return carries(FieldRead(fieldKey)) || carries(FieldWrite(fieldKey))
 }
 
 // PermissionKind sorts the catalogue for a screen and says which permissions name an object.
@@ -45,7 +56,7 @@ type PermissionKind string
 const (
 	// KindBase is a permission over a place: what the role may do there.
 	KindBase PermissionKind = "BASE"
-	// KindField is a field permission, FIELD_WRITE:<field>.
+	// KindField is a field permission, FIELD_WRITE:<field> or FIELD_READ:<field>.
 	KindField PermissionKind = "FIELD"
 	// KindStep is a step permission, TAKE_STEP:<workflow>/<step>.
 	KindStep PermissionKind = "STEP"
@@ -54,7 +65,7 @@ const (
 // Kind answers the family a permission belongs to.
 func (p Permission) Kind() PermissionKind {
 	switch {
-	case strings.HasPrefix(string(p), fieldWritePrefix):
+	case strings.HasPrefix(string(p), fieldWritePrefix), strings.HasPrefix(string(p), fieldReadPrefix):
 		return KindField
 	case strings.HasPrefix(string(p), takeStepPrefix):
 		return KindStep
@@ -95,10 +106,10 @@ var base = []baseEntry{
 }
 
 // PermissionCatalogue is the closed catalogue a custom role is built from (UC-ID-26): every
-// permission over a place, and the two families - one entry each, standing for every field and
+// permission over a place, and the two families - an entry per kind of access, standing for every field and
 // every step - with the shipped roles that hold each.
 func PermissionCatalogue() []CatalogueEntry {
-	out := make([]CatalogueEntry, 0, len(base)+2)
+	out := make([]CatalogueEntry, 0, len(base)+3)
 	for _, entry := range base {
 		out = append(out, CatalogueEntry{
 			Permission: entry.permission, Kind: KindBase, Group: entry.group,
@@ -107,6 +118,7 @@ func PermissionCatalogue() []CatalogueEntry {
 	}
 	out = append(out,
 		CatalogueEntry{Permission: fieldWritePrefix + "*", Kind: KindField, Group: "fields", Shipped: familyHolders()},
+		CatalogueEntry{Permission: fieldReadPrefix + "*", Kind: KindField, Group: "fields", Shipped: familyHolders()},
 		CatalogueEntry{Permission: takeStepPrefix + "*", Kind: KindStep, Group: "workflows", Shipped: familyHolders()},
 	)
 	return out
@@ -133,7 +145,8 @@ func ParsePermission(name string) (Permission, error) {
 	permission := Permission(name)
 	switch permission.Kind() {
 	case KindField:
-		if !objectKey(strings.TrimPrefix(name, fieldWritePrefix)) {
+		key := strings.TrimPrefix(strings.TrimPrefix(name, fieldWritePrefix), fieldReadPrefix)
+		if !objectKey(key) {
 			return "", unknown
 		}
 	case KindStep:

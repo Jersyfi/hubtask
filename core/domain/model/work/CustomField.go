@@ -171,6 +171,10 @@ type CustomFieldDefinition struct {
 	// (UC-ID-27); the shipped owner and administrators hold every one. A calculated field is
 	// written by the server and is never restricted.
 	Restricted bool
+	// ReadRestricted narrows the reading too: only holders of FIELD_READ:<key> or FIELD_WRITE:<key>
+	// see the value, in every answer (UC-ID-27 check 3). It implies Restricted - a field hidden from
+	// a reader that the same reader could still write would be overwritten blind.
+	ReadRestricted bool
 	// AppliesTo are the item types that carry the field. Never empty - a definition no type
 	// carries is one nothing could ever hold.
 	AppliesTo []ItemType
@@ -195,8 +199,10 @@ type NewCustomFieldInput struct {
 	Formula      string
 	IsRequired   bool
 	Restricted   bool
-	AppliesTo    []ItemType
-	Now          time.Time
+	// ReadRestricted implies Restricted.
+	ReadRestricted bool
+	AppliesTo      []ItemType
+	Now            time.Time
 
 	// Text brings the options to normal form C before they are bounded and stored (i18n-l10n.md
 	// §5): an option is a value a person typed once and every entry then picks from, so a choice
@@ -239,15 +245,16 @@ func NewCustomFieldDefinition(in NewCustomFieldInput) (CustomFieldDefinition, er
 	if in.ID.IsZero() || in.TenantID.IsZero() {
 		return CustomFieldDefinition{}, shared.ErrInternal.WithDetail("fields.identity_incomplete")
 	}
-	if in.Restricted && in.Kind == CustomFieldCalculated {
+	restricted := in.Restricted || in.ReadRestricted
+	if restricted && in.Kind == CustomFieldCalculated {
 		return CustomFieldDefinition{}, customFieldError("/restricted", "fields.calculated", nil)
 	}
 
 	return CustomFieldDefinition{
 		ID: in.ID, TenantID: in.TenantID, CollectionID: in.CollectionID,
 		Key: key, Kind: in.Kind, Options: options, Currency: currency, Formula: formula,
-		IsRequired: in.IsRequired, Restricted: in.Restricted, AppliesTo: appliesTo,
-		CreatedAt: in.Now, UpdatedAt: in.Now, Version: 1,
+		IsRequired: in.IsRequired, Restricted: restricted, ReadRestricted: in.ReadRestricted,
+		AppliesTo: appliesTo, CreatedAt: in.Now, UpdatedAt: in.Now, Version: 1,
 	}, nil
 }
 
@@ -266,12 +273,14 @@ type CustomFieldAttributes struct {
 	Options    *[]string
 	IsRequired *bool
 	Restricted *bool
-	AppliesTo  *[]ItemType
+	// ReadRestricted true restricts the writing as well; Restricted false lifts both.
+	ReadRestricted *bool
+	AppliesTo      *[]ItemType
 }
 
 // IsEmpty reports whether the update asks for nothing at all.
 func (a CustomFieldAttributes) IsEmpty() bool {
-	return a.Options == nil && a.IsRequired == nil && a.Restricted == nil && a.AppliesTo == nil
+	return a.Options == nil && a.IsRequired == nil && a.Restricted == nil && a.ReadRestricted == nil && a.AppliesTo == nil
 }
 
 // The field names an update reports its changes under.
@@ -279,7 +288,9 @@ const (
 	FieldOptions    = "options"
 	FieldIsRequired = "is_required"
 	FieldRestricted = "restricted"
-	FieldAppliesTo  = "applies_to"
+	// FieldReadRestricted is the change of whether the field is hidden from readers.
+	FieldReadRestricted = "read_restricted"
+	FieldAppliesTo      = "applies_to"
 )
 
 // Updated applies a change and reports which fields moved. Nothing that did not move is in the
@@ -324,15 +335,30 @@ func (d CustomFieldDefinition) Updated(
 		d.IsRequired = *attributes.IsRequired
 	}
 
-	if attributes.Restricted != nil && *attributes.Restricted && d.Kind == CustomFieldCalculated {
+	restricted, readRestricted := d.Restricted, d.ReadRestricted
+	if attributes.Restricted != nil {
+		restricted = *attributes.Restricted
+		readRestricted = readRestricted && restricted
+	}
+	if attributes.ReadRestricted != nil {
+		readRestricted = *attributes.ReadRestricted
+		restricted = restricted || readRestricted
+	}
+	if restricted && d.Kind == CustomFieldCalculated {
 		return CustomFieldDefinition{}, nil, customFieldError("/restricted", "fields.calculated", nil)
 	}
-	if attributes.Restricted != nil && *attributes.Restricted != d.Restricted {
+	if restricted != d.Restricted {
 		changes = append(changes, FieldChange{
-			Field: FieldRestricted,
-			From:  strconv.FormatBool(d.Restricted), To: strconv.FormatBool(*attributes.Restricted),
+			Field: FieldRestricted, From: strconv.FormatBool(d.Restricted), To: strconv.FormatBool(restricted),
 		})
-		d.Restricted = *attributes.Restricted
+		d.Restricted = restricted
+	}
+	if readRestricted != d.ReadRestricted {
+		changes = append(changes, FieldChange{
+			Field: FieldReadRestricted,
+			From:  strconv.FormatBool(d.ReadRestricted), To: strconv.FormatBool(readRestricted),
+		})
+		d.ReadRestricted = readRestricted
 	}
 
 	if attributes.AppliesTo != nil {
