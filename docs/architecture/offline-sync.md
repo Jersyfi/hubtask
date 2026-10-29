@@ -424,6 +424,11 @@ it, order it and decide who may touch it.
   server's state has arrived and seeds an empty document from the page's Markdown body; the
   editor saves that body beside the document a moment after the typing stops. A reader is not
   connected and reads the body as last saved.
+* **Read offline.** A page's saved state - its Markdown body included - is an ordinary record of the
+  change log and the walk (entity `page`, filed under its hub, so READ there decides who holds it):
+  every write of a page, a trash and a restore with the pages that moved with it, record it. While
+  the server is away the web app answers a hub's tree and a page from the copy, the page not
+  writable: writing is the live document's, which needs the server.
 * **Retention and erasure.** A snapshot marks the updates it covers and the snapshot it replaces;
   `DOCUMENT_HISTORY` removes them after thirty days ([data-retention.md](./data-retention.md) §3),
   held by a workspace hold. The document itself - the newest snapshot and the updates after it - is
