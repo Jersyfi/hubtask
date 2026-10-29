@@ -8503,8 +8503,6 @@
           "meta"
         ],
         "operationId": "readQuotas",
-        "x-hubtask-rest": "generated",
-        "x-hubtask-rest-answer": "quotaStandingsResponse",
         "summary": "The workspace's quota standing",
         "description": "Every quota as it applies to this workspace: the resolved ceiling (0 means unlimited), what is currently used where a live count exists, and the approach ratio. Needs the permission that manages structure, or the auditor's read-only configuration permission - a quota is workspace configuration, and who is near a wall is exactly what an auditor reads.\n",
         "responses": {
