@@ -1542,6 +1542,144 @@ func (q *Queries) ExportNotificationPreferences(ctx context.Context, arg ExportN
 	return items, nil
 }
 
+const exportPageComments = `-- name: ExportPageComments :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (c.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(c) - 'tenant_id')::jsonb AS payload,
+         c.id AS key_1
+  FROM page_comment c
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportPageCommentsParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportPageCommentsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPageComments(ctx context.Context, arg ExportPageCommentsParams) ([]ExportPageCommentsRow, error) {
+	rows, err := q.db.Query(ctx, exportPageComments, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPageCommentsRow{}
+	for rows.Next() {
+		var i ExportPageCommentsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportPageVersions = `-- name: ExportPageVersions :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (v.page_id::text || '/' || v.seq::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(v) - 'tenant_id')::jsonb AS payload,
+         v.page_id AS key_1,
+         v.seq::bigint AS key_2
+  FROM page_version v
+) s
+  WHERE (s.key_1, s.key_2) > ($1::uuid, $2::bigint)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportPageVersionsParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond int64
+	Batch       int32
+}
+
+type ExportPageVersionsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPageVersions(ctx context.Context, arg ExportPageVersionsParams) ([]ExportPageVersionsRow, error) {
+	rows, err := q.db.Query(ctx, exportPageVersions, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPageVersionsRow{}
+	for rows.Next() {
+		var i ExportPageVersionsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportPages = `-- name: ExportPages :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (p.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(p) - 'tenant_id' - 'search_document')::jsonb AS payload,
+         p.id AS key_1
+  FROM page p
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportPagesParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportPagesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+// The generated search document stays out: the restore's write builds it again.
+func (q *Queries) ExportPages(ctx context.Context, arg ExportPagesParams) ([]ExportPagesRow, error) {
+	rows, err := q.db.Query(ctx, exportPages, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPagesRow{}
+	for rows.Next() {
+		var i ExportPagesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportPasskeys = `-- name: ExportPasskeys :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

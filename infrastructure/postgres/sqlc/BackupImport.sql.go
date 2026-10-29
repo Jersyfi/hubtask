@@ -387,6 +387,42 @@ func (q *Queries) ClearNotificationPreference(ctx context.Context) (int64, error
 	return result.RowsAffected(), nil
 }
 
+const clearPage = `-- name: ClearPage :execrows
+DELETE FROM page
+`
+
+func (q *Queries) ClearPage(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPage)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPageComment = `-- name: ClearPageComment :execrows
+DELETE FROM page_comment
+`
+
+func (q *Queries) ClearPageComment(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPageComment)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPageVersion = `-- name: ClearPageVersion :execrows
+DELETE FROM page_version
+`
+
+func (q *Queries) ClearPageVersion(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPageVersion)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearPasskeys = `-- name: ClearPasskeys :execrows
 DELETE FROM webauthn_credential
 `
@@ -405,6 +441,42 @@ DELETE FROM private_hub_access
 
 func (q *Queries) ClearPrivateHubAccess(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, clearPrivateHubAccess)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearRealtimeDocument = `-- name: ClearRealtimeDocument :execrows
+DELETE FROM realtime_document
+`
+
+func (q *Queries) ClearRealtimeDocument(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearRealtimeDocument)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearRealtimeSnapshot = `-- name: ClearRealtimeSnapshot :execrows
+DELETE FROM realtime_snapshot
+`
+
+func (q *Queries) ClearRealtimeSnapshot(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearRealtimeSnapshot)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearRealtimeUpdate = `-- name: ClearRealtimeUpdate :execrows
+DELETE FROM realtime_update
+`
+
+func (q *Queries) ClearRealtimeUpdate(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearRealtimeUpdate)
 	if err != nil {
 		return 0, err
 	}
@@ -900,6 +972,43 @@ func (q *Queries) HoldsNotificationPreference(ctx context.Context, payload []byt
 	return held, err
 }
 
+const holdsPage = `-- name: HoldsPage :one
+SELECT EXISTS (SELECT 1 FROM page WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsPage(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPage, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPageComment = `-- name: HoldsPageComment :one
+SELECT EXISTS (SELECT 1 FROM page_comment WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsPageComment(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPageComment, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPageVersion = `-- name: HoldsPageVersion :one
+SELECT EXISTS (
+  SELECT 1 FROM page_version
+  WHERE page_id = ($1::jsonb->>'page_id')::uuid
+    AND seq = ($1::jsonb->>'seq')::int
+) AS held
+`
+
+func (q *Queries) HoldsPageVersion(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPageVersion, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const holdsPasskey = `-- name: HoldsPasskey :one
 SELECT EXISTS (SELECT 1 FROM webauthn_credential WHERE id = ($1::jsonb->>'id')::uuid) AS held
 `
@@ -917,6 +1026,53 @@ SELECT EXISTS (SELECT 1 FROM private_hub_access WHERE id = ($1::jsonb->>'id')::u
 
 func (q *Queries) HoldsPrivateHubAccess(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsPrivateHubAccess, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsRealtimeDocument = `-- name: HoldsRealtimeDocument :one
+SELECT EXISTS (
+  SELECT 1 FROM realtime_document
+  WHERE kind = $1::jsonb->>'kind'
+    AND document_id = ($1::jsonb->>'document_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsRealtimeDocument(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsRealtimeDocument, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsRealtimeSnapshot = `-- name: HoldsRealtimeSnapshot :one
+SELECT EXISTS (
+  SELECT 1 FROM realtime_snapshot
+  WHERE kind = $1::jsonb->>'kind'
+    AND document_id = ($1::jsonb->>'document_id')::uuid
+    AND up_to_seq = ($1::jsonb->>'up_to_seq')::bigint
+) AS held
+`
+
+func (q *Queries) HoldsRealtimeSnapshot(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsRealtimeSnapshot, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsRealtimeUpdate = `-- name: HoldsRealtimeUpdate :one
+SELECT EXISTS (
+  SELECT 1 FROM realtime_update
+  WHERE kind = $1::jsonb->>'kind'
+    AND document_id = ($1::jsonb->>'document_id')::uuid
+    AND seq = ($1::jsonb->>'seq')::bigint
+) AS held
+`
+
+func (q *Queries) HoldsRealtimeUpdate(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsRealtimeUpdate, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -2526,6 +2682,117 @@ func (q *Queries) ImportNotificationPreference(ctx context.Context, arg ImportNo
 	return result.RowsAffected(), nil
 }
 
+const importPage = `-- name: ImportPage :execrows
+INSERT INTO page (
+  id, tenant_id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
+  owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
+  created_by, created_at, updated_by, updated_at, version
+)
+SELECT
+  r.id, r.tenant_id, r.hub_id, r.parent_id, r.title, r.body, r.icon, r.order_key, r.template,
+  r.content_language, r.owner_id, r.verified_until, r.verified_at, r.verified_by, r.archived_at,
+  r.deleted_at, r.created_by, r.created_at, r.updated_by, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::page,
+  ($1::jsonb - 'search_document') || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  parent_id = EXCLUDED.parent_id,
+  title = EXCLUDED.title,
+  body = EXCLUDED.body,
+  icon = EXCLUDED.icon,
+  order_key = EXCLUDED.order_key,
+  template = EXCLUDED.template,
+  content_language = EXCLUDED.content_language,
+  owner_id = EXCLUDED.owner_id,
+  verified_until = EXCLUDED.verified_until,
+  verified_at = EXCLUDED.verified_at,
+  verified_by = EXCLUDED.verified_by,
+  archived_at = EXCLUDED.archived_at,
+  deleted_at = EXCLUDED.deleted_at,
+  updated_by = EXCLUDED.updated_by,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportPageParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+// The search document and the references are the triggers' to build.
+func (q *Queries) ImportPage(ctx context.Context, arg ImportPageParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPage, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPageComment = `-- name: ImportPageComment :execrows
+INSERT INTO page_comment (
+  id, tenant_id, page_id, parent_id, author_id, body, anchor, quote, resolved_at, resolved_by,
+  created_at, edited_at, deleted_at, version
+)
+SELECT
+  r.id, r.tenant_id, r.page_id, r.parent_id, r.author_id, r.body, r.anchor, r.quote, r.resolved_at,
+  r.resolved_by, r.created_at, r.edited_at, r.deleted_at, r.version
+FROM jsonb_populate_record(
+  NULL::page_comment,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  body = EXCLUDED.body,
+  resolved_at = EXCLUDED.resolved_at,
+  resolved_by = EXCLUDED.resolved_by,
+  edited_at = EXCLUDED.edited_at,
+  deleted_at = EXCLUDED.deleted_at,
+  version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportPageCommentParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportPageComment(ctx context.Context, arg ImportPageCommentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPageComment, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPageVersion = `-- name: ImportPageVersion :execrows
+INSERT INTO page_version (tenant_id, page_id, seq, title, body, author_id, name, restored, created_at)
+SELECT r.tenant_id, r.page_id, r.seq, r.title, r.body, r.author_id, r.name, r.restored, r.created_at
+FROM jsonb_populate_record(
+  NULL::page_version,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, seq) DO UPDATE SET
+  title = EXCLUDED.title,
+  body = EXCLUDED.body,
+  name = EXCLUDED.name,
+  created_at = EXCLUDED.created_at
+WHERE $2::boolean
+`
+
+type ImportPageVersionParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportPageVersion(ctx context.Context, arg ImportPageVersionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPageVersion, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const importPasskey = `-- name: ImportPasskey :execrows
 INSERT INTO webauthn_credential (
   id,
@@ -2644,6 +2911,85 @@ type ImportPrivateHubAccessParams struct {
 // rather than refused by the foreign key.
 func (q *Queries) ImportPrivateHubAccess(ctx context.Context, arg ImportPrivateHubAccessParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importPrivateHubAccess, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importRealtimeDocument = `-- name: ImportRealtimeDocument :execrows
+INSERT INTO realtime_document (tenant_id, kind, document_id, head_seq, snapshot_seq, created_at, updated_at)
+SELECT r.tenant_id, r.kind, r.document_id, r.head_seq, r.snapshot_seq, r.created_at, r.updated_at
+FROM jsonb_populate_record(
+  NULL::realtime_document,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, kind, document_id) DO UPDATE SET
+  head_seq = EXCLUDED.head_seq,
+  snapshot_seq = EXCLUDED.snapshot_seq,
+  updated_at = EXCLUDED.updated_at
+WHERE $2::boolean
+`
+
+type ImportRealtimeDocumentParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+// A live document's head, log and snapshots (migration 0230): written once each, so an overwrite
+// has only the head's places to bring back.
+func (q *Queries) ImportRealtimeDocument(ctx context.Context, arg ImportRealtimeDocumentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importRealtimeDocument, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importRealtimeSnapshot = `-- name: ImportRealtimeSnapshot :execrows
+INSERT INTO realtime_snapshot (tenant_id, kind, document_id, up_to_seq, state, created_at, superseded_at)
+SELECT r.tenant_id, r.kind, r.document_id, r.up_to_seq, r.state, r.created_at, r.superseded_at
+FROM jsonb_populate_record(
+  NULL::realtime_snapshot,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, kind, document_id, up_to_seq) DO UPDATE SET
+  superseded_at = EXCLUDED.superseded_at
+WHERE $2::boolean
+`
+
+type ImportRealtimeSnapshotParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportRealtimeSnapshot(ctx context.Context, arg ImportRealtimeSnapshotParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importRealtimeSnapshot, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importRealtimeUpdate = `-- name: ImportRealtimeUpdate :execrows
+INSERT INTO realtime_update (tenant_id, kind, document_id, seq, data, author_id, created_at, compacted_at)
+SELECT r.tenant_id, r.kind, r.document_id, r.seq, r.data, r.author_id, r.created_at, r.compacted_at
+FROM jsonb_populate_record(
+  NULL::realtime_update,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, kind, document_id, seq) DO UPDATE SET
+  compacted_at = EXCLUDED.compacted_at
+WHERE $2::boolean
+`
+
+type ImportRealtimeUpdateParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportRealtimeUpdate(ctx context.Context, arg ImportRealtimeUpdateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importRealtimeUpdate, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

@@ -62,8 +62,12 @@ var subjectColumns = map[string][]string{
 	"custom_role_grant": {"account_id"},
 	"setting_value":     {"scope_id"},
 	// The configuration they published, linked, proposed, decided or wrote a template of.
-	"workflow":        {"published_by"},
-	"entry_link":      {"created_by"},
+	"workflow":   {"published_by"},
+	"entry_link": {"created_by"},
+	// The pages they wrote, own or checked, their versions and their comments (M3).
+	"page":            {"created_by", "updated_by", "owner_id", "verified_by"},
+	"page_version":    {"author_id"},
+	"page_comment":    {"author_id", "resolved_by"},
 	"config_revision": {"actor_id", "proposed_by"},
 	"config_proposal": {"proposed_by", "decided_by"},
 	"config_template": {"created_by"},

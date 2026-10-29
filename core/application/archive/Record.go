@@ -594,6 +594,32 @@ var entities = []Entity{
 		Name: "realtime_snapshots", Table: "realtime_snapshot", Whole: true, Later: true,
 		Keys: []string{"document_id", "kind", "up_to_seq"},
 	},
+	// The knowledge module's pages, their versions and comments (migration 0231, M3). Whole: a
+	// version carries no change stamp, and a page and a comment leave without a marker when their
+	// hub is purged. A page's parent is checked at the commit, so the pages go in identifier order.
+	{
+		Name: "pages", Table: "page", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+			{Field: "parent_id", Table: "page"},
+			{Field: "owner_id", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "page_versions", Table: "page_version", Whole: true, Later: true, Keys: []string{"page_id", "seq"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "author_id", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "page_comments", Table: "page_comment", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "parent_id", Table: "page_comment"},
+			{Field: "author_id", Table: "account", Clearable: true},
+		},
+	},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a
@@ -774,6 +800,7 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// Derived from the notes and comments the archive carries: the restore's write of each rebuilds
 	// it through the triggers of migration 0213.
 	"entry_reference": "the references texts hold, rebuilt from the notes and comments the archive carries",
+	"page_reference":  "the references a page's body holds, rebuilt by the trigger as each page is restored",
 	// Written by the trigger of migration 0211 from the entry's custom fields, which the archive
 	// carries: the restore's write of each entry rebuilds it.
 	"entry_field_value": "a typed projection of the custom fields the entries carry, rebuilt by the trigger as each entry is restored",

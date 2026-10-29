@@ -735,3 +735,44 @@ FROM (
   WHERE (s.key_1, s.key_2, s.key_3) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::text, sqlc.arg('after_third')::bigint)
   ORDER BY s.key_1, s.key_2, s.key_3
   LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPages :many
+-- The generated search document stays out: the restore's write builds it again.
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (p.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(p) - 'tenant_id' - 'search_document')::jsonb AS payload,
+         p.id AS key_1
+  FROM page p
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPageVersions :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (v.page_id::text || '/' || v.seq::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(v) - 'tenant_id')::jsonb AS payload,
+         v.page_id AS key_1,
+         v.seq::bigint AS key_2
+  FROM page_version v
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::bigint)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPageComments :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (c.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(c) - 'tenant_id')::jsonb AS payload,
+         c.id AS key_1
+  FROM page_comment c
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;

@@ -44,8 +44,10 @@ CREATE TABLE IF NOT EXISTS page (
   CHECK (parent_id IS NULL OR parent_id <> id),
   CONSTRAINT page_hub_fkey FOREIGN KEY (tenant_id, hub_id)
     REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  -- Deferred to the commit: a restore writes pages in identifier order, and a page moved under a
+  -- newer one comes before its parent.
   CONSTRAINT page_parent_fkey FOREIGN KEY (tenant_id, parent_id)
-    REFERENCES page (tenant_id, id) ON DELETE CASCADE,
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
   CONSTRAINT page_owner_fkey FOREIGN KEY (tenant_id, owner_id)
     REFERENCES account (tenant_id, id) ON DELETE SET NULL (owner_id)
 );
@@ -121,7 +123,7 @@ CREATE TABLE IF NOT EXISTS page_comment (
   CONSTRAINT page_comment_page_fkey FOREIGN KEY (tenant_id, page_id)
     REFERENCES page (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT page_comment_parent_fkey FOREIGN KEY (tenant_id, parent_id)
-    REFERENCES page_comment (tenant_id, id) ON DELETE CASCADE,
+    REFERENCES page_comment (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
   CONSTRAINT page_comment_author_fkey FOREIGN KEY (tenant_id, author_id)
     REFERENCES account (tenant_id, id) ON DELETE SET NULL (author_id)
 );

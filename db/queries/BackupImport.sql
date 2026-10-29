@@ -2040,3 +2040,163 @@ SELECT EXISTS (
 
 -- name: ClearWorkflowScheme :execrows
 DELETE FROM workflow_scheme;
+
+-- name: ImportPage :execrows
+-- The search document and the references are the triggers' to build.
+INSERT INTO page (
+  id, tenant_id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
+  owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
+  created_by, created_at, updated_by, updated_at, version
+)
+SELECT
+  r.id, r.tenant_id, r.hub_id, r.parent_id, r.title, r.body, r.icon, r.order_key, r.template,
+  r.content_language, r.owner_id, r.verified_until, r.verified_at, r.verified_by, r.archived_at,
+  r.deleted_at, r.created_by, r.created_at, r.updated_by, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::page,
+  (sqlc.arg('payload')::jsonb - 'search_document') || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  parent_id = EXCLUDED.parent_id,
+  title = EXCLUDED.title,
+  body = EXCLUDED.body,
+  icon = EXCLUDED.icon,
+  order_key = EXCLUDED.order_key,
+  template = EXCLUDED.template,
+  content_language = EXCLUDED.content_language,
+  owner_id = EXCLUDED.owner_id,
+  verified_until = EXCLUDED.verified_until,
+  verified_at = EXCLUDED.verified_at,
+  verified_by = EXCLUDED.verified_by,
+  archived_at = EXCLUDED.archived_at,
+  deleted_at = EXCLUDED.deleted_at,
+  updated_by = EXCLUDED.updated_by,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPage :one
+SELECT EXISTS (SELECT 1 FROM page WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearPage :execrows
+DELETE FROM page;
+
+-- name: ImportPageVersion :execrows
+INSERT INTO page_version (tenant_id, page_id, seq, title, body, author_id, name, restored, created_at)
+SELECT r.tenant_id, r.page_id, r.seq, r.title, r.body, r.author_id, r.name, r.restored, r.created_at
+FROM jsonb_populate_record(
+  NULL::page_version,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, seq) DO UPDATE SET
+  title = EXCLUDED.title,
+  body = EXCLUDED.body,
+  name = EXCLUDED.name,
+  created_at = EXCLUDED.created_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPageVersion :one
+SELECT EXISTS (
+  SELECT 1 FROM page_version
+  WHERE page_id = (sqlc.arg('payload')::jsonb->>'page_id')::uuid
+    AND seq = (sqlc.arg('payload')::jsonb->>'seq')::int
+) AS held;
+
+-- name: ClearPageVersion :execrows
+DELETE FROM page_version;
+
+-- name: ImportPageComment :execrows
+INSERT INTO page_comment (
+  id, tenant_id, page_id, parent_id, author_id, body, anchor, quote, resolved_at, resolved_by,
+  created_at, edited_at, deleted_at, version
+)
+SELECT
+  r.id, r.tenant_id, r.page_id, r.parent_id, r.author_id, r.body, r.anchor, r.quote, r.resolved_at,
+  r.resolved_by, r.created_at, r.edited_at, r.deleted_at, r.version
+FROM jsonb_populate_record(
+  NULL::page_comment,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  body = EXCLUDED.body,
+  resolved_at = EXCLUDED.resolved_at,
+  resolved_by = EXCLUDED.resolved_by,
+  edited_at = EXCLUDED.edited_at,
+  deleted_at = EXCLUDED.deleted_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPageComment :one
+SELECT EXISTS (SELECT 1 FROM page_comment WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearPageComment :execrows
+DELETE FROM page_comment;
+
+-- name: ImportRealtimeDocument :execrows
+-- A live document's head, log and snapshots (migration 0230): written once each, so an overwrite
+-- has only the head's places to bring back.
+INSERT INTO realtime_document (tenant_id, kind, document_id, head_seq, snapshot_seq, created_at, updated_at)
+SELECT r.tenant_id, r.kind, r.document_id, r.head_seq, r.snapshot_seq, r.created_at, r.updated_at
+FROM jsonb_populate_record(
+  NULL::realtime_document,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, kind, document_id) DO UPDATE SET
+  head_seq = EXCLUDED.head_seq,
+  snapshot_seq = EXCLUDED.snapshot_seq,
+  updated_at = EXCLUDED.updated_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsRealtimeDocument :one
+SELECT EXISTS (
+  SELECT 1 FROM realtime_document
+  WHERE kind = sqlc.arg('payload')::jsonb->>'kind'
+    AND document_id = (sqlc.arg('payload')::jsonb->>'document_id')::uuid
+) AS held;
+
+-- name: ClearRealtimeDocument :execrows
+DELETE FROM realtime_document;
+
+-- name: ImportRealtimeUpdate :execrows
+INSERT INTO realtime_update (tenant_id, kind, document_id, seq, data, author_id, created_at, compacted_at)
+SELECT r.tenant_id, r.kind, r.document_id, r.seq, r.data, r.author_id, r.created_at, r.compacted_at
+FROM jsonb_populate_record(
+  NULL::realtime_update,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, kind, document_id, seq) DO UPDATE SET
+  compacted_at = EXCLUDED.compacted_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsRealtimeUpdate :one
+SELECT EXISTS (
+  SELECT 1 FROM realtime_update
+  WHERE kind = sqlc.arg('payload')::jsonb->>'kind'
+    AND document_id = (sqlc.arg('payload')::jsonb->>'document_id')::uuid
+    AND seq = (sqlc.arg('payload')::jsonb->>'seq')::bigint
+) AS held;
+
+-- name: ClearRealtimeUpdate :execrows
+DELETE FROM realtime_update;
+
+-- name: ImportRealtimeSnapshot :execrows
+INSERT INTO realtime_snapshot (tenant_id, kind, document_id, up_to_seq, state, created_at, superseded_at)
+SELECT r.tenant_id, r.kind, r.document_id, r.up_to_seq, r.state, r.created_at, r.superseded_at
+FROM jsonb_populate_record(
+  NULL::realtime_snapshot,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, kind, document_id, up_to_seq) DO UPDATE SET
+  superseded_at = EXCLUDED.superseded_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsRealtimeSnapshot :one
+SELECT EXISTS (
+  SELECT 1 FROM realtime_snapshot
+  WHERE kind = sqlc.arg('payload')::jsonb->>'kind'
+    AND document_id = (sqlc.arg('payload')::jsonb->>'document_id')::uuid
+    AND up_to_seq = (sqlc.arg('payload')::jsonb->>'up_to_seq')::bigint
+) AS held;
+
+-- name: ClearRealtimeSnapshot :execrows
+DELETE FROM realtime_snapshot;

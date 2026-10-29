@@ -163,7 +163,10 @@ re-mints identities must rewrite exactly these).
 | 45 | `realtime_documents` | `realtime_document` | `document_id/kind` | — (a live document's head, migration 0230; `document_id` names what its `kind` belongs to - a page, a whiteboard - without a foreign key) |
 | 46 | `realtime_updates` | `realtime_update` | `document_id/kind/seq` | `author_id`→accounts (the editor's CRDT updates as sent, `data` as hex; what retention removed after a snapshot is not there) |
 | 47 | `realtime_snapshots` | `realtime_snapshot` | `document_id/kind/up_to_seq` | — (a writer's merged state up to an update, `state` as hex) |
-| 48 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
+| 48 | `pages` | `page` | `id` | `hub_id`→containers, `parent_id`→pages, `owner_id`→accounts (a hub's pages, migration 0231; `body` is Markdown with `hubtask:` references; the search document and the references are rebuilt on import; `parent_id` may point forward, a moved page coming before a newer parent, and the schema checks it at the commit) |
+| 49 | `page_versions` | `page_version` | `page_id/seq` | `page_id`→pages, `author_id`→accounts (a page's history, one row per editing session) |
+| 50 | `page_comments` | `page_comment` | `id` | `page_id`→pages, `parent_id`→page_comments, `author_id`→accounts |
+| 51 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a
 reply's comment) are ordered within the file: the referenced row comes first.
