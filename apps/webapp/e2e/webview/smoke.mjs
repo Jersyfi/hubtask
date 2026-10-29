@@ -54,6 +54,8 @@ const HTTP = 18080;
 const OPS = 19090;
 const DRIVER = 4445;
 const STAND_IN = 4780; // walk.rs's
+const DEVTOOLS = 9333; // walk.rs's, WebView2's in a walk build
+const PACKAGE = 'eu.hubtask.app';
 const SERVER = `http://localhost:${HTTP}`;
 const API = `${SERVER}/api/v1`;
 const OWNER = { email: 'walker@example.org', password: 'nine grey herons along the river' };
@@ -179,7 +181,7 @@ async function consent(address) {
   back.searchParams.set('code', allowed.code);
   back.searchParams.set('state', allowed.state ?? at('state'));
   if (engine === 'android') {
-    adb('shell', `am start -W -a android.intent.action.VIEW -d '${back.href}' eu.hubtask.app`);
+    adb('shell', `am start -W -a android.intent.action.VIEW -d '${back.href}' ${PACKAGE}`);
   } else {
     const page = await fetch(back, { signal: AbortSignal.timeout(15_000) });
     if (!page.ok) throw new Error(`the app's loopback answered ${page.status}`);
@@ -191,21 +193,55 @@ async function consent(address) {
 async function driverUp() {
   step('the driver');
   const env = { TAURI_WEBVIEW_AUTOMATION: 'true' };
-  if (engine === 'android') {
-    adb('install', '-r', options.app);
-    adb('reverse', `tcp:${HTTP}`, `tcp:${HTTP}`);
-    adb('reverse', `tcp:${STAND_IN}`, `tcp:${STAND_IN}`);
-  }
+  if (engine === 'windows') await windowsAppUp();
+  if (engine === 'android') await androidAppUp();
   start('driver', options.driver, [`--port=${DRIVER}`], env);
   await until('the driver', async () => (await fetch(`http://127.0.0.1:${DRIVER}/status`)).ok, 60_000);
+  // WebKitWebDriver starts the app itself; on the other two the walk started it and the driver
+  // attaches to its webview.
   const capabilities = {
     linux: { 'webkitgtk:browserOptions': { binary: options.app, args: [] } },
-    windows: { browserName: 'webview2', 'ms:edgeOptions': { binary: options.app, args: [], webviewOptions: {} } },
-    android: { 'goog:chromeOptions': { androidPackage: 'eu.hubtask.app', androidActivity: '.MainActivity', androidDeviceSerial: options.device } },
+    windows: { browserName: 'webview2', 'ms:edgeOptions': { debuggerAddress: `127.0.0.1:${DEVTOOLS}` } },
+    android: { 'goog:chromeOptions': { androidPackage: PACKAGE, androidUseRunningApp: true, androidDeviceSerial: options.device } },
   }[engine];
   const started = await startSession(`http://127.0.0.1:${DRIVER}`, capabilities);
   if (options.width) await started.resize(Number(options.width), 844);
   return started;
+}
+
+/** The walk build opens WebView2's debugging port itself (`walk.rs`), so the app runs first. */
+async function windowsAppUp() {
+  const app = start('app', options.app, []);
+  const ended = () => app.child.exitCode ?? app.child.signalCode;
+  const version = await until('the webview to answer its driver', async () => {
+    if (ended() !== null) return 'ended';
+    const answer = await fetch(`http://127.0.0.1:${DEVTOOLS}/json/version`, { signal: AbortSignal.timeout(5_000) });
+    return answer.ok && answer.json();
+  }, 90_000).catch((error) => { throw new Error(`${error.message}\nthe app said:\n${app.log().slice(-3000)}`); });
+  if (version === 'ended') throw new Error(`the app ended with ${ended()}:\n${app.log().slice(-3000)}`);
+  // msedgedriver serves one major version of the engine; both named, should they part.
+  const driver = execFileSync(options.driver, ['--version'], { encoding: 'utf8', timeout: 30_000 }).trim();
+  console.log(`webview ${version.Browser}, ${driver}`);
+}
+
+/**
+ * Android's WebView opens its debugging socket only once the shell has created it, after the
+ * activity started; chromedriver looks once, so the walk waits for the socket and then attaches.
+ */
+async function androidAppUp() {
+  adb('install', '-r', options.app);
+  adb('reverse', `tcp:${HTTP}`, `tcp:${HTTP}`);
+  adb('reverse', `tcp:${STAND_IN}`, `tcp:${STAND_IN}`);
+  adb('shell', 'am', 'start', '-W', '-n', `${PACKAGE}/.MainActivity`);
+  try {
+    const pid = await until('the app\'s process', () => adb('shell', 'pidof', PACKAGE).trim(), 60_000);
+    await until('the app\'s webview to be debuggable', () => adb('shell', 'cat', '/proc/net/unix').includes(`webview_devtools_remote_${pid}`), 90_000);
+  } catch (error) {
+    const logcat = adb('logcat', '-d', '-t', '2000');
+    writeFileSync(join(out, 'logcat.txt'), logcat);
+    const telling = logcat.split('\n').filter((line) => /hubtask|chromium|WebView|AndroidRuntime|RustStdout/iu.test(line)).slice(-60);
+    throw new Error(`${error.message}\nlogcat:\n${telling.join('\n')}`);
+  }
 }
 
 async function walk(server, browser) {

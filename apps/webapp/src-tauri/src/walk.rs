@@ -11,6 +11,21 @@ use std::io::{self, Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::time::Duration;
 
+/// Where WebView2 answers msedgedriver in a walk build (`smoke.mjs` attaches there).
+pub const DEVTOOLS: u16 = 9333;
+
+/// WebView2's arguments in a walk build: wry's own, which a window's arguments replace, and the
+/// remote-debugging port. The app opens it itself rather than through msedgedriver's
+/// `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, which the arguments wry always sets would contend
+/// with. WebKitGTK ignores them; Android's WebView is debuggable in any debug build.
+pub fn inspectable(config: &mut tauri::Config) {
+    for window in &mut config.app.windows {
+        window.additional_browser_args = Some(format!(
+            "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --remote-debugging-port={DEVTOOLS}"
+        ));
+    }
+}
+
 /// Where the walk listens: this machine, or the emulator's host through `adb reverse`.
 pub const STAND_IN: ([u8; 4], u16) = ([127, 0, 0, 1], 4780);
 
@@ -76,6 +91,19 @@ mod tests {
         let url = "http://localhost:18080/oauth/consent?client_id=a&state=b%20c";
         open_at(at, url).unwrap();
         assert_eq!(walk.join().unwrap(), url);
+    }
+
+    #[test]
+    fn a_walk_build_opens_the_port_on_every_window() {
+        let mut config: tauri::Config =
+            serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        inspectable(&mut config);
+        assert!(!config.app.windows.is_empty());
+        for window in &config.app.windows {
+            let args = window.additional_browser_args.as_deref().unwrap();
+            assert!(args.contains("--remote-debugging-port=9333"));
+            assert!(args.contains("msSmartScreenProtection"));
+        }
     }
 
     #[test]

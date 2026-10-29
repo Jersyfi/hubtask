@@ -44,7 +44,8 @@ tauri-plugin-updater = "2"
 [target.'cfg(target_os = "android")'.dependencies]
 tauri-plugin-deep-link = "2"
 
-# The smoke walk's build (UC-SYN-07 check 9, `walk.rs`): the system's browser replaced by the walk.
+# The smoke walk's build (UC-SYN-07 check 9, `walk.rs`): the system's browser replaced by the walk,
+# WebView2's remote-debugging port open for its driver.
 # Never in a release; the `shell` lane's debug builds turn it on.
 [features]
 walk = []

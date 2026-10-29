@@ -290,6 +290,15 @@ fn hear_returns(app: &tauri::App) {
 #[cfg(not(target_os = "android"))]
 fn hear_returns(_app: &tauri::App) {}
 
+/// The app's configuration; a walk build's webview also answers its driver (`walk.rs`).
+fn context() -> tauri::Context<tauri::Wry> {
+    #[allow(unused_mut)]
+    let mut context = tauri::generate_context!();
+    #[cfg(feature = "walk")]
+    walk::inspectable(context.config_mut());
+    context
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
@@ -333,6 +342,31 @@ pub fn run() {
             update_install,
             release_manifest
         ])
-        .run(tauri::generate_context!())
+        .run(context())
         .expect("the shell could not start");
+}
+
+#[cfg(test)]
+mod tests {
+    /// A release's webview answers no debugger: no window of the configuration opens a port or the
+    /// inspector, nothing turns on tauri's `devtools` (a release's inspectable webview), `walk` is
+    /// never a default, and the release workflow builds neither the walk nor a debug build.
+    #[test]
+    fn a_release_carries_no_remote_debugging() {
+        let config: tauri::Config =
+            serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        for window in &config.app.windows {
+            assert!(window.additional_browser_args.is_none());
+            assert_ne!(window.devtools, Some(true));
+        }
+        let manifest = include_str!("../Cargo.toml");
+        assert!(!manifest.contains("devtools"));
+        assert!(!manifest
+            .lines()
+            .any(|line| line.trim_start().starts_with("default")));
+        let release = include_str!("../../../../.github/workflows/release.yml");
+        assert!(!release.contains("walk"));
+        assert!(!release.contains("--debug"));
+        assert!(!release.contains("--features"));
+    }
 }
