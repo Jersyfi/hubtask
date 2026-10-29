@@ -71,6 +71,8 @@ var subjectColumns = map[string][]string{
 	// The whiteboards they made or last drew on (M4).
 	"whiteboard":         {"created_by", "updated_by"},
 	"whiteboard_version": {"author_id"},
+	// The updates they wrote to a live page or board (F-8); an erased author leaves none.
+	"realtime_update": {"author_id"},
 	// The configuration items they made, changed or own, the relations they made, the
 	// reconciliations they ran and the holds and duplicates they closed (M6).
 	"cmdb_ci":         {"created_by", "updated_by", "owner_account_id"},
@@ -122,6 +124,13 @@ var notThePersons = map[string]string{
 	"workflow_scheme":         "which workflow a hub or collection runs for a type, which names nobody",
 	"link_type":               "the workspace's vocabulary of links",
 	"config_template_use":     "which template the workspace took at which version, which names nobody",
+	"realtime_document":       "a live document's head - its last place and its snapshot's - which names nobody",
+	"realtime_snapshot":       "a compaction of many authors' updates into one state, which names nobody; each author's own updates are in the map above",
+	"whiteboard_media":        "which media object lies on which board - the file itself is in media_objects, filtered by who uploaded it",
+	"cmdb_class":              "the workspace's own classes of configuration items",
+	"cmdb_relation_type":      "the workspace's vocabulary of relations between configuration items",
+	"cmdb_source":             "a source of the inventory is an integration of the workspace's, not a person",
+	"cmdb_ci_identifier":      "the identifying values of a configuration item, which arrive with nobody's name; the CI itself is in the map above",
 }
 
 // SubjectTables answers which tables a subject export reads and which it deliberately leaves out,
