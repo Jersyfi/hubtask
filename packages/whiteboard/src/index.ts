@@ -7,6 +7,7 @@
  * live document's connection and the colours; this package knows no address and no screen.
  */
 
+export { Doc } from 'yjs';
 export { Board, DEFAULT_SIZE, MAX_ELEMENTS, ROUTES, SHAPES, elementId } from './scene.ts';
 export type { Element, ElementKind, Head, Route, Shape } from './scene.ts';
 export {

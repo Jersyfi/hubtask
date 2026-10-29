@@ -258,6 +258,15 @@ export type PageBacklinkList = components['schemas']['PageBacklinkList'];
 export type PageExport = components['schemas']['PageExport'];
 export type PageSearch = components['schemas']['PageSearch'];
 export type PageHitList = components['schemas']['PageHitList'];
+/** A hub's whiteboards and the objects on them (M4). */
+export type Whiteboard = components['schemas']['Whiteboard'];
+export type WhiteboardRead = components['schemas']['WhiteboardRead'];
+export type WhiteboardList = components['schemas']['WhiteboardList'];
+export type WhiteboardCreate = components['schemas']['WhiteboardCreate'];
+export type WhiteboardChange = components['schemas']['WhiteboardChange'];
+export type WhiteboardElement = components['schemas']['WhiteboardElement'];
+export type WhiteboardExport = components['schemas']['WhiteboardExport'];
+export type WhiteboardExportRequest = components['schemas']['WhiteboardExportRequest'];
 /** A link between two entries, an entry's links from both sides with its backlinks, and a view's links. */
 export type EntryLink = components['schemas']['EntryLink'];
 export type EntryLinkCreate = components['schemas']['EntryLinkCreate'];

@@ -20,7 +20,8 @@
     "@hubtask/design-system": "workspace:*",
     "@hubtask/editor": "workspace:*",
     "@hubtask/expression": "workspace:*",
-    "@hubtask/sync-engine": "workspace:*"
+    "@hubtask/sync-engine": "workspace:*",
+    "@hubtask/whiteboard": "workspace:*"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",

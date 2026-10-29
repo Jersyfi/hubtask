@@ -27,6 +27,9 @@ importers:
       '@hubtask/sync-engine':
         specifier: workspace:*
         version: link:../../packages/sync-engine
+      '@hubtask/whiteboard':
+        specifier: workspace:*
+        version: link:../../packages/whiteboard
     devDependencies:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^7.3.1
