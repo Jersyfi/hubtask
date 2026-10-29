@@ -544,6 +544,7 @@
                 page={current}
                 {spacePages}
                 views={hubViews}
+                collections={hubId ? containers.collectionsOf(hubId).map((each) => ({ id: each.id, name: each.name })) : []}
                 {onnavigate}
                 {reveal}
                 passages={side === 'comments' ? passages : []}

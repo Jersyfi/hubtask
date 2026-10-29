@@ -19,16 +19,18 @@
   import { untrack } from 'svelte';
   import { Button, Inline, Toolbar } from '@hubtask/design-system/components';
   import {
-    Doc, LiveDocument, createPageEditor, insertReference, markdownOf, parseAddress, passageTops, revealBlock, seedFromMarkdown,
-    setPassages, type Editor, type LiveSocket, type LiveStatus, type Passage, type ReferenceAttrs, type ReferenceDrawing,
-    type SelectedBlock,
+    Doc, LiveDocument, createPageEditor, insertReference, linkLineToEntry, markdownOf, mirrorCompletion, parseAddress, passageTops,
+    revealBlock, seedFromMarkdown, setPassages, taskLineOf, type Editor, type LiveSocket, type LiveStatus, type Passage,
+    type ReferenceAttrs, type ReferenceDrawing, type SelectedBlock, type TaskLine,
   } from '@hubtask/editor';
   import type { PageRead, ReferenceTarget } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { referencesIn, resolveRequest, targetLabel } from '../data/links.svelte.ts';
+  import { items } from '../data/items.svelte.ts';
   import { caretOf, pages } from '../data/pages.svelte.ts';
+  import { toast } from '../frame/toasts.svelte.ts';
   import MentionDialog from '../entries/MentionDialog.svelte';
   import { t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -49,9 +51,11 @@
     passages?: readonly Passage[];
     /** Called with where each marked passage starts, from the viewport's top, whenever it moves. */
     onpassages?: (tops: Map<string, number>) => void;
+    /** The hub's collections, offered to hold a checklist line made a task (UC-DOC-03). */
+    collections?: readonly { id: string; name: string }[];
   }
 
-  const { page, spacePages, views, onnavigate, onblock, reveal, passages = [], onpassages }: Props = $props();
+  const { page, spacePages, views, onnavigate, onblock, reveal, passages = [], onpassages, collections = [] }: Props = $props();
 
   const SAVE_AFTER_MS = 1_500;
 
@@ -64,6 +68,8 @@
   let isMentioning = $state(false);
   let isLinkingPage = $state(false);
   let isEmbedding = $state(false);
+  let isMakingTask = $state(false);
+  let taskLine = $state<TaskLine | undefined>(undefined);
 
   // --- References, resolved for the reader ------------------------------------------------------
 
@@ -102,6 +108,37 @@
     if (mine !== resolving || state.status !== 'ready') return;
     for (const target of state.data.data) targets.set(keyOf(target), target);
     for (const listener of listeners) listener();
+    // A line made a task is ticked as its entry stands (UC-DOC-03).
+    const completed = new Map<string, boolean>();
+    for (const target of state.data.data) {
+      if (target.kind === 'ENTRY' && target.available && target.completed !== undefined) completed.set(target.id.toLowerCase(), target.completed);
+    }
+    if (editor && completed.size > 0) mirrorCompletion(editor, completed);
+  }
+
+  // --- A checklist line made a task (UC-DOC-03) --------------------------------------------------
+
+  async function makeTask(collectionId: string) {
+    const line = taskLine;
+    isMakingTask = false;
+    if (!editor || !line || line.entryId || line.text === '') return;
+    try {
+      const entry = await items.create({ type: 'TASK', collection_id: collectionId, title: line.text }, crypto.randomUUID());
+      if (!editor || !linkLineToEntry(editor, line, entry.id)) return;
+      changed(markdownOf(editor));
+      toast.show({ text: t('app.pages.task_made', { title: entry.title }), tone: 'success' });
+    } catch (error) {
+      toast.show({ text: t('app.pages.task_failed', { reason: renderProblem(error as never, messages).message }), tone: 'danger' });
+    }
+  }
+
+  async function ticked(entryId: string, checked: boolean) {
+    try {
+      await items.setCompleted(entryId, checked, crypto.randomUUID());
+    } catch (error) {
+      toast.show({ text: t('app.pages.task_failed', { reason: renderProblem(error as never, messages).message }), tone: 'danger' });
+    }
+    if (editor) void resolve(markdownOf(editor));
   }
 
   // --- Saving the Markdown beside the live document ----------------------------------------------
@@ -137,7 +174,10 @@
     return untrack(() => {
       const body = page.body ?? '';
       void resolve(body);
-      const blockSeen = (block: SelectedBlock | undefined) => onblock?.(block);
+      const blockSeen = (block: SelectedBlock | undefined) => {
+        onblock?.(block);
+        taskLine = editor ? taskLineOf(editor) : undefined;
+      };
       let current = createPageEditor({
         element, body, editable: false, drawing, fallback: t('app.pages.reference_loading'), onBlock: blockSeen,
       });
@@ -160,6 +200,7 @@
             fallback: t('app.pages.reference_loading'),
             onChange: changed,
             onBlock: blockSeen,
+            onTick: (entryId, checked) => void ticked(entryId, checked),
           });
           editor = current;
           isLive = true;
@@ -253,6 +294,9 @@
       <Button size="sm" tone="subtle" icon="link" onclick={() => (isMentioning = true)}>{t('app.pages.tool_mention')}</Button>
       <Button size="sm" tone="subtle" icon="file-text" onclick={() => (isLinkingPage = !isLinkingPage)}>{t('app.pages.tool_page')}</Button>
       <Button size="sm" tone="subtle" icon="layout-template" onclick={() => (isEmbedding = !isEmbedding)}>{t('app.pages.tool_view')}</Button>
+      {#if taskLine && !taskLine.entryId && taskLine.text !== ''}
+        <Button size="sm" tone="subtle" icon="square-check" onclick={() => (isMakingTask = !isMakingTask)}>{t('app.pages.tool_task')}</Button>
+      {/if}
     </Inline>
   </Toolbar>
 {/if}
@@ -263,6 +307,15 @@
       <li><button type="button" class="choice" onclick={() => insertPage(each.id)}>{each.title}</button></li>
     {:else}
       <li class="quiet">{t('app.pages.no_other_pages')}</li>
+    {/each}
+  </ul>
+{/if}
+{#if isMakingTask}
+  <ul class="choices" aria-label={t('app.pages.task_in')}>
+    {#each collections as each (each.id)}
+      <li><button type="button" class="choice" onclick={() => makeTask(each.id)}>{each.name}</button></li>
+    {:else}
+      <li class="quiet">{t('app.pages.no_collections')}</li>
     {/each}
   </ul>
 {/if}

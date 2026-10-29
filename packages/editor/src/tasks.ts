@@ -31,7 +31,7 @@ function entryIn(item: PMNode): string | undefined {
     if (found || child.type.name !== 'paragraph') return;
     child.forEach((inline) => {
       if (!found && inline.type.name === 'reference' && String(inline.attrs['kind']).toLowerCase() === 'entry') {
-        found = String(inline.attrs['id']);
+        found = String(inline.attrs['id']).toLowerCase();
       }
     });
   });
