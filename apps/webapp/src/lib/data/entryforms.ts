@@ -5,15 +5,17 @@
  * A type's form as the web app draws and edits it (UC-FLW-01 check 2, D-13). Pure, so each
  * decision is tested; `entrytypes.svelte.ts` sends the form and asks the server how it stands.
  *
- * **The server decides, the client draws its answer.** No condition is evaluated here: capture and
- * the entry panel ask `POST /entry-types/{key}/form:evaluate` with the draft and draw the fields
- * as the answer says - required, read-only, hidden. The write is held to the same answer by the
- * server, so what this screen shows and what the server refuses come from one evaluator. Offline,
- * the form is drawn as it stands without its conditions and the server's refusal names the field
- * once the write arrives.
+ * **The server decides, the client draws its answer.** Capture and the entry panel ask
+ * `POST /entry-types/{key}/form:evaluate` with the draft and draw the fields as the answer says -
+ * required, read-only, hidden. The write is held to the same answer by the server, so what this
+ * screen shows and what the server refuses come from one evaluator. Offline, `offlineFormState`
+ * stands in: the browser's evaluator (`@hubtask/expression`) reads the same conditions over the
+ * copy and what the device last learnt of the reader's roles, through the door the write will
+ * arrive by (`SYNC`), and the server judges the write again once it arrives.
  */
 
-import type { EntryForm, EntryFormChannel, EntryFormField, EntryFormState } from '@hubtask/sync-engine';
+import { evaluateForm, type FormActor } from '@hubtask/expression';
+import type { AccessExplanation, EntryForm, EntryFormChannel, EntryFormDraft, EntryFormField, EntryFormState, EntryType, WorkItem } from '@hubtask/sync-engine';
 
 /** The entry's own values a form may show as fields, besides its custom fields. */
 export const OWN_FORM_KEYS = ['title', 'notes', 'due_date', 'start_at'] as const;
@@ -302,4 +304,36 @@ export function formOfDraft(draft: FormDraft, shape: Shape = asTyped): EntryForm
       })
       .filter((channel) => channel.closed || Object.keys(channel).length > 2),
   };
+}
+
+/** The built-in roles from the strongest down: the one `actor.role` names is the strongest held. */
+const BUILT_IN = ['OWNER', 'ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST', 'AUDITOR'] as const;
+
+/** Who writes, as far as the device knows it: what the server last explained of the reader there. */
+export function actorOf(explanation: AccessExplanation | null | undefined): FormActor {
+  const roles = explanation?.roles ?? [];
+  const role = BUILT_IN.find((each) => roles.includes(each));
+  return { ...(role ? { role } : {}), roles, permissions: explanation?.permissions ?? [], kind: 'HUMAN' };
+}
+
+/**
+ * How a type's form stands for a draft while the server cannot answer: the entry the copy holds
+ * with the draft's values over it, judged as the push will be judged - through `SYNC`. `undefined`
+ * where the type has no form or a condition cannot be answered here; the editor then draws the form
+ * as it stands.
+ */
+export function offlineFormState(
+  type: EntryType | undefined, draft: EntryFormDraft, held: WorkItem | undefined, actor: FormActor,
+): EntryFormState | undefined {
+  if (!type || !hasForm(type.form)) return undefined;
+  const custom = { ...((held?.custom_fields as Record<string, unknown> | undefined) ?? {}), ...(draft.custom_fields ?? {}) };
+  return evaluateForm(type.form, type.key, 'SYNC', {
+    title: draft.title ?? held?.title ?? '',
+    notes: draft.notes ?? held?.notes ?? '',
+    level: type.level,
+    completed: held?.completion?.is_completed ?? false,
+    dueAt: held?.due_at ?? null,
+    startAt: held?.start_at ?? null,
+    customFields: custom,
+  }, actor);
 }

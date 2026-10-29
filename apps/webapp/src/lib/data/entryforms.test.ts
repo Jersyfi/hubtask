@@ -111,3 +111,35 @@ test('the entry panel lays the custom fields out by the form, hidden ones left o
   ]);
   assert.deepEqual(panelRows(undefined, undefined, ['size']), [{ key: 'size', required: false, readOnly: false }]);
 });
+
+// Offline: the browser's evaluator stands in for `form:evaluate`, over the copy and the door the
+// push arrives by.
+import { actorOf, offlineFormState } from './entryforms.ts';
+import type { EntryType, WorkItem } from '@hubtask/sync-engine';
+
+test('offline, the form is answered in the browser through SYNC, the draft over the entry the copy holds', () => {
+  const type = {
+    key: 'bug', level: 'TASK',
+    form: {
+      fields: [
+        { key: 'custom_fields.impact', required: false },
+        { key: 'custom_fields.severity', required: false, required_when: 'entry.custom_fields.impact == "high" && channel == "SYNC"' },
+        { key: 'notes', required: false, hidden_when: '"auditor" in actor.roles' },
+      ],
+      validations: [{ key: 'titled', holds: 'size(entry.title) > 2' }],
+      channels: [],
+    },
+  } as unknown as EntryType;
+  const held = { id: 'i-1', title: 'ok', collection_id: 'c-1', custom_fields: { impact: 'high' }, completion: { is_completed: false } } as unknown as WorkItem;
+  const state = offlineFormState(type, { item_id: 'i-1', title: 'Leak' }, held, actorOf({ roles: ['MEMBER', 'auditor'], permissions: [] } as never));
+  assert.equal(state?.channel, 'SYNC');
+  assert.equal(state?.fields['custom_fields.severity']?.required, true, 'the copy\'s value is read');
+  assert.equal(state?.fields.notes?.hidden, true, 'a custom role the reader holds is read');
+  assert.deepEqual(state?.failed, [], 'the draft\'s title stands over the copy\'s');
+  assert.equal(offlineFormState({ key: 'plain', level: 'TASK' } as unknown as EntryType, {}, undefined, {}), undefined, 'no form, no answer');
+});
+
+test('the built-in role a condition reads is the strongest the reader holds there', () => {
+  assert.equal(actorOf({ roles: ['auditor', 'VIEWER', 'MEMBER'], permissions: ['READ'] } as never).role, 'MEMBER');
+  assert.equal(actorOf(undefined).role, undefined);
+});

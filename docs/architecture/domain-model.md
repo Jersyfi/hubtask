@@ -106,7 +106,9 @@ sent. The refusal is `forms.refused` naming each field (`fields.value_required`,
 `forms.field_read_only`, `forms.field_hidden`, `forms.validation_failed`), and a closed channel is
 `forms.channel_closed`. `EvaluateEntryForm` answers the same state for a draft, so an editor unfolds
 what the form asks before it sends: the browser renders the server's answer rather than evaluating
-CEL itself.
+CEL itself. Only while the server cannot be reached does `packages/expression` stand in - the same
+conditions over the copy, through `SYNC`, the door the push arrives by - and the push is judged by
+the server again; a calculated field of an entry whose writes wait is computed there too.
 
 **Workflows** (F-4, D-02, UC-FLW-02 … 05, migrations 0216/0217). A workspace describes how its work
 moves as **workflows** (`work.Workflow`, table `workflow`): **statuses**, each with a stable key, a

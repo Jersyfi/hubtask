@@ -31,7 +31,8 @@
 
   import { accounts } from '../data/accounts.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
-  import { definitionsFor, isCalculated, valueFor } from '../data/customfields.ts';
+  import { calculatedOf, definitionsFor, isCalculated, valueFor } from '../data/customfields.ts';
+  import { queue } from '../data/queue.svelte.ts';
   import { people, type Path } from '../data/people.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { announcer } from '../announce.svelte.ts';
@@ -224,10 +225,12 @@
       {#each visible as definition (definition.id)}
         {@const held = values[definition.key]}
         {#if isCalculated(definition.kind as string)}
-          <!-- The server computes it from the entry's other fields: shown, never an input (UC-WRK-12). -->
+          <!-- The server computes it from the entry's other fields: shown, never an input (UC-WRK-12).
+               While the entry's writes wait to be sent, the browser computes it the same way. -->
+          {@const shownValue = queue.isPending(item.id) ? calculatedOf(definition, customFields.of(item.collection_id), values) : held}
           <div class="calculated" data-calculated={definition.key}>
             <span class="label">{definition.key}</span>
-            <output>{typeof held === 'number' ? numbers.format(held) : t('app.fields.calculated_empty')}</output>
+            <output>{typeof shownValue === 'number' ? numbers.format(shownValue) : t('app.fields.calculated_empty')}</output>
             <p class="quiet">{t('app.fields.calculated_hint')}</p>
           </div>
         {:else if !isWritable(definition)}

@@ -209,3 +209,16 @@ test('a calculated field reads, sorts and filters as a number, and is nobody to 
   assert.equal(sortsBy('CALCULATED'), true);
   assert.ok(operatorsFor('CALCULATED').includes('BETWEEN'));
 });
+
+// A calculated field for an entry whose writes wait to be sent: computed in the browser over the
+// scope's number, money, duration and boolean fields.
+import { calculatedOf } from './customfields.ts';
+
+test('a calculated field is computed in the browser from the scope\'s number fields', () => {
+  const inScope = [{ key: 'hours', kind: 'NUMBER' }, { key: 'rate', kind: 'MONEY' }, { key: 'note', kind: 'TEXT' }] as never;
+  const total = { kind: 'CALCULATED', formula: 'entry.custom_fields.hours * entry.custom_fields.rate + 10' } as never;
+  assert.equal(calculatedOf(total, inScope, { hours: 2, rate: 40.5 }), 91);
+  assert.equal(calculatedOf(total, inScope, { hours: 2 }), null, 'an empty input leaves no value');
+  assert.equal(calculatedOf({ kind: 'CALCULATED', formula: 'entry.custom_fields.note + 1' } as never, inScope, { note: 'x' }), null, 'a text field is no input');
+  assert.equal(calculatedOf({ kind: 'NUMBER' } as never, inScope, {}), null);
+});

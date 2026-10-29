@@ -22,6 +22,7 @@
  * by name; `queryFieldsFor` carries the table.
  */
 
+import { calculate } from '@hubtask/expression';
 import type { CustomFieldDefinition } from '@hubtask/sync-engine';
 
 import type { FilterField } from './query.ts';
@@ -64,6 +65,29 @@ export function takesCurrency(kind: string): boolean {
 /** The kind the server computes with a formula: nobody fills it in, and it is never required. */
 export function isCalculated(kind: string): boolean {
   return kind === 'CALCULATED';
+}
+
+/** The kinds a formula reads (`IsFormulaInput`): numbers, money, durations and booleans. */
+const FORMULA_INPUTS = ['NUMBER', 'MONEY', 'DURATION', 'BOOL'];
+
+/**
+ * A calculated field's value as the entry's values now stand, computed in the browser
+ * (`@hubtask/expression`) for an entry whose writes wait to be sent: the value the server last
+ * computed predates them. The inputs are the scope's number, money, duration and boolean fields,
+ * as the server's are. `null` where the formula cannot answer, and for a definition that is not
+ * calculated.
+ */
+export function calculatedOf(
+  definition: Pick<CustomFieldDefinition, 'kind' | 'formula'>,
+  inScope: readonly Pick<CustomFieldDefinition, 'key' | 'kind'>[],
+  values: Readonly<Record<string, unknown>>,
+): number | null {
+  if (!isCalculated(definition.kind as string) || !definition.formula) return null;
+  const inputs: Record<string, unknown> = {};
+  for (const input of inScope) {
+    if (FORMULA_INPUTS.includes(input.kind as string)) inputs[input.key] = values[input.key];
+  }
+  return calculate(definition.formula, inputs);
 }
 
 /** A currency's shape, as the contract's pattern writes it: three capital letters (ISO 4217). */

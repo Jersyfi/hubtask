@@ -6,12 +6,16 @@
  * the whole workspace: a type is the workspace's, not a collection's.
  */
 
-import type {
-  EntryForm, EntryFormDraft, EntryFormState, EntryType, EntryTypeChange, EntryTypeCreate, EntryTypeList, ResourceState,
+import {
+  TransportError,
+  type EntryForm, type EntryFormDraft, type EntryFormState, type EntryType, type EntryTypeChange, type EntryTypeCreate,
+  type EntryTypeList, type ResourceState, type StoredRecord, type WorkItem,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { actorOf, offlineFormState } from './entryforms.ts';
 import { etagFor } from './etag.ts';
+import { roles } from './roles.svelte.ts';
 
 export {
   TYPE_ICONS,
@@ -86,10 +90,23 @@ class EntryTypes {
    * How the type's form stands for a draft - which fields are required, read-only or hidden, which
    * checks fail, whether this door may create the type. Writes nothing, so it invalidates nothing.
    */
-  evaluate(key: string, draft: EntryFormDraft): Promise<EntryFormState> {
-    return engine.mutate<EntryFormState>('POST', `${PATH}/${encodeURIComponent(key)}/form:evaluate`, draft, {
-      invalidates: [],
-    });
+  async evaluate(key: string, draft: EntryFormDraft): Promise<EntryFormState> {
+    try {
+      return await engine.mutate<EntryFormState>('POST', `${PATH}/${encodeURIComponent(key)}/form:evaluate`, draft, {
+        invalidates: [],
+      });
+    } catch (cause) {
+      // The server cannot be reached: the browser's evaluator stands in until it can.
+      if (!(cause instanceof TransportError) || (cause.kind !== 'offline' && cause.kind !== 'timeout')) throw cause;
+      const held = draft.item_id
+        ? (await engine.storage?.get<StoredRecord<WorkItem>>('items', draft.item_id))?.document
+        : undefined;
+      const collectionId = draft.collection_id ?? held?.collection_id;
+      const actor = actorOf(collectionId ? roles.mineAt(collectionId) : undefined);
+      const state = offlineFormState(this.all.find((type) => type.key === key), draft, held, actor);
+      if (!state) throw cause;
+      return state;
+    }
   }
 
   /** Deletes a type nothing uses; one in use is refused and can only be archived (check 5). */
