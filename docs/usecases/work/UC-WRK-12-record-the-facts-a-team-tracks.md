@@ -7,7 +7,7 @@ deployments: [D1, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11, P-12]
 state: built
 tasks: [C-07, F3-10, K-03]
-checked_by: [test/integration/custom_field_test.go, test/integration/custom_field_acceptance_test.go, test/integration/typed_field_test.go, core/domain/model/work/CustomField_test.go, core/domain/model/work/CustomFieldKinds_test.go, core/application/service/work/SetCustomField_test.go, core/application/service/work/SetCustomFieldKinds_test.go, apps/webapp/src/lib/data/customfields.test.ts, apps/webapp/src/lib/i18n/duration.test.ts]
+checked_by: [core/application/service/work/Calculated_test.go, infrastructure/expression/Formula_test.go, test/integration/custom_field_test.go, test/integration/custom_field_acceptance_test.go, test/integration/typed_field_test.go, core/domain/model/work/CustomField_test.go, core/domain/model/work/CustomFieldKinds_test.go, core/application/service/work/SetCustomField_test.go, core/application/service/work/SetCustomFieldKinds_test.go, apps/webapp/src/lib/data/customfields.test.ts, apps/webapp/src/lib/i18n/duration.test.ts]
 ---
 
 # Record the facts a team tracks, with custom fields
@@ -29,9 +29,11 @@ the list by `priority = high`.
 
 1. A person who may change the collection's shape defines a field with a key, one of the kinds
    text, number, date, pick one, pick several, yes/no, person and link, amount of money,
-   duration, reference to another entry, several people and formatted text, the options for the
-   two pick kinds, the currency of an amount (and of no other kind), whether it is required, and
-   which entry types carry it.
+   duration, reference to another entry, several people, formatted text and calculated, the options
+   for the two pick kinds, the currency of an amount (and of no other kind), the formula of a
+   calculated field (and of no other kind), whether it is required, and which entry types carry it.
+   A calculated field shows the number its formula gives over the entry's own fields, recomputed
+   whenever they are written, and nobody fills it in.
 2. A second field with the same key in the same collection is refused with `fields.key_taken`; a
    pick field without options with `fields.options_required`.
 3. An entry of a type the field applies to shows one row per field and saves each value on its own;
@@ -50,7 +52,8 @@ the list by `priority = high`.
 
 ## Where it ends
 
-* No computed fields and no formulas.
+* A formula reads only the entry's own number and yes/no fields - never another calculated field,
+  another entry or a value outside the entry - and is fixed once defined.
 * No sorting by a field that holds several values, a person, a reference or formatted text, and no
   grouping by one that holds several values or formatted text (UC-WRK-17).
 * No display name separate from the key; the key is what people read.
@@ -59,6 +62,12 @@ the list by `priority = high`.
   not a field's.
 
 ## Today
+
+* Check 1 for the calculated kind: met through the API, `hubctl field define --formula` and the web
+  app's field dialog; the server compiles the formula against the scope's number and yes/no fields
+  and recomputes every calculated field after each value write, each moved result its own write. A
+  new calculated field fills no older entry until one of its inputs is written. The browser does
+  not evaluate a formula; an offline entry shows the value the server last computed.
 
 * Checks 1, 3 and 4 for the five suite kinds (money, duration, reference, several people, formatted
   text): met through the API, `hubctl`, MCP and the web app. In the web app a reference is chosen

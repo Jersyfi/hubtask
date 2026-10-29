@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-12, P-17]
 state: partial
 tasks: []
-checked_by: [core/domain/model/work/EntryType_test.go, core/application/service/workflow/EntryTypes_test.go, core/application/service/work/SetItemEntryType_test.go, test/integration/entry_type_test.go, apps/webapp/src/lib/data/entrytypes.test.ts, apps/webapp/src/lib/navigation.test.ts, cmd/hubctl/EntryType_test.go, infrastructure/postgres/query/EntryType_test.go, test/integration/query_entry_type_test.go, core/domain/model/work/Form_test.go, core/application/service/work/FormGate_test.go, core/application/service/workflow/EntryTypeForm_test.go, test/integration/entry_type_form_test.go, infrastructure/expression/CEL_test.go, apps/webapp/src/lib/data/entryforms.test.ts]
+checked_by: [infrastructure/postgres/StructureDocument_test.go, core/application/service/work/StructureInput_test.go, apps/webapp/src/lib/workspace/structureDraft.test.ts, core/domain/model/work/EntryType_test.go, core/application/service/workflow/EntryTypes_test.go, core/application/service/work/SetItemEntryType_test.go, test/integration/entry_type_test.go, apps/webapp/src/lib/data/entrytypes.test.ts, apps/webapp/src/lib/navigation.test.ts, cmd/hubctl/EntryType_test.go, infrastructure/postgres/query/EntryType_test.go, test/integration/query_entry_type_test.go, core/domain/model/work/Form_test.go, core/application/service/work/FormGate_test.go, core/application/service/workflow/EntryTypeForm_test.go, test/integration/entry_type_form_test.go, infrastructure/expression/CEL_test.go, apps/webapp/src/lib/data/entryforms.test.ts]
 ---
 
 # Give our work its own types
@@ -63,8 +63,13 @@ works in every view. An agent creating an entry through MCP names the type the s
   the hidden ones and with the read-only ones closed. The conditions are evaluated by the server
   only, for the editor as for the write. The archive import writes outside the use case and is
   not held to the form yet (the suite plan, S-23).
-* Check 3: partly met — capture offers the workspace's types of the level, the level's own first;
-  which types one collection offers is not narrowed yet (the suite plan, S-06).
+* Check 3: met — a collection's structure carries a ninth setting, `entry_types`, which types each
+  level offers (inherited, locked and reset like every setting, `PATCH …/structure`, MCP and
+  `hubctl structure`); creating an entry with a type not offered, or changing one to it, is refused
+  with `entry_types.not_offered`, and an entry without a type gets the level's own where it is
+  offered and the first offered otherwise. Capture offers only those, and the structure panel
+  ticks them per level where the workflows module is on. Entries that already have a type keep it
+  when the list narrows.
 * Check 4: partly met — a change of type that would drop a value is refused, naming each field,
   and one the entry does not meet the new type's form for is refused the same way;
   confirming the drop and the screen for it come with the field sets (the suite plan, S-06).
