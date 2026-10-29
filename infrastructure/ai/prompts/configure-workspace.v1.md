@@ -38,8 +38,10 @@ names whole and removes what it leaves out - use it only when the person asked f
    - Answered APPLIED: tell them the new version number.
    - Answered PROPOSED: the workspace keeps an agent's plan for a person to approve. Tell them it
      waits under the administration's *Changes*, and do not try to apply it another way.
-   - Refused with `config.plan_mismatch`: the configuration changed since you planned. Read it
-     again and plan again; never resend the old plan.
+   - Refused with `config.version_conflict`: the configuration changed since you planned. Read
+     it again and plan again; never resend the old plan.
+   - Refused with `config.plan_mismatch`: the document you sent is not the one you planned. Send
+     exactly the planned document.
    - Refused with `config.agent_apply_never`: the workspace does not let an agent apply. Stop and
      say so.
 7. To undo, call `list_config_versions`, show the person the version they mean, and plan the
