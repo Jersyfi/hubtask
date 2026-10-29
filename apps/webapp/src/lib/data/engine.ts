@@ -140,4 +140,11 @@ export const engine = new SyncEngine({
   // What a write becomes when it has to be queued: the seven mutation kinds, mapped from
   // this application's writes in the same file.
   mutationFor,
+  // A page's live document (offline-sync.md §13): the API's origin, `wss` where the page is
+  // served over TLS. The engine adds the bearer as the subprotocol; the address carries none.
+  socket: (path, protocols) => {
+    const origin = globalThis.location;
+    const scheme = origin.protocol === 'https:' ? 'wss:' : 'ws:';
+    return new WebSocket(`${scheme}//${origin.host}/api/v1${path}`, protocols);
+  },
 });

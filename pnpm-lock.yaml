@@ -18,6 +18,9 @@ importers:
       '@hubtask/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
+      '@hubtask/editor':
+        specifier: workspace:*
+        version: link:../../packages/editor
       '@hubtask/expression':
         specifier: workspace:*
         version: link:../../packages/expression

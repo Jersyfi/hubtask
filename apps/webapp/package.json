@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@hubtask/design-system": "workspace:*",
+    "@hubtask/editor": "workspace:*",
     "@hubtask/expression": "workspace:*",
     "@hubtask/sync-engine": "workspace:*"
   },
