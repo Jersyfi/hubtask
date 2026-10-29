@@ -47,6 +47,7 @@ var restDoors = map[string]restDoor{
 	"explainConfig":             {UseCase: "ExplainConfig", Status: 200, Query: []string{"hub_id", "key"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"exportConfig":              {UseCase: "ExportConfig", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "hash", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getJob":                    {UseCase: "GetJob", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"giveKudos":                 {UseCase: "GiveKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"grantRole":                 {UseCase: "GrantRole", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"linkEntries":               {UseCase: "LinkEntries", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listBuckets":               {UseCase: "ListBuckets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -80,6 +81,7 @@ var restDoors = map[string]restDoor{
 	"readConfigSandbox":         {UseCase: "ReadConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readConfigSchema":          {UseCase: "ReadConfigSchema", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readConfigVersion":         {UseCase: "ReadConfigVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readKudos":                 {UseCase: "ReadKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readSettingsCatalogue":     {UseCase: "ReadSettingsCatalogue", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeLabel":               {UseCase: "RemoveLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeMember":              {UseCase: "RemoveMember", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -100,6 +102,7 @@ var restDoors = map[string]restDoor{
 	"setItemEntryType":          {UseCase: "SetItemEntryType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setModule":                 {UseCase: "SetModule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setWorkflowScheme":         {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"takeBackKudos":             {UseCase: "TakeBackKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"takeStep":                  {UseCase: "TakeStep", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"trashContainer":            {UseCase: "TrashContainer", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"trashWorkItem":             {UseCase: "TrashWorkItem", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -314,6 +317,11 @@ func (c *RestController) GetJob(w http.ResponseWriter, r *http.Request, jobId op
 	c.door(w, r, restDoors["getJob"], usecase.Input{"job_id": jobId.String()}, nil, nil, answerBy(jobResponse))
 }
 
+// GiveKudos answers PUT /items/{itemId}/kudos by the generated mapping.
+func (c *RestController) GiveKudos(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
+	c.door(w, r, restDoors["giveKudos"], usecase.Input{"item_id": itemId.String()}, nil, nil, answerBy(kudosResponse))
+}
+
 // GrantRole answers POST /role-grants by the generated mapping.
 func (c *RestController) GrantRole(w http.ResponseWriter, r *http.Request, params openapi.GrantRoleParams) {
 	var body openapi.GrantRoleJSONRequestBody
@@ -516,6 +524,11 @@ func (c *RestController) ReadConfigVersion(w http.ResponseWriter, r *http.Reques
 	c.door(w, r, restDoors["readConfigVersion"], usecase.Input{"version": version}, nil, nil, &answer)
 }
 
+// ReadKudos answers GET /items/{itemId}/kudos by the generated mapping.
+func (c *RestController) ReadKudos(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
+	c.door(w, r, restDoors["readKudos"], usecase.Input{"item_id": itemId.String()}, nil, nil, answerBy(kudosResponse))
+}
+
 // ReadSettingsCatalogue answers GET /settings/catalogue by the generated mapping.
 func (c *RestController) ReadSettingsCatalogue(w http.ResponseWriter, r *http.Request) {
 	var answer openapi.SettingsCatalogue
@@ -632,6 +645,11 @@ func (c *RestController) SetWorkflowScheme(w http.ResponseWriter, r *http.Reques
 	var body openapi.SetWorkflowSchemeJSONRequestBody
 	var answer openapi.WorkflowSchemeResult
 	c.door(w, r, restDoors["setWorkflowScheme"], usecase.Input{}, nil, &body, &answer)
+}
+
+// TakeBackKudos answers DELETE /items/{itemId}/kudos by the generated mapping.
+func (c *RestController) TakeBackKudos(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
+	c.door(w, r, restDoors["takeBackKudos"], usecase.Input{"item_id": itemId.String()}, nil, nil, answerBy(kudosResponse))
 }
 
 // TakeStep answers POST /items/{itemId}:step by the generated mapping.

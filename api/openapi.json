@@ -15592,6 +15592,8 @@
           "items"
         ],
         "operationId": "readKudos",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "kudosResponse",
         "description": "What the reader may know of the kudos on this entry: whether they gave kudos to its current completion, and - only to the person they were given to - who gave theirs and when. Nobody else learns who gave kudos to whom, and no answer counts kudos per person: an administrator reading somebody else's entry sees their own kudos and nothing more. Readable by whoever may read the entry.\n",
         "responses": {
           "200": {
@@ -15614,6 +15616,8 @@
           "items"
         ],
         "operationId": "giveKudos",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "kudosResponse",
         "description": "Acknowledges the entry's completion to the person who completed it. Idempotent: kudos already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on one's own completion (`kudos.own_completion`, 422). Needs only the right to read the entry: kudos change nothing of it, so the entry keeps its version and its history, and no event or change record is written. The audit trail records the act and the entry, never whom the kudos went to.\n",
         "responses": {
           "200": {
@@ -15636,6 +15640,8 @@
           "items"
         ],
         "operationId": "takeBackKudos",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "kudosResponse",
         "description": "Takes back the kudos the caller gave to the entry's current completion. Idempotent: kudos not given succeed.\n",
         "responses": {
           "200": {

@@ -11869,6 +11869,8 @@ paths:
     get:
       tags: [items]
       operationId: readKudos
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: kudosResponse
       description: >
         What the reader may know of the kudos on this entry: whether they gave kudos to its
         current completion, and - only to the person they were given to - who gave theirs and
@@ -11887,6 +11889,8 @@ paths:
     put:
       tags: [items]
       operationId: giveKudos
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: kudosResponse
       description: >
         Acknowledges the entry's completion to the person who completed it. Idempotent: kudos
         already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on
@@ -11906,6 +11910,8 @@ paths:
     delete:
       tags: [items]
       operationId: takeBackKudos
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: kudosResponse
       description: >
         Takes back the kudos the caller gave to the entry's current completion. Idempotent: kudos
         not given succeed.
