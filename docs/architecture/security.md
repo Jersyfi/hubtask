@@ -423,6 +423,7 @@ Art. 14 reporting already since 2026-09-11), and receives from the project what 
 | A disclosure channel upstream | Coordinated disclosure, and the report of an exploited vulnerability shared with providers through the advisory | §14.1, `SECURITY.md` |
 | Secure-by-default evidence (Annex I Part I) | The principles and the gates | §1, §13 |
 | Controls to cite in its own attestation | The control mapping to ISO/IEC 27001, BSI C5 and OWASP ASVS | [control-mapping.md](../privacy/control-mapping.md) |
+| Answers for its NIS2 customers' supply-chain questions | The NIS2 supplier pack: SBOM, signatures, release records, disclosure, advisories, patch aims, support periods, the product's measures | [nis2-supplier-pack.md](../privacy/nis2-supplier-pack.md) |
 
 The manufacturer declares its own support period (at least five years unless the product's expected
 use is shorter), runs its own conformity assessment, CE marking and Art. 14 reporting, and carries

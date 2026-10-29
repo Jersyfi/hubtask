@@ -664,6 +664,7 @@ below names its proof: a rule above, or a walk filed in `docs/evidence/`.
 | 2.5.8 Target size | 24 × 24 CSS px minimum in every density | `density` (§5) and its token test. **One exception**: a `Timeline` bar's end handles are one column wide — 24, 8 or 4 px at the day, week and month scales. This rests on SC 2.5.8's **Equivalent** clause: the row's title opens the entry, where `DueDateControl` sets both dates at full size |
 | 2.3.3 Animation from interactions | Reduced motion from the media query and from the product's own switch on *On this device* | Rule 6; `[data-motion="reduced"]`; `lib/motion.ts` |
 | 3.1.1 / 3.1.2 Language of page and parts | `lang` on the root from the negotiated locale; `lang` on an entry in another language (`content_language`) | [`i18n-l10n.md`](../architecture/i18n-l10n.md) §6; the tree (`h1[lang=pt-BR]`) |
+| 3.2.6 Consistent help | Help is in one place on every screen: the frame's help (`HelpDialog`, the tour beside it), never moved or dropped by a screen | The frame (§11), which every signed-in route renders inside |
 | 3.2.1 / 3.2.2 On focus, on input | Nothing navigates or submits on focus or on a change alone | No `onfocus` handler in either client tree, no `onchange` that navigates |
 | 3.3.1 / 3.3.3 Error identification and suggestion | A refusal names the field and what would be accepted — the problem document's `fields[]`, rendered from codes; a form's refusal is an alert. **A refused password gets no banner**: the field is `aria-invalid`, the rules list names each rule broken, the live region announces the count once | The problem-details rendering; the tree of every route |
 | 3.3.7 Redundant entry | Nothing asks twice for what the flow already has; a second proof for a second privileged action is the security exception (one grant, one action) | Reviewed per flow |
@@ -691,6 +692,28 @@ installation in multi mode that set none is named in the health report
 
 **What is deliberately not promised.** Level AAA anywhere; sign language or audio description (the
 product has no video); a conformance claim for a third-party client.
+
+### 10.1 The EN 301 549 v4.1.1 programme
+
+EN 301 549 v4.1.1 (published 2026-09, carrying WCAG 2.2 AA, its citation as the harmonised standard
+expected for 2026-12) is the standard the accessibility statement names; the table above is its
+clause 9. The programme is how the rest is kept, clause by clause:
+
+| Clause | What it asks of Hubtask | How it is kept |
+|---|---|---|
+| 4 Functional performance | Usable without vision, with limited vision, without perception of colour, without hearing, with limited manipulation, with limited cognition | Follows from clauses 9 and 11; the screen-reader pass and the keyboard walk test it as a whole |
+| 5 Generic | Closed functionality none (the clients are open web content); accessibility features activated without help (5.2); no biometric as the only way in (5.3: Hubtask reads no biometric; a passkey is unlocked by whatever the device offers, a PIN among it) | [identity.md](../architecture/identity.md) §23; the sign-in surfaces |
+| 9 Web | WCAG 2.2 AA, the table above | The proofs named in each row |
+| 10 Non-web documents | The documents the product produces for a person - exports, the calendar feed, mails - carry structure (headings, table headers, a language) | The export and mail templates; reviewed per format |
+| 11 Software | The desktop and mobile shells render the web app and add only the platform's own chrome; 11.5 platform accessibility services are the web view's, 11.6 user preferences (contrast, text size, reduced motion) are honoured from the platform | The shells inherit clause 9; a shell's own control is a row here when one is added |
+| 12 Documentation and support | The documentation lists the accessibility features and how to use them; support channels reachable without a single sense | The documentation site; `SECURITY.md` and the issue tracker are text channels |
+
+**The cadence.** Each release that changes a screen keeps its proofs green; before each major and at
+least once a year, the two walks are repeated and filed, and the **Accessibility Conformance Report**
+(the EN 301 549 edition of the VPAT form) is written from this table as `docs/evidence/ACR-<date>.md`
+- every clause and criterion with *Supports*, *Partially supports* or *Does not support* and the
+reason, an exception carrying its date. The statement (above) is updated from the newest report;
+a regression found between two reports is a defect with the criterion's number in its title.
 
 ---
 
