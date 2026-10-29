@@ -2529,13 +2529,14 @@ class CustomFieldDefinition(TypedDict, total=False):
     kind: Required["CustomFieldKind"]
     options: Required[list[str]]
     currency: Required[str | None]
+    formula: str | None
     is_required: Required[bool]
     applies_to: Required[list["ItemType"]]
     created_at: str
     updated_at: str
     version: Required[int]
 
-CustomFieldKind = Literal["TEXT", "NUMBER", "DATE", "SELECT", "MULTI_SELECT", "BOOL", "USER", "URL", "MONEY", "DURATION", "REFERENCE", "USER_SET", "RICH_TEXT"]
+CustomFieldKind = Literal["TEXT", "NUMBER", "DATE", "SELECT", "MULTI_SELECT", "BOOL", "USER", "URL", "MONEY", "DURATION", "REFERENCE", "USER_SET", "RICH_TEXT", "CALCULATED"]
 
 class CustomFieldDefinitionCreate(TypedDict, total=False):
     collection_id: str | None
@@ -2543,6 +2544,7 @@ class CustomFieldDefinitionCreate(TypedDict, total=False):
     kind: Required["CustomFieldKind"]
     options: list[str]
     currency: str
+    formula: str
     is_required: bool
     applies_to: list["ItemType"]
 

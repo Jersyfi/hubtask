@@ -1560,6 +1560,7 @@ func (e CoverInputKind) Valid() bool {
 // Defines values for CustomFieldKind.
 const (
 	CustomFieldKindBOOL        CustomFieldKind = "BOOL"
+	CustomFieldKindCALCULATED  CustomFieldKind = "CALCULATED"
 	CustomFieldKindDATE        CustomFieldKind = "DATE"
 	CustomFieldKindDURATION    CustomFieldKind = "DURATION"
 	CustomFieldKindMONEY       CustomFieldKind = "MONEY"
@@ -1578,6 +1579,8 @@ const (
 func (e CustomFieldKind) Valid() bool {
 	switch e {
 	case CustomFieldKindBOOL:
+		return true
+	case CustomFieldKindCALCULATED:
 		return true
 	case CustomFieldKindDATE:
 		return true
@@ -7914,8 +7917,11 @@ type CustomFieldDefinition struct {
 	CreatedAt    *time.Time          `json:"created_at,omitempty"`
 
 	// Currency The ISO 4217 code every amount of a MONEY field is in, and null for every other kind. Fixed once defined, like the kind.
-	Currency *string            `json:"currency"`
-	Id       openapi_types.UUID `json:"id"`
+	Currency *string `json:"currency"`
+
+	// Formula The expression a CALCULATED field's value is computed with, and null for every other kind. It reads the entry's own fields as `entry.custom_fields.<key>` - a NUMBER, MONEY, DURATION or BOOL field defined where the calculated one is - and produces a number. The server recomputes the value whenever the entry's values are written; a value it cannot compute, because a field it reads is empty, is absent. Fixed once defined, like the kind: a changed formula would rewrite every entry's value at once.
+	Formula *string            `json:"formula,omitempty"`
+	Id      openapi_types.UUID `json:"id"`
 
 	// IsRequired Whether the field has to hold a value. Enforced when the field is written, not retroactively: making a field required does not make the entries that predate it invalid.
 	IsRequired bool `json:"is_required"`
@@ -7923,7 +7929,7 @@ type CustomFieldDefinition struct {
 	// Key The identifier the value is stored under, unique in its scope and fixed once defined. An identifier rather than a label: it appears in `custom_fields.<key>` filters, and a key that could be renamed would orphan every value stored under it.
 	Key string `json:"key"`
 
-	// Kind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown.
+	// Kind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`.
 	Kind CustomFieldKind `json:"kind"`
 
 	// Options The permitted values of a SELECT or a MULTI_SELECT, and empty for every other kind. Values rather than labels: what a person sees is the client's to render.
@@ -7943,11 +7949,14 @@ type CustomFieldDefinitionCreate struct {
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 
 	// Currency Required for MONEY and refused for every other kind.
-	Currency   *string `json:"currency,omitempty"`
+	Currency *string `json:"currency,omitempty"`
+
+	// Formula Required for CALCULATED and refused for every other kind. One that does not compile, names a field that is not a number of the scope, or does not produce a number is refused with `validation_failed`, the detail `fields.formula_invalid` and the position.
+	Formula    *string `json:"formula,omitempty"`
 	IsRequired *bool   `json:"is_required,omitempty"`
 	Key        string  `json:"key"`
 
-	// Kind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown.
+	// Kind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`.
 	Kind    CustomFieldKind `json:"kind"`
 	Options *[]string       `json:"options,omitempty"`
 }
@@ -7959,7 +7968,7 @@ type CustomFieldDefinitionUpdate struct {
 	Options    *[]string   `json:"options,omitempty"`
 }
 
-// CustomFieldKind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown.
+// CustomFieldKind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`.
 type CustomFieldKind string
 
 // CustomFieldValue One value for one key. `value` is required and may be null, which clears the key - the two are different requests, and a body that left the field out would be neither.

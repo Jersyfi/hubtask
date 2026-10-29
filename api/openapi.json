@@ -28129,6 +28129,14 @@
             "pattern": "^[A-Z]{3}$",
             "description": "The ISO 4217 code every amount of a MONEY field is in, and null for every other kind. Fixed once defined, like the kind.\n"
           },
+          "formula": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000,
+            "description": "The expression a CALCULATED field's value is computed with, and null for every other kind. It reads the entry's own fields as `entry.custom_fields.<key>` - a NUMBER, MONEY, DURATION or BOOL field defined where the calculated one is - and produces a number. The server recomputes the value whenever the entry's values are written; a value it cannot compute, because a field it reads is empty, is absent. Fixed once defined, like the kind: a changed formula would rewrite every entry's value at once.\n"
+          },
           "is_required": {
             "type": "boolean",
             "description": "Whether the field has to hold a value. Enforced when the field is written, not retroactively: making a field required does not make the entries that predate it invalid.\n"
@@ -28157,7 +28165,7 @@
       },
       "CustomFieldKind": {
         "type": "string",
-        "description": "What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown.\n",
+        "description": "What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`.\n",
         "enum": [
           "TEXT",
           "NUMBER",
@@ -28171,7 +28179,8 @@
           "DURATION",
           "REFERENCE",
           "USER_SET",
-          "RICH_TEXT"
+          "RICH_TEXT",
+          "CALCULATED"
         ]
       },
       "CustomFieldDefinitionCreate": {
@@ -28208,6 +28217,12 @@
             "type": "string",
             "pattern": "^[A-Z]{3}$",
             "description": "Required for MONEY and refused for every other kind."
+          },
+          "formula": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "Required for CALCULATED and refused for every other kind. One that does not compile, names a field that is not a number of the scope, or does not produce a number is refused with `validation_failed`, the detail `fields.formula_invalid` and the position.\n"
           },
           "is_required": {
             "type": "boolean",
