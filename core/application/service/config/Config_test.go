@@ -45,7 +45,9 @@ type world struct {
 	// grants the role grants ListRoles answers.
 	workflows map[string]map[string]any
 	preview   usecase.Output
-	grants    []any
+	// previewWithheld makes the previews refuse the reader, as a token without their scope is.
+	previewWithheld bool
+	grants          []any
 	// hub is the one hub GetContainer answers, hubStructure its own structure values and scheme
 	// the workflow scheme ListWorkflows answers.
 	hub          string
@@ -55,7 +57,7 @@ type world struct {
 
 func (w *world) clone() *world {
 	out := &world{types: map[string]map[string]any{}, roles: map[string]map[string]any{}, failOn: w.failOn,
-		workspace: w.workspace, ai: w.ai, inputs: maps.Clone(w.inputs), workflows: w.workflows, preview: w.preview, grants: w.grants,
+		workspace: w.workspace, ai: w.ai, inputs: maps.Clone(w.inputs), workflows: w.workflows, preview: w.preview, previewWithheld: w.previewWithheld, grants: w.grants,
 		hub: w.hub, hubStructure: maps.Clone(w.hubStructure), scheme: w.scheme}
 	if w.structure != nil {
 		out.structure = maps.Clone(w.structure)
@@ -131,6 +133,9 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 			}
 		}
 	case "PreviewWorkflowPublish", "PreviewWorkflowScheme":
+		if w.previewWithheld {
+			return nil, shared.ErrForbidden.WithDetail("auth.scope_insufficient")
+		}
 		if w.inputs == nil {
 			w.inputs = map[string][]usecase.Input{}
 		}

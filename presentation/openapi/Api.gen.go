@@ -8413,6 +8413,9 @@ type ConfigReach struct {
 		Count  int    `json:"count"`
 		Status string `json:"status"`
 	} `json:"removed,omitempty"`
+
+	// Withheld True where the reach was not counted because the reader may not see what the change touches - a token without the scope the preview needs, or a module that is off. The plan still holds; only the counts are missing.
+	Withheld *bool `json:"withheld,omitempty"`
 }
 
 // ConfigRefusal defines model for ConfigRefusal.

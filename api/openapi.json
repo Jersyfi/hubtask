@@ -24935,6 +24935,10 @@
             "items": {
               "type": "string"
             }
+          },
+          "withheld": {
+            "type": "boolean",
+            "description": "True where the reach was not counted because the reader may not see what the change touches - a token without the scope the preview needs, or a module that is off. The plan still holds; only the counts are missing.\n"
           }
         }
       },

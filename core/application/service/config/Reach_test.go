@@ -45,6 +45,29 @@ func TestAPlanNamesTheEntriesAWorkflowsNewShapeMoves(t *testing.T) {
 	}
 }
 
+// S-09's gap: a reader the preview refuses - an agent's token with `config:plan` but not the
+// preview's scope - gets a plan that says the reach was not counted, rather than one silent on it.
+func TestAPlanSaysWhenItsReachWasWithheld(t *testing.T) {
+	f := newFixture()
+	f.world.workflows = map[string]map[string]any{
+		"service": {"key": "service", "name": "Service", "published": serviceShape("todo", "doing")},
+	}
+	f.world.previewWithheld = true
+	document := map[string]any{"workflows": map[string]any{"service": map[string]any{"shape": serviceShape("todo", "review")}}}
+	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": document})
+
+	reached := plan["reach"].([]usecase.Output)
+	if len(reached) != 1 || reached[0]["path"] != "workflows.service" || reached[0]["withheld"] != true {
+		t.Fatalf("reach %v", reached)
+	}
+	if _, counted := reached[0]["entries"]; counted {
+		t.Errorf("a withheld reach was counted: %v", reached[0])
+	}
+	if plan["plan_hash"] == nil {
+		t.Error("a withheld reach refused the plan")
+	}
+}
+
 // A shape that removes a status entries are in is refused at the plan, with the status and its
 // count, as its publish would refuse the apply.
 func TestAPlanRefusesAShapeRemovingAStatusInUse(t *testing.T) {

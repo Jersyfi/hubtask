@@ -1562,6 +1562,7 @@ class ConfigReach(TypedDict, total=False):
     groups: int
     gained: list[str]
     lost: list[str]
+    withheld: bool
 
 class ConfigCounts(TypedDict, total=False):
     added: Required[int]

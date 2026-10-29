@@ -30,6 +30,10 @@ type reach struct {
 	// stop showing, and the entries whose field values would be hidden. Hidden, never deleted.
 	HiddenEntries, HiddenValues int
 	Hides                       bool
+	// Withheld says the reach was not counted: the preview it comes from refused this reader (a
+	// token without the preview's scope, a module off). The plan holds; what it touches is
+	// unknown to this reader, and the plan says so rather than nothing.
+	Withheld bool
 }
 
 const (
@@ -43,7 +47,7 @@ const (
 // removes a status entries are in is refused here, as its publish would refuse the apply.
 func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan) error {
 	var grants []any
-	grantsRead := false
+	grantsRead, grantsWithheld := false, false
 	structure := map[string]any{}
 	reset := []any{}
 	for _, change := range p.Changes {
@@ -60,6 +64,7 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 			})
 			if err != nil {
 				if withheld(err) {
+					p.Reach = append(p.Reach, reach{Path: change.Path(), Withheld: true})
 					continue
 				}
 				p.Refusals = append(p.Refusals, fieldsOf(err, change.Path())...)
@@ -93,6 +98,7 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 			})
 			if err != nil {
 				if withheld(err) {
+					p.Reach = append(p.Reach, reach{Path: change.Path(), Withheld: true})
 					continue
 				}
 				p.Refusals = append(p.Refusals, fieldsOf(err, change.Path())...)
@@ -117,6 +123,7 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 				if err != nil && !withheld(err) {
 					return err
 				}
+				grantsWithheld = err != nil
 				if err == nil {
 					normal, err := normalise(map[string]any(answer))
 					if err != nil {
@@ -125,7 +132,7 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 					grants, _ = normal.(map[string]any)["grants"].([]any)
 				}
 			}
-			r := reach{Path: change.Path()}
+			r := reach{Path: change.Path(), Withheld: grantsWithheld}
 			before, after := names(change.Before["permissions"]), names(change.After["permissions"])
 			for _, permission := range after {
 				if !slices.Contains(before, permission) {
@@ -180,6 +187,7 @@ func (d Desk) structureReach(ctx context.Context, actor appshared.ActorContext, 
 	answer, err := d.Catalogue.Invoke(ctx, "PreviewContainerStructure", actor, in)
 	if err != nil {
 		if withheld(err) {
+			p.Reach = append(p.Reach, reach{Path: sectionStructure, Withheld: true})
 			return nil
 		}
 		p.Refusals = append(p.Refusals, fieldsOf(err, sectionStructure)...)
@@ -237,6 +245,9 @@ func ReachOutput(rows []reach) []usecase.Output {
 		if r.Hides {
 			row["hidden_entries"] = r.HiddenEntries
 			row["hidden_values"] = r.HiddenValues
+		}
+		if r.Withheld {
+			row["withheld"] = true
 		}
 		if r.Gained != nil || r.Lost != nil {
 			row["accounts"] = r.Accounts
