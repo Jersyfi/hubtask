@@ -148,7 +148,8 @@ most 2000 (`query.workspace_too_large`), and binds the readable ones as one arra
 narrowing is inside the statement; an entry shared with the actor alone counts only where its
 collection is readable. A saved view may store `aggregate` (and then `scope_workspace: true`
 instead of an anchor); `POST /views/{viewId}:aggregate` runs it under the caller's authorisation,
-and a view without one is refused (`views.aggregate_missing`). It answers at most 5000 rows of
+and a view without one is refused (`views.aggregate_missing`); a workspace-scoped summary view has
+no rows, and its `:export` is refused (`views.summary_not_exportable`). It answers at most 5000 rows of
 `group`, `period`, `count` and `value` (a decimal string, so money keeps its digits), in the
 group's order and then the period's, and `truncated`. A field hidden from the reader is refused as
 in a filter. The function and the period are closed vocabulary like the operators; the time zone

@@ -221,6 +221,15 @@ func (h ExportView) rows(
 func (h ExportView) walk(
 	ctx context.Context, actor appshared.ActorContext, saved view.SavedView,
 ) ([]domain.WorkItem, bool, error) {
+	// A summary over the whole workspace has no rows to export: refused by name here, since the
+	// row query below would answer query.scope_required for a field the caller never sent.
+	if workspace, _ := saved.Query["scope_workspace"].(bool); workspace {
+		return nil, false, shared.ErrValidation.
+			WithDetail("views.summary_not_exportable").
+			WithFields(shared.FieldError{
+				Path: "/query/scope_workspace", Code: "views.summary_not_exportable",
+			})
+	}
 	spec, err := specOf(usecase.Input(saved.Query))
 	if err != nil {
 		// A stored query that no longer parses is a broken bookmark. It answers the grammar's own
