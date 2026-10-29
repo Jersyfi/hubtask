@@ -9568,7 +9568,9 @@ paths:
         does not allow underneath is refused. A type that would not carry a value the entry holds -
         a completion on a record, a due date on a type that is not scheduled - is refused with
         `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost
-        without the caller seeing it first.
+        without the caller seeing it first. Asked again with `drop_values: true`, the change clears
+        a due date and a series it named; a completion is never dropped
+        (`entry_types.value_not_droppable`), the entry is reopened first.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
       requestBody:
@@ -9580,6 +9582,9 @@ paths:
               required: [entry_type]
               properties:
                 entry_type: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
+                drop_values:
+                  type: boolean
+                  description: Confirms the values the refusal named; they are cleared with the change.
       responses:
         "200":
           description: The entry with its new type

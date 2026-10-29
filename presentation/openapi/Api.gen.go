@@ -16465,7 +16465,9 @@ type SetDueDateParams struct {
 
 // SetItemEntryTypeJSONBody defines parameters for SetItemEntryType.
 type SetItemEntryTypeJSONBody struct {
-	EntryType string `json:"entry_type"`
+	// DropValues Confirms the values the refusal named; they are cleared with the change.
+	DropValues *bool  `json:"drop_values,omitempty"`
+	EntryType  string `json:"entry_type"`
 }
 
 // SetItemEntryTypeParams defines parameters for SetItemEntryType.

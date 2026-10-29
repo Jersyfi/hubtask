@@ -16471,7 +16471,9 @@ type SetDueDateParams struct {
 
 // SetItemEntryTypeJSONBody defines parameters for SetItemEntryType.
 type SetItemEntryTypeJSONBody struct {
-	EntryType string `json:"entry_type"`
+	// DropValues Confirms the values the refusal named; they are cleared with the change.
+	DropValues *bool  `json:"drop_values,omitempty"`
+	EntryType  string `json:"entry_type"`
 }
 
 // SetItemEntryTypeParams defines parameters for SetItemEntryType.
@@ -21636,7 +21638,7 @@ type ClientInterface interface {
 
 	// SetItemEntryTypeWithBody Change an entry's type
 	//
-	// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first.
+	// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first. Asked again with `drop_values: true`, the change clears a due date and a series it named; a completion is never dropped (`entry_types.value_not_droppable`), the entry is reopened first.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -21645,7 +21647,7 @@ type ClientInterface interface {
 
 	// SetItemEntryType Change an entry's type
 	//
-	// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first.
+	// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first. Asked again with `drop_values: true`, the change clears a due date and a series it named; a completion is never dropped (`entry_types.value_not_droppable`), the entry is reopened first.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -31897,7 +31899,7 @@ func (c *Client) SetDueDate(ctx context.Context, itemId ItemId, params *SetDueDa
 
 // SetItemEntryTypeWithBody Change an entry's type
 //
-// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first.
+// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first. Asked again with `drop_values: true`, the change clears a due date and a series it named; a completion is never dropped (`entry_types.value_not_droppable`), the entry is reopened first.
 //
 // Takes any type of body and a specified content type.
 //
@@ -31916,7 +31918,7 @@ func (c *Client) SetItemEntryTypeWithBody(ctx context.Context, itemId ItemId, pa
 
 // SetItemEntryType Change an entry's type
 //
-// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first.
+// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first. Asked again with `drop_values: true`, the change clears a due date and a series it named; a completion is never dropped (`entry_types.value_not_droppable`), the entry is reopened first.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -62220,7 +62222,7 @@ type ClientWithResponsesInterface interface {
 
 	// SetItemEntryTypeWithBodyWithResponse Change an entry's type
 	//
-	// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first.
+	// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first. Asked again with `drop_values: true`, the change clears a due date and a series it named; a completion is never dropped (`entry_types.value_not_droppable`), the entry is reopened first.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -62229,7 +62231,7 @@ type ClientWithResponsesInterface interface {
 
 	// SetItemEntryTypeWithResponse Change an entry's type
 	//
-	// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first.
+	// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first. Asked again with `drop_values: true`, the change clears a due date and a series it named; a completion is never dropped (`entry_types.value_not_droppable`), the entry is reopened first.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -93317,7 +93319,7 @@ func (c *ClientWithResponses) SetDueDateWithResponse(ctx context.Context, itemId
 
 // SetItemEntryTypeWithBodyWithResponse Change an entry's type
 //
-// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first.
+// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first. Asked again with `drop_values: true`, the change clears a due date and a series it named; a completion is never dropped (`entry_types.value_not_droppable`), the entry is reopened first.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -93332,7 +93334,7 @@ func (c *ClientWithResponses) SetItemEntryTypeWithBodyWithResponse(ctx context.C
 
 // SetItemEntryTypeWithResponse Change an entry's type
 //
-// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first.
+// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first. Asked again with `drop_values: true`, the change clears a due date and a series it named; a completion is never dropped (`entry_types.value_not_droppable`), the entry is reopened first.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
