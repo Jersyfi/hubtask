@@ -197,6 +197,49 @@ test('SET_ADD, SET_REMOVE, ITEM_DELETE, COMMENT_ADD', async () => {
   );
 });
 
+test('ENTITY_*: the vocabulary written offline, a versioned change against the version the copy holds', async () => {
+  const storage = await workspace();
+  await storage.put('entry_types', 't-1', { ...record({ id: 't-1', key: 'bug', name: 'Bug', level: 'TASK' }), version: 4 });
+  await storage.put('custom_roles', 'r-1', { ...record({ id: 'r-1', key: 'auditor', name: 'Auditor' }), version: 2 });
+  const h = helpers(storage);
+  const minted = '0192f000-0000-7000-8000-00000000f00d';
+  assert.deepEqual(
+    await mutationFor('POST', '/entry-types', { key: 'risk', name: 'Risk', level: 'TASK' }, h),
+    { kind: 'ENTITY_UPSERT', entity: 'entry_type', entityKey: 'risk', itemId: minted, payload: { key: 'risk', name: 'Risk', level: 'TASK' } },
+  );
+  assert.deepEqual(
+    await mutationFor('PATCH', '/entry-types/bug', { name: 'Defect' }, h),
+    { kind: 'ENTITY_PATCH', entity: 'entry_type', entityKey: 'bug', itemId: 't-1', baseVersion: 4, payload: { name: 'Defect' } },
+  );
+  assert.deepEqual(await mutationFor('DELETE', '/entry-types/bug', undefined, h), { kind: 'ENTITY_DELETE', entity: 'entry_type', entityKey: 'bug', itemId: 't-1' });
+  assert.deepEqual(
+    await mutationFor('PATCH', '/roles/auditor', { name: 'Auditors', permissions: ['READ'] }, h),
+    { kind: 'ENTITY_PATCH', entity: 'custom_role', entityKey: 'auditor', itemId: 'r-1', baseVersion: 2, payload: { name: 'Auditors', permissions: ['READ'] } },
+  );
+  assert.equal((await mutationFor('POST', '/workflows', { key: 'triage', name: 'Triage', shape: {} }, h))?.entity, 'workflow');
+  assert.equal((await mutationFor('POST', '/link-types', { key: 'relates', name: 'Relates' }, h))?.entity, 'link_type');
+  assert.deepEqual(
+    await mutationFor('POST', '/items/i-1/links', { target_id: 'i-2', type: 'blocks' }, h),
+    { kind: 'ENTITY_UPSERT', entity: 'entry_link', entityKey: minted, itemId: minted, payload: { target_id: 'i-2', type: 'blocks', item_id: 'i-1' } },
+  );
+  assert.deepEqual(await mutationFor('DELETE', '/links/k-1', undefined, h), { kind: 'ENTITY_DELETE', entity: 'entry_link', entityKey: 'k-1', itemId: 'k-1' });
+  // A change of an entity the copy does not hold names no version: it goes directly.
+  assert.equal(await mutationFor('PATCH', '/entry-types/unknown', { name: 'x' }, h), undefined);
+});
+
+test('the vocabulary the copy answers: types by level, position and key, link types by position', async () => {
+  const storage = await workspace();
+  await storage.put('entry_types', 't-2', record({ id: 't-2', key: 'step', level: 'ACTIVITY', position: 0 }));
+  await storage.put('entry_types', 't-1', record({ id: 't-1', key: 'bug', level: 'TASK', position: 1 }));
+  await storage.put('entry_types', 't-0', record({ id: 't-0', key: 'task', level: 'TASK', position: 0 }));
+  await storage.put('link_types', 'l-2', record({ id: 'l-2', key: 'relates', position: 2 }));
+  await storage.put('link_types', 'l-1', record({ id: 'l-1', key: 'blocks', position: 1 }));
+  const types = await storeFor({ path: '/entry-types' }, storage) as { data: { key: string }[] };
+  assert.deepEqual(types.data.map((row) => row.key), ['task', 'bug', 'step']);
+  const links = await storeFor({ path: '/link-types' }, storage) as { data: { key: string }[] };
+  assert.deepEqual(links.data.map((row) => row.key), ['blocks', 'relates']);
+});
+
 test('the writes the queue does not carry, and why', async () => {
   const storage = await workspace();
   const h = helpers(storage);
@@ -215,6 +258,11 @@ test('the writes the queue does not carry, and why', async () => {
     ['PATCH', '/items/i-1/comments/k-1', 'editing a comment has no mutation kind; only adding one does'],
     ['POST', '/memberships', 'administration (§1\'s right column)'],
     ['POST', '/backups:run', 'administration'],
+    ['POST', '/workflows/triage:publish', 'publishing moves entries and is decided online (§4.4)'],
+    ['PUT', '/workflow-scheme', 'the scheme is read and written online'],
+    ['PUT', '/entry-types/bug/form', 'a type\'s form has no entity mutation'],
+    ['POST', '/role-grants', 'a grant is who holds what - a permission (§4.3)'],
+    ['POST', '/custom-fields', 'a field\'s definition is not in the replica'],
   ] as const) {
     assert.equal(await mutationFor(method, path, {}, h), undefined, `${method} ${path}: ${why}`);
   }

@@ -243,6 +243,13 @@ the use case's own guards (a type in use, a system type) decide. A workflow is w
 draft; publishing it moves entries and stays online, as does the scheme. Custom field definitions,
 grants of a role, the configuration document and settings are not in the replica and have no entity
 mutation; they are written online.
+
+A client queues them like an entry's: the web app maps a type's, link type's, workflow's or role's
+creation, change and deletion and a link drawn or removed to the entity mutation
+(`apps/webapp/src/lib/data/replica.ts`, `vocabularyOf`), a change carrying the version its copy holds
+as `base_version`, and answers the type and link type lists from the replica while offline. A
+creation is predicted under an identifier the device mints; the server's answer names the entity's
+own and replaces the prediction. A change of an entity the copy does not hold goes online.
 ---
 
 ## 5. Conflicts are visible, not silent

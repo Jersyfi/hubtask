@@ -27,7 +27,7 @@
  * that without knowing the language. A board grouped by bucket is the same question in columns.
  */
 
-import { orderKeyBetween, type QueuedWrite, type ResourceRequest, type Storage, type StoredRecord } from '@hubtask/sync-engine';
+import { orderKeyBetween, type QueuedWrite, type ResourceRequest, type Storage, type StoredRecord, type VocabularyEntity } from '@hubtask/sync-engine';
 
 type Document = Record<string, unknown>;
 
@@ -344,6 +344,21 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
     return (await documents(storage, 'recurrence_rule')).find((row) => row.item_id === itemId);
   }
 
+  if (pathname === '/entry-types') {
+    // The server's order: by level as the levels run, then position, then key.
+    const levels = ['TASK', 'WORK_PACKAGE', 'ACTIVITY'];
+    const rank = (row: Document) => levels.indexOf(String(row.level));
+    const rows = (await documents(storage, 'entry_types')).sort((a, b) =>
+      rank(a) - rank(b) || Number(a.position ?? 0) - Number(b.position ?? 0) || String(a.key).localeCompare(String(b.key)));
+    return { data: rows };
+  }
+
+  if (pathname === '/link-types') {
+    const rows = (await documents(storage, 'link_types')).sort((a, b) =>
+      Number(a.position ?? 0) - Number(b.position ?? 0) || String(a.key).localeCompare(String(b.key)));
+    return { data: rows };
+  }
+
   if (pathname === '/templates') {
     // The container's own, and the ones above it: its hub's, and the workspace's. The tree is
     // the containers', walked up by parent_id.
@@ -386,6 +401,9 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
  * - a label, a member or an attachment put or deleted is a `SET_ADD` or `SET_REMOVE`.
  * - `DELETE /items/{id}` is an `ITEM_DELETE`; `POST /items/{id}/comments` a `COMMENT_ADD` with a
  *   comment identifier the client mints.
+ *
+ * - an entry type, a link type, a workflow's draft or a custom role created, changed or deleted,
+ *   and a link drawn or removed, are `ENTITY_*` mutations (§4.4, `vocabularyOf`).
  *
  * Everything else answers `undefined`, and the test says which and why: archiving and restoring
  * change lifecycle the server owns; the cover, a bulk and a duplicate have no mutation kind;
@@ -464,7 +482,65 @@ export async function mutationFor(
     return { kind: 'COMMENT_ADD', itemId: match[1], payload: { ...fields, id: helpers.mintId() } };
   }
 
-  return undefined;
+  return vocabularyOf(method, pathname, fields, helpers);
+}
+
+/** The vocabulary's paths, each the entity its change log names (offline-sync.md §4.4). */
+const VOCABULARY: Readonly<Record<string, { entity: VocabularyEntity; collection: string }>> = {
+  'entry-types': { entity: 'entry_type', collection: 'entry_types' },
+  'link-types': { entity: 'link_type', collection: 'link_types' },
+  workflows: { entity: 'workflow', collection: 'workflows' },
+  roles: { entity: 'custom_role', collection: 'custom_roles' },
+};
+
+/**
+ * A write of the workspace's vocabulary as an `ENTITY_*` mutation: a type, a link type, a
+ * workflow's draft or a custom role created, changed or deleted, and a link drawn or removed.
+ * A versioned entity carries the version the copy holds as `base_version`, so a change made
+ * against an older one is refused by the server rather than laid over a newer one. Publishing a
+ * workflow, its scheme, a type's form and a role's grants stay online: §4.4 gives them no entity.
+ */
+async function vocabularyOf(
+  method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  pathname: string,
+  fields: Record<string, unknown>,
+  helpers: { readonly storage: Storage; readonly mintId: () => string },
+): Promise<QueuedWrite | undefined> {
+  let match = /^\/items\/([^/:]+)\/links$/.exec(pathname);
+  if (match?.[1] && method === 'POST') {
+    const id = helpers.mintId();
+    return {
+      kind: 'ENTITY_UPSERT', entity: 'entry_link', entityKey: id, itemId: id,
+      payload: { ...fields, item_id: match[1] },
+    };
+  }
+  match = /^\/links\/([^/:]+)$/.exec(pathname);
+  if (match?.[1] && method === 'DELETE') {
+    return { kind: 'ENTITY_DELETE', entity: 'entry_link', entityKey: match[1], itemId: match[1] };
+  }
+
+  match = /^\/(entry-types|link-types|workflows|roles)(?:\/([^/:]+))?$/.exec(pathname);
+  const vocabulary = match?.[1] ? VOCABULARY[match[1]] : undefined;
+  if (!match || !vocabulary) return undefined;
+  const key = match[2] === undefined ? (typeof fields.key === 'string' ? fields.key : undefined) : decodeURIComponent(match[2]);
+  if (!key) return undefined;
+  if (match[2] === undefined && method !== 'POST') return undefined;
+  if (match[2] !== undefined && method !== 'PATCH' && method !== 'DELETE') return undefined;
+
+  const held = (await helpers.storage.all<StoredRecord<Document>>(vocabulary.collection))
+    .find((record) => record.document.key === key && !record.tombstone);
+  if (method === 'DELETE') {
+    return held ? { kind: 'ENTITY_DELETE', entity: vocabulary.entity, entityKey: key, itemId: held.id } : undefined;
+  }
+  if (method === 'POST') {
+    return { kind: 'ENTITY_UPSERT', entity: vocabulary.entity, entityKey: key, itemId: held?.id ?? helpers.mintId(), payload: fields };
+  }
+  // A change of an entity the copy does not hold names no version to be decided against.
+  if (!held) return undefined;
+  return {
+    kind: 'ENTITY_PATCH', entity: vocabulary.entity, entityKey: key, itemId: held.id,
+    baseVersion: held.version, payload: fields,
+  };
 }
 
 /**
