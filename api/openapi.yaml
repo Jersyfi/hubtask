@@ -71,6 +71,8 @@ paths:
     get:
       tags: [templates]
       operationId: listTemplates
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: templateResponse
       description: >
         The templates the caller may use, newest first. Naming a container answers the ones defined
         along that container's path - the collection's, its hub's and the workspace-wide ones -
@@ -96,6 +98,8 @@ paths:
     post:
       tags: [templates]
       operationId: createTemplate
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: templateResponse
       description: >
         Defines a template: a name, a scope, and the tree it stamps out. The tree is validated here
         rather than at instantiation - a template that cannot produce anything is one nobody can
@@ -133,6 +137,8 @@ paths:
     get:
       tags: [templates]
       operationId: getTemplate
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: templateResponse
       responses:
         "200":
           description: The template
@@ -148,6 +154,8 @@ paths:
     patch:
       tags: [templates]
       operationId: updateTemplate
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: templateResponse
       description: >
         Changes a template. A merge patch: a member that is not sent is not touched. The node tree
         is one member and travels whole - a tree is a shape rather than a list of settings, and
@@ -175,6 +183,7 @@ paths:
     delete:
       tags: [templates]
       operationId: deleteTemplate
+      x-hubtask-rest: generated
       description: >
         Removes a template for good. The trees it has already stamped out are ordinary entries and
         outlive it, and a template defined later under the same name is a new template rather than
@@ -194,6 +203,8 @@ paths:
     post:
       tags: [templates]
       operationId: instantiateTemplate
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: templateInstanceResponse
       description: >
         Stamps the template out into a collection: an entry tree whose relative dates have become
         absolute ones, anchored either at a date the request names or at the moment of the call.
@@ -2139,6 +2150,8 @@ paths:
     get:
       tags: [calendar]
       operationId: listCalendarFeeds
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: calendarFeedResponse
       description: >
         The caller's own calendar feeds, newest first - never anybody else's, whatever the role: a
         feed is a credential its owner holds, and an administrator who could list them could
@@ -2193,6 +2206,7 @@ paths:
     delete:
       tags: [calendar]
       operationId: revokeCalendarFeed
+      x-hubtask-rest: generated
       description: >
         Revokes the feed. The row stays with the moment it was revoked - which is what makes
         "this token was revoked on Tuesday" answerable - and every fetch from that moment on is a

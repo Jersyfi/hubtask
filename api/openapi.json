@@ -122,6 +122,8 @@
           "templates"
         ],
         "operationId": "listTemplates",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "templateResponse",
         "description": "The templates the caller may use, newest first. Naming a container answers the ones defined along that container's path - the collection's, its hub's and the workspace-wide ones - because that is the set a person picking a template in a collection can choose from. Naming none answers the workspace-wide ones alone.\n",
         "parameters": [
           {
@@ -162,6 +164,8 @@
           "templates"
         ],
         "operationId": "createTemplate",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "templateResponse",
         "description": "Defines a template: a name, a scope, and the tree it stamps out. The tree is validated here rather than at instantiation - a template that cannot produce anything is one nobody can fix from a failed instantiation - so the types have to be permitted under one another by this installation's capability profiles, and the tree has to stay inside the node cap in /meta/capabilities.\nA node's due date is relative: an ISO-8601 duration from the anchor of the instantiation, such as P3D for \"three days in\". Absolute dates are deliberately not stored: a template outlives the week it was written in.\n",
         "parameters": [
           {
@@ -213,6 +217,8 @@
           "templates"
         ],
         "operationId": "getTemplate",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "templateResponse",
         "responses": {
           "200": {
             "description": "The template",
@@ -241,6 +247,8 @@
           "templates"
         ],
         "operationId": "updateTemplate",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "templateResponse",
         "description": "Changes a template. A merge patch: a member that is not sent is not touched. The node tree is one member and travels whole - a tree is a shape rather than a list of settings, and half of one is a different shape.\n",
         "parameters": [
           {
@@ -285,6 +293,7 @@
           "templates"
         ],
         "operationId": "deleteTemplate",
+        "x-hubtask-rest": "generated",
         "description": "Removes a template for good. The trees it has already stamped out are ordinary entries and outlive it, and a template defined later under the same name is a new template rather than the old one coming back. While a legal hold covers the template's scope it is kept, unreadable, until the hold is released.\n",
         "parameters": [
           {
@@ -312,6 +321,8 @@
           "templates"
         ],
         "operationId": "instantiateTemplate",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "templateInstanceResponse",
         "description": "Stamps the template out into a collection: an entry tree whose relative dates have become absolute ones, anchored either at a date the request names or at the moment of the call. The anchor is a date rather than an instant - \"+3 days for a project starting Monday\" is about days - and it is read in the caller's own time zone.\nWhat the target collection cannot carry is reported rather than dropped silently: an assignee who cannot see it, a label it does not have. Idempotent under its Idempotency-Key.\n",
         "parameters": [
           {
@@ -2888,6 +2899,8 @@
           "calendar"
         ],
         "operationId": "listCalendarFeeds",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "calendarFeedResponse",
         "description": "The caller's own calendar feeds, newest first - never anybody else's, whatever the role: a feed is a credential its owner holds, and an administrator who could list them could subscribe to them.\nThe token is not among the fields. It is shown once, when the feed is created, and stored only as its hash; a feed whose token was lost is revoked and made again.\n",
         "responses": {
           "200": {
@@ -2957,6 +2970,7 @@
           "calendar"
         ],
         "operationId": "revokeCalendarFeed",
+        "x-hubtask-rest": "generated",
         "description": "Revokes the feed. The row stays with the moment it was revoked - which is what makes \"this token was revoked on Tuesday\" answerable - and every fetch from that moment on is a 404 in exactly the words an unknown token produces.\nSomebody else's feed is not found rather than forbidden, for the reason every other read of somebody else's thing is.\n",
         "responses": {
           "204": {

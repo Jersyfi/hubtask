@@ -38,6 +38,7 @@ var restDoors = map[string]restDoor{
 	"createReminder":            {UseCase: "CreateReminder", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createRole":                {UseCase: "CreateRole", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createSavedView":           {UseCase: "CreateSavedView", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/views/{id}", NullClears: false, Integers: []string(nil)},
+	"createTemplate":            {UseCase: "CreateTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createWebhookSubscription": {UseCase: "CreateWebhookSubscription", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "/integrations/webhooks/{id}", NullClears: false, Integers: []string(nil)},
 	"createWorkflow":            {UseCase: "CreateWorkflow", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"decideConfigProposal":      {UseCase: "DecideConfigProposal", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -52,6 +53,7 @@ var restDoors = map[string]restDoor{
 	"deleteRole":                {UseCase: "DeleteRole", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteRule":                {UseCase: "DeleteRule", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteSavedView":           {UseCase: "DeleteSavedView", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteTemplate":            {UseCase: "DeleteTemplate", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteWebhookSubscription": {UseCase: "DeleteWebhookSubscription", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteWorkflow":            {UseCase: "DeleteWorkflow", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"detachMedia":               {UseCase: "DetachMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -71,13 +73,16 @@ var restDoors = map[string]restDoor{
 	"getRule":                   {UseCase: "GetRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getRuleRun":                {UseCase: "GetRuleRun", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getSavedView":              {UseCase: "GetSavedView", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getTemplate":               {UseCase: "GetTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getWebhookSubscription":    {UseCase: "GetWebhookSubscription", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"giveKudos":                 {UseCase: "GiveKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"grantRole":                 {UseCase: "GrantRole", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"instantiateTemplate":       {UseCase: "InstantiateTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"linkEntries":               {UseCase: "LinkEntries", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listActivity":              {UseCase: "ListActivity", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listAttachments":           {UseCase: "ListAttachments", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listBuckets":               {UseCase: "ListBuckets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listCalendarFeeds":         {UseCase: "ListCalendarFeeds", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listComments":              {UseCase: "ListComments", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listConfigProposals":       {UseCase: "ListConfigProposals", Status: 200, Query: []string{"state"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listConfigTemplates":       {UseCase: "ListConfigTemplates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -97,6 +102,7 @@ var restDoors = map[string]restDoor{
 	"listRetentionPolicies":     {UseCase: "ListRetentionPolicies", Status: 200, Query: []string{"container_id", "effective"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listRoles":                 {UseCase: "ListRoles", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listSavedViews":            {UseCase: "ListSavedViews", Status: 200, Query: []string{"container_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listTemplates":             {UseCase: "ListTemplates", Status: 200, Query: []string{"container_id", "cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listTrash":                 {UseCase: "ListTrash", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listWebhookDeliveries":     {UseCase: "ListWebhookDeliveries", Status: 200, Query: []string{"cursor", "size", "status"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listWebhookSubscriptions":  {UseCase: "ListWebhookSubscriptions", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -136,6 +142,7 @@ var restDoors = map[string]restDoor{
 	"restoreLabel":              {UseCase: "RestoreLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"restoreWorkItem":           {UseCase: "RestoreWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"resumeTenant":              {UseCase: "ResumeTenant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"revokeCalendarFeed":        {UseCase: "RevokeCalendarFeed", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"revokeRoleGrant":           {UseCase: "RevokeRoleGrant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"rotateWebhookSecret":       {UseCase: "RotateWebhookSecret", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"grace_seconds"}},
 	"saveWorkflowDraft":         {UseCase: "SaveWorkflowDraft", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -166,6 +173,7 @@ var restDoors = map[string]restDoor{
 	"updateLabel":               {UseCase: "UpdateLabel", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
 	"updateReminder":            {UseCase: "UpdateReminder", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateSavedView":           {UseCase: "UpdateSavedView", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"updateTemplate":            {UseCase: "UpdateTemplate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateWebhookSubscription": {UseCase: "UpdateWebhookSubscription", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"validateConfig":            {UseCase: "ValidateConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"verifyBackup":              {UseCase: "VerifyBackup", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -319,6 +327,12 @@ func (c *RestController) CreateSavedView(w http.ResponseWriter, r *http.Request,
 	c.door(w, r, restDoors["createSavedView"], usecase.Input{}, params, &body, answerBy(savedViewResponse))
 }
 
+// CreateTemplate answers POST /templates by the generated mapping.
+func (c *RestController) CreateTemplate(w http.ResponseWriter, r *http.Request, params openapi.CreateTemplateParams) {
+	var body openapi.CreateTemplateJSONRequestBody
+	c.door(w, r, restDoors["createTemplate"], usecase.Input{}, params, &body, answerBy(templateResponse))
+}
+
 // CreateWebhookSubscription answers POST /integrations/webhooks by the generated mapping.
 func (c *RestController) CreateWebhookSubscription(w http.ResponseWriter, r *http.Request, params openapi.CreateWebhookSubscriptionParams) {
 	var body openapi.CreateWebhookSubscriptionJSONRequestBody
@@ -394,6 +408,11 @@ func (c *RestController) DeleteRule(w http.ResponseWriter, r *http.Request, rule
 // DeleteSavedView answers DELETE /views/{viewId} by the generated mapping.
 func (c *RestController) DeleteSavedView(w http.ResponseWriter, r *http.Request, viewId openapi.ViewId, params openapi.DeleteSavedViewParams) {
 	c.door(w, r, restDoors["deleteSavedView"], usecase.Input{"view_id": viewId.String()}, params, nil, nil)
+}
+
+// DeleteTemplate answers DELETE /templates/{templateId} by the generated mapping.
+func (c *RestController) DeleteTemplate(w http.ResponseWriter, r *http.Request, templateId openapi.TemplateId, params openapi.DeleteTemplateParams) {
+	c.door(w, r, restDoors["deleteTemplate"], usecase.Input{"template_id": templateId.String()}, params, nil, nil)
 }
 
 // DeleteWebhookSubscription answers DELETE /integrations/webhooks/{webhookId} by the generated mapping.
@@ -497,6 +516,11 @@ func (c *RestController) GetSavedView(w http.ResponseWriter, r *http.Request, vi
 	c.door(w, r, restDoors["getSavedView"], usecase.Input{"view_id": viewId.String()}, nil, nil, answerBy(savedViewResponse))
 }
 
+// GetTemplate answers GET /templates/{templateId} by the generated mapping.
+func (c *RestController) GetTemplate(w http.ResponseWriter, r *http.Request, templateId openapi.TemplateId) {
+	c.door(w, r, restDoors["getTemplate"], usecase.Input{"template_id": templateId.String()}, nil, nil, answerBy(templateResponse))
+}
+
 // GetWebhookSubscription answers GET /integrations/webhooks/{webhookId} by the generated mapping.
 func (c *RestController) GetWebhookSubscription(w http.ResponseWriter, r *http.Request, webhookId openapi.WebhookId) {
 	c.door(w, r, restDoors["getWebhookSubscription"], usecase.Input{"webhook_id": webhookId.String()}, nil, nil, answerBy(webhookResponse))
@@ -512,6 +536,12 @@ func (c *RestController) GrantRole(w http.ResponseWriter, r *http.Request, param
 	var body openapi.GrantRoleJSONRequestBody
 	var answer openapi.CustomRoleGrant
 	c.door(w, r, restDoors["grantRole"], usecase.Input{}, params, &body, &answer)
+}
+
+// InstantiateTemplate answers POST /templates/{templateId}:instantiate by the generated mapping.
+func (c *RestController) InstantiateTemplate(w http.ResponseWriter, r *http.Request, templateId openapi.TemplateId, params openapi.InstantiateTemplateParams) {
+	var body openapi.InstantiateTemplateJSONRequestBody
+	c.door(w, r, restDoors["instantiateTemplate"], usecase.Input{"template_id": templateId.String()}, params, &body, answerBy(templateInstanceResponse))
 }
 
 // LinkEntries answers POST /items/{itemId}/links by the generated mapping.
@@ -534,6 +564,11 @@ func (c *RestController) ListAttachments(w http.ResponseWriter, r *http.Request,
 // ListBuckets answers GET /containers/{containerId}/buckets by the generated mapping.
 func (c *RestController) ListBuckets(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId) {
 	c.door(w, r, restDoors["listBuckets"], usecase.Input{"collection_id": containerId.String()}, nil, nil, answerRows(bucketResponse))
+}
+
+// ListCalendarFeeds answers GET /integrations/calendar-feeds by the generated mapping.
+func (c *RestController) ListCalendarFeeds(w http.ResponseWriter, r *http.Request) {
+	c.door(w, r, restDoors["listCalendarFeeds"], usecase.Input{}, nil, nil, answerRows(calendarFeedResponse))
 }
 
 // ListComments answers GET /items/{itemId}/comments by the generated mapping.
@@ -640,6 +675,11 @@ func (c *RestController) ListRoles(w http.ResponseWriter, r *http.Request) {
 // ListSavedViews answers GET /views by the generated mapping.
 func (c *RestController) ListSavedViews(w http.ResponseWriter, r *http.Request, params openapi.ListSavedViewsParams) {
 	c.door(w, r, restDoors["listSavedViews"], usecase.Input{}, params, nil, answerRows(savedViewResponse))
+}
+
+// ListTemplates answers GET /templates by the generated mapping.
+func (c *RestController) ListTemplates(w http.ResponseWriter, r *http.Request, params openapi.ListTemplatesParams) {
+	c.door(w, r, restDoors["listTemplates"], usecase.Input{}, params, nil, answerPage(templateResponse))
 }
 
 // ListTrash answers GET /trash by the generated mapping.
@@ -865,6 +905,11 @@ func (c *RestController) ResumeTenant(w http.ResponseWriter, r *http.Request, te
 	c.door(w, r, restDoors["resumeTenant"], usecase.Input{"tenant_id": tenantId.String()}, nil, nil, nil)
 }
 
+// RevokeCalendarFeed answers DELETE /integrations/calendar-feeds/{feedId} by the generated mapping.
+func (c *RestController) RevokeCalendarFeed(w http.ResponseWriter, r *http.Request, feedId openapi.FeedId) {
+	c.door(w, r, restDoors["revokeCalendarFeed"], usecase.Input{"feed_id": feedId.String()}, nil, nil, nil)
+}
+
 // RevokeRoleGrant answers DELETE /role-grants/{grantId} by the generated mapping.
 func (c *RestController) RevokeRoleGrant(w http.ResponseWriter, r *http.Request, grantId openapi_types.UUID) {
 	c.door(w, r, restDoors["revokeRoleGrant"], usecase.Input{"grant_id": grantId.String()}, nil, nil, nil)
@@ -1039,6 +1084,12 @@ func (c *RestController) UpdateReminder(w http.ResponseWriter, r *http.Request, 
 func (c *RestController) UpdateSavedView(w http.ResponseWriter, r *http.Request, viewId openapi.ViewId, params openapi.UpdateSavedViewParams) {
 	var body openapi.UpdateSavedViewApplicationMergePatchPlusJSONRequestBody
 	c.door(w, r, restDoors["updateSavedView"], usecase.Input{"view_id": viewId.String()}, params, &body, answerBy(savedViewResponse))
+}
+
+// UpdateTemplate answers PATCH /templates/{templateId} by the generated mapping.
+func (c *RestController) UpdateTemplate(w http.ResponseWriter, r *http.Request, templateId openapi.TemplateId, params openapi.UpdateTemplateParams) {
+	var body openapi.UpdateTemplateApplicationMergePatchPlusJSONRequestBody
+	c.door(w, r, restDoors["updateTemplate"], usecase.Input{"template_id": templateId.String()}, params, &body, answerBy(templateResponse))
 }
 
 // UpdateWebhookSubscription answers PATCH /integrations/webhooks/{webhookId} by the generated mapping.

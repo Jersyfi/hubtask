@@ -25,33 +25,8 @@ import (
 // therefore a question about this installation rather than about the domain.
 
 const (
-	listCalendarFeedsUseCase  = "ListCalendarFeeds"
 	createCalendarFeedUseCase = "CreateCalendarFeed"
-	revokeCalendarFeedUseCase = "RevokeCalendarFeed"
 )
-
-// ListCalendarFeeds answers GET /integrations/calendar-feeds.
-func (c *RestController) ListCalendarFeeds(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(
-		r.Context(), listCalendarFeedsUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	rows, _ := out["data"].([]usecase.Output)
-	feeds := make([]openapi.CalendarFeed, 0, len(rows))
-	for _, row := range rows {
-		feeds = append(feeds, calendarFeedResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, feeds)
-}
 
 // CreateCalendarFeed answers POST /integrations/calendar-feeds.
 func (c *RestController) CreateCalendarFeed(
@@ -87,24 +62,6 @@ func (c *RestController) CreateCalendarFeed(
 		Token:     token,
 		Url:       c.feedURL(token),
 	})
-}
-
-// RevokeCalendarFeed answers DELETE /integrations/calendar-feeds/{feedId}.
-func (c *RestController) RevokeCalendarFeed(
-	w http.ResponseWriter, r *http.Request, feedID openapi.FeedId,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	if _, err := c.UseCases.Invoke(r.Context(), revokeCalendarFeedUseCase, actorOf(r),
-		usecase.Input{"feed_id": feedID.String()}); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 // feedURL is the address a calendar client is given. Built from the configured base URL rather
