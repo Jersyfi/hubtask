@@ -14577,6 +14577,8 @@
           "items"
         ],
         "operationId": "assignWorkItem",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "workItemResponse",
         "description": "Gives the entry an assignee. Every type carries one, an activity exactly this and no member list. The account has to be able to see the entry - it has to hold a membership somewhere on the path above it - and one that cannot is refused rather than stored, with the same answer for an account of another tenant and one that does not exist. Idempotent: assigning the person who is already assigned succeeds and announces nothing.\n",
         "parameters": [
           {
@@ -14631,6 +14633,8 @@
           "items"
         ],
         "operationId": "unassignWorkItem",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "workItemResponse",
         "description": "Takes the assignee off the entry. Idempotent: an entry nobody is assigned to succeeds and announces nothing.\n",
         "parameters": [
           {
@@ -14675,6 +14679,8 @@
           "items"
         ],
         "operationId": "autoAssignWorkItem",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "workItemResponse",
         "description": "Hands the entry out by the collection's assignment policy - FIXED, RANDOM_MEMBER, RANDOM_GROUP_MEMBER, ROUND_ROBIN or LEAST_LOADED - instead of naming a person. Refused when the collection has no policy configured. Candidates who cannot see the entry are skipped; a policy with nobody eligible leaves the entry as it is and says so in the response's auto_assign object rather than failing. An explicit call uses the policy whether or not it is enabled - enabled decides only whether it applies itself on create.\n",
         "parameters": [
           {
@@ -15894,6 +15900,8 @@
           "items"
         ],
         "operationId": "addLabel",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "itemLabelsResponse",
         "description": "Puts a label on an entry. Idempotent: an entry that already carries it succeeds. The label has to belong to the entry's own collection - a label is a vocabulary one collection agreed on - and the entry's type has to carry the LABELS capability.\n",
         "responses": {
           "200": {
@@ -15916,6 +15924,8 @@
           "items"
         ],
         "operationId": "removeLabel",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "itemLabelsResponse",
         "description": "Takes a label off an entry. Idempotent: an entry that does not carry it succeeds.\n",
         "responses": {
           "200": {
@@ -15948,6 +15958,8 @@
           "items"
         ],
         "operationId": "addMember",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "itemMembersResponse",
         "description": "Puts an account on an entry's member list. Idempotent: an entry that already carries it succeeds. The account has to be able to see the entry - it has to hold a membership somewhere on the path above it - and the entry's type has to carry the MEMBERS capability, which an activity does not: an activity has one assignee and no member list.\n",
         "responses": {
           "200": {
@@ -15970,6 +15982,8 @@
           "items"
         ],
         "operationId": "removeMember",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "itemMembersResponse",
         "description": "Takes an account off an entry's member list. Idempotent: an entry that does not carry it succeeds.\n",
         "responses": {
           "200": {

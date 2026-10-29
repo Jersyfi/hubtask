@@ -11157,6 +11157,8 @@ paths:
     post:
       tags: [items]
       operationId: assignWorkItem
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
       description: >
         Gives the entry an assignee. Every type carries one, an activity exactly this and no member
         list. The account has to be able to see the entry - it has to hold a membership somewhere on
@@ -11191,6 +11193,8 @@ paths:
     post:
       tags: [items]
       operationId: unassignWorkItem
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
       description: >
         Takes the assignee off the entry. Idempotent: an entry nobody is assigned to succeeds and
         announces nothing.
@@ -11216,6 +11220,8 @@ paths:
     post:
       tags: [items]
       operationId: autoAssignWorkItem
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
       description: >
         Hands the entry out by the collection's assignment policy - FIXED, RANDOM_MEMBER,
         RANDOM_GROUP_MEMBER, ROUND_ROBIN or LEAST_LOADED - instead of naming a person. Refused
@@ -12016,6 +12022,8 @@ paths:
     put:
       tags: [items]
       operationId: addLabel
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: itemLabelsResponse
       description: >
         Puts a label on an entry. Idempotent: an entry that already carries it succeeds. The label
         has to belong to the entry's own collection - a label is a vocabulary one collection agreed
@@ -12032,6 +12040,8 @@ paths:
     delete:
       tags: [items]
       operationId: removeLabel
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: itemLabelsResponse
       description: >
         Takes a label off an entry. Idempotent: an entry that does not carry it succeeds.
       responses:
@@ -12051,6 +12061,8 @@ paths:
     put:
       tags: [items]
       operationId: addMember
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: itemMembersResponse
       description: >
         Puts an account on an entry's member list. Idempotent: an entry that already carries it
         succeeds. The account has to be able to see the entry - it has to hold a membership somewhere
@@ -12068,6 +12080,8 @@ paths:
     delete:
       tags: [items]
       operationId: removeMember
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: itemMembersResponse
       description: >
         Takes an account off an entry's member list. Idempotent: an entry that does not carry it
         succeeds.

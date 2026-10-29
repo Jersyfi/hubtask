@@ -13,7 +13,11 @@ import (
 
 // restDoors is every operation answered by the generated mapping, by operationId.
 var restDoors = map[string]restDoor{
+	"addLabel":               {UseCase: "AddLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addMember":              {UseCase: "AddMember", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"applyConfig":            {UseCase: "ApplyConfig", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "base_hash", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
+	"assignWorkItem":         {UseCase: "AssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"autoAssignWorkItem":     {UseCase: "AutoAssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"changeEntryType":        {UseCase: "ChangeEntryType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"changeLinkType":         {UseCase: "ChangeLinkType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"changeRole":             {UseCase: "ChangeRole", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -63,6 +67,8 @@ var restDoors = map[string]restDoor{
 	"readConfigSchema":       {UseCase: "ReadConfigSchema", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readConfigVersion":      {UseCase: "ReadConfigVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readSettingsCatalogue":  {UseCase: "ReadSettingsCatalogue", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"removeLabel":            {UseCase: "RemoveLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"removeMember":           {UseCase: "RemoveMember", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reorderBucket":          {UseCase: "ReorderBucket", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"resolveReferences":      {UseCase: "ResolveReferences", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"restoreLabel":           {UseCase: "RestoreLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -76,6 +82,7 @@ var restDoors = map[string]restDoor{
 	"setWorkflowScheme":      {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"takeStep":               {UseCase: "TakeStep", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"tryWorkflowStep":        {UseCase: "TryWorkflowStep", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"unassignWorkItem":       {UseCase: "UnassignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unlinkEntries":          {UseCase: "UnlinkEntries", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateCustomField":      {UseCase: "UpdateCustomField", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateLabel":            {UseCase: "UpdateLabel", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
@@ -83,11 +90,32 @@ var restDoors = map[string]restDoor{
 	"writeConfigSandbox":     {UseCase: "WriteConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 }
 
+// AddLabel answers PUT /items/{itemId}/labels/{labelId} by the generated mapping.
+func (c *RestController) AddLabel(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, labelId openapi.LabelId) {
+	c.door(w, r, restDoors["addLabel"], usecase.Input{"item_id": itemId.String(), "label_id": labelId.String()}, nil, nil, answerBy(itemLabelsResponse))
+}
+
+// AddMember answers PUT /items/{itemId}/members/{accountId} by the generated mapping.
+func (c *RestController) AddMember(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, accountId openapi.AccountId) {
+	c.door(w, r, restDoors["addMember"], usecase.Input{"item_id": itemId.String(), "account_id": accountId.String()}, nil, nil, answerBy(itemMembersResponse))
+}
+
 // ApplyConfig answers POST /config:apply by the generated mapping.
 func (c *RestController) ApplyConfig(w http.ResponseWriter, r *http.Request, params openapi.ApplyConfigParams) {
 	var body openapi.ApplyConfigJSONRequestBody
 	var answer openapi.ConfigApplyResult
 	c.door(w, r, restDoors["applyConfig"], usecase.Input{}, params, &body, &answer)
+}
+
+// AssignWorkItem answers POST /items/{itemId}:assign by the generated mapping.
+func (c *RestController) AssignWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.AssignWorkItemParams) {
+	var body openapi.AssignWorkItemJSONRequestBody
+	c.door(w, r, restDoors["assignWorkItem"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(workItemResponse))
+}
+
+// AutoAssignWorkItem answers POST /items/{itemId}:auto-assign by the generated mapping.
+func (c *RestController) AutoAssignWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.AutoAssignWorkItemParams) {
+	c.door(w, r, restDoors["autoAssignWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
 }
 
 // ChangeEntryType answers PATCH /entry-types/{key} by the generated mapping.
@@ -394,6 +422,16 @@ func (c *RestController) ReadSettingsCatalogue(w http.ResponseWriter, r *http.Re
 	c.door(w, r, restDoors["readSettingsCatalogue"], usecase.Input{}, nil, nil, &answer)
 }
 
+// RemoveLabel answers DELETE /items/{itemId}/labels/{labelId} by the generated mapping.
+func (c *RestController) RemoveLabel(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, labelId openapi.LabelId) {
+	c.door(w, r, restDoors["removeLabel"], usecase.Input{"item_id": itemId.String(), "label_id": labelId.String()}, nil, nil, answerBy(itemLabelsResponse))
+}
+
+// RemoveMember answers DELETE /items/{itemId}/members/{accountId} by the generated mapping.
+func (c *RestController) RemoveMember(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, accountId openapi.AccountId) {
+	c.door(w, r, restDoors["removeMember"], usecase.Input{"item_id": itemId.String(), "account_id": accountId.String()}, nil, nil, answerBy(itemMembersResponse))
+}
+
 // ReorderBucket answers POST /containers/{containerId}/buckets/{bucketId}:reorder by the generated mapping.
 func (c *RestController) ReorderBucket(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId, bucketId openapi.BucketId, params openapi.ReorderBucketParams) {
 	var body openapi.ReorderBucketJSONRequestBody
@@ -474,6 +512,11 @@ func (c *RestController) TryWorkflowStep(w http.ResponseWriter, r *http.Request,
 	var body openapi.TryWorkflowStepJSONRequestBody
 	var answer openapi.StepVerdict
 	c.door(w, r, restDoors["tryWorkflowStep"], usecase.Input{"key": key, "step": step}, nil, &body, &answer)
+}
+
+// UnassignWorkItem answers POST /items/{itemId}:unassign by the generated mapping.
+func (c *RestController) UnassignWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.UnassignWorkItemParams) {
+	c.door(w, r, restDoors["unassignWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
 }
 
 // UnlinkEntries answers DELETE /links/{linkId} by the generated mapping.
