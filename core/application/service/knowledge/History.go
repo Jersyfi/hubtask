@@ -253,6 +253,9 @@ func (h RestorePageVersion) Execute(
 		if err := h.Space.Pages.InsertVersion(ctx, restored); err != nil {
 			return err
 		}
+		if err := h.Space.announce(ctx, actor, next); err != nil {
+			return err
+		}
 		return h.Space.record(ctx, actor, PageVersionBackAction, pageTarget, current.ID, []audit.Change{
 			{Field: "seq", Classification: audit.Open, To: seq},
 		}, now)

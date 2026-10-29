@@ -178,10 +178,15 @@ func (s *store) LastOrderKey(_ context.Context, hubID, parentID shared.ID) (stri
 	return last, nil
 }
 func (s *store) Trash(_ context.Context, id, _ shared.ID, at time.Time) (int, error) {
-	page := s.pages[id]
-	page.DeletedAt = &at
-	s.pages[id] = page
-	return 1, nil
+	count := 0
+	for key, page := range s.pages {
+		if key == id || page.ParentID == id {
+			page.DeletedAt = &at
+			s.pages[key] = page
+			count++
+		}
+	}
+	return count, nil
 }
 func (s *store) Restore(_ context.Context, id, _ shared.ID, _, _ time.Time) (int, error) {
 	page := s.pages[id]

@@ -1802,7 +1802,7 @@ func run() error {
 	pageSpace := knowledgeservice.Space{
 		Pages: postgres.NewPageRepository(), Containers: containers, Entries: entryLinks,
 		Authorizer: authorizer, Reader: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, Text: forms, Reviews: reviewClocks,
+		Clock: clockadapter.System{}, IDs: ids, Text: forms, Reviews: reviewClocks, Changes: changes, HLC: hybrid,
 	}
 	useCases, err := usecase.NewRegistry(
 		settingservice.ModuleGate{Modules: modules}.Wrap(entitlementGate.Wrap(observer.Registry())),

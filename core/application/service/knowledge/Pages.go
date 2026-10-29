@@ -125,6 +125,9 @@ func (h CreatePage) Execute(ctx context.Context, actor appshared.ActorContext, c
 		if err := h.Space.snapshot(ctx, page, actor.AccountID, now); err != nil {
 			return err
 		}
+		if err := h.Space.announce(ctx, actor, page); err != nil {
+			return err
+		}
 		return h.Space.record(ctx, actor, PageCreatedAction, pageTarget, page.ID,
 			changed([]string{domain.FieldTitle, domain.FieldBody}, page), now)
 	})
@@ -352,6 +355,9 @@ func (h UpdatePage) Execute(ctx context.Context, actor appshared.ActorContext, c
 				return err
 			}
 		}
+		if err := h.Space.announce(ctx, actor, next); err != nil {
+			return err
+		}
 		return h.Space.record(ctx, actor, PageChangedAction, pageTarget, next.ID, changed(fields, next), now)
 	})
 	return page, err
@@ -459,6 +465,9 @@ func (h MovePage) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 		}
 		next.Version = current.Version + 1
 		page = next
+		if err := h.Space.announce(ctx, actor, next); err != nil {
+			return err
+		}
 		return h.Space.record(ctx, actor, PageMovedAction, pageTarget, next.ID, []audit.Change{
 			{Field: "parent_id", Classification: audit.Open, From: idOrNil(current.ParentID), To: idOrNil(next.ParentID)},
 		}, now)
@@ -549,6 +558,9 @@ func (h TrashPage) Execute(ctx context.Context, actor appshared.ActorContext, id
 		if count, err = h.Space.Pages.Trash(ctx, id, actor.AccountID, now); err != nil {
 			return err
 		}
+		if err := h.Space.announceSubtree(ctx, actor, id, true); err != nil {
+			return err
+		}
 		return h.Space.record(ctx, actor, PageTrashedAction, pageTarget, id, []audit.Change{
 			{Field: "pages", Classification: audit.Open, To: count},
 		}, now)
@@ -621,6 +633,9 @@ func (h RestorePage) Execute(ctx context.Context, actor appshared.ActorContext, 
 			return err
 		}
 		if page, err = h.Space.Pages.Find(ctx, trashed.ID); err != nil {
+			return err
+		}
+		if err := h.Space.announceSubtree(ctx, actor, page.ID, false); err != nil {
 			return err
 		}
 		return h.Space.record(ctx, actor, PageRestoredAction, pageTarget, page.ID, []audit.Change{
@@ -747,6 +762,9 @@ func (h VerifyPage) Execute(ctx context.Context, actor appshared.ActorContext, c
 		next.Version = current.Version + 1
 		page = next
 		if err := armReview(ctx, h.Space.Reviews, actor.TenantID, next, now); err != nil {
+			return err
+		}
+		if err := h.Space.announce(ctx, actor, next); err != nil {
 			return err
 		}
 		return h.Space.record(ctx, actor, PageVerifiedAction, pageTarget, next.ID, []audit.Change{

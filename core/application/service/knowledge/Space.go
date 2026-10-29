@@ -15,6 +15,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
+	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -93,6 +94,41 @@ type Space struct {
 	Text       text.Normalizer
 	// Reviews arms the clock of a page's review when it is verified; nil arms none.
 	Reviews ReviewTimers
+	// Changes and HLC tell offline devices of a page written, moved, trashed or restored, so that
+	// it can be read without the server. A nil Changes records nothing, a test's convenience.
+	Changes changelog.ChangeLog
+	HLC     clock.HLCSource
+}
+
+// announce records each page as it now stands, body included, filed under its hub.
+func (s Space) announce(ctx context.Context, actor appshared.ActorContext, pages ...domain.Page) error {
+	if s.Changes == nil {
+		return nil
+	}
+	now := s.Clock.Now()
+	for _, page := range pages {
+		if err := s.Changes.Record(ctx, changelog.Change{
+			TenantID: actor.TenantID, Entity: domain.DocumentKind, EntityID: page.ID, Op: changelog.Upsert,
+			ContainerID: page.HubID, ActorID: actor.AccountID, HLC: s.HLC.Next(),
+			Payload: PageOutput(page, true, now),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// announceSubtree records a page and the pages under it, after a trash or a restore moved them
+// together.
+func (s Space) announceSubtree(ctx context.Context, actor appshared.ActorContext, id shared.ID, trashed bool) error {
+	if s.Changes == nil {
+		return nil
+	}
+	pages, err := s.Pages.Subtree(ctx, id, trashed, domain.MaxPagesPerHub)
+	if err != nil {
+		return err
+	}
+	return s.announce(ctx, actor, pages...)
 }
 
 func hubPath(hubID shared.ID) []identity.Scope {
