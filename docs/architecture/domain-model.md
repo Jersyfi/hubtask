@@ -787,14 +787,16 @@ decision by attribute name, never value. Merging a duplicate keeps the survivor 
 others as merged; no use case deletes a CI.
 
 A `Connector` is a program a hub's CIs come from or that posts alerts to it (GLPI, NetBox, Intune,
-Entra ID, Hetzner Cloud, OpenStack; Alertmanager, Zabbix, Checkmk). It writes as one of the
+Entra ID, Hetzner Cloud, OpenStack pulled; a GLPI Agent posting its inventory; Alertmanager, Zabbix,
+Checkmk posting alerts). It writes as one of the
 workspace's sources of kind `CONNECTOR`, so the source's rank and classes decide what it may change;
 it names every address it calls (an https base address, an identity provider's authority, further
 hosts it allows), holds a sealed credential nobody can read back, a cursor where its last walk
 ended, a period and its last run's outcome by message code. A pull is pages through the same
 reconciliation; a scheduled one acts with the rights of the person who last defined the connector.
 An `Alert` is one problem per intake and key - firing, resolved, reopened - bound to the CI its
-host names and to the entry opened for it. A connector is switched off, never deleted.
+host names and to the entry opened for it; a pull keeps one more about its own runs, firing while
+they fail or fetch nothing. A connector is switched off, never deleted.
 
 ## 4. Domain events
 

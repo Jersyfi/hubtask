@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/cmdb/Connector_test.go, core/application/service/cmdb/Connectors_test.go, infrastructure/connector/Pullers_test.go, presentation/worker/CmdbConnectorPull_test.go, test/integration/cmdb_repository_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
+checked_by: [core/domain/model/cmdb/Connector_test.go, core/application/service/cmdb/Connectors_test.go, infrastructure/connector/Pullers_test.go, presentation/intake/InventoryIntake_test.go, presentation/rest/CmdbInventoryController_test.go, presentation/worker/CmdbConnectorPull_test.go, test/integration/cmdb_repository_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
 ---
 
 # Pull our inventory from the tools that already know it
@@ -30,6 +30,7 @@ Dana connects the hub *Data centre* to NetBox with a token, ranks NetBox above t
 6. A scheduled connector is pulled when due as the person who last defined it, again every period, and switches itself off after ten failed runs in a row.
 7. The *Assets* screen lists a hub's connectors, defines one, sets its credential, runs it and shows how its last run ended.
 8. A run that fails or fetches nothing fires the hub's alert about that connector's runs - one alert, counted again by every further bad run - and the next run that fetches resolves it; a dry run changes nothing. The *Alerts* section shows it with the failure's words.
+9. An administrator defines a GLPI Agent inventory intake; the *Connectors* section shows its server address and its secret once. A GLPI Agent given both - the secret as bearer token or basic password - is answered its inventory task on contact, and its inventory is reconciled as the intake's source: the computer by its SMBIOS UUID with serial, manufacturer, model, operating system, address and MAC, its software installed on it. A post without a credential is challenged for basic authentication whatever address it names; a wrong secret, an alert intake's address or one switched off answers `404` with `cmdb.intake_not_found`.
 
 ## Where it ends
 

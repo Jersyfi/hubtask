@@ -660,3 +660,18 @@ At most 200 alerts per delivery. An alert is bound to the one CI of the hub a ho
 name, address or name; with the intake's collection, a firing alert opens an entry there through
 `CreateWorkItem` - the registry, as the intake's person - its notes pointing at the CI, and its
 resolution completes it (`CompleteWorkItem`), a reopening reopens it (`ReopenWorkItem`).
+
+### 6.3 A GLPI Agent's inventory
+
+A connector of kind `GLPI_AGENT` is an intake a GLPI Agent posts its native inventory to, for
+machines no pull reaches: `POST /cmdb/inventory-intake/{tenantId}/{connectorId}` is the agent's
+server address. The body is JSON, or zlib- or gzip-compressed JSON recognised by its first bytes
+and inflated to at most 16 MiB. A `contact` is answered `{"status":"ok","expiration":24,"tasks":
+{"inventory":…}}`; an `inventory` of a `Computer` is one payload of the reconciliation as the
+intake's source - the machine by its SMBIOS UUID (the agent's device id when there is none), a
+laptop or a server by its chassis or system, otherwise a workstation, with serial, manufacturer,
+model, operating system and the first non-virtual address and MAC; each distinct program as
+`software` `installed_on` it. The secret is drawn as an alert intake's and presented as a bearer
+token, as the password of basic authentication (the agent sends it only when challenged, so a post
+with no credential at all is answered `401` with a basic challenge whatever the address) or as a
+signature. Every other refusal is the alert intake's one `404`; the run is the connector's last.
