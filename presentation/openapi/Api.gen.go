@@ -30,6 +30,51 @@ func (e AcceptedSuggestionSource) Valid() bool {
 	}
 }
 
+// Defines values for AccessExplanationScopeType.
+const (
+	AccessExplanationScopeTypeCOLLECTION AccessExplanationScopeType = "COLLECTION"
+	AccessExplanationScopeTypeHUB        AccessExplanationScopeType = "HUB"
+	AccessExplanationScopeTypeTENANT     AccessExplanationScopeType = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the AccessExplanationScopeType enum.
+func (e AccessExplanationScopeType) Valid() bool {
+	switch e {
+	case AccessExplanationScopeTypeCOLLECTION:
+		return true
+	case AccessExplanationScopeTypeHUB:
+		return true
+	case AccessExplanationScopeTypeTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccessSourceScopeType.
+const (
+	AccessSourceScopeTypeCOLLECTION AccessSourceScopeType = "COLLECTION"
+	AccessSourceScopeTypeHUB        AccessSourceScopeType = "HUB"
+	AccessSourceScopeTypeITEM       AccessSourceScopeType = "ITEM"
+	AccessSourceScopeTypeTENANT     AccessSourceScopeType = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the AccessSourceScopeType enum.
+func (e AccessSourceScopeType) Valid() bool {
+	switch e {
+	case AccessSourceScopeTypeCOLLECTION:
+		return true
+	case AccessSourceScopeTypeHUB:
+		return true
+	case AccessSourceScopeTypeITEM:
+		return true
+	case AccessSourceScopeTypeTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AccountKind.
 const (
 	AccountKindSERVICEACCOUNT AccountKind = "SERVICE_ACCOUNT"
@@ -1602,6 +1647,48 @@ func (e CustomFieldKind) Valid() bool {
 	case CustomFieldKindUSER:
 		return true
 	case CustomFieldKindUSERSET:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CustomRoleGrantScopeType.
+const (
+	CustomRoleGrantScopeTypeCOLLECTION CustomRoleGrantScopeType = "COLLECTION"
+	CustomRoleGrantScopeTypeHUB        CustomRoleGrantScopeType = "HUB"
+	CustomRoleGrantScopeTypeTENANT     CustomRoleGrantScopeType = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the CustomRoleGrantScopeType enum.
+func (e CustomRoleGrantScopeType) Valid() bool {
+	switch e {
+	case CustomRoleGrantScopeTypeCOLLECTION:
+		return true
+	case CustomRoleGrantScopeTypeHUB:
+		return true
+	case CustomRoleGrantScopeTypeTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CustomRoleGrantCreateScopeType.
+const (
+	CustomRoleGrantCreateScopeTypeCOLLECTION CustomRoleGrantCreateScopeType = "COLLECTION"
+	CustomRoleGrantCreateScopeTypeHUB        CustomRoleGrantCreateScopeType = "HUB"
+	CustomRoleGrantCreateScopeTypeTENANT     CustomRoleGrantCreateScopeType = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the CustomRoleGrantCreateScopeType enum.
+func (e CustomRoleGrantCreateScopeType) Valid() bool {
+	switch e {
+	case CustomRoleGrantCreateScopeTypeCOLLECTION:
+		return true
+	case CustomRoleGrantCreateScopeTypeHUB:
+		return true
+	case CustomRoleGrantCreateScopeTypeTENANT:
 		return true
 	default:
 		return false
@@ -3633,6 +3720,27 @@ func (e PasskeyTransport) Valid() bool {
 	case SmartCard:
 		return true
 	case Usb:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PermissionEntryKind.
+const (
+	BASE  PermissionEntryKind = "BASE"
+	FIELD PermissionEntryKind = "FIELD"
+	STEP  PermissionEntryKind = "STEP"
+)
+
+// Valid indicates whether the value is a known member of the PermissionEntryKind enum.
+func (e PermissionEntryKind) Valid() bool {
+	switch e {
+	case BASE:
+		return true
+	case FIELD:
+		return true
+	case STEP:
 		return true
 	default:
 		return false
@@ -5904,33 +6012,6 @@ func (e WorkflowStatusCategory) Valid() bool {
 	}
 }
 
-// Defines values for WorkflowStepWhoRoles.
-const (
-	WorkflowStepWhoRolesADMIN       WorkflowStepWhoRoles = "ADMIN"
-	WorkflowStepWhoRolesCONTRIBUTOR WorkflowStepWhoRoles = "CONTRIBUTOR"
-	WorkflowStepWhoRolesGUEST       WorkflowStepWhoRoles = "GUEST"
-	WorkflowStepWhoRolesMEMBER      WorkflowStepWhoRoles = "MEMBER"
-	WorkflowStepWhoRolesOWNER       WorkflowStepWhoRoles = "OWNER"
-)
-
-// Valid indicates whether the value is a known member of the WorkflowStepWhoRoles enum.
-func (e WorkflowStepWhoRoles) Valid() bool {
-	switch e {
-	case WorkflowStepWhoRolesADMIN:
-		return true
-	case WorkflowStepWhoRolesCONTRIBUTOR:
-		return true
-	case WorkflowStepWhoRolesGUEST:
-		return true
-	case WorkflowStepWhoRolesMEMBER:
-		return true
-	case WorkflowStepWhoRolesOWNER:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for WorkspaceDefaultWeekStart.
 const (
 	WorkspaceDefaultWeekStartLessThannil WorkspaceDefaultWeekStart = "<nil>"
@@ -6099,6 +6180,27 @@ func (e WorkspaceStructureChangePreset) Valid() bool {
 	case WorkspaceStructureChangePresetPROJECT:
 		return true
 	case WorkspaceStructureChangePresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ExplainAccessParamsScopeType.
+const (
+	ExplainAccessParamsScopeTypeCOLLECTION ExplainAccessParamsScopeType = "COLLECTION"
+	ExplainAccessParamsScopeTypeHUB        ExplainAccessParamsScopeType = "HUB"
+	ExplainAccessParamsScopeTypeTENANT     ExplainAccessParamsScopeType = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the ExplainAccessParamsScopeType enum.
+func (e ExplainAccessParamsScopeType) Valid() bool {
+	switch e {
+	case ExplainAccessParamsScopeTypeCOLLECTION:
+		return true
+	case ExplainAccessParamsScopeTypeHUB:
+		return true
+	case ExplainAccessParamsScopeTypeTENANT:
 		return true
 	default:
 		return false
@@ -6365,6 +6467,43 @@ type AcceptedSuggestion struct {
 
 // AcceptedSuggestionSource Where the proposal came from. One value today, and a field rather than an assumption: a suggestion whose origin is not recorded is one nobody can tell from a person's own draft.
 type AcceptedSuggestionSource string
+
+// AccessExplanation defines model for AccessExplanation.
+type AccessExplanation struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+
+	// Asked The permission asked about, when one was.
+	Asked *string `json:"asked,omitempty"`
+
+	// HeldThrough The roles that carry the permission asked about.
+	HeldThrough *[]AccessSource `json:"held_through,omitempty"`
+
+	// Holds Whether the person holds the permission asked about.
+	Holds *bool `json:"holds,omitempty"`
+
+	// Permissions Every permission held there; a field or step permission only where a custom role names it.
+	Permissions []string                   `json:"permissions"`
+	Roles       []string                   `json:"roles"`
+	ScopeId     *openapi_types.UUID        `json:"scope_id,omitempty"`
+	ScopeType   AccessExplanationScopeType `json:"scope_type"`
+	Sources     []AccessSource             `json:"sources"`
+}
+
+// AccessExplanationScopeType defines model for AccessExplanation.ScopeType.
+type AccessExplanationScopeType string
+
+// AccessSource One role that counts for the person, and where it is held.
+type AccessSource struct {
+	Custom bool `json:"custom"`
+
+	// Role A shipped role's name or a custom role's key.
+	Role      string                `json:"role"`
+	ScopeId   *openapi_types.UUID   `json:"scope_id,omitempty"`
+	ScopeType AccessSourceScopeType `json:"scope_type"`
+}
+
+// AccessSourceScopeType defines model for AccessSource.ScopeType.
+type AccessSourceScopeType string
 
 // AccessToken A minted credential as it is listed afterwards. The token itself is not a member: it exists in the answer to the call that minted it and nowhere else.
 type AccessToken struct {
@@ -8033,6 +8172,60 @@ type CustomFieldValue struct {
 	// Value The value, shaped by the definition's kind: a string for TEXT, SELECT, URL and RICH_TEXT, a number for NUMBER, a number with at most four decimal places for MONEY, a whole number of minutes for DURATION, a boolean for BOOL, an ISO-8601 date for DATE, an account identifier for USER, an entry identifier for REFERENCE, an array of strings for MULTI_SELECT and an array of account identifiers for USER_SET. Null clears the key.
 	Value interface{} `json:"value"`
 }
+
+// CustomRole A role of the workspace's own, built from the permission catalogue.
+type CustomRole struct {
+	CreatedAt   time.Time          `json:"created_at"`
+	Id          openapi_types.UUID `json:"id"`
+	Key         string             `json:"key"`
+	Name        string             `json:"name"`
+	Permissions []string           `json:"permissions"`
+	UpdatedAt   time.Time          `json:"updated_at"`
+	Version     int                `json:"version"`
+}
+
+// CustomRoleChange defines model for CustomRoleChange.
+type CustomRoleChange struct {
+	Name        string   `json:"name"`
+	Permissions []string `json:"permissions"`
+}
+
+// CustomRoleCreate defines model for CustomRoleCreate.
+type CustomRoleCreate struct {
+	Key         string   `json:"key"`
+	Name        string   `json:"name"`
+	Permissions []string `json:"permissions"`
+}
+
+// CustomRoleGrant defines model for CustomRoleGrant.
+type CustomRoleGrant struct {
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+	GroupId   *openapi_types.UUID `json:"group_id,omitempty"`
+	Id        openapi_types.UUID  `json:"id"`
+
+	// Role The custom role's key.
+	Role      string                   `json:"role"`
+	ScopeId   *openapi_types.UUID      `json:"scope_id,omitempty"`
+	ScopeType CustomRoleGrantScopeType `json:"scope_type"`
+}
+
+// CustomRoleGrantScopeType defines model for CustomRoleGrant.ScopeType.
+type CustomRoleGrantScopeType string
+
+// CustomRoleGrantCreate defines model for CustomRoleGrantCreate.
+type CustomRoleGrantCreate struct {
+	// AccountId Exactly one of account_id and group_id.
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+
+	// GroupId Exactly one of account_id and group_id.
+	GroupId   *openapi_types.UUID            `json:"group_id,omitempty"`
+	Role      string                         `json:"role"`
+	ScopeId   *openapi_types.UUID            `json:"scope_id,omitempty"`
+	ScopeType CustomRoleGrantCreateScopeType `json:"scope_type"`
+}
+
+// CustomRoleGrantCreateScopeType defines model for CustomRoleGrantCreate.ScopeType.
+type CustomRoleGrantCreateScopeType string
 
 // DataSubjectRequest defines model for DataSubjectRequest.
 type DataSubjectRequest struct {
@@ -11251,6 +11444,20 @@ type PasswordViolation struct {
 	Rule string `json:"rule"`
 }
 
+// PermissionEntry One permission of the catalogue, with the shipped roles that hold it.
+type PermissionEntry struct {
+	// Group The area of the administration it belongs to.
+	Group string              `json:"group"`
+	Kind  PermissionEntryKind `json:"kind"`
+
+	// Permission A name, or a family (`FIELD_WRITE:*`, `TAKE_STEP:*`).
+	Permission string           `json:"permission"`
+	Shipped    []MembershipRole `json:"shipped"`
+}
+
+// PermissionEntryKind defines model for PermissionEntry.Kind.
+type PermissionEntryKind string
+
 // Plan defines model for Plan.
 type Plan struct {
 	Ai          *map[string]InstanceSetting `json:"ai,omitempty"`
@@ -12109,6 +12316,14 @@ type RetentionState struct {
 // RetentionStateBlockedBy defines model for RetentionState.BlockedBy.
 type RetentionStateBlockedBy string
 
+// RoleCatalogue defines model for RoleCatalogue.
+type RoleCatalogue struct {
+	Catalogue []PermissionEntry `json:"catalogue"`
+	Custom    []CustomRole      `json:"custom"`
+	Grants    []CustomRoleGrant `json:"grants"`
+	Shipped   []ShippedRole     `json:"shipped"`
+}
+
 // RoleDescription One row of the role matrix: the permissions the role carries, and what it may do to a single entry.
 // Every cell is bounded by where the membership was granted. The role applies downwards from its scope - tenant, hub, collection, or one entry - so a role granted at `ITEM` scope reaches that entry and nothing else. That is what sharing an entry with a guest is; it needs no separate mechanism and is therefore not a property of the role.
 type RoleDescription struct {
@@ -12575,6 +12790,18 @@ type SettingSource string
 type SettingsCatalogue struct {
 	// Settings Every setting, in the order a settings screen draws them.
 	Settings []SettingDefinition `json:"settings"`
+}
+
+// ShippedRole defines model for ShippedRole.
+type ShippedRole struct {
+	Permissions []string `json:"permissions"`
+
+	// Role `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
+	// the configuration and no content at all. It exists because the
+	// alternative, in practice, is giving an auditor administrator rights - a permissions
+	// problem that arises precisely where evidence is being demanded. Somebody who needs both
+	// holds two memberships; the rights add up rather than the stronger one winning.
+	Role MembershipRole `json:"role"`
 }
 
 // SignIn Exactly one of `identifier` and `email`; neither, or both, is `auth.identifier_one`. A refusal of the shape, the same for everybody - nothing in it depends on who exists.
@@ -14217,13 +14444,12 @@ type WorkflowStep struct {
 		Condition *string `json:"condition,omitempty"`
 
 		// PersonFields `assignee`, `created_by` or `custom_fields.<key>` of a person field.
-		PersonFields *[]string               `json:"person_fields,omitempty"`
-		Roles        *[]WorkflowStepWhoRoles `json:"roles,omitempty"`
+		PersonFields *[]string `json:"person_fields,omitempty"`
+
+		// Roles Shipped roles (OWNER, ADMIN, MEMBER, CONTRIBUTOR, GUEST) or the keys of the workspace's own roles. Whoever holds the step's permission `TAKE_STEP:<workflow>/<step>` may take it as well.
+		Roles *[]string `json:"roles,omitempty"`
 	} `json:"who,omitempty"`
 }
-
-// WorkflowStepWhoRoles defines model for WorkflowStep.Who.Roles.
-type WorkflowStepWhoRoles string
 
 // Workspace A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on.
 type Workspace struct {
@@ -14529,6 +14755,22 @@ type ViewId = openapi_types.UUID
 
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
+
+// ExplainAccessParams defines parameters for ExplainAccess.
+type ExplainAccessParams struct {
+	// AccountId The person; omitted for the caller.
+	AccountId *openapi_types.UUID          `form:"account_id,omitempty" json:"account_id,omitempty"`
+	ScopeType ExplainAccessParamsScopeType `form:"scope_type" json:"scope_type"`
+
+	// ScopeId The hub or collection. Omitted for the workspace, and only then.
+	ScopeId *openapi_types.UUID `form:"scope_id,omitempty" json:"scope_id,omitempty"`
+
+	// Permission A permission of the catalogue to ask about.
+	Permission *string `form:"permission,omitempty" json:"permission,omitempty"`
+}
+
+// ExplainAccessParamsScopeType defines parameters for ExplainAccess.
+type ExplainAccessParamsScopeType string
 
 // StartProviderConnectParams defines parameters for StartProviderConnect.
 type StartProviderConnectParams struct {
@@ -15797,6 +16039,24 @@ type UpdateRetentionPolicyParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// GrantRoleParams defines parameters for GrantRole.
+type GrantRoleParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CreateRoleParams defines parameters for CreateRole.
+type CreateRoleParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ChangeRoleParams defines parameters for ChangeRole.
+type ChangeRoleParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // StreamChangesParams defines parameters for StreamChanges.
 type StreamChangesParams struct {
 	// LastEventID The cursor to resume from, as the stream last sent it. Absent means "from now": a client with no cursor is starting fresh and should pull rather than ask the stream for history.
@@ -16483,6 +16743,15 @@ type CreateRetentionPolicyJSONRequestBody = RetentionPolicy
 // UpdateRetentionPolicyApplicationMergePatchPlusJSONRequestBody defines body for UpdateRetentionPolicy for application/merge-patch+json ContentType.
 type UpdateRetentionPolicyApplicationMergePatchPlusJSONRequestBody = RetentionPolicyUpdate
 
+// GrantRoleJSONRequestBody defines body for GrantRole for application/json ContentType.
+type GrantRoleJSONRequestBody = CustomRoleGrantCreate
+
+// CreateRoleJSONRequestBody defines body for CreateRole for application/json ContentType.
+type CreateRoleJSONRequestBody = CustomRoleCreate
+
+// ChangeRoleApplicationMergePatchPlusJSONRequestBody defines body for ChangeRole for application/merge-patch+json ContentType.
+type ChangeRoleApplicationMergePatchPlusJSONRequestBody = CustomRoleChange
+
 // SearchItemsJSONRequestBody defines body for SearchItems for application/json ContentType.
 type SearchItemsJSONRequestBody = ItemSearchQuery
 
@@ -16563,6 +16832,9 @@ type PublishWorkflowJSONRequestBody = WorkflowPublish
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// ExplainAccess What a person holds at a place, and why
+	// (GET /access/explain)
+	ExplainAccess(w http.ResponseWriter, r *http.Request, params ExplainAccessParams)
 	// GetOwnAccount The account the caller is signed in as
 	// (GET /accounts/me)
 	GetOwnAccount(w http.ResponseWriter, r *http.Request)
@@ -17673,6 +17945,24 @@ type ServerInterface interface {
 	// PreviewRetentionPolicy Determine the effect of a rule without executing it
 	// (POST /retention-policies/{policyId}:preview)
 	PreviewRetentionPolicy(w http.ResponseWriter, r *http.Request, policyId openapi_types.UUID)
+	// GrantRole Give a role of the workspace's own at a place
+	// (POST /role-grants)
+	GrantRole(w http.ResponseWriter, r *http.Request, params GrantRoleParams)
+	// RevokeRoleGrant Take a role of the workspace's own away
+	// (DELETE /role-grants/{grantId})
+	RevokeRoleGrant(w http.ResponseWriter, r *http.Request, grantId openapi_types.UUID)
+	// ListRoles The permission catalogue and the roles
+	// (GET /roles)
+	ListRoles(w http.ResponseWriter, r *http.Request)
+	// CreateRole Define a role of the workspace's own
+	// (POST /roles)
+	CreateRole(w http.ResponseWriter, r *http.Request, params CreateRoleParams)
+	// DeleteRole Delete a role of the workspace's own
+	// (DELETE /roles/{key})
+	DeleteRole(w http.ResponseWriter, r *http.Request, key string)
+	// ChangeRole Change a role of the workspace's own
+	// (PATCH /roles/{key})
+	ChangeRole(w http.ResponseWriter, r *http.Request, key string, params ChangeRoleParams)
 	// SearchItems Full-text search over the entries a caller may see
 	// (POST /search)
 	SearchItems(w http.ResponseWriter, r *http.Request)
@@ -17830,6 +18120,78 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ExplainAccess operation middleware
+func (siw *ServerInterfaceWrapper) ExplainAccess(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ExplainAccessParams
+
+	// ------------- Optional query parameter "account_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "account_id", r.URL.Query(), &params.AccountId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "account_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "account_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "scope_type" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "scope_type", r.URL.Query(), &params.ScopeType, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "scope_type"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scope_type", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "scope_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "scope_id", r.URL.Query(), &params.ScopeId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "scope_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scope_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "permission" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "permission", r.URL.Query(), &params.Permission, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "permission"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "permission", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExplainAccess(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // GetOwnAccount operation middleware
 func (siw *ServerInterfaceWrapper) GetOwnAccount(w http.ResponseWriter, r *http.Request) {
@@ -30573,6 +30935,204 @@ func (siw *ServerInterfaceWrapper) PreviewRetentionPolicy(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
+// GrantRole operation middleware
+func (siw *ServerInterfaceWrapper) GrantRole(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GrantRoleParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GrantRole(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeRoleGrant operation middleware
+func (siw *ServerInterfaceWrapper) RevokeRoleGrant(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "grantId" -------------
+	var grantId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "grantId", r.PathValue("grantId"), &grantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "grantId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeRoleGrant(w, r, grantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListRoles operation middleware
+func (siw *ServerInterfaceWrapper) ListRoles(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListRoles(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateRole operation middleware
+func (siw *ServerInterfaceWrapper) CreateRole(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateRoleParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateRole(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteRole operation middleware
+func (siw *ServerInterfaceWrapper) DeleteRole(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteRole(w, r, key)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangeRole operation middleware
+func (siw *ServerInterfaceWrapper) ChangeRole(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangeRoleParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeRole(w, r, key, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SearchItems operation middleware
 func (siw *ServerInterfaceWrapper) SearchItems(w http.ResponseWriter, r *http.Request) {
 
@@ -32572,6 +33132,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/memberships", wrapper.ListMemberships)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/memberships", wrapper.GrantMembership)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/memberships/{membershipId}", wrapper.RevokeMembership)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/roles", wrapper.ListRoles)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/roles", wrapper.CreateRole)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/roles/{key}", wrapper.DeleteRole)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/roles/{key}", wrapper.ChangeRole)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/role-grants", wrapper.GrantRole)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/role-grants/{grantId}", wrapper.RevokeRoleGrant)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/access/explain", wrapper.ExplainAccess)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/groups", wrapper.ListGroups)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/groups", wrapper.CreateGroup)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/groups/{groupId}", wrapper.DeleteGroup)

@@ -10942,6 +10942,275 @@
         }
       }
     },
+    "/roles": {
+      "get": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "listRoles",
+        "summary": "The permission catalogue and the roles",
+        "description": "The closed catalogue of permissions a role is built from, the seven shipped roles with\nwhat each carries, the workspace's own roles, and where its own roles are held. The two\nfamilies `FIELD_WRITE:*` and `TAKE_STEP:*` stand for the permission of every restricted\nfield and every workflow step; the owner and the administrators hold all of them. What the\nroles screen and the who-may-do-what matrix are drawn from. Needs `MANAGE_MEMBERS` or\n`READ_CONFIGURATION` at the workspace.\n",
+        "responses": {
+          "200": {
+            "description": "The catalogue and the roles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleCatalogue"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "createRole",
+        "summary": "Define a role of the workspace's own",
+        "description": "A lower-case key that never spells a shipped role, a name, and permissions from the\ncatalogue. Nobody hands out a permission they do not hold: the caller needs\n`MANAGE_MEMBERS` and every permission the role carries at the workspace, or is refused\nwith `access.permission_above_own` naming what they lack.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomRoleCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Defined",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomRole"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/roles/{key}": {
+      "parameters": [
+        {
+          "name": "key",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,62}$"
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "changeRole",
+        "summary": "Change a role of the workspace's own",
+        "description": "Renames the role and replaces what it carries; everybody who holds it holds the new set\nfrom the next request. Every permission added or taken away must be one the caller holds\nat the workspace.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomRoleChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The role as it now is",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomRole"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "deleteRole",
+        "summary": "Delete a role of the workspace's own",
+        "description": "Removes the role and every grant of it; whoever held it loses what it carried on the next\nrequest, and their devices are told. Nothing anybody wrote is touched. Needs what defining\nthe role needed.\n",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/role-grants": {
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "grantRole",
+        "summary": "Give a role of the workspace's own at a place",
+        "description": "To an account or to a group, at the workspace, a hub or a collection; it applies downwards\nas a shipped role does. The caller needs `MANAGE_MEMBERS` there and every permission the\nrole carries. A group is refused a role inside a private hub.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomRoleGrantCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Granted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomRoleGrant"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/role-grants/{grantId}": {
+      "parameters": [
+        {
+          "name": "grantId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "revokeRoleGrant",
+        "summary": "Take a role of the workspace's own away",
+        "description": "Takes effect on the next request; needs what giving it needed.",
+        "responses": {
+          "204": {
+            "description": "Revoked"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/access/explain": {
+      "get": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "explainAccess",
+        "summary": "What a person holds at a place, and why",
+        "description": "The roles that count for the person at the workspace, a hub or a collection, where each is\nheld, and every permission they carry. Given `permission`, also whether the person holds\nit and through which role - the answer behind \"view as\" and \"why may this person do\nthat\". A person may always ask about themselves; about somebody else it takes\n`MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace.\n",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "query",
+            "required": false,
+            "description": "The person; omitted for the caller.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "scope_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "TENANT",
+                "HUB",
+                "COLLECTION"
+              ]
+            }
+          },
+          {
+            "name": "scope_id",
+            "in": "query",
+            "required": false,
+            "description": "The hub or collection. Omitted for the workspace, and only then.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "permission",
+            "in": "query",
+            "required": false,
+            "description": "A permission of the catalogue to ask about.",
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What the person holds there",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessExplanation"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/groups": {
       "get": {
         "tags": [
@@ -21666,6 +21935,354 @@
           "PERSON"
         ]
       },
+      "PermissionEntry": {
+        "type": "object",
+        "description": "One permission of the catalogue, with the shipped roles that hold it.",
+        "required": [
+          "permission",
+          "kind",
+          "group",
+          "shipped"
+        ],
+        "properties": {
+          "permission": {
+            "type": "string",
+            "description": "A name, or a family (`FIELD_WRITE:*`, `TAKE_STEP:*`)."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "BASE",
+              "FIELD",
+              "STEP"
+            ]
+          },
+          "group": {
+            "type": "string",
+            "description": "The area of the administration it belongs to."
+          },
+          "shipped": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MembershipRole"
+            }
+          }
+        }
+      },
+      "ShippedRole": {
+        "type": "object",
+        "required": [
+          "role",
+          "permissions"
+        ],
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/MembershipRole"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CustomRole": {
+        "type": "object",
+        "description": "A role of the workspace's own, built from the permission catalogue.",
+        "required": [
+          "id",
+          "key",
+          "name",
+          "permissions",
+          "version",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,62}$"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "version": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CustomRoleCreate": {
+        "type": "object",
+        "required": [
+          "key",
+          "name",
+          "permissions"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,62}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "permissions": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 256,
+            "items": {
+              "type": "string",
+              "maxLength": 120
+            }
+          }
+        }
+      },
+      "CustomRoleChange": {
+        "type": "object",
+        "required": [
+          "name",
+          "permissions"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "permissions": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 256,
+            "items": {
+              "type": "string",
+              "maxLength": 120
+            }
+          }
+        }
+      },
+      "CustomRoleGrant": {
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "scope_type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string",
+            "description": "The custom role's key."
+          },
+          "scope_type": {
+            "type": "string",
+            "enum": [
+              "TENANT",
+              "HUB",
+              "COLLECTION"
+            ]
+          },
+          "scope_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "group_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "CustomRoleGrantCreate": {
+        "type": "object",
+        "required": [
+          "role",
+          "scope_type"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,62}$"
+          },
+          "scope_type": {
+            "type": "string",
+            "enum": [
+              "TENANT",
+              "HUB",
+              "COLLECTION"
+            ]
+          },
+          "scope_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Exactly one of account_id and group_id."
+          },
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Exactly one of account_id and group_id."
+          }
+        }
+      },
+      "RoleCatalogue": {
+        "type": "object",
+        "required": [
+          "catalogue",
+          "shipped",
+          "custom",
+          "grants"
+        ],
+        "properties": {
+          "catalogue": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PermissionEntry"
+            }
+          },
+          "shipped": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShippedRole"
+            }
+          },
+          "custom": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomRole"
+            }
+          },
+          "grants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomRoleGrant"
+            }
+          }
+        }
+      },
+      "AccessSource": {
+        "type": "object",
+        "description": "One role that counts for the person, and where it is held.",
+        "required": [
+          "role",
+          "custom",
+          "scope_type"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "A shipped role's name or a custom role's key."
+          },
+          "custom": {
+            "type": "boolean"
+          },
+          "scope_type": {
+            "type": "string",
+            "enum": [
+              "TENANT",
+              "HUB",
+              "COLLECTION",
+              "ITEM"
+            ]
+          },
+          "scope_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "AccessExplanation": {
+        "type": "object",
+        "required": [
+          "account_id",
+          "scope_type",
+          "roles",
+          "permissions",
+          "sources"
+        ],
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scope_type": {
+            "type": "string",
+            "enum": [
+              "TENANT",
+              "HUB",
+              "COLLECTION"
+            ]
+          },
+          "scope_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "permissions": {
+            "type": "array",
+            "description": "Every permission held there; a field or step permission only where a custom role names it.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccessSource"
+            }
+          },
+          "asked": {
+            "type": "string",
+            "description": "The permission asked about, when one was."
+          },
+          "holds": {
+            "type": "boolean",
+            "description": "Whether the person holds the permission asked about."
+          },
+          "held_through": {
+            "type": "array",
+            "description": "The roles that carry the permission asked about.",
+            "items": {
+              "$ref": "#/components/schemas/AccessSource"
+            }
+          }
+        }
+      },
       "LinkType": {
         "type": "object",
         "description": "A kind of relation between two entries: one of the six every workspace has, or one of its own. What it means is fixed once it is made.\n",
@@ -22187,15 +22804,10 @@
             "properties": {
               "roles": {
                 "type": "array",
+                "description": "Shipped roles (OWNER, ADMIN, MEMBER, CONTRIBUTOR, GUEST) or the keys of the workspace's own roles. Whoever holds the step's permission `TAKE_STEP:<workflow>/<step>` may take it as well.\n",
                 "items": {
                   "type": "string",
-                  "enum": [
-                    "OWNER",
-                    "ADMIN",
-                    "MEMBER",
-                    "CONTRIBUTOR",
-                    "GUEST"
-                  ]
+                  "pattern": "^(OWNER|ADMIN|MEMBER|CONTRIBUTOR|GUEST|[a-z][a-z0-9_]{1,62})$"
                 }
               },
               "person_fields": {

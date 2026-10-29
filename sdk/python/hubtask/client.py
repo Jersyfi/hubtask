@@ -1275,6 +1275,34 @@ class Client:
         """Take a role away"""
         return self._call("DELETE", "/memberships/{membershipId}", {"membershipId": membership_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
 
+    def list_roles(self) -> "RoleCatalogue":
+        """The permission catalogue and the roles"""
+        return self._call("GET", "/roles", {}, None, {}, None, "none", None, "json")
+
+    def create_role(self, body: "CustomRoleCreate", *, idempotency_key: str | None = None) -> "CustomRole":
+        """Define a role of the workspace's own"""
+        return self._call("POST", "/roles", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def change_role(self, key: str, body: "CustomRoleChange", *, if_match: str | None = None) -> "CustomRole":
+        """Change a role of the workspace's own"""
+        return self._call("PATCH", "/roles/{key}", {"key": key}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
+
+    def delete_role(self, key: str) -> None:
+        """Delete a role of the workspace's own"""
+        return self._call("DELETE", "/roles/{key}", {"key": key}, None, {}, None, "none", None, "void")
+
+    def grant_role(self, body: "CustomRoleGrantCreate", *, idempotency_key: str | None = None) -> "CustomRoleGrant":
+        """Give a role of the workspace's own at a place"""
+        return self._call("POST", "/role-grants", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def revoke_role_grant(self, grant_id: str) -> None:
+        """Take a role of the workspace's own away"""
+        return self._call("DELETE", "/role-grants/{grantId}", {"grantId": grant_id}, None, {}, None, "none", None, "void")
+
+    def explain_access(self, *, query: dict[str, Any] | None = None) -> "AccessExplanation":
+        """What a person holds at a place, and why"""
+        return self._call("GET", "/access/explain", {}, query, {}, None, "none", None, "json")
+
     def list_groups(self, *, query: dict[str, Any] | None = None) -> "GroupPage":
         """The workspace's groups"""
         return self._call("GET", "/groups", {}, query, {}, None, "none", None, "json")

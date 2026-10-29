@@ -454,9 +454,11 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `` | CheckPassword | `` |  | When refused |
+| `` | ExplainAccess | `` |  | When refused |
 | `` | GetImport | `` |  | When refused |
 | `` | GetSignInRules | `` |  | When refused |
 | `` | InspectInvitation | `` |  | When refused |
+| `` | ListRoles | `` |  | When refused |
 | `` | LocateOidcFlow | `` |  | When refused |
 | `` | ReadSettingsCatalogue | `` |  | When refused |
 
@@ -470,8 +472,10 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `group.read` | ListGroups | `group` | INFO | When refused |
 | `group.updated` | UpdateGroup | `group` | INFO | Every time |
 | `membership.granted` | GrantMembership | `membership` | NOTICE | Every time |
+| `membership.granted` | GrantRole | `membership` | NOTICE | Every time |
 | `membership.read` | ListMemberships | `membership` | INFO | When refused |
 | `membership.revoked` | RevokeMembership | `membership` | NOTICE | Every time |
+| `membership.revoked` | RevokeRoleGrant | `membership` | NOTICE | Every time |
 
 ## Plan
 
@@ -537,6 +541,14 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `lifecycle.rule_changed` | PreviewRetentionPolicy | `retention_policy` | INFO | When refused |
 | `lifecycle.rule_changed` | UpdateRetentionPolicy | `retention_policy` | WARNING | Every time |
 | `lifecycle.rule_withdrawn` | DeleteRetentionPolicy | `retention_policy` | WARNING | Every time |
+
+## Role
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `role.changed` | ChangeRole | `custom_role` | NOTICE | Every time |
+| `role.created` | CreateRole | `custom_role` | NOTICE | Every time |
+| `role.deleted` | DeleteRole | `custom_role` | NOTICE | Every time |
 
 ## Search
 

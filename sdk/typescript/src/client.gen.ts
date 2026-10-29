@@ -1607,6 +1607,41 @@ export class HubtaskClient {
     return this.call("DELETE", "/memberships/{membershipId}", { "membershipId": membershipId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** The permission catalogue and the roles */
+  listRoles(options: CallOptions = {}): Promise<operations["listRoles"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/roles", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Define a role of the workspace's own */
+  createRole(body: NonNullable<operations["createRole"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["createRole"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/roles", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Change a role of the workspace's own */
+  changeRole(key: string, body: NonNullable<operations["changeRole"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["changeRole"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/roles/{key}", { "key": key }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/merge-patch+json", "json", options.signal);
+  }
+
+  /** Delete a role of the workspace's own */
+  deleteRole(key: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/roles/{key}", { "key": key }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Give a role of the workspace's own at a place */
+  grantRole(body: NonNullable<operations["grantRole"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["grantRole"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/role-grants", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Take a role of the workspace's own away */
+  revokeRoleGrant(grantId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/role-grants/{grantId}", { "grantId": grantId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** What a person holds at a place, and why */
+  explainAccess(options: CallOptions & { readonly query?: NonNullable<operations["explainAccess"]['parameters']['query']> } = {}): Promise<operations["explainAccess"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/access/explain", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The workspace's groups */
   listGroups(options: CallOptions & { readonly query?: NonNullable<operations["listGroups"]['parameters']['query']> } = {}): Promise<operations["listGroups"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/groups", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

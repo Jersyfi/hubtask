@@ -36,6 +36,51 @@ func (e AcceptedSuggestionSource) Valid() bool {
 	}
 }
 
+// Defines values for AccessExplanationScopeType.
+const (
+	AccessExplanationScopeTypeCOLLECTION AccessExplanationScopeType = "COLLECTION"
+	AccessExplanationScopeTypeHUB        AccessExplanationScopeType = "HUB"
+	AccessExplanationScopeTypeTENANT     AccessExplanationScopeType = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the AccessExplanationScopeType enum.
+func (e AccessExplanationScopeType) Valid() bool {
+	switch e {
+	case AccessExplanationScopeTypeCOLLECTION:
+		return true
+	case AccessExplanationScopeTypeHUB:
+		return true
+	case AccessExplanationScopeTypeTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccessSourceScopeType.
+const (
+	AccessSourceScopeTypeCOLLECTION AccessSourceScopeType = "COLLECTION"
+	AccessSourceScopeTypeHUB        AccessSourceScopeType = "HUB"
+	AccessSourceScopeTypeITEM       AccessSourceScopeType = "ITEM"
+	AccessSourceScopeTypeTENANT     AccessSourceScopeType = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the AccessSourceScopeType enum.
+func (e AccessSourceScopeType) Valid() bool {
+	switch e {
+	case AccessSourceScopeTypeCOLLECTION:
+		return true
+	case AccessSourceScopeTypeHUB:
+		return true
+	case AccessSourceScopeTypeITEM:
+		return true
+	case AccessSourceScopeTypeTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AccountKind.
 const (
 	AccountKindSERVICEACCOUNT AccountKind = "SERVICE_ACCOUNT"
@@ -1608,6 +1653,48 @@ func (e CustomFieldKind) Valid() bool {
 	case CustomFieldKindUSER:
 		return true
 	case CustomFieldKindUSERSET:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CustomRoleGrantScopeType.
+const (
+	CustomRoleGrantScopeTypeCOLLECTION CustomRoleGrantScopeType = "COLLECTION"
+	CustomRoleGrantScopeTypeHUB        CustomRoleGrantScopeType = "HUB"
+	CustomRoleGrantScopeTypeTENANT     CustomRoleGrantScopeType = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the CustomRoleGrantScopeType enum.
+func (e CustomRoleGrantScopeType) Valid() bool {
+	switch e {
+	case CustomRoleGrantScopeTypeCOLLECTION:
+		return true
+	case CustomRoleGrantScopeTypeHUB:
+		return true
+	case CustomRoleGrantScopeTypeTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CustomRoleGrantCreateScopeType.
+const (
+	CustomRoleGrantCreateScopeTypeCOLLECTION CustomRoleGrantCreateScopeType = "COLLECTION"
+	CustomRoleGrantCreateScopeTypeHUB        CustomRoleGrantCreateScopeType = "HUB"
+	CustomRoleGrantCreateScopeTypeTENANT     CustomRoleGrantCreateScopeType = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the CustomRoleGrantCreateScopeType enum.
+func (e CustomRoleGrantCreateScopeType) Valid() bool {
+	switch e {
+	case CustomRoleGrantCreateScopeTypeCOLLECTION:
+		return true
+	case CustomRoleGrantCreateScopeTypeHUB:
+		return true
+	case CustomRoleGrantCreateScopeTypeTENANT:
 		return true
 	default:
 		return false
@@ -3639,6 +3726,27 @@ func (e PasskeyTransport) Valid() bool {
 	case SmartCard:
 		return true
 	case Usb:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PermissionEntryKind.
+const (
+	BASE  PermissionEntryKind = "BASE"
+	FIELD PermissionEntryKind = "FIELD"
+	STEP  PermissionEntryKind = "STEP"
+)
+
+// Valid indicates whether the value is a known member of the PermissionEntryKind enum.
+func (e PermissionEntryKind) Valid() bool {
+	switch e {
+	case BASE:
+		return true
+	case FIELD:
+		return true
+	case STEP:
 		return true
 	default:
 		return false
@@ -5910,33 +6018,6 @@ func (e WorkflowStatusCategory) Valid() bool {
 	}
 }
 
-// Defines values for WorkflowStepWhoRoles.
-const (
-	WorkflowStepWhoRolesADMIN       WorkflowStepWhoRoles = "ADMIN"
-	WorkflowStepWhoRolesCONTRIBUTOR WorkflowStepWhoRoles = "CONTRIBUTOR"
-	WorkflowStepWhoRolesGUEST       WorkflowStepWhoRoles = "GUEST"
-	WorkflowStepWhoRolesMEMBER      WorkflowStepWhoRoles = "MEMBER"
-	WorkflowStepWhoRolesOWNER       WorkflowStepWhoRoles = "OWNER"
-)
-
-// Valid indicates whether the value is a known member of the WorkflowStepWhoRoles enum.
-func (e WorkflowStepWhoRoles) Valid() bool {
-	switch e {
-	case WorkflowStepWhoRolesADMIN:
-		return true
-	case WorkflowStepWhoRolesCONTRIBUTOR:
-		return true
-	case WorkflowStepWhoRolesGUEST:
-		return true
-	case WorkflowStepWhoRolesMEMBER:
-		return true
-	case WorkflowStepWhoRolesOWNER:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for WorkspaceDefaultWeekStart.
 const (
 	WorkspaceDefaultWeekStartLessThannil WorkspaceDefaultWeekStart = "<nil>"
@@ -6105,6 +6186,27 @@ func (e WorkspaceStructureChangePreset) Valid() bool {
 	case WorkspaceStructureChangePresetPROJECT:
 		return true
 	case WorkspaceStructureChangePresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ExplainAccessParamsScopeType.
+const (
+	ExplainAccessParamsScopeTypeCOLLECTION ExplainAccessParamsScopeType = "COLLECTION"
+	ExplainAccessParamsScopeTypeHUB        ExplainAccessParamsScopeType = "HUB"
+	ExplainAccessParamsScopeTypeTENANT     ExplainAccessParamsScopeType = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the ExplainAccessParamsScopeType enum.
+func (e ExplainAccessParamsScopeType) Valid() bool {
+	switch e {
+	case ExplainAccessParamsScopeTypeCOLLECTION:
+		return true
+	case ExplainAccessParamsScopeTypeHUB:
+		return true
+	case ExplainAccessParamsScopeTypeTENANT:
 		return true
 	default:
 		return false
@@ -6371,6 +6473,43 @@ type AcceptedSuggestion struct {
 
 // AcceptedSuggestionSource Where the proposal came from. One value today, and a field rather than an assumption: a suggestion whose origin is not recorded is one nobody can tell from a person's own draft.
 type AcceptedSuggestionSource string
+
+// AccessExplanation defines model for AccessExplanation.
+type AccessExplanation struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+
+	// Asked The permission asked about, when one was.
+	Asked *string `json:"asked,omitempty"`
+
+	// HeldThrough The roles that carry the permission asked about.
+	HeldThrough *[]AccessSource `json:"held_through,omitempty"`
+
+	// Holds Whether the person holds the permission asked about.
+	Holds *bool `json:"holds,omitempty"`
+
+	// Permissions Every permission held there; a field or step permission only where a custom role names it.
+	Permissions []string                   `json:"permissions"`
+	Roles       []string                   `json:"roles"`
+	ScopeId     *openapi_types.UUID        `json:"scope_id,omitempty"`
+	ScopeType   AccessExplanationScopeType `json:"scope_type"`
+	Sources     []AccessSource             `json:"sources"`
+}
+
+// AccessExplanationScopeType defines model for AccessExplanation.ScopeType.
+type AccessExplanationScopeType string
+
+// AccessSource One role that counts for the person, and where it is held.
+type AccessSource struct {
+	Custom bool `json:"custom"`
+
+	// Role A shipped role's name or a custom role's key.
+	Role      string                `json:"role"`
+	ScopeId   *openapi_types.UUID   `json:"scope_id,omitempty"`
+	ScopeType AccessSourceScopeType `json:"scope_type"`
+}
+
+// AccessSourceScopeType defines model for AccessSource.ScopeType.
+type AccessSourceScopeType string
 
 // AccessToken A minted credential as it is listed afterwards. The token itself is not a member: it exists in the answer to the call that minted it and nowhere else.
 type AccessToken struct {
@@ -8039,6 +8178,60 @@ type CustomFieldValue struct {
 	// Value The value, shaped by the definition's kind: a string for TEXT, SELECT, URL and RICH_TEXT, a number for NUMBER, a number with at most four decimal places for MONEY, a whole number of minutes for DURATION, a boolean for BOOL, an ISO-8601 date for DATE, an account identifier for USER, an entry identifier for REFERENCE, an array of strings for MULTI_SELECT and an array of account identifiers for USER_SET. Null clears the key.
 	Value interface{} `json:"value"`
 }
+
+// CustomRole A role of the workspace's own, built from the permission catalogue.
+type CustomRole struct {
+	CreatedAt   time.Time          `json:"created_at"`
+	Id          openapi_types.UUID `json:"id"`
+	Key         string             `json:"key"`
+	Name        string             `json:"name"`
+	Permissions []string           `json:"permissions"`
+	UpdatedAt   time.Time          `json:"updated_at"`
+	Version     int                `json:"version"`
+}
+
+// CustomRoleChange defines model for CustomRoleChange.
+type CustomRoleChange struct {
+	Name        string   `json:"name"`
+	Permissions []string `json:"permissions"`
+}
+
+// CustomRoleCreate defines model for CustomRoleCreate.
+type CustomRoleCreate struct {
+	Key         string   `json:"key"`
+	Name        string   `json:"name"`
+	Permissions []string `json:"permissions"`
+}
+
+// CustomRoleGrant defines model for CustomRoleGrant.
+type CustomRoleGrant struct {
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+	GroupId   *openapi_types.UUID `json:"group_id,omitempty"`
+	Id        openapi_types.UUID  `json:"id"`
+
+	// Role The custom role's key.
+	Role      string                   `json:"role"`
+	ScopeId   *openapi_types.UUID      `json:"scope_id,omitempty"`
+	ScopeType CustomRoleGrantScopeType `json:"scope_type"`
+}
+
+// CustomRoleGrantScopeType defines model for CustomRoleGrant.ScopeType.
+type CustomRoleGrantScopeType string
+
+// CustomRoleGrantCreate defines model for CustomRoleGrantCreate.
+type CustomRoleGrantCreate struct {
+	// AccountId Exactly one of account_id and group_id.
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+
+	// GroupId Exactly one of account_id and group_id.
+	GroupId   *openapi_types.UUID            `json:"group_id,omitempty"`
+	Role      string                         `json:"role"`
+	ScopeId   *openapi_types.UUID            `json:"scope_id,omitempty"`
+	ScopeType CustomRoleGrantCreateScopeType `json:"scope_type"`
+}
+
+// CustomRoleGrantCreateScopeType defines model for CustomRoleGrantCreate.ScopeType.
+type CustomRoleGrantCreateScopeType string
 
 // DataSubjectRequest defines model for DataSubjectRequest.
 type DataSubjectRequest struct {
@@ -11257,6 +11450,20 @@ type PasswordViolation struct {
 	Rule string `json:"rule"`
 }
 
+// PermissionEntry One permission of the catalogue, with the shipped roles that hold it.
+type PermissionEntry struct {
+	// Group The area of the administration it belongs to.
+	Group string              `json:"group"`
+	Kind  PermissionEntryKind `json:"kind"`
+
+	// Permission A name, or a family (`FIELD_WRITE:*`, `TAKE_STEP:*`).
+	Permission string           `json:"permission"`
+	Shipped    []MembershipRole `json:"shipped"`
+}
+
+// PermissionEntryKind defines model for PermissionEntry.Kind.
+type PermissionEntryKind string
+
 // Plan defines model for Plan.
 type Plan struct {
 	Ai          *map[string]InstanceSetting `json:"ai,omitempty"`
@@ -12115,6 +12322,14 @@ type RetentionState struct {
 // RetentionStateBlockedBy defines model for RetentionState.BlockedBy.
 type RetentionStateBlockedBy string
 
+// RoleCatalogue defines model for RoleCatalogue.
+type RoleCatalogue struct {
+	Catalogue []PermissionEntry `json:"catalogue"`
+	Custom    []CustomRole      `json:"custom"`
+	Grants    []CustomRoleGrant `json:"grants"`
+	Shipped   []ShippedRole     `json:"shipped"`
+}
+
 // RoleDescription One row of the role matrix: the permissions the role carries, and what it may do to a single entry.
 // Every cell is bounded by where the membership was granted. The role applies downwards from its scope - tenant, hub, collection, or one entry - so a role granted at `ITEM` scope reaches that entry and nothing else. That is what sharing an entry with a guest is; it needs no separate mechanism and is therefore not a property of the role.
 type RoleDescription struct {
@@ -12581,6 +12796,18 @@ type SettingSource string
 type SettingsCatalogue struct {
 	// Settings Every setting, in the order a settings screen draws them.
 	Settings []SettingDefinition `json:"settings"`
+}
+
+// ShippedRole defines model for ShippedRole.
+type ShippedRole struct {
+	Permissions []string `json:"permissions"`
+
+	// Role `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
+	// the configuration and no content at all. It exists because the
+	// alternative, in practice, is giving an auditor administrator rights - a permissions
+	// problem that arises precisely where evidence is being demanded. Somebody who needs both
+	// holds two memberships; the rights add up rather than the stronger one winning.
+	Role MembershipRole `json:"role"`
 }
 
 // SignIn Exactly one of `identifier` and `email`; neither, or both, is `auth.identifier_one`. A refusal of the shape, the same for everybody - nothing in it depends on who exists.
@@ -14223,13 +14450,12 @@ type WorkflowStep struct {
 		Condition *string `json:"condition,omitempty"`
 
 		// PersonFields `assignee`, `created_by` or `custom_fields.<key>` of a person field.
-		PersonFields *[]string               `json:"person_fields,omitempty"`
-		Roles        *[]WorkflowStepWhoRoles `json:"roles,omitempty"`
+		PersonFields *[]string `json:"person_fields,omitempty"`
+
+		// Roles Shipped roles (OWNER, ADMIN, MEMBER, CONTRIBUTOR, GUEST) or the keys of the workspace's own roles. Whoever holds the step's permission `TAKE_STEP:<workflow>/<step>` may take it as well.
+		Roles *[]string `json:"roles,omitempty"`
 	} `json:"who,omitempty"`
 }
-
-// WorkflowStepWhoRoles defines model for WorkflowStep.Who.Roles.
-type WorkflowStepWhoRoles string
 
 // Workspace A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on.
 type Workspace struct {
@@ -14535,6 +14761,22 @@ type ViewId = openapi_types.UUID
 
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
+
+// ExplainAccessParams defines parameters for ExplainAccess.
+type ExplainAccessParams struct {
+	// AccountId The person; omitted for the caller.
+	AccountId *openapi_types.UUID          `form:"account_id,omitempty" json:"account_id,omitempty"`
+	ScopeType ExplainAccessParamsScopeType `form:"scope_type" json:"scope_type"`
+
+	// ScopeId The hub or collection. Omitted for the workspace, and only then.
+	ScopeId *openapi_types.UUID `form:"scope_id,omitempty" json:"scope_id,omitempty"`
+
+	// Permission A permission of the catalogue to ask about.
+	Permission *string `form:"permission,omitempty" json:"permission,omitempty"`
+}
+
+// ExplainAccessParamsScopeType defines parameters for ExplainAccess.
+type ExplainAccessParamsScopeType string
 
 // StartProviderConnectParams defines parameters for StartProviderConnect.
 type StartProviderConnectParams struct {
@@ -15803,6 +16045,24 @@ type UpdateRetentionPolicyParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// GrantRoleParams defines parameters for GrantRole.
+type GrantRoleParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CreateRoleParams defines parameters for CreateRole.
+type CreateRoleParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ChangeRoleParams defines parameters for ChangeRole.
+type ChangeRoleParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // StreamChangesParams defines parameters for StreamChanges.
 type StreamChangesParams struct {
 	// LastEventID The cursor to resume from, as the stream last sent it. Absent means "from now": a client with no cursor is starting fresh and should pull rather than ask the stream for history.
@@ -16489,6 +16749,15 @@ type CreateRetentionPolicyJSONRequestBody = RetentionPolicy
 // UpdateRetentionPolicyApplicationMergePatchPlusJSONRequestBody defines body for UpdateRetentionPolicy for application/merge-patch+json ContentType.
 type UpdateRetentionPolicyApplicationMergePatchPlusJSONRequestBody = RetentionPolicyUpdate
 
+// GrantRoleJSONRequestBody defines body for GrantRole for application/json ContentType.
+type GrantRoleJSONRequestBody = CustomRoleGrantCreate
+
+// CreateRoleJSONRequestBody defines body for CreateRole for application/json ContentType.
+type CreateRoleJSONRequestBody = CustomRoleCreate
+
+// ChangeRoleApplicationMergePatchPlusJSONRequestBody defines body for ChangeRole for application/merge-patch+json ContentType.
+type ChangeRoleApplicationMergePatchPlusJSONRequestBody = CustomRoleChange
+
 // SearchItemsJSONRequestBody defines body for SearchItems for application/json ContentType.
 type SearchItemsJSONRequestBody = ItemSearchQuery
 
@@ -16640,6 +16909,17 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+
+	// ExplainAccess What a person holds at a place, and why
+	//
+	// The roles that count for the person at the workspace, a hub or a collection, where each is
+	// held, and every permission they carry. Given `permission`, also whether the person holds
+	// it and through which role - the answer behind "view as" and "why may this person do
+	// that". A person may always ask about themselves; about somebody else it takes
+	// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace.
+	//
+	// Corresponds with GET /access/explain (the `ExplainAccess` operationId).
+	ExplainAccess(ctx context.Context, params *ExplainAccessParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetOwnAccount The account the caller is signed in as
 	//
@@ -21802,6 +22082,102 @@ type ClientInterface interface {
 	// Corresponds with POST /retention-policies/{policyId}:preview (the `PreviewRetentionPolicy` operationId).
 	PreviewRetentionPolicy(ctx context.Context, policyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GrantRoleWithBody Give a role of the workspace's own at a place
+	//
+	// To an account or to a group, at the workspace, a hub or a collection; it applies downwards
+	// as a shipped role does. The caller needs `MANAGE_MEMBERS` there and every permission the
+	// role carries. A group is refused a role inside a private hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /role-grants (the `GrantRole` operationId).
+	GrantRoleWithBody(ctx context.Context, params *GrantRoleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GrantRole Give a role of the workspace's own at a place
+	//
+	// To an account or to a group, at the workspace, a hub or a collection; it applies downwards
+	// as a shipped role does. The caller needs `MANAGE_MEMBERS` there and every permission the
+	// role carries. A group is refused a role inside a private hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /role-grants (the `GrantRole` operationId).
+	GrantRole(ctx context.Context, params *GrantRoleParams, body GrantRoleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RevokeRoleGrant Take a role of the workspace's own away
+	//
+	// Takes effect on the next request; needs what giving it needed.
+	//
+	// Corresponds with DELETE /role-grants/{grantId} (the `RevokeRoleGrant` operationId).
+	RevokeRoleGrant(ctx context.Context, grantId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListRoles The permission catalogue and the roles
+	//
+	// The closed catalogue of permissions a role is built from, the seven shipped roles with
+	// what each carries, the workspace's own roles, and where its own roles are held. The two
+	// families `FIELD_WRITE:*` and `TAKE_STEP:*` stand for the permission of every restricted
+	// field and every workflow step; the owner and the administrators hold all of them. What the
+	// roles screen and the who-may-do-what matrix are drawn from. Needs `MANAGE_MEMBERS` or
+	// `READ_CONFIGURATION` at the workspace.
+	//
+	// Corresponds with GET /roles (the `ListRoles` operationId).
+	ListRoles(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateRoleWithBody Define a role of the workspace's own
+	//
+	// A lower-case key that never spells a shipped role, a name, and permissions from the
+	// catalogue. Nobody hands out a permission they do not hold: the caller needs
+	// `MANAGE_MEMBERS` and every permission the role carries at the workspace, or is refused
+	// with `access.permission_above_own` naming what they lack.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /roles (the `CreateRole` operationId).
+	CreateRoleWithBody(ctx context.Context, params *CreateRoleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateRole Define a role of the workspace's own
+	//
+	// A lower-case key that never spells a shipped role, a name, and permissions from the
+	// catalogue. Nobody hands out a permission they do not hold: the caller needs
+	// `MANAGE_MEMBERS` and every permission the role carries at the workspace, or is refused
+	// with `access.permission_above_own` naming what they lack.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /roles (the `CreateRole` operationId).
+	CreateRole(ctx context.Context, params *CreateRoleParams, body CreateRoleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteRole Delete a role of the workspace's own
+	//
+	// Removes the role and every grant of it; whoever held it loses what it carried on the next
+	// request, and their devices are told. Nothing anybody wrote is touched. Needs what defining
+	// the role needed.
+	//
+	// Corresponds with DELETE /roles/{key} (the `DeleteRole` operationId).
+	DeleteRole(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeRoleWithBody Change a role of the workspace's own
+	//
+	// Renames the role and replaces what it carries; everybody who holds it holds the new set
+	// from the next request. Every permission added or taken away must be one the caller holds
+	// at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /roles/{key} (the `ChangeRole` operationId).
+	ChangeRoleWithBody(ctx context.Context, key string, params *ChangeRoleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeRoleWithApplicationMergePatchPlusJSONBody Change a role of the workspace's own
+	//
+	// Renames the role and replaces what it carries; everybody who holds it holds the new set
+	// from the next request. Every permission added or taken away must be one the caller holds
+	// at the workspace.
+	//
+	// Takes a body of the `application/merge-patch+json` content type.
+	//
+	// Corresponds with PATCH /roles/{key} (the `ChangeRole` operationId).
+	ChangeRoleWithApplicationMergePatchPlusJSONBody(ctx context.Context, key string, params *ChangeRoleParams, body ChangeRoleApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// SearchItemsWithBody Full-text search over the entries a caller may see
 	//
 	// Finds entries by the words in their titles and notes, best match first. A `POST` for the
@@ -22557,6 +22933,27 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /workflows/{key}:publish (the `PublishWorkflow` operationId).
 	PublishWorkflow(ctx context.Context, key string, params *PublishWorkflowParams, body PublishWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+// ExplainAccess What a person holds at a place, and why
+//
+// The roles that count for the person at the workspace, a hub or a collection, where each is
+// held, and every permission they carry. Given `permission`, also whether the person holds
+// it and through which role - the answer behind "view as" and "why may this person do
+// that". A person may always ask about themselves; about somebody else it takes
+// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace.
+//
+// Corresponds with GET /access/explain (the `ExplainAccess` operationId).
+func (c *Client) ExplainAccess(ctx context.Context, params *ExplainAccessParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExplainAccessRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 // GetOwnAccount The account the caller is signed in as
@@ -33160,6 +33557,192 @@ func (c *Client) PreviewRetentionPolicy(ctx context.Context, policyId openapi_ty
 	return c.Client.Do(req)
 }
 
+// GrantRoleWithBody Give a role of the workspace's own at a place
+//
+// To an account or to a group, at the workspace, a hub or a collection; it applies downwards
+// as a shipped role does. The caller needs `MANAGE_MEMBERS` there and every permission the
+// role carries. A group is refused a role inside a private hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /role-grants (the `GrantRole` operationId).
+func (c *Client) GrantRoleWithBody(ctx context.Context, params *GrantRoleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGrantRoleRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GrantRole Give a role of the workspace's own at a place
+//
+// To an account or to a group, at the workspace, a hub or a collection; it applies downwards
+// as a shipped role does. The caller needs `MANAGE_MEMBERS` there and every permission the
+// role carries. A group is refused a role inside a private hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /role-grants (the `GrantRole` operationId).
+func (c *Client) GrantRole(ctx context.Context, params *GrantRoleParams, body GrantRoleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGrantRoleRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RevokeRoleGrant Take a role of the workspace's own away
+//
+// Takes effect on the next request; needs what giving it needed.
+//
+// Corresponds with DELETE /role-grants/{grantId} (the `RevokeRoleGrant` operationId).
+func (c *Client) RevokeRoleGrant(ctx context.Context, grantId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRevokeRoleGrantRequest(c.Server, grantId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListRoles The permission catalogue and the roles
+//
+// The closed catalogue of permissions a role is built from, the seven shipped roles with
+// what each carries, the workspace's own roles, and where its own roles are held. The two
+// families `FIELD_WRITE:*` and `TAKE_STEP:*` stand for the permission of every restricted
+// field and every workflow step; the owner and the administrators hold all of them. What the
+// roles screen and the who-may-do-what matrix are drawn from. Needs `MANAGE_MEMBERS` or
+// `READ_CONFIGURATION` at the workspace.
+//
+// Corresponds with GET /roles (the `ListRoles` operationId).
+func (c *Client) ListRoles(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListRolesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateRoleWithBody Define a role of the workspace's own
+//
+// A lower-case key that never spells a shipped role, a name, and permissions from the
+// catalogue. Nobody hands out a permission they do not hold: the caller needs
+// `MANAGE_MEMBERS` and every permission the role carries at the workspace, or is refused
+// with `access.permission_above_own` naming what they lack.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /roles (the `CreateRole` operationId).
+func (c *Client) CreateRoleWithBody(ctx context.Context, params *CreateRoleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateRoleRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateRole Define a role of the workspace's own
+//
+// A lower-case key that never spells a shipped role, a name, and permissions from the
+// catalogue. Nobody hands out a permission they do not hold: the caller needs
+// `MANAGE_MEMBERS` and every permission the role carries at the workspace, or is refused
+// with `access.permission_above_own` naming what they lack.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /roles (the `CreateRole` operationId).
+func (c *Client) CreateRole(ctx context.Context, params *CreateRoleParams, body CreateRoleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateRoleRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteRole Delete a role of the workspace's own
+//
+// Removes the role and every grant of it; whoever held it loses what it carried on the next
+// request, and their devices are told. Nothing anybody wrote is touched. Needs what defining
+// the role needed.
+//
+// Corresponds with DELETE /roles/{key} (the `DeleteRole` operationId).
+func (c *Client) DeleteRole(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteRoleRequest(c.Server, key)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeRoleWithBody Change a role of the workspace's own
+//
+// Renames the role and replaces what it carries; everybody who holds it holds the new set
+// from the next request. Every permission added or taken away must be one the caller holds
+// at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /roles/{key} (the `ChangeRole` operationId).
+func (c *Client) ChangeRoleWithBody(ctx context.Context, key string, params *ChangeRoleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeRoleRequestWithBody(c.Server, key, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeRoleWithApplicationMergePatchPlusJSONBody Change a role of the workspace's own
+//
+// Renames the role and replaces what it carries; everybody who holds it holds the new set
+// from the next request. Every permission added or taken away must be one the caller holds
+// at the workspace.
+//
+// Takes a body of the `application/merge-patch+json` content type.
+//
+// Corresponds with PATCH /roles/{key} (the `ChangeRole` operationId).
+func (c *Client) ChangeRoleWithApplicationMergePatchPlusJSONBody(ctx context.Context, key string, params *ChangeRoleParams, body ChangeRoleApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeRoleRequestWithApplicationMergePatchPlusJSONBody(c.Server, key, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // SearchItemsWithBody Full-text search over the entries a caller may see
 //
 // Finds entries by the words in their titles and notes, best match first. A `POST` for the
@@ -34664,6 +35247,92 @@ func (c *Client) PublishWorkflow(ctx context.Context, key string, params *Publis
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewExplainAccessRequest constructs an http.Request for the ExplainAccess method
+func NewExplainAccessRequest(server string, params *ExplainAccessParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/access/explain")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.AccountId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "account_id", *params.AccountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "scope_type", params.ScopeType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if params.ScopeId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "scope_id", *params.ScopeId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Permission != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "permission", *params.Permission, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewGetOwnAccountRequest constructs an http.Request for the GetOwnAccount method
@@ -52172,6 +52841,273 @@ func NewPreviewRetentionPolicyRequest(server string, policyId openapi_types.UUID
 	return req, nil
 }
 
+// NewGrantRoleRequest calls the generic GrantRole builder with application/json body
+func NewGrantRoleRequest(server string, params *GrantRoleParams, body GrantRoleJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewGrantRoleRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewGrantRoleRequestWithBody constructs an http.Request for the GrantRole method, with any body, and a specified content type
+func NewGrantRoleRequestWithBody(server string, params *GrantRoleParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/role-grants")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewRevokeRoleGrantRequest constructs an http.Request for the RevokeRoleGrant method
+func NewRevokeRoleGrantRequest(server string, grantId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "grantId", grantId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/role-grants/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListRolesRequest constructs an http.Request for the ListRoles method
+func NewListRolesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/roles")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateRoleRequest calls the generic CreateRole builder with application/json body
+func NewCreateRoleRequest(server string, params *CreateRoleParams, body CreateRoleJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateRoleRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewCreateRoleRequestWithBody constructs an http.Request for the CreateRole method, with any body, and a specified content type
+func NewCreateRoleRequestWithBody(server string, params *CreateRoleParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/roles")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewDeleteRoleRequest constructs an http.Request for the DeleteRole method
+func NewDeleteRoleRequest(server string, key string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/roles/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewChangeRoleRequestWithApplicationMergePatchPlusJSONBody calls the generic ChangeRole builder with application/merge-patch+json body
+func NewChangeRoleRequestWithApplicationMergePatchPlusJSONBody(server string, key string, params *ChangeRoleParams, body ChangeRoleApplicationMergePatchPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangeRoleRequestWithBody(server, key, params, "application/merge-patch+json", bodyReader)
+}
+
+// NewChangeRoleRequestWithBody constructs an http.Request for the ChangeRole method, with any body, and a specified content type
+func NewChangeRoleRequestWithBody(server string, key string, params *ChangeRoleParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/roles/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewSearchItemsRequest calls the generic SearchItems builder with application/json body
 func NewSearchItemsRequest(server string, body SearchItemsJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -54524,6 +55460,19 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+
+	// ExplainAccessWithResponse What a person holds at a place, and why
+	//
+	// The roles that count for the person at the workspace, a hub or a collection, where each is
+	// held, and every permission they carry. Given `permission`, also whether the person holds
+	// it and through which role - the answer behind "view as" and "why may this person do
+	// that". A person may always ask about themselves; about somebody else it takes
+	// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /access/explain (the `ExplainAccess` operationId).
+	ExplainAccessWithResponse(ctx context.Context, params *ExplainAccessParams, reqEditors ...RequestEditorFn) (*ExplainAccessResult, error)
 
 	// GetOwnAccountWithResponse The account the caller is signed in as
 	//
@@ -60142,6 +61091,108 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /retention-policies/{policyId}:preview (the `PreviewRetentionPolicy` operationId).
 	PreviewRetentionPolicyWithResponse(ctx context.Context, policyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*PreviewRetentionPolicyResult, error)
 
+	// GrantRoleWithBodyWithResponse Give a role of the workspace's own at a place
+	//
+	// To an account or to a group, at the workspace, a hub or a collection; it applies downwards
+	// as a shipped role does. The caller needs `MANAGE_MEMBERS` there and every permission the
+	// role carries. A group is refused a role inside a private hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /role-grants (the `GrantRole` operationId).
+	GrantRoleWithBodyWithResponse(ctx context.Context, params *GrantRoleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GrantRoleResult, error)
+
+	// GrantRoleWithResponse Give a role of the workspace's own at a place
+	//
+	// To an account or to a group, at the workspace, a hub or a collection; it applies downwards
+	// as a shipped role does. The caller needs `MANAGE_MEMBERS` there and every permission the
+	// role carries. A group is refused a role inside a private hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /role-grants (the `GrantRole` operationId).
+	GrantRoleWithResponse(ctx context.Context, params *GrantRoleParams, body GrantRoleJSONRequestBody, reqEditors ...RequestEditorFn) (*GrantRoleResult, error)
+
+	// RevokeRoleGrantWithResponse Take a role of the workspace's own away
+	//
+	// Takes effect on the next request; needs what giving it needed.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /role-grants/{grantId} (the `RevokeRoleGrant` operationId).
+	RevokeRoleGrantWithResponse(ctx context.Context, grantId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RevokeRoleGrantResult, error)
+
+	// ListRolesWithResponse The permission catalogue and the roles
+	//
+	// The closed catalogue of permissions a role is built from, the seven shipped roles with
+	// what each carries, the workspace's own roles, and where its own roles are held. The two
+	// families `FIELD_WRITE:*` and `TAKE_STEP:*` stand for the permission of every restricted
+	// field and every workflow step; the owner and the administrators hold all of them. What the
+	// roles screen and the who-may-do-what matrix are drawn from. Needs `MANAGE_MEMBERS` or
+	// `READ_CONFIGURATION` at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /roles (the `ListRoles` operationId).
+	ListRolesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListRolesResult, error)
+
+	// CreateRoleWithBodyWithResponse Define a role of the workspace's own
+	//
+	// A lower-case key that never spells a shipped role, a name, and permissions from the
+	// catalogue. Nobody hands out a permission they do not hold: the caller needs
+	// `MANAGE_MEMBERS` and every permission the role carries at the workspace, or is refused
+	// with `access.permission_above_own` naming what they lack.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /roles (the `CreateRole` operationId).
+	CreateRoleWithBodyWithResponse(ctx context.Context, params *CreateRoleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateRoleResult, error)
+
+	// CreateRoleWithResponse Define a role of the workspace's own
+	//
+	// A lower-case key that never spells a shipped role, a name, and permissions from the
+	// catalogue. Nobody hands out a permission they do not hold: the caller needs
+	// `MANAGE_MEMBERS` and every permission the role carries at the workspace, or is refused
+	// with `access.permission_above_own` naming what they lack.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /roles (the `CreateRole` operationId).
+	CreateRoleWithResponse(ctx context.Context, params *CreateRoleParams, body CreateRoleJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateRoleResult, error)
+
+	// DeleteRoleWithResponse Delete a role of the workspace's own
+	//
+	// Removes the role and every grant of it; whoever held it loses what it carried on the next
+	// request, and their devices are told. Nothing anybody wrote is touched. Needs what defining
+	// the role needed.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /roles/{key} (the `DeleteRole` operationId).
+	DeleteRoleWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*DeleteRoleResult, error)
+
+	// ChangeRoleWithBodyWithResponse Change a role of the workspace's own
+	//
+	// Renames the role and replaces what it carries; everybody who holds it holds the new set
+	// from the next request. Every permission added or taken away must be one the caller holds
+	// at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /roles/{key} (the `ChangeRole` operationId).
+	ChangeRoleWithBodyWithResponse(ctx context.Context, key string, params *ChangeRoleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeRoleResult, error)
+
+	// ChangeRoleWithApplicationMergePatchPlusJSONBodyWithResponse Change a role of the workspace's own
+	//
+	// Renames the role and replaces what it carries; everybody who holds it holds the new set
+	// from the next request. Every permission added or taken away must be one the caller holds
+	// at the workspace.
+	//
+	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /roles/{key} (the `ChangeRole` operationId).
+	ChangeRoleWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, key string, params *ChangeRoleParams, body ChangeRoleApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeRoleResult, error)
+
 	// SearchItemsWithBodyWithResponse Full-text search over the entries a caller may see
 	//
 	// Finds entries by the words in their titles and notes, best match first. A `POST` for the
@@ -60959,6 +62010,54 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /workflows/{key}:publish (the `PublishWorkflow` operationId).
 	PublishWorkflowWithResponse(ctx context.Context, key string, params *PublishWorkflowParams, body PublishWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishWorkflowResult, error)
+}
+
+type ExplainAccessResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AccessExplanation
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ExplainAccessResult) GetJSON200() *AccessExplanation {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ExplainAccessResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ExplainAccessResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ExplainAccessResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ExplainAccessResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ExplainAccessResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
 }
 
 type GetOwnAccountResult struct {
@@ -79175,6 +80274,280 @@ func (r PreviewRetentionPolicyResult) ContentType() string {
 	return ""
 }
 
+type GrantRoleResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *CustomRoleGrant
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r GrantRoleResult) GetJSON201() *CustomRoleGrant {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GrantRoleResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GrantRoleResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GrantRoleResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GrantRoleResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GrantRoleResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RevokeRoleGrantResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RevokeRoleGrantResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RevokeRoleGrantResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RevokeRoleGrantResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RevokeRoleGrantResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RevokeRoleGrantResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListRolesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *RoleCatalogue
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListRolesResult) GetJSON200() *RoleCatalogue {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListRolesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListRolesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListRolesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListRolesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListRolesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateRoleResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *CustomRole
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateRoleResult) GetJSON201() *CustomRole {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateRoleResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateRoleResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateRoleResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateRoleResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateRoleResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteRoleResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteRoleResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteRoleResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteRoleResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteRoleResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteRoleResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ChangeRoleResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CustomRole
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ChangeRoleResult) GetJSON200() *CustomRole {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangeRoleResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangeRoleResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangeRoleResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangeRoleResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangeRoleResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type SearchItemsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -81588,6 +82961,25 @@ func (r PublishWorkflowResult) ContentType() string {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
 	return ""
+}
+
+// ExplainAccessWithResponse What a person holds at a place, and why
+//
+// The roles that count for the person at the workspace, a hub or a collection, where each is
+// held, and every permission they carry. Given `permission`, also whether the person holds
+// it and through which role - the answer behind "view as" and "why may this person do
+// that". A person may always ask about themselves; about somebody else it takes
+// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /access/explain (the `ExplainAccess` operationId).
+func (c *ClientWithResponses) ExplainAccessWithResponse(ctx context.Context, params *ExplainAccessParams, reqEditors ...RequestEditorFn) (*ExplainAccessResult, error) {
+	rsp, err := c.ExplainAccess(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExplainAccessResult(rsp)
 }
 
 // GetOwnAccountWithResponse The account the caller is signed in as
@@ -90471,6 +91863,162 @@ func (c *ClientWithResponses) PreviewRetentionPolicyWithResponse(ctx context.Con
 	return ParsePreviewRetentionPolicyResult(rsp)
 }
 
+// GrantRoleWithBodyWithResponse Give a role of the workspace's own at a place
+//
+// To an account or to a group, at the workspace, a hub or a collection; it applies downwards
+// as a shipped role does. The caller needs `MANAGE_MEMBERS` there and every permission the
+// role carries. A group is refused a role inside a private hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /role-grants (the `GrantRole` operationId).
+func (c *ClientWithResponses) GrantRoleWithBodyWithResponse(ctx context.Context, params *GrantRoleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GrantRoleResult, error) {
+	rsp, err := c.GrantRoleWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGrantRoleResult(rsp)
+}
+
+// GrantRoleWithResponse Give a role of the workspace's own at a place
+//
+// To an account or to a group, at the workspace, a hub or a collection; it applies downwards
+// as a shipped role does. The caller needs `MANAGE_MEMBERS` there and every permission the
+// role carries. A group is refused a role inside a private hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /role-grants (the `GrantRole` operationId).
+func (c *ClientWithResponses) GrantRoleWithResponse(ctx context.Context, params *GrantRoleParams, body GrantRoleJSONRequestBody, reqEditors ...RequestEditorFn) (*GrantRoleResult, error) {
+	rsp, err := c.GrantRole(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGrantRoleResult(rsp)
+}
+
+// RevokeRoleGrantWithResponse Take a role of the workspace's own away
+//
+// Takes effect on the next request; needs what giving it needed.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /role-grants/{grantId} (the `RevokeRoleGrant` operationId).
+func (c *ClientWithResponses) RevokeRoleGrantWithResponse(ctx context.Context, grantId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RevokeRoleGrantResult, error) {
+	rsp, err := c.RevokeRoleGrant(ctx, grantId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRevokeRoleGrantResult(rsp)
+}
+
+// ListRolesWithResponse The permission catalogue and the roles
+//
+// The closed catalogue of permissions a role is built from, the seven shipped roles with
+// what each carries, the workspace's own roles, and where its own roles are held. The two
+// families `FIELD_WRITE:*` and `TAKE_STEP:*` stand for the permission of every restricted
+// field and every workflow step; the owner and the administrators hold all of them. What the
+// roles screen and the who-may-do-what matrix are drawn from. Needs `MANAGE_MEMBERS` or
+// `READ_CONFIGURATION` at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /roles (the `ListRoles` operationId).
+func (c *ClientWithResponses) ListRolesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListRolesResult, error) {
+	rsp, err := c.ListRoles(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListRolesResult(rsp)
+}
+
+// CreateRoleWithBodyWithResponse Define a role of the workspace's own
+//
+// A lower-case key that never spells a shipped role, a name, and permissions from the
+// catalogue. Nobody hands out a permission they do not hold: the caller needs
+// `MANAGE_MEMBERS` and every permission the role carries at the workspace, or is refused
+// with `access.permission_above_own` naming what they lack.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /roles (the `CreateRole` operationId).
+func (c *ClientWithResponses) CreateRoleWithBodyWithResponse(ctx context.Context, params *CreateRoleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateRoleResult, error) {
+	rsp, err := c.CreateRoleWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateRoleResult(rsp)
+}
+
+// CreateRoleWithResponse Define a role of the workspace's own
+//
+// A lower-case key that never spells a shipped role, a name, and permissions from the
+// catalogue. Nobody hands out a permission they do not hold: the caller needs
+// `MANAGE_MEMBERS` and every permission the role carries at the workspace, or is refused
+// with `access.permission_above_own` naming what they lack.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /roles (the `CreateRole` operationId).
+func (c *ClientWithResponses) CreateRoleWithResponse(ctx context.Context, params *CreateRoleParams, body CreateRoleJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateRoleResult, error) {
+	rsp, err := c.CreateRole(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateRoleResult(rsp)
+}
+
+// DeleteRoleWithResponse Delete a role of the workspace's own
+//
+// Removes the role and every grant of it; whoever held it loses what it carried on the next
+// request, and their devices are told. Nothing anybody wrote is touched. Needs what defining
+// the role needed.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /roles/{key} (the `DeleteRole` operationId).
+func (c *ClientWithResponses) DeleteRoleWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*DeleteRoleResult, error) {
+	rsp, err := c.DeleteRole(ctx, key, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteRoleResult(rsp)
+}
+
+// ChangeRoleWithBodyWithResponse Change a role of the workspace's own
+//
+// Renames the role and replaces what it carries; everybody who holds it holds the new set
+// from the next request. Every permission added or taken away must be one the caller holds
+// at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /roles/{key} (the `ChangeRole` operationId).
+func (c *ClientWithResponses) ChangeRoleWithBodyWithResponse(ctx context.Context, key string, params *ChangeRoleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeRoleResult, error) {
+	rsp, err := c.ChangeRoleWithBody(ctx, key, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeRoleResult(rsp)
+}
+
+// ChangeRoleWithApplicationMergePatchPlusJSONBodyWithResponse Change a role of the workspace's own
+//
+// Renames the role and replaces what it carries; everybody who holds it holds the new set
+// from the next request. Every permission added or taken away must be one the caller holds
+// at the workspace.
+//
+// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /roles/{key} (the `ChangeRole` operationId).
+func (c *ClientWithResponses) ChangeRoleWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, key string, params *ChangeRoleParams, body ChangeRoleApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeRoleResult, error) {
+	rsp, err := c.ChangeRoleWithApplicationMergePatchPlusJSONBody(ctx, key, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeRoleResult(rsp)
+}
+
 // SearchItemsWithBodyWithResponse Full-text search over the entries a caller may see
 //
 // Finds entries by the words in their titles and notes, best match first. A `POST` for the
@@ -91737,6 +93285,39 @@ func (c *ClientWithResponses) PublishWorkflowWithResponse(ctx context.Context, k
 		return nil, err
 	}
 	return ParsePublishWorkflowResult(rsp)
+}
+
+// ParseExplainAccessResult parses an HTTP response from a ExplainAccessWithResponse call
+func ParseExplainAccessResult(rsp *http.Response) (*ExplainAccessResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ExplainAccessResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AccessExplanation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseGetOwnAccountResult parses an HTTP response from a GetOwnAccountWithResponse call
@@ -104842,6 +106423,196 @@ func ParsePreviewRetentionPolicyResult(rsp *http.Response) (*PreviewRetentionPol
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGrantRoleResult parses an HTTP response from a GrantRoleWithResponse call
+func ParseGrantRoleResult(rsp *http.Response) (*GrantRoleResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GrantRoleResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest CustomRoleGrant
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRevokeRoleGrantResult parses an HTTP response from a RevokeRoleGrantWithResponse call
+func ParseRevokeRoleGrantResult(rsp *http.Response) (*RevokeRoleGrantResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RevokeRoleGrantResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListRolesResult parses an HTTP response from a ListRolesWithResponse call
+func ParseListRolesResult(rsp *http.Response) (*ListRolesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListRolesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest RoleCatalogue
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateRoleResult parses an HTTP response from a CreateRoleWithResponse call
+func ParseCreateRoleResult(rsp *http.Response) (*CreateRoleResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateRoleResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest CustomRole
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteRoleResult parses an HTTP response from a DeleteRoleWithResponse call
+func ParseDeleteRoleResult(rsp *http.Response) (*DeleteRoleResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteRoleResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseChangeRoleResult parses an HTTP response from a ChangeRoleWithResponse call
+func ParseChangeRoleResult(rsp *http.Response) (*ChangeRoleResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangeRoleResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CustomRole
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 

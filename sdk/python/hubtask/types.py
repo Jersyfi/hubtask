@@ -1144,6 +1144,75 @@ Module = Literal["WORKFLOWS", "PLANNING", "KNOWLEDGE", "WHITEBOARD", "SERVICE_DE
 
 SettingSource = Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE", "HUB", "COLLECTION", "PERSON"]
 
+class PermissionEntry(TypedDict, total=False):
+    """One permission of the catalogue, with the shipped roles that hold it."""
+    permission: Required[str]
+    kind: Required[Literal["BASE", "FIELD", "STEP"]]
+    group: Required[str]
+    shipped: Required[list["MembershipRole"]]
+
+class ShippedRole(TypedDict, total=False):
+    role: Required["MembershipRole"]
+    permissions: Required[list[str]]
+
+class CustomRole(TypedDict, total=False):
+    """A role of the workspace's own, built from the permission catalogue."""
+    id: Required[str]
+    key: Required[str]
+    name: Required[str]
+    permissions: Required[list[str]]
+    version: Required[int]
+    created_at: Required[str]
+    updated_at: Required[str]
+
+class CustomRoleCreate(TypedDict, total=False):
+    key: Required[str]
+    name: Required[str]
+    permissions: Required[list[str]]
+
+class CustomRoleChange(TypedDict, total=False):
+    name: Required[str]
+    permissions: Required[list[str]]
+
+class CustomRoleGrant(TypedDict, total=False):
+    id: Required[str]
+    role: Required[str]
+    scope_type: Required[Literal["TENANT", "HUB", "COLLECTION"]]
+    scope_id: str
+    account_id: str
+    group_id: str
+
+class CustomRoleGrantCreate(TypedDict, total=False):
+    role: Required[str]
+    scope_type: Required[Literal["TENANT", "HUB", "COLLECTION"]]
+    scope_id: str
+    account_id: str
+    group_id: str
+
+class RoleCatalogue(TypedDict, total=False):
+    catalogue: Required[list["PermissionEntry"]]
+    shipped: Required[list["ShippedRole"]]
+    custom: Required[list["CustomRole"]]
+    grants: Required[list["CustomRoleGrant"]]
+
+class AccessSource(TypedDict, total=False):
+    """One role that counts for the person, and where it is held."""
+    role: Required[str]
+    custom: Required[bool]
+    scope_type: Required[Literal["TENANT", "HUB", "COLLECTION", "ITEM"]]
+    scope_id: str
+
+class AccessExplanation(TypedDict, total=False):
+    account_id: Required[str]
+    scope_type: Required[Literal["TENANT", "HUB", "COLLECTION"]]
+    scope_id: str
+    roles: Required[list[str]]
+    permissions: Required[list[str]]
+    sources: Required[list["AccessSource"]]
+    asked: str
+    holds: bool
+    held_through: list["AccessSource"]
+
 class LinkType(TypedDict, total=False):
     """A kind of relation between two entries: one of the six every workspace has, or one of its own. What it means is fixed once it is made."""
     key: Required[str]

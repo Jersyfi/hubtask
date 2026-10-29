@@ -1773,3 +1773,27 @@ func (pending) ListEntrySteps(w http.ResponseWriter, r *http.Request, _ openapi.
 func (pending) TakeStep(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.TakeStepParams) {
 	notAvailable(w, r)
 }
+
+func (pending) ListRoles(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CreateRole(w http.ResponseWriter, r *http.Request, _ openapi.CreateRoleParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ChangeRole(w http.ResponseWriter, r *http.Request, _ string, _ openapi.ChangeRoleParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteRole(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+func (pending) GrantRole(w http.ResponseWriter, r *http.Request, _ openapi.GrantRoleParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RevokeRoleGrant(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ExplainAccess(w http.ResponseWriter, r *http.Request, _ openapi.ExplainAccessParams) {
+	notAvailable(w, r)
+}
