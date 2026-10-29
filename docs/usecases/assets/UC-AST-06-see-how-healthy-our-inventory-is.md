@@ -28,7 +28,11 @@ Before the yearly review Dana opens the inventory's health: completeness is 82 %
 4. The answer counts CIs without an owner and reviews overdue, per class and in all, and names the CIs found wanting with the kinds of problem and the required attributes missing.
 5. An administrator defines a class of the workspace's own beneath a shipped one with its attributes (optional, recommended, required; identifying or not), identifier rules, required relations and staleness period; a shipped class is not changed.
 6. The *Assets* screen shows the health with its figures per class and opens a CI found wanting.
+7. Each active service - business, technical, application service, offering - is scored by the share of the active CIs it rests on, itself and everything whose failure it suffers, that are found wanting in nothing; the worst comes first, and the *Assets* screen opens each.
+8. A relation a program reported is unconfirmed when that program has not reported it again within the staleness period of its source CI's class; a relation a person made never is. Health counts them; nothing is removed.
+9. Each source that ran in the hub carries a conflict rate over the hub's latest twenty runs: of the attributes it reported with a value other than the stored one, the share a better source kept.
 
 ## Where it ends
 
-* No certification campaigns asking owners to confirm their CIs, no source conflict rate, no lifecycle policies - the following release.
+* No certification campaigns asking owners to confirm their CIs, no lifecycle policies - the following release.
+* An unconfirmed relation is counted, not expired: removing what a program no longer reports is a lifecycle policy.
