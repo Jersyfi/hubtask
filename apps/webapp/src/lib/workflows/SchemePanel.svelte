@@ -12,7 +12,7 @@
 
   import { containers } from '../data/containers.svelte.ts';
   import { entryTypes } from '../data/entrytypes.svelte.ts';
-  import { workflows } from '../data/workflows.svelte.ts';
+  import { statusLabel, workflows } from '../data/workflows.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -32,6 +32,12 @@
     if (!key) return t('app.workflow_designer.every_type');
     const type = entryTypes.all.find((each) => each.key === key);
     return type?.name ?? key;
+  };
+
+  /** A column by its status's name in this workflow, else its key. */
+  const columnName = (key: string) => {
+    const status = workflow.published.statuses.find((each) => each.key === key);
+    return status ? statusLabel(status, t) : key;
   };
 
   let hub = $state('');
@@ -127,7 +133,7 @@
     {#if pending}
       <div class="pending" data-scheme-preview>
         <p>{t('app.workflow_designer.publish_entries', { count: pending.preview.entries })}</p>
-        <p class="quiet">{t('app.workflow_designer.columns_after')} {pending.preview.columns_after.join(' · ') || t('app.workflow_designer.no_status')}</p>
+        <p class="quiet">{t('app.workflow_designer.columns_after')} {pending.preview.columns_after.map(columnName).join(' · ') || t('app.workflow_designer.no_status')}</p>
         <Inline gap="100">
           <Button tone="secondary" size="sm" onclick={() => (pending = undefined)}>{t('app.workflow_designer.cancel')}</Button>
           <Button tone="primary" size="sm" data-confirm-scheme isBusy={isBusy} onclick={confirm}>
