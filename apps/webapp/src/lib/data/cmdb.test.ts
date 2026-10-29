@@ -231,11 +231,14 @@ test('UC-AST-07 check 7: the screen lists, defines and runs the connectors of a 
   assert.equal(connectorTone('FAILED'), 'danger');
 });
 
-test('UC-AST-08 check 7: an intake has no address or period to send, its collection is kept, and its address is the API origin', () => {
+test('UC-AST-08 check 7 and UC-AST-07 check 9: an intake has no address or period to send, only an alert intake a collection, and its address is the API origin', () => {
   const intake = { ...connectorDraft(), key: 'am', kind: 'ALERTMANAGER' as const, source: 'alertmanager', baseUrl: 'ignored', every: 60, collection: 'col' };
   assert.deepEqual(connectorMissing(intake, true), []);
   assert.deepEqual(connectorDefine(intake), { kind: 'ALERTMANAGER', source: 'alertmanager', enabled: true, allowed_hosts: [], every_minutes: 0, collection_id: 'col' });
-  assert.equal(intakeAddress('https://hub.example.org/', 't1', 'c1'), 'https://hub.example.org/api/v1/cmdb/alert-intake/t1/c1');
+  assert.equal(intakeAddress('https://hub.example.org/', 't1', { id: 'c1' }), 'https://hub.example.org/api/v1/cmdb/alert-intake/t1/c1');
+  assert.equal(intakeAddress('https://hub.example.org', 't1', { id: 'c2', inventory: true }), 'https://hub.example.org/api/v1/cmdb/inventory-intake/t1/c2');
+  const agents = { ...connectorDraft(), key: 'agents', kind: 'GLPI_AGENT' as const, source: 'agents', collection: 'col' };
+  assert.deepEqual(connectorDefine(agents), { kind: 'GLPI_AGENT', source: 'agents', enabled: true, allowed_hosts: [], every_minutes: 0 });
 
   assert.equal(alertsPath('h'), '/hubs/h/ci-alerts');
   assert.equal(alertsPath('h', 'FIRING'), '/hubs/h/ci-alerts?status=FIRING');

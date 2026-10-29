@@ -155,7 +155,7 @@
     connector.last_outcome ? t(`app.assets.connector_outcome.${connector.last_outcome}`) : t('app.assets.connector_never');
   const errorWord = (code: string) => (messages.has(code) ? t(code) : code);
   const address = (connector: CiConnector) =>
-    workspace.workspace?.id ? intakeAddress(window.location.origin, workspace.workspace.id, connector.id) : undefined;
+    workspace.workspace?.id ? intakeAddress(window.location.origin, workspace.workspace.id, connector) : undefined;
 </script>
 
 <Stack gap="200">
@@ -217,7 +217,7 @@
 
           {#if connector.push}
             {@const at = address(connector)}
-            {#if at}<IntakeAddress address={at} lead={t('app.assets.intake_address')} />{/if}
+            {#if at}<IntakeAddress address={at} lead={connector.inventory ? t('app.assets.intake_agent_address') : t('app.assets.intake_address')} />{/if}
           {/if}
 
           <div class="actions">
@@ -276,7 +276,7 @@
       {#if spec && !spec.push}
         <Textarea label={t('app.assets.connector_hosts')} hint={t('app.assets.connector_hosts_hint')} rows={2} bind:value={draft.hosts} />
         <Select label={t('app.assets.connector_period')} options={periodOptions} bind:value={period} />
-      {:else}
+      {:else if spec && !spec.inventory}
         <Select label={t('app.assets.connector_collection')} hint={t('app.assets.connector_collection_hint')} options={collectionOptions} bind:value={draft.collection} />
       {/if}
       <Switch label={t('app.assets.connector_enabled')} bind:checked={draft.enabled} />

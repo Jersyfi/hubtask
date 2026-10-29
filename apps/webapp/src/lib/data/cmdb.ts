@@ -407,7 +407,12 @@ export type ConnectorKind = CiConnector['kind'];
  * than pulled, and the settings it cannot run without. The server refuses a missing one by its
  * code either way; the form asks for them so nobody types a key by hand.
  */
-export const CONNECTOR_KINDS: readonly { readonly kind: ConnectorKind; readonly push: boolean; readonly settings: readonly string[] }[] = [
+export const CONNECTOR_KINDS: readonly {
+  readonly kind: ConnectorKind;
+  readonly push: boolean;
+  readonly inventory?: boolean;
+  readonly settings: readonly string[];
+}[] = [
   { kind: 'GLPI', push: false, settings: ['client_id'] },
   { kind: 'NETBOX', push: false, settings: [] },
   { kind: 'INTUNE', push: false, settings: ['tenant', 'client_id', 'authority'] },
@@ -417,6 +422,7 @@ export const CONNECTOR_KINDS: readonly { readonly kind: ConnectorKind; readonly 
   { kind: 'ALERTMANAGER', push: true, settings: [] },
   { kind: 'ZABBIX', push: true, settings: [] },
   { kind: 'CHECKMK', push: true, settings: [] },
+  { kind: 'GLPI_AGENT', push: true, inventory: true, settings: [] },
 ];
 export const kindSpec = (kind: ConnectorKind) => CONNECTOR_KINDS.find((each) => each.kind === kind) ?? { kind, push: false, settings: [] };
 
@@ -452,7 +458,7 @@ export function connectorDraft(of?: CiConnector): ConnectorDraft {
 
 /**
  * The body `defineCiConnector` takes: only the kind's own settings, no address or period for an
- * intake and no collection for a pull - each of which the server would refuse.
+ * intake and a collection only for an alert intake - each of which the server would refuse.
  */
 export function connectorDefine(draft: ConnectorDraft): CiConnectorDefine {
   const spec = kindSpec(draft.kind);
@@ -464,7 +470,7 @@ export function connectorDefine(draft: ConnectorDraft): CiConnectorDefine {
     allowed_hosts: lines(draft.hosts),
     ...(spec.settings.length ? { settings } : {}),
     ...(spec.push
-      ? { every_minutes: 0, ...(draft.collection ? { collection_id: draft.collection } : {}) }
+      ? { every_minutes: 0, ...(draft.collection && !spec.inventory ? { collection_id: draft.collection } : {}) }
       : { base_url: draft.baseUrl.trim(), every_minutes: draft.every }),
   };
 }
@@ -480,9 +486,13 @@ export function connectorMissing(draft: ConnectorDraft, isNew: boolean): string[
   return out;
 }
 
-/** Where a monitoring program posts to an intake: the API's origin is the interface's (ADR-0028). */
-export function intakeAddress(origin: string, tenantId: string, connectorId: string): string {
-  return `${origin.replace(/\/+$/u, '')}/api/v1/cmdb/alert-intake/${tenantId}/${connectorId}`;
+/**
+ * Where a program posts to an intake - a monitoring program its alerts, a GLPI Agent its inventory
+ * (the agent's server address): the API's origin is the interface's (ADR-0028).
+ */
+export function intakeAddress(origin: string, tenantId: string, connector: Pick<CiConnector, 'id' | 'inventory'>): string {
+  const door = connector.inventory ? 'inventory-intake' : 'alert-intake';
+  return `${origin.replace(/\/+$/u, '')}/api/v1/cmdb/${door}/${tenantId}/${connector.id}`;
 }
 
 /** How a connector's last run ended, as a badge's tone; never run is neutral. */
