@@ -14,6 +14,7 @@ import (
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/calendar"
+	"github.com/Jersyfi/hubtask/presentation/realtime"
 )
 
 // PublicRoutes are the operations api/openapi.yaml declares with `security: []`. Everything else
@@ -270,7 +271,7 @@ func bearerCredential(r *http.Request) (string, error) {
 func credentialOf(r *http.Request, basicAllowed bool) (string, error) {
 	header := r.Header.Get("Authorization")
 	if header == "" {
-		return "", nil
+		return websocketBearer(r), nil
 	}
 
 	scheme, value, found := strings.Cut(header, " ")
@@ -320,4 +321,21 @@ func WriteUnauthenticated(w http.ResponseWriter, err error, requestID string) {
 		w.Header().Set("WWW-Authenticate", "Bearer")
 	}
 	writeProblem(w, problem)
+}
+
+// websocketBearer reads the bearer a browser offers as a WebSocket subprotocol, the one header it
+// may set on one (api/openapi.yaml, openRealtimeDocument). Only on an upgrade: anywhere else the
+// header means nothing, and reading it there would be a second way to present a credential.
+func websocketBearer(r *http.Request) string {
+	if !strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+		return ""
+	}
+	for _, offered := range r.Header.Values("Sec-WebSocket-Protocol") {
+		for _, protocol := range strings.Split(offered, ",") {
+			if token, found := strings.CutPrefix(strings.TrimSpace(protocol), realtime.BearerPrefix); found && token != "" {
+				return token
+			}
+		}
+	}
+	return ""
 }

@@ -12925,6 +12925,57 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /realtime/documents/{kind}/{documentId}:
+    get:
+      tags: [sync]
+      operationId: openRealtimeDocument
+      summary: A live document, as a WebSocket
+      description: |
+        Several people editing one document at once - a page, a whiteboard. The connection is a
+        WebSocket (RFC 6455) carrying binary messages in the framing of the editors' shared-editing
+        protocol (synchronisation steps one and two, update, awareness): the server hands out the document's newest snapshot and every
+        update after it, stores each update a writer sends and relays it to the other readers,
+        and relays awareness - a cursor, a selection, a name - without storing it.
+
+        The server never reads an update; merging is the editors'. Updates are kept in the order
+        the server gave them, each at most 1 MiB. When the log has grown 500 updates past its
+        snapshot the server asks a writer for a new one, and the history behind a snapshot is
+        removed after the workspace's `DOCUMENT_HISTORY` period.
+
+        Who may read and write a document is decided by what it belongs to, at the moment the
+        connection opens and again before every update is handed out: access ended while
+        connected closes the connection with code 4403. A reader who may not write is handed
+        everything and its updates are refused (code 4403).
+
+        A browser cannot set a header on a WebSocket, so a bearer may also arrive as the
+        subprotocol `hubtask.bearer.<token>` beside `hubtask.v1`; the server answers `hubtask.v1`.
+        The connections are capped per tenant and per credential like the change stream; over the
+        cap the answer is `503` with `Retry-After`.
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          description: What the document belongs to, as the product names it (`page`, `whiteboard`).
+          schema: { type: string, pattern: "^[a-z][a-z_]{1,31}$" }
+        - name: documentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "101":
+          description: Switched to the WebSocket protocol
+        "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
+          description: Over the connection cap, or the process is shedding load
+          headers:
+            Retry-After:
+              schema: { type: integer }
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
 components:
   securitySchemes:
     bearerAuth:

@@ -459,3 +459,18 @@ func TestTheInboundKeyIsLeftToItsRoute(t *testing.T) {
 			reached, auth.calls, actor, response.Code)
 	}
 }
+
+func TestABearerOffersItselfAsASubprotocolOnlyOnAWebSocketUpgrade(t *testing.T) {
+	upgrade := httptest.NewRequest(http.MethodGet, "/api/v1/realtime/documents/page/x", nil)
+	upgrade.Header.Set("Upgrade", "websocket")
+	upgrade.Header.Set("Sec-WebSocket-Protocol", "hubtask.v1, hubtask.bearer.hbt_pat_abc")
+	if got, err := bearerCredential(upgrade); err != nil || got != "hbt_pat_abc" {
+		t.Errorf("an upgrade's subprotocol bearer read %q, %v", got, err)
+	}
+
+	plain := httptest.NewRequest(http.MethodGet, "/api/v1/items", nil)
+	plain.Header.Set("Sec-WebSocket-Protocol", "hubtask.bearer.hbt_pat_abc")
+	if got, _ := bearerCredential(plain); got != "" {
+		t.Errorf("a request that is no upgrade presented %q through the subprotocol header", got)
+	}
+}

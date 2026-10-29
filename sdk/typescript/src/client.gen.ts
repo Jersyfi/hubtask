@@ -2368,4 +2368,9 @@ export class HubtaskClient {
   streamChanges(options: CallOptions & { readonly lastEventId?: string } = {}): Promise<Response> {
     return this.call("GET", "/stream", {  }, undefined, { "Last-Event-ID": options.lastEventId }, undefined, "none", undefined, "raw", options.signal);
   }
+
+  /** A live document, as a WebSocket */
+  openRealtimeDocument(kind: string, documentId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("GET", "/realtime/documents/{kind}/{documentId}", { "kind": kind, "documentId": documentId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
 }

@@ -18923,6 +18923,9 @@ type ServerInterface interface {
 	// ReadQuotas The workspace's quota standing
 	// (GET /quotas)
 	ReadQuotas(w http.ResponseWriter, r *http.Request)
+	// OpenRealtimeDocument A live document, as a WebSocket
+	// (GET /realtime/documents/{kind}/{documentId})
+	OpenRealtimeDocument(w http.ResponseWriter, r *http.Request, kind string, documentId openapi_types.UUID)
 	// ResolveReferences Resolve references for the caller
 	// (POST /references:resolve)
 	ResolveReferences(w http.ResponseWriter, r *http.Request)
@@ -32317,6 +32320,41 @@ func (siw *ServerInterfaceWrapper) ReadQuotas(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// OpenRealtimeDocument operation middleware
+func (siw *ServerInterfaceWrapper) OpenRealtimeDocument(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "kind" -------------
+	var kind string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "kind", r.PathValue("kind"), &kind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "documentId" -------------
+	var documentId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "documentId", r.PathValue("documentId"), &documentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "documentId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OpenRealtimeDocument(w, r, kind, documentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ResolveReferences operation middleware
 func (siw *ServerInterfaceWrapper) ResolveReferences(w http.ResponseWriter, r *http.Request) {
 
@@ -34908,6 +34946,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/media/{mediaId}:content", wrapper.DownloadMediaContent)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/media/{mediaId}:content", wrapper.UploadMediaContent)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/stream", wrapper.StreamChanges)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/realtime/documents/{kind}/{documentId}", wrapper.OpenRealtimeDocument)
 
 	return m
 }

@@ -23162,6 +23162,32 @@ type ClientInterface interface {
 	// Corresponds with GET /quotas (the `ReadQuotas` operationId).
 	ReadQuotas(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// OpenRealtimeDocument A live document, as a WebSocket
+	//
+	// Several people editing one document at once - a page, a whiteboard. The connection is a
+	// WebSocket (RFC 6455) carrying binary messages in the framing of the editors' shared-editing
+	// protocol (synchronisation steps one and two, update, awareness): the server hands out the document's newest snapshot and every
+	// update after it, stores each update a writer sends and relays it to the other readers,
+	// and relays awareness - a cursor, a selection, a name - without storing it.
+	//
+	// The server never reads an update; merging is the editors'. Updates are kept in the order
+	// the server gave them, each at most 1 MiB. When the log has grown 500 updates past its
+	// snapshot the server asks a writer for a new one, and the history behind a snapshot is
+	// removed after the workspace's `DOCUMENT_HISTORY` period.
+	//
+	// Who may read and write a document is decided by what it belongs to, at the moment the
+	// connection opens and again before every update is handed out: access ended while
+	// connected closes the connection with code 4403. A reader who may not write is handed
+	// everything and its updates are refused (code 4403).
+	//
+	// A browser cannot set a header on a WebSocket, so a bearer may also arrive as the
+	// subprotocol `hubtask.bearer.<token>` beside `hubtask.v1`; the server answers `hubtask.v1`.
+	// The connections are capped per tenant and per credential like the change stream; over the
+	// cap the answer is `503` with `Retry-After`.
+	//
+	// Corresponds with GET /realtime/documents/{kind}/{documentId} (the `OpenRealtimeDocument` operationId).
+	OpenRealtimeDocument(ctx context.Context, kind string, documentId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ResolveReferencesWithBody Resolve references for the caller
 	//
 	// Resolves up to 100 references to what a mention, a card or a live view shows of each: the title, key and state the caller may see. One the caller may not see, one that is not there, and one of a module that does not exist yet all answer only their address and `available: false` - never a title. Text writes a reference as a Markdown link to `hubtask:<kind>/<id>#<anchor>`; an image of the link draws a card or a live view.
@@ -35045,6 +35071,42 @@ func (c *Client) OpenPrivateHub(ctx context.Context, hubId HubId, params *OpenPr
 // Corresponds with GET /quotas (the `ReadQuotas` operationId).
 func (c *Client) ReadQuotas(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadQuotasRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// OpenRealtimeDocument A live document, as a WebSocket
+//
+// Several people editing one document at once - a page, a whiteboard. The connection is a
+// WebSocket (RFC 6455) carrying binary messages in the framing of the editors' shared-editing
+// protocol (synchronisation steps one and two, update, awareness): the server hands out the document's newest snapshot and every
+// update after it, stores each update a writer sends and relays it to the other readers,
+// and relays awareness - a cursor, a selection, a name - without storing it.
+//
+// The server never reads an update; merging is the editors'. Updates are kept in the order
+// the server gave them, each at most 1 MiB. When the log has grown 500 updates past its
+// snapshot the server asks a writer for a new one, and the history behind a snapshot is
+// removed after the workspace's `DOCUMENT_HISTORY` period.
+//
+// Who may read and write a document is decided by what it belongs to, at the moment the
+// connection opens and again before every update is handed out: access ended while
+// connected closes the connection with code 4403. A reader who may not write is handed
+// everything and its updates are refused (code 4403).
+//
+// A browser cannot set a header on a WebSocket, so a bearer may also arrive as the
+// subprotocol `hubtask.bearer.<token>` beside `hubtask.v1`; the server answers `hubtask.v1`.
+// The connections are capped per tenant and per credential like the change stream; over the
+// cap the answer is `503` with `Retry-After`.
+//
+// Corresponds with GET /realtime/documents/{kind}/{documentId} (the `OpenRealtimeDocument` operationId).
+func (c *Client) OpenRealtimeDocument(ctx context.Context, kind string, documentId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewOpenRealtimeDocumentRequest(c.Server, kind, documentId)
 	if err != nil {
 		return nil, err
 	}
@@ -55128,6 +55190,47 @@ func NewReadQuotasRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewOpenRealtimeDocumentRequest constructs an http.Request for the OpenRealtimeDocument method
+func NewOpenRealtimeDocumentRequest(server string, kind string, documentId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "kind", kind, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "documentId", documentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/realtime/documents/%s/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewResolveReferencesRequest calls the generic ResolveReferences builder with application/json body
 func NewResolveReferencesRequest(server string, body ResolveReferencesJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -63901,6 +64004,34 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /quotas (the `ReadQuotas` operationId).
 	ReadQuotasWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadQuotasResult, error)
+
+	// OpenRealtimeDocumentWithResponse A live document, as a WebSocket
+	//
+	// Several people editing one document at once - a page, a whiteboard. The connection is a
+	// WebSocket (RFC 6455) carrying binary messages in the framing of the editors' shared-editing
+	// protocol (synchronisation steps one and two, update, awareness): the server hands out the document's newest snapshot and every
+	// update after it, stores each update a writer sends and relays it to the other readers,
+	// and relays awareness - a cursor, a selection, a name - without storing it.
+	//
+	// The server never reads an update; merging is the editors'. Updates are kept in the order
+	// the server gave them, each at most 1 MiB. When the log has grown 500 updates past its
+	// snapshot the server asks a writer for a new one, and the history behind a snapshot is
+	// removed after the workspace's `DOCUMENT_HISTORY` period.
+	//
+	// Who may read and write a document is decided by what it belongs to, at the moment the
+	// connection opens and again before every update is handed out: access ended while
+	// connected closes the connection with code 4403. A reader who may not write is handed
+	// everything and its updates are refused (code 4403).
+	//
+	// A browser cannot set a header on a WebSocket, so a bearer may also arrive as the
+	// subprotocol `hubtask.bearer.<token>` beside `hubtask.v1`; the server answers `hubtask.v1`.
+	// The connections are capped per tenant and per credential like the change stream; over the
+	// cap the answer is `503` with `Retry-After`.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /realtime/documents/{kind}/{documentId} (the `OpenRealtimeDocument` operationId).
+	OpenRealtimeDocumentWithResponse(ctx context.Context, kind string, documentId openapi_types.UUID, reqEditors ...RequestEditorFn) (*OpenRealtimeDocumentResult, error)
 
 	// ResolveReferencesWithBodyWithResponse Resolve references for the caller
 	//
@@ -83687,6 +83818,61 @@ func (r ReadQuotasResult) ContentType() string {
 	return ""
 }
 
+// OpenRealtimeDocumentResult503Headers the declared response headers of an HTTP 503 response for OpenRealtimeDocument
+type OpenRealtimeDocumentResult503Headers struct {
+	RetryAfter *int
+}
+
+type OpenRealtimeDocumentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
+	ApplicationproblemJSON503 *Problem
+	// Headers503 the parsed response headers for an HTTP 503 response
+	Headers503 *OpenRealtimeDocumentResult503Headers
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r OpenRealtimeDocumentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetApplicationproblemJSON503 returns the response for an HTTP 503 `application/problem+json` response
+func (r OpenRealtimeDocumentResult) GetApplicationproblemJSON503() *Problem {
+	return r.ApplicationproblemJSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r OpenRealtimeDocumentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r OpenRealtimeDocumentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r OpenRealtimeDocumentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r OpenRealtimeDocumentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ResolveReferencesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -95977,6 +96163,40 @@ func (c *ClientWithResponses) ReadQuotasWithResponse(ctx context.Context, reqEdi
 		return nil, err
 	}
 	return ParseReadQuotasResult(rsp)
+}
+
+// OpenRealtimeDocumentWithResponse A live document, as a WebSocket
+//
+// Several people editing one document at once - a page, a whiteboard. The connection is a
+// WebSocket (RFC 6455) carrying binary messages in the framing of the editors' shared-editing
+// protocol (synchronisation steps one and two, update, awareness): the server hands out the document's newest snapshot and every
+// update after it, stores each update a writer sends and relays it to the other readers,
+// and relays awareness - a cursor, a selection, a name - without storing it.
+//
+// The server never reads an update; merging is the editors'. Updates are kept in the order
+// the server gave them, each at most 1 MiB. When the log has grown 500 updates past its
+// snapshot the server asks a writer for a new one, and the history behind a snapshot is
+// removed after the workspace's `DOCUMENT_HISTORY` period.
+//
+// Who may read and write a document is decided by what it belongs to, at the moment the
+// connection opens and again before every update is handed out: access ended while
+// connected closes the connection with code 4403. A reader who may not write is handed
+// everything and its updates are refused (code 4403).
+//
+// A browser cannot set a header on a WebSocket, so a bearer may also arrive as the
+// subprotocol `hubtask.bearer.<token>` beside `hubtask.v1`; the server answers `hubtask.v1`.
+// The connections are capped per tenant and per credential like the change stream; over the
+// cap the answer is `503` with `Retry-After`.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /realtime/documents/{kind}/{documentId} (the `OpenRealtimeDocument` operationId).
+func (c *ClientWithResponses) OpenRealtimeDocumentWithResponse(ctx context.Context, kind string, documentId openapi_types.UUID, reqEditors ...RequestEditorFn) (*OpenRealtimeDocumentResult, error) {
+	rsp, err := c.OpenRealtimeDocument(ctx, kind, documentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseOpenRealtimeDocumentResult(rsp)
 }
 
 // ResolveReferencesWithBodyWithResponse Resolve references for the caller
@@ -111087,6 +111307,55 @@ func ParseReadQuotasResult(rsp *http.Response) (*ReadQuotasResult, error) {
 		}
 		response.ApplicationproblemJSON4XX = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseOpenRealtimeDocumentResult parses an HTTP response from a OpenRealtimeDocumentWithResponse call
+func ParseOpenRealtimeDocumentResult(rsp *http.Response) (*OpenRealtimeDocumentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &OpenRealtimeDocumentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 101:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON503 = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 503:
+		var headers OpenRealtimeDocumentResult503Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers503 = &headers
 	}
 
 	return response, nil

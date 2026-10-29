@@ -1212,6 +1212,10 @@ func (pending) SyncPush(w http.ResponseWriter, r *http.Request) { notAvailable(w
 
 func (pending) SyncSnapshot(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) OpenRealtimeDocument(w http.ResponseWriter, r *http.Request, _ string, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
 func (pending) StreamChanges(w http.ResponseWriter, r *http.Request, _ openapi.StreamChangesParams) {
 	notAvailable(w, r)
 }

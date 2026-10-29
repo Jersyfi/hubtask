@@ -17145,6 +17145,62 @@
           }
         }
       }
+    },
+    "/realtime/documents/{kind}/{documentId}": {
+      "get": {
+        "tags": [
+          "sync"
+        ],
+        "operationId": "openRealtimeDocument",
+        "summary": "A live document, as a WebSocket",
+        "description": "Several people editing one document at once - a page, a whiteboard. The connection is a\nWebSocket (RFC 6455) carrying binary messages in the framing of the editors' shared-editing\nprotocol (synchronisation steps one and two, update, awareness): the server hands out the document's newest snapshot and every\nupdate after it, stores each update a writer sends and relays it to the other readers,\nand relays awareness - a cursor, a selection, a name - without storing it.\n\nThe server never reads an update; merging is the editors'. Updates are kept in the order\nthe server gave them, each at most 1 MiB. When the log has grown 500 updates past its\nsnapshot the server asks a writer for a new one, and the history behind a snapshot is\nremoved after the workspace's `DOCUMENT_HISTORY` period.\n\nWho may read and write a document is decided by what it belongs to, at the moment the\nconnection opens and again before every update is handed out: access ended while\nconnected closes the connection with code 4403. A reader who may not write is handed\neverything and its updates are refused (code 4403).\n\nA browser cannot set a header on a WebSocket, so a bearer may also arrive as the\nsubprotocol `hubtask.bearer.<token>` beside `hubtask.v1`; the server answers `hubtask.v1`.\nThe connections are capped per tenant and per credential like the change stream; over the\ncap the answer is `503` with `Retry-After`.\n",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "description": "What the document belongs to, as the product names it (`page`, `whiteboard`).",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z_]{1,31}$"
+            }
+          },
+          {
+            "name": "documentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "101": {
+            "description": "Switched to the WebSocket protocol"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "description": "Over the connection cap, or the process is shedding load",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

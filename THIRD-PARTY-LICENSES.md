@@ -72,6 +72,7 @@ without a row here, a row without a mark, and a mark for a preset the server doe
 | [github.com/beorn7/perks/quantile](https://pkg.go.dev/github.com/beorn7/perks/quantile?tab=licenses) | MIT |
 | [github.com/cenkalti/backoff/v5](https://pkg.go.dev/github.com/cenkalti/backoff/v5?tab=licenses) | MIT |
 | [github.com/cespare/xxhash/v2](https://pkg.go.dev/github.com/cespare/xxhash/v2?tab=licenses) | MIT |
+| [github.com/coder/websocket](https://pkg.go.dev/github.com/coder/websocket?tab=licenses) | ISC |
 | [github.com/coreos/go-oidc/v3/oidc](https://pkg.go.dev/github.com/coreos/go-oidc/v3/oidc?tab=licenses) | Apache-2.0 |
 | [github.com/go-jose/go-jose/v4](https://pkg.go.dev/github.com/go-jose/go-jose/v4?tab=licenses) | Apache-2.0 |
 | [github.com/go-jose/go-jose/v4/json](https://pkg.go.dev/github.com/go-jose/go-jose/v4/json?tab=licenses) | BSD-3-Clause |

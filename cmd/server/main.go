@@ -57,6 +57,7 @@ import (
 	platformservice "github.com/Jersyfi/hubtask/core/application/service/platform"
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
+	realtimeservice "github.com/Jersyfi/hubtask/core/application/service/realtime"
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
 	settingservice "github.com/Jersyfi/hubtask/core/application/service/setting"
 	suggestionservice "github.com/Jersyfi/hubtask/core/application/service/suggestion"
@@ -69,6 +70,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	importdomain "github.com/Jersyfi/hubtask/core/domain/model/importer"
 	integrationmodel "github.com/Jersyfi/hubtask/core/domain/model/integration"
+	realtimedomain "github.com/Jersyfi/hubtask/core/domain/model/realtime"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	providerport "github.com/Jersyfi/hubtask/core/port/ai"
 	clockport "github.com/Jersyfi/hubtask/core/port/clock"
@@ -114,6 +116,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/calendar"
 	"github.com/Jersyfi/hubtask/presentation/intake"
 	"github.com/Jersyfi/hubtask/presentation/mcp"
+	realtimeadapter "github.com/Jersyfi/hubtask/presentation/realtime"
 	"github.com/Jersyfi/hubtask/presentation/rest"
 	voicepresentation "github.com/Jersyfi/hubtask/presentation/voice"
 	"github.com/Jersyfi/hubtask/presentation/webui"
@@ -2996,6 +2999,20 @@ func run() error {
 			Registry: streams,
 			Wakeups:  changeListener,
 			Signals:  metrics,
+		}
+		// Live documents (F-8, offline-sync.md §13). No kind is registered yet: the step that
+		// builds pages and whiteboards names where each of their documents sits, and until then
+		// every document answers not found.
+		controller.Realtime = &rest.RealtimeController{
+			Handler: realtimeadapter.Handler{
+				Documents: realtimeservice.Documents{
+					Store: postgres.NewRealtimeRepository(), Kinds: map[realtimedomain.Kind]realtimeservice.Locator{},
+					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+				},
+				Wakeups: changeListener,
+				Relay:   realtimeadapter.NewRelay(),
+			},
+			Registry: streams,
 		}
 		// The pull is the same reader served in pages: the same records, the same order,
 		// the same cursor, which is what makes the stream an accelerator over it.

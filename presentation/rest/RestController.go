@@ -7,6 +7,8 @@ import (
 	"context"
 	"net/http"
 
+	openapi_types "github.com/oapi-codegen/runtime/types"
+
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -96,6 +98,10 @@ type RestController struct {
 	// installation built without it should say.
 	Stream *StreamController
 
+	// Realtime serves a live document's WebSocket, a held connection for the stream's reason. Nil
+	// leaves the route answering the pending 404.
+	Realtime *RealtimeController
+
 	// Sync serves `POST /sync:pull`, which is not a catalogue entry for the stream's reason: a
 	// pull is the stream served in pages. Nil leaves the route answering the pending 404.
 	Sync *SyncController
@@ -139,6 +145,17 @@ func (c *RestController) StreamChanges(
 		return
 	}
 	c.Stream.StreamChanges(w, r, params)
+}
+
+// OpenRealtimeDocument holds a live document's connection, delegated for the stream's reason.
+func (c *RestController) OpenRealtimeDocument(
+	w http.ResponseWriter, r *http.Request, kind string, documentID openapi_types.UUID,
+) {
+	if c.Realtime == nil {
+		c.pending.OpenRealtimeDocument(w, r, kind, documentID)
+		return
+	}
+	c.Realtime.OpenRealtimeDocument(w, r, kind, documentID)
 }
 
 func NewRestController() *RestController { return &RestController{} }
