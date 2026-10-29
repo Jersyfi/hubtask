@@ -1670,7 +1670,7 @@ paths:
             press the button" are two questions about the same rule.
           schema:
             type: string
-            enum: [EVENT, SCHEDULE, RELATIVE_DATE, INBOUND_WEBHOOK, MANUAL, JUMBLE_ENTRY]
+            enum: [EVENT, SCHEDULE, RELATIVE_DATE, INBOUND_WEBHOOK, MANUAL, JUMBLE_ENTRY, STEP_TAKEN]
         - name: from
           in: query
           required: false
@@ -19054,14 +19054,14 @@ components:
     RuleTrigger:
       type: object
       description: >
-        What starts a run. Six kinds, each with the fields its kind needs and
+        What starts a run. Seven kinds, each with the fields its kind needs and
         no others - a trigger carrying a cron expression and an event type would be a rule nobody
         can read.
       required: [kind]
       properties:
         kind:
           type: string
-          enum: [EVENT, SCHEDULE, RELATIVE_DATE, INBOUND_WEBHOOK, MANUAL, JUMBLE_ENTRY]
+          enum: [EVENT, SCHEDULE, RELATIVE_DATE, INBOUND_WEBHOOK, MANUAL, JUMBLE_ENTRY, STEP_TAKEN]
         event_type:
           type: string
           description: >
@@ -19090,6 +19090,16 @@ components:
           description: >
             `RELATIVE_DATE` only, and required there: a signed ISO 8601 duration, `-PT24H` for
             "24 hours before".
+        workflow_id:
+          type: string
+          format: uuid
+          description: >
+            `STEP_TAKEN` only, and required there: the workflow whose step starts the rule. A
+            `STEP_TAKEN` rule runs inside the step's own change, so what its actions change on the
+            entry is written together with the step.
+        step:
+          type: string
+          description: "`STEP_TAKEN` only, and required there: the step's key in that workflow."
 
     AutomationActionField:
       type: object
@@ -20023,9 +20033,9 @@ components:
         rule_id: { type: string, format: uuid }
         trigger:
           type: string
-          enum: [EVENT, SCHEDULE, RELATIVE_DATE, INBOUND_WEBHOOK, MANUAL, JUMBLE_ENTRY]
+          enum: [EVENT, SCHEDULE, RELATIVE_DATE, INBOUND_WEBHOOK, MANUAL, JUMBLE_ENTRY, STEP_TAKEN]
           description: >
-            Which of the rule's six ways of starting produced this run. On the
+            Which of the rule's seven ways of starting produced this run. On the
             run rather than read from the rule, because a rule can be edited from one kind into
             another and the log has to keep saying what actually happened.
         triggered_by:

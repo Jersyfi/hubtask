@@ -2194,14 +2194,16 @@ class RuleScope(TypedDict, total=False):
     id: str
 
 class RuleTrigger(TypedDict, total=False):
-    """What starts a run. Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read."""
-    kind: Required[Literal["EVENT", "SCHEDULE", "RELATIVE_DATE", "INBOUND_WEBHOOK", "MANUAL", "JUMBLE_ENTRY"]]
+    """What starts a run. Seven kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read."""
+    kind: Required[Literal["EVENT", "SCHEDULE", "RELATIVE_DATE", "INBOUND_WEBHOOK", "MANUAL", "JUMBLE_ENTRY", "STEP_TAKEN"]]
     event_type: str
     changed_fields: list[str]
     rrule: str
     timezone: str
     anchor: Literal["DUE_DATE", "CREATED_AT"]
     offset: str
+    workflow_id: str
+    step: str
 
 class AutomationActionField(TypedDict, total=False):
     """One declared parameter of an automation action, as the use case behind the kind declares it. `kind` is the catalogue's own vocabulary: `id` and `id_list` name entries of this workspace, and an editor offers a picker for them; `object`, `list` and `any` are documents whose shape another declaration decides, and an editor takes them as JSON."""
@@ -2552,7 +2554,7 @@ class RuleActionResult(TypedDict, total=False):
 class RuleRun(TypedDict, total=False):
     id: Required[str]
     rule_id: Required[str]
-    trigger: Required[Literal["EVENT", "SCHEDULE", "RELATIVE_DATE", "INBOUND_WEBHOOK", "MANUAL", "JUMBLE_ENTRY"]]
+    trigger: Required[Literal["EVENT", "SCHEDULE", "RELATIVE_DATE", "INBOUND_WEBHOOK", "MANUAL", "JUMBLE_ENTRY", "STEP_TAKEN"]]
     triggered_by: str | None
     subject_id: str | None
     event_id: str | None

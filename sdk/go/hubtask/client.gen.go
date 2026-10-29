@@ -4568,6 +4568,7 @@ const (
 	RuleRunTriggerMANUAL         RuleRunTrigger = "MANUAL"
 	RuleRunTriggerRELATIVEDATE   RuleRunTrigger = "RELATIVE_DATE"
 	RuleRunTriggerSCHEDULE       RuleRunTrigger = "SCHEDULE"
+	RuleRunTriggerSTEPTAKEN      RuleRunTrigger = "STEP_TAKEN"
 )
 
 // Valid indicates whether the value is a known member of the RuleRunTrigger enum.
@@ -4584,6 +4585,8 @@ func (e RuleRunTrigger) Valid() bool {
 	case RuleRunTriggerRELATIVEDATE:
 		return true
 	case RuleRunTriggerSCHEDULE:
+		return true
+	case RuleRunTriggerSTEPTAKEN:
 		return true
 	default:
 		return false
@@ -4670,6 +4673,7 @@ const (
 	RuleTriggerKindMANUAL         RuleTriggerKind = "MANUAL"
 	RuleTriggerKindRELATIVEDATE   RuleTriggerKind = "RELATIVE_DATE"
 	RuleTriggerKindSCHEDULE       RuleTriggerKind = "SCHEDULE"
+	RuleTriggerKindSTEPTAKEN      RuleTriggerKind = "STEP_TAKEN"
 )
 
 // Valid indicates whether the value is a known member of the RuleTriggerKind enum.
@@ -4686,6 +4690,8 @@ func (e RuleTriggerKind) Valid() bool {
 	case RuleTriggerKindRELATIVEDATE:
 		return true
 	case RuleTriggerKindSCHEDULE:
+		return true
+	case RuleTriggerKindSTEPTAKEN:
 		return true
 	default:
 		return false
@@ -6191,6 +6197,7 @@ const (
 	ListRuleRunsParamsTriggerMANUAL         ListRuleRunsParamsTrigger = "MANUAL"
 	ListRuleRunsParamsTriggerRELATIVEDATE   ListRuleRunsParamsTrigger = "RELATIVE_DATE"
 	ListRuleRunsParamsTriggerSCHEDULE       ListRuleRunsParamsTrigger = "SCHEDULE"
+	ListRuleRunsParamsTriggerSTEPTAKEN      ListRuleRunsParamsTrigger = "STEP_TAKEN"
 )
 
 // Valid indicates whether the value is a known member of the ListRuleRunsParamsTrigger enum.
@@ -6207,6 +6214,8 @@ func (e ListRuleRunsParamsTrigger) Valid() bool {
 	case ListRuleRunsParamsTriggerRELATIVEDATE:
 		return true
 	case ListRuleRunsParamsTriggerSCHEDULE:
+		return true
+	case ListRuleRunsParamsTriggerSTEPTAKEN:
 		return true
 	default:
 		return false
@@ -7121,7 +7130,7 @@ type AutomationRule struct {
 	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them.
 	Throttle *RuleThrottle `json:"throttle,omitempty"`
 
-	// Trigger What starts a run. Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
+	// Trigger What starts a run. Seven kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
 	Trigger   RuleTrigger `json:"trigger"`
 	UpdatedAt time.Time   `json:"updated_at"`
 	Version   int         `json:"version"`
@@ -7144,7 +7153,7 @@ type AutomationRuleCreate struct {
 	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them.
 	Throttle *RuleThrottle `json:"throttle,omitempty"`
 
-	// Trigger What starts a run. Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
+	// Trigger What starts a run. Seven kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
 	Trigger RuleTrigger `json:"trigger"`
 }
 
@@ -7174,7 +7183,7 @@ type AutomationRuleUpdate struct {
 	// Throttle What bounds a storm. Both are optional, and both are stored rather than enforced here: the engine that runs a rule is what observes them.
 	Throttle *RuleThrottle `json:"throttle,omitempty"`
 
-	// Trigger What starts a run. Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
+	// Trigger What starts a run. Seven kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
 	Trigger *RuleTrigger `json:"trigger,omitempty"`
 }
 
@@ -12241,14 +12250,14 @@ type RuleRun struct {
 	// SubjectId The entry the run is about when no event names it - a `RELATIVE_DATE` run measured from one entry's due date. Absent where the event carries the subject, which is where a reader should look for it.
 	SubjectId *openapi_types.UUID `json:"subject_id,omitempty"`
 
-	// Trigger Which of the rule's six ways of starting produced this run. On the run rather than read from the rule, because a rule can be edited from one kind into another and the log has to keep saying what actually happened.
+	// Trigger Which of the rule's seven ways of starting produced this run. On the run rather than read from the rule, because a rule can be edited from one kind into another and the log has to keep saying what actually happened.
 	Trigger RuleRunTrigger `json:"trigger"`
 
 	// TriggeredBy Who pulled the trigger, for the one kind a person pulls: `MANUAL`. Absent for every other kind - a schedule, a due date and an inbound delivery have no actor, and naming one would be inventing an author for something nobody did.
 	TriggeredBy *openapi_types.UUID `json:"triggered_by,omitempty"`
 }
 
-// RuleRunTrigger Which of the rule's six ways of starting produced this run. On the run rather than read from the rule, because a rule can be edited from one kind into another and the log has to keep saying what actually happened.
+// RuleRunTrigger Which of the rule's seven ways of starting produced this run. On the run rather than read from the rule, because a rule can be edited from one kind into another and the log has to keep saying what actually happened.
 type RuleRunTrigger string
 
 // RuleRunAccepted A run that has been queued and has not started. The identifier is the one the run will carry, so a caller can watch for it - `GET /automation/runs/{runId}` answers `404` until a worker claims the job.
@@ -12329,7 +12338,7 @@ type RuleThrottle struct {
 	MaxRunsPerHour *int    `json:"max_runs_per_hour,omitempty"`
 }
 
-// RuleTrigger What starts a run. Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
+// RuleTrigger What starts a run. Seven kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.
 type RuleTrigger struct {
 	// Anchor `RELATIVE_DATE` only, and required there: which instant the offset is from.
 	Anchor *RuleTriggerAnchor `json:"anchor,omitempty"`
@@ -12347,8 +12356,14 @@ type RuleTrigger struct {
 	// Rrule `SCHEDULE` only, and required there: an RFC 5545 RRULE.
 	Rrule *string `json:"rrule,omitempty"`
 
+	// Step `STEP_TAKEN` only, and required there: the step's key in that workflow.
+	Step *string `json:"step,omitempty"`
+
 	// Timezone `SCHEDULE` only, and required there: an IANA zone. A schedule without one is a schedule that means something different in summer.
 	Timezone *string `json:"timezone,omitempty"`
+
+	// WorkflowId `STEP_TAKEN` only, and required there: the workflow whose step starts the rule. A `STEP_TAKEN` rule runs inside the step's own change, so what its actions change on the entry is written together with the step.
+	WorkflowId *openapi_types.UUID `json:"workflow_id,omitempty"`
 }
 
 // RuleTriggerAnchor `RELATIVE_DATE` only, and required there: which instant the offset is from.

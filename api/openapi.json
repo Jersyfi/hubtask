@@ -2271,7 +2271,8 @@
                 "RELATIVE_DATE",
                 "INBOUND_WEBHOOK",
                 "MANUAL",
-                "JUMBLE_ENTRY"
+                "JUMBLE_ENTRY",
+                "STEP_TAKEN"
               ]
             }
           },
@@ -27246,7 +27247,7 @@
       },
       "RuleTrigger": {
         "type": "object",
-        "description": "What starts a run. Six kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.\n",
+        "description": "What starts a run. Seven kinds, each with the fields its kind needs and no others - a trigger carrying a cron expression and an event type would be a rule nobody can read.\n",
         "required": [
           "kind"
         ],
@@ -27259,7 +27260,8 @@
               "RELATIVE_DATE",
               "INBOUND_WEBHOOK",
               "MANUAL",
-              "JUMBLE_ENTRY"
+              "JUMBLE_ENTRY",
+              "STEP_TAKEN"
             ]
           },
           "event_type": {
@@ -27292,6 +27294,15 @@
           "offset": {
             "type": "string",
             "description": "`RELATIVE_DATE` only, and required there: a signed ISO 8601 duration, `-PT24H` for \"24 hours before\".\n"
+          },
+          "workflow_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "`STEP_TAKEN` only, and required there: the workflow whose step starts the rule. A `STEP_TAKEN` rule runs inside the step's own change, so what its actions change on the entry is written together with the step.\n"
+          },
+          "step": {
+            "type": "string",
+            "description": "`STEP_TAKEN` only, and required there: the step's key in that workflow."
           }
         }
       },
@@ -28880,9 +28891,10 @@
               "RELATIVE_DATE",
               "INBOUND_WEBHOOK",
               "MANUAL",
-              "JUMBLE_ENTRY"
+              "JUMBLE_ENTRY",
+              "STEP_TAKEN"
             ],
-            "description": "Which of the rule's six ways of starting produced this run. On the run rather than read from the rule, because a rule can be edited from one kind into another and the log has to keep saying what actually happened.\n"
+            "description": "Which of the rule's seven ways of starting produced this run. On the run rather than read from the rule, because a rule can be edited from one kind into another and the log has to keep saying what actually happened.\n"
           },
           "triggered_by": {
             "type": [

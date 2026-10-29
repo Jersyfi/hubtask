@@ -111,19 +111,22 @@ const (
 	TriggerManual TriggerKind = "MANUAL"
 	// TriggerJumbleEntry is a new arrival in the jumble.
 	TriggerJumbleEntry TriggerKind = "JUMBLE_ENTRY"
+	// TriggerStepTaken is one step of one workflow, taken (UC-FLW-04 check 4): the rule runs in
+	// the step's own change rather than after it.
+	TriggerStepTaken TriggerKind = "STEP_TAKEN"
 )
 
-// TriggerKinds is the six, in the order automation.md §1.1 lists them: what the manifest answers
+// TriggerKinds is the seven, in the order automation.md §1.1 lists them: what the manifest answers
 // and a rule editor offers. Read from here rather than restated, so that the kind a client may pick
 // is the kind ValidTrigger accepts.
 func TriggerKinds() []TriggerKind {
 	return []TriggerKind{
 		TriggerEvent, TriggerSchedule, TriggerRelativeDate,
-		TriggerInboundWebhook, TriggerManual, TriggerJumbleEntry,
+		TriggerInboundWebhook, TriggerManual, TriggerJumbleEntry, TriggerStepTaken,
 	}
 }
 
-// Valid reports whether the kind is one of the six. Asked where a kind arrives from outside the
+// Valid reports whether the kind is one of the seven. Asked where a kind arrives from outside the
 // aggregate - a stored run, a job payload - rather than in ValidTrigger, which needs the switch
 // anyway to check the fields each kind carries.
 func (k TriggerKind) Valid() bool {
@@ -176,6 +179,10 @@ type Trigger struct {
 	// Anchor and Offset are RELATIVE_DATE's, and both required there.
 	Anchor DateAnchor
 	Offset string
+	// WorkflowID and Step are STEP_TAKEN's, and both required there: the step is one key of one
+	// workflow, and a key alone would fire in every workflow that happens to use it.
+	WorkflowID shared.ID
+	Step       string
 }
 
 // Action is one step of a run: a use case name in SCREAMING_SNAKE_CASE, and its parameters.
@@ -453,6 +460,16 @@ func ValidTrigger(trigger Trigger) (Trigger, error) {
 		}
 		kept := Trigger{Kind: TriggerRelativeDate, Anchor: trigger.Anchor, Offset: offset}
 		return kept, foreign(trigger, kept)
+	case TriggerStepTaken:
+		if trigger.WorkflowID.IsZero() {
+			return Trigger{}, fieldError("/trigger/workflow_id", "automation.workflow_required")
+		}
+		step := strings.TrimSpace(trigger.Step)
+		if step == "" {
+			return Trigger{}, fieldError("/trigger/step", "automation.step_required")
+		}
+		kept := Trigger{Kind: TriggerStepTaken, WorkflowID: trigger.WorkflowID, Step: step}
+		return kept, foreign(trigger, kept)
 	case TriggerInboundWebhook, TriggerManual, TriggerJumbleEntry:
 		// Three kinds that configure nothing on the rule. The address an INBOUND_WEBHOOK answers
 		// is a credential minted beside the rule rather than a field on it, and the other two are
@@ -601,6 +618,12 @@ func foreign(sent, kept Trigger) error {
 	}
 	if strings.TrimSpace(sent.Offset) != kept.Offset {
 		findings = append(findings, foreignField("offset"))
+	}
+	if sent.WorkflowID != kept.WorkflowID {
+		findings = append(findings, foreignField("workflow_id"))
+	}
+	if strings.TrimSpace(sent.Step) != kept.Step {
+		findings = append(findings, foreignField("step"))
 	}
 	if len(findings) == 0 {
 		return nil

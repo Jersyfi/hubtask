@@ -167,6 +167,34 @@ func TestAThrottleWithoutAnExpressionIsKept(t *testing.T) {
 	}
 }
 
+// A STEP_TAKEN trigger keeps the workflow and the step, and refuses what another kind carries
+// (UC-FLW-04 check 4).
+func TestAStepTriggerNamesTheWorkflowAndTheStep(t *testing.T) {
+	workflow := shared.ID("0190a1b2-0000-7000-8000-00000000f10a")
+	in := validInput()
+	in.Trigger = automation.Trigger{Kind: automation.TriggerStepTaken, WorkflowID: workflow, Step: " approve "}
+	rule, err := automation.NewRule(in)
+	if err != nil {
+		t.Fatalf("NewRule: %v", err)
+	}
+	if rule.Trigger.WorkflowID != workflow || rule.Trigger.Step != "approve" {
+		t.Errorf("trigger %+v, want the workflow and the trimmed step", rule.Trigger)
+	}
+
+	in.Trigger.RRule = "FREQ=DAILY"
+	_, err = automation.NewRule(in)
+	if code := fieldCodes(t, err)["/trigger/rrule"]; code != "automation.trigger_field_not_for_kind" {
+		t.Errorf("/trigger/rrule says %q, want the foreign field refused", code)
+	}
+
+	in = validInput()
+	in.Trigger = automation.Trigger{Kind: automation.TriggerManual, WorkflowID: workflow}
+	_, err = automation.NewRule(in)
+	if code := fieldCodes(t, err)["/trigger/workflow_id"]; code != "automation.trigger_field_not_for_kind" {
+		t.Errorf("/trigger/workflow_id says %q, want the foreign field refused", code)
+	}
+}
+
 func TestTheTriggerIsCheckedPerKind(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -214,6 +242,18 @@ func TestTheTriggerIsCheckedPerKind(t *testing.T) {
 				Kind: automation.TriggerRelativeDate, Anchor: automation.AnchorDueDate,
 			},
 			path: "/trigger/offset", code: "automation.offset_required",
+		},
+		{
+			name:    "a step trigger with no workflow",
+			trigger: automation.Trigger{Kind: automation.TriggerStepTaken, Step: "approve"},
+			path:    "/trigger/workflow_id", code: "automation.workflow_required",
+		},
+		{
+			name: "a step trigger with no step",
+			trigger: automation.Trigger{
+				Kind: automation.TriggerStepTaken, WorkflowID: shared.ID("0190a1b2-0000-7000-8000-00000000f10a"),
+			},
+			path: "/trigger/step", code: "automation.step_required",
 		},
 		{
 			name:    "no kind at all",
