@@ -148,10 +148,15 @@ func TestAGroupingByACustomFieldIsOneWindowedQuery(t *testing.T) {
 	}
 	ref := group
 	ref.Field.Custom = view.CustomShape{Resolved: true, Defined: true, Column: view.CustomRef}
-	upper := "0192F000-0000-7000-8000-0000000000A1"
-	item = work.WorkItem{CustomFields: map[string]any{"priority": upper}}
-	if key, _ := GroupKey(ref.Field, item); key != shared.MustParseID(upper).String() {
+	person := "0192f000-0000-7000-8000-0000000000a1"
+	item = work.WorkItem{CustomFields: map[string]any{"priority": person}}
+	if key, _ := GroupKey(ref.Field, item); key != shared.MustParseID(person).String() {
 		t.Errorf("a person groups as %q", key)
+	}
+	// An identifier is lower case on the wire (shared.ParseID); anything else groups nowhere.
+	item = work.WorkItem{CustomFields: map[string]any{"priority": strings.ToUpper(person)}}
+	if key, grouped := GroupKey(ref.Field, item); grouped {
+		t.Errorf("an upper-case identifier groups as %q", key)
 	}
 }
 
