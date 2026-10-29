@@ -350,9 +350,11 @@ installation and a plan may lock it and a workspace only tightens it. A **templa
 taking one records `template@version` with the version's document (`config_template_use`), and an
 upgrade compares that base, the workspace's document and the newer version three ways: what only the
 template changed is taken, what the workspace changed too is a conflict shown and left unless chosen.
-Hubtask's own templates (origin `HUBTASK`) are build data, not rows: today the four presets, each a
-template of its structure part at `list@1`, `tasks@1`, `project@1`, `flow@1`; a workspace template
-may not take one of their keys (`config.template_key_shipped`). The four tables are in the workspace
+Every preset is a template of its structure part, read through `ListPresets` so it is offered as
+the presets are: Hubtask's four by key (`list@1` … `flow@1`, origin `HUBTASK`), the installation's,
+the workspace's and a person's own by identifier (`installation_<id>`, `preset_<id>`, `own_<id>` at
+the preset's version); a workspace template may not take one of those keys
+(`config.template_key_shipped`). The four tables are in the workspace
 archive (tenant-export.md §6).
 
 **Modules** (UC-INS-21, package `core/domain/model/module`) are catalogue entries `module.<name>`

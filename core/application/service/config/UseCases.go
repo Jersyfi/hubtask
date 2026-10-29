@@ -550,7 +550,7 @@ func (d Desk) apply(ctx context.Context, actor appshared.ActorContext, in usecas
 		if err := d.run(ctx, actor, p.Ops); err != nil {
 			return err
 		}
-		template, err := d.provenance(ctx, in.String("template"))
+		template, err := d.provenance(ctx, actor, in.String("template"))
 		if err != nil {
 			return err
 		}
@@ -797,7 +797,7 @@ func (d Desk) decide(ctx context.Context, actor appshared.ActorContext, id share
 		if err := d.run(ctx, actor, p.Ops); err != nil {
 			return err
 		}
-		template, err := d.provenance(ctx, proposal.Template)
+		template, err := d.provenance(ctx, actor, proposal.Template)
 		if err != nil {
 			return err
 		}

@@ -30,7 +30,7 @@ type taken struct {
 }
 
 // provenance reads `key@version`, refusing a template the workspace does not have.
-func (d Desk) provenance(ctx context.Context, label string) (taken, error) {
+func (d Desk) provenance(ctx context.Context, actor appshared.ActorContext, label string) (taken, error) {
 	if label == "" {
 		return taken{}, nil
 	}
@@ -39,7 +39,10 @@ func (d Desk) provenance(ctx context.Context, label string) (taken, error) {
 	if err != nil || version < 1 {
 		return taken{}, domain.ErrTemplateUnknown(label)
 	}
-	template, found := shippedTemplate(key, version)
+	template, found, err := d.presetTemplateOf(ctx, actor, key, version)
+	if err != nil {
+		return taken{}, err
+	}
 	if !found {
 		if template, err = d.Store.FindTemplate(ctx, key, version); err != nil {
 			return taken{}, err
@@ -80,8 +83,10 @@ func (h ListConfigTemplates) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name:       ListConfigTemplatesName,
 		Permission: service.PermissionStructure,
-		Summary: "The workspace's templates - bundles of building blocks, each version kept - with the " +
-			"newest version of each, the version the workspace took and whether an update is available.",
+		Summary: "The templates the reader may take - bundles of building blocks, each version kept - with the " +
+			"newest version of each, the version the workspace took and whether an update is available. " +
+			"Every preset is among them as a template of its structure part: Hubtask's by its key (list, " +
+			"tasks, project, flow), the installation's, the workspace's and the reader's own by identifier.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  scopeRead,
 		ReadOnly:    true,
@@ -107,7 +112,11 @@ func (h ListConfigTemplates) Descriptor() usecase.Descriptor {
 				}
 				newest := map[string]domain.Template{}
 				var order []string
-				for _, t := range append(shipped(), templates...) {
+				presets, err := h.Desk.presetTemplates(ctx, actor)
+				if err != nil {
+					return err
+				}
+				for _, t := range append(presets, templates...) {
 					held, seen := newest[t.Key]
 					if !seen {
 						order = append(order, t.Key)
@@ -161,7 +170,7 @@ func (d Desk) publish(ctx context.Context, actor appshared.ActorContext, in usec
 	if !domain.ValidKey(key) {
 		return nil, domain.ErrRefused([]shared.FieldError{{Path: "/key", Code: "config.key_invalid"}})
 	}
-	if _, held := shippedTemplate(key, 0); held {
+	if reservedKey(key) {
 		return nil, domain.ErrRefused([]shared.FieldError{{Path: "/key", Code: "config.template_key_shipped"}})
 	}
 	if name == "" || len([]rune(name)) > 120 || strings.ContainsAny(name, "\n\r") {
@@ -278,7 +287,11 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, ke
 		if err != nil {
 			return err
 		}
-		templates = append(shipped(), templates...)
+		presets, err := d.presetTemplates(ctx, actor)
+		if err != nil {
+			return err
+		}
+		templates = append(presets, templates...)
 		var chosen *domain.Template
 		for i, t := range templates {
 			if t.Key == key && (version == 0 && (chosen == nil || t.Version > chosen.Version) || t.Version == version) {

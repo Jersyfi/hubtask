@@ -12,12 +12,14 @@ import (
 	"time"
 
 	settingrepo "github.com/Jersyfi/hubtask/core/application/repository/setting"
+	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
 	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	workmodel "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
@@ -105,6 +107,16 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 				delete(w.structure, name.(string))
 			}
 		}
+	case "ListPresets":
+		rows := []any{}
+		for _, preset := range workmodel.BuiltInPresets() {
+			rows = append(rows, map[string]any(work.PresetOutput(preset)))
+		}
+		rows = append(rows, map[string]any{
+			"id": "0190a8f0-0000-7000-8000-0000000000cc", "origin": "INSTALLATION", "name": "Agency", "version": 3,
+			"settings": map[string]any{"completion": "MANUAL"},
+		})
+		return usecase.Output{"data": rows}, nil
 	case "SetModule":
 	default:
 		// Every other section is withheld, as a module switched off withholds it.
@@ -542,7 +554,7 @@ func TestATemplateIsTakenAndUpgradedThreeWay(t *testing.T) {
 	invoke(t, PublishConfigTemplate{f.desk}.Descriptor(), person, usecase.Input{"key": "service_desk", "name": "Service desk", "document": v2})
 
 	listed := invoke(t, ListConfigTemplates{f.desk}.Descriptor(), person, nil)["data"].([]usecase.Output)
-	if listed[0]["update_available"] != true {
+	if last := listed[len(listed)-1]; last["key"] != "service_desk" || last["update_available"] != true {
 		t.Errorf("no update offered: %v", listed)
 	}
 	upgrade := invoke(t, PlanConfigTemplate{f.desk}.Descriptor(), person, usecase.Input{"key": "service_desk"})

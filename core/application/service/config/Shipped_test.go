@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-func TestHubtasksPresetsAreOfferedAsTemplatesOfTheirOwnOrigin(t *testing.T) {
+func TestEveryPresetIsOfferedAsATemplateOfItsOrigin(t *testing.T) {
 	f := newFixture()
 	rows := invoke(t, ListConfigTemplates{f.desk}.Descriptor(), person, nil)["data"].([]usecase.Output)
 	origins := map[string]string{}
@@ -22,6 +22,9 @@ func TestHubtasksPresetsAreOfferedAsTemplatesOfTheirOwnOrigin(t *testing.T) {
 		if origins[key] != "HUBTASK" {
 			t.Errorf("%s is not offered as Hubtask's template: %v", key, origins)
 		}
+	}
+	if origins["installation_0190a8f00000700080000000000000cc"] != "INSTALLATION" {
+		t.Errorf("the installation's preset is not offered as its template: %v", origins)
 	}
 }
 
@@ -47,11 +50,13 @@ func TestTakingAHubtaskTemplatePlansItsStructureAndRecordsItsProvenance(t *testi
 	}
 }
 
-func TestAWorkspaceTemplateMayNotTakeAShippedKey(t *testing.T) {
-	f := newFixture()
-	_, err := PublishConfigTemplate{f.desk}.Descriptor().Handler.Invoke(t.Context(), person, usecase.Input{"key": "tasks", "name": "Ours"})
-	if !isDetail(err, "config.template_key_shipped") && !hasField(err, "config.template_key_shipped") {
-		t.Fatalf("a shipped key was taken: %v", err)
+func TestAWorkspaceTemplateMayNotTakeAPresetsKey(t *testing.T) {
+	for _, key := range []string{"tasks", "installation_x", "preset_x", "own_x"} {
+		f := newFixture()
+		_, err := PublishConfigTemplate{f.desk}.Descriptor().Handler.Invoke(t.Context(), person, usecase.Input{"key": key, "name": "Ours"})
+		if !hasField(err, "config.template_key_shipped") {
+			t.Errorf("%s was taken: %v", key, err)
+		}
 	}
 }
 
