@@ -1853,3 +1853,85 @@ func (pending) PreviewWorkspaceStructure(w http.ResponseWriter, r *http.Request)
 func (pending) PreviewModuleReach(w http.ResponseWriter, r *http.Request, _ openapi.Module, _ openapi.PreviewModuleReachParams) {
 	notAvailable(w, r)
 }
+
+// The knowledge module's pages.
+
+func (pending) AddPageComment(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) ChangePageComment(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ChangePageCommentParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreatePage(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) DeletePageComment(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ExportPage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListPageBacklinks(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListPageComments(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListPageVersions(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi.ListPageVersionsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListPages(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListPagesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListTrashedPages(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) MovePage(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi.MovePageParams) {
+	notAvailable(w, r)
+}
+
+func (pending) NamePageVersion(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ int) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPageVersion(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ int) {
+	notAvailable(w, r)
+}
+
+func (pending) RestorePage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) RestorePageVersion(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ int, _ openapi.RestorePageVersionParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SearchPages(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) TrashPage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdatePage(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi.UpdatePageParams) {
+	notAvailable(w, r)
+}
+
+func (pending) VerifyPage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}

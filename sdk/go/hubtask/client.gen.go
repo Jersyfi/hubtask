@@ -3873,6 +3873,63 @@ func (e OperatorKind) Valid() bool {
 	}
 }
 
+// Defines values for PageBacklinkListDataSourceKind.
+const (
+	PageBacklinkListDataSourceKindCOMMENT PageBacklinkListDataSourceKind = "COMMENT"
+	PageBacklinkListDataSourceKindENTRY   PageBacklinkListDataSourceKind = "ENTRY"
+	PageBacklinkListDataSourceKindPAGE    PageBacklinkListDataSourceKind = "PAGE"
+)
+
+// Valid indicates whether the value is a known member of the PageBacklinkListDataSourceKind enum.
+func (e PageBacklinkListDataSourceKind) Valid() bool {
+	switch e {
+	case PageBacklinkListDataSourceKindCOMMENT:
+		return true
+	case PageBacklinkListDataSourceKindENTRY:
+		return true
+	case PageBacklinkListDataSourceKindPAGE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PageBacklinkListDataStrength.
+const (
+	PageBacklinkListDataStrengthCARD    PageBacklinkListDataStrength = "CARD"
+	PageBacklinkListDataStrengthEMBED   PageBacklinkListDataStrength = "EMBED"
+	PageBacklinkListDataStrengthMENTION PageBacklinkListDataStrength = "MENTION"
+)
+
+// Valid indicates whether the value is a known member of the PageBacklinkListDataStrength enum.
+func (e PageBacklinkListDataStrength) Valid() bool {
+	switch e {
+	case PageBacklinkListDataStrengthCARD:
+		return true
+	case PageBacklinkListDataStrengthEMBED:
+		return true
+	case PageBacklinkListDataStrengthMENTION:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PageExportFormat.
+const (
+	MARKDOWN PageExportFormat = "MARKDOWN"
+)
+
+// Valid indicates whether the value is a known member of the PageExportFormat enum.
+func (e PageExportFormat) Valid() bool {
+	switch e {
+	case MARKDOWN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PasskeyAssertionOptionsPublicKeyUserVerification.
 const (
 	PasskeyAssertionOptionsPublicKeyUserVerificationPreferred PasskeyAssertionOptionsPublicKeyUserVerification = "preferred"
@@ -4535,19 +4592,19 @@ func (e ReferenceKind) Valid() bool {
 
 // Defines values for ReferenceStrength.
 const (
-	CARD    ReferenceStrength = "CARD"
-	EMBED   ReferenceStrength = "EMBED"
-	MENTION ReferenceStrength = "MENTION"
+	ReferenceStrengthCARD    ReferenceStrength = "CARD"
+	ReferenceStrengthEMBED   ReferenceStrength = "EMBED"
+	ReferenceStrengthMENTION ReferenceStrength = "MENTION"
 )
 
 // Valid indicates whether the value is a known member of the ReferenceStrength enum.
 func (e ReferenceStrength) Valid() bool {
 	switch e {
-	case CARD:
+	case ReferenceStrengthCARD:
 		return true
-	case EMBED:
+	case ReferenceStrengthEMBED:
 		return true
-	case MENTION:
+	case ReferenceStrengthMENTION:
 		return true
 	default:
 		return false
@@ -12001,12 +12058,320 @@ type OwnAiPosition struct {
 	Since *time.Time `json:"since,omitempty"`
 }
 
+// Page A page of a hub's space. Its body is Markdown: a link to `hubtask:<kind>/<id>` is a mention, an image of one (`![](…)`) a card or a live view. The body is left out of a tree's rows.
+type Page struct {
+	Archived bool `json:"archived"`
+
+	// Body The body in Markdown; absent in a tree's rows.
+	Body *string `json:"body,omitempty"`
+
+	// ContentLanguage The BCP-47 tag search stems the page by; null for the workspace's.
+	ContentLanguage *string            `json:"content_language"`
+	CreatedAt       time.Time          `json:"created_at"`
+	CreatedBy       openapi_types.UUID `json:"created_by"`
+
+	// DueForReview Its verification has run out.
+	DueForReview bool `json:"due_for_review"`
+
+	// HubId The hub whose space the page is in.
+	HubId openapi_types.UUID `json:"hub_id"`
+	Icon  *string            `json:"icon"`
+	Id    openapi_types.UUID `json:"id"`
+
+	// OwnerId Who answers for the page.
+	OwnerId *openapi_types.UUID `json:"owner_id"`
+
+	// ParentId The page it sits under; null at the top.
+	ParentId *openapi_types.UUID `json:"parent_id"`
+
+	// Position Its place among its siblings: they sort by this, as text.
+	Position string `json:"position"`
+
+	// Template Offered as a template of the space.
+	Template   bool                `json:"template"`
+	Title      string              `json:"title"`
+	TrashedAt  *time.Time          `json:"trashed_at"`
+	UpdatedAt  time.Time           `json:"updated_at"`
+	UpdatedBy  openapi_types.UUID  `json:"updated_by"`
+	VerifiedAt *time.Time          `json:"verified_at"`
+	VerifiedBy *openapi_types.UUID `json:"verified_by"`
+
+	// VerifiedUntil Until when the page is known to be right.
+	VerifiedUntil *time.Time `json:"verified_until"`
+
+	// Version The optimistic lock.
+	Version int `json:"version"`
+}
+
+// PageBacklinkList defines model for PageBacklinkList.
+type PageBacklinkList struct {
+	Data []struct {
+		EntryId  *openapi_types.UUID `json:"entry_id"`
+		PageId   *openapi_types.UUID `json:"page_id"`
+		SourceId openapi_types.UUID  `json:"source_id"`
+
+		// SourceKind A page, an entry's notes or one of its comments.
+		SourceKind PageBacklinkListDataSourceKind `json:"source_kind"`
+		Strength   PageBacklinkListDataStrength   `json:"strength"`
+		Title      string                         `json:"title"`
+	} `json:"data"`
+}
+
+// PageBacklinkListDataSourceKind A page, an entry's notes or one of its comments.
+type PageBacklinkListDataSourceKind string
+
+// PageBacklinkListDataStrength defines model for PageBacklinkList.Data.Strength.
+type PageBacklinkListDataStrength string
+
+// PageChange defines model for PageChange.
+type PageChange struct {
+	Archived        *bool   `json:"archived,omitempty"`
+	Body            *string `json:"body,omitempty"`
+	ContentLanguage *string `json:"content_language,omitempty"`
+	Icon            *string `json:"icon,omitempty"`
+	Template        *bool   `json:"template,omitempty"`
+	Title           *string `json:"title,omitempty"`
+}
+
+// PageComment defines model for PageComment.
+type PageComment struct {
+	// Anchor The block an inline comment stands at.
+	Anchor   *string             `json:"anchor"`
+	AuthorId *openapi_types.UUID `json:"author_id"`
+
+	// Body Markdown; empty once taken back.
+	Body      string             `json:"body"`
+	CreatedAt time.Time          `json:"created_at"`
+	Deleted   bool               `json:"deleted"`
+	EditedAt  *time.Time         `json:"edited_at"`
+	Id        openapi_types.UUID `json:"id"`
+	PageId    openapi_types.UUID `json:"page_id"`
+
+	// ParentId The thread's first comment, for a reply.
+	ParentId *openapi_types.UUID `json:"parent_id"`
+
+	// Quote The words of the block it is about.
+	Quote      *string             `json:"quote"`
+	Resolved   bool                `json:"resolved"`
+	ResolvedAt *time.Time          `json:"resolved_at"`
+	ResolvedBy *openapi_types.UUID `json:"resolved_by"`
+	Version    int                 `json:"version"`
+}
+
+// PageCommentChange defines model for PageCommentChange.
+type PageCommentChange struct {
+	Body     *string `json:"body,omitempty"`
+	Resolved *bool   `json:"resolved,omitempty"`
+}
+
+// PageCommentCreate defines model for PageCommentCreate.
+type PageCommentCreate struct {
+	Anchor   *string             `json:"anchor,omitempty"`
+	Body     string              `json:"body"`
+	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
+	Quote    *string             `json:"quote,omitempty"`
+}
+
+// PageCommentList defines model for PageCommentList.
+type PageCommentList struct {
+	Data []PageComment `json:"data"`
+}
+
+// PageCreate defines model for PageCreate.
+type PageCreate struct {
+	Body            *string `json:"body,omitempty"`
+	ContentLanguage *string `json:"content_language,omitempty"`
+	Icon            *string `json:"icon,omitempty"`
+
+	// Id An identifier the client minted for a page made offline.
+	Id       *openapi_types.UUID `json:"id,omitempty"`
+	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
+	Template *bool               `json:"template,omitempty"`
+
+	// TemplateId A template of the same space to start from.
+	TemplateId *openapi_types.UUID `json:"template_id,omitempty"`
+	Title      string              `json:"title"`
+}
+
+// PageExport defines model for PageExport.
+type PageExport struct {
+	Files []struct {
+		Content string             `json:"content"`
+		PageId  openapi_types.UUID `json:"page_id"`
+
+		// Path Where the file stands in the exported tree.
+		Path string `json:"path"`
+	} `json:"files"`
+	Format PageExportFormat `json:"format"`
+}
+
+// PageExportFormat defines model for PageExport.Format.
+type PageExportFormat string
+
+// PageExportRequest defines model for PageExportRequest.
+type PageExportRequest struct {
+	// Subtree Export the pages under it as well.
+	Subtree *bool `json:"subtree,omitempty"`
+}
+
+// PageHitList defines model for PageHitList.
+type PageHitList struct {
+	Data []struct {
+		// Excerpt The passage that matched, the words found between « and ».
+		Excerpt   string              `json:"excerpt"`
+		HubId     openapi_types.UUID  `json:"hub_id"`
+		Icon      *string             `json:"icon"`
+		Id        openapi_types.UUID  `json:"id"`
+		ParentId  *openapi_types.UUID `json:"parent_id"`
+		Rank      float32             `json:"rank"`
+		Title     string              `json:"title"`
+		UpdatedAt time.Time           `json:"updated_at"`
+	} `json:"data"`
+}
+
 // PageInfo defines model for PageInfo.
 type PageInfo struct {
 	HasMore bool `json:"has_more"`
 
 	// NextCursor The cursor for the next page, null on the last one. Opaque and signed: it is produced by the server and is neither to be constructed nor parsed by a client.
 	NextCursor *string `json:"next_cursor"`
+}
+
+// PageList defines model for PageList.
+type PageList struct {
+	Data []Page `json:"data"`
+}
+
+// PageMove defines model for PageMove.
+type PageMove struct {
+	// AfterId The sibling it follows; absent to place it first.
+	AfterId *openapi_types.UUID `json:"after_id,omitempty"`
+
+	// ParentId The page it moves under; absent for the top of the space.
+	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
+}
+
+// PageRead A page with its body, its breadcrumb and whether the reader may write it.
+type PageRead struct {
+	// Ancestors The pages above it, from the top of the space down.
+	Ancestors []struct {
+		Id    openapi_types.UUID `json:"id"`
+		Title string             `json:"title"`
+	} `json:"ancestors"`
+	Archived bool `json:"archived"`
+
+	// Body The body in Markdown; absent in a tree's rows.
+	Body string `json:"body"`
+
+	// ContentLanguage The BCP-47 tag search stems the page by; null for the workspace's.
+	ContentLanguage *string            `json:"content_language"`
+	CreatedAt       time.Time          `json:"created_at"`
+	CreatedBy       openapi_types.UUID `json:"created_by"`
+
+	// DueForReview Its verification has run out.
+	DueForReview bool `json:"due_for_review"`
+
+	// HubId The hub whose space the page is in.
+	HubId openapi_types.UUID `json:"hub_id"`
+	Icon  *string            `json:"icon"`
+	Id    openapi_types.UUID `json:"id"`
+
+	// OwnerId Who answers for the page.
+	OwnerId *openapi_types.UUID `json:"owner_id"`
+
+	// ParentId The page it sits under; null at the top.
+	ParentId *openapi_types.UUID `json:"parent_id"`
+
+	// Position Its place among its siblings: they sort by this, as text.
+	Position string `json:"position"`
+
+	// Template Offered as a template of the space.
+	Template   bool                `json:"template"`
+	Title      string              `json:"title"`
+	TrashedAt  *time.Time          `json:"trashed_at"`
+	UpdatedAt  time.Time           `json:"updated_at"`
+	UpdatedBy  openapi_types.UUID  `json:"updated_by"`
+	VerifiedAt *time.Time          `json:"verified_at"`
+	VerifiedBy *openapi_types.UUID `json:"verified_by"`
+
+	// VerifiedUntil Until when the page is known to be right.
+	VerifiedUntil *time.Time `json:"verified_until"`
+
+	// Version The optimistic lock.
+	Version  int  `json:"version"`
+	Writable bool `json:"writable"`
+}
+
+// PageSearch defines model for PageSearch.
+type PageSearch struct {
+	// HubId One hub's space; absent for every readable space.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+	Limit *int                `json:"limit,omitempty"`
+
+	// Text What to look for, in web search syntax.
+	Text string `json:"text"`
+}
+
+// PageTrashed defines model for PageTrashed.
+type PageTrashed struct {
+	// Trashed How many pages went into the trash.
+	Trashed int `json:"trashed"`
+}
+
+// PageVerify defines model for PageVerify.
+type PageVerify struct {
+	OwnerId *openapi_types.UUID `json:"owner_id,omitempty"`
+
+	// VerifiedUntil Absent takes the verification away.
+	VerifiedUntil *time.Time `json:"verified_until,omitempty"`
+}
+
+// PageVersion defines model for PageVersion.
+type PageVersion struct {
+	AuthorId  *openapi_types.UUID `json:"author_id"`
+	CreatedAt time.Time           `json:"created_at"`
+	Name      *string             `json:"name"`
+
+	// RestoredFrom The version this one brought back.
+	RestoredFrom *int `json:"restored_from"`
+	Seq          int  `json:"seq"`
+
+	// Size The body's size in bytes.
+	Size  int    `json:"size"`
+	Title string `json:"title"`
+}
+
+// PageVersionList defines model for PageVersionList.
+type PageVersionList struct {
+	Data []PageVersion `json:"data"`
+}
+
+// PageVersionName defines model for PageVersionName.
+type PageVersionName struct {
+	// Name Empty takes the name away.
+	Name *string `json:"name,omitempty"`
+}
+
+// PageVersionNamed defines model for PageVersionNamed.
+type PageVersionNamed struct {
+	Name *string `json:"name"`
+	Seq  int     `json:"seq"`
+}
+
+// PageVersionRead defines model for PageVersionRead.
+type PageVersionRead struct {
+	AuthorId  *openapi_types.UUID `json:"author_id"`
+	Body      string              `json:"body"`
+	CreatedAt time.Time           `json:"created_at"`
+	Name      *string             `json:"name"`
+
+	// RestoredFrom The version this one brought back.
+	RestoredFrom *int `json:"restored_from"`
+	Seq          int  `json:"seq"`
+
+	// Size The body's size in bytes.
+	Size  int    `json:"size"`
+	Title string `json:"title"`
 }
 
 // Passkey One passkey or security key of the caller's account.
@@ -15722,6 +16087,9 @@ type OauthClientId = openapi_types.UUID
 // OauthGrantId defines model for OauthGrantId.
 type OauthGrantId = openapi_types.UUID
 
+// PageId defines model for PageId.
+type PageId = openapi_types.UUID
+
 // PageSize defines model for PageSize.
 type PageSize = int
 
@@ -16453,6 +16821,12 @@ type UpdateGroupParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ListPagesParams defines parameters for ListPages.
+type ListPagesParams struct {
+	IncludeArchived *bool `form:"include_archived,omitempty" json:"include_archived,omitempty"`
+	Templates       *bool `form:"templates,omitempty" json:"templates,omitempty"`
+}
+
 // ConfigureFirstIdentityProviderParams defines parameters for ConfigureFirstIdentityProvider.
 type ConfigureFirstIdentityProviderParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -17042,6 +17416,36 @@ type RevokeMembershipParams struct {
 type RegisterOauthClientParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ChangePageCommentParams defines parameters for ChangePageComment.
+type ChangePageCommentParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdatePageParams defines parameters for UpdatePage.
+type UpdatePageParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ListPageVersionsParams defines parameters for ListPageVersions.
+type ListPageVersionsParams struct {
+	Before *int `form:"before,omitempty" json:"before,omitempty"`
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// RestorePageVersionParams defines parameters for RestorePageVersion.
+type RestorePageVersionParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// MovePageParams defines parameters for MovePage.
+type MovePageParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
 // WithdrawPresetParams defines parameters for WithdrawPreset.
@@ -17647,6 +18051,9 @@ type CreateGroupJSONRequestBody = GroupCreate
 // UpdateGroupApplicationMergePatchPlusJSONRequestBody defines body for UpdateGroup for application/merge-patch+json ContentType.
 type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
 
+// CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
+type CreatePageJSONRequestBody = PageCreate
+
 // ConfigureFirstIdentityProviderJSONRequestBody defines body for ConfigureFirstIdentityProvider for application/json ContentType.
 type ConfigureFirstIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
@@ -17823,6 +18230,30 @@ type ExchangeOauthCodeJSONRequestBody = OauthTokenRequest
 
 // ExchangeOauthCodeFormdataRequestBody defines body for ExchangeOauthCode for application/x-www-form-urlencoded ContentType.
 type ExchangeOauthCodeFormdataRequestBody = OauthTokenForm
+
+// ChangePageCommentApplicationMergePatchPlusJSONRequestBody defines body for ChangePageComment for application/merge-patch+json ContentType.
+type ChangePageCommentApplicationMergePatchPlusJSONRequestBody = PageCommentChange
+
+// UpdatePageApplicationMergePatchPlusJSONRequestBody defines body for UpdatePage for application/merge-patch+json ContentType.
+type UpdatePageApplicationMergePatchPlusJSONRequestBody = PageChange
+
+// AddPageCommentJSONRequestBody defines body for AddPageComment for application/json ContentType.
+type AddPageCommentJSONRequestBody = PageCommentCreate
+
+// NamePageVersionApplicationMergePatchPlusJSONRequestBody defines body for NamePageVersion for application/merge-patch+json ContentType.
+type NamePageVersionApplicationMergePatchPlusJSONRequestBody = PageVersionName
+
+// ExportPageJSONRequestBody defines body for ExportPage for application/json ContentType.
+type ExportPageJSONRequestBody = PageExportRequest
+
+// MovePageJSONRequestBody defines body for MovePage for application/json ContentType.
+type MovePageJSONRequestBody = PageMove
+
+// VerifyPageJSONRequestBody defines body for VerifyPage for application/json ContentType.
+type VerifyPageJSONRequestBody = PageVerify
+
+// SearchPagesJSONRequestBody defines body for SearchPages for application/json ContentType.
+type SearchPagesJSONRequestBody = PageSearch
 
 // SavePresetJSONRequestBody defines body for SavePreset for application/json ContentType.
 type SavePresetJSONRequestBody = PresetCreate
@@ -21351,6 +21782,38 @@ type ClientInterface interface {
 	// Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
 	UpdateGroupWithApplicationMergePatchPlusJSONBody(ctx context.Context, groupId GroupId, params *UpdateGroupParams, body UpdateGroupApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListPages A hub's pages
+	//
+	// The hub's space: every page without its body, each with its parent and position, parents before their children. Archived pages only with `include_archived`; the space's templates alone with `templates`. Needs READ on the hub and the knowledge module switched on.
+	//
+	// Corresponds with GET /hubs/{hubId}/pages (the `ListPages` operationId).
+	ListPages(ctx context.Context, hubId openapi_types.UUID, params *ListPagesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePageWithBody Write a new page
+	//
+	// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
+	CreatePageWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePage Write a new page
+	//
+	// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
+	CreatePage(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListTrashedPages A hub's trashed pages
+	//
+	// The space's trash, the latest first, without the bodies. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/trashed-pages (the `ListTrashedPages` operationId).
+	ListTrashedPages(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ReadIdentityProvider The workspace's first identity provider
 	//
 	// **Kept, because nothing in this contract disappears.** It was the whole of the provider surface before providers became plural, and a caller written against it keeps working: it reads the workspace's own first provider, in the order the collection lists them, and `PUT` writes that one - creating it where there is none.
@@ -23026,6 +23489,213 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 	ExchangeOauthCodeWithFormdataBody(ctx context.Context, body ExchangeOauthCodeFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeletePageComment Take a page comment back
+	//
+	// The caller's own comment; its place in the thread stays, its words go.
+	//
+	// Corresponds with DELETE /page-comments/{commentId} (the `DeletePageComment` operationId).
+	DeletePageComment(ctx context.Context, commentId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangePageCommentWithBody Change a page comment
+	//
+	// Rewrites the comment's words - its author only (`pages.comment_not_own`) - or resolves or reopens its thread, which whoever may write the page may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /page-comments/{commentId} (the `ChangePageComment` operationId).
+	ChangePageCommentWithBody(ctx context.Context, commentId openapi_types.UUID, params *ChangePageCommentParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangePageCommentWithApplicationMergePatchPlusJSONBody Change a page comment
+	//
+	// Rewrites the comment's words - its author only (`pages.comment_not_own`) - or resolves or reopens its thread, which whoever may write the page may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/merge-patch+json` content type.
+	//
+	// Corresponds with PATCH /page-comments/{commentId} (the `ChangePageComment` operationId).
+	ChangePageCommentWithApplicationMergePatchPlusJSONBody(ctx context.Context, commentId openapi_types.UUID, params *ChangePageCommentParams, body ChangePageCommentApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TrashPage Put a page in the trash
+	//
+	// Puts the page and every page under it in the space's trash; `:restore` brings them back together. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with DELETE /pages/{pageId} (the `TrashPage` operationId).
+	TrashPage(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadPage Read a page
+	//
+	// The page with its Markdown body, its breadcrumb (the pages above it, from the top of the space down) and whether the reader may write it. A page in the trash is not found. Needs READ on the page's hub.
+	//
+	// Corresponds with GET /pages/{pageId} (the `ReadPage` operationId).
+	ReadPage(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdatePageWithBody Change a page
+	//
+	// Writes the title, the whole Markdown body, the icon, the template mark or the content language, or archives or brings the page back. A write of the title or body is kept in the page's history: one person's writes within ten minutes are one version. Without `If-Match` the write lands on what stands, as live co-editing saves. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /pages/{pageId} (the `UpdatePage` operationId).
+	UpdatePageWithBody(ctx context.Context, pageId PageId, params *UpdatePageParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdatePageWithApplicationMergePatchPlusJSONBody Change a page
+	//
+	// Writes the title, the whole Markdown body, the icon, the template mark or the content language, or archives or brings the page back. A write of the title or body is kept in the page's history: one person's writes within ten minutes are one version. Without `If-Match` the write lands on what stands, as live co-editing saves. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/merge-patch+json` content type.
+	//
+	// Corresponds with PATCH /pages/{pageId} (the `UpdatePage` operationId).
+	UpdatePageWithApplicationMergePatchPlusJSONBody(ctx context.Context, pageId PageId, params *UpdatePageParams, body UpdatePageApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPageBacklinks What links to a page
+	//
+	// The pages, entries' notes and comments that mention the page, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
+	//
+	// Corresponds with GET /pages/{pageId}/backlinks (the `ListPageBacklinks` operationId).
+	ListPageBacklinks(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPageComments A page's comments
+	//
+	// The page's comments oldest first: threads and their replies, inline ones with the block and the words they are about, resolved threads marked. A comment taken back answers no words. Needs READ on the hub.
+	//
+	// Corresponds with GET /pages/{pageId}/comments (the `ListPageComments` operationId).
+	ListPageComments(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddPageCommentWithBody Comment on a page
+	//
+	// A comment on the page as a whole, inline on a block (`anchor`, with the words it is about as `quote`), or a reply to a thread's first comment; one level of replies. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
+	AddPageCommentWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddPageComment Comment on a page
+	//
+	// A comment on the page as a whole, inline on a block (`anchor`, with the words it is about as `quote`), or a reply to a thread's first comment; one level of replies. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
+	AddPageComment(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPageVersions A page's history
+	//
+	// The page's versions newest first - one per editing session, a named or a restored one its own - with author, moment, size and name, without the bodies. Continue with `before`. Needs READ on the hub.
+	//
+	// Corresponds with GET /pages/{pageId}/versions (the `ListPageVersions` operationId).
+	ListPageVersions(ctx context.Context, pageId PageId, params *ListPageVersionsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadPageVersion Read one version of a page
+	//
+	// The version's title and body as they stood, to compare. Needs READ on the hub.
+	//
+	// Corresponds with GET /pages/{pageId}/versions/{seq} (the `ReadPageVersion` operationId).
+	ReadPageVersion(ctx context.Context, pageId PageId, seq int, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// NamePageVersionWithBody Name a version
+	//
+	// Names the version, or takes its name away with an empty name. A named version stays as it is: the next write starts a new one. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /pages/{pageId}/versions/{seq} (the `NamePageVersion` operationId).
+	NamePageVersionWithBody(ctx context.Context, pageId PageId, seq int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// NamePageVersionWithApplicationMergePatchPlusJSONBody Name a version
+	//
+	// Names the version, or takes its name away with an empty name. A named version stays as it is: the next write starts a new one. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/merge-patch+json` content type.
+	//
+	// Corresponds with PATCH /pages/{pageId}/versions/{seq} (the `NamePageVersion` operationId).
+	NamePageVersionWithApplicationMergePatchPlusJSONBody(ctx context.Context, pageId PageId, seq int, body NamePageVersionApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RestorePageVersion Bring an older version back
+	//
+	// The version's title and body become the page's, written as a new version that names the one it brought back, so nothing in between is lost. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with POST /pages/{pageId}/versions/{seq}:restore (the `RestorePageVersion` operationId).
+	RestorePageVersion(ctx context.Context, pageId PageId, seq int, params *RestorePageVersionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExportPageWithBody Export a page as Markdown
+	//
+	// The page - or, with `subtree`, the page and every page under it, at most 500 - as Markdown files with front matter (id, title, parent), each under a folder named after its parent. References stay `hubtask:` addresses. The export is recorded in the audit trail. Needs READ on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /pages/{pageId}:export (the `ExportPage` operationId).
+	ExportPageWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExportPage Export a page as Markdown
+	//
+	// The page - or, with `subtree`, the page and every page under it, at most 500 - as Markdown files with front matter (id, title, parent), each under a folder named after its parent. References stay `hubtask:` addresses. The export is recorded in the audit trail. Needs READ on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /pages/{pageId}:export (the `ExportPage` operationId).
+	ExportPage(ctx context.Context, pageId PageId, body ExportPageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MovePageWithBody Move a page
+	//
+	// Places the page, with the pages under it, under another page of the same space or at its top, after a sibling or first. Under itself or one of its own is refused with `pages.parent_cycle`, another space with `pages.parent_other_space`, deeper than twelve levels with `pages.too_deep`. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /pages/{pageId}:move (the `MovePage` operationId).
+	MovePageWithBody(ctx context.Context, pageId PageId, params *MovePageParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MovePage Move a page
+	//
+	// Places the page, with the pages under it, under another page of the same space or at its top, after a sibling or first. Under itself or one of its own is refused with `pages.parent_cycle`, another space with `pages.parent_other_space`, deeper than twelve levels with `pages.too_deep`. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /pages/{pageId}:move (the `MovePage` operationId).
+	MovePage(ctx context.Context, pageId PageId, params *MovePageParams, body MovePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RestorePage Bring a page back from the trash
+	//
+	// Brings the trashed page back with the pages that went into the trash with it. A page whose parent is still in the trash comes back at the top of the space. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with POST /pages/{pageId}:restore (the `RestorePage` operationId).
+	RestorePage(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// VerifyPageWithBody Mark a page as checked
+	//
+	// Marks the page as checked and right until a date, by the caller, and names who answers for it; from that date the page is due for review. Without a date the verification is taken away. A date in the past is refused with `pages.verified_until_past`. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /pages/{pageId}:verify (the `VerifyPage` operationId).
+	VerifyPageWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// VerifyPage Mark a page as checked
+	//
+	// Marks the page as checked and right until a date, by the caller, and names who answers for it; from that date the page is due for review. Without a date the verification is taken away. A date in the past is refused with `pages.verified_until_past`. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /pages/{pageId}:verify (the `VerifyPage` operationId).
+	VerifyPage(ctx context.Context, pageId PageId, body VerifyPageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SearchPagesWithBody Find pages by their words
+	//
+	// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /pages:search (the `SearchPages` operationId).
+	SearchPagesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SearchPages Find pages by their words
+	//
+	// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /pages:search (the `SearchPages` operationId).
+	SearchPages(ctx context.Context, body SearchPagesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPresets The presets a hub or collection can start from
 	//
@@ -31082,6 +31752,78 @@ func (c *Client) UpdateGroupWithApplicationMergePatchPlusJSONBody(ctx context.Co
 	return c.Client.Do(req)
 }
 
+// ListPages A hub's pages
+//
+// The hub's space: every page without its body, each with its parent and position, parents before their children. Archived pages only with `include_archived`; the space's templates alone with `templates`. Needs READ on the hub and the knowledge module switched on.
+//
+// Corresponds with GET /hubs/{hubId}/pages (the `ListPages` operationId).
+func (c *Client) ListPages(ctx context.Context, hubId openapi_types.UUID, params *ListPagesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPagesRequest(c.Server, hubId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePageWithBody Write a new page
+//
+// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
+func (c *Client) CreatePageWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePageRequestWithBody(c.Server, hubId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePage Write a new page
+//
+// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
+func (c *Client) CreatePage(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePageRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListTrashedPages A hub's trashed pages
+//
+// The space's trash, the latest first, without the bodies. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/trashed-pages (the `ListTrashedPages` operationId).
+func (c *Client) ListTrashedPages(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListTrashedPagesRequest(c.Server, hubId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ReadIdentityProvider The workspace's first identity provider
 //
 // **Kept, because nothing in this contract disappears.** It was the whole of the provider surface before providers became plural, and a caller written against it keeps working: it reads the workspace's own first provider, in the order the collection lists them, and `PUT` writes that one - creating it where there is none.
@@ -34718,6 +35460,463 @@ func (c *Client) ExchangeOauthCode(ctx context.Context, body ExchangeOauthCodeJS
 // Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 func (c *Client) ExchangeOauthCodeWithFormdataBody(ctx context.Context, body ExchangeOauthCodeFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExchangeOauthCodeRequestWithFormdataBody(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeletePageComment Take a page comment back
+//
+// The caller's own comment; its place in the thread stays, its words go.
+//
+// Corresponds with DELETE /page-comments/{commentId} (the `DeletePageComment` operationId).
+func (c *Client) DeletePageComment(ctx context.Context, commentId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeletePageCommentRequest(c.Server, commentId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangePageCommentWithBody Change a page comment
+//
+// Rewrites the comment's words - its author only (`pages.comment_not_own`) - or resolves or reopens its thread, which whoever may write the page may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /page-comments/{commentId} (the `ChangePageComment` operationId).
+func (c *Client) ChangePageCommentWithBody(ctx context.Context, commentId openapi_types.UUID, params *ChangePageCommentParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangePageCommentRequestWithBody(c.Server, commentId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangePageCommentWithApplicationMergePatchPlusJSONBody Change a page comment
+//
+// Rewrites the comment's words - its author only (`pages.comment_not_own`) - or resolves or reopens its thread, which whoever may write the page may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/merge-patch+json` content type.
+//
+// Corresponds with PATCH /page-comments/{commentId} (the `ChangePageComment` operationId).
+func (c *Client) ChangePageCommentWithApplicationMergePatchPlusJSONBody(ctx context.Context, commentId openapi_types.UUID, params *ChangePageCommentParams, body ChangePageCommentApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangePageCommentRequestWithApplicationMergePatchPlusJSONBody(c.Server, commentId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// TrashPage Put a page in the trash
+//
+// Puts the page and every page under it in the space's trash; `:restore` brings them back together. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with DELETE /pages/{pageId} (the `TrashPage` operationId).
+func (c *Client) TrashPage(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTrashPageRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadPage Read a page
+//
+// The page with its Markdown body, its breadcrumb (the pages above it, from the top of the space down) and whether the reader may write it. A page in the trash is not found. Needs READ on the page's hub.
+//
+// Corresponds with GET /pages/{pageId} (the `ReadPage` operationId).
+func (c *Client) ReadPage(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPageRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdatePageWithBody Change a page
+//
+// Writes the title, the whole Markdown body, the icon, the template mark or the content language, or archives or brings the page back. A write of the title or body is kept in the page's history: one person's writes within ten minutes are one version. Without `If-Match` the write lands on what stands, as live co-editing saves. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /pages/{pageId} (the `UpdatePage` operationId).
+func (c *Client) UpdatePageWithBody(ctx context.Context, pageId PageId, params *UpdatePageParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdatePageRequestWithBody(c.Server, pageId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdatePageWithApplicationMergePatchPlusJSONBody Change a page
+//
+// Writes the title, the whole Markdown body, the icon, the template mark or the content language, or archives or brings the page back. A write of the title or body is kept in the page's history: one person's writes within ten minutes are one version. Without `If-Match` the write lands on what stands, as live co-editing saves. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/merge-patch+json` content type.
+//
+// Corresponds with PATCH /pages/{pageId} (the `UpdatePage` operationId).
+func (c *Client) UpdatePageWithApplicationMergePatchPlusJSONBody(ctx context.Context, pageId PageId, params *UpdatePageParams, body UpdatePageApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdatePageRequestWithApplicationMergePatchPlusJSONBody(c.Server, pageId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPageBacklinks What links to a page
+//
+// The pages, entries' notes and comments that mention the page, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
+//
+// Corresponds with GET /pages/{pageId}/backlinks (the `ListPageBacklinks` operationId).
+func (c *Client) ListPageBacklinks(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPageBacklinksRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPageComments A page's comments
+//
+// The page's comments oldest first: threads and their replies, inline ones with the block and the words they are about, resolved threads marked. A comment taken back answers no words. Needs READ on the hub.
+//
+// Corresponds with GET /pages/{pageId}/comments (the `ListPageComments` operationId).
+func (c *Client) ListPageComments(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPageCommentsRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddPageCommentWithBody Comment on a page
+//
+// A comment on the page as a whole, inline on a block (`anchor`, with the words it is about as `quote`), or a reply to a thread's first comment; one level of replies. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
+func (c *Client) AddPageCommentWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddPageCommentRequestWithBody(c.Server, pageId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddPageComment Comment on a page
+//
+// A comment on the page as a whole, inline on a block (`anchor`, with the words it is about as `quote`), or a reply to a thread's first comment; one level of replies. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
+func (c *Client) AddPageComment(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddPageCommentRequest(c.Server, pageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPageVersions A page's history
+//
+// The page's versions newest first - one per editing session, a named or a restored one its own - with author, moment, size and name, without the bodies. Continue with `before`. Needs READ on the hub.
+//
+// Corresponds with GET /pages/{pageId}/versions (the `ListPageVersions` operationId).
+func (c *Client) ListPageVersions(ctx context.Context, pageId PageId, params *ListPageVersionsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPageVersionsRequest(c.Server, pageId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadPageVersion Read one version of a page
+//
+// The version's title and body as they stood, to compare. Needs READ on the hub.
+//
+// Corresponds with GET /pages/{pageId}/versions/{seq} (the `ReadPageVersion` operationId).
+func (c *Client) ReadPageVersion(ctx context.Context, pageId PageId, seq int, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPageVersionRequest(c.Server, pageId, seq)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NamePageVersionWithBody Name a version
+//
+// Names the version, or takes its name away with an empty name. A named version stays as it is: the next write starts a new one. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /pages/{pageId}/versions/{seq} (the `NamePageVersion` operationId).
+func (c *Client) NamePageVersionWithBody(ctx context.Context, pageId PageId, seq int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewNamePageVersionRequestWithBody(c.Server, pageId, seq, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NamePageVersionWithApplicationMergePatchPlusJSONBody Name a version
+//
+// Names the version, or takes its name away with an empty name. A named version stays as it is: the next write starts a new one. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/merge-patch+json` content type.
+//
+// Corresponds with PATCH /pages/{pageId}/versions/{seq} (the `NamePageVersion` operationId).
+func (c *Client) NamePageVersionWithApplicationMergePatchPlusJSONBody(ctx context.Context, pageId PageId, seq int, body NamePageVersionApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewNamePageVersionRequestWithApplicationMergePatchPlusJSONBody(c.Server, pageId, seq, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RestorePageVersion Bring an older version back
+//
+// The version's title and body become the page's, written as a new version that names the one it brought back, so nothing in between is lost. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with POST /pages/{pageId}/versions/{seq}:restore (the `RestorePageVersion` operationId).
+func (c *Client) RestorePageVersion(ctx context.Context, pageId PageId, seq int, params *RestorePageVersionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRestorePageVersionRequest(c.Server, pageId, seq, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ExportPageWithBody Export a page as Markdown
+//
+// The page - or, with `subtree`, the page and every page under it, at most 500 - as Markdown files with front matter (id, title, parent), each under a folder named after its parent. References stay `hubtask:` addresses. The export is recorded in the audit trail. Needs READ on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /pages/{pageId}:export (the `ExportPage` operationId).
+func (c *Client) ExportPageWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExportPageRequestWithBody(c.Server, pageId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ExportPage Export a page as Markdown
+//
+// The page - or, with `subtree`, the page and every page under it, at most 500 - as Markdown files with front matter (id, title, parent), each under a folder named after its parent. References stay `hubtask:` addresses. The export is recorded in the audit trail. Needs READ on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /pages/{pageId}:export (the `ExportPage` operationId).
+func (c *Client) ExportPage(ctx context.Context, pageId PageId, body ExportPageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExportPageRequest(c.Server, pageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MovePageWithBody Move a page
+//
+// Places the page, with the pages under it, under another page of the same space or at its top, after a sibling or first. Under itself or one of its own is refused with `pages.parent_cycle`, another space with `pages.parent_other_space`, deeper than twelve levels with `pages.too_deep`. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /pages/{pageId}:move (the `MovePage` operationId).
+func (c *Client) MovePageWithBody(ctx context.Context, pageId PageId, params *MovePageParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMovePageRequestWithBody(c.Server, pageId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MovePage Move a page
+//
+// Places the page, with the pages under it, under another page of the same space or at its top, after a sibling or first. Under itself or one of its own is refused with `pages.parent_cycle`, another space with `pages.parent_other_space`, deeper than twelve levels with `pages.too_deep`. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /pages/{pageId}:move (the `MovePage` operationId).
+func (c *Client) MovePage(ctx context.Context, pageId PageId, params *MovePageParams, body MovePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMovePageRequest(c.Server, pageId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RestorePage Bring a page back from the trash
+//
+// Brings the trashed page back with the pages that went into the trash with it. A page whose parent is still in the trash comes back at the top of the space. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with POST /pages/{pageId}:restore (the `RestorePage` operationId).
+func (c *Client) RestorePage(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRestorePageRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// VerifyPageWithBody Mark a page as checked
+//
+// Marks the page as checked and right until a date, by the caller, and names who answers for it; from that date the page is due for review. Without a date the verification is taken away. A date in the past is refused with `pages.verified_until_past`. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /pages/{pageId}:verify (the `VerifyPage` operationId).
+func (c *Client) VerifyPageWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewVerifyPageRequestWithBody(c.Server, pageId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// VerifyPage Mark a page as checked
+//
+// Marks the page as checked and right until a date, by the caller, and names who answers for it; from that date the page is due for review. Without a date the verification is taken away. A date in the past is refused with `pages.verified_until_past`. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /pages/{pageId}:verify (the `VerifyPage` operationId).
+func (c *Client) VerifyPage(ctx context.Context, pageId PageId, body VerifyPageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewVerifyPageRequest(c.Server, pageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SearchPagesWithBody Find pages by their words
+//
+// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /pages:search (the `SearchPages` operationId).
+func (c *Client) SearchPagesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchPagesRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SearchPages Find pages by their words
+//
+// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /pages:search (the `SearchPages` operationId).
+func (c *Client) SearchPages(ctx context.Context, body SearchPagesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchPagesRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -47801,6 +49000,160 @@ func NewUpdateGroupRequestWithBody(server string, groupId GroupId, params *Updat
 	return req, nil
 }
 
+// NewListPagesRequest constructs an http.Request for the ListPages method
+func NewListPagesRequest(server string, hubId openapi_types.UUID, params *ListPagesParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/pages", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.IncludeArchived != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include_archived", *params.IncludeArchived, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Templates != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "templates", *params.Templates, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreatePageRequest calls the generic CreatePage builder with application/json body
+func NewCreatePageRequest(server string, hubId openapi_types.UUID, body CreatePageJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreatePageRequestWithBody(server, hubId, "application/json", bodyReader)
+}
+
+// NewCreatePageRequestWithBody constructs an http.Request for the CreatePage method, with any body, and a specified content type
+func NewCreatePageRequestWithBody(server string, hubId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/pages", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListTrashedPagesRequest constructs an http.Request for the ListTrashedPages method
+func NewListTrashedPagesRequest(server string, hubId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/trashed-pages", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewReadIdentityProviderRequest constructs an http.Request for the ReadIdentityProvider method
 func NewReadIdentityProviderRequest(server string) (*http.Request, error) {
 	var err error
@@ -54624,6 +55977,801 @@ func NewExchangeOauthCodeRequestWithBody(server string, contentType string, body
 	}
 
 	operationPath := fmt.Sprintf("/oauth/token")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeletePageCommentRequest constructs an http.Request for the DeletePageComment method
+func NewDeletePageCommentRequest(server string, commentId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "commentId", commentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/page-comments/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewChangePageCommentRequestWithApplicationMergePatchPlusJSONBody calls the generic ChangePageComment builder with application/merge-patch+json body
+func NewChangePageCommentRequestWithApplicationMergePatchPlusJSONBody(server string, commentId openapi_types.UUID, params *ChangePageCommentParams, body ChangePageCommentApplicationMergePatchPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangePageCommentRequestWithBody(server, commentId, params, "application/merge-patch+json", bodyReader)
+}
+
+// NewChangePageCommentRequestWithBody constructs an http.Request for the ChangePageComment method, with any body, and a specified content type
+func NewChangePageCommentRequestWithBody(server string, commentId openapi_types.UUID, params *ChangePageCommentParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "commentId", commentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/page-comments/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewTrashPageRequest constructs an http.Request for the TrashPage method
+func NewTrashPageRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadPageRequest constructs an http.Request for the ReadPage method
+func NewReadPageRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdatePageRequestWithApplicationMergePatchPlusJSONBody calls the generic UpdatePage builder with application/merge-patch+json body
+func NewUpdatePageRequestWithApplicationMergePatchPlusJSONBody(server string, pageId PageId, params *UpdatePageParams, body UpdatePageApplicationMergePatchPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdatePageRequestWithBody(server, pageId, params, "application/merge-patch+json", bodyReader)
+}
+
+// NewUpdatePageRequestWithBody constructs an http.Request for the UpdatePage method, with any body, and a specified content type
+func NewUpdatePageRequestWithBody(server string, pageId PageId, params *UpdatePageParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListPageBacklinksRequest constructs an http.Request for the ListPageBacklinks method
+func NewListPageBacklinksRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/backlinks", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListPageCommentsRequest constructs an http.Request for the ListPageComments method
+func NewListPageCommentsRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/comments", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddPageCommentRequest calls the generic AddPageComment builder with application/json body
+func NewAddPageCommentRequest(server string, pageId PageId, body AddPageCommentJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddPageCommentRequestWithBody(server, pageId, "application/json", bodyReader)
+}
+
+// NewAddPageCommentRequestWithBody constructs an http.Request for the AddPageComment method, with any body, and a specified content type
+func NewAddPageCommentRequestWithBody(server string, pageId PageId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/comments", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListPageVersionsRequest constructs an http.Request for the ListPageVersions method
+func NewListPageVersionsRequest(server string, pageId PageId, params *ListPageVersionsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/versions", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Before != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "before", *params.Before, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadPageVersionRequest constructs an http.Request for the ReadPageVersion method
+func NewReadPageVersionRequest(server string, pageId PageId, seq int) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "seq", seq, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/versions/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewNamePageVersionRequestWithApplicationMergePatchPlusJSONBody calls the generic NamePageVersion builder with application/merge-patch+json body
+func NewNamePageVersionRequestWithApplicationMergePatchPlusJSONBody(server string, pageId PageId, seq int, body NamePageVersionApplicationMergePatchPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewNamePageVersionRequestWithBody(server, pageId, seq, "application/merge-patch+json", bodyReader)
+}
+
+// NewNamePageVersionRequestWithBody constructs an http.Request for the NamePageVersion method, with any body, and a specified content type
+func NewNamePageVersionRequestWithBody(server string, pageId PageId, seq int, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "seq", seq, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/versions/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRestorePageVersionRequest constructs an http.Request for the RestorePageVersion method
+func NewRestorePageVersionRequest(server string, pageId PageId, seq int, params *RestorePageVersionParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "seq", seq, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/versions/%s:restore", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewExportPageRequest calls the generic ExportPage builder with application/json body
+func NewExportPageRequest(server string, pageId PageId, body ExportPageJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewExportPageRequestWithBody(server, pageId, "application/json", bodyReader)
+}
+
+// NewExportPageRequestWithBody constructs an http.Request for the ExportPage method, with any body, and a specified content type
+func NewExportPageRequestWithBody(server string, pageId PageId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s:export", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewMovePageRequest calls the generic MovePage builder with application/json body
+func NewMovePageRequest(server string, pageId PageId, params *MovePageParams, body MovePageJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewMovePageRequestWithBody(server, pageId, params, "application/json", bodyReader)
+}
+
+// NewMovePageRequestWithBody constructs an http.Request for the MovePage method, with any body, and a specified content type
+func NewMovePageRequestWithBody(server string, pageId PageId, params *MovePageParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s:move", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewRestorePageRequest constructs an http.Request for the RestorePage method
+func NewRestorePageRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s:restore", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewVerifyPageRequest calls the generic VerifyPage builder with application/json body
+func NewVerifyPageRequest(server string, pageId PageId, body VerifyPageJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewVerifyPageRequestWithBody(server, pageId, "application/json", bodyReader)
+}
+
+// NewVerifyPageRequestWithBody constructs an http.Request for the VerifyPage method, with any body, and a specified content type
+func NewVerifyPageRequestWithBody(server string, pageId PageId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s:verify", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSearchPagesRequest calls the generic SearchPages builder with application/json body
+func NewSearchPagesRequest(server string, body SearchPagesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSearchPagesRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSearchPagesRequestWithBody constructs an http.Request for the SearchPages method, with any body, and a specified content type
+func NewSearchPagesRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages:search")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -62231,6 +64379,42 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
 	UpdateGroupWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, groupId GroupId, params *UpdateGroupParams, body UpdateGroupApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateGroupResult, error)
 
+	// ListPagesWithResponse A hub's pages
+	//
+	// The hub's space: every page without its body, each with its parent and position, parents before their children. Archived pages only with `include_archived`; the space's templates alone with `templates`. Needs READ on the hub and the knowledge module switched on.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/pages (the `ListPages` operationId).
+	ListPagesWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListPagesParams, reqEditors ...RequestEditorFn) (*ListPagesResult, error)
+
+	// CreatePageWithBodyWithResponse Write a new page
+	//
+	// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
+	CreatePageWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreatePageResult, error)
+
+	// CreatePageWithResponse Write a new page
+	//
+	// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
+	CreatePageWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePageResult, error)
+
+	// ListTrashedPagesWithResponse A hub's trashed pages
+	//
+	// The space's trash, the latest first, without the bodies. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/trashed-pages (the `ListTrashedPages` operationId).
+	ListTrashedPagesWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListTrashedPagesResult, error)
+
 	// ReadIdentityProviderWithResponse The workspace's first identity provider
 	//
 	// **Kept, because nothing in this contract disappears.** It was the whole of the provider surface before providers became plural, and a caller written against it keeps working: it reads the workspace's own first provider, in the order the collection lists them, and `PUT` writes that one - creating it where there is none.
@@ -64102,6 +66286,231 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 	ExchangeOauthCodeWithFormdataBodyWithResponse(ctx context.Context, body ExchangeOauthCodeFormdataRequestBody, reqEditors ...RequestEditorFn) (*ExchangeOauthCodeResult, error)
+
+	// DeletePageCommentWithResponse Take a page comment back
+	//
+	// The caller's own comment; its place in the thread stays, its words go.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /page-comments/{commentId} (the `DeletePageComment` operationId).
+	DeletePageCommentWithResponse(ctx context.Context, commentId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeletePageCommentResult, error)
+
+	// ChangePageCommentWithBodyWithResponse Change a page comment
+	//
+	// Rewrites the comment's words - its author only (`pages.comment_not_own`) - or resolves or reopens its thread, which whoever may write the page may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /page-comments/{commentId} (the `ChangePageComment` operationId).
+	ChangePageCommentWithBodyWithResponse(ctx context.Context, commentId openapi_types.UUID, params *ChangePageCommentParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangePageCommentResult, error)
+
+	// ChangePageCommentWithApplicationMergePatchPlusJSONBodyWithResponse Change a page comment
+	//
+	// Rewrites the comment's words - its author only (`pages.comment_not_own`) - or resolves or reopens its thread, which whoever may write the page may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /page-comments/{commentId} (the `ChangePageComment` operationId).
+	ChangePageCommentWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, commentId openapi_types.UUID, params *ChangePageCommentParams, body ChangePageCommentApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangePageCommentResult, error)
+
+	// TrashPageWithResponse Put a page in the trash
+	//
+	// Puts the page and every page under it in the space's trash; `:restore` brings them back together. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /pages/{pageId} (the `TrashPage` operationId).
+	TrashPageWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*TrashPageResult, error)
+
+	// ReadPageWithResponse Read a page
+	//
+	// The page with its Markdown body, its breadcrumb (the pages above it, from the top of the space down) and whether the reader may write it. A page in the trash is not found. Needs READ on the page's hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /pages/{pageId} (the `ReadPage` operationId).
+	ReadPageWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ReadPageResult, error)
+
+	// UpdatePageWithBodyWithResponse Change a page
+	//
+	// Writes the title, the whole Markdown body, the icon, the template mark or the content language, or archives or brings the page back. A write of the title or body is kept in the page's history: one person's writes within ten minutes are one version. Without `If-Match` the write lands on what stands, as live co-editing saves. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /pages/{pageId} (the `UpdatePage` operationId).
+	UpdatePageWithBodyWithResponse(ctx context.Context, pageId PageId, params *UpdatePageParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdatePageResult, error)
+
+	// UpdatePageWithApplicationMergePatchPlusJSONBodyWithResponse Change a page
+	//
+	// Writes the title, the whole Markdown body, the icon, the template mark or the content language, or archives or brings the page back. A write of the title or body is kept in the page's history: one person's writes within ten minutes are one version. Without `If-Match` the write lands on what stands, as live co-editing saves. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /pages/{pageId} (the `UpdatePage` operationId).
+	UpdatePageWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, pageId PageId, params *UpdatePageParams, body UpdatePageApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdatePageResult, error)
+
+	// ListPageBacklinksWithResponse What links to a page
+	//
+	// The pages, entries' notes and comments that mention the page, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /pages/{pageId}/backlinks (the `ListPageBacklinks` operationId).
+	ListPageBacklinksWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ListPageBacklinksResult, error)
+
+	// ListPageCommentsWithResponse A page's comments
+	//
+	// The page's comments oldest first: threads and their replies, inline ones with the block and the words they are about, resolved threads marked. A comment taken back answers no words. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /pages/{pageId}/comments (the `ListPageComments` operationId).
+	ListPageCommentsWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ListPageCommentsResult, error)
+
+	// AddPageCommentWithBodyWithResponse Comment on a page
+	//
+	// A comment on the page as a whole, inline on a block (`anchor`, with the words it is about as `quote`), or a reply to a thread's first comment; one level of replies. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
+	AddPageCommentWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddPageCommentResult, error)
+
+	// AddPageCommentWithResponse Comment on a page
+	//
+	// A comment on the page as a whole, inline on a block (`anchor`, with the words it is about as `quote`), or a reply to a thread's first comment; one level of replies. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
+	AddPageCommentWithResponse(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*AddPageCommentResult, error)
+
+	// ListPageVersionsWithResponse A page's history
+	//
+	// The page's versions newest first - one per editing session, a named or a restored one its own - with author, moment, size and name, without the bodies. Continue with `before`. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /pages/{pageId}/versions (the `ListPageVersions` operationId).
+	ListPageVersionsWithResponse(ctx context.Context, pageId PageId, params *ListPageVersionsParams, reqEditors ...RequestEditorFn) (*ListPageVersionsResult, error)
+
+	// ReadPageVersionWithResponse Read one version of a page
+	//
+	// The version's title and body as they stood, to compare. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /pages/{pageId}/versions/{seq} (the `ReadPageVersion` operationId).
+	ReadPageVersionWithResponse(ctx context.Context, pageId PageId, seq int, reqEditors ...RequestEditorFn) (*ReadPageVersionResult, error)
+
+	// NamePageVersionWithBodyWithResponse Name a version
+	//
+	// Names the version, or takes its name away with an empty name. A named version stays as it is: the next write starts a new one. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /pages/{pageId}/versions/{seq} (the `NamePageVersion` operationId).
+	NamePageVersionWithBodyWithResponse(ctx context.Context, pageId PageId, seq int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*NamePageVersionResult, error)
+
+	// NamePageVersionWithApplicationMergePatchPlusJSONBodyWithResponse Name a version
+	//
+	// Names the version, or takes its name away with an empty name. A named version stays as it is: the next write starts a new one. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /pages/{pageId}/versions/{seq} (the `NamePageVersion` operationId).
+	NamePageVersionWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, pageId PageId, seq int, body NamePageVersionApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*NamePageVersionResult, error)
+
+	// RestorePageVersionWithResponse Bring an older version back
+	//
+	// The version's title and body become the page's, written as a new version that names the one it brought back, so nothing in between is lost. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}/versions/{seq}:restore (the `RestorePageVersion` operationId).
+	RestorePageVersionWithResponse(ctx context.Context, pageId PageId, seq int, params *RestorePageVersionParams, reqEditors ...RequestEditorFn) (*RestorePageVersionResult, error)
+
+	// ExportPageWithBodyWithResponse Export a page as Markdown
+	//
+	// The page - or, with `subtree`, the page and every page under it, at most 500 - as Markdown files with front matter (id, title, parent), each under a folder named after its parent. References stay `hubtask:` addresses. The export is recorded in the audit trail. Needs READ on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}:export (the `ExportPage` operationId).
+	ExportPageWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExportPageResult, error)
+
+	// ExportPageWithResponse Export a page as Markdown
+	//
+	// The page - or, with `subtree`, the page and every page under it, at most 500 - as Markdown files with front matter (id, title, parent), each under a folder named after its parent. References stay `hubtask:` addresses. The export is recorded in the audit trail. Needs READ on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}:export (the `ExportPage` operationId).
+	ExportPageWithResponse(ctx context.Context, pageId PageId, body ExportPageJSONRequestBody, reqEditors ...RequestEditorFn) (*ExportPageResult, error)
+
+	// MovePageWithBodyWithResponse Move a page
+	//
+	// Places the page, with the pages under it, under another page of the same space or at its top, after a sibling or first. Under itself or one of its own is refused with `pages.parent_cycle`, another space with `pages.parent_other_space`, deeper than twelve levels with `pages.too_deep`. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}:move (the `MovePage` operationId).
+	MovePageWithBodyWithResponse(ctx context.Context, pageId PageId, params *MovePageParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MovePageResult, error)
+
+	// MovePageWithResponse Move a page
+	//
+	// Places the page, with the pages under it, under another page of the same space or at its top, after a sibling or first. Under itself or one of its own is refused with `pages.parent_cycle`, another space with `pages.parent_other_space`, deeper than twelve levels with `pages.too_deep`. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}:move (the `MovePage` operationId).
+	MovePageWithResponse(ctx context.Context, pageId PageId, params *MovePageParams, body MovePageJSONRequestBody, reqEditors ...RequestEditorFn) (*MovePageResult, error)
+
+	// RestorePageWithResponse Bring a page back from the trash
+	//
+	// Brings the trashed page back with the pages that went into the trash with it. A page whose parent is still in the trash comes back at the top of the space. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}:restore (the `RestorePage` operationId).
+	RestorePageWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*RestorePageResult, error)
+
+	// VerifyPageWithBodyWithResponse Mark a page as checked
+	//
+	// Marks the page as checked and right until a date, by the caller, and names who answers for it; from that date the page is due for review. Without a date the verification is taken away. A date in the past is refused with `pages.verified_until_past`. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}:verify (the `VerifyPage` operationId).
+	VerifyPageWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*VerifyPageResult, error)
+
+	// VerifyPageWithResponse Mark a page as checked
+	//
+	// Marks the page as checked and right until a date, by the caller, and names who answers for it; from that date the page is due for review. Without a date the verification is taken away. A date in the past is refused with `pages.verified_until_past`. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}:verify (the `VerifyPage` operationId).
+	VerifyPageWithResponse(ctx context.Context, pageId PageId, body VerifyPageJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyPageResult, error)
+
+	// SearchPagesWithBodyWithResponse Find pages by their words
+	//
+	// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages:search (the `SearchPages` operationId).
+	SearchPagesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchPagesResult, error)
+
+	// SearchPagesWithResponse Find pages by their words
+	//
+	// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages:search (the `SearchPages` operationId).
+	SearchPagesWithResponse(ctx context.Context, body SearchPagesJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchPagesResult, error)
 
 	// ListPresetsWithResponse The presets a hub or collection can start from
 	//
@@ -76572,6 +78981,150 @@ func (r UpdateGroupResult) ContentType() string {
 	return ""
 }
 
+type ListPagesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPagesResult) GetJSON200() *PageList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPagesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPagesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPagesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPagesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPagesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreatePageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Page
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreatePageResult) GetJSON201() *Page {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreatePageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreatePageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreatePageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreatePageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreatePageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListTrashedPagesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListTrashedPagesResult) GetJSON200() *PageList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListTrashedPagesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListTrashedPagesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTrashedPagesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTrashedPagesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListTrashedPagesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadIdentityProviderResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -83432,6 +85985,815 @@ func (r ExchangeOauthCodeResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ExchangeOauthCodeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeletePageCommentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeletePageCommentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeletePageCommentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeletePageCommentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeletePageCommentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeletePageCommentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ChangePageCommentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageComment
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ChangePageCommentResult) GetJSON200() *PageComment {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangePageCommentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangePageCommentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangePageCommentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangePageCommentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangePageCommentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type TrashPageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageTrashed
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r TrashPageResult) GetJSON200() *PageTrashed {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r TrashPageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r TrashPageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r TrashPageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r TrashPageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r TrashPageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadPageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageRead
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPageResult) GetJSON200() *PageRead {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdatePageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Page
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdatePageResult) GetJSON200() *Page {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UpdatePageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdatePageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdatePageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdatePageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdatePageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListPageBacklinksResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageBacklinkList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPageBacklinksResult) GetJSON200() *PageBacklinkList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPageBacklinksResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPageBacklinksResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPageBacklinksResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPageBacklinksResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPageBacklinksResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListPageCommentsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageCommentList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPageCommentsResult) GetJSON200() *PageCommentList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPageCommentsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPageCommentsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPageCommentsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPageCommentsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPageCommentsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AddPageCommentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *PageComment
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r AddPageCommentResult) GetJSON201() *PageComment {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AddPageCommentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AddPageCommentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AddPageCommentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddPageCommentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AddPageCommentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListPageVersionsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageVersionList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPageVersionsResult) GetJSON200() *PageVersionList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPageVersionsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPageVersionsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPageVersionsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPageVersionsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPageVersionsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadPageVersionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageVersionRead
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPageVersionResult) GetJSON200() *PageVersionRead {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPageVersionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPageVersionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPageVersionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPageVersionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPageVersionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type NamePageVersionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageVersionNamed
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r NamePageVersionResult) GetJSON200() *PageVersionNamed {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r NamePageVersionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r NamePageVersionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r NamePageVersionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r NamePageVersionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r NamePageVersionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RestorePageVersionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Page
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RestorePageVersionResult) GetJSON200() *Page {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RestorePageVersionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RestorePageVersionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RestorePageVersionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RestorePageVersionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RestorePageVersionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ExportPageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageExport
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ExportPageResult) GetJSON200() *PageExport {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ExportPageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ExportPageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ExportPageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ExportPageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ExportPageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type MovePageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Page
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r MovePageResult) GetJSON200() *Page {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r MovePageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r MovePageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r MovePageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MovePageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MovePageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RestorePageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Page
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RestorePageResult) GetJSON200() *Page {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RestorePageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RestorePageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RestorePageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RestorePageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RestorePageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type VerifyPageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Page
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r VerifyPageResult) GetJSON200() *Page {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r VerifyPageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r VerifyPageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r VerifyPageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r VerifyPageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r VerifyPageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SearchPagesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageHitList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SearchPagesResult) GetJSON200() *PageHitList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SearchPagesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SearchPagesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SearchPagesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SearchPagesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SearchPagesResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -93239,6 +96601,66 @@ func (c *ClientWithResponses) UpdateGroupWithApplicationMergePatchPlusJSONBodyWi
 	return ParseUpdateGroupResult(rsp)
 }
 
+// ListPagesWithResponse A hub's pages
+//
+// The hub's space: every page without its body, each with its parent and position, parents before their children. Archived pages only with `include_archived`; the space's templates alone with `templates`. Needs READ on the hub and the knowledge module switched on.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/pages (the `ListPages` operationId).
+func (c *ClientWithResponses) ListPagesWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListPagesParams, reqEditors ...RequestEditorFn) (*ListPagesResult, error) {
+	rsp, err := c.ListPages(ctx, hubId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPagesResult(rsp)
+}
+
+// CreatePageWithBodyWithResponse Write a new page
+//
+// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
+func (c *ClientWithResponses) CreatePageWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreatePageResult, error) {
+	rsp, err := c.CreatePageWithBody(ctx, hubId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePageResult(rsp)
+}
+
+// CreatePageWithResponse Write a new page
+//
+// Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
+func (c *ClientWithResponses) CreatePageWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePageResult, error) {
+	rsp, err := c.CreatePage(ctx, hubId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePageResult(rsp)
+}
+
+// ListTrashedPagesWithResponse A hub's trashed pages
+//
+// The space's trash, the latest first, without the bodies. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/trashed-pages (the `ListTrashedPages` operationId).
+func (c *ClientWithResponses) ListTrashedPagesWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListTrashedPagesResult, error) {
+	rsp, err := c.ListTrashedPages(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTrashedPagesResult(rsp)
+}
+
 // ReadIdentityProviderWithResponse The workspace's first identity provider
 //
 // **Kept, because nothing in this contract disappears.** It was the whole of the provider surface before providers became plural, and a caller written against it keeps working: it reads the workspace's own first provider, in the order the collection lists them, and `PUT` writes that one - creating it where there is none.
@@ -96291,6 +99713,381 @@ func (c *ClientWithResponses) ExchangeOauthCodeWithFormdataBodyWithResponse(ctx 
 		return nil, err
 	}
 	return ParseExchangeOauthCodeResult(rsp)
+}
+
+// DeletePageCommentWithResponse Take a page comment back
+//
+// The caller's own comment; its place in the thread stays, its words go.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /page-comments/{commentId} (the `DeletePageComment` operationId).
+func (c *ClientWithResponses) DeletePageCommentWithResponse(ctx context.Context, commentId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeletePageCommentResult, error) {
+	rsp, err := c.DeletePageComment(ctx, commentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeletePageCommentResult(rsp)
+}
+
+// ChangePageCommentWithBodyWithResponse Change a page comment
+//
+// Rewrites the comment's words - its author only (`pages.comment_not_own`) - or resolves or reopens its thread, which whoever may write the page may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /page-comments/{commentId} (the `ChangePageComment` operationId).
+func (c *ClientWithResponses) ChangePageCommentWithBodyWithResponse(ctx context.Context, commentId openapi_types.UUID, params *ChangePageCommentParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangePageCommentResult, error) {
+	rsp, err := c.ChangePageCommentWithBody(ctx, commentId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangePageCommentResult(rsp)
+}
+
+// ChangePageCommentWithApplicationMergePatchPlusJSONBodyWithResponse Change a page comment
+//
+// Rewrites the comment's words - its author only (`pages.comment_not_own`) - or resolves or reopens its thread, which whoever may write the page may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /page-comments/{commentId} (the `ChangePageComment` operationId).
+func (c *ClientWithResponses) ChangePageCommentWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, commentId openapi_types.UUID, params *ChangePageCommentParams, body ChangePageCommentApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangePageCommentResult, error) {
+	rsp, err := c.ChangePageCommentWithApplicationMergePatchPlusJSONBody(ctx, commentId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangePageCommentResult(rsp)
+}
+
+// TrashPageWithResponse Put a page in the trash
+//
+// Puts the page and every page under it in the space's trash; `:restore` brings them back together. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /pages/{pageId} (the `TrashPage` operationId).
+func (c *ClientWithResponses) TrashPageWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*TrashPageResult, error) {
+	rsp, err := c.TrashPage(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTrashPageResult(rsp)
+}
+
+// ReadPageWithResponse Read a page
+//
+// The page with its Markdown body, its breadcrumb (the pages above it, from the top of the space down) and whether the reader may write it. A page in the trash is not found. Needs READ on the page's hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /pages/{pageId} (the `ReadPage` operationId).
+func (c *ClientWithResponses) ReadPageWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ReadPageResult, error) {
+	rsp, err := c.ReadPage(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPageResult(rsp)
+}
+
+// UpdatePageWithBodyWithResponse Change a page
+//
+// Writes the title, the whole Markdown body, the icon, the template mark or the content language, or archives or brings the page back. A write of the title or body is kept in the page's history: one person's writes within ten minutes are one version. Without `If-Match` the write lands on what stands, as live co-editing saves. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /pages/{pageId} (the `UpdatePage` operationId).
+func (c *ClientWithResponses) UpdatePageWithBodyWithResponse(ctx context.Context, pageId PageId, params *UpdatePageParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdatePageResult, error) {
+	rsp, err := c.UpdatePageWithBody(ctx, pageId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdatePageResult(rsp)
+}
+
+// UpdatePageWithApplicationMergePatchPlusJSONBodyWithResponse Change a page
+//
+// Writes the title, the whole Markdown body, the icon, the template mark or the content language, or archives or brings the page back. A write of the title or body is kept in the page's history: one person's writes within ten minutes are one version. Without `If-Match` the write lands on what stands, as live co-editing saves. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /pages/{pageId} (the `UpdatePage` operationId).
+func (c *ClientWithResponses) UpdatePageWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, pageId PageId, params *UpdatePageParams, body UpdatePageApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdatePageResult, error) {
+	rsp, err := c.UpdatePageWithApplicationMergePatchPlusJSONBody(ctx, pageId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdatePageResult(rsp)
+}
+
+// ListPageBacklinksWithResponse What links to a page
+//
+// The pages, entries' notes and comments that mention the page, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /pages/{pageId}/backlinks (the `ListPageBacklinks` operationId).
+func (c *ClientWithResponses) ListPageBacklinksWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ListPageBacklinksResult, error) {
+	rsp, err := c.ListPageBacklinks(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPageBacklinksResult(rsp)
+}
+
+// ListPageCommentsWithResponse A page's comments
+//
+// The page's comments oldest first: threads and their replies, inline ones with the block and the words they are about, resolved threads marked. A comment taken back answers no words. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /pages/{pageId}/comments (the `ListPageComments` operationId).
+func (c *ClientWithResponses) ListPageCommentsWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ListPageCommentsResult, error) {
+	rsp, err := c.ListPageComments(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPageCommentsResult(rsp)
+}
+
+// AddPageCommentWithBodyWithResponse Comment on a page
+//
+// A comment on the page as a whole, inline on a block (`anchor`, with the words it is about as `quote`), or a reply to a thread's first comment; one level of replies. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
+func (c *ClientWithResponses) AddPageCommentWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddPageCommentResult, error) {
+	rsp, err := c.AddPageCommentWithBody(ctx, pageId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddPageCommentResult(rsp)
+}
+
+// AddPageCommentWithResponse Comment on a page
+//
+// A comment on the page as a whole, inline on a block (`anchor`, with the words it is about as `quote`), or a reply to a thread's first comment; one level of replies. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
+func (c *ClientWithResponses) AddPageCommentWithResponse(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*AddPageCommentResult, error) {
+	rsp, err := c.AddPageComment(ctx, pageId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddPageCommentResult(rsp)
+}
+
+// ListPageVersionsWithResponse A page's history
+//
+// The page's versions newest first - one per editing session, a named or a restored one its own - with author, moment, size and name, without the bodies. Continue with `before`. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /pages/{pageId}/versions (the `ListPageVersions` operationId).
+func (c *ClientWithResponses) ListPageVersionsWithResponse(ctx context.Context, pageId PageId, params *ListPageVersionsParams, reqEditors ...RequestEditorFn) (*ListPageVersionsResult, error) {
+	rsp, err := c.ListPageVersions(ctx, pageId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPageVersionsResult(rsp)
+}
+
+// ReadPageVersionWithResponse Read one version of a page
+//
+// The version's title and body as they stood, to compare. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /pages/{pageId}/versions/{seq} (the `ReadPageVersion` operationId).
+func (c *ClientWithResponses) ReadPageVersionWithResponse(ctx context.Context, pageId PageId, seq int, reqEditors ...RequestEditorFn) (*ReadPageVersionResult, error) {
+	rsp, err := c.ReadPageVersion(ctx, pageId, seq, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPageVersionResult(rsp)
+}
+
+// NamePageVersionWithBodyWithResponse Name a version
+//
+// Names the version, or takes its name away with an empty name. A named version stays as it is: the next write starts a new one. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /pages/{pageId}/versions/{seq} (the `NamePageVersion` operationId).
+func (c *ClientWithResponses) NamePageVersionWithBodyWithResponse(ctx context.Context, pageId PageId, seq int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*NamePageVersionResult, error) {
+	rsp, err := c.NamePageVersionWithBody(ctx, pageId, seq, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNamePageVersionResult(rsp)
+}
+
+// NamePageVersionWithApplicationMergePatchPlusJSONBodyWithResponse Name a version
+//
+// Names the version, or takes its name away with an empty name. A named version stays as it is: the next write starts a new one. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /pages/{pageId}/versions/{seq} (the `NamePageVersion` operationId).
+func (c *ClientWithResponses) NamePageVersionWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, pageId PageId, seq int, body NamePageVersionApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*NamePageVersionResult, error) {
+	rsp, err := c.NamePageVersionWithApplicationMergePatchPlusJSONBody(ctx, pageId, seq, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNamePageVersionResult(rsp)
+}
+
+// RestorePageVersionWithResponse Bring an older version back
+//
+// The version's title and body become the page's, written as a new version that names the one it brought back, so nothing in between is lost. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}/versions/{seq}:restore (the `RestorePageVersion` operationId).
+func (c *ClientWithResponses) RestorePageVersionWithResponse(ctx context.Context, pageId PageId, seq int, params *RestorePageVersionParams, reqEditors ...RequestEditorFn) (*RestorePageVersionResult, error) {
+	rsp, err := c.RestorePageVersion(ctx, pageId, seq, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRestorePageVersionResult(rsp)
+}
+
+// ExportPageWithBodyWithResponse Export a page as Markdown
+//
+// The page - or, with `subtree`, the page and every page under it, at most 500 - as Markdown files with front matter (id, title, parent), each under a folder named after its parent. References stay `hubtask:` addresses. The export is recorded in the audit trail. Needs READ on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}:export (the `ExportPage` operationId).
+func (c *ClientWithResponses) ExportPageWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExportPageResult, error) {
+	rsp, err := c.ExportPageWithBody(ctx, pageId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExportPageResult(rsp)
+}
+
+// ExportPageWithResponse Export a page as Markdown
+//
+// The page - or, with `subtree`, the page and every page under it, at most 500 - as Markdown files with front matter (id, title, parent), each under a folder named after its parent. References stay `hubtask:` addresses. The export is recorded in the audit trail. Needs READ on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}:export (the `ExportPage` operationId).
+func (c *ClientWithResponses) ExportPageWithResponse(ctx context.Context, pageId PageId, body ExportPageJSONRequestBody, reqEditors ...RequestEditorFn) (*ExportPageResult, error) {
+	rsp, err := c.ExportPage(ctx, pageId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExportPageResult(rsp)
+}
+
+// MovePageWithBodyWithResponse Move a page
+//
+// Places the page, with the pages under it, under another page of the same space or at its top, after a sibling or first. Under itself or one of its own is refused with `pages.parent_cycle`, another space with `pages.parent_other_space`, deeper than twelve levels with `pages.too_deep`. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}:move (the `MovePage` operationId).
+func (c *ClientWithResponses) MovePageWithBodyWithResponse(ctx context.Context, pageId PageId, params *MovePageParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MovePageResult, error) {
+	rsp, err := c.MovePageWithBody(ctx, pageId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMovePageResult(rsp)
+}
+
+// MovePageWithResponse Move a page
+//
+// Places the page, with the pages under it, under another page of the same space or at its top, after a sibling or first. Under itself or one of its own is refused with `pages.parent_cycle`, another space with `pages.parent_other_space`, deeper than twelve levels with `pages.too_deep`. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}:move (the `MovePage` operationId).
+func (c *ClientWithResponses) MovePageWithResponse(ctx context.Context, pageId PageId, params *MovePageParams, body MovePageJSONRequestBody, reqEditors ...RequestEditorFn) (*MovePageResult, error) {
+	rsp, err := c.MovePage(ctx, pageId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMovePageResult(rsp)
+}
+
+// RestorePageWithResponse Bring a page back from the trash
+//
+// Brings the trashed page back with the pages that went into the trash with it. A page whose parent is still in the trash comes back at the top of the space. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}:restore (the `RestorePage` operationId).
+func (c *ClientWithResponses) RestorePageWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*RestorePageResult, error) {
+	rsp, err := c.RestorePage(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRestorePageResult(rsp)
+}
+
+// VerifyPageWithBodyWithResponse Mark a page as checked
+//
+// Marks the page as checked and right until a date, by the caller, and names who answers for it; from that date the page is due for review. Without a date the verification is taken away. A date in the past is refused with `pages.verified_until_past`. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}:verify (the `VerifyPage` operationId).
+func (c *ClientWithResponses) VerifyPageWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*VerifyPageResult, error) {
+	rsp, err := c.VerifyPageWithBody(ctx, pageId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseVerifyPageResult(rsp)
+}
+
+// VerifyPageWithResponse Mark a page as checked
+//
+// Marks the page as checked and right until a date, by the caller, and names who answers for it; from that date the page is due for review. Without a date the verification is taken away. A date in the past is refused with `pages.verified_until_past`. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}:verify (the `VerifyPage` operationId).
+func (c *ClientWithResponses) VerifyPageWithResponse(ctx context.Context, pageId PageId, body VerifyPageJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyPageResult, error) {
+	rsp, err := c.VerifyPage(ctx, pageId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseVerifyPageResult(rsp)
+}
+
+// SearchPagesWithBodyWithResponse Find pages by their words
+//
+// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages:search (the `SearchPages` operationId).
+func (c *ClientWithResponses) SearchPagesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchPagesResult, error) {
+	rsp, err := c.SearchPagesWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchPagesResult(rsp)
+}
+
+// SearchPagesWithResponse Find pages by their words
+//
+// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages:search (the `SearchPages` operationId).
+func (c *ClientWithResponses) SearchPagesWithResponse(ctx context.Context, body SearchPagesJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchPagesResult, error) {
+	rsp, err := c.SearchPages(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchPagesResult(rsp)
 }
 
 // ListPresetsWithResponse The presets a hub or collection can start from
@@ -106380,6 +110177,105 @@ func ParseUpdateGroupResult(rsp *http.Response) (*UpdateGroupResult, error) {
 	return response, nil
 }
 
+// ParseListPagesResult parses an HTTP response from a ListPagesWithResponse call
+func ParseListPagesResult(rsp *http.Response) (*ListPagesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPagesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreatePageResult parses an HTTP response from a CreatePageWithResponse call
+func ParseCreatePageResult(rsp *http.Response) (*CreatePageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreatePageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Page
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListTrashedPagesResult parses an HTTP response from a ListTrashedPagesWithResponse call
+func ParseListTrashedPagesResult(rsp *http.Response) (*ListTrashedPagesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTrashedPagesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseReadIdentityProviderResult parses an HTTP response from a ReadIdentityProviderWithResponse call
 func ParseReadIdentityProviderResult(rsp *http.Response) (*ReadIdentityProviderResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -111368,6 +115264,563 @@ func ParseExchangeOauthCodeResult(rsp *http.Response) (*ExchangeOauthCodeResult,
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeletePageCommentResult parses an HTTP response from a DeletePageCommentWithResponse call
+func ParseDeletePageCommentResult(rsp *http.Response) (*DeletePageCommentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeletePageCommentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseChangePageCommentResult parses an HTTP response from a ChangePageCommentWithResponse call
+func ParseChangePageCommentResult(rsp *http.Response) (*ChangePageCommentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangePageCommentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageComment
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseTrashPageResult parses an HTTP response from a TrashPageWithResponse call
+func ParseTrashPageResult(rsp *http.Response) (*TrashPageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &TrashPageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageTrashed
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadPageResult parses an HTTP response from a ReadPageWithResponse call
+func ParseReadPageResult(rsp *http.Response) (*ReadPageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageRead
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdatePageResult parses an HTTP response from a UpdatePageWithResponse call
+func ParseUpdatePageResult(rsp *http.Response) (*UpdatePageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdatePageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Page
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPageBacklinksResult parses an HTTP response from a ListPageBacklinksWithResponse call
+func ParseListPageBacklinksResult(rsp *http.Response) (*ListPageBacklinksResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPageBacklinksResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageBacklinkList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPageCommentsResult parses an HTTP response from a ListPageCommentsWithResponse call
+func ParseListPageCommentsResult(rsp *http.Response) (*ListPageCommentsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPageCommentsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageCommentList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddPageCommentResult parses an HTTP response from a AddPageCommentWithResponse call
+func ParseAddPageCommentResult(rsp *http.Response) (*AddPageCommentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddPageCommentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PageComment
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPageVersionsResult parses an HTTP response from a ListPageVersionsWithResponse call
+func ParseListPageVersionsResult(rsp *http.Response) (*ListPageVersionsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPageVersionsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageVersionList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadPageVersionResult parses an HTTP response from a ReadPageVersionWithResponse call
+func ParseReadPageVersionResult(rsp *http.Response) (*ReadPageVersionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPageVersionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageVersionRead
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseNamePageVersionResult parses an HTTP response from a NamePageVersionWithResponse call
+func ParseNamePageVersionResult(rsp *http.Response) (*NamePageVersionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &NamePageVersionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageVersionNamed
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRestorePageVersionResult parses an HTTP response from a RestorePageVersionWithResponse call
+func ParseRestorePageVersionResult(rsp *http.Response) (*RestorePageVersionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RestorePageVersionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Page
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseExportPageResult parses an HTTP response from a ExportPageWithResponse call
+func ParseExportPageResult(rsp *http.Response) (*ExportPageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ExportPageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageExport
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMovePageResult parses an HTTP response from a MovePageWithResponse call
+func ParseMovePageResult(rsp *http.Response) (*MovePageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MovePageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Page
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRestorePageResult parses an HTTP response from a RestorePageWithResponse call
+func ParseRestorePageResult(rsp *http.Response) (*RestorePageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RestorePageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Page
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseVerifyPageResult parses an HTTP response from a VerifyPageWithResponse call
+func ParseVerifyPageResult(rsp *http.Response) (*VerifyPageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &VerifyPageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Page
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSearchPagesResult parses an HTTP response from a SearchPagesWithResponse call
+func ParseSearchPagesResult(rsp *http.Response) (*SearchPagesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SearchPagesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageHitList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

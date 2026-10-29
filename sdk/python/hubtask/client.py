@@ -1898,3 +1898,83 @@ class Client:
     def open_realtime_document(self, kind: str, document_id: str) -> None:
         """A live document, as a WebSocket"""
         return self._call("GET", "/realtime/documents/{kind}/{documentId}", {"kind": kind, "documentId": document_id}, None, {}, None, "none", None, "void")
+
+    def list_pages(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "PageList":
+        """A hub's pages"""
+        return self._call("GET", "/hubs/{hubId}/pages", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def create_page(self, hub_id: str, body: "PageCreate") -> "Page":
+        """Write a new page"""
+        return self._call("POST", "/hubs/{hubId}/pages", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_trashed_pages(self, hub_id: str) -> "PageList":
+        """A hub's trashed pages"""
+        return self._call("GET", "/hubs/{hubId}/trashed-pages", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def read_page(self, page_id: str) -> "PageRead":
+        """Read a page"""
+        return self._call("GET", "/pages/{pageId}", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def update_page(self, page_id: str, body: "PageChange", *, if_match: str | None = None) -> "Page":
+        """Change a page"""
+        return self._call("PATCH", "/pages/{pageId}", {"pageId": page_id}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
+
+    def trash_page(self, page_id: str) -> "PageTrashed":
+        """Put a page in the trash"""
+        return self._call("DELETE", "/pages/{pageId}", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def move_page(self, page_id: str, body: "PageMove", *, if_match: str | None = None) -> "Page":
+        """Move a page"""
+        return self._call("POST", "/pages/{pageId}:move", {"pageId": page_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def restore_page(self, page_id: str) -> "Page":
+        """Bring a page back from the trash"""
+        return self._call("POST", "/pages/{pageId}:restore", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def verify_page(self, page_id: str, body: "PageVerify") -> "Page":
+        """Mark a page as checked"""
+        return self._call("POST", "/pages/{pageId}:verify", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_page_versions(self, page_id: str, *, query: dict[str, Any] | None = None) -> "PageVersionList":
+        """A page's history"""
+        return self._call("GET", "/pages/{pageId}/versions", {"pageId": page_id}, query, {}, None, "none", None, "json")
+
+    def read_page_version(self, page_id: str, seq: str) -> "PageVersionRead":
+        """Read one version of a page"""
+        return self._call("GET", "/pages/{pageId}/versions/{seq}", {"pageId": page_id, "seq": seq}, None, {}, None, "none", None, "json")
+
+    def name_page_version(self, page_id: str, seq: str, body: "PageVersionName") -> "PageVersionNamed":
+        """Name a version"""
+        return self._call("PATCH", "/pages/{pageId}/versions/{seq}", {"pageId": page_id, "seq": seq}, None, {}, body, "json", "application/merge-patch+json", "json")
+
+    def restore_page_version(self, page_id: str, seq: str, *, if_match: str | None = None) -> "Page":
+        """Bring an older version back"""
+        return self._call("POST", "/pages/{pageId}/versions/{seq}:restore", {"pageId": page_id, "seq": seq}, None, {"If-Match": if_match}, None, "none", None, "json")
+
+    def list_page_comments(self, page_id: str) -> "PageCommentList":
+        """A page's comments"""
+        return self._call("GET", "/pages/{pageId}/comments", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def add_page_comment(self, page_id: str, body: "PageCommentCreate") -> "PageComment":
+        """Comment on a page"""
+        return self._call("POST", "/pages/{pageId}/comments", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def change_page_comment(self, comment_id: str, body: "PageCommentChange", *, if_match: str | None = None) -> "PageComment":
+        """Change a page comment"""
+        return self._call("PATCH", "/page-comments/{commentId}", {"commentId": comment_id}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
+
+    def delete_page_comment(self, comment_id: str) -> None:
+        """Take a page comment back"""
+        return self._call("DELETE", "/page-comments/{commentId}", {"commentId": comment_id}, None, {}, None, "none", None, "void")
+
+    def list_page_backlinks(self, page_id: str) -> "PageBacklinkList":
+        """What links to a page"""
+        return self._call("GET", "/pages/{pageId}/backlinks", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def export_page(self, page_id: str, body: "PageExportRequest") -> "PageExport":
+        """Export a page as Markdown"""
+        return self._call("POST", "/pages/{pageId}:export", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def search_pages(self, body: "PageSearch") -> "PageHitList":
+        """Find pages by their words"""
+        return self._call("POST", "/pages:search", {}, None, {}, body, "json", "application/json", "json")

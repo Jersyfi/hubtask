@@ -487,6 +487,36 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `` | ReadConfigSchema | `` |  | When refused |
 | `` | ReadSettingsCatalogue | `` |  | When refused |
 
+## Page
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `page.changed` | UpdatePage | `page` | INFO | Every time |
+| `page.created` | CreatePage | `page` | INFO | Every time |
+| `page.exported` | ExportPage | `page` | INFO | Every time |
+| `page.moved` | MovePage | `page` | INFO | Every time |
+| `page.read` | ListPageBacklinks | `page` | INFO | When refused |
+| `page.read` | ListPageComments | `page_comment` | INFO | When refused |
+| `page.read` | ListPageVersions | `page` | INFO | When refused |
+| `page.read` | ListPages | `page` | INFO | When refused |
+| `page.read` | ListTrashedPages | `page` | INFO | When refused |
+| `page.read` | ReadPage | `page` | INFO | When refused |
+| `page.read` | ReadPageVersion | `page` | INFO | When refused |
+| `page.read` | SearchPages | `page` | INFO | When refused |
+| `page.restored` | RestorePage | `page` | INFO | Every time |
+| `page.trashed` | TrashPage | `page` | INFO | Every time |
+| `page.verified` | VerifyPage | `page` | INFO | Every time |
+| `page.version_named` | NamePageVersion | `page` | INFO | Every time |
+| `page.version_restored` | RestorePageVersion | `page` | INFO | Every time |
+
+## Page_comment
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `page_comment.added` | AddPageComment | `page_comment` | INFO | Every time |
+| `page_comment.changed` | ChangePageComment | `page_comment` | INFO | Every time |
+| `page_comment.deleted` | DeletePageComment | `page_comment` | INFO | Every time |
+
 ## Permissions
 
 | Action | Use case | Target | Severity | Recorded |

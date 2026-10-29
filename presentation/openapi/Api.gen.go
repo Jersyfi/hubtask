@@ -3867,6 +3867,63 @@ func (e OperatorKind) Valid() bool {
 	}
 }
 
+// Defines values for PageBacklinkListDataSourceKind.
+const (
+	PageBacklinkListDataSourceKindCOMMENT PageBacklinkListDataSourceKind = "COMMENT"
+	PageBacklinkListDataSourceKindENTRY   PageBacklinkListDataSourceKind = "ENTRY"
+	PageBacklinkListDataSourceKindPAGE    PageBacklinkListDataSourceKind = "PAGE"
+)
+
+// Valid indicates whether the value is a known member of the PageBacklinkListDataSourceKind enum.
+func (e PageBacklinkListDataSourceKind) Valid() bool {
+	switch e {
+	case PageBacklinkListDataSourceKindCOMMENT:
+		return true
+	case PageBacklinkListDataSourceKindENTRY:
+		return true
+	case PageBacklinkListDataSourceKindPAGE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PageBacklinkListDataStrength.
+const (
+	PageBacklinkListDataStrengthCARD    PageBacklinkListDataStrength = "CARD"
+	PageBacklinkListDataStrengthEMBED   PageBacklinkListDataStrength = "EMBED"
+	PageBacklinkListDataStrengthMENTION PageBacklinkListDataStrength = "MENTION"
+)
+
+// Valid indicates whether the value is a known member of the PageBacklinkListDataStrength enum.
+func (e PageBacklinkListDataStrength) Valid() bool {
+	switch e {
+	case PageBacklinkListDataStrengthCARD:
+		return true
+	case PageBacklinkListDataStrengthEMBED:
+		return true
+	case PageBacklinkListDataStrengthMENTION:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PageExportFormat.
+const (
+	MARKDOWN PageExportFormat = "MARKDOWN"
+)
+
+// Valid indicates whether the value is a known member of the PageExportFormat enum.
+func (e PageExportFormat) Valid() bool {
+	switch e {
+	case MARKDOWN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PasskeyAssertionOptionsPublicKeyUserVerification.
 const (
 	PasskeyAssertionOptionsPublicKeyUserVerificationPreferred PasskeyAssertionOptionsPublicKeyUserVerification = "preferred"
@@ -4529,19 +4586,19 @@ func (e ReferenceKind) Valid() bool {
 
 // Defines values for ReferenceStrength.
 const (
-	CARD    ReferenceStrength = "CARD"
-	EMBED   ReferenceStrength = "EMBED"
-	MENTION ReferenceStrength = "MENTION"
+	ReferenceStrengthCARD    ReferenceStrength = "CARD"
+	ReferenceStrengthEMBED   ReferenceStrength = "EMBED"
+	ReferenceStrengthMENTION ReferenceStrength = "MENTION"
 )
 
 // Valid indicates whether the value is a known member of the ReferenceStrength enum.
 func (e ReferenceStrength) Valid() bool {
 	switch e {
-	case CARD:
+	case ReferenceStrengthCARD:
 		return true
-	case EMBED:
+	case ReferenceStrengthEMBED:
 		return true
-	case MENTION:
+	case ReferenceStrengthMENTION:
 		return true
 	default:
 		return false
@@ -11995,12 +12052,320 @@ type OwnAiPosition struct {
 	Since *time.Time `json:"since,omitempty"`
 }
 
+// Page A page of a hub's space. Its body is Markdown: a link to `hubtask:<kind>/<id>` is a mention, an image of one (`![](…)`) a card or a live view. The body is left out of a tree's rows.
+type Page struct {
+	Archived bool `json:"archived"`
+
+	// Body The body in Markdown; absent in a tree's rows.
+	Body *string `json:"body,omitempty"`
+
+	// ContentLanguage The BCP-47 tag search stems the page by; null for the workspace's.
+	ContentLanguage *string            `json:"content_language"`
+	CreatedAt       time.Time          `json:"created_at"`
+	CreatedBy       openapi_types.UUID `json:"created_by"`
+
+	// DueForReview Its verification has run out.
+	DueForReview bool `json:"due_for_review"`
+
+	// HubId The hub whose space the page is in.
+	HubId openapi_types.UUID `json:"hub_id"`
+	Icon  *string            `json:"icon"`
+	Id    openapi_types.UUID `json:"id"`
+
+	// OwnerId Who answers for the page.
+	OwnerId *openapi_types.UUID `json:"owner_id"`
+
+	// ParentId The page it sits under; null at the top.
+	ParentId *openapi_types.UUID `json:"parent_id"`
+
+	// Position Its place among its siblings: they sort by this, as text.
+	Position string `json:"position"`
+
+	// Template Offered as a template of the space.
+	Template   bool                `json:"template"`
+	Title      string              `json:"title"`
+	TrashedAt  *time.Time          `json:"trashed_at"`
+	UpdatedAt  time.Time           `json:"updated_at"`
+	UpdatedBy  openapi_types.UUID  `json:"updated_by"`
+	VerifiedAt *time.Time          `json:"verified_at"`
+	VerifiedBy *openapi_types.UUID `json:"verified_by"`
+
+	// VerifiedUntil Until when the page is known to be right.
+	VerifiedUntil *time.Time `json:"verified_until"`
+
+	// Version The optimistic lock.
+	Version int `json:"version"`
+}
+
+// PageBacklinkList defines model for PageBacklinkList.
+type PageBacklinkList struct {
+	Data []struct {
+		EntryId  *openapi_types.UUID `json:"entry_id"`
+		PageId   *openapi_types.UUID `json:"page_id"`
+		SourceId openapi_types.UUID  `json:"source_id"`
+
+		// SourceKind A page, an entry's notes or one of its comments.
+		SourceKind PageBacklinkListDataSourceKind `json:"source_kind"`
+		Strength   PageBacklinkListDataStrength   `json:"strength"`
+		Title      string                         `json:"title"`
+	} `json:"data"`
+}
+
+// PageBacklinkListDataSourceKind A page, an entry's notes or one of its comments.
+type PageBacklinkListDataSourceKind string
+
+// PageBacklinkListDataStrength defines model for PageBacklinkList.Data.Strength.
+type PageBacklinkListDataStrength string
+
+// PageChange defines model for PageChange.
+type PageChange struct {
+	Archived        *bool   `json:"archived,omitempty"`
+	Body            *string `json:"body,omitempty"`
+	ContentLanguage *string `json:"content_language,omitempty"`
+	Icon            *string `json:"icon,omitempty"`
+	Template        *bool   `json:"template,omitempty"`
+	Title           *string `json:"title,omitempty"`
+}
+
+// PageComment defines model for PageComment.
+type PageComment struct {
+	// Anchor The block an inline comment stands at.
+	Anchor   *string             `json:"anchor"`
+	AuthorId *openapi_types.UUID `json:"author_id"`
+
+	// Body Markdown; empty once taken back.
+	Body      string             `json:"body"`
+	CreatedAt time.Time          `json:"created_at"`
+	Deleted   bool               `json:"deleted"`
+	EditedAt  *time.Time         `json:"edited_at"`
+	Id        openapi_types.UUID `json:"id"`
+	PageId    openapi_types.UUID `json:"page_id"`
+
+	// ParentId The thread's first comment, for a reply.
+	ParentId *openapi_types.UUID `json:"parent_id"`
+
+	// Quote The words of the block it is about.
+	Quote      *string             `json:"quote"`
+	Resolved   bool                `json:"resolved"`
+	ResolvedAt *time.Time          `json:"resolved_at"`
+	ResolvedBy *openapi_types.UUID `json:"resolved_by"`
+	Version    int                 `json:"version"`
+}
+
+// PageCommentChange defines model for PageCommentChange.
+type PageCommentChange struct {
+	Body     *string `json:"body,omitempty"`
+	Resolved *bool   `json:"resolved,omitempty"`
+}
+
+// PageCommentCreate defines model for PageCommentCreate.
+type PageCommentCreate struct {
+	Anchor   *string             `json:"anchor,omitempty"`
+	Body     string              `json:"body"`
+	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
+	Quote    *string             `json:"quote,omitempty"`
+}
+
+// PageCommentList defines model for PageCommentList.
+type PageCommentList struct {
+	Data []PageComment `json:"data"`
+}
+
+// PageCreate defines model for PageCreate.
+type PageCreate struct {
+	Body            *string `json:"body,omitempty"`
+	ContentLanguage *string `json:"content_language,omitempty"`
+	Icon            *string `json:"icon,omitempty"`
+
+	// Id An identifier the client minted for a page made offline.
+	Id       *openapi_types.UUID `json:"id,omitempty"`
+	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
+	Template *bool               `json:"template,omitempty"`
+
+	// TemplateId A template of the same space to start from.
+	TemplateId *openapi_types.UUID `json:"template_id,omitempty"`
+	Title      string              `json:"title"`
+}
+
+// PageExport defines model for PageExport.
+type PageExport struct {
+	Files []struct {
+		Content string             `json:"content"`
+		PageId  openapi_types.UUID `json:"page_id"`
+
+		// Path Where the file stands in the exported tree.
+		Path string `json:"path"`
+	} `json:"files"`
+	Format PageExportFormat `json:"format"`
+}
+
+// PageExportFormat defines model for PageExport.Format.
+type PageExportFormat string
+
+// PageExportRequest defines model for PageExportRequest.
+type PageExportRequest struct {
+	// Subtree Export the pages under it as well.
+	Subtree *bool `json:"subtree,omitempty"`
+}
+
+// PageHitList defines model for PageHitList.
+type PageHitList struct {
+	Data []struct {
+		// Excerpt The passage that matched, the words found between « and ».
+		Excerpt   string              `json:"excerpt"`
+		HubId     openapi_types.UUID  `json:"hub_id"`
+		Icon      *string             `json:"icon"`
+		Id        openapi_types.UUID  `json:"id"`
+		ParentId  *openapi_types.UUID `json:"parent_id"`
+		Rank      float32             `json:"rank"`
+		Title     string              `json:"title"`
+		UpdatedAt time.Time           `json:"updated_at"`
+	} `json:"data"`
+}
+
 // PageInfo defines model for PageInfo.
 type PageInfo struct {
 	HasMore bool `json:"has_more"`
 
 	// NextCursor The cursor for the next page, null on the last one. Opaque and signed: it is produced by the server and is neither to be constructed nor parsed by a client.
 	NextCursor *string `json:"next_cursor"`
+}
+
+// PageList defines model for PageList.
+type PageList struct {
+	Data []Page `json:"data"`
+}
+
+// PageMove defines model for PageMove.
+type PageMove struct {
+	// AfterId The sibling it follows; absent to place it first.
+	AfterId *openapi_types.UUID `json:"after_id,omitempty"`
+
+	// ParentId The page it moves under; absent for the top of the space.
+	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
+}
+
+// PageRead A page with its body, its breadcrumb and whether the reader may write it.
+type PageRead struct {
+	// Ancestors The pages above it, from the top of the space down.
+	Ancestors []struct {
+		Id    openapi_types.UUID `json:"id"`
+		Title string             `json:"title"`
+	} `json:"ancestors"`
+	Archived bool `json:"archived"`
+
+	// Body The body in Markdown; absent in a tree's rows.
+	Body string `json:"body"`
+
+	// ContentLanguage The BCP-47 tag search stems the page by; null for the workspace's.
+	ContentLanguage *string            `json:"content_language"`
+	CreatedAt       time.Time          `json:"created_at"`
+	CreatedBy       openapi_types.UUID `json:"created_by"`
+
+	// DueForReview Its verification has run out.
+	DueForReview bool `json:"due_for_review"`
+
+	// HubId The hub whose space the page is in.
+	HubId openapi_types.UUID `json:"hub_id"`
+	Icon  *string            `json:"icon"`
+	Id    openapi_types.UUID `json:"id"`
+
+	// OwnerId Who answers for the page.
+	OwnerId *openapi_types.UUID `json:"owner_id"`
+
+	// ParentId The page it sits under; null at the top.
+	ParentId *openapi_types.UUID `json:"parent_id"`
+
+	// Position Its place among its siblings: they sort by this, as text.
+	Position string `json:"position"`
+
+	// Template Offered as a template of the space.
+	Template   bool                `json:"template"`
+	Title      string              `json:"title"`
+	TrashedAt  *time.Time          `json:"trashed_at"`
+	UpdatedAt  time.Time           `json:"updated_at"`
+	UpdatedBy  openapi_types.UUID  `json:"updated_by"`
+	VerifiedAt *time.Time          `json:"verified_at"`
+	VerifiedBy *openapi_types.UUID `json:"verified_by"`
+
+	// VerifiedUntil Until when the page is known to be right.
+	VerifiedUntil *time.Time `json:"verified_until"`
+
+	// Version The optimistic lock.
+	Version  int  `json:"version"`
+	Writable bool `json:"writable"`
+}
+
+// PageSearch defines model for PageSearch.
+type PageSearch struct {
+	// HubId One hub's space; absent for every readable space.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+	Limit *int                `json:"limit,omitempty"`
+
+	// Text What to look for, in web search syntax.
+	Text string `json:"text"`
+}
+
+// PageTrashed defines model for PageTrashed.
+type PageTrashed struct {
+	// Trashed How many pages went into the trash.
+	Trashed int `json:"trashed"`
+}
+
+// PageVerify defines model for PageVerify.
+type PageVerify struct {
+	OwnerId *openapi_types.UUID `json:"owner_id,omitempty"`
+
+	// VerifiedUntil Absent takes the verification away.
+	VerifiedUntil *time.Time `json:"verified_until,omitempty"`
+}
+
+// PageVersion defines model for PageVersion.
+type PageVersion struct {
+	AuthorId  *openapi_types.UUID `json:"author_id"`
+	CreatedAt time.Time           `json:"created_at"`
+	Name      *string             `json:"name"`
+
+	// RestoredFrom The version this one brought back.
+	RestoredFrom *int `json:"restored_from"`
+	Seq          int  `json:"seq"`
+
+	// Size The body's size in bytes.
+	Size  int    `json:"size"`
+	Title string `json:"title"`
+}
+
+// PageVersionList defines model for PageVersionList.
+type PageVersionList struct {
+	Data []PageVersion `json:"data"`
+}
+
+// PageVersionName defines model for PageVersionName.
+type PageVersionName struct {
+	// Name Empty takes the name away.
+	Name *string `json:"name,omitempty"`
+}
+
+// PageVersionNamed defines model for PageVersionNamed.
+type PageVersionNamed struct {
+	Name *string `json:"name"`
+	Seq  int     `json:"seq"`
+}
+
+// PageVersionRead defines model for PageVersionRead.
+type PageVersionRead struct {
+	AuthorId  *openapi_types.UUID `json:"author_id"`
+	Body      string              `json:"body"`
+	CreatedAt time.Time           `json:"created_at"`
+	Name      *string             `json:"name"`
+
+	// RestoredFrom The version this one brought back.
+	RestoredFrom *int `json:"restored_from"`
+	Seq          int  `json:"seq"`
+
+	// Size The body's size in bytes.
+	Size  int    `json:"size"`
+	Title string `json:"title"`
 }
 
 // Passkey One passkey or security key of the caller's account.
@@ -15716,6 +16081,9 @@ type OauthClientId = openapi_types.UUID
 // OauthGrantId defines model for OauthGrantId.
 type OauthGrantId = openapi_types.UUID
 
+// PageId defines model for PageId.
+type PageId = openapi_types.UUID
+
 // PageSize defines model for PageSize.
 type PageSize = int
 
@@ -16447,6 +16815,12 @@ type UpdateGroupParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ListPagesParams defines parameters for ListPages.
+type ListPagesParams struct {
+	IncludeArchived *bool `form:"include_archived,omitempty" json:"include_archived,omitempty"`
+	Templates       *bool `form:"templates,omitempty" json:"templates,omitempty"`
+}
+
 // ConfigureFirstIdentityProviderParams defines parameters for ConfigureFirstIdentityProvider.
 type ConfigureFirstIdentityProviderParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -17036,6 +17410,36 @@ type RevokeMembershipParams struct {
 type RegisterOauthClientParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ChangePageCommentParams defines parameters for ChangePageComment.
+type ChangePageCommentParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdatePageParams defines parameters for UpdatePage.
+type UpdatePageParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ListPageVersionsParams defines parameters for ListPageVersions.
+type ListPageVersionsParams struct {
+	Before *int `form:"before,omitempty" json:"before,omitempty"`
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// RestorePageVersionParams defines parameters for RestorePageVersion.
+type RestorePageVersionParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// MovePageParams defines parameters for MovePage.
+type MovePageParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
 // WithdrawPresetParams defines parameters for WithdrawPreset.
@@ -17641,6 +18045,9 @@ type CreateGroupJSONRequestBody = GroupCreate
 // UpdateGroupApplicationMergePatchPlusJSONRequestBody defines body for UpdateGroup for application/merge-patch+json ContentType.
 type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
 
+// CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
+type CreatePageJSONRequestBody = PageCreate
+
 // ConfigureFirstIdentityProviderJSONRequestBody defines body for ConfigureFirstIdentityProvider for application/json ContentType.
 type ConfigureFirstIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
@@ -17817,6 +18224,30 @@ type ExchangeOauthCodeJSONRequestBody = OauthTokenRequest
 
 // ExchangeOauthCodeFormdataRequestBody defines body for ExchangeOauthCode for application/x-www-form-urlencoded ContentType.
 type ExchangeOauthCodeFormdataRequestBody = OauthTokenForm
+
+// ChangePageCommentApplicationMergePatchPlusJSONRequestBody defines body for ChangePageComment for application/merge-patch+json ContentType.
+type ChangePageCommentApplicationMergePatchPlusJSONRequestBody = PageCommentChange
+
+// UpdatePageApplicationMergePatchPlusJSONRequestBody defines body for UpdatePage for application/merge-patch+json ContentType.
+type UpdatePageApplicationMergePatchPlusJSONRequestBody = PageChange
+
+// AddPageCommentJSONRequestBody defines body for AddPageComment for application/json ContentType.
+type AddPageCommentJSONRequestBody = PageCommentCreate
+
+// NamePageVersionApplicationMergePatchPlusJSONRequestBody defines body for NamePageVersion for application/merge-patch+json ContentType.
+type NamePageVersionApplicationMergePatchPlusJSONRequestBody = PageVersionName
+
+// ExportPageJSONRequestBody defines body for ExportPage for application/json ContentType.
+type ExportPageJSONRequestBody = PageExportRequest
+
+// MovePageJSONRequestBody defines body for MovePage for application/json ContentType.
+type MovePageJSONRequestBody = PageMove
+
+// VerifyPageJSONRequestBody defines body for VerifyPage for application/json ContentType.
+type VerifyPageJSONRequestBody = PageVerify
+
+// SearchPagesJSONRequestBody defines body for SearchPages for application/json ContentType.
+type SearchPagesJSONRequestBody = PageSearch
 
 // SavePresetJSONRequestBody defines body for SavePreset for application/json ContentType.
 type SavePresetJSONRequestBody = PresetCreate
@@ -18621,6 +19052,15 @@ type ServerInterface interface {
 	// UpdateGroup Rename a group or change its description
 	// (PATCH /groups/{groupId})
 	UpdateGroup(w http.ResponseWriter, r *http.Request, groupId GroupId, params UpdateGroupParams)
+	// ListPages A hub's pages
+	// (GET /hubs/{hubId}/pages)
+	ListPages(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListPagesParams)
+	// CreatePage Write a new page
+	// (POST /hubs/{hubId}/pages)
+	CreatePage(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// ListTrashedPages A hub's trashed pages
+	// (GET /hubs/{hubId}/trashed-pages)
+	ListTrashedPages(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ReadIdentityProvider The workspace's first identity provider
 	// (GET /identity-provider)
 	ReadIdentityProvider(w http.ResponseWriter, r *http.Request)
@@ -19038,6 +19478,57 @@ type ServerInterface interface {
 	// ExchangeOauthCode Exchange the code for the pair
 	// (POST /oauth/token)
 	ExchangeOauthCode(w http.ResponseWriter, r *http.Request)
+	// DeletePageComment Take a page comment back
+	// (DELETE /page-comments/{commentId})
+	DeletePageComment(w http.ResponseWriter, r *http.Request, commentId openapi_types.UUID)
+	// ChangePageComment Change a page comment
+	// (PATCH /page-comments/{commentId})
+	ChangePageComment(w http.ResponseWriter, r *http.Request, commentId openapi_types.UUID, params ChangePageCommentParams)
+	// TrashPage Put a page in the trash
+	// (DELETE /pages/{pageId})
+	TrashPage(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// ReadPage Read a page
+	// (GET /pages/{pageId})
+	ReadPage(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// UpdatePage Change a page
+	// (PATCH /pages/{pageId})
+	UpdatePage(w http.ResponseWriter, r *http.Request, pageId PageId, params UpdatePageParams)
+	// ListPageBacklinks What links to a page
+	// (GET /pages/{pageId}/backlinks)
+	ListPageBacklinks(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// ListPageComments A page's comments
+	// (GET /pages/{pageId}/comments)
+	ListPageComments(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// AddPageComment Comment on a page
+	// (POST /pages/{pageId}/comments)
+	AddPageComment(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// ListPageVersions A page's history
+	// (GET /pages/{pageId}/versions)
+	ListPageVersions(w http.ResponseWriter, r *http.Request, pageId PageId, params ListPageVersionsParams)
+	// ReadPageVersion Read one version of a page
+	// (GET /pages/{pageId}/versions/{seq})
+	ReadPageVersion(w http.ResponseWriter, r *http.Request, pageId PageId, seq int)
+	// NamePageVersion Name a version
+	// (PATCH /pages/{pageId}/versions/{seq})
+	NamePageVersion(w http.ResponseWriter, r *http.Request, pageId PageId, seq int)
+	// RestorePageVersion Bring an older version back
+	// (POST /pages/{pageId}/versions/{seq}:restore)
+	RestorePageVersion(w http.ResponseWriter, r *http.Request, pageId PageId, seq int, params RestorePageVersionParams)
+	// ExportPage Export a page as Markdown
+	// (POST /pages/{pageId}:export)
+	ExportPage(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// MovePage Move a page
+	// (POST /pages/{pageId}:move)
+	MovePage(w http.ResponseWriter, r *http.Request, pageId PageId, params MovePageParams)
+	// RestorePage Bring a page back from the trash
+	// (POST /pages/{pageId}:restore)
+	RestorePage(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// VerifyPage Mark a page as checked
+	// (POST /pages/{pageId}:verify)
+	VerifyPage(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// SearchPages Find pages by their words
+	// (POST /pages:search)
+	SearchPages(w http.ResponseWriter, r *http.Request)
 	// ListPresets The presets a hub or collection can start from
 	// (GET /presets)
 	ListPresets(w http.ResponseWriter, r *http.Request)
@@ -26606,6 +27097,113 @@ func (siw *ServerInterfaceWrapper) UpdateGroup(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// ListPages operation middleware
+func (siw *ServerInterfaceWrapper) ListPages(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPagesParams
+
+	// ------------- Optional query parameter "include_archived" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "include_archived", r.URL.Query(), &params.IncludeArchived, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "include_archived"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "include_archived", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "templates" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "templates", r.URL.Query(), &params.Templates, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "templates"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "templates", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPages(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePage operation middleware
+func (siw *ServerInterfaceWrapper) CreatePage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePage(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListTrashedPages operation middleware
+func (siw *ServerInterfaceWrapper) ListTrashedPages(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTrashedPages(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadIdentityProvider operation middleware
 func (siw *ServerInterfaceWrapper) ReadIdentityProvider(w http.ResponseWriter, r *http.Request) {
 
@@ -31943,6 +32541,588 @@ func (siw *ServerInterfaceWrapper) ExchangeOauthCode(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// DeletePageComment operation middleware
+func (siw *ServerInterfaceWrapper) DeletePageComment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "commentId" -------------
+	var commentId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "commentId", r.PathValue("commentId"), &commentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "commentId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePageComment(w, r, commentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangePageComment operation middleware
+func (siw *ServerInterfaceWrapper) ChangePageComment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "commentId" -------------
+	var commentId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "commentId", r.PathValue("commentId"), &commentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "commentId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangePageCommentParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangePageComment(w, r, commentId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TrashPage operation middleware
+func (siw *ServerInterfaceWrapper) TrashPage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TrashPage(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadPage operation middleware
+func (siw *ServerInterfaceWrapper) ReadPage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPage(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdatePage operation middleware
+func (siw *ServerInterfaceWrapper) UpdatePage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdatePageParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdatePage(w, r, pageId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPageBacklinks operation middleware
+func (siw *ServerInterfaceWrapper) ListPageBacklinks(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPageBacklinks(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPageComments operation middleware
+func (siw *ServerInterfaceWrapper) ListPageComments(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPageComments(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddPageComment operation middleware
+func (siw *ServerInterfaceWrapper) AddPageComment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddPageComment(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPageVersions operation middleware
+func (siw *ServerInterfaceWrapper) ListPageVersions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPageVersionsParams
+
+	// ------------- Optional query parameter "before" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "before", r.URL.Query(), &params.Before, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "before"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "before", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPageVersions(w, r, pageId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadPageVersion operation middleware
+func (siw *ServerInterfaceWrapper) ReadPageVersion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "seq" -------------
+	var seq int
+
+	err = runtime.BindStyledParameterWithOptions("simple", "seq", r.PathValue("seq"), &seq, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "seq", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPageVersion(w, r, pageId, seq)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// NamePageVersion operation middleware
+func (siw *ServerInterfaceWrapper) NamePageVersion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "seq" -------------
+	var seq int
+
+	err = runtime.BindStyledParameterWithOptions("simple", "seq", r.PathValue("seq"), &seq, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "seq", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.NamePageVersion(w, r, pageId, seq)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RestorePageVersion operation middleware
+func (siw *ServerInterfaceWrapper) RestorePageVersion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "seq" -------------
+	var seq int
+
+	err = runtime.BindStyledParameterWithOptions("simple", "seq", r.PathValue("seq"), &seq, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "seq", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RestorePageVersionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestorePageVersion(w, r, pageId, seq, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportPage operation middleware
+func (siw *ServerInterfaceWrapper) ExportPage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportPage(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MovePage operation middleware
+func (siw *ServerInterfaceWrapper) MovePage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params MovePageParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MovePage(w, r, pageId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RestorePage operation middleware
+func (siw *ServerInterfaceWrapper) RestorePage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestorePage(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// VerifyPage operation middleware
+func (siw *ServerInterfaceWrapper) VerifyPage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.VerifyPage(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SearchPages operation middleware
+func (siw *ServerInterfaceWrapper) SearchPages(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchPages(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPresets operation middleware
 func (siw *ServerInterfaceWrapper) ListPresets(w http.ResponseWriter, r *http.Request) {
 
@@ -35220,6 +36400,26 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/media/{mediaId}:content", wrapper.UploadMediaContent)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/stream", wrapper.StreamChanges)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/realtime/documents/{kind}/{documentId}", wrapper.OpenRealtimeDocument)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/pages", wrapper.ListPages)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/pages", wrapper.CreatePage)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/trashed-pages", wrapper.ListTrashedPages)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}", wrapper.TrashPage)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}", wrapper.ReadPage)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/pages/{pageId}", wrapper.UpdatePage)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}:move", wrapper.MovePage)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}:restore", wrapper.RestorePage)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}:verify", wrapper.VerifyPage)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/versions", wrapper.ListPageVersions)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/versions/{seq}", wrapper.ReadPageVersion)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/pages/{pageId}/versions/{seq}", wrapper.NamePageVersion)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/versions/{seq}:restore", wrapper.RestorePageVersion)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/comments", wrapper.ListPageComments)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/comments", wrapper.AddPageComment)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/page-comments/{commentId}", wrapper.DeletePageComment)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/page-comments/{commentId}", wrapper.ChangePageComment)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/backlinks", wrapper.ListPageBacklinks)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}:export", wrapper.ExportPage)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages:search", wrapper.SearchPages)
 
 	return m
 }

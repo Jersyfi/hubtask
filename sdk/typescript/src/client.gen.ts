@@ -2388,4 +2388,104 @@ export class HubtaskClient {
   openRealtimeDocument(kind: string, documentId: string, options: CallOptions = {}): Promise<void> {
     return this.call("GET", "/realtime/documents/{kind}/{documentId}", { "kind": kind, "documentId": documentId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
+
+  /** A hub's pages */
+  listPages(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listPages"]['parameters']['query']> } = {}): Promise<operations["listPages"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/pages", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Write a new page */
+  createPage(hubId: string, body: NonNullable<operations["createPage"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createPage"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/hubs/{hubId}/pages", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** A hub's trashed pages */
+  listTrashedPages(hubId: string, options: CallOptions = {}): Promise<operations["listTrashedPages"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/trashed-pages", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Read a page */
+  readPage(pageId: string, options: CallOptions = {}): Promise<operations["readPage"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/pages/{pageId}", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Change a page */
+  updatePage(pageId: string, body: NonNullable<operations["updatePage"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updatePage"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/pages/{pageId}", { "pageId": pageId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/merge-patch+json", "json", options.signal);
+  }
+
+  /** Put a page in the trash */
+  trashPage(pageId: string, options: CallOptions = {}): Promise<operations["trashPage"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/pages/{pageId}", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Move a page */
+  movePage(pageId: string, body: NonNullable<operations["movePage"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["movePage"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/pages/{pageId}:move", { "pageId": pageId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Bring a page back from the trash */
+  restorePage(pageId: string, options: CallOptions = {}): Promise<operations["restorePage"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/pages/{pageId}:restore", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Mark a page as checked */
+  verifyPage(pageId: string, body: NonNullable<operations["verifyPage"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["verifyPage"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/pages/{pageId}:verify", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** A page's history */
+  listPageVersions(pageId: string, options: CallOptions & { readonly query?: NonNullable<operations["listPageVersions"]['parameters']['query']> } = {}): Promise<operations["listPageVersions"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/pages/{pageId}/versions", { "pageId": pageId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Read one version of a page */
+  readPageVersion(pageId: string, seq: string, options: CallOptions = {}): Promise<operations["readPageVersion"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/pages/{pageId}/versions/{seq}", { "pageId": pageId, "seq": seq }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Name a version */
+  namePageVersion(pageId: string, seq: string, body: NonNullable<operations["namePageVersion"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions = {}): Promise<operations["namePageVersion"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/pages/{pageId}/versions/{seq}", { "pageId": pageId, "seq": seq }, undefined, {  }, body, "json", "application/merge-patch+json", "json", options.signal);
+  }
+
+  /** Bring an older version back */
+  restorePageVersion(pageId: string, seq: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["restorePageVersion"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/pages/{pageId}/versions/{seq}:restore", { "pageId": pageId, "seq": seq }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** A page's comments */
+  listPageComments(pageId: string, options: CallOptions = {}): Promise<operations["listPageComments"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/pages/{pageId}/comments", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Comment on a page */
+  addPageComment(pageId: string, body: NonNullable<operations["addPageComment"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["addPageComment"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/pages/{pageId}/comments", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Change a page comment */
+  changePageComment(commentId: string, body: NonNullable<operations["changePageComment"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["changePageComment"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/page-comments/{commentId}", { "commentId": commentId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/merge-patch+json", "json", options.signal);
+  }
+
+  /** Take a page comment back */
+  deletePageComment(commentId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/page-comments/{commentId}", { "commentId": commentId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** What links to a page */
+  listPageBacklinks(pageId: string, options: CallOptions = {}): Promise<operations["listPageBacklinks"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/pages/{pageId}/backlinks", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Export a page as Markdown */
+  exportPage(pageId: string, body: NonNullable<operations["exportPage"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["exportPage"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/pages/{pageId}:export", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Find pages by their words */
+  searchPages(body: NonNullable<operations["searchPages"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["searchPages"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/pages:search", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
 }

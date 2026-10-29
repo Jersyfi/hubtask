@@ -6,6 +6,7 @@ package main
 var generatedGroups = map[string]string{
 	"link":      "an entry's links to other entries, and references resolved",
 	"link-type": "the kinds of link between entries: blocks, relates to, duplicates",
+	"page":      "a hub's pages: write, find, move, version, comment on and export them",
 	"role":      "the workspace's own roles, who holds them, and why a person may do what",
 	"setting":   "the settings catalogue: every setting, its level and its source",
 	"workflow":  "the workspace's workflows and which collection runs which",
@@ -133,6 +134,161 @@ var generatedCommands = []door{
 			{Name: "switch", Kind: "string", Help: "OFF, the default, or INHERIT to leave the module to the level above", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"hub_id", "module", "on", "people"}},
+	{Group: "page", Verb: "backlinks", OperationID: "listPageBacklinks", Method: "GET", Path: "/pages/{pageId}/backlinks", Summary: "What links to a page",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"title"}},
+	{Group: "page", Verb: "comment", OperationID: "addPageComment", Method: "POST", Path: "/pages/{pageId}/comments", Summary: "Comment on a page",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "anchor", Kind: "string", Help: "", Required: false},
+			{Name: "body", Kind: "string", Help: "", Required: true},
+			{Name: "parent_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "quote", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "version"}},
+	{Group: "page", Verb: "comment-rm", OperationID: "deletePageComment", Method: "DELETE", Path: "/page-comments/{commentId}", Summary: "Take a page comment back",
+		PathParams: []doorParam{
+			{Name: "commentId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "page", Verb: "comment-set", OperationID: "changePageComment", Method: "PATCH", Path: "/page-comments/{commentId}", Summary: "Change a page comment",
+		PathParams: []doorParam{
+			{Name: "commentId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "body", Kind: "string", Help: "", Required: false},
+			{Name: "resolved", Kind: "boolean", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "version"}},
+	{Group: "page", Verb: "comments", OperationID: "listPageComments", Method: "GET", Path: "/pages/{pageId}/comments", Summary: "A page's comments",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "version"}},
+	{Group: "page", Verb: "create", OperationID: "createPage", Method: "POST", Path: "/hubs/{hubId}/pages", Summary: "Write a new page",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "body", Kind: "string", Help: "", Required: false},
+			{Name: "content_language", Kind: "string", Help: "", Required: false},
+			{Name: "icon", Kind: "string", Help: "", Required: false},
+			{Name: "id", Kind: "uuid", Help: "An identifier the client minted for a page made offline", Required: false},
+			{Name: "parent_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "template", Kind: "boolean", Help: "", Required: false},
+			{Name: "template_id", Kind: "uuid", Help: "A template of the same space to start from", Required: false},
+			{Name: "title", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
+	{Group: "page", Verb: "export", OperationID: "exportPage", Method: "POST", Path: "/pages/{pageId}:export", Summary: "Export a page as Markdown",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "subtree", Kind: "boolean", Help: "Export the pages under it as well", Required: false},
+		},
+		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"format"}},
+	{Group: "page", Verb: "get", OperationID: "readPage", Method: "GET", Path: "/pages/{pageId}", Summary: "Read a page",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "page", Verb: "ls", OperationID: "listPages", Method: "GET", Path: "/hubs/{hubId}/pages", Summary: "A hub's pages",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "include_archived", Kind: "boolean", Help: "", Required: false},
+			{Name: "templates", Kind: "boolean", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title", "version"}},
+	{Group: "page", Verb: "move", OperationID: "movePage", Method: "POST", Path: "/pages/{pageId}:move", Summary: "Move a page",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "after_id", Kind: "uuid", Help: "The sibling it follows; absent to place it first", Required: false},
+			{Name: "parent_id", Kind: "uuid", Help: "The page it moves under; absent for the top of the space", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
+	{Group: "page", Verb: "restore", OperationID: "restorePage", Method: "POST", Path: "/pages/{pageId}:restore", Summary: "Bring a page back from the trash",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
+	{Group: "page", Verb: "rm", OperationID: "trashPage", Method: "DELETE", Path: "/pages/{pageId}", Summary: "Put a page in the trash",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"trashed"}},
+	{Group: "page", Verb: "search", OperationID: "searchPages", Method: "POST", Path: "/pages:search", Summary: "Find pages by their words",
+		Body: []doorParam{
+			{Name: "hub_id", Kind: "uuid", Help: "One hub's space; absent for every readable space", Required: false},
+			{Name: "limit", Kind: "integer", Help: "", Required: false},
+			{Name: "text", Kind: "string", Help: "What to look for, in web search syntax", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title"}},
+	{Group: "page", Verb: "set", OperationID: "updatePage", Method: "PATCH", Path: "/pages/{pageId}", Summary: "Change a page",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "archived", Kind: "boolean", Help: "", Required: false},
+			{Name: "body", Kind: "string", Help: "", Required: false},
+			{Name: "content_language", Kind: "string", Help: "", Required: false},
+			{Name: "icon", Kind: "string", Help: "", Required: false},
+			{Name: "template", Kind: "boolean", Help: "", Required: false},
+			{Name: "title", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
+	{Group: "page", Verb: "trash", OperationID: "listTrashedPages", Method: "GET", Path: "/hubs/{hubId}/trashed-pages", Summary: "A hub's trashed pages",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title", "version"}},
+	{Group: "page", Verb: "verify", OperationID: "verifyPage", Method: "POST", Path: "/pages/{pageId}:verify", Summary: "Mark a page as checked",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "owner_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "verified_until", Kind: "string", Help: "Absent takes the verification away", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
+	{Group: "page", Verb: "version", OperationID: "readPageVersion", Method: "GET", Path: "/pages/{pageId}/versions/{seq}", Summary: "Read one version of a page",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+			{Name: "seq", Kind: "integer", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "page", Verb: "version-name", OperationID: "namePageVersion", Method: "PATCH", Path: "/pages/{pageId}/versions/{seq}", Summary: "Name a version",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+			{Name: "seq", Kind: "integer", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "name", Kind: "string", Help: "Empty takes the name away", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"name"}},
+	{Group: "page", Verb: "version-restore", OperationID: "restorePageVersion", Method: "POST", Path: "/pages/{pageId}/versions/{seq}:restore", Summary: "Bring an older version back",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+			{Name: "seq", Kind: "integer", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
+	{Group: "page", Verb: "versions", OperationID: "listPageVersions", Method: "GET", Path: "/pages/{pageId}/versions", Summary: "A page's history",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "before", Kind: "integer", Help: "", Required: false},
+			{Name: "limit", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"name", "title"}},
 	{Group: "role", Verb: "create", OperationID: "createRole", Method: "POST", Path: "/roles", Summary: "Define a role of the workspace's own",
 		Body: []doorParam{
 			{Name: "key", Kind: "string", Help: "", Required: true},

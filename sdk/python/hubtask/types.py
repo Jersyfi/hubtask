@@ -4029,3 +4029,161 @@ class RoleItemAccess(TypedDict, total=False):
     comment: "ItemAccess"
 
 ItemAccess = Literal["ALL", "ASSIGNED", "NONE"]
+
+class Page(TypedDict, total=False):
+    """A page of a hub's space. Its body is Markdown: a link to `hubtask:<kind>/<id>` is a mention, an image of one (`![](…)`) a card or a live view. The body is left out of a tree's rows."""
+    id: Required[str]
+    hub_id: Required[str]
+    parent_id: Required[str | None]
+    title: Required[str]
+    body: str
+    icon: Required[str | None]
+    position: Required[str]
+    template: Required[bool]
+    content_language: Required[str | None]
+    owner_id: Required[str | None]
+    verified_until: Required[str | None]
+    verified_at: Required[str | None]
+    verified_by: Required[str | None]
+    due_for_review: Required[bool]
+    archived: Required[bool]
+    trashed_at: Required[str | None]
+    created_by: Required[str]
+    created_at: Required[str]
+    updated_by: Required[str]
+    updated_at: Required[str]
+    version: Required[int]
+
+class PageRead(TypedDict, total=False):
+    """A page with its body, its breadcrumb and whether the reader may write it."""
+    id: Required[str]
+    hub_id: Required[str]
+    parent_id: Required[str | None]
+    title: Required[str]
+    body: Required[str]
+    icon: Required[str | None]
+    position: Required[str]
+    template: Required[bool]
+    content_language: Required[str | None]
+    owner_id: Required[str | None]
+    verified_until: Required[str | None]
+    verified_at: Required[str | None]
+    verified_by: Required[str | None]
+    due_for_review: Required[bool]
+    archived: Required[bool]
+    trashed_at: Required[str | None]
+    created_by: Required[str]
+    created_at: Required[str]
+    updated_by: Required[str]
+    updated_at: Required[str]
+    version: Required[int]
+    ancestors: Required[list[dict[str, Any]]]
+    writable: Required[bool]
+
+class PageList(TypedDict, total=False):
+    data: Required[list["Page"]]
+
+class PageCreate(TypedDict, total=False):
+    title: Required[str]
+    body: str
+    parent_id: str
+    icon: str
+    template: bool
+    template_id: str
+    content_language: str
+    id: str
+
+class PageChange(TypedDict, total=False):
+    title: str
+    body: str
+    icon: str
+    template: bool
+    content_language: str
+    archived: bool
+
+class PageMove(TypedDict, total=False):
+    parent_id: str
+    after_id: str
+
+class PageVerify(TypedDict, total=False):
+    verified_until: str
+    owner_id: str
+
+class PageTrashed(TypedDict, total=False):
+    trashed: Required[int]
+
+class PageVersion(TypedDict, total=False):
+    seq: Required[int]
+    title: Required[str]
+    author_id: Required[str | None]
+    name: Required[str | None]
+    restored_from: Required[int | None]
+    size: Required[int]
+    created_at: Required[str]
+
+class PageVersionRead(TypedDict, total=False):
+    seq: Required[int]
+    title: Required[str]
+    author_id: Required[str | None]
+    name: Required[str | None]
+    restored_from: Required[int | None]
+    size: Required[int]
+    created_at: Required[str]
+    body: Required[str]
+
+class PageVersionList(TypedDict, total=False):
+    data: Required[list["PageVersion"]]
+
+class PageVersionName(TypedDict, total=False):
+    name: str
+
+class PageVersionNamed(TypedDict, total=False):
+    seq: Required[int]
+    name: Required[str | None]
+
+class PageComment(TypedDict, total=False):
+    id: Required[str]
+    page_id: Required[str]
+    parent_id: Required[str | None]
+    author_id: Required[str | None]
+    body: Required[str]
+    anchor: Required[str | None]
+    quote: Required[str | None]
+    resolved: Required[bool]
+    resolved_at: Required[str | None]
+    resolved_by: Required[str | None]
+    created_at: Required[str]
+    edited_at: Required[str | None]
+    deleted: Required[bool]
+    version: Required[int]
+
+class PageCommentList(TypedDict, total=False):
+    data: Required[list["PageComment"]]
+
+class PageCommentCreate(TypedDict, total=False):
+    body: Required[str]
+    anchor: str
+    quote: str
+    parent_id: str
+
+class PageCommentChange(TypedDict, total=False):
+    body: str
+    resolved: bool
+
+class PageBacklinkList(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
+
+class PageExportRequest(TypedDict, total=False):
+    subtree: bool
+
+class PageExport(TypedDict, total=False):
+    format: Required[Literal["MARKDOWN"]]
+    files: Required[list[dict[str, Any]]]
+
+class PageSearch(TypedDict, total=False):
+    text: Required[str]
+    hub_id: str
+    limit: int
+
+class PageHitList(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]

@@ -106,6 +106,9 @@
     },
     {
       "name": "suggestions"
+    },
+    {
+      "name": "pages"
     }
   ],
   "x-hubtask-cli-groups": {
@@ -113,7 +116,8 @@
     "link-type": "the kinds of link between entries: blocks, relates to, duplicates",
     "link": "an entry's links to other entries, and references resolved",
     "role": "the workspace's own roles, who holds them, and why a person may do what",
-    "setting": "the settings catalogue: every setting, its level and its source"
+    "setting": "the settings catalogue: every setting, its level and its source",
+    "page": "a hub's pages: write, find, move, version, comment on and export them"
   },
   "paths": {
     "/templates": {
@@ -17738,6 +17742,774 @@
           }
         }
       }
+    },
+    "/hubs/{hubId}/pages": {
+      "parameters": [
+        {
+          "name": "hubId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "listPages",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page ls",
+        "summary": "A hub's pages",
+        "description": "The hub's space: every page without its body, each with its parent and position, parents before their children. Archived pages only with `include_archived`; the space's templates alone with `templates`. Needs READ on the hub and the knowledge module switched on.\n",
+        "parameters": [
+          {
+            "name": "include_archived",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "templates",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The space's tree",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "createPage",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-location": "/pages/{id}",
+        "x-hubtask-cli": "page create",
+        "summary": "Write a new page",
+        "description": "Writes a page in the hub's space, at the top or under another page, at the end of its siblings, with a Markdown body whose `hubtask:` links are mentions, cards and live views. Started from one of the space's templates (`template_id`), it takes the template's body unless one is given. Needs WRITE_ITEMS on the hub.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Written",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/hubs/{hubId}/trashed-pages": {
+      "parameters": [
+        {
+          "name": "hubId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "listTrashedPages",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page trash",
+        "summary": "A hub's trashed pages",
+        "description": "The space's trash, the latest first, without the bodies. Needs READ on the hub.",
+        "responses": {
+          "200": {
+            "description": "The trash",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/pages/{pageId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PageId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "readPage",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page get",
+        "summary": "Read a page",
+        "description": "The page with its Markdown body, its breadcrumb (the pages above it, from the top of the space down) and whether the reader may write it. A page in the trash is not found. Needs READ on the page's hub.\n",
+        "responses": {
+          "200": {
+            "description": "The page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageRead"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "updatePage",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page set",
+        "summary": "Change a page",
+        "description": "Writes the title, the whole Markdown body, the icon, the template mark or the content language, or archives or brings the page back. A write of the title or body is kept in the page's history: one person's writes within ten minutes are one version. Without `If-Match` the write lands on what stands, as live co-editing saves. Needs WRITE_ITEMS on the hub.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The page as it now is",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "trashPage",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page rm",
+        "summary": "Put a page in the trash",
+        "description": "Puts the page and every page under it in the space's trash; `:restore` brings them back together. Needs WRITE_ITEMS on the hub.\n",
+        "responses": {
+          "200": {
+            "description": "Trashed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageTrashed"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/pages/{pageId}:move": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PageId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "movePage",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page move",
+        "summary": "Move a page",
+        "description": "Places the page, with the pages under it, under another page of the same space or at its top, after a sibling or first. Under itself or one of its own is refused with `pages.parent_cycle`, another space with `pages.parent_other_space`, deeper than twelve levels with `pages.too_deep`. Needs WRITE_ITEMS on the hub.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageMove"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Moved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/pages/{pageId}:restore": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PageId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "restorePage",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page restore",
+        "summary": "Bring a page back from the trash",
+        "description": "Brings the trashed page back with the pages that went into the trash with it. A page whose parent is still in the trash comes back at the top of the space. Needs WRITE_ITEMS on the hub.\n",
+        "responses": {
+          "200": {
+            "description": "Restored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/pages/{pageId}:verify": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PageId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "verifyPage",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page verify",
+        "summary": "Mark a page as checked",
+        "description": "Marks the page as checked and right until a date, by the caller, and names who answers for it; from that date the page is due for review. Without a date the verification is taken away. A date in the past is refused with `pages.verified_until_past`. Needs WRITE_ITEMS on the hub.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageVerify"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/pages/{pageId}/versions": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PageId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "listPageVersions",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page versions",
+        "summary": "A page's history",
+        "description": "The page's versions newest first - one per editing session, a named or a restored one its own - with author, moment, size and name, without the bodies. Continue with `before`. Needs READ on the hub.\n",
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageVersionList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/pages/{pageId}/versions/{seq}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PageId"
+        },
+        {
+          "name": "seq",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "readPageVersion",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page version",
+        "summary": "Read one version of a page",
+        "description": "The version's title and body as they stood, to compare. Needs READ on the hub.",
+        "responses": {
+          "200": {
+            "description": "The version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageVersionRead"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "namePageVersion",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page version-name",
+        "summary": "Name a version",
+        "description": "Names the version, or takes its name away with an empty name. A named version stays as it is: the next write starts a new one. Needs WRITE_ITEMS on the hub.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageVersionName"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Named",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageVersionNamed"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/pages/{pageId}/versions/{seq}:restore": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PageId"
+        },
+        {
+          "name": "seq",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "restorePageVersion",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page version-restore",
+        "summary": "Bring an older version back",
+        "description": "The version's title and body become the page's, written as a new version that names the one it brought back, so nothing in between is lost. Needs WRITE_ITEMS on the hub.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The page as it now is",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/pages/{pageId}/comments": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PageId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "listPageComments",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page comments",
+        "summary": "A page's comments",
+        "description": "The page's comments oldest first: threads and their replies, inline ones with the block and the words they are about, resolved threads marked. A comment taken back answers no words. Needs READ on the hub.\n",
+        "responses": {
+          "200": {
+            "description": "The comments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageCommentList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "addPageComment",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page comment",
+        "summary": "Comment on a page",
+        "description": "A comment on the page as a whole, inline on a block (`anchor`, with the words it is about as `quote`), or a reply to a thread's first comment; one level of replies. Needs WRITE_ITEMS on the hub.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageCommentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Written",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageComment"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/page-comments/{commentId}": {
+      "parameters": [
+        {
+          "name": "commentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "changePageComment",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page comment-set",
+        "summary": "Change a page comment",
+        "description": "Rewrites the comment's words - its author only (`pages.comment_not_own`) - or resolves or reopens its thread, which whoever may write the page may do. Only a thread's first comment resolves. Needs WRITE_ITEMS on the hub.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageCommentChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The comment as it now is",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageComment"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "deletePageComment",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page comment-rm",
+        "summary": "Take a page comment back",
+        "description": "The caller's own comment; its place in the thread stays, its words go.",
+        "responses": {
+          "204": {
+            "description": "Taken back"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/pages/{pageId}/backlinks": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PageId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "listPageBacklinks",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page backlinks",
+        "summary": "What links to a page",
+        "description": "The pages, entries' notes and comments that mention the page, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.\n",
+        "responses": {
+          "200": {
+            "description": "The backlinks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageBacklinkList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/pages/{pageId}:export": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PageId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "exportPage",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page export",
+        "summary": "Export a page as Markdown",
+        "description": "The page - or, with `subtree`, the page and every page under it, at most 500 - as Markdown files with front matter (id, title, parent), each under a folder named after its parent. References stay `hubtask:` addresses. The export is recorded in the audit trail. Needs READ on the hub.\n",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The files",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageExport"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/pages:search": {
+      "post": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "searchPages",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page search",
+        "summary": "Find pages by their words",
+        "description": "Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageSearch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The hits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageHitList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -18113,6 +18885,15 @@
       },
       "PasskeyId": {
         "name": "passkeyId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "PageId": {
+        "name": "pageId",
         "in": "path",
         "required": true,
         "schema": {
@@ -38691,6 +39472,762 @@
           "ASSIGNED",
           "NONE"
         ]
+      },
+      "Page": {
+        "type": "object",
+        "description": "A page of a hub's space. Its body is Markdown: a link to `hubtask:<kind>/<id>` is a mention, an image of one (`![](…)`) a card or a live view. The body is left out of a tree's rows.\n",
+        "required": [
+          "id",
+          "hub_id",
+          "parent_id",
+          "title",
+          "icon",
+          "position",
+          "template",
+          "content_language",
+          "owner_id",
+          "verified_until",
+          "verified_at",
+          "verified_by",
+          "due_for_review",
+          "archived",
+          "trashed_at",
+          "created_by",
+          "created_at",
+          "updated_by",
+          "updated_at",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The hub whose space the page is in."
+          },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The page it sits under; null at the top."
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 1048576,
+            "description": "The body in Markdown; absent in a tree's rows."
+          },
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 16
+          },
+          "position": {
+            "type": "string",
+            "description": "Its place among its siblings: they sort by this, as text."
+          },
+          "template": {
+            "type": "boolean",
+            "description": "Offered as a template of the space."
+          },
+          "content_language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The BCP-47 tag search stems the page by; null for the workspace's."
+          },
+          "owner_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Who answers for the page."
+          },
+          "verified_until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Until when the page is known to be right."
+          },
+          "verified_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "verified_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "due_for_review": {
+            "type": "boolean",
+            "description": "Its verification has run out."
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "trashed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "description": "The optimistic lock."
+          }
+        }
+      },
+      "PageRead": {
+        "description": "A page with its body, its breadcrumb and whether the reader may write it.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Page"
+          },
+          {
+            "type": "object",
+            "required": [
+              "body",
+              "ancestors",
+              "writable"
+            ],
+            "properties": {
+              "ancestors": {
+                "type": "array",
+                "description": "The pages above it, from the top of the space down.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "writable": {
+                "type": "boolean"
+              }
+            }
+          }
+        ]
+      },
+      "PageList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Page"
+            }
+          }
+        }
+      },
+      "PageCreate": {
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 1048576
+          },
+          "parent_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "icon": {
+            "type": "string",
+            "maxLength": 16
+          },
+          "template": {
+            "type": "boolean"
+          },
+          "template_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A template of the same space to start from."
+          },
+          "content_language": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "An identifier the client minted for a page made offline."
+          }
+        }
+      },
+      "PageChange": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 1048576
+          },
+          "icon": {
+            "type": "string",
+            "maxLength": 16
+          },
+          "template": {
+            "type": "boolean"
+          },
+          "content_language": {
+            "type": "string"
+          },
+          "archived": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PageMove": {
+        "type": "object",
+        "properties": {
+          "parent_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The page it moves under; absent for the top of the space."
+          },
+          "after_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The sibling it follows; absent to place it first."
+          }
+        }
+      },
+      "PageVerify": {
+        "type": "object",
+        "properties": {
+          "verified_until": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Absent takes the verification away."
+          },
+          "owner_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "PageTrashed": {
+        "type": "object",
+        "required": [
+          "trashed"
+        ],
+        "properties": {
+          "trashed": {
+            "type": "integer",
+            "description": "How many pages went into the trash."
+          }
+        }
+      },
+      "PageVersion": {
+        "type": "object",
+        "required": [
+          "seq",
+          "title",
+          "author_id",
+          "name",
+          "restored_from",
+          "size",
+          "created_at"
+        ],
+        "properties": {
+          "seq": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "author_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "restored_from": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "The version this one brought back."
+          },
+          "size": {
+            "type": "integer",
+            "description": "The body's size in bytes."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PageVersionRead": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageVersion"
+          },
+          {
+            "type": "object",
+            "required": [
+              "body"
+            ],
+            "properties": {
+              "body": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "PageVersionList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PageVersion"
+            }
+          }
+        }
+      },
+      "PageVersionName": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "description": "Empty takes the name away."
+          }
+        }
+      },
+      "PageVersionNamed": {
+        "type": "object",
+        "required": [
+          "seq",
+          "name"
+        ],
+        "properties": {
+          "seq": {
+            "type": "integer"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "PageComment": {
+        "type": "object",
+        "required": [
+          "id",
+          "page_id",
+          "parent_id",
+          "author_id",
+          "body",
+          "anchor",
+          "quote",
+          "resolved",
+          "resolved_at",
+          "resolved_by",
+          "created_at",
+          "edited_at",
+          "deleted",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "page_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The thread's first comment, for a reply."
+          },
+          "author_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "body": {
+            "type": "string",
+            "description": "Markdown; empty once taken back."
+          },
+          "anchor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The block an inline comment stands at."
+          },
+          "quote": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The words of the block it is about."
+          },
+          "resolved": {
+            "type": "boolean"
+          },
+          "resolved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "resolved_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "edited_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "PageCommentList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PageComment"
+            }
+          }
+        }
+      },
+      "PageCommentCreate": {
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 65536
+          },
+          "anchor": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$"
+          },
+          "quote": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "parent_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "PageCommentChange": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 65536
+          },
+          "resolved": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PageBacklinkList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "source_kind",
+                "source_id",
+                "page_id",
+                "entry_id",
+                "title",
+                "strength"
+              ],
+              "properties": {
+                "source_kind": {
+                  "type": "string",
+                  "enum": [
+                    "PAGE",
+                    "ENTRY",
+                    "COMMENT"
+                  ],
+                  "description": "A page, an entry's notes or one of its comments."
+                },
+                "source_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "page_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "entry_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "strength": {
+                  "type": "string",
+                  "enum": [
+                    "MENTION",
+                    "CARD",
+                    "EMBED"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "PageExportRequest": {
+        "type": "object",
+        "properties": {
+          "subtree": {
+            "type": "boolean",
+            "description": "Export the pages under it as well."
+          }
+        }
+      },
+      "PageExport": {
+        "type": "object",
+        "required": [
+          "format",
+          "files"
+        ],
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "MARKDOWN"
+            ]
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "page_id",
+                "path",
+                "content"
+              ],
+              "properties": {
+                "page_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "path": {
+                  "type": "string",
+                  "description": "Where the file stands in the exported tree."
+                },
+                "content": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "PageSearch": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "What to look for, in web search syntax."
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "One hub's space; absent for every readable space."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      },
+      "PageHitList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "hub_id",
+                "parent_id",
+                "title",
+                "icon",
+                "excerpt",
+                "rank",
+                "updated_at"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "hub_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "parent_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "icon": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "excerpt": {
+                  "type": "string",
+                  "description": "The passage that matched, the words found between « and »."
+                },
+                "rank": {
+                  "type": "number"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
