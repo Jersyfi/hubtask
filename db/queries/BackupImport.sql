@@ -2200,3 +2200,27 @@ SELECT EXISTS (
 
 -- name: ClearRealtimeSnapshot :execrows
 DELETE FROM realtime_snapshot;
+
+-- name: ImportWhiteboard :execrows
+-- Where the board points is the trigger's to build.
+INSERT INTO whiteboard (id, tenant_id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.title, r.scene, r.deleted_at, r.created_by, r.created_at, r.updated_by,
+       r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::whiteboard,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  title = EXCLUDED.title,
+  scene = EXCLUDED.scene,
+  deleted_at = EXCLUDED.deleted_at,
+  updated_by = EXCLUDED.updated_by,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsWhiteboard :one
+SELECT EXISTS (SELECT 1 FROM whiteboard WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearWhiteboard :execrows
+DELETE FROM whiteboard;

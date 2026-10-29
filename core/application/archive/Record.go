@@ -620,6 +620,13 @@ var entities = []Entity{
 			{Field: "author_id", Table: "account", Clearable: true},
 		},
 	},
+	// The whiteboard module's boards (migration 0233, M4). Whole and unmarked, as a page is: a
+	// board leaves without a marker when its hub is purged. Its scene is JSON in the contract's
+	// shape; where it points is rebuilt by the trigger.
+	{
+		Name: "whiteboards", Table: "whiteboard", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{{Field: "hub_id", Table: "container"}},
+	},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a
@@ -799,8 +806,9 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// avoid. The entries come back and the embedding job re-derives them.
 	// Derived from the notes and comments the archive carries: the restore's write of each rebuilds
 	// it through the triggers of migration 0213.
-	"entry_reference": "the references texts hold, rebuilt from the notes and comments the archive carries",
-	"page_reference":  "the references a page's body holds, rebuilt by the trigger as each page is restored",
+	"entry_reference":      "the references texts hold, rebuilt from the notes and comments the archive carries",
+	"page_reference":       "the references a page's body holds, rebuilt by the trigger as each page is restored",
+	"whiteboard_reference": "the references a board's scene holds, rebuilt by the trigger as each board is restored",
 	// Written by the trigger of migration 0211 from the entry's custom fields, which the archive
 	// carries: the restore's write of each entry rebuilds it.
 	"entry_field_value": "a typed projection of the custom fields the entries carry, rebuilt by the trigger as each entry is restored",

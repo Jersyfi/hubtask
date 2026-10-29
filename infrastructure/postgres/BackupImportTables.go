@@ -260,6 +260,17 @@ var importers = map[string]importer{
 			return queries.ClearPageComment(ctx)
 		},
 	},
+	"whiteboard": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportWhiteboard(ctx, sqlc.ImportWhiteboardParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsWhiteboard(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearWhiteboard(ctx)
+		},
+	},
 	"realtime_document": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportRealtimeDocument(ctx, sqlc.ImportRealtimeDocumentParams{Payload: payload, Overwrite: overwrite})

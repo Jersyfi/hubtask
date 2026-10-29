@@ -65,9 +65,11 @@ var subjectColumns = map[string][]string{
 	"workflow":   {"published_by"},
 	"entry_link": {"created_by"},
 	// The pages they wrote, own or checked, their versions and their comments (M3).
-	"page":            {"created_by", "updated_by", "owner_id", "verified_by"},
-	"page_version":    {"author_id"},
-	"page_comment":    {"author_id", "resolved_by"},
+	"page":         {"created_by", "updated_by", "owner_id", "verified_by"},
+	"page_version": {"author_id"},
+	"page_comment": {"author_id", "resolved_by"},
+	// The whiteboards they made or last drew on (M4).
+	"whiteboard":      {"created_by", "updated_by"},
 	"config_revision": {"actor_id", "proposed_by"},
 	"config_proposal": {"proposed_by", "decided_by"},
 	"config_template": {"created_by"},

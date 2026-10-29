@@ -591,6 +591,18 @@ func (q *Queries) ClearWebhookSubscription(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearWhiteboard = `-- name: ClearWhiteboard :execrows
+DELETE FROM whiteboard
+`
+
+func (q *Queries) ClearWhiteboard(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearWhiteboard)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearWorkItem = `-- name: ClearWorkItem :execrows
 DELETE FROM work_item
 `
@@ -1183,6 +1195,17 @@ SELECT EXISTS (SELECT 1 FROM webhook_subscription WHERE id = ($1::jsonb->>'id'):
 
 func (q *Queries) HoldsWebhookSubscription(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsWebhookSubscription, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsWhiteboard = `-- name: HoldsWhiteboard :one
+SELECT EXISTS (SELECT 1 FROM whiteboard WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsWhiteboard(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsWhiteboard, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -3552,6 +3575,38 @@ type ImportWebhookSubscriptionParams struct {
 
 func (q *Queries) ImportWebhookSubscription(ctx context.Context, arg ImportWebhookSubscriptionParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importWebhookSubscription, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importWhiteboard = `-- name: ImportWhiteboard :execrows
+INSERT INTO whiteboard (id, tenant_id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.title, r.scene, r.deleted_at, r.created_by, r.created_at, r.updated_by,
+       r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::whiteboard,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  title = EXCLUDED.title,
+  scene = EXCLUDED.scene,
+  deleted_at = EXCLUDED.deleted_at,
+  updated_by = EXCLUDED.updated_by,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportWhiteboardParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+// Where the board points is the trigger's to build.
+func (q *Queries) ImportWhiteboard(ctx context.Context, arg ImportWhiteboardParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importWhiteboard, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}
