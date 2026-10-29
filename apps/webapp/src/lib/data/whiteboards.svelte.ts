@@ -83,6 +83,11 @@ class Whiteboards {
     return engine.mutate('PATCH', `${boardPath(boardId)}/versions/${seq}`, { name }, { invalidates: [`${boardPath(boardId)}/versions`] });
   }
 
+  /** An upload made one of the board's files, so its readers read it (UC-CNV-08). */
+  placeMedia(boardId: string, mediaId: string): Promise<{ media_id: string }> {
+    return engine.mutate('POST', `${boardPath(boardId)}/media`, { media_id: mediaId }, { invalidates: [] });
+  }
+
   /** What points at the board: pages, entries' texts and other boards, each the reader may see (UC-CNV-07). */
   async backlinks(boardId: string): Promise<WhiteboardBacklinkList['data']> {
     const state = await engine.refresh<WhiteboardBacklinkList>({ path: `${boardPath(boardId)}/backlinks` });

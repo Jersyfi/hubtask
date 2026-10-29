@@ -38,6 +38,7 @@
   import { engine } from '../data/engine.ts';
   import { entryTypes, entryTypesOffered, offeredTypes, typesShown } from '../data/entrytypes.svelte.ts';
   import { items } from '../data/items.svelte.ts';
+  import { media } from '../data/media.svelte.ts';
   import { resolveRequest } from '../data/links.svelte.ts';
   import {
     BOARD_COLOURS, backlinkHref, boardFileName, cardEntries, clockOf, entryOfNote, notesInFrame, peerColour, pictureColours, voterKey, whiteboards,
@@ -273,6 +274,7 @@
   function wordsOf(e: Element): string {
     if (e.kind === 'CARD') return cardOf(e)?.title ?? t('app.whiteboards.card_unavailable');
     if (e.kind === 'LINK') return e.url ?? '';
+    if (e.kind === 'IMAGE' || e.kind === 'FILE') return e.text || media.fileNameOf(e.media_id) || '';
     return e.text ?? '';
   }
 
@@ -545,6 +547,41 @@
     put('LINK', linkAt ?? centre(), { url });
   }
 
+  // --- Pictures and files (UC-CNV-08) -------------------------------------------------------------
+
+  let isUploading = $state(false);
+
+  /** An upload made one of the board's files, then drawn: a picture as itself, anything else as its card. */
+  async function putFile(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    const at = centre();
+    isUploading = true;
+    try {
+      const object = await media.upload(file, 'ATTACHMENT', { idempotencyKey: crypto.randomUUID() });
+      await whiteboards.placeMedia(board.id, object.id);
+      const picture = (object.content_type ?? '').startsWith('image/');
+      put(picture ? 'IMAGE' : 'FILE', at, { media_id: object.id });
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    } finally {
+      isUploading = false;
+    }
+  }
+
+  async function openFile(mediaId: string | undefined) {
+    if (!mediaId) return;
+    const url = await media.downloadUrl(mediaId, Date.now());
+    if (url) window.open(url, '_blank', 'noopener');
+    else toast.show({ text: t('app.whiteboards.file_unavailable'), tone: 'danger' });
+  }
+
+  $effect(() => {
+    media.resolve(elements.filter((e) => e.kind === 'FILE' || e.kind === 'IMAGE').map((e) => e.media_id));
+  });
+
   // --- Templates (research §4.3) -------------------------------------------------------------------
 
   function putTemplate(name: TemplateName) {
@@ -690,6 +727,7 @@
   function svgOf(part: Which): string {
     return toSvg(picture(part), {
       title: board.title, colours: pictureColours(), unavailable: t('app.whiteboards.card_unavailable'),
+      media: (id) => ({ name: media.fileNameOf(id) }),
       card: (id) => {
         const target = cards.get(id.toLowerCase());
         return target?.available ? { title: target.title ?? '', key: target.key ?? null, completed: target.completed ?? false } : undefined;
@@ -859,6 +897,10 @@
           <Select size="sm" label={t('app.whiteboards.pen')} bind:value={pen} options={(['PEN', 'HIGHLIGHTER'] as const).map((each) => ({ value: each, label: t(`app.whiteboards.pen_${each.toLowerCase()}`) }))} />
         {/if}
         <Button size="sm" tone="subtle" icon="plus" onclick={() => (isPickingEntry = true)}>{t('app.whiteboards.put_entry')}</Button>
+        <label class="upload">
+          <span>{isUploading ? t('app.whiteboards.uploading') : t('app.whiteboards.put_file')}</span>
+          <input type="file" disabled={isUploading} onchange={(event) => void putFile(event)} />
+        </label>
         <Select
           size="sm"
           label={t('app.whiteboards.template')}
@@ -941,6 +983,33 @@
             <a href={e.url} target="_blank" rel="noopener noreferrer" aria-label={t('app.whiteboards.link_open', { host: linkHost(e.url ?? '') })}>
               <text x={e.x + e.width - 12} y={e.y + 24} text-anchor="end" class="open">↗</text>
             </a>
+          </g>
+        {:else if e.kind === 'IMAGE'}
+          {@const href = media.coverUrl(e.media_id, Date.now())}
+          <g class="card" class:chosen={selected.includes(e.id)}>
+            {#if href}
+              <image {href} x={e.x} y={e.y} width={e.width} height={e.height} preserveAspectRatio="xMidYMid meet">
+                <title>{wordsOf(e)}</title>
+              </image>
+            {:else}
+              <path d={outlinePath(e)} class="pending" />
+              <text x={e.x + 12} y={e.y + 24} class="key">{media.fileNameOf(e.media_id) ?? t('app.whiteboards.card_unavailable')}</text>
+            {/if}
+            {#if e.text}<text x={e.x} y={e.y + e.height + 18} class="words">{e.text}</text>{/if}
+          </g>
+        {:else if e.kind === 'FILE'}
+          <g class="card" class:chosen={selected.includes(e.id)}>
+            <path d={outlinePath(e)} />
+            <text x={e.x + 12} y={e.y + 28} class="words">{lines(media.fileNameOf(e.media_id) ?? t('app.whiteboards.card_unavailable'), e.width - 48, 14)[0] ?? ''}</text>
+            {#if e.text}<text x={e.x + 12} y={e.y + 50} class="key">{lines(e.text, e.width - 48, 11)[0] ?? ''}</text>{/if}
+            <g
+              role="button"
+              tabindex="-1"
+              class="open"
+              aria-label={t('app.whiteboards.file_open', { name: media.fileNameOf(e.media_id) ?? '' })}
+              onclick={() => void openFile(e.media_id)}
+              onkeydown={(event) => { if (event.key === 'Enter') void openFile(e.media_id); }}
+            ><text x={e.x + e.width - 12} y={e.y + 28} text-anchor="end" class="open">↗</text></g>
           </g>
         {:else if e.kind === 'CARD'}
           {@const target = cardOf(e)}
@@ -1321,6 +1390,9 @@
   .object.shape path { fill: var(--bg-raised); stroke: var(--text-primary); stroke-width: 1.5; }
   .words { fill: var(--text-primary); font-size: var(--fs-100); }
   .card path { fill: var(--bg-raised); stroke: var(--border-default); }
+  .card path.pending { stroke-dasharray: 4 4; }
+  .upload { display: inline-flex; align-items: center; cursor: pointer; color: var(--text-primary); font-size: var(--fs-075); }
+  .upload input { inline-size: 0; block-size: 0; opacity: 0; }
   .card.done .words { text-decoration: line-through; fill: var(--text-subtle); }
   .card .key { fill: var(--text-subtle); font-size: var(--fs-075); }
   .card .open { fill: var(--text-brand); font-size: var(--fs-100); }
