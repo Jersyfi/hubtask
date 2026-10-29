@@ -102,10 +102,17 @@ WITH due AS (
   FROM job AS d
   WHERE (d.state = 'PENDING' AND d.run_at <= $2)
      OR (d.state = 'RUNNING' AND d.locked_until < $2)
+), busy AS (
+  SELECT r.tenant_id AS busy_tenant, count(*) AS running
+  FROM job AS r
+  WHERE r.state = 'RUNNING' AND r.locked_until >= $2
+  GROUP BY r.tenant_id
 ), ranked AS (
   SELECT due_id, due_priority, due_run_at,
-         row_number() OVER (PARTITION BY due_tenant ORDER BY due_priority, due_run_at, due_id) AS place
+         row_number() OVER (PARTITION BY due_tenant ORDER BY due_priority, due_run_at, due_id)
+           + coalesce(busy.running, 0) AS place
   FROM due
+  LEFT JOIN busy ON busy.busy_tenant IS NOT DISTINCT FROM due.due_tenant
 ), picked AS (
   SELECT j.id FROM job AS j
   JOIN ranked ON ranked.due_id = j.id
@@ -153,6 +160,10 @@ type ClaimJobsRow struct {
 // that each picked row is still due, and SKIP LOCKED keeps two workers on disjoint batches
 // (ADR-0008). The aliases are not decoration: without them "run_at" would mean two different
 // things in one statement.
+//
+// Fair across workers too (F-10): a tenant's ranks start after the jobs it already has running
+// under a live lease, so a workspace that holds every other worker's slot ranks behind one that
+// holds none, and one batch alone no longer decides who is served.
 func (q *Queries) ClaimJobs(ctx context.Context, arg ClaimJobsParams) ([]ClaimJobsRow, error) {
 	rows, err := q.db.Query(ctx, claimJobs, arg.LockedUntil, arg.Now, arg.BatchSize)
 	if err != nil {

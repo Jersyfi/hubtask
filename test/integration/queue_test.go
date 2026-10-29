@@ -453,3 +453,53 @@ func TestAFloodingTenantDoesNotMonopoliseTheClaim(t *testing.T) {
 			counts[flooder], counts[modest])
 	}
 }
+
+// Fairness across workers (F-10): a tenant whose jobs already run under live leases ranks behind
+// one that runs none, so a worker claiming a single job beside the others serves the waiting
+// tenant rather than the one that holds every slot.
+func TestATenantWithJobsRunningWaitsBehindOneWithNone(t *testing.T) {
+	ctx := context.Background()
+
+	busy := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fb01")
+	waiting := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fb02")
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO tenant (id, slug, display_name)
+		VALUES ($1, 'busy-workers', 'Busy'), ($2, 'waiting-workers', 'Waiting')
+		ON CONFLICT (id) DO NOTHING`, busy.String(), waiting.String()); err != nil {
+		t.Fatalf("seeding tenants: %v", err)
+	}
+
+	// The busy tenant's jobs already run: five leases held by other workers.
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO job (id, tenant_id, kind, payload, run_at, max_attempts, state, attempts, locked_until)
+		SELECT gen_random_uuid(), $1, 'test.fair_workers', '{}'::jsonb, now() - interval '1 hour', 3,
+		       'RUNNING', 1, now() + interval '10 minutes'
+		  FROM generate_series(1, 5)`, busy.String()); err != nil {
+		t.Fatalf("seeding running jobs: %v", err)
+	}
+	moment := time.Now().UTC().Add(-time.Hour)
+	// The busy tenant's next job is older, so age alone would hand it the slot.
+	enqueue(ctx, t, queue.Request{
+		Kind: queue.Kind("test.fair_workers"), TenantID: busy, DedupeKey: "busy-next", RunAt: moment,
+	})
+	enqueue(ctx, t, queue.Request{
+		Kind: queue.Kind("test.fair_workers"), TenantID: waiting, DedupeKey: "waiting-first",
+		RunAt: moment.Add(30 * time.Minute),
+	})
+
+	// One job per claim, as a worker beside the others takes its share: the order of the claims
+	// is the order of service (other tests' leftovers may be served in between).
+	for range 200 {
+		claimed := claim(ctx, t, time.Now().UTC(), time.Minute, 1)
+		if len(claimed) == 0 {
+			break
+		}
+		switch claimed[0].TenantID {
+		case waiting:
+			return
+		case busy:
+			t.Fatal("the tenant holding five running jobs was served before the one holding none")
+		}
+	}
+	t.Fatal("neither of this test's jobs was claimed")
+}

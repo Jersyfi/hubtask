@@ -313,8 +313,9 @@ ledger on the same workspace day. It is not unlimited in single mode, unlike the
 holds the intake address decides what arrives ([security.md](./security.md) T-27). An arrival past
 it is not asked about; it waits for a person, and nothing else changes.
 
-**Fairness:** the job queue claims per tenant round-robin, so one tenant cannot monopolise the
-workers; `statement_timeout` per role; a query DSL request whose estimated cost is over the cap is
+**Fairness:** the job queue claims per tenant round-robin, and a tenant's turn starts after the
+jobs it already has running, so one tenant cannot monopolise the workers - neither within one batch
+nor across the workers claiming beside each other (`ClaimJobs`, F-10); `statement_timeout` per role; a query DSL request whose estimated cost is over the cap is
 refused before it runs.
 
 ---
