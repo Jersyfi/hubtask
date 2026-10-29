@@ -25,7 +25,7 @@ func configGroup() group {
 		summary: "the workspace's configuration as one document: plan, apply, history, rollback",
 		commands: []command{
 			{name: "schema", summary: "the document's JSON Schema", run: configGet("schema", "/meta/config-schema")},
-			{name: "export", summary: "the document in force, with its hash", run: configGet("export", configPath)},
+			{name: "export", summary: "the document in force, with its hash; --hub a hub's own", run: configExport},
 			{name: "explain", summary: "one key: its value, source, lock and who may change it", run: configExplain},
 			{name: "validate", summary: "what a document refuses", run: configValidate},
 			{name: "plan", summary: "what a document would change, writing nothing", run: configPlan},
@@ -61,8 +61,49 @@ func configGet(verb, path string) func(context.Context, *CLI, []string) error {
 	}
 }
 
+// hubFlag names the hub whose own document a verb is for: its modules, structure and workflow
+// scheme. Omitted is the workspace's document.
+func hubFlag(flags interface {
+	String(name, value, usage string) *string
+}) *string {
+	return flags.String("hub", "", "a hub's identifier, for the hub's own document")
+}
+
+// withHubQuery and withHubBody carry the hub a verb names.
+func withHubQuery(query url.Values, hub string) url.Values {
+	if hub != "" {
+		query.Set("hub_id", hub)
+	}
+	return query
+}
+
+func withHubBody(body map[string]any, hub string) map[string]any {
+	if hub != "" {
+		body["hub_id"] = hub
+	}
+	return body
+}
+
+func configExport(ctx context.Context, cli *CLI, args []string) error {
+	flags := commandFlags(cli, "config", "export", "[--hub <id>]")
+	hub := hubFlag(flags)
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var out map[string]any
+	if err := client.Get(ctx, configPath, withHubQuery(url.Values{}, *hub), &out); err != nil {
+		return err
+	}
+	return cli.emitJSON(out)
+}
+
 func configExplain(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "config", "explain", "<key>")
+	flags := commandFlags(cli, "config", "explain", "<key> [--hub <id>]")
+	hub := hubFlag(flags)
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
@@ -74,7 +115,7 @@ func configExplain(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	var out map[string]any
-	if err := client.Get(ctx, configPath+"/explain", url.Values{"key": {flags.Arg(0)}}, &out); err != nil {
+	if err := client.Get(ctx, configPath+"/explain", withHubQuery(url.Values{"key": {flags.Arg(0)}}, *hub), &out); err != nil {
 		return err
 	}
 	rows := [][]string{}
@@ -118,9 +159,10 @@ func configMode(replace bool) string {
 }
 
 func configValidate(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "config", "validate", "-f <file> [--replace]")
+	flags := commandFlags(cli, "config", "validate", "-f <file> [--replace] [--hub <id>]")
 	file := flags.String("f", "", "the document; - reads standard input")
 	replace := flags.Bool("replace", false, "state each section the document names whole")
+	hub := hubFlag(flags)
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
@@ -133,16 +175,17 @@ func configValidate(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	var out map[string]any
-	if err := client.Post(ctx, configPath+":validate", map[string]any{"document": document, "mode": configMode(*replace)}, &out); err != nil {
+	if err := client.Post(ctx, configPath+":validate", withHubBody(map[string]any{"document": document, "mode": configMode(*replace)}, *hub), &out); err != nil {
 		return err
 	}
 	return cli.Emit(out, configRefusalTable(out))
 }
 
 func configPlan(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "config", "plan", "-f <file> [--replace]")
+	flags := commandFlags(cli, "config", "plan", "-f <file> [--replace] [--hub <id>]")
 	file := flags.String("f", "", "the document; - reads standard input")
 	replace := flags.Bool("replace", false, "state each section the document names whole")
+	hub := hubFlag(flags)
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
@@ -150,7 +193,7 @@ func configPlan(ctx context.Context, cli *CLI, args []string) error {
 	if err != nil {
 		return err
 	}
-	return planAndShow(ctx, cli, map[string]any{"document": document, "mode": configMode(*replace)})
+	return planAndShow(ctx, cli, withHubBody(map[string]any{"document": document, "mode": configMode(*replace)}, *hub))
 }
 
 func planAndShow(ctx context.Context, cli *CLI, body map[string]any) error {
@@ -182,6 +225,18 @@ func configPlanTable(plan map[string]any) Table {
 		refusal, _ := raw.(map[string]any)
 		rows = append(rows, []string{"REFUSED", cellOf(refusal["path"]), cellOf(refusal["code"])})
 	}
+	reach, _ := plan["reach"].([]any)
+	for _, raw := range reach {
+		r, _ := raw.(map[string]any)
+		var what []string
+		if entries, held := r["entries"]; held {
+			what = append(what, cellOf(entries)+" entries move")
+		}
+		if accounts, held := r["accounts"]; held {
+			what = append(what, cellOf(accounts)+" people, "+cellOf(r["groups"])+" groups")
+		}
+		rows = append(rows, []string{"REACHES", cellOf(r["path"]), strings.Join(what, "; ")})
+	}
 	rows = append(rows, []string{"PLAN", cellOf(plan["plan_hash"]), ""})
 	return Table{Columns: []string{"op", "key", "fields"}, Rows: rows}
 }
@@ -197,7 +252,8 @@ func configRefusalTable(out map[string]any) Table {
 }
 
 func configApply(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "config", "apply", "-f <file> --plan <hash> [--replace] [--acknowledge] [--template key@version]")
+	flags := commandFlags(cli, "config", "apply", "-f <file> --plan <hash> [--replace] [--acknowledge] [--template key@version] [--hub <id>]")
+	hub := hubFlag(flags)
 	file := flags.String("f", "", "the document that was planned; - reads standard input")
 	planHash := flags.String("plan", "", "the plan hash `hubctl config plan` answered")
 	replace := flags.Bool("replace", false, "state each section the document names whole")
@@ -217,7 +273,7 @@ func configApply(ctx context.Context, cli *CLI, args []string) error {
 	if *template != "" {
 		body["template"] = *template
 	}
-	return applyAndShow(ctx, cli, body)
+	return applyAndShow(ctx, cli, withHubBody(body, *hub))
 }
 
 func applyAndShow(ctx context.Context, cli *CLI, body map[string]any) error {
@@ -244,8 +300,9 @@ func configResultTable(out map[string]any) Table {
 }
 
 func configHistory(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "config", "history", "[--before <version>]")
+	flags := commandFlags(cli, "config", "history", "[--before <version>] [--hub <id>]")
 	before := flags.Int("before", 0, "list the versions before this one")
+	hub := hubFlag(flags)
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
@@ -258,7 +315,7 @@ func configHistory(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	var out map[string]any
-	if err := client.Get(ctx, configPath+"/versions", query, &out); err != nil {
+	if err := client.Get(ctx, configPath+"/versions", withHubQuery(query, *hub), &out); err != nil {
 		return err
 	}
 	rows := [][]string{}
@@ -275,7 +332,8 @@ func configHistory(ctx context.Context, cli *CLI, args []string) error {
 }
 
 func configRollback(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "config", "rollback", "<version> [--yes] [--acknowledge]")
+	flags := commandFlags(cli, "config", "rollback", "<version> [--yes] [--acknowledge] [--hub <id>]")
+	hub := hubFlag(flags)
 	yes := flags.Bool("yes", false, "apply the plan rather than only show it")
 	acknowledge := flags.Bool("acknowledge", false, "the plan hides data or changes permissions, and that is seen")
 	if err := parseCommand(flags, args); err != nil {
@@ -286,20 +344,20 @@ func configRollback(ctx context.Context, cli *CLI, args []string) error {
 		return usagef("hubctl config rollback takes one version number")
 	}
 	if !*yes {
-		return planAndShow(ctx, cli, map[string]any{"to_version": version})
+		return planAndShow(ctx, cli, withHubBody(map[string]any{"to_version": version}, *hub))
 	}
 	client, err := cli.client()
 	if err != nil {
 		return err
 	}
 	var plan map[string]any
-	if err := client.Post(ctx, configPath+":plan", map[string]any{"to_version": version}, &plan); err != nil {
+	if err := client.Post(ctx, configPath+":plan", withHubBody(map[string]any{"to_version": version}, *hub), &plan); err != nil {
 		return err
 	}
 	if plan["plan_hash"] == nil {
 		return cli.Emit(plan, configPlanTable(plan))
 	}
-	return applyAndShow(ctx, cli, map[string]any{"to_version": version, "plan_hash": plan["plan_hash"], "acknowledge": *acknowledge})
+	return applyAndShow(ctx, cli, withHubBody(map[string]any{"to_version": version, "plan_hash": plan["plan_hash"], "acknowledge": *acknowledge}, *hub))
 }
 
 func configProposals(ctx context.Context, cli *CLI, args []string) error {
