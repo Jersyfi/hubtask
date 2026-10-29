@@ -326,7 +326,9 @@ hub, a collection and a person (migration 0208).
 
 **The configuration document** (F-6, D-15 … D-17; packages `core/domain/model/config` and
 `core/application/service/config`). A workspace's configuration as one document of sections -
-`modules`, `roles`, `fields`, `link_types`, `types` (with their forms), `workflows`, `settings` - each
+`modules`, `roles`, `fields`, `link_types`, `types` (with their forms), `structure` (one block per
+structure setting the workspace decides itself, set and reset through `SetWorkspaceStructure`),
+`workflows`, `settings` - each
 block named by a stable key (`types.incident`), never by an identifier, and holding no content and no
 secret. A section is declared by the use cases that read and write it (its list, create, change and
 remove), so a document is read and applied through the registry like every other door (P-18), and
@@ -348,6 +350,10 @@ installation and a plan may lock it and a workspace only tightens it. A **templa
 taking one records `template@version` with the version's document (`config_template_use`), and an
 upgrade compares that base, the workspace's document and the newer version three ways: what only the
 template changed is taken, what the workspace changed too is a conflict shown and left unless chosen.
+Hubtask's own templates (origin `HUBTASK`) are build data, not rows: today the four presets, each a
+template of its structure part at `list@1`, `tasks@1`, `project@1`, `flow@1`; a workspace template
+may not take one of their keys (`config.template_key_shipped`). The four tables are in the workspace
+archive (tenant-export.md §6).
 
 **Modules** (UC-INS-21, package `core/domain/model/module`) are catalogue entries `module.<name>`
 of kind `FLAG`, off by default: the installation and a plan lock one on or off, the workspace
