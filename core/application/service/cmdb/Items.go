@@ -274,7 +274,7 @@ func (h UpdateCi) Descriptor() usecase.Descriptor {
 			{Name: "attributes", Kind: usecase.KindObject, Description: "Attribute keys to new values; null clears."},
 			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true, Description: "The version last read."},
 		},
-		Audit: usecase.AuditDeclaration{Action: CIChangedAction, TargetType: ciTarget, Severity: audit.SeverityInfo},
+		Audit: usecase.AuditDeclaration{Action: CIChangedAction, TargetType: ciTarget, Severity: audit.SeverityInfo, Required: true},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			id, err := in.ID("ci_id")
 			if err != nil {

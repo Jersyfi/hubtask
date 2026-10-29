@@ -124,7 +124,7 @@ func (h ReconcileCis) Descriptor() usecase.Descriptor {
 			{Name: "relations", Kind: usecase.KindList, Description: "Up to 5000 relations: type, from and to by an item's ref, or from_id and to_id by a CI."},
 			dryRunField,
 		},
-		Audit: usecase.AuditDeclaration{Action: ReconciledAction, TargetType: runTarget, Severity: audit.SeverityInfo},
+		Audit: usecase.AuditDeclaration{Action: ReconciledAction, TargetType: runTarget, Severity: audit.SeverityInfo, Required: true},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			hub, err := in.ID("hub_id")
 			if err != nil {
@@ -161,7 +161,7 @@ func (h ImportCiFile) Descriptor() usecase.Descriptor {
 			{Name: "mapping", Kind: usecase.KindObject, Description: "How a CSV or JSON file is read, instead of the source's saved mapping."},
 			dryRunField,
 		},
-		Audit: usecase.AuditDeclaration{Action: ReconciledAction, TargetType: runTarget, Severity: audit.SeverityInfo},
+		Audit: usecase.AuditDeclaration{Action: ReconciledAction, TargetType: runTarget, Severity: audit.SeverityInfo, Required: true},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			hub, err := in.ID("hub_id")
 			if err != nil {
