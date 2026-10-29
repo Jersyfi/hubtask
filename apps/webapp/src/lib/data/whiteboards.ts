@@ -9,7 +9,7 @@
  */
 
 import { values } from '@hubtask/design-system';
-import type { Colours, Element } from '@hubtask/whiteboard';
+import { box, type Colours, type Element } from '@hubtask/whiteboard';
 
 export const liveBoardPath = (boardId: string) => `/realtime/documents/whiteboard/${encodeURIComponent(boardId)}`;
 
@@ -31,7 +31,7 @@ export function pictureColours(): Colours {
 }
 
 /** The name an export is saved under: the board's title made a file name. */
-export function boardFileName(title: string, extension: 'svg' | 'png' | 'json'): string {
+export function boardFileName(title: string, extension: 'svg' | 'png' | 'pdf' | 'json'): string {
   const base = title.normalize('NFKD').replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/gu, '').slice(0, 80) || 'whiteboard';
   return `${base}.${extension}`;
 }
@@ -50,4 +50,33 @@ export function readNative(text: string): { title: string; elements: Element[] }
 /** The entries a board's cards draw, once each. */
 export function cardEntries(elements: readonly Element[]): string[] {
   return [...new Set(elements.flatMap((e) => (e.kind === 'CARD' && e.target ? [e.target.id] : [])))];
+}
+
+/** The colour another person's cursor is drawn in: one of the label colours, the same on every device. */
+export function peerColour(clientId: number): LabelName {
+  return BOARD_COLOURS[Math.abs(clientId) % BOARD_COLOURS.length] as LabelName;
+}
+
+/** The sticky notes with words lying wholly inside a frame: what a frame made entries turns (UC-CNV-02). */
+export function notesInFrame(elements: readonly Element[], frame: Element): Element[] {
+  const f = box(frame);
+  return elements.filter((e) => {
+    if (e.kind !== 'STICKY' || !(e.text ?? '').trim()) return false;
+    const b = box(e);
+    return b.left >= f.left && b.top >= f.top && b.right <= f.right && b.bottom <= f.bottom;
+  });
+}
+
+/**
+ * The key a person's votes are kept under: their account in an open session; in an anonymous one
+ * a key their device minted for the session, so the board's document never names the voter.
+ */
+export function voterKey(anonymous: boolean, accountId: string, minted: () => string, kept?: string): string {
+  return anonymous ? kept ?? minted() : accountId;
+}
+
+/** A timer's time left as minutes and seconds. */
+export function clockOf(ms: number): string {
+  const seconds = Math.ceil(Math.max(0, ms) / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }

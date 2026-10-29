@@ -7,10 +7,14 @@
  * table are written here (ISO 32000-1 §7.5), the JPEG passed through as `DCTDecode`.
  */
 
-/** A PDF of one page showing a JPEG picture of a width and height in pixels, at 96 pixels an inch. */
-export function pdfOfJpeg(jpeg: Uint8Array, width: number, height: number, title: string): Uint8Array {
-  const pageWidth = round(width * 0.75);
-  const pageHeight = round(height * 0.75);
+/**
+ * A PDF of one page showing a JPEG picture of a width and height in pixels. The page is the
+ * picture's size at 96 pixels an inch, or the size given - a picture drawn at twice the scale
+ * for sharpness keeps the page of its own size.
+ */
+export function pdfOfJpeg(jpeg: Uint8Array, width: number, height: number, title: string, page?: { width: number; height: number }): Uint8Array {
+  const pageWidth = round((page?.width ?? width) * 0.75);
+  const pageHeight = round((page?.height ?? height) * 0.75);
   const content = `q ${pageWidth} 0 0 ${pageHeight} 0 0 cm /Im0 Do Q`;
   const encoder = new TextEncoder();
   const chunks: Uint8Array[] = [];

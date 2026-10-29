@@ -145,6 +145,9 @@ test('the board exports as a PDF of one page holding its picture (UC-CNV-03 chec
   assert.equal(text.slice(xref, xref + 4), 'xref', 'the cross-reference table is where the trailer says');
   const offsets = [...text.matchAll(/(\d{10}) 00000 n/g)].map((m) => Number(m[1]));
   offsets.forEach((offset, i) => assert.equal(text.slice(offset, offset + `${i + 1} 0 obj`.length), `${i + 1} 0 obj`));
+  const sharp = new TextDecoder('latin1').decode(pdfOfJpeg(jpeg, 1600, 1200, 'x', { width: 800, height: 600 }));
+  assert.match(sharp, /\/MediaBox \[0 0 600 450\]/, 'a picture drawn at twice the scale keeps its page');
+  assert.match(sharp, /\/Width 1600 \/Height 1200/);
 });
 
 test('a stroke and a web link are drawn in the picture', () => {

@@ -120,7 +120,7 @@
   }
 
   const when = (at: string) => formatDateTime(at, messages.locale);
-  const collections = $derived(hubId ? containers.collectionsOf(hubId).map((each) => ({ id: each.id, name: each.name })) : []);
+  const collections = $derived(hubId ? containers.collectionsOf(hubId).map((each) => ({ id: each.id, name: each.name, settings: each.structure?.settings })) : []);
 </script>
 
 {#if boardId}
