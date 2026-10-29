@@ -127,6 +127,7 @@ export type {
   PageVersionRead,
   PageVersionList,
   PageVersionName,
+  PageVersionNamed,
   PageComment,
   PageCommentList,
   PageCommentCreate,

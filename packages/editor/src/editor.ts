@@ -154,7 +154,6 @@ export interface PageEditorOptions {
   readonly onBlock?: (block: { id: string; text: string } | undefined) => void;
   /** The words drawn for a reference before it is resolved. */
   readonly fallback?: string;
-  readonly placeholder?: string;
 }
 
 /** Builds the editor. The caller destroys it with the screen. */

@@ -249,6 +249,7 @@ export type PageVersion = components['schemas']['PageVersion'];
 export type PageVersionRead = components['schemas']['PageVersionRead'];
 export type PageVersionList = components['schemas']['PageVersionList'];
 export type PageVersionName = components['schemas']['PageVersionName'];
+export type PageVersionNamed = components['schemas']['PageVersionNamed'];
 export type PageComment = components['schemas']['PageComment'];
 export type PageCommentList = components['schemas']['PageCommentList'];
 export type PageCommentCreate = components['schemas']['PageCommentCreate'];
