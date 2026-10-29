@@ -56,6 +56,8 @@ var privateHubExemptions = map[string]string{
 	"GetMedia":                     asksOnItsPath,
 	"ListAttachments":              asksOnItsPath,
 	"ListMemberships":              asksOnItsPath,
+	"ListRoles":                    asksOnItsPath + " - each grant's place; the workspace's grants are its own",
+	"ExplainAccess":                asksOnItsPath + " - the place asked about, when it is about somebody else",
 	"ListEntryLinks":               asksOnItsPath + " - the entry's, and each other end's through the same question",
 	"ListLinksAmong":               asksOnItsPath + " - each entry's own",
 	"ResolveReferences":            asksOnItsPath + " - each referenced entry's own",
