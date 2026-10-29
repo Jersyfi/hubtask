@@ -76,6 +76,7 @@ var restDoors = map[string]restDoor{
 	"readConfigSandbox":      {UseCase: "ReadConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readConfigSchema":       {UseCase: "ReadConfigSchema", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readConfigVersion":      {UseCase: "ReadConfigVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readQuotas":             {UseCase: "ReadQuotas", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readSettingsCatalogue":  {UseCase: "ReadSettingsCatalogue", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeLabel":            {UseCase: "RemoveLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeMember":           {UseCase: "RemoveMember", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -484,6 +485,11 @@ func (c *RestController) ReadConfigSchema(w http.ResponseWriter, r *http.Request
 func (c *RestController) ReadConfigVersion(w http.ResponseWriter, r *http.Request, version int) {
 	var answer openapi.ConfigVersion
 	c.door(w, r, restDoors["readConfigVersion"], usecase.Input{"version": version}, nil, nil, &answer)
+}
+
+// ReadQuotas answers GET /quotas by the generated mapping.
+func (c *RestController) ReadQuotas(w http.ResponseWriter, r *http.Request) {
+	c.door(w, r, restDoors["readQuotas"], usecase.Input{}, nil, nil, answerRows(quotaStandingsResponse))
 }
 
 // ReadSettingsCatalogue answers GET /settings/catalogue by the generated mapping.

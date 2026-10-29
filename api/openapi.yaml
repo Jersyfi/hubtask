@@ -6609,6 +6609,8 @@ paths:
     get:
       tags: [meta]
       operationId: readQuotas
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: quotaStandingsResponse
       summary: The workspace's quota standing
       description: >
         Every quota as it applies to this workspace: the resolved
