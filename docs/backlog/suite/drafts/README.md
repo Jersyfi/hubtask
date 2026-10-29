@@ -8,10 +8,10 @@ builds it, in `state: specified` first, and is proven there by tests.
 |---|---|---|---|
 | INS-21 | landed as [UC-INS-21](../../../usecases/admin/UC-INS-21-switch-a-module-on.md) | S-02 | — |
 | FLW-01 | landed as [UC-FLW-01](../../../usecases/workflow/UC-FLW-01-give-our-work-its-own-types.md) | S-03, S-06 | — |
-| [FLW-02](./FLW-02-describe-how-our-work-moves.md) | `docs/usecases/workflow/`, the prefix `FLW` (the context exists since S-03) | S-07 | — |
-| [FLW-03](./FLW-03-move-an-entry-on.md) | `docs/usecases/workflow/`, the prefix `FLW` (the context exists since S-03) | S-07 | — |
-| [FLW-04](./FLW-04-ask-for-what-a-step-needs.md) | `docs/usecases/workflow/`, the prefix `FLW` (the context exists since S-03) | S-07 | — |
-| [FLW-05](./FLW-05-change-a-workflow-in-use.md) | `docs/usecases/workflow/`, the prefix `FLW` (the context exists since S-03) | S-07 | — |
+| FLW-02 | landed as [UC-FLW-02](../../../usecases/workflow/UC-FLW-02-describe-how-our-work-moves.md) | S-07 | — |
+| FLW-03 | landed as [UC-FLW-03](../../../usecases/workflow/UC-FLW-03-move-an-entry-on.md) | S-07 | — |
+| FLW-04 | landed as [UC-FLW-04](../../../usecases/workflow/UC-FLW-04-ask-for-what-a-step-needs.md) | S-07 | — |
+| FLW-05 | landed as [UC-FLW-05](../../../usecases/workflow/UC-FLW-05-change-a-workflow-in-use.md) | S-07 | — |
 
 The front matter's `id:` is written without `UC-` until the file moves, for the reason in
 [`../README.md`](../README.md#what-is-in-this-folder). The *Today* lines name the step that carries

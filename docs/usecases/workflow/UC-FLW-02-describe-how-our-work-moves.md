@@ -1,5 +1,5 @@
 ---
-id: FLW-02
+id: UC-FLW-02
 title: Describe how our work moves, and switch it on
 context: workflow
 actors: [PE-admin, PE-member]
@@ -44,8 +44,8 @@ publishes; the board now shows one column per status.
 ## Where it ends
 
 * One workflow per type per collection; no parallel statuses.
-* Steps with conditions, required fields and actions: FLW-04.
-* Changing a workflow in use: FLW-05.
+* Steps with conditions, required fields and actions: [UC-FLW-04](./UC-FLW-04-ask-for-what-a-step-needs.md).
+* Changing a workflow in use: [UC-FLW-05](./UC-FLW-05-change-a-workflow-in-use.md).
 
 ## Today
 

@@ -32,7 +32,7 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`suggestion/`](./suggestion/) | `UC-AI` | AI providers and suggestions | `service/suggestion` |
 | [`sync/`](./sync/) | `UC-SYN` | Working offline and merging | `service/sync` |
 | [`importer/`](./importer/) | `UC-IMP` | Bringing work in from elsewhere | `service/importer` |
-| [`workflow/`](./workflow/) | `UC-FLW` | A workspace's own entry types and, later, how its work moves | `service/workflow` |
+| [`workflow/`](./workflow/) | `UC-FLW` | A workspace's own entry types and how its work moves | `service/workflow` |
 | [`planning/`](./planning/) | `UC-PLN` | Dependencies between entries and, later, the plan they make | `service/work` (links) |
 
 ## What a use case looks like
@@ -240,6 +240,10 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-WRK-30](./work/UC-WRK-30-make-my-own-presets-and-use-the-workspaces.md) | Make my own presets and use the workspace's | work |
 | [UC-WRK-31](./work/UC-WRK-31-run-a-collection-as-a-flow.md) | Run a collection as a flow | work |
 | [UC-FLW-01](./workflow/UC-FLW-01-give-our-work-its-own-types.md) | Give our work its own types | workflow |
+| [UC-FLW-02](./workflow/UC-FLW-02-describe-how-our-work-moves.md) | Describe how our work moves, and switch it on | workflow |
+| [UC-FLW-03](./workflow/UC-FLW-03-move-an-entry-on.md) | Move an entry on, and be told what it still needs | workflow |
+| [UC-FLW-04](./workflow/UC-FLW-04-ask-for-what-a-step-needs.md) | Ask for what a step needs, and act when it is taken | workflow |
+| [UC-FLW-05](./workflow/UC-FLW-05-change-a-workflow-in-use.md) | Change a workflow that is already in use | workflow |
 | [UC-PLN-01](./planning/UC-PLN-01-say-that-one-piece-of-work-waits-for-another.md) | Say that one piece of work waits for another | planning |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work |
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
