@@ -17547,7 +17547,8 @@ type ClientInterface interface {
 	// held, and every permission they carry. Given `permission`, also whether the person holds
 	// it and through which role - the answer behind "view as" and "why may this person do
 	// that". A person may always ask about themselves; about somebody else it takes
-	// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace.
+	// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub or a collection,
+	// `READ` at that place - a place the caller does not reach answers not found.
 	//
 	// Corresponds with GET /access/explain (the `ExplainAccess` operationId).
 	ExplainAccess(ctx context.Context, params *ExplainAccessParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -23765,7 +23766,8 @@ type ClientInterface interface {
 // held, and every permission they carry. Given `permission`, also whether the person holds
 // it and through which role - the answer behind "view as" and "why may this person do
 // that". A person may always ask about themselves; about somebody else it takes
-// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace.
+// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub or a collection,
+// `READ` at that place - a place the caller does not reach answers not found.
 //
 // Corresponds with GET /access/explain (the `ExplainAccess` operationId).
 func (c *Client) ExplainAccess(ctx context.Context, params *ExplainAccessParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -57362,7 +57364,8 @@ type ClientWithResponsesInterface interface {
 	// held, and every permission they carry. Given `permission`, also whether the person holds
 	// it and through which role - the answer behind "view as" and "why may this person do
 	// that". A person may always ask about themselves; about somebody else it takes
-	// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace.
+	// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub or a collection,
+	// `READ` at that place - a place the caller does not reach answers not found.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -85798,7 +85801,8 @@ func (r PublishWorkflowResult) ContentType() string {
 // held, and every permission they carry. Given `permission`, also whether the person holds
 // it and through which role - the answer behind "view as" and "why may this person do
 // that". A person may always ask about themselves; about somebody else it takes
-// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace.
+// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub or a collection,
+// `READ` at that place - a place the caller does not reach answers not found.
 //
 // Returns a wrapper object for the known response body format(s).
 //

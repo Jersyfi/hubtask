@@ -11148,7 +11148,7 @@
         ],
         "operationId": "explainAccess",
         "summary": "What a person holds at a place, and why",
-        "description": "The roles that count for the person at the workspace, a hub or a collection, where each is\nheld, and every permission they carry. Given `permission`, also whether the person holds\nit and through which role - the answer behind \"view as\" and \"why may this person do\nthat\". A person may always ask about themselves; about somebody else it takes\n`MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace.\n",
+        "description": "The roles that count for the person at the workspace, a hub or a collection, where each is\nheld, and every permission they carry. Given `permission`, also whether the person holds\nit and through which role - the answer behind \"view as\" and \"why may this person do\nthat\". A person may always ask about themselves; about somebody else it takes\n`MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub or a collection,\n`READ` at that place - a place the caller does not reach answers not found.\n",
         "parameters": [
           {
             "name": "account_id",

@@ -692,7 +692,8 @@ func (h ExplainAccess) Descriptor() usecase.Descriptor {
 		Summary: "Answers what a person holds at the workspace, a hub or a collection: the roles that " +
 			"count there and where each is held, and every permission they carry. Given a permission, " +
 			"also whether the person holds it and through which role. A person may ask about " +
-			"themselves; about somebody else it takes MANAGE_MEMBERS or READ_CONFIGURATION.",
+			"themselves; about somebody else it takes MANAGE_MEMBERS or READ_CONFIGURATION at the " +
+			"workspace and, for a hub or a collection, READ at that place.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  membersRead,
 		ReadOnly:    true,
