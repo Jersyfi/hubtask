@@ -117,6 +117,7 @@ export { default as DueDateControl, type DueDate } from './DueDateControl.svelte
 export {
   default as Timeline,
   type TimelineCarry,
+  type TimelineDependency,
   type TimelineRow,
   type TimelineTick,
 } from './Timeline.svelte';

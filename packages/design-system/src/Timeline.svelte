@@ -36,8 +36,13 @@
   // **The axis marks are the caller's.** A gridline is a date and a phrase, already worded: which
   // granularity to mark, where a week starts, and how a month is spelled are all questions this
   // package answers in no language (ADR-0011).
+  //
+  // **A dependency is an arrow from the end of the entry waited for to the start of the waiting
+  // one** (UC-PLN-01 check 6), measured off the cells it joins rather than computed, so it lands on
+  // the bars at every scale and direction. An arrow is not readable: each is also said in words,
+  // and one whose waiting entry starts too early is dashed as well as tinted (rule 3).
 
-  import type { Snippet } from 'svelte';
+  import { tick, type Snippet } from 'svelte';
 
   import { HOLD_MS, columnAt, hasLeftTheHandle } from './reorder.ts';
   import { rovingIndex } from './focus.ts';
@@ -62,6 +67,19 @@
   /** One mark on the axis: where it sits, and what it says. */
   export interface TimelineTick {
     readonly at: string;
+    readonly label: string;
+  }
+
+  /** One entry waiting for another, which the axis draws as an arrow between the two rows. */
+  export interface TimelineDependency {
+    readonly id: string;
+    /** The row waited for: the arrow leaves its end. */
+    readonly from: string;
+    /** The waiting row: the arrow reaches its start. */
+    readonly to: string;
+    /** Whether the waiting entry starts before the other is due. */
+    readonly isEarly?: boolean;
+    /** The dependency in words, already worded by the caller. */
     readonly label: string;
   }
 
@@ -112,6 +130,10 @@
      * otherwise send is not delivered, so the row does not also open.
      */
     onHold?: (id: string) => void;
+    /** Which rows wait for which. Drawn where both rows are on the axis. */
+    dependencies?: readonly TimelineDependency[];
+    /** What the list of dependencies in words is called. */
+    dependenciesLabel?: string;
   }
 
   const {
@@ -132,6 +154,8 @@
     currentId,
     rowAction,
     onHold,
+    dependencies = [],
+    dependenciesLabel,
   }: Props = $props();
 
   const DAY = 86_400_000;
@@ -201,6 +225,66 @@
       row: undated.find((row) => row.id === held.id),
       first: Math.min(held.from, held.to),
       last: Math.max(held.from, held.to),
+    };
+  });
+
+  /** The arrows as drawn, in the scroller's own pixels; re-measured whenever what they join moves. */
+  let arrows = $state<{ id: string; d: string; isEarly: boolean }[]>([]);
+  let canvas = $state<SVGSVGElement | null>(null);
+
+  const drawn = $derived(
+    dependencies.filter(
+      (dependency) =>
+        placed.some((entry) => entry.row.id === dependency.from) && placed.some((entry) => entry.row.id === dependency.to),
+    ),
+  );
+
+  function measure() {
+    const box = canvas?.getBoundingClientRect();
+    if (!box || !list) {
+      arrows = [];
+      return;
+    }
+    const isRtl = canvas !== null && getComputedStyle(canvas).direction === 'rtl';
+    const bar = (id: string) => {
+      const cells = list?.querySelectorAll<HTMLElement>(`[data-row="${CSS.escape(id)}"] .cell[data-filled]`);
+      if (!cells || cells.length === 0) return undefined;
+      const first = cells[0].getBoundingClientRect();
+      const last = cells[cells.length - 1].getBoundingClientRect();
+      return { first, last };
+    };
+    const next: { id: string; d: string; isEarly: boolean }[] = [];
+    for (const dependency of drawn) {
+      const from = bar(dependency.from);
+      const to = bar(dependency.to);
+      if (!from || !to) continue;
+      const x1 = (isRtl ? from.last.left : from.last.right) - box.left;
+      const y1 = from.last.top + from.last.height / 2 - box.top;
+      const x2 = (isRtl ? to.first.right : to.first.left) - box.left;
+      const y2 = to.first.top + to.first.height / 2 - box.top;
+      // The bend is as deep as a bar is tall, so the curve scales with the row and no length is
+      // invented here.
+      const bend = (isRtl ? -1 : 1) * Math.max(from.last.height, to.first.height) * 2;
+      next.push({ id: dependency.id, d: `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`, isEarly: dependency.isEarly === true });
+    }
+    arrows = next;
+  }
+
+  $effect(() => {
+    // Read so the effect runs again when the bars or the arrows asked for change.
+    void placed;
+    void drawn;
+    void scale;
+    let isLive = true;
+    void tick().then(() => {
+      if (isLive) measure();
+    });
+    const observed = list;
+    const observer = typeof ResizeObserver === 'undefined' || !observed ? undefined : new ResizeObserver(() => measure());
+    if (observed) observer?.observe(observed);
+    return () => {
+      isLive = false;
+      observer?.disconnect();
     };
   });
 
@@ -351,6 +435,28 @@
          direction by itself: `overflow-x` follows `direction`, so a right-to-left timeline starts
          at its own beginning without a second rule. -->
     <div class="scroller">
+      {#if drawn.length > 0}
+        <!-- Unsized and overflowing: it draws in the scroller's coordinates from its own corner. -->
+        <svg class="arrows" bind:this={canvas} aria-hidden="true" focusable="false">
+          <defs>
+            <marker id="timeline-arrow" class="head" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" />
+            </marker>
+            <marker id="timeline-arrow-early" class="head" data-early viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" />
+            </marker>
+          </defs>
+          {#each arrows as arrow (arrow.id)}
+            <path
+              class="arrow"
+              data-dependency={arrow.id}
+              data-early={arrow.isEarly ? '' : undefined}
+              d={arrow.d}
+              marker-end={arrow.isEarly ? 'url(#timeline-arrow-early)' : 'url(#timeline-arrow)'}
+            />
+          {/each}
+        </svg>
+      {/if}
       <div class="axis" bind:this={axis}>
         {#each columns as column (column)}
           <span
@@ -462,6 +568,14 @@
         </ul>
       </details>
     {/if}
+  {/if}
+  {#if drawn.length > 0}
+    <!-- The arrows in words: the picture is for the eye, this is what it says. -->
+    <ul class="dependencies" aria-label={dependenciesLabel}>
+      {#each drawn as dependency (dependency.id)}
+        <li data-dependency-said={dependency.id} data-early={dependency.isEarly ? '' : undefined}>{dependency.label}</li>
+      {/each}
+    </ul>
   {/if}
   {#if today !== undefined && todayLabel !== undefined && todayColumn >= 0 && todayColumn < days}
     <!-- The mark is a line, and a line is not readable. The day it stands on is said once. -->
@@ -697,6 +811,44 @@
   [data-locked] > .entry { cursor: pointer; }
 
   .said { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); }
+
+  /* Above the rows and taking no pointer, so a bar under an arrow still drags. */
+  .arrows {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .arrow {
+    fill: none;
+    stroke: var(--text-secondary);
+    stroke-width: var(--bw-thick);
+  }
+
+  .arrow[data-early] {
+    stroke: var(--status-danger-accent);
+    stroke-dasharray: var(--sp-050) var(--sp-025);
+  }
+
+  .head path { fill: var(--text-secondary); }
+  .head[data-early] path { fill: var(--status-danger-accent); }
+
+  .dependencies {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-025);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--text-subtle);
+    font-size: var(--fs-075);
+  }
+
+  .dependencies [data-early] { color: var(--text-danger); }
 
   .empty { margin: 0; padding: var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
 </style>

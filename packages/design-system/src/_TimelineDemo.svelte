@@ -6,12 +6,12 @@
   // and how a day is spelled is a question this package answers in no language.
 
   import IconButton from './IconButton.svelte';
-  import Timeline, { type TimelineCarry, type TimelineRow, type TimelineTick } from './Timeline.svelte';
+  import Timeline, { type TimelineCarry, type TimelineDependency, type TimelineRow, type TimelineTick } from './Timeline.svelte';
 
   const {
     mode = 'mixed',
     scale = 'day',
-  }: { mode?: 'mixed' | 'undatedOnly' | 'empty' | 'locked' | 'actions'; scale?: 'day' | 'week' | 'month' } = $props();
+  }: { mode?: 'mixed' | 'undatedOnly' | 'empty' | 'locked' | 'actions' | 'dependencies'; scale?: 'day' | 'week' | 'month' } = $props();
 
   // The entry open beside the timeline, and what a row's menu or a long press last asked for.
   let current = $state<string | undefined>('r2');
@@ -66,6 +66,13 @@
           : rows,
   );
 
+  // The electrics wait for the fit-out to start nothing - they start before it is due, which is
+  // the case drawn dashed; the sign-off waits for the delivery in good time.
+  const dependencies: TimelineDependency[] = [
+    { id: 'd1', from: 'r1', to: 'r2', isEarly: true, label: 'Electrics first fix waits for Kitchen fit-out - and starts before it is due' },
+    { id: 'd2', from: 'r3', to: 'r4', label: 'Sign off with the client waits for Delivery slot' },
+  ];
+
   const columnOf = (date: string) => Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${FROM}T00:00:00Z`)) / DAY);
 </script>
 
@@ -87,6 +94,8 @@
   onSelect={mode === 'actions' ? (id) => (current = id) : undefined}
   onHold={mode === 'actions' ? (id) => (asked = id) : undefined}
   rowAction={mode === 'actions' ? rowAction : undefined}
+  dependencies={mode === 'dependencies' ? dependencies : []}
+  dependenciesLabel="Dependencies"
 />
 {#if mode === 'actions'}
   <p>Asked for the menu of: {asked ?? 'nothing yet'}</p>
