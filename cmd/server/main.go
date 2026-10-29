@@ -1787,7 +1787,7 @@ func run() error {
 		Items: items, Containers: containers, Types: linkTypeRegistry.Types, Links: entryLinks,
 		References: entryLinks, Views: savedViews, Authorizer: authorizer, Reader: authorizer,
 		Permits: authorizer, Events: outbox, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid,
+		Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid, Activity: journal,
 	}
 	useCases, err := usecase.NewRegistry(
 		settingservice.ModuleGate{Modules: modules}.Wrap(entitlementGate.Wrap(observer.Registry())),
@@ -1846,7 +1846,7 @@ func run() error {
 			Items: items, Containers: containers, Profiles: profiles, EntryTypes: entryTypes,
 			Authorizer: authorizer, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, HLC: hybrid, Forms: entryGate.Forms, Recurrences: recurrences,
-			Workflow: workflowGate,
+			Workflow: workflowGate, Activity: journal,
 			Statuses: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid},
 		}.Descriptor(),
 		identity.InviteAccount{

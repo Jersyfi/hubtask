@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/reference"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -213,6 +214,7 @@ func (h *linkHarness) linking() Linking {
 		Items: h.items, Containers: h.containers, Types: h.types, Links: h.links, References: h.links,
 		Authorizer: h.authorizer, Reader: h.reader, Permits: h.reader, Events: h.events, Audit: h.audit,
 		UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{},
+		Activity: ActivityJournal{Entries: h.history, IDs: &ids{}},
 	}
 }
 
@@ -249,6 +251,15 @@ func TestALinkIsDrawnAnnouncedAndReadFromBothEnds(t *testing.T) {
 	}
 	if last := h.audit.entries[len(h.audit.entries)-1]; last.Action != ItemLinkedAction {
 		t.Errorf("audit %+v", last)
+	}
+	// Both ends' history says a link was drawn, by its type only.
+	if len(h.history.entries) != 2 || h.history.entries[0].ItemID != h.one.ID || h.history.entries[1].ItemID != h.two.ID {
+		t.Fatalf("history %+v", h.history.entries)
+	}
+	for _, step := range h.history.entries {
+		if step.Verb != activity.ItemLinked {
+			t.Errorf("the history says %s", step.Verb)
+		}
 	}
 	write := h.authorizer.requests[len(h.authorizer.requests)-1]
 	if write.Permission != "WRITE_ITEMS" || write.On.ID != h.one.ID {

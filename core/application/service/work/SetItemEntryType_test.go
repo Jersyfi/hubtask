@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -109,7 +110,7 @@ func TestChangingAnEntrysTypeNamesWhatItWouldDrop(t *testing.T) {
 	handler := SetItemEntryType{
 		Items: h.items, Containers: h.containers, Profiles: h.profiles, EntryTypes: types,
 		Authorizer: h.authorizer, Changes: h.changes, Audit: h.audit, UnitOfWork: h.uow,
-		Clock: clock.Fixed(now), HLC: &hlcSource{},
+		Clock: clock.Fixed(now), HLC: &hlcSource{}, Activity: ActivityJournal{Entries: h.history, IDs: &ids{}},
 	}
 
 	changed, err := handler.Execute(ctx, actor(), SetItemEntryTypeCommand{ItemID: open.ID, EntryType: "bug"})
@@ -149,7 +150,7 @@ func TestChangingAnEntrysTypeMeetsTheNewForm(t *testing.T) {
 	handler := SetItemEntryType{
 		Items: h.items, Containers: h.containers, Profiles: h.profiles, EntryTypes: types,
 		Authorizer: h.authorizer, Changes: h.changes, Audit: h.audit, UnitOfWork: h.uow,
-		Clock: clock.Fixed(now), HLC: &hlcSource{},
+		Clock: clock.Fixed(now), HLC: &hlcSource{}, Activity: ActivityJournal{Entries: h.history, IDs: &ids{}},
 		Forms: FormGate{Types: types, Compiler: &answers{of: map[string]bool{}}},
 	}
 
@@ -196,7 +197,7 @@ func TestAConfirmedTypeChangeDropsWhatItNamed(t *testing.T) {
 	handler := SetItemEntryType{
 		Items: h.items, Containers: h.containers, Profiles: h.profiles, EntryTypes: types,
 		Authorizer: h.authorizer, Changes: h.changes, Audit: h.audit, UnitOfWork: h.uow,
-		Clock: clock.Fixed(now), HLC: &hlcSource{}, Recurrences: rules,
+		Clock: clock.Fixed(now), HLC: &hlcSource{}, Recurrences: rules, Activity: ActivityJournal{Entries: h.history, IDs: &ids{}},
 	}
 
 	_, err = handler.Execute(ctx, actor(), SetItemEntryTypeCommand{ItemID: scheduled.ID, EntryType: "server"})
@@ -247,7 +248,7 @@ func TestAChangeOfTypeSettlesTheEntrysStatus(t *testing.T) {
 	handler := SetItemEntryType{
 		Items: h.items, Containers: h.containers, Profiles: h.profiles, EntryTypes: workspaceTypes(),
 		Authorizer: h.authorizer, Changes: h.changes, Audit: h.audit, UnitOfWork: h.uow,
-		Clock: clock.Fixed(now), HLC: &hlcSource{},
+		Clock: clock.Fixed(now), HLC: &hlcSource{}, Activity: ActivityJournal{Entries: h.history, IDs: &ids{}},
 		Workflow: WorkflowGate{Workflows: store},
 		Statuses: StatusMover{Workflows: store, Activity: ActivityJournal{Entries: h.history, IDs: &ids{}}, Changes: h.changes, HLC: &hlcSource{}},
 	}
@@ -258,8 +259,8 @@ func TestAChangeOfTypeSettlesTheEntrysStatus(t *testing.T) {
 	if len(store.moves) != 1 || store.moves[0].EntryType != "bug" || store.moves[0].From != "review" || store.moves[0].To != "" {
 		t.Fatalf("moves = %+v", store.moves)
 	}
-	if len(h.history.entries) != 1 {
-		t.Errorf("the history holds %d steps, want the workflow change", len(h.history.entries))
+	if verbs := h.history.verbs(); len(verbs) != 2 || verbs[0] != activity.ItemEntryTypeChanged || verbs[1] != activity.ItemWorkflowChanged {
+		t.Errorf("the history holds %v, want the change of type and the workflow change", verbs)
 	}
 
 	unwired := handler

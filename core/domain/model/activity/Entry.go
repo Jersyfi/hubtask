@@ -117,6 +117,14 @@ const (
 	// no step.
 	ItemStepTaken       Verb = "item.step_taken"
 	ItemWorkflowChanged Verb = "item.workflow_changed"
+
+	// The link pair: a link drawn or removed is in the history of both its ends, naming the link
+	// type only - the other end may be out of a reader's reach.
+	ItemLinked   Verb = "item.linked"
+	ItemUnlinked Verb = "item.unlinked"
+
+	// ItemEntryTypeChanged is an entry given another type, from which to which.
+	ItemEntryTypeChanged Verb = "item.entry_type_changed"
 )
 
 var verbs = [...]Verb{
@@ -127,6 +135,7 @@ var verbs = [...]Verb{
 	ItemAttachmentAdded, ItemAttachmentRemoved, ItemCoverSet, ItemCoverCleared,
 	ItemCustomFieldSet, ItemDueSet, ItemDueCleared, ItemCommented, ItemDuplicated,
 	ItemMerged, ItemChangeLost, ItemStepTaken, ItemWorkflowChanged,
+	ItemLinked, ItemUnlinked, ItemEntryTypeChanged,
 }
 
 // Verbs returns every verb the history knows, in a stable order.

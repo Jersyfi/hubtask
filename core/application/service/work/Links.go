@@ -17,6 +17,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/reference"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -74,6 +75,8 @@ type Linking struct {
 	// nothing, a test's convenience.
 	Changes changelog.ChangeLog
 	HLC     clock.HLCSource
+	// Activity writes the link into the history of both its ends.
+	Activity ActivityJournal
 }
 
 // summaryPath is the scope chain an entry's summary is judged against, ending on the entry so
@@ -327,6 +330,9 @@ func (l Linking) announce(
 	if err := l.recordChange(ctx, actor, link, source, action); err != nil {
 		return err
 	}
+	if err := l.recordHistory(ctx, actor, link, source, action, now); err != nil {
+		return err
+	}
 	return l.Audit.Append(ctx, audit.Entry{
 		TenantID: actor.TenantID, OccurredAt: now, Action: action,
 		Outcome: audit.OutcomeSuccess, Severity: audit.SeverityInfo,
@@ -339,6 +345,29 @@ func (l Linking) announce(
 			audit.Change{Field: "target_id", Classification: audit.Open, To: link.TargetID.String()},
 		),
 	})
+}
+
+// recordHistory writes the link into both ends' history, naming its type and not the other end.
+func (l Linking) recordHistory(
+	ctx context.Context, actor appshared.ActorContext, link domain.EntryLink, source domain.WorkItem,
+	action audit.Action, now time.Time,
+) error {
+	verb, from, to := activity.ItemLinked, "", link.Type
+	if action == ItemUnlinkedAction {
+		verb, from, to = activity.ItemUnlinked, link.Type, ""
+	}
+	target, err := l.Items.Find(ctx, link.TargetID)
+	if err != nil {
+		return err
+	}
+	for _, end := range []domain.WorkItem{source, target} {
+		if err := l.Activity.record(ctx, actor, end, verb, activity.ChangeSet(activity.Full,
+			activity.Field{Name: "link_type", Detail: activity.WithValues, From: from, To: to},
+		), now); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // recordChange files the link for offline devices under its source's collection; a drawn link
@@ -374,8 +403,9 @@ func (h LinkEntries) Descriptor() usecase.Descriptor {
 			"of a type that forbids loops is refused with links.cycle - for a dependency, judged over " +
 			"every type one end waits on; a second link of a type of one per entry with " +
 			"links.cardinality; one already drawn with links.exists.",
-		SideEffects: "Writes the link, publishes " + string(event.ItemLinked) + " and writes an audit entry.",
-		TokenScope:  itemsWrite,
+		SideEffects: "Writes the link, writes it into the history of both entries, publishes " +
+			string(event.ItemLinked) + " and writes an audit entry.",
+		TokenScope: itemsWrite,
 		Input: []usecase.Field{
 			{
 				Name: "id", Kind: usecase.KindID, CallerOnly: true,
@@ -389,9 +419,7 @@ func (h LinkEntries) Descriptor() usecase.Descriptor {
 		Audit: usecase.AuditDeclaration{
 			Action: ItemLinkedAction, TargetType: linkTarget, Severity: audit.SeverityInfo, Required: true,
 		},
-		Activity: usecase.ActivityDeclaration{
-			Exempt: "the entry's links are their own list on it, with the audit trail as their history.",
-		},
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemLinked},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			source, err := in.ID("item_id")
 			if err != nil {
@@ -478,20 +506,19 @@ func (h UnlinkEntries) Execute(ctx context.Context, actor appshared.ActorContext
 // Descriptor is the catalogue entry.
 func (h UnlinkEntries) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name:        UnlinkEntriesName,
-		Permission:  service.PermissionWriteItems,
-		Summary:     "Removes a link between two entries. Whoever may change either end may remove it.",
-		SideEffects: "Deletes the link, publishes " + string(event.ItemUnlinked) + " and writes an audit entry.",
-		TokenScope:  itemsWrite,
+		Name:       UnlinkEntriesName,
+		Permission: service.PermissionWriteItems,
+		Summary:    "Removes a link between two entries. Whoever may change either end may remove it.",
+		SideEffects: "Deletes the link, writes its removal into the history of both entries, publishes " +
+			string(event.ItemUnlinked) + " and writes an audit entry.",
+		TokenScope: itemsWrite,
 		Input: []usecase.Field{
 			{Name: "link_id", Kind: usecase.KindID, Required: true, Description: "The link."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ItemUnlinkedAction, TargetType: linkTarget, Severity: audit.SeverityInfo, Required: true,
 		},
-		Activity: usecase.ActivityDeclaration{
-			Exempt: "the entry's links are their own list on it, with the audit trail as their history.",
-		},
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemUnlinked},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			id, err := in.ID("link_id")
 			if err != nil {

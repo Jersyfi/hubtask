@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -61,6 +62,7 @@ type SetItemEntryType struct {
 	// into another collection does (WorkflowGate.Settle). Unwired, the status stays as it was.
 	Workflow WorkflowGate
 	Statuses StatusMover
+	Activity ActivityJournal
 }
 
 // SetItemEntryTypeCommand is the input, typed.
@@ -169,6 +171,14 @@ func (h SetItemEntryType) Execute(ctx context.Context, actor appshared.ActorCont
 			ContainerID: next.CollectionID, ActorID: actor.AccountID, HLC: h.HLC.Next(),
 			Field: "entry_type", Payload: map[string]any{"entry_type": entryTypeKeyOf(next)},
 		}); err != nil {
+			return err
+		}
+		if err := h.Activity.record(ctx, actor, next, activity.ItemEntryTypeChanged, activity.ChangeSet(activity.Full,
+			activity.Field{
+				Name: "entry_type", Detail: activity.WithValues,
+				From: entryTypeKeyOf(domain.WorkItem{Type: current.Type, EntryType: current.EntryType}), To: entryTypeKeyOf(next),
+			},
+		), now); err != nil {
 			return err
 		}
 		if changed, err = h.settle(ctx, actor, collection, next, now); err != nil {
@@ -318,8 +328,8 @@ func (h SetItemEntryType) Descriptor() usecase.Descriptor {
 			"the entry holds is refused with entry_types.values_dropped, naming each field, unless " +
 			"drop_values confirms them; one whose form " +
 			"the entry does not meet is refused with forms.refused, naming each field.",
-		SideEffects: "Writes the entry's type, settles its status in the workflow in force for the new " +
-			"type, records a change for offline clients, and writes an audit entry.",
+		SideEffects: "Writes the entry's type, writes it into the entry's history, settles its status in " +
+			"the workflow in force for the new type, records a change for offline clients, and writes an audit entry.",
 		TokenScope: itemsWrite,
 		Module:     module.Workflows,
 		Input: []usecase.Field{
@@ -336,9 +346,7 @@ func (h SetItemEntryType) Descriptor() usecase.Descriptor {
 		Audit: usecase.AuditDeclaration{
 			Action: ItemEntryTypeSetAction, TargetType: itemTarget, Severity: audit.SeverityInfo, Required: true,
 		},
-		Activity: usecase.ActivityDeclaration{
-			Exempt: "the history of an entry's type is the audit trail's until the workflow step brings its activity verb.",
-		},
+		Activity: usecase.ActivityDeclaration{Verb: activity.ItemEntryTypeChanged},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			itemID, err := in.ID("item_id")
 			if err != nil {

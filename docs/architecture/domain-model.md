@@ -653,7 +653,9 @@ stateDiagram-v2
 (`item.completed` stored, `activity.item_completed` rendered — [i18n-l10n.md](./i18n-l10n.md) §1).
 The closed vocabulary, with each verb's change set and the event it publishes, is
 `core/domain/model/activity/Entry.go`: one verb per lifecycle act and edit, one per direction for
-each set beside the entry.
+each set beside the entry. A link drawn or removed (`item.linked`, `item.unlinked`) is in the
+history of both its ends and names only its type, because the other end may be out of a reader's
+reach; a change of type (`item.entry_type_changed`) names both types.
 
 Rules of the history:
 
