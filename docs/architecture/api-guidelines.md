@@ -135,6 +135,17 @@ One endpoint serves list, board, and timeline: `POST /api/v1/items:query`.
 query catalogue at the write. The server does not interpret `layout`, so a new view in a client
 needs no backend change.
 
+`POST /items:aggregate` takes the same scope and filter, with the same limits, cost estimate and
+permission, and an `aggregate` instead of a sort, page or grouping: `function` (`COUNT`, `SUM`,
+`AVG`, `MIN`, `MAX`), `field` (a `custom_fields.<key>` holding a number, money or a duration;
+refused for `COUNT`, `query.field_not_aggregatable` for anything else), `group_by` (a field a query
+may group by) and `bucket` (`field`, a timestamp or a custom date, and `period`: `day`, `week`,
+`month`, cut in the actor's time zone, a week starting on Monday). It answers at most 5000 rows of
+`group`, `period`, `count` and `value` (a decimal string, so money keeps its digits), in the
+group's order and then the period's, and `truncated`. A field hidden from the reader is refused as
+in a filter. The function and the period are closed vocabulary like the operators; the time zone
+and the limit are parameters (§3.1).
+
 `POST /search` takes the same filter grammar, limits and cost estimate; it has no `group_by`,
 `expand` or `count`. Its `words` are optional when a filter is given; without words the order is
 `due_at ASC NULLS LAST, id ASC`; neither words nor a filter is refused (`search.words_required`).
@@ -143,7 +154,8 @@ to an older server tells rather than probes.
 
 ### 3.1 How a query becomes SQL
 
-The filter, sort and grouping of `items:query` and `/search` are the one place where SQL text is
+The filter, sort and grouping of `items:query` and `/search`, and the aggregation of
+`items:aggregate`, are the one place where SQL text is
 assembled at run time. The boundary is **no byte that arrived in a request ever becomes SQL text**
 ([ADR-0026](../adr/ADR-0026-query-dsl-sql-construction.md), security.md T-06):
 
