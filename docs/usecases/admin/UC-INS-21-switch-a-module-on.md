@@ -57,10 +57,4 @@ administrator sees the lock and who set it.
 
 ## Today
 
-* Check 2: met — *How we work → Modules* and a hub's settings switch a module at once
-  (`ModuleSwitches`).
-* Check 4: partly met — switching off asks first and says the data is kept and hidden; no module
-  has screens of its own yet, so there is nothing to hide (the suite plan, S-03 onwards).
-* Check 6: met — the installation's and a plan's documents, screens and `hubctl admin` take a
-  `module` area, their locks resolve and refuse with their origin, and *Modules* offers no switch
-  under a lock and names who set it.
+* Check 4: not met — switching off asks first and says the data is kept and hidden, but no module has screens of its own yet to hide (the suite plan, S-03 onwards).

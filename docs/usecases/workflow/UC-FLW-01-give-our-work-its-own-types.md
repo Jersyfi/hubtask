@@ -49,33 +49,5 @@ works in every view. An agent creating an entry through MCP names the type the s
 
 ## Today
 
-* Check 1: met — `GET`/`POST /entry-types` and `PATCH`/`DELETE /entry-types/{key}` (and the same
-  operations over MCP and as rule actions) create, rename, recolour, order and archive types, and
-  *How we work → Types* in the administration does the same by level, where the workflows module
-  is on.
-* Check 2: met — a type has its form (`PUT /entry-types/{key}/form`, the use case
-  `SetEntryTypeForm` over REST, MCP and rules): which fields it shows in which section and order,
-  which are required, read-only or hidden and when, defaults, validations and channels that only
-  narrow it. The server holds every creation, edit and change of type to it, through every door,
-  and answers a draft's state (`POST /entry-types/{key}/form:evaluate`). *How we work → Types*
-  designs the form; capture unfolds the fields the target type's form requires or may require and
-  shows a refusal on its field; the entry panel lays the custom fields out by the form, without
-  the hidden ones and with the read-only ones closed. The conditions are evaluated by the server
-  only, for the editor as for the write. The archive import writes outside the use case and is
-  not held to the form yet (the suite plan, S-23).
-* Check 3: met — a collection's structure carries a ninth setting, `entry_types`, which types each
-  level offers (inherited, locked and reset like every setting, `PATCH …/structure`, MCP and
-  `hubctl structure`); creating an entry with a type not offered, or changing one to it, is refused
-  with `entry_types.not_offered`, and an entry without a type gets the level's own where it is
-  offered and the first offered otherwise. Capture offers only those, and the structure panel
-  ticks them per level where the workflows module is on. Entries that already have a type keep it
-  when the list narrows.
-* Check 4: partly met — a change of type that would drop a value is refused, naming each field,
-  and one the entry does not meet the new type's form for is refused the same way;
-  confirming the drop and the screen for it come with the field sets (the suite plan, S-06).
-* Check 6: partly met — a row marks its type, and the query language filters (`EQ`, `NEQ`, `IN`,
-  `NOT_IN`) and groups by `entry_type`, an untyped entry answering as its level's system type; the
-  web app's filter, grouping and column are the suite plan's S-11.
-* Check 7: met — REST, MCP and the rule engine reach the registry through one descriptor each, and
-  `hubctl type ls|create|set|archive|unarchive|rm|assign` and `hubctl item create --entry-type`
-  through REST.
+* Check 4: not met — a change of type that would drop a value, or that the new type's form does not meet, is refused naming each field; confirming the drop and its screen come with the field sets (the suite plan, S-06).
+* Check 6: not met — rows mark their type and the query language filters and groups by `entry_type`; the web app's filter, grouping and column are the suite plan's S-11.

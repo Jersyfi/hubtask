@@ -44,7 +44,4 @@ token is refused when it tries to write it.
 
 ## Today
 
-* Check 3: met for the entry, a list, a query and every export built on it, a search, a write's
-  answer, the entry's history, the change stream and the initial walk (`work.FieldSight`;
-  `FieldSight_test.go`, `custom_field_test.go`). Not narrowed yet: a calculated field whose
-  formula reads a hidden one shows a value computed from it.
+* Check 3: not met — every read is narrowed (`work.FieldSight`) except a calculated field whose formula reads a hidden one, which shows a value computed from it.

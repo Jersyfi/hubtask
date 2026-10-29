@@ -66,7 +66,4 @@ before saving a new one. At the end of the month the lead exports the view as CS
 
 ## Today
 
-* Check 10: met through the API, `hubctl`, MCP and the web app, whose sort menu, board grouping
-  and filter offer a collection's custom fields where their kind has an order.
-
 * Check 6: not met — applying a view sets the query and the layout, but the filter panel keeps its own empty state: the view's conditions are not shown, and touching the filter replaces them.

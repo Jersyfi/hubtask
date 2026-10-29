@@ -60,17 +60,3 @@ the list by `priority = high`.
 * Workspace-wide fields are defined through the API; the collection's dialog shows them read-only.
 * A field that decides behaviour (a status that drives a workflow) is an automation rule's job,
   not a field's.
-
-## Today
-
-* Check 1 for the calculated kind: met through the API, `hubctl field define --formula` and the web
-  app's field dialog; the server compiles the formula against the scope's number and yes/no fields
-  and recomputes every calculated field after each value write, each moved result its own write. A
-  new calculated field fills no older entry until one of its inputs is written. The browser does
-  not evaluate a formula; an offline entry shows the value the server last computed.
-
-* Checks 1, 3 and 4 for the five suite kinds (money, duration, reference, several people, formatted
-  text): met through the API, `hubctl`, MCP and the web app. In the web app a reference is chosen
-  among the collection's entries the device has loaded or found by a search across every
-  collection the writer can see; one pointing elsewhere is named as the reader may see it, or as
-  not available to them.

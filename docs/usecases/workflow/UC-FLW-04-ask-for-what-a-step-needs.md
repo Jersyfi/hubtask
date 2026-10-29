@@ -44,6 +44,4 @@ against a sample entry, and sees which condition would fail and why.
 
 ## Today
 
-* Check 1: met — a step is limited by role (shipped or the workspace's own), group, person field
-  or condition (`WorkflowGate.allowed`, `TakeStep_test.go`); the designer lists the groups.
 * Check 2: not met — a check's message is one text, not one per language; the suite plan's gaps table.
