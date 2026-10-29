@@ -34,7 +34,11 @@ async function nextSeq(storage: Storage): Promise<number> {
 
 /** The wire shape of a queued write, its fields stamped: one clock per field (§4.2). */
 export function mutationOf(write: QueuedWrite, opId: string, stamp: () => string): SyncMutation {
-  const mutation: Record<string, unknown> = { op_id: opId, kind: write.kind, item_id: write.itemId };
+  // An entity mutation names no entry: its `item_id` would be the replica's identifier of the
+  // record, which is no entry's, and the contract reads it as one.
+  const mutation: Record<string, unknown> = onEntity(write.kind)
+    ? { op_id: opId, kind: write.kind, entity: write.entity, entity_key: write.entityKey }
+    : { op_id: opId, kind: write.kind, item_id: write.itemId };
   if (write.baseVersion !== undefined) mutation.base_version = write.baseVersion;
   switch (write.kind) {
     case 'ITEM_PATCH': {
@@ -52,14 +56,28 @@ export function mutationOf(write: QueuedWrite, opId: string, stamp: () => string
     case 'ITEM_CREATE':
     case 'COMMENT_ADD':
     case 'MOVE':
+    case 'ENTITY_UPSERT':
+    case 'ENTITY_PATCH':
       mutation.payload = { ...(write.payload ?? {}) };
       mutation.hlc = stamp();
       break;
     case 'ITEM_DELETE':
+    case 'ENTITY_DELETE':
       mutation.hlc = stamp();
       break;
   }
   return mutation as SyncMutation;
+}
+
+/** Whether a kind writes the workspace's vocabulary rather than an entry (§4.4). */
+export function onEntity(kind: MutationKind): boolean {
+  return kind === 'ENTITY_UPSERT' || kind === 'ENTITY_PATCH' || kind === 'ENTITY_DELETE';
+}
+
+/** The replica's entity a pending mutation's prediction sits in: the entry, a comment or the vocabulary's. */
+export function entityOf(pending: Pick<PendingMutation, 'kind' | 'mutation'>): string {
+  if (onEntity(pending.kind)) return String(pending.mutation.entity ?? '');
+  return pending.kind === 'COMMENT_ADD' ? 'comment' : 'item';
 }
 
 export class Queue {
@@ -159,6 +177,20 @@ export class Queue {
         }));
         return mark('comments', id);
       }
+      case 'ENTITY_UPSERT':
+      case 'ENTITY_PATCH': {
+        // Versioned entities are decided whole by the server (§4.4); the prediction is the
+        // payload over the held copy, which the answer replaces.
+        const entity = String(write.entity);
+        const held = await this.#storage.get<StoredRecord<Record<string, unknown>>>(collectionOf(entity), write.itemId);
+        const keyed = entity === 'entry_link' ? {} : { key: write.entityKey };
+        await this.#replica.apply(record('UPSERT', entity, write.itemId, held
+          ? { ...(write.payload ?? {}), ...keyed }
+          : { ...(write.payload ?? {}), ...keyed, id: write.itemId, version: 0 }));
+        return mark(collectionOf(entity), write.itemId);
+      }
+      case 'ENTITY_DELETE':
+        return this.#replica.apply(record('DELETE', String(write.entity), write.itemId));
     }
   }
 
@@ -168,8 +200,13 @@ export class Queue {
    */
   async settle(pending: PendingMutation, result: SyncMutationResult, at: number): Promise<void> {
     await this.#storage.delete(QUEUE, pending.id);
-    const entity = pending.kind === 'COMMENT_ADD' ? 'comment' : 'item';
+    const entity = entityOf(pending);
     const entityId = result.entity_id ?? (pending.kind === 'COMMENT_ADD' ? String((pending.mutation.payload as { id?: string } | undefined)?.id ?? pending.id) : pending.itemId);
+    if (onEntity(pending.kind) && entityId !== pending.itemId) {
+      // A vocabulary entry created offline was predicted under an identifier minted here; the
+      // server names it by its own, so the prediction goes and the answer takes its place.
+      await this.#storage.delete(collectionOf(entity), pending.itemId);
+    }
 
     switch (result.result) {
       case 'APPLIED':
@@ -219,7 +256,7 @@ export class Queue {
   async #adopt(entity: string, entityId: string, state: Record<string, unknown> | null, pending: PendingMutation): Promise<void> {
     if (state) {
       await this.#replica.apply(record('UPSERT', entity, entityId, { ...state, id: entityId }));
-    } else if (pending.kind === 'ITEM_DELETE') {
+    } else if (pending.kind === 'ITEM_DELETE' || pending.kind === 'ENTITY_DELETE') {
       await this.#replica.apply(record('DELETE', entity, entityId));
       return;
     }

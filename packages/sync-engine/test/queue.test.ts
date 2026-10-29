@@ -21,16 +21,27 @@ import { FakeTransport, FixedClock } from './fakes.ts';
 const COLLECTION = '0192f000-0000-7000-8000-0000000000c1';
 const ITEM = '0192f000-0000-7000-8000-000000000001';
 const LABEL = '0192f000-0000-7000-8000-0000000000e1';
+const ENTRY_TYPE = '0192f000-0000-7000-8000-0000000000f1';
 
 const WORKSPACE: readonly ChangeRecord[] = [
   { op: 'UPSERT', entity: 'container', entity_id: COLLECTION, container_id: null, payload: { id: COLLECTION, type: 'COLLECTION', name: 'Inbox', parent_id: null, version: 1 } } as ChangeRecord,
   { op: 'UPSERT', entity: 'item', entity_id: ITEM, container_id: COLLECTION, payload: { id: ITEM, title: 'Buy milk', collection_id: COLLECTION, version: 3, order_key: 'a0' } } as ChangeRecord,
+  { op: 'UPSERT', entity: 'entry_type', entity_id: ENTRY_TYPE, container_id: null, payload: { id: ENTRY_TYPE, key: 'bug', name: 'Bug', level: 'TASK', version: 2 } } as ChangeRecord,
 ];
 
 const pathsFor = (record: ChangeRecord) => (record.entity === 'item' ? [`/items/${record.entity_id}`, '/items'] : []);
 
 /** The application's `mutationFor`, as small as the test needs: a patch, a create, a set, a delete. */
 const mutationFor = async (method: string, path: string, body: unknown, helpers: { mintId: () => string }): Promise<QueuedWrite | undefined> => {
+  if (method === 'POST' && path === '/entry-types') {
+    const payload = body as Record<string, unknown>;
+    return { kind: 'ENTITY_UPSERT', entity: 'entry_type', entityKey: String(payload.key), itemId: helpers.mintId(), payload };
+  }
+  const type = /^\/entry-types\/([^/]+)$/.exec(path);
+  if (type?.[1] && method === 'PATCH') {
+    return { kind: 'ENTITY_PATCH', entity: 'entry_type', entityKey: type[1], itemId: ENTRY_TYPE, baseVersion: 2, payload: body as Record<string, unknown> };
+  }
+  if (type?.[1] && method === 'DELETE') return { kind: 'ENTITY_DELETE', entity: 'entry_type', entityKey: type[1], itemId: ENTRY_TYPE };
   if (method === 'POST' && path === '/items') {
     return { kind: 'ITEM_CREATE', itemId: helpers.mintId(), payload: body as Record<string, unknown> };
   }
@@ -358,6 +369,67 @@ test('a write its caller stopped is neither queued nor taken for an outage', asy
   transport.answer(`/items/${ITEM}`, { id: ITEM, title: 'Renamed', version: 4 });
   const answer = await engine.mutate<{ title: string }>('PATCH', `/items/${ITEM}`, { title: 'Renamed' }, { invalidates: ['/items'] });
   assert.equal(answer.title, 'Renamed');
+  assert.equal(engine.queueState.count, 0);
+});
+
+test('§4.4: a type changed offline is an ENTITY_PATCH under its key, predicted in the replica and replaced by the answer', async () => {
+  const { transport, engine, storage } = await synced();
+  transport.down = true;
+  const prediction = await engine.mutate<{ name: string }>('PATCH', '/entry-types/bug', { name: 'Defect' }, { invalidates: ['/entry-types'] });
+  assert.equal(prediction.name, 'Defect', 'the write answers its prediction');
+  const held = await storage.get<StoredRecord<Record<string, unknown>>>('entry_types', ENTRY_TYPE);
+  assert.equal(held?.document.name, 'Defect');
+  assert.equal(held?.document.level, 'TASK', 'what the change does not name is kept');
+  assert.equal(held?.pending, true);
+
+  transport.results = (mutation) => ({
+    op_id: mutation.op_id, result: 'APPLIED', entity_id: ENTRY_TYPE,
+    server_state: { id: ENTRY_TYPE, key: 'bug', name: 'Defect', level: 'TASK', version: 3 },
+  });
+  transport.down = false;
+  await engine.push();
+  const pushed = (transport.pushes[0] as { mutations: SyncMutation[] }).mutations[0];
+  assert.equal(pushed?.kind, 'ENTITY_PATCH');
+  assert.equal(pushed?.entity, 'entry_type');
+  assert.equal(pushed?.entity_key, 'bug');
+  assert.equal(pushed?.base_version, 2, 'the version the device read');
+  assert.equal(pushed?.item_id, undefined, 'an entity mutation names no entry');
+  assert.deepEqual(pushed?.payload, { name: 'Defect' });
+  const after = await storage.get<StoredRecord<Record<string, unknown>>>('entry_types', ENTRY_TYPE);
+  assert.equal(after?.version, 3);
+  assert.equal(after?.pending, undefined);
+});
+
+test('§4.4: a type created offline is predicted under a minted identifier, which the server\'s replaces', async () => {
+  const { transport, engine, storage } = await synced();
+  transport.down = true;
+  await engine.mutate('POST', '/entry-types', { key: 'risk', name: 'Risk', level: 'TASK' }, { invalidates: ['/entry-types'] });
+  const predicted = (await storage.all<StoredRecord<Record<string, unknown>>>('entry_types')).find((row) => row.document.key === 'risk');
+  assert.ok(predicted?.pending, 'the creation is shown pending');
+
+  const SERVER = '0192f000-0000-7000-8000-0000000000f2';
+  transport.results = (mutation) => ({
+    op_id: mutation.op_id, result: 'APPLIED', entity_id: SERVER,
+    server_state: { id: SERVER, key: 'risk', name: 'Risk', level: 'TASK', version: 1 },
+  });
+  transport.down = false;
+  await engine.push();
+  const rows = (await storage.all<StoredRecord<Record<string, unknown>>>('entry_types')).filter((row) => row.document.key === 'risk');
+  assert.deepEqual(rows.map((row) => row.id), [SERVER], 'one record, under the server\'s identifier');
+});
+
+test('§4.4: a type deleted offline goes from the replica and is pushed as an ENTITY_DELETE', async () => {
+  const { transport, engine, storage } = await synced();
+  transport.down = true;
+  await engine.mutate('DELETE', '/entry-types/bug', undefined, { invalidates: ['/entry-types'] });
+  const held = await storage.get<StoredRecord<Record<string, unknown>>>('entry_types', ENTRY_TYPE);
+  assert.ok(!held || held.tombstone, 'the copy is gone');
+  transport.results = (mutation) => ({ op_id: mutation.op_id, result: 'APPLIED' });
+  transport.down = false;
+  await engine.push();
+  const pushed = (transport.pushes[0] as { mutations: SyncMutation[] }).mutations[0];
+  assert.equal(pushed?.kind, 'ENTITY_DELETE');
+  assert.equal(pushed?.entity_key, 'bug');
   assert.equal(engine.queueState.count, 0);
 });
 

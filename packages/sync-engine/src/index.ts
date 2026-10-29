@@ -283,6 +283,7 @@ export type {
   MutationKind,
   QueuedWrite,
   QueueState,
+  VocabularyEntity,
   RejectedMutation,
   ConflictRecord,
   SetName,

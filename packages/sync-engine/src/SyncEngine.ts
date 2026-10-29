@@ -17,10 +17,10 @@ import { TransportError } from './errors.ts';
 import type { ByteTransfer, Clock, RequestOptions, Storage, Transport } from './ports.ts';
 import { systemClock } from './ports.ts';
 import type { ChangeRecord } from './schema.ts';
-import { Replica } from './replica.ts';
+import { Replica, collectionOf } from './replica.ts';
 import { boundedIdentity, mintUuidV7, type DeviceIdentity } from './device.ts';
 import { HybridClock, formatHlc } from './hlc.ts';
-import { Queue, mutationOf } from './queue.ts';
+import { Queue, entityOf, mutationOf } from './queue.ts';
 import type { QueueState, QueuedWrite, SyncMutationResult } from './schema.ts';
 
 /** How long a read may take before it is abandoned. A number, because "no deadline" is not one. */
@@ -575,7 +575,7 @@ export class SyncEngine {
     // is where the prediction is, and from the server once the push has landed.
     this.#invalidate(write.invalidates ?? options.invalidates);
     if (this.#reachable) void this.push();
-    const entity = write.kind === 'COMMENT_ADD' ? 'comments' : 'items';
+    const entity = collectionOf(entityOf({ kind: write.kind, mutation }));
     const entityId = write.kind === 'COMMENT_ADD' ? String(write.payload?.id ?? mutation.op_id) : write.itemId;
     const held = await replica.store.get<{ document: unknown }>(entity, entityId);
     return { prediction: held?.document };

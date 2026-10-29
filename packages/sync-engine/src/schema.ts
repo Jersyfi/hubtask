@@ -52,8 +52,16 @@ export interface StoredRecord<T> {
   readonly tombstone?: true;
 }
 
-/** The seven things a device can do offline, as the contract names them (offline-sync.md §3.2). */
-export type MutationKind = 'ITEM_CREATE' | 'ITEM_PATCH' | 'ITEM_DELETE' | 'SET_ADD' | 'SET_REMOVE' | 'MOVE' | 'COMMENT_ADD';
+/**
+ * What a device can do offline, as the contract names them: the seven an entry takes
+ * (offline-sync.md §3.2), and the three that write the workspace's vocabulary (§4.4).
+ */
+export type MutationKind =
+  | 'ITEM_CREATE' | 'ITEM_PATCH' | 'ITEM_DELETE' | 'SET_ADD' | 'SET_REMOVE' | 'MOVE' | 'COMMENT_ADD'
+  | 'ENTITY_UPSERT' | 'ENTITY_PATCH' | 'ENTITY_DELETE';
+
+/** The vocabulary an `ENTITY_*` mutation writes, named as the change log names it (§4.4). */
+export type VocabularyEntity = 'entry_type' | 'link_type' | 'entry_link' | 'workflow' | 'custom_role';
 
 /** The four sets an entry carries, as `SET_ADD` and `SET_REMOVE` name them. */
 export type SetName = 'labels' | 'members' | 'watchers' | 'attachments';
@@ -66,15 +74,25 @@ export type SetName = 'labels' | 'members' | 'watchers' | 'attachments';
  */
 export interface QueuedWrite {
   readonly kind: MutationKind;
-  /** The entry the mutation is about - the client-minted identifier on an ITEM_CREATE (§9.1). */
+  /**
+   * The entry the mutation is about - the client-minted identifier on an ITEM_CREATE (§9.1). For
+   * an `ENTITY_*` mutation, the replica's identifier of the record it predicts: the held one's,
+   * or one minted for a creation, which the server's answer replaces.
+   */
   readonly itemId: string;
+  /** `ENTITY_*`: which vocabulary, and its key - for an `entry_link` the identifier minted here. */
+  readonly entity?: VocabularyEntity;
+  readonly entityKey?: string;
   readonly baseVersion?: number | null;
   /** ITEM_PATCH: the fields that moved, each stamped with its own clock by the engine. */
   readonly fields?: Readonly<Record<string, unknown>>;
   /** SET_ADD and SET_REMOVE: which set, and which element. */
   readonly set?: SetName;
   readonly element?: string;
-  /** ITEM_CREATE, MOVE and COMMENT_ADD: what the applier takes; a comment's `id` is minted here too. */
+  /**
+   * ITEM_CREATE, MOVE, COMMENT_ADD and `ENTITY_UPSERT` / `ENTITY_PATCH`: what the applier takes -
+   * for an entity, the use case's input; a comment's `id` is minted here too.
+   */
   readonly payload?: Readonly<Record<string, unknown>>;
   /** Which held reads the write makes stale, as the caller named them. */
   readonly invalidates?: readonly string[];
