@@ -781,6 +781,135 @@ type ChangeLogDefault struct {
 	Payload     []byte
 }
 
+type CmdbCi struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	HubID          pgtype.UUID
+	ClassKey       string
+	Name           string
+	Stage          string
+	Status         string
+	Attributes     []byte
+	Provenance     []byte
+	OwnerAccountID pgtype.UUID
+	OwnerGroupID   pgtype.UUID
+	LocationCiID   pgtype.UUID
+	Protection     []byte
+	ReviewDue      pgtype.Date
+	Quantity       int32
+	LastSeenAt     pgtype.Timestamptz
+	MergedInto     pgtype.UUID
+	CreatedBy      pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	UpdatedBy      pgtype.UUID
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
+}
+
+type CmdbCiIdentifier struct {
+	TenantID pgtype.UUID
+	CiID     pgtype.UUID
+	HubID    pgtype.UUID
+	Name     string
+	Value    string
+}
+
+type CmdbClass struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	Key           string
+	ParentKey     string
+	Name          string
+	Icon          string
+	Abstract      bool
+	Attributes    []byte
+	Rules         []byte
+	Required      []byte
+	StalenessDays int32
+	ArchivedAt    pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
+}
+
+type CmdbDuplicate struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	HubID      pgtype.UUID
+	CiIds      []pgtype.UUID
+	Rule       string
+	CreatedAt  pgtype.Timestamptz
+	ResolvedAt pgtype.Timestamptz
+	ResolvedBy pgtype.UUID
+	SurvivorID pgtype.UUID
+}
+
+type CmdbHold struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	HubID      pgtype.UUID
+	RunID      pgtype.UUID
+	SourceKey  string
+	Item       []byte
+	Reason     string
+	CreatedAt  pgtype.Timestamptz
+	ResolvedAt pgtype.Timestamptz
+	ResolvedBy pgtype.UUID
+}
+
+type CmdbRelation struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	HubID      pgtype.UUID
+	TypeKey    string
+	SourceCiID pgtype.UUID
+	TargetCiID pgtype.UUID
+	DataSource string
+	FirstSeen  pgtype.Timestamptz
+	LastSeen   pgtype.Timestamptz
+	CreatedBy  pgtype.UUID
+}
+
+type CmdbRelationType struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	Key         string
+	Name        string
+	ReverseName string
+	Impact      string
+	Pairs       []byte
+	ArchivedAt  pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	Version     int32
+}
+
+type CmdbRun struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	HubID     pgtype.UUID
+	SourceKey string
+	ActorID   pgtype.UUID
+	StartedAt pgtype.Timestamptz
+	Counts    []byte
+	Decisions []byte
+}
+
+type CmdbSource struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	Key       string
+	Kind      string
+	Rank      int32
+	Classes   []string
+	MayCreate bool
+	Mapping   []byte
+	LastRunAt pgtype.Timestamptz
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
 type Comment struct {
 	ID              pgtype.UUID
 	TenantID        pgtype.UUID
