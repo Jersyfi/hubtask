@@ -117,6 +117,9 @@ func (d Desk) export(ctx context.Context, actor appshared.ActorContext) (current
 			return current{}, err
 		}
 		rows, _ := normal.(map[string]any)[s.rows].([]any)
+		if s.rowsOf != nil {
+			rows = s.rowsOf(normal.(map[string]any))
+		}
 		blocks := domain.Section{}
 		byKey := map[string]map[string]any{}
 		for _, raw := range rows {

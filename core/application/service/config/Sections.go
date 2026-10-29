@@ -9,6 +9,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
 // operation is one use case a plan runs: the registry's door, so that every block is changed
@@ -34,6 +35,8 @@ type section struct {
 	listInput usecase.Input
 	rows      string
 	key       string
+	// rowsOf replaces rows where the answer is one object rather than a list of rows.
+	rowsOf func(answer map[string]any) []any
 	// attributes is what the document keeps of a row; fixed are those set at creation only.
 	attributes []string
 	fixed      []string
@@ -65,6 +68,7 @@ const (
 	sectionTypes      = "types"
 	sectionWorkflows  = "workflows"
 	sectionSettings   = "settings"
+	sectionStructure  = "structure"
 	switchAttribute   = "switch"
 	settingValueField = "value"
 )
@@ -139,6 +143,19 @@ func sections() []section {
 			hides:    removing,
 		},
 		{
+			// The workspace's own structure, one block per setting it decides itself; a setting
+			// left to the installation's or Hubtask's default has no block (configuration/model.md).
+			name: sectionStructure, list: "ReadWorkspace", key: "setting", attributes: []string{settingValueField},
+			rowsOf: structureRows,
+			block: func(row map[string]any) (string, domain.Block) {
+				if text(row["source"]) != "WORKSPACE" {
+					return "", nil
+				}
+				return text(row["setting"]), domain.Block{settingValueField: row[settingValueField]}
+			},
+			ops: structureOps,
+		},
+		{
 			name: sectionWorkflows, module: module.Workflows, list: "ListWorkflows", rows: "data", key: "key", system: "system",
 			attributes: []string{"name", "shape"},
 			remove:     "DeleteWorkflow", locate: "key", locateFrom: "key",
@@ -177,6 +194,35 @@ func workflowOps(change domain.Change, _ map[string]any) ([]operation, error) {
 	default:
 		return []operation{{UseCase: "DeleteWorkflow", Path: path, Input: usecase.Input{"key": change.Key}}}, nil
 	}
+}
+
+// structureRows is the workspace's answer as one row per structure setting: its value in force
+// and the level it comes from.
+func structureRows(answer map[string]any) []any {
+	structure, _ := answer["structure"].(map[string]any)
+	values, _ := structure["settings"].(map[string]any)
+	sources, _ := structure["sources"].(map[string]any)
+	rows := make([]any, 0, len(sources))
+	for _, name := range work.StructureSettingNames() {
+		rows = append(rows, map[string]any{
+			"setting": string(name), "source": sources[string(name)], settingValueField: values[string(name)],
+		})
+	}
+	return rows
+}
+
+// structureOps sets or resets one structure setting of the workspace through the use case its
+// settings screen calls, so the bound and the installation's locks refuse an apply as they refuse
+// the screen.
+func structureOps(change domain.Change, _ map[string]any) ([]operation, error) {
+	if _, err := work.ParseStructureSetting(change.Key); err != nil {
+		return nil, refused("config.key_unknown", change.Path(), nil)
+	}
+	in := usecase.Input{"reset": []any{change.Key}}
+	if change.Op != domain.OpRemove {
+		in = usecase.Input{"settings": map[string]any{change.Key: change.After[settingValueField]}}
+	}
+	return []operation{{UseCase: "SetWorkspaceStructure", Path: change.Path(), Input: in}}, nil
 }
 
 func removing(change domain.Change) bool { return change.Op == domain.OpRemove }

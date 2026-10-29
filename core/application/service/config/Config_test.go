@@ -26,6 +26,8 @@ import (
 type world struct {
 	types map[string]map[string]any
 	roles map[string]map[string]any
+	// structure is the workspace's own structure values; nil withholds the section.
+	structure map[string]any
 	// failOn makes one use case refuse, as a block its own checks reject would.
 	failOn string
 	calls  []string
@@ -33,6 +35,9 @@ type world struct {
 
 func (w *world) clone() *world {
 	out := &world{types: map[string]map[string]any{}, roles: map[string]map[string]any{}, failOn: w.failOn}
+	if w.structure != nil {
+		out.structure = maps.Clone(w.structure)
+	}
 	for k, v := range w.types {
 		out.types[k] = maps.Clone(v)
 	}
@@ -81,6 +86,25 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 		w.roles[in.String("key")] = map[string]any{"key": in["key"], "name": in["name"], "permissions": in["permissions"]}
 	case "DeleteRole":
 		delete(w.roles, in.String("key"))
+	case "ReadWorkspace":
+		if w.structure == nil {
+			return nil, shared.ErrValidation.WithDetail("module.off")
+		}
+		sources := map[string]any{}
+		for name := range w.structure {
+			sources[name] = "WORKSPACE"
+		}
+		sources["views"] = "DEFAULT"
+		return usecase.Output{"structure": map[string]any{"settings": maps.Clone(w.structure), "sources": sources}}, nil
+	case "SetWorkspaceStructure":
+		if values, held := in["settings"].(map[string]any); held {
+			maps.Copy(w.structure, values)
+		}
+		if reset, held := in["reset"].([]any); held {
+			for _, name := range reset {
+				delete(w.structure, name.(string))
+			}
+		}
 	case "SetModule":
 	default:
 		// Every other section is withheld, as a module switched off withholds it.

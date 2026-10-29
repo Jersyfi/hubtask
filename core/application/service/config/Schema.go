@@ -12,6 +12,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
 const keyPattern = "^[a-z][a-z0-9_]{0,62}$"
@@ -32,6 +33,13 @@ func (d Desk) Schema() map[string]any {
 			keys := make([]string, 0, len(module.Keys()))
 			for _, key := range module.Keys() {
 				keys = append(keys, strings.ToLower(string(key)))
+			}
+			names = map[string]any{"enum": keys}
+		}
+		if s.name == sectionStructure {
+			keys := make([]string, 0, len(work.StructureSettingNames()))
+			for _, key := range work.StructureSettingNames() {
+				keys = append(keys, string(key))
 			}
 			names = map[string]any{"enum": keys}
 		}
@@ -68,6 +76,10 @@ func (d Desk) attributeSchema(s section, attribute string) map[string]any {
 	if s.name == sectionModules {
 		return map[string]any{"type": "string", "enum": []string{"ON", "OFF", "INHERIT"},
 			"description": "ON or OFF here, or INHERIT to leave the module to the level above."}
+	}
+	if s.name == sectionStructure {
+		return map[string]any{"description": "The workspace's own value of the setting, in the shape of " +
+			"StructureSettings; a removed block leaves it to the installation's or Hubtask's default."}
 	}
 	candidates := []string{s.create, s.change, s.separate[attribute]}
 	if s.ops != nil {
