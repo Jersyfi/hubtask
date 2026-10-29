@@ -51,6 +51,7 @@ var ucContexts = map[string]string{
 	"sync":         "SYN",
 	"importer":     "IMP",
 	"workflow":     "FLW",
+	"planning":     "PLN",
 }
 
 var ucStates = map[string]bool{

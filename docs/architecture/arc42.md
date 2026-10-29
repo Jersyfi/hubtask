@@ -263,6 +263,8 @@ The rules behind each element are in [domain-model.md](./domain-model.md).
 | `WorkItem` | Aggregate root | The item, with `version` for optimistic locking |
 | `ItemCapabilityProfile` | Domain policy | An `ItemType`'s features, maximum depth and permitted child types |
 | `Hierarchy` | Domain service | Parent-child rules, depth, no cycles, moving subtrees |
+| `LinkType`, `EntryLink` | Entities | Typed relations between entries; cardinality and cycle rule decided under the workspace's link lock |
+| `Reference` | Value object | A pointer to any object (P-19), resolved for the reader by `ResolveReferences` |
 | `Ordering` | Value object | The sort key, a fractional index |
 | `CompletionPolicy` | Domain policy | Optional, per collection: a parent completes once all its children have |
 | `AssignmentStrategy` | Interface + strategies | `FIXED`, `RANDOM_MEMBER`, `RANDOM_GROUP_MEMBER`, `ROUND_ROBIN`, `LEAST_LOADED` (§3.6 there) |
@@ -367,6 +369,11 @@ containers generalised the same way, extension through configuration and typed c
 A field's values live in the entry's `custom_fields` document, which every read answers, and in
 its typed projection `entry_field_value`, which a trigger keeps in the same transaction and which
 the query language ranges, sorts and groups over (domain-model.md §6, F-2).
+Entries relate by typed links (`LinkType`, `EntryLink`): six shipped types and a workspace's own,
+each with a direction, a cardinality, a cycle rule and which end waits - the dependencies a
+timeline draws. Anything points at anything by one reference (`kind`, `id`, `anchor`), drawn as a
+mention, a card or a live view and resolved for the reader, never carrying a copy; what an entry's
+notes and comments point at is a projection a trigger keeps, which backlinks read (F-3, P-19).
 
 ### 8.2 Persistence
 PostgreSQL is the only mandatory component ([ADR-0003](../adr/ADR-0003-postgresql-as-single-datastore.md)):

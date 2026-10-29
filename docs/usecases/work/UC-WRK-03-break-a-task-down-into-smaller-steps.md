@@ -48,8 +48,7 @@ small by design: one person responsible, a due date, a reminder, no labels and n
   ([domain model §2](../../architecture/domain-model.md)).
 * A collection narrowing what its entries offer — for example no activities — is
   [UC-WRK-23](./UC-WRK-23-choose-how-much-structure-a-collection-has.md).
-* No dependencies between steps ("B starts when A is done") here — they are planned with the suite's
-  links and planning (S-05, M2 in [the suite plan](../../backlog/suite/README.md)), as a use case
-  of their own.
+* No dependencies between steps ("B starts when A is done") here — they are
+  [UC-PLN-01](../planning/UC-PLN-01-say-that-one-piece-of-work-waits-for-another.md).
 * Completing a parent when its children are done is [UC-WRK-04](./UC-WRK-04-tick-work-off-and-take-it-back.md).
 * An AI proposing the steps is the suggestion context's, and optional.
