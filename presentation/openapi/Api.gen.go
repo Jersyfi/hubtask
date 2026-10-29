@@ -3909,15 +3909,60 @@ func (e PageBacklinkListDataStrength) Valid() bool {
 	}
 }
 
+// Defines values for PageExportFilesEncoding.
+const (
+	PageExportFilesEncodingBASE64 PageExportFilesEncoding = "BASE64"
+	PageExportFilesEncodingTEXT   PageExportFilesEncoding = "TEXT"
+)
+
+// Valid indicates whether the value is a known member of the PageExportFilesEncoding enum.
+func (e PageExportFilesEncoding) Valid() bool {
+	switch e {
+	case PageExportFilesEncodingBASE64:
+		return true
+	case PageExportFilesEncodingTEXT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PageExportFormat.
 const (
-	MARKDOWN PageExportFormat = "MARKDOWN"
+	PageExportFormatDOCX     PageExportFormat = "DOCX"
+	PageExportFormatHTML     PageExportFormat = "HTML"
+	PageExportFormatMARKDOWN PageExportFormat = "MARKDOWN"
 )
 
 // Valid indicates whether the value is a known member of the PageExportFormat enum.
 func (e PageExportFormat) Valid() bool {
 	switch e {
-	case MARKDOWN:
+	case PageExportFormatDOCX:
+		return true
+	case PageExportFormatHTML:
+		return true
+	case PageExportFormatMARKDOWN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PageExportRequestFormat.
+const (
+	PageExportRequestFormatDOCX     PageExportRequestFormat = "DOCX"
+	PageExportRequestFormatHTML     PageExportRequestFormat = "HTML"
+	PageExportRequestFormatMARKDOWN PageExportRequestFormat = "MARKDOWN"
+)
+
+// Valid indicates whether the value is a known member of the PageExportRequestFormat enum.
+func (e PageExportRequestFormat) Valid() bool {
+	switch e {
+	case PageExportRequestFormatDOCX:
+		return true
+	case PageExportRequestFormatHTML:
+		return true
+	case PageExportRequestFormatMARKDOWN:
 		return true
 	default:
 		return false
@@ -12199,8 +12244,12 @@ type PageCreate struct {
 // PageExport defines model for PageExport.
 type PageExport struct {
 	Files []struct {
-		Content string             `json:"content"`
-		PageId  openapi_types.UUID `json:"page_id"`
+		// Content The file's text, or its bytes in base64 where `encoding` says so.
+		Content string `json:"content"`
+
+		// Encoding BASE64 for a DOCX document.
+		Encoding PageExportFilesEncoding `json:"encoding"`
+		PageId   openapi_types.UUID      `json:"page_id"`
 
 		// Path Where the file stands in the exported tree.
 		Path string `json:"path"`
@@ -12208,14 +12257,23 @@ type PageExport struct {
 	Format PageExportFormat `json:"format"`
 }
 
+// PageExportFilesEncoding BASE64 for a DOCX document.
+type PageExportFilesEncoding string
+
 // PageExportFormat defines model for PageExport.Format.
 type PageExportFormat string
 
 // PageExportRequest defines model for PageExportRequest.
 type PageExportRequest struct {
+	// Format Markdown with front matter (the default), a standalone HTML document, or a DOCX text document.
+	Format *PageExportRequestFormat `json:"format,omitempty"`
+
 	// Subtree Export the pages under it as well.
 	Subtree *bool `json:"subtree,omitempty"`
 }
+
+// PageExportRequestFormat Markdown with front matter (the default), a standalone HTML document, or a DOCX text document.
+type PageExportRequestFormat string
 
 // PageHitList defines model for PageHitList.
 type PageHitList struct {

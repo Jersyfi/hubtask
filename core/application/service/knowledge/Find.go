@@ -291,7 +291,9 @@ func (h ListPageBacklinks) Descriptor() usecase.Descriptor {
 type ExportPage struct{ Space Space }
 
 // Execute exports.
-func (h ExportPage) Execute(ctx context.Context, actor appshared.ActorContext, pageID shared.ID, subtree bool) ([]domain.File, error) {
+func (h ExportPage) Execute(
+	ctx context.Context, actor appshared.ActorContext, pageID shared.ID, subtree bool, format domain.Format,
+) ([]domain.File, error) {
 	page, err := h.Space.readable(ctx, actor, pageID, PageExportedAction)
 	if err != nil {
 		return nil, err
@@ -307,10 +309,14 @@ func (h ExportPage) Execute(ctx context.Context, actor appshared.ActorContext, p
 			return nil, err
 		}
 	}
-	files := domain.Tree(pages, page.ID.String())
+	files, err := domain.TreeIn(pages, page.ID.String(), format)
+	if err != nil {
+		return nil, err
+	}
 	err = h.Space.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		return h.Space.record(ctx, actor, PageExportedAction, pageTarget, page.ID, []audit.Change{
 			{Field: "pages", Classification: audit.Open, To: len(files)},
+			{Field: "format", Classification: audit.Open, To: string(format)},
 		}, h.Space.Clock.Now())
 	})
 	return files, err
@@ -321,14 +327,15 @@ func (h ExportPage) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ExportPageName, Permission: service.PermissionRead,
 		Summary: "Exports a page - or a page and every page under it, at most 500 - as Markdown files with " +
-			"front matter (id, title, parent), each under a folder named after its parent. References " +
-			"stay `hubtask:` addresses.",
+			"front matter (id, title, parent), standalone HTML documents or DOCX documents (base64), each " +
+			"under a folder named after its parent. References stay `hubtask:` addresses.",
 		SideEffects: "Writes an audit entry: an export takes words out of the workspace.",
 		TokenScope:  pagesRead,
 		ReadOnly:    true,
 		Input: []usecase.Field{
 			{Name: "page_id", Kind: usecase.KindID, Required: true, Description: "The page."},
 			{Name: "subtree", Kind: usecase.KindBool, Description: "Export the pages under it as well."},
+			{Name: "format", Kind: usecase.KindString, Description: "MARKDOWN (the default), HTML or DOCX."},
 		},
 		Audit: usecase.AuditDeclaration{Action: PageExportedAction, TargetType: pageTarget, Severity: audit.SeverityInfo, Required: true},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
@@ -336,15 +343,23 @@ func (h ExportPage) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			files, err := h.Execute(ctx, actor, id, in.Bool("subtree"))
+			format, err := domain.ParseFormat(in.String("format"))
 			if err != nil {
 				return nil, err
 			}
+			files, err := h.Execute(ctx, actor, id, in.Bool("subtree"), format)
+			if err != nil {
+				return nil, err
+			}
+			encoding := "TEXT"
+			if format.Binary() {
+				encoding = "BASE64"
+			}
 			data := make([]usecase.Output, 0, len(files))
 			for _, file := range files {
-				data = append(data, usecase.Output{"page_id": file.PageID, "path": file.Path, "content": file.Content})
+				data = append(data, usecase.Output{"page_id": file.PageID, "path": file.Path, "content": file.Content, "encoding": encoding})
 			}
-			return usecase.Output{"format": "MARKDOWN", "files": data}, nil
+			return usecase.Output{"format": string(format), "files": data}, nil
 		}),
 	})
 }

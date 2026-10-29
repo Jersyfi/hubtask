@@ -189,6 +189,7 @@ var generatedCommands = []door{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
 		},
 		Body: []doorParam{
+			{Name: "format", Kind: "string", Help: "Markdown with front matter (the default), a standalone HTML document, or a DOCX text document", Required: false},
 			{Name: "subtree", Kind: "boolean", Help: "Export the pages under it as well", Required: false},
 		},
 		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"format"}},

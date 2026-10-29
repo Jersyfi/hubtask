@@ -7590,7 +7590,6 @@
   "app.pages.offer_as_template": "Offer as a template of this hub",
   "app.pages.export": "Export",
   "app.pages.export_subtree": "With the pages under it",
-  "app.pages.export_markdown": "Download as Markdown",
   "app.pages.changed_by": "Last changed by {name} on {date}.",
   "app.pages.cancel": "Cancel",
   "app.pages.start_from": "Start from",
@@ -7651,5 +7650,11 @@
   "app.pages.template.retro.well": "What went well",
   "app.pages.template.retro.better": "What could have gone better",
   "app.pages.template.retro.try": "What we try next",
-  "app.links.page_backlinks": "Pages pointing here"
+  "app.links.page_backlinks": "Pages pointing here",
+  "pages.export_format_unknown": "A page exports as MARKDOWN, HTML or DOCX.",
+  "app.pages.export_format": "Format",
+  "app.pages.export_download": "Download",
+  "app.pages.format.MARKDOWN": "Markdown files",
+  "app.pages.format.HTML": "Web pages (HTML)",
+  "app.pages.format.DOCX": "Text documents (DOCX)"
 }

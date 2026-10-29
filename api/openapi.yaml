@@ -26556,21 +26556,26 @@ components:
       type: object
       properties:
         subtree: { type: boolean, description: "Export the pages under it as well." }
+        format:
+          type: string
+          enum: [MARKDOWN, HTML, DOCX]
+          description: "Markdown with front matter (the default), a standalone HTML document, or a DOCX text document."
 
     PageExport:
       type: object
       required: [format, files]
       properties:
-        format: { type: string, enum: [MARKDOWN] }
+        format: { type: string, enum: [MARKDOWN, HTML, DOCX] }
         files:
           type: array
           items:
             type: object
-            required: [page_id, path, content]
+            required: [page_id, path, content, encoding]
             properties:
               page_id: { type: string, format: uuid }
               path: { type: string, description: "Where the file stands in the exported tree." }
-              content: { type: string }
+              content: { type: string, description: "The file's text, or its bytes in base64 where `encoding` says so." }
+              encoding: { type: string, enum: [TEXT, BASE64], description: "BASE64 for a DOCX document." }
 
     PageSearch:
       type: object

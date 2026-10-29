@@ -4179,9 +4179,10 @@ class PageBacklinkList(TypedDict, total=False):
 
 class PageExportRequest(TypedDict, total=False):
     subtree: bool
+    format: Literal["MARKDOWN", "HTML", "DOCX"]
 
 class PageExport(TypedDict, total=False):
-    format: Required[Literal["MARKDOWN"]]
+    format: Required[Literal["MARKDOWN", "HTML", "DOCX"]]
     files: Required[list[dict[str, Any]]]
 
 class PageSearch(TypedDict, total=False):

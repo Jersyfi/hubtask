@@ -45,6 +45,35 @@ func MarkdownFile(page Page) string {
 // parent: `Handbook.md`, `Handbook/Onboarding.md`. pages is the subtree, root first; a page whose
 // parent is not among them is left out. Two siblings of one name are told apart by a number.
 func Tree(pages []Page, rootID string) []File {
+	files, _ := TreeIn(pages, rootID, FormatMarkdown)
+	return files
+}
+
+// TreeIn writes the tree as Tree does, each page in the format asked; a DOCX document's content is
+// base64 (Format.Binary).
+func TreeIn(pages []Page, rootID string, format Format) ([]File, error) {
+	files := tree(pages, rootID, format.Extension())
+	byID := map[string]Page{}
+	for _, page := range pages {
+		byID[page.ID.String()] = page
+	}
+	for i := range files {
+		page := byID[files[i].PageID]
+		switch format {
+		case FormatHTML:
+			files[i].Content = HTMLFile(page)
+		case FormatDOCX:
+			content, err := DOCXFile(page)
+			if err != nil {
+				return nil, err
+			}
+			files[i].Content = content
+		}
+	}
+	return files, nil
+}
+
+func tree(pages []Page, rootID, extension string) []File {
 	byParent := map[string][]Page{}
 	var root *Page
 	for i := range pages {
@@ -68,7 +97,7 @@ func Tree(pages []Page, rootID string) []File {
 		} else {
 			taken[strings.ToLower(name)] = 1
 		}
-		files = append(files, File{PageID: page.ID.String(), Path: folder + name + ".md", Content: MarkdownFile(page)})
+		files = append(files, File{PageID: page.ID.String(), Path: folder + name + extension, Content: MarkdownFile(page)})
 		children := map[string]int{}
 		for _, child := range byParent[page.ID.String()] {
 			walk(child, folder+name+"/", children)
