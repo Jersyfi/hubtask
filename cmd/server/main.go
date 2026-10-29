@@ -2464,7 +2464,7 @@ func run() error {
 		}.Descriptor(),
 		work.ListActivity{
 			History: history, Items: items, Containers: containers,
-			Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Authorizer: authorizer, UnitOfWork: unitOfWork, Sight: fieldSight,
 		}.Descriptor(),
 		work.ListComments{
 			Comments: commentWriter.Comments, Items: items, Containers: containers,

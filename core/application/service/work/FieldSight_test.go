@@ -7,7 +7,9 @@ import (
 	"context"
 	"testing"
 
+	activityrepo "github.com/Jersyfi/hubtask/core/application/repository/activity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
@@ -135,5 +137,31 @@ func TestAQueryOverAHiddenFieldIsRefusedToWhoeverMayNotSeeIt(t *testing.T) {
 	open := QueryItems{Gate: EntryGate{Sight: sightFor(roleOf{role: identity.RoleMember})}, UnitOfWork: &unitOfWork{}}
 	if _, err := open.lens(ctx, itemActor(), collection, spec); err != nil {
 		t.Fatalf("a workspace hiding nothing refused: %v", err)
+	}
+}
+
+// UC-ID-27 check 3: the entry's history names a hidden field's step without what it held.
+func TestTheHistoryLeavesOutAHiddenFieldsValues(t *testing.T) {
+	ctx := context.Background()
+	page := activityrepo.EntryPage{Entries: []activity.Entry{{ChangeSet: map[string]any{
+		"custom_fields.cost": map[string]any{"from": "10", "to": "12"}, "custom_fields.severity": map[string]any{"to": "high"},
+	}}}}
+	collection := domain.Container{ID: collectionID, TenantID: tenantID}
+
+	member := ListActivity{Sight: sightFor(roleOf{role: identity.RoleMember}, repository.FieldHiding{Key: "cost"}), UnitOfWork: &unitOfWork{}}
+	narrowed, err := member.narrowed(ctx, itemActor(), collection, page)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, held := narrowed.Entries[0].ChangeSet["custom_fields.cost"]; held {
+		t.Fatalf("the member reads the hidden step: %v", narrowed.Entries[0].ChangeSet)
+	}
+	if _, held := narrowed.Entries[0].ChangeSet["custom_fields.severity"]; !held {
+		t.Fatal("an open field's step went missing")
+	}
+
+	admin := ListActivity{Sight: sightFor(roleOf{role: identity.RoleAdmin}, repository.FieldHiding{Key: "cost"}), UnitOfWork: &unitOfWork{}}
+	if narrowed, _ = admin.narrowed(ctx, itemActor(), collection, page); narrowed.Entries[0].ChangeSet["custom_fields.cost"] == nil {
+		t.Fatal("an administrator lost the hidden step")
 	}
 }

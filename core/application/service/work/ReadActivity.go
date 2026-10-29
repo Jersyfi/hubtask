@@ -44,6 +44,9 @@ type ListActivity struct {
 	Containers repository.Containers
 	Authorizer Authorizer
 	UnitOfWork persistence.UnitOfWork
+	// Sight takes a hidden field's values out of the history (UC-ID-27 check 3): a step that set
+	// it names it with what it held. Optional, as the entry gate's is.
+	Sight FieldSight
 }
 
 // ListActivityQuery is the input, typed.
@@ -93,6 +96,30 @@ func (h ListActivity) Execute(
 	if err != nil {
 		return activityrepo.EntryPage{}, err
 	}
+	return h.narrowed(ctx, actor, collection, page)
+}
+
+// narrowed leaves out of each step the changes of a field hidden from the reader.
+func (h ListActivity) narrowed(
+	ctx context.Context, actor appshared.ActorContext, collection domain.Container, page activityrepo.EntryPage,
+) (activityrepo.EntryPage, error) {
+	if !h.Sight.Wired() || len(page.Entries) == 0 {
+		return page, nil
+	}
+	lens, err := h.Sight.Lens(ctx, h.UnitOfWork, actor)
+	if err != nil {
+		return activityrepo.EntryPage{}, err
+	}
+	keys, err := lens.HiddenIn(ctx, collection)
+	if err != nil || len(keys) == 0 {
+		return page, err
+	}
+	entries := make([]activity.Entry, len(page.Entries))
+	for i, entry := range page.Entries {
+		entry.ChangeSet = PayloadWithout(entry.ChangeSet, keys)
+		entries[i] = entry
+	}
+	page.Entries = entries
 	return page, nil
 }
 
