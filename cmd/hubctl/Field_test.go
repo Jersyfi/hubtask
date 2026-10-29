@@ -66,6 +66,22 @@ func TestDefiningAMoneyFieldSendsItsCurrency(t *testing.T) {
 	}
 }
 
+// UC-ID-27 on hubctl: a field restricted for writing, and one hidden from readers.
+func TestDefiningARestrictedFieldSendsTheRestriction(t *testing.T) {
+	stub := serveJSON(t, http.StatusCreated, oneDefinition)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"field", "define", "--key", "salary", "--kind", "MONEY", "--currency", "EUR", "--restricted", "--read-restricted")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	for _, fragment := range []string{`"restricted":true`, `"read_restricted":true`} {
+		if !strings.Contains(stub.body, fragment) {
+			t.Errorf("the body %q is missing %s", stub.body, fragment)
+		}
+	}
+}
+
 func TestAFieldKindThatIsNotOneIsRefusedBeforeTheCall(t *testing.T) {
 	stub := serve(t, func(http.ResponseWriter, *http.Request) {
 		t.Error("a call was made with a kind that does not exist")
