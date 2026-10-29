@@ -2488,4 +2488,39 @@ export class HubtaskClient {
   searchPages(body: NonNullable<operations["searchPages"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["searchPages"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/pages:search", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
+
+  /** A hub's whiteboards */
+  listWhiteboards(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listWhiteboards"]['parameters']['query']> } = {}): Promise<operations["listWhiteboards"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/whiteboards", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Make a new whiteboard */
+  createWhiteboard(hubId: string, body: NonNullable<operations["createWhiteboard"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createWhiteboard"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/hubs/{hubId}/whiteboards", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Read a whiteboard */
+  readWhiteboard(whiteboardId: string, options: CallOptions = {}): Promise<operations["readWhiteboard"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/whiteboards/{whiteboardId}", { "whiteboardId": whiteboardId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Rename a whiteboard or save its objects */
+  updateWhiteboard(whiteboardId: string, body: NonNullable<operations["updateWhiteboard"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateWhiteboard"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/whiteboards/{whiteboardId}", { "whiteboardId": whiteboardId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/merge-patch+json", "json", options.signal);
+  }
+
+  /** Put a whiteboard in the trash */
+  trashWhiteboard(whiteboardId: string, options: CallOptions = {}): Promise<operations["trashWhiteboard"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/whiteboards/{whiteboardId}", { "whiteboardId": whiteboardId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Bring a whiteboard back from the trash */
+  restoreWhiteboard(whiteboardId: string, options: CallOptions = {}): Promise<operations["restoreWhiteboard"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/whiteboards/{whiteboardId}:restore", { "whiteboardId": whiteboardId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Export a whiteboard */
+  exportWhiteboard(whiteboardId: string, body: NonNullable<operations["exportWhiteboard"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["exportWhiteboard"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/whiteboards/{whiteboardId}:export", { "whiteboardId": whiteboardId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
 }

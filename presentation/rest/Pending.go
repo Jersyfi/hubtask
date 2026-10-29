@@ -1935,3 +1935,33 @@ func (pending) UpdatePage(w http.ResponseWriter, r *http.Request, _ openapi.Page
 func (pending) VerifyPage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
 	notAvailable(w, r)
 }
+
+// The whiteboard module's boards.
+
+func (pending) CreateWhiteboard(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ExportWhiteboard(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListWhiteboards(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListWhiteboardsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadWhiteboard(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) RestoreWhiteboard(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) TrashWhiteboard(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateWhiteboard(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId, _ openapi.UpdateWhiteboardParams) {
+	notAvailable(w, r)
+}

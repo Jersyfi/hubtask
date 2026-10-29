@@ -6465,6 +6465,168 @@ func (e WebhookSubscriptionUpdateState) Valid() bool {
 	}
 }
 
+// Defines values for WhiteboardElementEnd.
+const (
+	WhiteboardElementEndARROW WhiteboardElementEnd = "ARROW"
+	WhiteboardElementEndNONE  WhiteboardElementEnd = "NONE"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardElementEnd enum.
+func (e WhiteboardElementEnd) Valid() bool {
+	switch e {
+	case WhiteboardElementEndARROW:
+		return true
+	case WhiteboardElementEndNONE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WhiteboardElementKind.
+const (
+	WhiteboardElementKindCARD      WhiteboardElementKind = "CARD"
+	WhiteboardElementKindCONNECTOR WhiteboardElementKind = "CONNECTOR"
+	WhiteboardElementKindFRAME     WhiteboardElementKind = "FRAME"
+	WhiteboardElementKindSHAPE     WhiteboardElementKind = "SHAPE"
+	WhiteboardElementKindSTICKY    WhiteboardElementKind = "STICKY"
+	WhiteboardElementKindTEXT      WhiteboardElementKind = "TEXT"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardElementKind enum.
+func (e WhiteboardElementKind) Valid() bool {
+	switch e {
+	case WhiteboardElementKindCARD:
+		return true
+	case WhiteboardElementKindCONNECTOR:
+		return true
+	case WhiteboardElementKindFRAME:
+		return true
+	case WhiteboardElementKindSHAPE:
+		return true
+	case WhiteboardElementKindSTICKY:
+		return true
+	case WhiteboardElementKindTEXT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WhiteboardElementRoute.
+const (
+	CURVED   WhiteboardElementRoute = "CURVED"
+	ELBOW    WhiteboardElementRoute = "ELBOW"
+	STRAIGHT WhiteboardElementRoute = "STRAIGHT"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardElementRoute enum.
+func (e WhiteboardElementRoute) Valid() bool {
+	switch e {
+	case CURVED:
+		return true
+	case ELBOW:
+		return true
+	case STRAIGHT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WhiteboardElementShape.
+const (
+	DIAMOND       WhiteboardElementShape = "DIAMOND"
+	ELLIPSE       WhiteboardElementShape = "ELLIPSE"
+	PARALLELOGRAM WhiteboardElementShape = "PARALLELOGRAM"
+	RECTANGLE     WhiteboardElementShape = "RECTANGLE"
+	ROUNDED       WhiteboardElementShape = "ROUNDED"
+	TRIANGLE      WhiteboardElementShape = "TRIANGLE"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardElementShape enum.
+func (e WhiteboardElementShape) Valid() bool {
+	switch e {
+	case DIAMOND:
+		return true
+	case ELLIPSE:
+		return true
+	case PARALLELOGRAM:
+		return true
+	case RECTANGLE:
+		return true
+	case ROUNDED:
+		return true
+	case TRIANGLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WhiteboardElementStart.
+const (
+	WhiteboardElementStartARROW WhiteboardElementStart = "ARROW"
+	WhiteboardElementStartNONE  WhiteboardElementStart = "NONE"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardElementStart enum.
+func (e WhiteboardElementStart) Valid() bool {
+	switch e {
+	case WhiteboardElementStartARROW:
+		return true
+	case WhiteboardElementStartNONE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WhiteboardElementTargetKind.
+const (
+	WhiteboardElementTargetKindENTRY WhiteboardElementTargetKind = "ENTRY"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardElementTargetKind enum.
+func (e WhiteboardElementTargetKind) Valid() bool {
+	switch e {
+	case WhiteboardElementTargetKindENTRY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WhiteboardExportFormat.
+const (
+	HubtaskWhiteboard WhiteboardExportFormat = "hubtask.whiteboard"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardExportFormat enum.
+func (e WhiteboardExportFormat) Valid() bool {
+	switch e {
+	case HubtaskWhiteboard:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WhiteboardExportVersion.
+const (
+	N1 WhiteboardExportVersion = 1
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardExportVersion enum.
+func (e WhiteboardExportVersion) Valid() bool {
+	switch e {
+	case N1:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for WorkflowStatusCategory.
 const (
 	WorkflowStatusCategoryBACKLOG    WorkflowStatusCategory = "BACKLOG"
@@ -15567,6 +15729,153 @@ type WebhookSubscriptionUpdate struct {
 // WebhookSubscriptionUpdateState `DISABLED` is not settable by hand: it is what the system concludes from a run of failures. Pausing is how somebody stops deliveries deliberately, and the two say different things to whoever reads the list.
 type WebhookSubscriptionUpdateState string
 
+// Whiteboard A whiteboard of a hub. Its objects (`elements`) are left out of a list's rows; the live document (`/realtime/documents/whiteboard/{id}`) is where several people draw at once.
+type Whiteboard struct {
+	CreatedAt time.Time          `json:"created_at"`
+	CreatedBy openapi_types.UUID `json:"created_by"`
+
+	// ElementCount How many objects the board holds.
+	ElementCount int                  `json:"element_count"`
+	Elements     *[]WhiteboardElement `json:"elements,omitempty"`
+
+	// HubId The hub the board belongs to.
+	HubId     openapi_types.UUID `json:"hub_id"`
+	Id        openapi_types.UUID `json:"id"`
+	Title     string             `json:"title"`
+	TrashedAt *time.Time         `json:"trashed_at"`
+	UpdatedAt time.Time          `json:"updated_at"`
+	UpdatedBy openapi_types.UUID `json:"updated_by"`
+
+	// Version The optimistic lock.
+	Version int `json:"version"`
+}
+
+// WhiteboardChange defines model for WhiteboardChange.
+type WhiteboardChange struct {
+	// Elements The board's objects, sent whole in drawing order, the last on top.
+	Elements *[]WhiteboardElement `json:"elements,omitempty"`
+	Title    *string              `json:"title,omitempty"`
+}
+
+// WhiteboardCreate defines model for WhiteboardCreate.
+type WhiteboardCreate struct {
+	Elements *[]WhiteboardElement `json:"elements,omitempty"`
+
+	// Id An identifier the client minted.
+	Id    *openapi_types.UUID `json:"id,omitempty"`
+	Title string              `json:"title"`
+}
+
+// WhiteboardElement One object of a board. A connector's ends are the objects it is attached to (`from`, `to`) and follow them; an end attached to nothing is a point - the start at (x, y), the end at (x + width, y + height), so a connector's width and height may be negative. Members another kind does not draw are dropped.
+type WhiteboardElement struct {
+	// ColorToken One of the ten label colour tokens, never a colour value; null for the kind's own.
+	ColorToken *string `json:"color_token,omitempty"`
+
+	// End A connector's end head; ARROW when not sent.
+	End *WhiteboardElementEnd `json:"end,omitempty"`
+
+	// From A connector's start: the object it is attached to.
+	From   *string  `json:"from,omitempty"`
+	Height *float32 `json:"height,omitempty"`
+
+	// Id Unique on the board; a reference's anchor names a frame by it.
+	Id   string                `json:"id"`
+	Kind WhiteboardElementKind `json:"kind"`
+
+	// Locked Not moved or changed by a pointer until unlocked.
+	Locked *bool                   `json:"locked,omitempty"`
+	Route  *WhiteboardElementRoute `json:"route,omitempty"`
+
+	// Shape A shape's outline; RECTANGLE when not sent.
+	Shape *WhiteboardElementShape `json:"shape,omitempty"`
+
+	// Start A connector's start head; NONE when not sent.
+	Start *WhiteboardElementStart `json:"start,omitempty"`
+
+	// Target What a card draws - an entry, resolved for each reader.
+	Target *struct {
+		Id   openapi_types.UUID          `json:"id"`
+		Kind WhiteboardElementTargetKind `json:"kind"`
+	} `json:"target,omitempty"`
+
+	// Text A sticky note's or shape's words, a text, a connector's label, a frame's name. `hubtask:` links are references.
+	Text *string `json:"text,omitempty"`
+
+	// To A connector's end: the object it is attached to.
+	To    *string  `json:"to,omitempty"`
+	Width *float32 `json:"width,omitempty"`
+	X     *float32 `json:"x,omitempty"`
+	Y     *float32 `json:"y,omitempty"`
+}
+
+// WhiteboardElementEnd A connector's end head; ARROW when not sent.
+type WhiteboardElementEnd string
+
+// WhiteboardElementKind defines model for WhiteboardElement.Kind.
+type WhiteboardElementKind string
+
+// WhiteboardElementRoute defines model for WhiteboardElement.Route.
+type WhiteboardElementRoute string
+
+// WhiteboardElementShape A shape's outline; RECTANGLE when not sent.
+type WhiteboardElementShape string
+
+// WhiteboardElementStart A connector's start head; NONE when not sent.
+type WhiteboardElementStart string
+
+// WhiteboardElementTargetKind defines model for WhiteboardElement.Target.Kind.
+type WhiteboardElementTargetKind string
+
+// WhiteboardExport defines model for WhiteboardExport.
+type WhiteboardExport struct {
+	Elements   []WhiteboardElement     `json:"elements"`
+	ExportedAt time.Time               `json:"exported_at"`
+	Format     WhiteboardExportFormat  `json:"format"`
+	Title      string                  `json:"title"`
+	Version    WhiteboardExportVersion `json:"version"`
+}
+
+// WhiteboardExportFormat defines model for WhiteboardExport.Format.
+type WhiteboardExportFormat string
+
+// WhiteboardExportVersion defines model for WhiteboardExport.Version.
+type WhiteboardExportVersion int
+
+// WhiteboardExportRequest defines model for WhiteboardExportRequest.
+type WhiteboardExportRequest struct {
+	// Frame The identifier of one frame, to export the objects inside it alone.
+	Frame *string `json:"frame,omitempty"`
+}
+
+// WhiteboardList defines model for WhiteboardList.
+type WhiteboardList struct {
+	Data []Whiteboard `json:"data"`
+}
+
+// WhiteboardRead A board with its objects and whether the reader may draw on it.
+type WhiteboardRead struct {
+	CreatedAt time.Time          `json:"created_at"`
+	CreatedBy openapi_types.UUID `json:"created_by"`
+
+	// ElementCount How many objects the board holds.
+	ElementCount int                 `json:"element_count"`
+	Elements     []WhiteboardElement `json:"elements"`
+
+	// HubId The hub the board belongs to.
+	HubId     openapi_types.UUID `json:"hub_id"`
+	Id        openapi_types.UUID `json:"id"`
+	Title     string             `json:"title"`
+	TrashedAt *time.Time         `json:"trashed_at"`
+	UpdatedAt time.Time          `json:"updated_at"`
+	UpdatedBy openapi_types.UUID `json:"updated_by"`
+
+	// Version The optimistic lock.
+	Version int `json:"version"`
+
+	// Writable The reader may draw on the board.
+	Writable bool `json:"writable"`
+}
+
 // WorkItem defines model for WorkItem.
 type WorkItem struct {
 	// Amount How much of it - "2", "1 kg" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.
@@ -16201,6 +16510,9 @@ type ViewId = openapi_types.UUID
 
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
+
+// WhiteboardId defines model for WhiteboardId.
+type WhiteboardId = openapi_types.UUID
 
 // ExplainAccessParams defines parameters for ExplainAccess.
 type ExplainAccessParams struct {
@@ -16895,6 +17207,11 @@ type UpdateGroupParams struct {
 type ListPagesParams struct {
 	IncludeArchived *bool `form:"include_archived,omitempty" json:"include_archived,omitempty"`
 	Templates       *bool `form:"templates,omitempty" json:"templates,omitempty"`
+}
+
+// ListWhiteboardsParams defines parameters for ListWhiteboards.
+type ListWhiteboardsParams struct {
+	Trashed *bool `form:"trashed,omitempty" json:"trashed,omitempty"`
 }
 
 // ConfigureFirstIdentityProviderParams defines parameters for ConfigureFirstIdentityProvider.
@@ -17761,6 +18078,12 @@ type SaveVoiceSettingsParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// UpdateWhiteboardParams defines parameters for UpdateWhiteboard.
+type UpdateWhiteboardParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // SaveWorkflowDraftParams defines parameters for SaveWorkflowDraft.
 type SaveWorkflowDraftParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -18124,6 +18447,9 @@ type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
 // CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
 type CreatePageJSONRequestBody = PageCreate
 
+// CreateWhiteboardJSONRequestBody defines body for CreateWhiteboard for application/json ContentType.
+type CreateWhiteboardJSONRequestBody = WhiteboardCreate
+
 // ConfigureFirstIdentityProviderJSONRequestBody defines body for ConfigureFirstIdentityProvider for application/json ContentType.
 type ConfigureFirstIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
@@ -18429,6 +18755,12 @@ type SaveVoiceSettingsJSONRequestBody = VoiceSettings
 
 // TryVoiceSentenceJSONRequestBody defines body for TryVoiceSentence for application/json ContentType.
 type TryVoiceSentenceJSONRequestBody = VoiceTry
+
+// UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody defines body for UpdateWhiteboard for application/merge-patch+json ContentType.
+type UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody = WhiteboardChange
+
+// ExportWhiteboardJSONRequestBody defines body for ExportWhiteboard for application/json ContentType.
+type ExportWhiteboardJSONRequestBody = WhiteboardExportRequest
 
 // SetWorkflowSchemeJSONRequestBody defines body for SetWorkflowScheme for application/json ContentType.
 type SetWorkflowSchemeJSONRequestBody = WorkflowSchemeChange
@@ -19137,6 +19469,12 @@ type ServerInterface interface {
 	// ListTrashedPages A hub's trashed pages
 	// (GET /hubs/{hubId}/trashed-pages)
 	ListTrashedPages(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// ListWhiteboards A hub's whiteboards
+	// (GET /hubs/{hubId}/whiteboards)
+	ListWhiteboards(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListWhiteboardsParams)
+	// CreateWhiteboard Make a new whiteboard
+	// (POST /hubs/{hubId}/whiteboards)
+	CreateWhiteboard(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ReadIdentityProvider The workspace's first identity provider
 	// (GET /identity-provider)
 	ReadIdentityProvider(w http.ResponseWriter, r *http.Request)
@@ -19833,6 +20171,21 @@ type ServerInterface interface {
 	// TryVoiceSentence What a spoken sentence would do
 	// (POST /voice:try)
 	TryVoiceSentence(w http.ResponseWriter, r *http.Request)
+	// TrashWhiteboard Put a whiteboard in the trash
+	// (DELETE /whiteboards/{whiteboardId})
+	TrashWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
+	// ReadWhiteboard Read a whiteboard
+	// (GET /whiteboards/{whiteboardId})
+	ReadWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
+	// UpdateWhiteboard Rename a whiteboard or save its objects
+	// (PATCH /whiteboards/{whiteboardId})
+	UpdateWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId, params UpdateWhiteboardParams)
+	// ExportWhiteboard Export a whiteboard
+	// (POST /whiteboards/{whiteboardId}:export)
+	ExportWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
+	// RestoreWhiteboard Bring a whiteboard back from the trash
+	// (POST /whiteboards/{whiteboardId}:restore)
+	RestoreWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
 	// SetWorkflowScheme Use a workflow in a hub or collection
 	// (PUT /workflow-scheme)
 	SetWorkflowScheme(w http.ResponseWriter, r *http.Request)
@@ -27271,6 +27624,74 @@ func (siw *ServerInterfaceWrapper) ListTrashedPages(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListTrashedPages(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListWhiteboards operation middleware
+func (siw *ServerInterfaceWrapper) ListWhiteboards(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListWhiteboardsParams
+
+	// ------------- Optional query parameter "trashed" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "trashed", r.URL.Query(), &params.Trashed, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "trashed"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "trashed", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWhiteboards(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateWhiteboard operation middleware
+func (siw *ServerInterfaceWrapper) CreateWhiteboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateWhiteboard(w, r, hubId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -35664,6 +36085,160 @@ func (siw *ServerInterfaceWrapper) TryVoiceSentence(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// TrashWhiteboard operation middleware
+func (siw *ServerInterfaceWrapper) TrashWhiteboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "whiteboardId" -------------
+	var whiteboardId WhiteboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "whiteboardId", r.PathValue("whiteboardId"), &whiteboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "whiteboardId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TrashWhiteboard(w, r, whiteboardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadWhiteboard operation middleware
+func (siw *ServerInterfaceWrapper) ReadWhiteboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "whiteboardId" -------------
+	var whiteboardId WhiteboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "whiteboardId", r.PathValue("whiteboardId"), &whiteboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "whiteboardId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadWhiteboard(w, r, whiteboardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateWhiteboard operation middleware
+func (siw *ServerInterfaceWrapper) UpdateWhiteboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "whiteboardId" -------------
+	var whiteboardId WhiteboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "whiteboardId", r.PathValue("whiteboardId"), &whiteboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "whiteboardId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateWhiteboardParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateWhiteboard(w, r, whiteboardId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportWhiteboard operation middleware
+func (siw *ServerInterfaceWrapper) ExportWhiteboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "whiteboardId" -------------
+	var whiteboardId WhiteboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "whiteboardId", r.PathValue("whiteboardId"), &whiteboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "whiteboardId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportWhiteboard(w, r, whiteboardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RestoreWhiteboard operation middleware
+func (siw *ServerInterfaceWrapper) RestoreWhiteboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "whiteboardId" -------------
+	var whiteboardId WhiteboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "whiteboardId", r.PathValue("whiteboardId"), &whiteboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "whiteboardId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestoreWhiteboard(w, r, whiteboardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SetWorkflowScheme operation middleware
 func (siw *ServerInterfaceWrapper) SetWorkflowScheme(w http.ResponseWriter, r *http.Request) {
 
@@ -36496,6 +37071,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/backlinks", wrapper.ListPageBacklinks)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}:export", wrapper.ExportPage)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages:search", wrapper.SearchPages)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/whiteboards", wrapper.ListWhiteboards)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/whiteboards", wrapper.CreateWhiteboard)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/whiteboards/{whiteboardId}", wrapper.TrashWhiteboard)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/whiteboards/{whiteboardId}", wrapper.ReadWhiteboard)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/whiteboards/{whiteboardId}", wrapper.UpdateWhiteboard)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}:restore", wrapper.RestoreWhiteboard)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}:export", wrapper.ExportWhiteboard)
 
 	return m
 }

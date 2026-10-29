@@ -4192,3 +4192,73 @@ class PageSearch(TypedDict, total=False):
 
 class PageHitList(TypedDict, total=False):
     data: Required[list[dict[str, Any]]]
+
+class Whiteboard(TypedDict, total=False):
+    """A whiteboard of a hub. Its objects (`elements`) are left out of a list's rows; the live document (`/realtime/documents/whiteboard/{id}`) is where several people draw at once."""
+    id: Required[str]
+    hub_id: Required[str]
+    title: Required[str]
+    element_count: Required[int]
+    elements: list["WhiteboardElement"]
+    trashed_at: Required[str | None]
+    created_by: Required[str]
+    created_at: Required[str]
+    updated_by: Required[str]
+    updated_at: Required[str]
+    version: Required[int]
+
+class WhiteboardRead(TypedDict, total=False):
+    """A board with its objects and whether the reader may draw on it."""
+    id: Required[str]
+    hub_id: Required[str]
+    title: Required[str]
+    element_count: Required[int]
+    elements: Required[list["WhiteboardElement"]]
+    trashed_at: Required[str | None]
+    created_by: Required[str]
+    created_at: Required[str]
+    updated_by: Required[str]
+    updated_at: Required[str]
+    version: Required[int]
+    writable: Required[bool]
+
+class WhiteboardList(TypedDict, total=False):
+    data: Required[list["Whiteboard"]]
+
+WhiteboardElement = TypedDict("WhiteboardElement", {
+    "id": Required[str],
+    "kind": Required[Literal["STICKY", "SHAPE", "TEXT", "CONNECTOR", "FRAME", "CARD"]],
+    "x": float,
+    "y": float,
+    "width": float,
+    "height": float,
+    "text": str,
+    "color_token": str | None,
+    "shape": Literal["RECTANGLE", "ROUNDED", "ELLIPSE", "DIAMOND", "PARALLELOGRAM", "TRIANGLE"],
+    "from": str | None,
+    "to": str | None,
+    "route": Literal["STRAIGHT", "ELBOW", "CURVED"],
+    "start": Literal["NONE", "ARROW"],
+    "end": Literal["NONE", "ARROW"],
+    "target": dict[str, Any],
+    "locked": bool,
+}, total=False)
+
+class WhiteboardCreate(TypedDict, total=False):
+    title: Required[str]
+    elements: list["WhiteboardElement"]
+    id: str
+
+class WhiteboardChange(TypedDict, total=False):
+    title: str
+    elements: list["WhiteboardElement"]
+
+class WhiteboardExportRequest(TypedDict, total=False):
+    frame: str
+
+class WhiteboardExport(TypedDict, total=False):
+    format: Required[Literal["hubtask.whiteboard"]]
+    version: Required[int]
+    title: Required[str]
+    exported_at: Required[str]
+    elements: Required[list["WhiteboardElement"]]

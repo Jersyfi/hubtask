@@ -1978,3 +1978,31 @@ class Client:
     def search_pages(self, body: "PageSearch") -> "PageHitList":
         """Find pages by their words"""
         return self._call("POST", "/pages:search", {}, None, {}, body, "json", "application/json", "json")
+
+    def list_whiteboards(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "WhiteboardList":
+        """A hub's whiteboards"""
+        return self._call("GET", "/hubs/{hubId}/whiteboards", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def create_whiteboard(self, hub_id: str, body: "WhiteboardCreate") -> "WhiteboardRead":
+        """Make a new whiteboard"""
+        return self._call("POST", "/hubs/{hubId}/whiteboards", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_whiteboard(self, whiteboard_id: str) -> "WhiteboardRead":
+        """Read a whiteboard"""
+        return self._call("GET", "/whiteboards/{whiteboardId}", {"whiteboardId": whiteboard_id}, None, {}, None, "none", None, "json")
+
+    def update_whiteboard(self, whiteboard_id: str, body: "WhiteboardChange", *, if_match: str | None = None) -> "WhiteboardRead":
+        """Rename a whiteboard or save its objects"""
+        return self._call("PATCH", "/whiteboards/{whiteboardId}", {"whiteboardId": whiteboard_id}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
+
+    def trash_whiteboard(self, whiteboard_id: str) -> "Whiteboard":
+        """Put a whiteboard in the trash"""
+        return self._call("DELETE", "/whiteboards/{whiteboardId}", {"whiteboardId": whiteboard_id}, None, {}, None, "none", None, "json")
+
+    def restore_whiteboard(self, whiteboard_id: str) -> "Whiteboard":
+        """Bring a whiteboard back from the trash"""
+        return self._call("POST", "/whiteboards/{whiteboardId}:restore", {"whiteboardId": whiteboard_id}, None, {}, None, "none", None, "json")
+
+    def export_whiteboard(self, whiteboard_id: str, body: "WhiteboardExportRequest") -> "WhiteboardExport":
+        """Export a whiteboard"""
+        return self._call("POST", "/whiteboards/{whiteboardId}:export", {"whiteboardId": whiteboard_id}, None, {}, body, "json", "application/json", "json")

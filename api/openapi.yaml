@@ -59,6 +59,7 @@ tags:
   - name: ai
   - name: suggestions
   - name: pages
+  - name: whiteboards
 
 x-hubtask-cli-groups:
   workflow: "the workspace's workflows and which collection runs which"
@@ -67,6 +68,7 @@ x-hubtask-cli-groups:
   role: "the workspace's own roles, who holds them, and why a person may do what"
   setting: "the settings catalogue: every setting, its level and its source"
   page: "a hub's pages: write, find, move, version, comment on and export them"
+  whiteboard: "a hub's whiteboards: make, draw on, trash and export them"
 
 paths:
   /templates:
@@ -13969,6 +13971,179 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /hubs/{hubId}/whiteboards:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [whiteboards]
+      operationId: listWhiteboards
+      x-hubtask-rest: generated
+      x-hubtask-cli: "whiteboard ls"
+      summary: A hub's whiteboards
+      description: >
+        The hub's boards without their objects, the last changed first, each with how many objects
+        it holds; with `trashed`, the boards in the hub's trash instead. Needs READ on the hub and
+        the whiteboard module switched on.
+      parameters:
+        - name: trashed
+          in: query
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: The boards
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhiteboardList"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [whiteboards]
+      operationId: createWhiteboard
+      x-hubtask-rest: generated
+      x-hubtask-rest-location: /whiteboards/{id}
+      x-hubtask-cli: "whiteboard create"
+      summary: Make a new whiteboard
+      description: >
+        Makes a board in the hub, empty or with objects - a template's, or the `elements` of a
+        board exported before, which reads the export back. Needs WRITE_ITEMS on the hub.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WhiteboardCreate"
+      responses:
+        "201":
+          description: Made
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhiteboardRead"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /whiteboards/{whiteboardId}:
+    parameters:
+      - $ref: "#/components/parameters/WhiteboardId"
+    get:
+      tags: [whiteboards]
+      operationId: readWhiteboard
+      x-hubtask-rest: generated
+      x-hubtask-cli: "whiteboard get"
+      summary: Read a whiteboard
+      description: >
+        The board with its objects in drawing order and whether the reader may draw on it. A card
+        names its entry only: what it shows is resolved for each reader (`/references:resolve`). A
+        board in the trash is not found. Needs READ on the board's hub.
+      responses:
+        "200":
+          description: The board
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhiteboardRead"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    patch:
+      tags: [whiteboards]
+      operationId: updateWhiteboard
+      x-hubtask-rest: generated
+      x-hubtask-cli: "whiteboard set"
+      summary: Rename a whiteboard or save its objects
+      description: >
+        Writes the title, or the board's objects sent whole in drawing order - what the editors of
+        the live document save beside it. Without `If-Match` the write lands on what stands. Needs
+        WRITE_ITEMS on the hub.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/WhiteboardChange"
+      responses:
+        "200":
+          description: The board as it now is
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhiteboardRead"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [whiteboards]
+      operationId: trashWhiteboard
+      x-hubtask-rest: generated
+      x-hubtask-cli: "whiteboard rm"
+      summary: Put a whiteboard in the trash
+      description: >
+        Puts the board in its hub's trash; `:restore` brings it back. Nothing is removed. Needs
+        WRITE_ITEMS on the hub.
+      responses:
+        "200":
+          description: Trashed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Whiteboard"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /whiteboards/{whiteboardId}:restore:
+    parameters:
+      - $ref: "#/components/parameters/WhiteboardId"
+    post:
+      tags: [whiteboards]
+      operationId: restoreWhiteboard
+      x-hubtask-rest: generated
+      x-hubtask-cli: "whiteboard restore"
+      summary: Bring a whiteboard back from the trash
+      description: The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub.
+      responses:
+        "200":
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Whiteboard"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /whiteboards/{whiteboardId}:export:
+    parameters:
+      - $ref: "#/components/parameters/WhiteboardId"
+    post:
+      tags: [whiteboards]
+      operationId: exportWhiteboard
+      x-hubtask-rest: generated
+      x-hubtask-cli: "whiteboard export"
+      summary: Export a whiteboard
+      description: >
+        The board - or, with `frame`, the objects inside one of its frames - as the native document
+        (`hubtask.whiteboard`, version 1), whose `title` and `elements` make a new board again. A
+        card exports the entry it names, not the entry's words. Pictures (SVG, PNG) are drawn by the
+        client. The export is recorded in the audit trail. Needs READ on the hub.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WhiteboardExportRequest"
+      responses:
+        "200":
+          description: The native document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhiteboardExport"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -14221,6 +14396,12 @@ components:
 
     PageId:
       name: pageId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+    WhiteboardId:
+      name: whiteboardId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -26603,3 +26784,112 @@ components:
               excerpt: { type: string, description: "The passage that matched, the words found between « and »." }
               rank: { type: number }
               updated_at: { type: string, format: date-time }
+
+    Whiteboard:
+      type: object
+      description: >
+        A whiteboard of a hub. Its objects (`elements`) are left out of a list's rows; the live
+        document (`/realtime/documents/whiteboard/{id}`) is where several people draw at once.
+      required: [id, hub_id, title, element_count, trashed_at, created_by, created_at, updated_by, updated_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        hub_id: { type: string, format: uuid, description: "The hub the board belongs to." }
+        title: { type: string, maxLength: 200 }
+        element_count: { type: integer, description: "How many objects the board holds." }
+        elements:
+          type: array
+          maxItems: 5000
+          items: { $ref: "#/components/schemas/WhiteboardElement" }
+        trashed_at: { type: [string, "null"], format: date-time }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_by: { type: string, format: uuid }
+        updated_at: { type: string, format: date-time }
+        version: { type: integer, description: "The optimistic lock." }
+
+    WhiteboardRead:
+      description: A board with its objects and whether the reader may draw on it.
+      allOf:
+        - $ref: "#/components/schemas/Whiteboard"
+        - type: object
+          required: [elements, writable]
+          properties:
+            writable: { type: boolean, description: "The reader may draw on the board." }
+
+    WhiteboardList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Whiteboard" }
+
+    WhiteboardElement:
+      type: object
+      description: >
+        One object of a board. A connector's ends are the objects it is attached to (`from`, `to`)
+        and follow them; an end attached to nothing is a point - the start at (x, y), the end at
+        (x + width, y + height), so a connector's width and height may be negative. Members another
+        kind does not draw are dropped.
+      required: [id, kind]
+      properties:
+        id: { type: string, pattern: "^[A-Za-z0-9_-]{1,64}$", description: "Unique on the board; a reference's anchor names a frame by it." }
+        kind: { type: string, enum: [STICKY, SHAPE, TEXT, CONNECTOR, FRAME, CARD] }
+        x: { type: number, minimum: -1000000, maximum: 1000000 }
+        y: { type: number, minimum: -1000000, maximum: 1000000 }
+        width: { type: number, minimum: -100000, maximum: 100000 }
+        height: { type: number, minimum: -100000, maximum: 100000 }
+        text: { type: string, maxLength: 2000, description: "A sticky note's or shape's words, a text, a connector's label, a frame's name. `hubtask:` links are references." }
+        color_token: { type: [string, "null"], description: "One of the ten label colour tokens, never a colour value; null for the kind's own." }
+        shape: { type: string, enum: [RECTANGLE, ROUNDED, ELLIPSE, DIAMOND, PARALLELOGRAM, TRIANGLE], description: "A shape's outline; RECTANGLE when not sent." }
+        from: { type: [string, "null"], description: "A connector's start: the object it is attached to." }
+        to: { type: [string, "null"], description: "A connector's end: the object it is attached to." }
+        route: { type: string, enum: [STRAIGHT, ELBOW, CURVED] }
+        start: { type: string, enum: [NONE, ARROW], description: "A connector's start head; NONE when not sent." }
+        end: { type: string, enum: [NONE, ARROW], description: "A connector's end head; ARROW when not sent." }
+        target:
+          type: object
+          description: What a card draws - an entry, resolved for each reader.
+          required: [kind, id]
+          properties:
+            kind: { type: string, enum: [ENTRY] }
+            id: { type: string, format: uuid }
+        locked: { type: boolean, description: "Not moved or changed by a pointer until unlocked." }
+
+    WhiteboardCreate:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        elements:
+          type: array
+          maxItems: 5000
+          items: { $ref: "#/components/schemas/WhiteboardElement" }
+        id: { type: string, format: uuid, description: "An identifier the client minted." }
+
+    WhiteboardChange:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        elements:
+          type: array
+          maxItems: 5000
+          description: The board's objects, sent whole in drawing order, the last on top.
+          items: { $ref: "#/components/schemas/WhiteboardElement" }
+
+    WhiteboardExportRequest:
+      type: object
+      properties:
+        frame: { type: string, description: "The identifier of one frame, to export the objects inside it alone." }
+
+    WhiteboardExport:
+      type: object
+      required: [format, version, title, exported_at, elements]
+      properties:
+        format: { type: string, enum: [hubtask.whiteboard] }
+        version: { type: integer, enum: [1] }
+        title: { type: string }
+        exported_at: { type: string, format: date-time }
+        elements:
+          type: array
+          items: { $ref: "#/components/schemas/WhiteboardElement" }

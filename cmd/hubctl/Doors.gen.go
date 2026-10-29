@@ -4,12 +4,13 @@ package main
 
 // generatedGroups is the summary of each group only generated commands open.
 var generatedGroups = map[string]string{
-	"link":      "an entry's links to other entries, and references resolved",
-	"link-type": "the kinds of link between entries: blocks, relates to, duplicates",
-	"page":      "a hub's pages: write, find, move, version, comment on and export them",
-	"role":      "the workspace's own roles, who holds them, and why a person may do what",
-	"setting":   "the settings catalogue: every setting, its level and its source",
-	"workflow":  "the workspace's workflows and which collection runs which",
+	"link":       "an entry's links to other entries, and references resolved",
+	"link-type":  "the kinds of link between entries: blocks, relates to, duplicates",
+	"page":       "a hub's pages: write, find, move, version, comment on and export them",
+	"role":       "the workspace's own roles, who holds them, and why a person may do what",
+	"setting":    "the settings catalogue: every setting, its level and its source",
+	"whiteboard": "a hub's whiteboards: make, draw on, trash and export them",
+	"workflow":   "the workspace's workflows and which collection runs which",
 }
 
 // generatedCommands is every operation the contract names a command for, in a stable order.
@@ -365,6 +366,56 @@ var generatedCommands = []door{
 			{Name: "viewId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"count", "group", "period", "value"}},
+	{Group: "whiteboard", Verb: "create", OperationID: "createWhiteboard", Method: "POST", Path: "/hubs/{hubId}/whiteboards", Summary: "Make a new whiteboard",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "elements", Kind: "json", Help: "", Required: false},
+			{Name: "id", Kind: "uuid", Help: "An identifier the client minted", Required: false},
+			{Name: "title", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "whiteboard", Verb: "export", OperationID: "exportWhiteboard", Method: "POST", Path: "/whiteboards/{whiteboardId}:export", Summary: "Export a whiteboard",
+		PathParams: []doorParam{
+			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "frame", Kind: "string", Help: "The identifier of one frame, to export the objects inside it alone", Required: false},
+		},
+		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"title", "version"}},
+	{Group: "whiteboard", Verb: "get", OperationID: "readWhiteboard", Method: "GET", Path: "/whiteboards/{whiteboardId}", Summary: "Read a whiteboard",
+		PathParams: []doorParam{
+			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "whiteboard", Verb: "ls", OperationID: "listWhiteboards", Method: "GET", Path: "/hubs/{hubId}/whiteboards", Summary: "A hub's whiteboards",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "trashed", Kind: "boolean", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title", "version"}},
+	{Group: "whiteboard", Verb: "restore", OperationID: "restoreWhiteboard", Method: "POST", Path: "/whiteboards/{whiteboardId}:restore", Summary: "Bring a whiteboard back from the trash",
+		PathParams: []doorParam{
+			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
+	{Group: "whiteboard", Verb: "rm", OperationID: "trashWhiteboard", Method: "DELETE", Path: "/whiteboards/{whiteboardId}", Summary: "Put a whiteboard in the trash",
+		PathParams: []doorParam{
+			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
+	{Group: "whiteboard", Verb: "set", OperationID: "updateWhiteboard", Method: "PATCH", Path: "/whiteboards/{whiteboardId}", Summary: "Rename a whiteboard or save its objects",
+		PathParams: []doorParam{
+			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "elements", Kind: "json", Help: "The board's objects, sent whole in drawing order, the last on top", Required: false},
+			{Name: "title", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{}},
 	{Group: "workflow", Verb: "create", OperationID: "createWorkflow", Method: "POST", Path: "/workflows", Summary: "Add a workflow",
 		Body: []doorParam{
 			{Name: "key", Kind: "string", Help: "", Required: true},

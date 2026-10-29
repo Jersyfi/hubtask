@@ -6471,6 +6471,168 @@ func (e WebhookSubscriptionUpdateState) Valid() bool {
 	}
 }
 
+// Defines values for WhiteboardElementEnd.
+const (
+	WhiteboardElementEndARROW WhiteboardElementEnd = "ARROW"
+	WhiteboardElementEndNONE  WhiteboardElementEnd = "NONE"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardElementEnd enum.
+func (e WhiteboardElementEnd) Valid() bool {
+	switch e {
+	case WhiteboardElementEndARROW:
+		return true
+	case WhiteboardElementEndNONE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WhiteboardElementKind.
+const (
+	WhiteboardElementKindCARD      WhiteboardElementKind = "CARD"
+	WhiteboardElementKindCONNECTOR WhiteboardElementKind = "CONNECTOR"
+	WhiteboardElementKindFRAME     WhiteboardElementKind = "FRAME"
+	WhiteboardElementKindSHAPE     WhiteboardElementKind = "SHAPE"
+	WhiteboardElementKindSTICKY    WhiteboardElementKind = "STICKY"
+	WhiteboardElementKindTEXT      WhiteboardElementKind = "TEXT"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardElementKind enum.
+func (e WhiteboardElementKind) Valid() bool {
+	switch e {
+	case WhiteboardElementKindCARD:
+		return true
+	case WhiteboardElementKindCONNECTOR:
+		return true
+	case WhiteboardElementKindFRAME:
+		return true
+	case WhiteboardElementKindSHAPE:
+		return true
+	case WhiteboardElementKindSTICKY:
+		return true
+	case WhiteboardElementKindTEXT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WhiteboardElementRoute.
+const (
+	CURVED   WhiteboardElementRoute = "CURVED"
+	ELBOW    WhiteboardElementRoute = "ELBOW"
+	STRAIGHT WhiteboardElementRoute = "STRAIGHT"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardElementRoute enum.
+func (e WhiteboardElementRoute) Valid() bool {
+	switch e {
+	case CURVED:
+		return true
+	case ELBOW:
+		return true
+	case STRAIGHT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WhiteboardElementShape.
+const (
+	DIAMOND       WhiteboardElementShape = "DIAMOND"
+	ELLIPSE       WhiteboardElementShape = "ELLIPSE"
+	PARALLELOGRAM WhiteboardElementShape = "PARALLELOGRAM"
+	RECTANGLE     WhiteboardElementShape = "RECTANGLE"
+	ROUNDED       WhiteboardElementShape = "ROUNDED"
+	TRIANGLE      WhiteboardElementShape = "TRIANGLE"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardElementShape enum.
+func (e WhiteboardElementShape) Valid() bool {
+	switch e {
+	case DIAMOND:
+		return true
+	case ELLIPSE:
+		return true
+	case PARALLELOGRAM:
+		return true
+	case RECTANGLE:
+		return true
+	case ROUNDED:
+		return true
+	case TRIANGLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WhiteboardElementStart.
+const (
+	WhiteboardElementStartARROW WhiteboardElementStart = "ARROW"
+	WhiteboardElementStartNONE  WhiteboardElementStart = "NONE"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardElementStart enum.
+func (e WhiteboardElementStart) Valid() bool {
+	switch e {
+	case WhiteboardElementStartARROW:
+		return true
+	case WhiteboardElementStartNONE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WhiteboardElementTargetKind.
+const (
+	WhiteboardElementTargetKindENTRY WhiteboardElementTargetKind = "ENTRY"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardElementTargetKind enum.
+func (e WhiteboardElementTargetKind) Valid() bool {
+	switch e {
+	case WhiteboardElementTargetKindENTRY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WhiteboardExportFormat.
+const (
+	HubtaskWhiteboard WhiteboardExportFormat = "hubtask.whiteboard"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardExportFormat enum.
+func (e WhiteboardExportFormat) Valid() bool {
+	switch e {
+	case HubtaskWhiteboard:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WhiteboardExportVersion.
+const (
+	N1 WhiteboardExportVersion = 1
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardExportVersion enum.
+func (e WhiteboardExportVersion) Valid() bool {
+	switch e {
+	case N1:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for WorkflowStatusCategory.
 const (
 	WorkflowStatusCategoryBACKLOG    WorkflowStatusCategory = "BACKLOG"
@@ -15573,6 +15735,153 @@ type WebhookSubscriptionUpdate struct {
 // WebhookSubscriptionUpdateState `DISABLED` is not settable by hand: it is what the system concludes from a run of failures. Pausing is how somebody stops deliveries deliberately, and the two say different things to whoever reads the list.
 type WebhookSubscriptionUpdateState string
 
+// Whiteboard A whiteboard of a hub. Its objects (`elements`) are left out of a list's rows; the live document (`/realtime/documents/whiteboard/{id}`) is where several people draw at once.
+type Whiteboard struct {
+	CreatedAt time.Time          `json:"created_at"`
+	CreatedBy openapi_types.UUID `json:"created_by"`
+
+	// ElementCount How many objects the board holds.
+	ElementCount int                  `json:"element_count"`
+	Elements     *[]WhiteboardElement `json:"elements,omitempty"`
+
+	// HubId The hub the board belongs to.
+	HubId     openapi_types.UUID `json:"hub_id"`
+	Id        openapi_types.UUID `json:"id"`
+	Title     string             `json:"title"`
+	TrashedAt *time.Time         `json:"trashed_at"`
+	UpdatedAt time.Time          `json:"updated_at"`
+	UpdatedBy openapi_types.UUID `json:"updated_by"`
+
+	// Version The optimistic lock.
+	Version int `json:"version"`
+}
+
+// WhiteboardChange defines model for WhiteboardChange.
+type WhiteboardChange struct {
+	// Elements The board's objects, sent whole in drawing order, the last on top.
+	Elements *[]WhiteboardElement `json:"elements,omitempty"`
+	Title    *string              `json:"title,omitempty"`
+}
+
+// WhiteboardCreate defines model for WhiteboardCreate.
+type WhiteboardCreate struct {
+	Elements *[]WhiteboardElement `json:"elements,omitempty"`
+
+	// Id An identifier the client minted.
+	Id    *openapi_types.UUID `json:"id,omitempty"`
+	Title string              `json:"title"`
+}
+
+// WhiteboardElement One object of a board. A connector's ends are the objects it is attached to (`from`, `to`) and follow them; an end attached to nothing is a point - the start at (x, y), the end at (x + width, y + height), so a connector's width and height may be negative. Members another kind does not draw are dropped.
+type WhiteboardElement struct {
+	// ColorToken One of the ten label colour tokens, never a colour value; null for the kind's own.
+	ColorToken *string `json:"color_token,omitempty"`
+
+	// End A connector's end head; ARROW when not sent.
+	End *WhiteboardElementEnd `json:"end,omitempty"`
+
+	// From A connector's start: the object it is attached to.
+	From   *string  `json:"from,omitempty"`
+	Height *float32 `json:"height,omitempty"`
+
+	// Id Unique on the board; a reference's anchor names a frame by it.
+	Id   string                `json:"id"`
+	Kind WhiteboardElementKind `json:"kind"`
+
+	// Locked Not moved or changed by a pointer until unlocked.
+	Locked *bool                   `json:"locked,omitempty"`
+	Route  *WhiteboardElementRoute `json:"route,omitempty"`
+
+	// Shape A shape's outline; RECTANGLE when not sent.
+	Shape *WhiteboardElementShape `json:"shape,omitempty"`
+
+	// Start A connector's start head; NONE when not sent.
+	Start *WhiteboardElementStart `json:"start,omitempty"`
+
+	// Target What a card draws - an entry, resolved for each reader.
+	Target *struct {
+		Id   openapi_types.UUID          `json:"id"`
+		Kind WhiteboardElementTargetKind `json:"kind"`
+	} `json:"target,omitempty"`
+
+	// Text A sticky note's or shape's words, a text, a connector's label, a frame's name. `hubtask:` links are references.
+	Text *string `json:"text,omitempty"`
+
+	// To A connector's end: the object it is attached to.
+	To    *string  `json:"to,omitempty"`
+	Width *float32 `json:"width,omitempty"`
+	X     *float32 `json:"x,omitempty"`
+	Y     *float32 `json:"y,omitempty"`
+}
+
+// WhiteboardElementEnd A connector's end head; ARROW when not sent.
+type WhiteboardElementEnd string
+
+// WhiteboardElementKind defines model for WhiteboardElement.Kind.
+type WhiteboardElementKind string
+
+// WhiteboardElementRoute defines model for WhiteboardElement.Route.
+type WhiteboardElementRoute string
+
+// WhiteboardElementShape A shape's outline; RECTANGLE when not sent.
+type WhiteboardElementShape string
+
+// WhiteboardElementStart A connector's start head; NONE when not sent.
+type WhiteboardElementStart string
+
+// WhiteboardElementTargetKind defines model for WhiteboardElement.Target.Kind.
+type WhiteboardElementTargetKind string
+
+// WhiteboardExport defines model for WhiteboardExport.
+type WhiteboardExport struct {
+	Elements   []WhiteboardElement     `json:"elements"`
+	ExportedAt time.Time               `json:"exported_at"`
+	Format     WhiteboardExportFormat  `json:"format"`
+	Title      string                  `json:"title"`
+	Version    WhiteboardExportVersion `json:"version"`
+}
+
+// WhiteboardExportFormat defines model for WhiteboardExport.Format.
+type WhiteboardExportFormat string
+
+// WhiteboardExportVersion defines model for WhiteboardExport.Version.
+type WhiteboardExportVersion int
+
+// WhiteboardExportRequest defines model for WhiteboardExportRequest.
+type WhiteboardExportRequest struct {
+	// Frame The identifier of one frame, to export the objects inside it alone.
+	Frame *string `json:"frame,omitempty"`
+}
+
+// WhiteboardList defines model for WhiteboardList.
+type WhiteboardList struct {
+	Data []Whiteboard `json:"data"`
+}
+
+// WhiteboardRead A board with its objects and whether the reader may draw on it.
+type WhiteboardRead struct {
+	CreatedAt time.Time          `json:"created_at"`
+	CreatedBy openapi_types.UUID `json:"created_by"`
+
+	// ElementCount How many objects the board holds.
+	ElementCount int                 `json:"element_count"`
+	Elements     []WhiteboardElement `json:"elements"`
+
+	// HubId The hub the board belongs to.
+	HubId     openapi_types.UUID `json:"hub_id"`
+	Id        openapi_types.UUID `json:"id"`
+	Title     string             `json:"title"`
+	TrashedAt *time.Time         `json:"trashed_at"`
+	UpdatedAt time.Time          `json:"updated_at"`
+	UpdatedBy openapi_types.UUID `json:"updated_by"`
+
+	// Version The optimistic lock.
+	Version int `json:"version"`
+
+	// Writable The reader may draw on the board.
+	Writable bool `json:"writable"`
+}
+
 // WorkItem defines model for WorkItem.
 type WorkItem struct {
 	// Amount How much of it - "2", "1 kg" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.
@@ -16207,6 +16516,9 @@ type ViewId = openapi_types.UUID
 
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
+
+// WhiteboardId defines model for WhiteboardId.
+type WhiteboardId = openapi_types.UUID
 
 // ExplainAccessParams defines parameters for ExplainAccess.
 type ExplainAccessParams struct {
@@ -16901,6 +17213,11 @@ type UpdateGroupParams struct {
 type ListPagesParams struct {
 	IncludeArchived *bool `form:"include_archived,omitempty" json:"include_archived,omitempty"`
 	Templates       *bool `form:"templates,omitempty" json:"templates,omitempty"`
+}
+
+// ListWhiteboardsParams defines parameters for ListWhiteboards.
+type ListWhiteboardsParams struct {
+	Trashed *bool `form:"trashed,omitempty" json:"trashed,omitempty"`
 }
 
 // ConfigureFirstIdentityProviderParams defines parameters for ConfigureFirstIdentityProvider.
@@ -17767,6 +18084,12 @@ type SaveVoiceSettingsParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// UpdateWhiteboardParams defines parameters for UpdateWhiteboard.
+type UpdateWhiteboardParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // SaveWorkflowDraftParams defines parameters for SaveWorkflowDraft.
 type SaveWorkflowDraftParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -18130,6 +18453,9 @@ type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
 // CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
 type CreatePageJSONRequestBody = PageCreate
 
+// CreateWhiteboardJSONRequestBody defines body for CreateWhiteboard for application/json ContentType.
+type CreateWhiteboardJSONRequestBody = WhiteboardCreate
+
 // ConfigureFirstIdentityProviderJSONRequestBody defines body for ConfigureFirstIdentityProvider for application/json ContentType.
 type ConfigureFirstIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
@@ -18435,6 +18761,12 @@ type SaveVoiceSettingsJSONRequestBody = VoiceSettings
 
 // TryVoiceSentenceJSONRequestBody defines body for TryVoiceSentence for application/json ContentType.
 type TryVoiceSentenceJSONRequestBody = VoiceTry
+
+// UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody defines body for UpdateWhiteboard for application/merge-patch+json ContentType.
+type UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody = WhiteboardChange
+
+// ExportWhiteboardJSONRequestBody defines body for ExportWhiteboard for application/json ContentType.
+type ExportWhiteboardJSONRequestBody = WhiteboardExportRequest
 
 // SetWorkflowSchemeJSONRequestBody defines body for SetWorkflowScheme for application/json ContentType.
 type SetWorkflowSchemeJSONRequestBody = WorkflowSchemeChange
@@ -21890,6 +22222,31 @@ type ClientInterface interface {
 	// Corresponds with GET /hubs/{hubId}/trashed-pages (the `ListTrashedPages` operationId).
 	ListTrashedPages(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListWhiteboards A hub's whiteboards
+	//
+	// The hub's boards without their objects, the last changed first, each with how many objects it holds; with `trashed`, the boards in the hub's trash instead. Needs READ on the hub and the whiteboard module switched on.
+	//
+	// Corresponds with GET /hubs/{hubId}/whiteboards (the `ListWhiteboards` operationId).
+	ListWhiteboards(ctx context.Context, hubId openapi_types.UUID, params *ListWhiteboardsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateWhiteboardWithBody Make a new whiteboard
+	//
+	// Makes a board in the hub, empty or with objects - a template's, or the `elements` of a board exported before, which reads the export back. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/whiteboards (the `CreateWhiteboard` operationId).
+	CreateWhiteboardWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateWhiteboard Make a new whiteboard
+	//
+	// Makes a board in the hub, empty or with objects - a template's, or the `elements` of a board exported before, which reads the export back. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/whiteboards (the `CreateWhiteboard` operationId).
+	CreateWhiteboard(ctx context.Context, hubId openapi_types.UUID, body CreateWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ReadIdentityProvider The workspace's first identity provider
 	//
 	// **Kept, because nothing in this contract disappears.** It was the whole of the provider surface before providers became plural, and a caller written against it keeps working: it reads the workspace's own first provider, in the order the collection lists them, and `PUT` writes that one - creating it where there is none.
@@ -24969,6 +25326,63 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /voice:try (the `TryVoiceSentence` operationId).
 	TryVoiceSentence(ctx context.Context, body TryVoiceSentenceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TrashWhiteboard Put a whiteboard in the trash
+	//
+	// Puts the board in its hub's trash; `:restore` brings it back. Nothing is removed. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with DELETE /whiteboards/{whiteboardId} (the `TrashWhiteboard` operationId).
+	TrashWhiteboard(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadWhiteboard Read a whiteboard
+	//
+	// The board with its objects in drawing order and whether the reader may draw on it. A card names its entry only: what it shows is resolved for each reader (`/references:resolve`). A board in the trash is not found. Needs READ on the board's hub.
+	//
+	// Corresponds with GET /whiteboards/{whiteboardId} (the `ReadWhiteboard` operationId).
+	ReadWhiteboard(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateWhiteboardWithBody Rename a whiteboard or save its objects
+	//
+	// Writes the title, or the board's objects sent whole in drawing order - what the editors of the live document save beside it. Without `If-Match` the write lands on what stands. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /whiteboards/{whiteboardId} (the `UpdateWhiteboard` operationId).
+	UpdateWhiteboardWithBody(ctx context.Context, whiteboardId WhiteboardId, params *UpdateWhiteboardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateWhiteboardWithApplicationMergePatchPlusJSONBody Rename a whiteboard or save its objects
+	//
+	// Writes the title, or the board's objects sent whole in drawing order - what the editors of the live document save beside it. Without `If-Match` the write lands on what stands. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/merge-patch+json` content type.
+	//
+	// Corresponds with PATCH /whiteboards/{whiteboardId} (the `UpdateWhiteboard` operationId).
+	UpdateWhiteboardWithApplicationMergePatchPlusJSONBody(ctx context.Context, whiteboardId WhiteboardId, params *UpdateWhiteboardParams, body UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExportWhiteboardWithBody Export a whiteboard
+	//
+	// The board - or, with `frame`, the objects inside one of its frames - as the native document (`hubtask.whiteboard`, version 1), whose `title` and `elements` make a new board again. A card exports the entry it names, not the entry's words. Pictures (SVG, PNG) are drawn by the client. The export is recorded in the audit trail. Needs READ on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}:export (the `ExportWhiteboard` operationId).
+	ExportWhiteboardWithBody(ctx context.Context, whiteboardId WhiteboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExportWhiteboard Export a whiteboard
+	//
+	// The board - or, with `frame`, the objects inside one of its frames - as the native document (`hubtask.whiteboard`, version 1), whose `title` and `elements` make a new board again. A card exports the entry it names, not the entry's words. Pictures (SVG, PNG) are drawn by the client. The export is recorded in the audit trail. Needs READ on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}:export (the `ExportWhiteboard` operationId).
+	ExportWhiteboard(ctx context.Context, whiteboardId WhiteboardId, body ExportWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RestoreWhiteboard Bring a whiteboard back from the trash
+	//
+	// The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}:restore (the `RestoreWhiteboard` operationId).
+	RestoreWhiteboard(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetWorkflowSchemeWithBody Use a workflow in a hub or collection
 	//
@@ -31900,6 +32314,61 @@ func (c *Client) ListTrashedPages(ctx context.Context, hubId openapi_types.UUID,
 	return c.Client.Do(req)
 }
 
+// ListWhiteboards A hub's whiteboards
+//
+// The hub's boards without their objects, the last changed first, each with how many objects it holds; with `trashed`, the boards in the hub's trash instead. Needs READ on the hub and the whiteboard module switched on.
+//
+// Corresponds with GET /hubs/{hubId}/whiteboards (the `ListWhiteboards` operationId).
+func (c *Client) ListWhiteboards(ctx context.Context, hubId openapi_types.UUID, params *ListWhiteboardsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListWhiteboardsRequest(c.Server, hubId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateWhiteboardWithBody Make a new whiteboard
+//
+// Makes a board in the hub, empty or with objects - a template's, or the `elements` of a board exported before, which reads the export back. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /hubs/{hubId}/whiteboards (the `CreateWhiteboard` operationId).
+func (c *Client) CreateWhiteboardWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateWhiteboardRequestWithBody(c.Server, hubId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateWhiteboard Make a new whiteboard
+//
+// Makes a board in the hub, empty or with objects - a template's, or the `elements` of a board exported before, which reads the export back. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /hubs/{hubId}/whiteboards (the `CreateWhiteboard` operationId).
+func (c *Client) CreateWhiteboard(ctx context.Context, hubId openapi_types.UUID, body CreateWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateWhiteboardRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ReadIdentityProvider The workspace's first identity provider
 //
 // **Kept, because nothing in this contract disappears.** It was the whole of the provider surface before providers became plural, and a caller written against it keeps working: it reads the workspace's own first provider, in the order the collection lists them, and `PUT` writes that one - creating it where there is none.
@@ -38300,6 +38769,133 @@ func (c *Client) TryVoiceSentenceWithBody(ctx context.Context, contentType strin
 // Corresponds with POST /voice:try (the `TryVoiceSentence` operationId).
 func (c *Client) TryVoiceSentence(ctx context.Context, body TryVoiceSentenceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewTryVoiceSentenceRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// TrashWhiteboard Put a whiteboard in the trash
+//
+// Puts the board in its hub's trash; `:restore` brings it back. Nothing is removed. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with DELETE /whiteboards/{whiteboardId} (the `TrashWhiteboard` operationId).
+func (c *Client) TrashWhiteboard(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTrashWhiteboardRequest(c.Server, whiteboardId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadWhiteboard Read a whiteboard
+//
+// The board with its objects in drawing order and whether the reader may draw on it. A card names its entry only: what it shows is resolved for each reader (`/references:resolve`). A board in the trash is not found. Needs READ on the board's hub.
+//
+// Corresponds with GET /whiteboards/{whiteboardId} (the `ReadWhiteboard` operationId).
+func (c *Client) ReadWhiteboard(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadWhiteboardRequest(c.Server, whiteboardId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateWhiteboardWithBody Rename a whiteboard or save its objects
+//
+// Writes the title, or the board's objects sent whole in drawing order - what the editors of the live document save beside it. Without `If-Match` the write lands on what stands. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /whiteboards/{whiteboardId} (the `UpdateWhiteboard` operationId).
+func (c *Client) UpdateWhiteboardWithBody(ctx context.Context, whiteboardId WhiteboardId, params *UpdateWhiteboardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateWhiteboardRequestWithBody(c.Server, whiteboardId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateWhiteboardWithApplicationMergePatchPlusJSONBody Rename a whiteboard or save its objects
+//
+// Writes the title, or the board's objects sent whole in drawing order - what the editors of the live document save beside it. Without `If-Match` the write lands on what stands. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/merge-patch+json` content type.
+//
+// Corresponds with PATCH /whiteboards/{whiteboardId} (the `UpdateWhiteboard` operationId).
+func (c *Client) UpdateWhiteboardWithApplicationMergePatchPlusJSONBody(ctx context.Context, whiteboardId WhiteboardId, params *UpdateWhiteboardParams, body UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateWhiteboardRequestWithApplicationMergePatchPlusJSONBody(c.Server, whiteboardId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ExportWhiteboardWithBody Export a whiteboard
+//
+// The board - or, with `frame`, the objects inside one of its frames - as the native document (`hubtask.whiteboard`, version 1), whose `title` and `elements` make a new board again. A card exports the entry it names, not the entry's words. Pictures (SVG, PNG) are drawn by the client. The export is recorded in the audit trail. Needs READ on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /whiteboards/{whiteboardId}:export (the `ExportWhiteboard` operationId).
+func (c *Client) ExportWhiteboardWithBody(ctx context.Context, whiteboardId WhiteboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExportWhiteboardRequestWithBody(c.Server, whiteboardId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ExportWhiteboard Export a whiteboard
+//
+// The board - or, with `frame`, the objects inside one of its frames - as the native document (`hubtask.whiteboard`, version 1), whose `title` and `elements` make a new board again. A card exports the entry it names, not the entry's words. Pictures (SVG, PNG) are drawn by the client. The export is recorded in the audit trail. Needs READ on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /whiteboards/{whiteboardId}:export (the `ExportWhiteboard` operationId).
+func (c *Client) ExportWhiteboard(ctx context.Context, whiteboardId WhiteboardId, body ExportWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExportWhiteboardRequest(c.Server, whiteboardId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RestoreWhiteboard Bring a whiteboard back from the trash
+//
+// The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with POST /whiteboards/{whiteboardId}:restore (the `RestoreWhiteboard` operationId).
+func (c *Client) RestoreWhiteboard(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRestoreWhiteboardRequest(c.Server, whiteboardId)
 	if err != nil {
 		return nil, err
 	}
@@ -49226,6 +49822,114 @@ func NewListTrashedPagesRequest(server string, hubId openapi_types.UUID) (*http.
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewListWhiteboardsRequest constructs an http.Request for the ListWhiteboards method
+func NewListWhiteboardsRequest(server string, hubId openapi_types.UUID, params *ListWhiteboardsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/whiteboards", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Trashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "trashed", *params.Trashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateWhiteboardRequest calls the generic CreateWhiteboard builder with application/json body
+func NewCreateWhiteboardRequest(server string, hubId openapi_types.UUID, body CreateWhiteboardJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateWhiteboardRequestWithBody(server, hubId, "application/json", bodyReader)
+}
+
+// NewCreateWhiteboardRequestWithBody constructs an http.Request for the CreateWhiteboard method, with any body, and a specified content type
+func NewCreateWhiteboardRequestWithBody(server string, hubId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/whiteboards", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -60426,6 +61130,217 @@ func NewTryVoiceSentenceRequestWithBody(server string, contentType string, body 
 	return req, nil
 }
 
+// NewTrashWhiteboardRequest constructs an http.Request for the TrashWhiteboard method
+func NewTrashWhiteboardRequest(server string, whiteboardId WhiteboardId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "whiteboardId", whiteboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/whiteboards/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadWhiteboardRequest constructs an http.Request for the ReadWhiteboard method
+func NewReadWhiteboardRequest(server string, whiteboardId WhiteboardId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "whiteboardId", whiteboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/whiteboards/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateWhiteboardRequestWithApplicationMergePatchPlusJSONBody calls the generic UpdateWhiteboard builder with application/merge-patch+json body
+func NewUpdateWhiteboardRequestWithApplicationMergePatchPlusJSONBody(server string, whiteboardId WhiteboardId, params *UpdateWhiteboardParams, body UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateWhiteboardRequestWithBody(server, whiteboardId, params, "application/merge-patch+json", bodyReader)
+}
+
+// NewUpdateWhiteboardRequestWithBody constructs an http.Request for the UpdateWhiteboard method, with any body, and a specified content type
+func NewUpdateWhiteboardRequestWithBody(server string, whiteboardId WhiteboardId, params *UpdateWhiteboardParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "whiteboardId", whiteboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/whiteboards/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewExportWhiteboardRequest calls the generic ExportWhiteboard builder with application/json body
+func NewExportWhiteboardRequest(server string, whiteboardId WhiteboardId, body ExportWhiteboardJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewExportWhiteboardRequestWithBody(server, whiteboardId, "application/json", bodyReader)
+}
+
+// NewExportWhiteboardRequestWithBody constructs an http.Request for the ExportWhiteboard method, with any body, and a specified content type
+func NewExportWhiteboardRequestWithBody(server string, whiteboardId WhiteboardId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "whiteboardId", whiteboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/whiteboards/%s:export", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRestoreWhiteboardRequest constructs an http.Request for the RestoreWhiteboard method
+func NewRestoreWhiteboardRequest(server string, whiteboardId WhiteboardId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "whiteboardId", whiteboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/whiteboards/%s:restore", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewSetWorkflowSchemeRequest calls the generic SetWorkflowScheme builder with application/json body
 func NewSetWorkflowSchemeRequest(server string, body SetWorkflowSchemeJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -64491,6 +65406,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /hubs/{hubId}/trashed-pages (the `ListTrashedPages` operationId).
 	ListTrashedPagesWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListTrashedPagesResult, error)
 
+	// ListWhiteboardsWithResponse A hub's whiteboards
+	//
+	// The hub's boards without their objects, the last changed first, each with how many objects it holds; with `trashed`, the boards in the hub's trash instead. Needs READ on the hub and the whiteboard module switched on.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/whiteboards (the `ListWhiteboards` operationId).
+	ListWhiteboardsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListWhiteboardsParams, reqEditors ...RequestEditorFn) (*ListWhiteboardsResult, error)
+
+	// CreateWhiteboardWithBodyWithResponse Make a new whiteboard
+	//
+	// Makes a board in the hub, empty or with objects - a template's, or the `elements` of a board exported before, which reads the export back. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/whiteboards (the `CreateWhiteboard` operationId).
+	CreateWhiteboardWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateWhiteboardResult, error)
+
+	// CreateWhiteboardWithResponse Make a new whiteboard
+	//
+	// Makes a board in the hub, empty or with objects - a template's, or the `elements` of a board exported before, which reads the export back. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/whiteboards (the `CreateWhiteboard` operationId).
+	CreateWhiteboardWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreateWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateWhiteboardResult, error)
+
 	// ReadIdentityProviderWithResponse The workspace's first identity provider
 	//
 	// **Kept, because nothing in this contract disappears.** It was the whole of the provider surface before providers became plural, and a caller written against it keeps working: it reads the workspace's own first provider, in the order the collection lists them, and `PUT` writes that one - creating it where there is none.
@@ -67882,6 +68824,69 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /voice:try (the `TryVoiceSentence` operationId).
 	TryVoiceSentenceWithResponse(ctx context.Context, body TryVoiceSentenceJSONRequestBody, reqEditors ...RequestEditorFn) (*TryVoiceSentenceResult, error)
+
+	// TrashWhiteboardWithResponse Put a whiteboard in the trash
+	//
+	// Puts the board in its hub's trash; `:restore` brings it back. Nothing is removed. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /whiteboards/{whiteboardId} (the `TrashWhiteboard` operationId).
+	TrashWhiteboardWithResponse(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*TrashWhiteboardResult, error)
+
+	// ReadWhiteboardWithResponse Read a whiteboard
+	//
+	// The board with its objects in drawing order and whether the reader may draw on it. A card names its entry only: what it shows is resolved for each reader (`/references:resolve`). A board in the trash is not found. Needs READ on the board's hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /whiteboards/{whiteboardId} (the `ReadWhiteboard` operationId).
+	ReadWhiteboardWithResponse(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*ReadWhiteboardResult, error)
+
+	// UpdateWhiteboardWithBodyWithResponse Rename a whiteboard or save its objects
+	//
+	// Writes the title, or the board's objects sent whole in drawing order - what the editors of the live document save beside it. Without `If-Match` the write lands on what stands. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /whiteboards/{whiteboardId} (the `UpdateWhiteboard` operationId).
+	UpdateWhiteboardWithBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, params *UpdateWhiteboardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateWhiteboardResult, error)
+
+	// UpdateWhiteboardWithApplicationMergePatchPlusJSONBodyWithResponse Rename a whiteboard or save its objects
+	//
+	// Writes the title, or the board's objects sent whole in drawing order - what the editors of the live document save beside it. Without `If-Match` the write lands on what stands. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /whiteboards/{whiteboardId} (the `UpdateWhiteboard` operationId).
+	UpdateWhiteboardWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, params *UpdateWhiteboardParams, body UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateWhiteboardResult, error)
+
+	// ExportWhiteboardWithBodyWithResponse Export a whiteboard
+	//
+	// The board - or, with `frame`, the objects inside one of its frames - as the native document (`hubtask.whiteboard`, version 1), whose `title` and `elements` make a new board again. A card exports the entry it names, not the entry's words. Pictures (SVG, PNG) are drawn by the client. The export is recorded in the audit trail. Needs READ on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}:export (the `ExportWhiteboard` operationId).
+	ExportWhiteboardWithBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExportWhiteboardResult, error)
+
+	// ExportWhiteboardWithResponse Export a whiteboard
+	//
+	// The board - or, with `frame`, the objects inside one of its frames - as the native document (`hubtask.whiteboard`, version 1), whose `title` and `elements` make a new board again. A card exports the entry it names, not the entry's words. Pictures (SVG, PNG) are drawn by the client. The export is recorded in the audit trail. Needs READ on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}:export (the `ExportWhiteboard` operationId).
+	ExportWhiteboardWithResponse(ctx context.Context, whiteboardId WhiteboardId, body ExportWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*ExportWhiteboardResult, error)
+
+	// RestoreWhiteboardWithResponse Bring a whiteboard back from the trash
+	//
+	// The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}:restore (the `RestoreWhiteboard` operationId).
+	RestoreWhiteboardWithResponse(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*RestoreWhiteboardResult, error)
 
 	// SetWorkflowSchemeWithBodyWithResponse Use a workflow in a hub or collection
 	//
@@ -79195,6 +80200,102 @@ func (r ListTrashedPagesResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListTrashedPagesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListWhiteboardsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WhiteboardList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListWhiteboardsResult) GetJSON200() *WhiteboardList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListWhiteboardsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListWhiteboardsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListWhiteboardsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListWhiteboardsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListWhiteboardsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateWhiteboardResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *WhiteboardRead
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateWhiteboardResult) GetJSON201() *WhiteboardRead {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateWhiteboardResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateWhiteboardResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateWhiteboardResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateWhiteboardResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateWhiteboardResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -90618,6 +91719,246 @@ func (r TryVoiceSentenceResult) ContentType() string {
 	return ""
 }
 
+type TrashWhiteboardResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Whiteboard
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r TrashWhiteboardResult) GetJSON200() *Whiteboard {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r TrashWhiteboardResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r TrashWhiteboardResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r TrashWhiteboardResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r TrashWhiteboardResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r TrashWhiteboardResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadWhiteboardResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WhiteboardRead
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadWhiteboardResult) GetJSON200() *WhiteboardRead {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadWhiteboardResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadWhiteboardResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadWhiteboardResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadWhiteboardResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadWhiteboardResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateWhiteboardResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WhiteboardRead
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateWhiteboardResult) GetJSON200() *WhiteboardRead {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UpdateWhiteboardResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateWhiteboardResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateWhiteboardResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateWhiteboardResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateWhiteboardResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ExportWhiteboardResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WhiteboardExport
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ExportWhiteboardResult) GetJSON200() *WhiteboardExport {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ExportWhiteboardResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ExportWhiteboardResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ExportWhiteboardResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ExportWhiteboardResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ExportWhiteboardResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RestoreWhiteboardResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Whiteboard
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RestoreWhiteboardResult) GetJSON200() *Whiteboard {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RestoreWhiteboardResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RestoreWhiteboardResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RestoreWhiteboardResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RestoreWhiteboardResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RestoreWhiteboardResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type SetWorkflowSchemeResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -96737,6 +98078,51 @@ func (c *ClientWithResponses) ListTrashedPagesWithResponse(ctx context.Context, 
 	return ParseListTrashedPagesResult(rsp)
 }
 
+// ListWhiteboardsWithResponse A hub's whiteboards
+//
+// The hub's boards without their objects, the last changed first, each with how many objects it holds; with `trashed`, the boards in the hub's trash instead. Needs READ on the hub and the whiteboard module switched on.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/whiteboards (the `ListWhiteboards` operationId).
+func (c *ClientWithResponses) ListWhiteboardsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListWhiteboardsParams, reqEditors ...RequestEditorFn) (*ListWhiteboardsResult, error) {
+	rsp, err := c.ListWhiteboards(ctx, hubId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListWhiteboardsResult(rsp)
+}
+
+// CreateWhiteboardWithBodyWithResponse Make a new whiteboard
+//
+// Makes a board in the hub, empty or with objects - a template's, or the `elements` of a board exported before, which reads the export back. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/whiteboards (the `CreateWhiteboard` operationId).
+func (c *ClientWithResponses) CreateWhiteboardWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateWhiteboardResult, error) {
+	rsp, err := c.CreateWhiteboardWithBody(ctx, hubId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateWhiteboardResult(rsp)
+}
+
+// CreateWhiteboardWithResponse Make a new whiteboard
+//
+// Makes a board in the hub, empty or with objects - a template's, or the `elements` of a board exported before, which reads the export back. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/whiteboards (the `CreateWhiteboard` operationId).
+func (c *ClientWithResponses) CreateWhiteboardWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreateWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateWhiteboardResult, error) {
+	rsp, err := c.CreateWhiteboard(ctx, hubId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateWhiteboardResult(rsp)
+}
+
 // ReadIdentityProviderWithResponse The workspace's first identity provider
 //
 // **Kept, because nothing in this contract disappears.** It was the whole of the provider surface before providers became plural, and a caller written against it keeps working: it reads the workspace's own first provider, in the order the collection lists them, and `PUT` writes that one - creating it where there is none.
@@ -102125,6 +103511,111 @@ func (c *ClientWithResponses) TryVoiceSentenceWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseTryVoiceSentenceResult(rsp)
+}
+
+// TrashWhiteboardWithResponse Put a whiteboard in the trash
+//
+// Puts the board in its hub's trash; `:restore` brings it back. Nothing is removed. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /whiteboards/{whiteboardId} (the `TrashWhiteboard` operationId).
+func (c *ClientWithResponses) TrashWhiteboardWithResponse(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*TrashWhiteboardResult, error) {
+	rsp, err := c.TrashWhiteboard(ctx, whiteboardId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTrashWhiteboardResult(rsp)
+}
+
+// ReadWhiteboardWithResponse Read a whiteboard
+//
+// The board with its objects in drawing order and whether the reader may draw on it. A card names its entry only: what it shows is resolved for each reader (`/references:resolve`). A board in the trash is not found. Needs READ on the board's hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /whiteboards/{whiteboardId} (the `ReadWhiteboard` operationId).
+func (c *ClientWithResponses) ReadWhiteboardWithResponse(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*ReadWhiteboardResult, error) {
+	rsp, err := c.ReadWhiteboard(ctx, whiteboardId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadWhiteboardResult(rsp)
+}
+
+// UpdateWhiteboardWithBodyWithResponse Rename a whiteboard or save its objects
+//
+// Writes the title, or the board's objects sent whole in drawing order - what the editors of the live document save beside it. Without `If-Match` the write lands on what stands. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /whiteboards/{whiteboardId} (the `UpdateWhiteboard` operationId).
+func (c *ClientWithResponses) UpdateWhiteboardWithBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, params *UpdateWhiteboardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateWhiteboardResult, error) {
+	rsp, err := c.UpdateWhiteboardWithBody(ctx, whiteboardId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateWhiteboardResult(rsp)
+}
+
+// UpdateWhiteboardWithApplicationMergePatchPlusJSONBodyWithResponse Rename a whiteboard or save its objects
+//
+// Writes the title, or the board's objects sent whole in drawing order - what the editors of the live document save beside it. Without `If-Match` the write lands on what stands. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /whiteboards/{whiteboardId} (the `UpdateWhiteboard` operationId).
+func (c *ClientWithResponses) UpdateWhiteboardWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, params *UpdateWhiteboardParams, body UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateWhiteboardResult, error) {
+	rsp, err := c.UpdateWhiteboardWithApplicationMergePatchPlusJSONBody(ctx, whiteboardId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateWhiteboardResult(rsp)
+}
+
+// ExportWhiteboardWithBodyWithResponse Export a whiteboard
+//
+// The board - or, with `frame`, the objects inside one of its frames - as the native document (`hubtask.whiteboard`, version 1), whose `title` and `elements` make a new board again. A card exports the entry it names, not the entry's words. Pictures (SVG, PNG) are drawn by the client. The export is recorded in the audit trail. Needs READ on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /whiteboards/{whiteboardId}:export (the `ExportWhiteboard` operationId).
+func (c *ClientWithResponses) ExportWhiteboardWithBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExportWhiteboardResult, error) {
+	rsp, err := c.ExportWhiteboardWithBody(ctx, whiteboardId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExportWhiteboardResult(rsp)
+}
+
+// ExportWhiteboardWithResponse Export a whiteboard
+//
+// The board - or, with `frame`, the objects inside one of its frames - as the native document (`hubtask.whiteboard`, version 1), whose `title` and `elements` make a new board again. A card exports the entry it names, not the entry's words. Pictures (SVG, PNG) are drawn by the client. The export is recorded in the audit trail. Needs READ on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /whiteboards/{whiteboardId}:export (the `ExportWhiteboard` operationId).
+func (c *ClientWithResponses) ExportWhiteboardWithResponse(ctx context.Context, whiteboardId WhiteboardId, body ExportWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*ExportWhiteboardResult, error) {
+	rsp, err := c.ExportWhiteboard(ctx, whiteboardId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExportWhiteboardResult(rsp)
+}
+
+// RestoreWhiteboardWithResponse Bring a whiteboard back from the trash
+//
+// The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /whiteboards/{whiteboardId}:restore (the `RestoreWhiteboard` operationId).
+func (c *ClientWithResponses) RestoreWhiteboardWithResponse(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*RestoreWhiteboardResult, error) {
+	rsp, err := c.RestoreWhiteboard(ctx, whiteboardId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRestoreWhiteboardResult(rsp)
 }
 
 // SetWorkflowSchemeWithBodyWithResponse Use a workflow in a hub or collection
@@ -110339,6 +111830,72 @@ func ParseListTrashedPagesResult(rsp *http.Response) (*ListTrashedPagesResult, e
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListWhiteboardsResult parses an HTTP response from a ListWhiteboardsWithResponse call
+func ParseListWhiteboardsResult(rsp *http.Response) (*ListWhiteboardsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListWhiteboardsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WhiteboardList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateWhiteboardResult parses an HTTP response from a CreateWhiteboardWithResponse call
+func ParseCreateWhiteboardResult(rsp *http.Response) (*CreateWhiteboardResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateWhiteboardResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest WhiteboardRead
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -118584,6 +120141,171 @@ func ParseTryVoiceSentenceResult(rsp *http.Response) (*TryVoiceSentenceResult, e
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest VoiceInterpretation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseTrashWhiteboardResult parses an HTTP response from a TrashWhiteboardWithResponse call
+func ParseTrashWhiteboardResult(rsp *http.Response) (*TrashWhiteboardResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &TrashWhiteboardResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Whiteboard
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadWhiteboardResult parses an HTTP response from a ReadWhiteboardWithResponse call
+func ParseReadWhiteboardResult(rsp *http.Response) (*ReadWhiteboardResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadWhiteboardResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WhiteboardRead
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateWhiteboardResult parses an HTTP response from a UpdateWhiteboardWithResponse call
+func ParseUpdateWhiteboardResult(rsp *http.Response) (*UpdateWhiteboardResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateWhiteboardResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WhiteboardRead
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseExportWhiteboardResult parses an HTTP response from a ExportWhiteboardWithResponse call
+func ParseExportWhiteboardResult(rsp *http.Response) (*ExportWhiteboardResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ExportWhiteboardResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WhiteboardExport
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRestoreWhiteboardResult parses an HTTP response from a RestoreWhiteboardWithResponse call
+func ParseRestoreWhiteboardResult(rsp *http.Response) (*RestoreWhiteboardResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RestoreWhiteboardResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Whiteboard
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

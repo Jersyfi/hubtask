@@ -710,6 +710,18 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `webhooks.subscription_read` | ListWebhookSubscriptions | `webhook_subscription` | INFO | When refused |
 | `webhooks.subscription_updated` | UpdateWebhookSubscription | `webhook_subscription` | NOTICE | Every time |
 
+## Whiteboard
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `whiteboard.changed` | UpdateWhiteboard | `whiteboard` | INFO | Every time |
+| `whiteboard.created` | CreateWhiteboard | `whiteboard` | INFO | Every time |
+| `whiteboard.exported` | ExportWhiteboard | `whiteboard` | INFO | Every time |
+| `whiteboard.read` | ListWhiteboards | `whiteboard` | INFO | When refused |
+| `whiteboard.read` | ReadWhiteboard | `whiteboard` | INFO | When refused |
+| `whiteboard.restored` | RestoreWhiteboard | `whiteboard` | INFO | Every time |
+| `whiteboard.trashed` | TrashWhiteboard | `whiteboard` | INFO | Every time |
+
 ## Workflow
 
 | Action | Use case | Target | Severity | Recorded |
