@@ -184,6 +184,33 @@ func TestNetBoxWalksEndAfterTheMachinesAndStartAgainAtTheDevices(t *testing.T) {
 	}
 }
 
+func TestNautobotIsReadAsNetBoxsDialect(t *testing.T) {
+	var asked string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/dcim/devices/" || r.Header.Get("Authorization") != "Token s3cret" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		asked = r.URL.RawQuery
+		_, _ = w.Write([]byte(`{"count":1,"results":[{"id":"9b1c","name":"srv-9","role":{"name":"Server"},"location":{"id":"l1","name":"Hall A"},
+			"device_type":{"manufacturer":{"name":"HPE"},"model":"DL380"},"primary_ip4":{"address":"10.9.0.9/24"},"last_updated":"2026-10-29T10:00:00Z"}]}`))
+	}))
+	defer server.Close()
+	page, err := pullers(t, server).Pull(context.Background(), pullOf(server, cmdb.ConnectorNetBox, map[string]string{"dialect": "nautobot"}, ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(asked, "depth=2") || !strings.Contains(asked, "sort=last_updated") || strings.Contains(asked, "ordering=") {
+		t.Fatalf("Nautobot is asked in its own words: %q", asked)
+	}
+	it := page.Payload.Items[0]
+	if it.Class != "server" || it.Attributes["ip_address"] != "10.9.0.9" || it.Attributes["manufacturer"] != "HPE" ||
+		len(page.Payload.Items) != 2 || page.Payload.Items[1].Class != "location" || page.Payload.Items[1].NativeKey != "location:l1" ||
+		page.Payload.Relations[0] != (cmdb.RelationItem{Type: cmdb.RelContains, From: "netbox-location-l1", To: "netbox-9b1c"}) {
+		t.Fatalf("page %+v", page.Payload)
+	}
+}
+
 func microsoftServer(t *testing.T, graph func(w http.ResponseWriter, r *http.Request)) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/dir-1/oauth2/v2.0/token" {

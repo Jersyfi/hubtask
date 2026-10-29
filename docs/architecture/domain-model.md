@@ -786,8 +786,8 @@ source may not create it, or opens a `Duplicate` when it matches several. A `Run
 decision by attribute name, never value. Merging a duplicate keeps the survivor and retires the
 others as merged; no use case deletes a CI.
 
-A `Connector` is a program a hub's CIs come from or that posts alerts to it (GLPI, NetBox, Intune,
-Entra ID, Hetzner Cloud, OpenStack pulled; a GLPI Agent posting its inventory; Alertmanager, Zabbix,
+A `Connector` is a program a hub's CIs come from or that posts alerts to it (GLPI, NetBox or Nautobot,
+Intune, Entra ID, Hetzner Cloud, OpenStack pulled; a GLPI Agent posting its inventory; Alertmanager, Zabbix,
 Checkmk posting alerts). It writes as one of the
 workspace's sources of kind `CONNECTOR`, so the source's rank and classes decide what it may change;
 it names every address it calls (an https base address, an identity provider's authority, further

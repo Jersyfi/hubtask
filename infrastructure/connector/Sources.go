@@ -59,15 +59,26 @@ func glpi(ctx context.Context, s session) (port.Page, error) {
 // network device; its primary address, without the prefix length, is its address. A device and a
 // virtual machine are contained in their site, and a virtual machine is hosted on its cluster and
 // on the device it runs on. Sites and clusters come along as the records name them; their keys,
-// like a virtual machine's, carry their kind, since NetBox numbers each kind on its own.
+// like a virtual machine's, carry their kind, since NetBox numbers each kind on its own. The setting
+// `dialect` set to `nautobot` reads Nautobot, NetBox's fork (research itsm-cmdb-ai §4.4): nested
+// records asked for by depth, ordered by `sort`, a location in place of a site and the primary
+// address as IPv4 or IPv6.
 func netbox(ctx context.Context, s session) (port.Page, error) {
 	c := readNetBox(s.pull.Cursor)
+	nautobot := strings.EqualFold(s.setting("dialect"), "nautobot")
 	walk, path := c.devices, "/api/dcim/devices/"
 	if c.machines {
 		walk, path = c.vms, "/api/virtualization/virtual-machines/"
 	}
 	o := readOffset(walk)
 	q := url.Values{"limit": {strconv.Itoa(s.size)}, "offset": {strconv.Itoa(o.offset)}, "ordering": {"last_updated"}}
+	place, placeClass := "site", "site"
+	if nautobot {
+		q.Del("ordering")
+		q.Set("sort", "last_updated")
+		q.Set("depth", "2")
+		place, placeClass = "location", "location"
+	}
 	if o.since != "" {
 		q.Set("last_updated__gte", o.since)
 	}
@@ -104,7 +115,7 @@ func netbox(ctx context.Context, s session) (port.Page, error) {
 			}
 		} else {
 			class := "network_device"
-			if role, _ := r["role"].(map[string]any); strings.Contains(strings.ToLower(text(role["slug"])), "server") {
+			if role, _ := r["role"].(map[string]any); strings.Contains(strings.ToLower(text(role["slug"])+" "+text(role["name"])), "server") {
 				class = "server"
 			}
 			var manufacturer, model string
@@ -115,9 +126,9 @@ func netbox(ctx context.Context, s session) (port.Page, error) {
 				Attributes: attrs("hostname", name, "serial_number", text(r["serial"]), "asset_tag", text(r["asset_tag"]),
 					"manufacturer", manufacturer, "model", model, "ip_address", primaryAddress(r))})
 		}
-		if site, ok := r["site"].(map[string]any); ok && text(site["id"]) != "" && text(site["name"]) != "" {
-			from := "netbox-site-" + text(site["id"])
-			b.add(cmdb.Item{Ref: from, Class: "site", Name: text(site["name"]), NativeKey: "site:" + text(site["id"])})
+		if site, ok := r[place].(map[string]any); ok && text(site["id"]) != "" && text(site["name"]) != "" {
+			from := "netbox-" + place + "-" + text(site["id"])
+			b.add(cmdb.Item{Ref: from, Class: placeClass, Name: text(site["name"]), NativeKey: place + ":" + text(site["id"])})
 			b.relate(cmdb.RelContains, from, ref)
 		}
 	}
@@ -139,14 +150,16 @@ func netbox(ctx context.Context, s session) (port.Page, error) {
 	return page, nil
 }
 
-// primaryAddress answers a NetBox record's primary address without its prefix length.
+// primaryAddress answers a NetBox record's primary address without its prefix length - Nautobot
+// names it by its family alone.
 func primaryAddress(r map[string]any) string {
-	ip, ok := r["primary_ip"].(map[string]any)
-	if !ok {
-		return ""
+	for _, key := range []string{"primary_ip", "primary_ip4", "primary_ip6"} {
+		if ip, ok := r[key].(map[string]any); ok && text(ip["address"]) != "" {
+			address, _, _ := strings.Cut(text(ip["address"]), "/")
+			return address
+		}
 	}
-	address, _, _ := strings.Cut(text(ip["address"]), "/")
-	return address
+	return ""
 }
 
 // netboxCursor is where the devices' and the virtual machines' walks stand and which is under
