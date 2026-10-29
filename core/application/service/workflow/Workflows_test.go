@@ -8,11 +8,13 @@ import (
 	"testing"
 	"time"
 
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/service/workflow"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/expression"
@@ -225,5 +227,41 @@ func TestUsingAWorkflowMovesTheEntriesOnceConfirmed(t *testing.T) {
 	}
 	if len(f.workflows.rows) != 1 || !f.workflows.rows[0].System {
 		t.Fatalf("the shipped workflow gains its row when first used: %+v", f.workflows.rows)
+	}
+}
+
+type roleKeys []string
+
+func (r roleKeys) List(context.Context) ([]identityrepo.CustomRoleRow, error) {
+	rows := make([]identityrepo.CustomRoleRow, 0, len(r))
+	for _, key := range r {
+		rows = append(rows, identityrepo.CustomRoleRow{Role: identity.CustomRole{Key: key}})
+	}
+	return rows, nil
+}
+
+// UC-ID-26 check 4: a step limited to roles names a role of the workspace's own only where the
+// workspace defines it; a key it does not define is refused at the step, not left opening to nobody.
+func TestAStepNamesOnlyACustomRoleTheWorkspaceDefines(t *testing.T) {
+	f := newDesk()
+	f.desk.Roles = roleKeys{"service_lead"}
+	limited := func(role string) work.WorkflowShape {
+		shape := serviceShape(false)
+		shape.Steps = []work.WorkflowStep{{Key: "finish", Name: "Done", From: []string{"doing"}, To: "done",
+			Who: work.StepWho{Roles: []string{"ADMIN", role}}}}
+		return shape
+	}
+	if _, err := (workflow.CreateWorkflow{Desk: f.desk}).Execute(t.Context(), actor(), "service", "Service", limited("nobody_here")); detail(err) != "workflows.role_unknown" {
+		t.Fatalf("creating with an undefined role: %v, want workflows.role_unknown", err)
+	}
+	created, err := workflow.CreateWorkflow{Desk: f.desk}.Execute(t.Context(), actor(), "service", "Service", limited("service_lead"))
+	if err != nil {
+		t.Fatalf("creating with a defined role: %v", err)
+	}
+	draft := limited("gone_role")
+	if _, err := (workflow.SaveWorkflowDraft{Desk: f.desk}).Execute(t.Context(), actor(), workflow.SaveWorkflowDraftCommand{
+		Key: created.Key, Shape: &draft,
+	}); detail(err) != "workflows.role_unknown" {
+		t.Fatalf("a draft with an undefined role: %v, want workflows.role_unknown", err)
 	}
 }

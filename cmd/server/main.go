@@ -1759,6 +1759,7 @@ func run() error {
 		Mover: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid},
 		Gate:  workflowGate, Compiler: celexpression.New(), Authorizer: authorizer, Changes: changes,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
+		Roles: customRoles.Store,
 	}
 	linkTypeRegistry := work.LinkTypeRegistry{
 		Types: postgres.NewLinkTypeRepository(), Authorizer: authorizer, Audit: auditSink,

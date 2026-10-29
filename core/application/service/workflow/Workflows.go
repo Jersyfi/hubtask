@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -69,6 +70,37 @@ type Desk struct {
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
 	Text       text.Normalizer
+	// Roles are the workspace's own roles, which a step's *who* may name (UC-ID-26 check 4).
+	Roles RoleKeys
+}
+
+// RoleKeys lists the workspace's own roles.
+type RoleKeys interface {
+	List(ctx context.Context) ([]identityrepo.CustomRoleRow, error)
+}
+
+// knownRoles refuses a shape whose step names a custom role the workspace does not define: such a
+// step would open to nobody by role, which nobody designing it means. Inside the transaction.
+func (d Desk) knownRoles(ctx context.Context, shape domain.WorkflowShape) error {
+	named := shape.CustomRoleKeys()
+	if len(named) == 0 {
+		return nil
+	}
+	if d.Roles == nil {
+		return shared.ErrInternal.WithDetail("workflows.roles_missing")
+	}
+	rows, err := d.Roles.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, role := range named {
+		if !slices.ContainsFunc(rows, func(row identityrepo.CustomRoleRow) bool { return row.Role.Key == role.Text }) {
+			params := map[string]string{"role": role.Text}
+			return shared.ErrValidation.WithDetail("workflows.role_unknown").WithParams(params).
+				WithFields(shared.FieldError{Path: "/shape" + role.Path, Code: "workflows.role_unknown", Params: params})
+		}
+	}
+	return nil
 }
 
 func (d Desk) read(ctx context.Context) (domain.Workflows, error) {
@@ -453,6 +485,9 @@ func (h CreateWorkflow) Execute(ctx context.Context, actor appshared.ActorContex
 		return domain.Workflow{}, err
 	}
 	err = h.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := h.Desk.knownRoles(ctx, created.Published); err != nil {
+			return err
+		}
 		if err := h.Desk.Workflows.Insert(ctx, created); err != nil {
 			return err
 		}
@@ -547,6 +582,9 @@ func (h SaveWorkflowDraft) Execute(ctx context.Context, actor appshared.ActorCon
 			next = next.Discarded(now)
 		case cmd.Shape != nil:
 			if next, err = next.WithDraft(*cmd.Shape, now, h.Desk.Text); err != nil {
+				return err
+			}
+			if err := h.Desk.knownRoles(ctx, *next.Draft); err != nil {
 				return err
 			}
 		}

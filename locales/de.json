@@ -1241,6 +1241,7 @@
   "workflows.check_failed": "{message}",
   "workflows.color_token_unknown": "Wähle eine der Labelfarben.",
   "workflows.compiler_missing": "Bedingungen können auf dieser Installation gerade nicht geprüft werden.",
+  "workflows.roles_missing": "Die eigenen Rollen des Arbeitsbereichs können auf dieser Installation gerade nicht gelesen werden.",
   "workflows.condition_broken": "Eine Bedingung dieses Workflows funktioniert nicht mehr. Bitte die Person, die den Arbeitsbereich gestaltet, sie zu reparieren.",
   "workflows.confirmation_required": "Sieh dir zuerst an, was sich ändert, und bestätige dann.",
   "workflows.field_unknown": "„{key}“ ist kein Feld, das ein Schritt nennen kann.",

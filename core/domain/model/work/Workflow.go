@@ -539,6 +539,20 @@ func (s WorkflowShape) Expressions() []FormExpression {
 	return out
 }
 
+// CustomRoleKeys answers every custom role key a step's *who* names, with the step's path, for
+// the use case that holds them to the roles the workspace defines.
+func (s WorkflowShape) CustomRoleKeys() []FormExpression {
+	var out []FormExpression
+	for i, step := range s.Steps {
+		for j, role := range step.Who.Roles {
+			if identity.ValidCustomRoleKey(role) {
+				out = append(out, FormExpression{Path: "/steps/" + strconv.Itoa(i) + "/who/roles/" + strconv.Itoa(j), Text: role})
+			}
+		}
+	}
+	return out
+}
+
 func workflowName(raw string, mayBeEmpty bool, form text.Normalizer) (string, error) {
 	name, err := shared.NFC(strings.TrimSpace(raw), form)
 	if err != nil {
