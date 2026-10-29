@@ -80,6 +80,7 @@ export type {
   ConfigVersionList,
   ConfigProposal,
   ConfigProposalList,
+  ConfigSandbox,
   ConfigTemplate,
   ConfigTemplateList,
   ConfigTemplatePlan,

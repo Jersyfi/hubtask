@@ -178,6 +178,8 @@ export type ConfigVersion = components['schemas']['ConfigVersion'];
 export type ConfigVersionList = components['schemas']['ConfigVersionList'];
 export type ConfigProposal = components['schemas']['ConfigProposal'];
 export type ConfigProposalList = components['schemas']['ConfigProposalList'];
+/** The sandbox: a copy of the configuration where changes run nothing, and its promotion's plan. */
+export type ConfigSandbox = components['schemas']['ConfigSandbox'];
 /** Templates: bundles of blocks with a version, and the plan of taking or upgrading one (D-17). */
 export type ConfigTemplate = components['schemas']['ConfigTemplate'];
 export type ConfigTemplateList = components['schemas']['ConfigTemplateList'];
