@@ -5,9 +5,9 @@ context: workflow
 actors: [PE-member, PE-guest, PE-agent, PE-integrator, PE-scripter]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11, P-12, P-13]
-state: specified
+state: partial
 tasks: []
-checked_by: []
+checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/TakeStep_test.go, core/application/service/workflow/Workflows_test.go, core/application/service/sync/Patch_test.go, test/integration/workflow_test.go, apps/webapp/src/lib/data/workflows.test.ts]
 ---
 
 # Move an entry on, and be told what it still needs
@@ -47,10 +47,10 @@ entry was reassigned meanwhile; the app tells him why and leaves the card where 
 
 ## Today
 
-* Check 1: not met — the suite plan, S-07.
-* Check 2: not met — the suite plan, S-07.
-* Check 3: not met — the suite plan, S-07.
-* Check 4: not met — the suite plan, S-07.
-* Check 5: not met — the suite plan, S-07.
-* Check 6: not met — the suite plan, S-07.
-* Check 7: not met — the suite plan, S-07.
+* Check 1: met — `ListEntrySteps` offers only the steps the person may take; the entry panel draws them (`StepControl.svelte`).
+* Check 2: partly met — the status control, completion on every door and a device's push take the same `TakeStep` rules; the board's columns by status, its drag and the keyboard move on the board are open (S-07's rest).
+* Check 3: met — `workflows.step_refused` names each empty required field and each failing check with the team's words; the panel shows them.
+* Check 4: met — `CompleteWorkItem` and `ReopenWorkItem` take a step into or out of done or refuse with `workflows.no_step_to_done` / `no_step_to_open` or the step's refusal, on every door that calls them.
+* Check 5: met on the server — a queued status patch is a `TakeStep`, its refusal rejects the mutation with the reason and the server's state (`Patch_test.go`).
+* Check 6: met — `item.step_taken` in the history with the step and from which status to which.
+* Check 7: not met — the bulk action takes no step yet.

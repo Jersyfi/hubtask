@@ -106,6 +106,37 @@ sent. The refusal is `forms.refused` naming each field (`fields.value_required`,
 what the form asks before it sends: the browser renders the server's answer rather than evaluating
 CEL itself.
 
+**Workflows** (F-4, D-02, UC-FLW-02 … 05, migrations 0216/0217). A workspace describes how its work
+moves as **workflows** (`work.Workflow`, table `workflow`): **statuses**, each with a stable key, a
+name, a label colour token and one of four **categories** - `BACKLOG`, `TODO`, `IN_PROGRESS`,
+`DONE` -, the open status a new entry starts in, and **steps**, each from some statuses - or from
+any but its own target - to one, with *who* may take it (built-in roles, a person field of the
+entry - `assignee`, `created_by`, `custom_fields.<key>` -, a CEL condition), the fields it
+*requires*, the fields it *asks* for when taken, and *checks* - a condition with the workspace's
+own words for the refusal. Conditions are CEL in the form's environment with `entry.status`
+(`WorkflowEnvironment`). The shipped workflow `default` - To do, In progress, Done - is declared in
+the domain (`work.SystemWorkflow`) and gains its row when a workspace first uses or changes it. A
+change is a **draft** beside the shape in force, which stays in force until the draft is
+**published**. The **scheme** (`workflow_scheme`) names the workflow a hub or collection runs per
+type, or for every type: a collection's row wins over its hub's, a type's over the row for every
+type (`work.ResolveWorkflow`); where none resolves, no workflow runs. An entry carries its
+**status** (`work_item.status`, null where none runs) and **in a workflow collection completion
+follows the status's category** (D-02): one gate (`WorkflowGate`) holds every move - `TakeStep`,
+`CompleteWorkItem` and `ReopenWorkItem` take a step into or out of a done status the person may
+take or are refused (`workflows.step_not_offered`, `workflows.step_not_allowed`,
+`workflows.step_refused` naming each empty field and failing check, `workflows.no_step_to_done`),
+a roll-up puts a parent where entering the workflow would, a new entry starts in the initial
+status, and a device's queued status patch is a `TakeStep`. A step announces `item.updated` with
+the status and the step in its change set, so what follows a step is a rule like every other
+(the suite plan's `model.md` §2). Using a workflow somewhere, or publishing a draft, moves the
+entries of the reached collections by a plan (`work.PlanStatusMoves`): a status the shape keeps is
+kept, a removed one goes where the publish's mapping says - required for every removed status in
+use (`workflows.mapping_required`) -, and otherwise a done entry enters the first done status and
+an open one the initial status; no move changes completion or runs a step's conditions
+(`workflows.mapping_changes_completion`). Each moved entry's history says `item.workflow_changed`;
+the trail records the counts. Using a workflow needs the person's confirmation of its preview
+(`workflows.confirmation_required`). The operations belong to the workflows module.
+
 **Levels and presets** (decisions #1619–#1622). A collection's *level* is a preset — *List*,
 *Tasks*, *Project*, *Flow*, or one a workspace or installation defines — that sets eight things:
 the levels and their names, the fields (capabilities), the views, what counts, what completion
