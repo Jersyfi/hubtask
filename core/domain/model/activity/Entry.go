@@ -111,6 +111,12 @@ const (
 	// performed, which is why the gate reports rather than refuses them.
 	ItemMerged     Verb = "item.merged"
 	ItemChangeLost Verb = "item.change_lost"
+
+	// The workflow pair (UC-FLW-03 check 6, UC-FLW-05 check 4): a step somebody took, from which
+	// status to which; and a status a publish or a change of scheme moved the entry to, which took
+	// no step.
+	ItemStepTaken       Verb = "item.step_taken"
+	ItemWorkflowChanged Verb = "item.workflow_changed"
 )
 
 var verbs = [...]Verb{
@@ -120,7 +126,7 @@ var verbs = [...]Verb{
 	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved,
 	ItemAttachmentAdded, ItemAttachmentRemoved, ItemCoverSet, ItemCoverCleared,
 	ItemCustomFieldSet, ItemDueSet, ItemDueCleared, ItemCommented, ItemDuplicated,
-	ItemMerged, ItemChangeLost,
+	ItemMerged, ItemChangeLost, ItemStepTaken, ItemWorkflowChanged,
 }
 
 // Verbs returns every verb the history knows, in a stable order.

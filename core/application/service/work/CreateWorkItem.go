@@ -195,6 +195,9 @@ type CreateWorkItem struct {
 	// type takes from its level's profile (UC-FLW-01). Nil in a build without it: every entry is
 	// then its level's system type.
 	EntryTypes repository.EntryTypes
+	// Workflow gives a new entry the initial status of the workflow its collection runs for its
+	// type (UC-FLW-02). A build without it runs none.
+	Workflow WorkflowGate
 }
 
 // Execute creates the item and returns it, together with what automatic assignment did when it
@@ -271,6 +274,15 @@ func (h CreateWorkItem) Execute(
 		item, err := h.build(ctx, actor, cmd, collectionID, now)
 		if err != nil {
 			return err
+		}
+		if h.Workflow.Wired() {
+			collection, err := findCollection(ctx, h.Containers, item.CollectionID)
+			if err != nil {
+				return err
+			}
+			if item.Status, err = h.Workflow.initialStatus(ctx, collection, item); err != nil {
+				return err
+			}
 		}
 		if item, err = h.Items.Insert(ctx, item); err != nil {
 			return err
@@ -968,6 +980,9 @@ func ItemOutput(item domain.WorkItem) usecase.Output {
 		"number": int64OrNil(item.Number),
 		// The key of the entry's type, its level's own where it has none (UC-FLW-01).
 		"entry_type": entryTypeKeyOf(item),
+		// Its status in the workflow its collection runs for its type, null where none runs
+		// (UC-FLW-02).
+		"status": stringOrNil(item.Status),
 	}
 	if !item.ParentID.IsZero() {
 		out["parent_id"] = item.ParentID.String()

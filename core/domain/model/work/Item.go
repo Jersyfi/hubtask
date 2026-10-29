@@ -616,6 +616,10 @@ const (
 	// FieldCollectionID is not something an update may set - an item changes collection by being
 	// moved - but it is a field that moves, and the records of a move name it.
 	FieldCollectionID = "collection_id"
+	// FieldStatus is the entry's status in its workflow. Written by a step, a completion in a
+	// workflow collection, or a publish - never merged from a device's value: a device asks for a
+	// step, and the server decides it (UC-FLW-03 check 5).
+	FieldStatus = "status"
 )
 
 // ItemAttributes is what an update may change.

@@ -79,6 +79,10 @@ type CompletionWriter struct {
 	// Milestones records the collection, and its hub, a completion left with nothing open
 	// (UC-WRK-29 check 4). A build without it records none.
 	Milestones repository.Milestones
+	// Workflow is the workflow in force: in a workflow collection a completion takes a step into
+	// a done status and a reopening one out of it (D-02, UC-FLW-03 check 4). A build without it
+	// runs none.
+	Workflow WorkflowGate
 }
 
 // completionOf is what completing a child does in this collection: the value in force, inherited
@@ -210,6 +214,15 @@ func (w CompletionWriter) change(
 		if want == reopening {
 			wanted = item.Reopened(now)
 		}
+		if wanted.Completion.IsCompleted != item.Completion.IsCompleted && w.Workflow.Wired() {
+			step, err := w.Workflow.completionStep(ctx, actor, collection, item, want == completing)
+			if err != nil {
+				return err
+			}
+			if step != nil {
+				wanted.Status = step.To
+			}
+		}
 		if wanted.Completion.IsCompleted == item.Completion.IsCompleted {
 			// Already in the state asked for. Nothing is written, no version is spent and nothing is
 			// announced - which is what makes a repeat harmless rather than merely accepted, and what
@@ -315,6 +328,15 @@ func (w CompletionWriter) rollUp(
 		case service.ParentUnchanged:
 			return nil
 		}
+		if w.Workflow.Wired() {
+			collection, err := w.findCollection(ctx, parent.CollectionID)
+			if err != nil {
+				return err
+			}
+			if wanted.Status, err = w.Workflow.rolledStatus(ctx, collection, wanted); err != nil {
+				return err
+			}
+		}
 
 		// The parent's event is caused by the child's - the same correlation, one level deeper. That chain
 		// is how a consumer tells a roll-up from a click without a second event type, and it is what the
@@ -374,7 +396,7 @@ func (w CompletionWriter) write(
 	if err := w.recordAudit(ctx, before, after, actor, want, now); err != nil {
 		return domain.WorkItem{}, event.Envelope{}, err
 	}
-	if err := w.recordActivity(ctx, after, actor, want, cause, now); err != nil {
+	if err := w.recordActivity(ctx, before, after, actor, want, cause, now); err != nil {
 		return domain.WorkItem{}, event.Envelope{}, err
 	}
 	if err := w.scheduleMaterialisation(ctx, after, want); err != nil {
@@ -419,7 +441,7 @@ func (w CompletionWriter) scheduleMaterialisation(
 // would record the same thing - and a roll-up never reaches an activity, which has no children to
 // be rolled up from (domain-model.md §2).
 func (w CompletionWriter) recordActivity(
-	ctx context.Context, item domain.WorkItem, actor appshared.ActorContext,
+	ctx context.Context, before, item domain.WorkItem, actor appshared.ActorContext,
 	want direction, cause event.Cause, now time.Time,
 ) error {
 	verb := activity.ItemCompleted
@@ -427,10 +449,20 @@ func (w CompletionWriter) recordActivity(
 		verb = activity.ItemReopened
 	}
 
-	changeSet := verbIsTheChange()
+	var fields []activity.Field
 	if !cause.CausationID.IsZero() {
-		changeSet = activity.ChangeSet(activity.Full,
-			activity.Field{Name: "cause", Detail: activity.WithValues, To: rolledUp})
+		fields = append(fields, activity.Field{Name: "cause", Detail: activity.WithValues, To: rolledUp})
+	}
+	// In a workflow collection the completion moved the status too, and the history says from
+	// which one (UC-FLW-03 check 6).
+	if before.Status != item.Status {
+		fields = append(fields, activity.Field{
+			Name: domain.FieldStatus, Detail: activity.WithValues, From: before.Status, To: item.Status,
+		})
+	}
+	changeSet := verbIsTheChange()
+	if len(fields) > 0 {
+		changeSet = activity.ChangeSet(activity.Full, fields...)
 	}
 	return w.Activity.record(ctx, actor, item, verb, changeSet, now)
 }
@@ -473,6 +505,8 @@ func (w CompletionWriter) recordChange(
 		Payload: map[string]any{
 			domain.FieldCompletion:      snapshot[domain.FieldCompletion],
 			domain.FieldCompletionCount: snapshot[domain.FieldCompletionCount],
+			// The status rides with the completion that moved it in a workflow collection (D-02).
+			domain.FieldStatus: stringOrNil(item.Status),
 		},
 	})
 }
