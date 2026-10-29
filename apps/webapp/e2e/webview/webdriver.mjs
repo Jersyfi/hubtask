@@ -118,6 +118,15 @@ export class Session {
     return this.script('return document.body.innerText;');
   }
 
+  url() {
+    return this.#call('GET', '/url');
+  }
+
+  /** The page's console, where the driver keeps it (chromedriver's legacy log endpoint). */
+  log() {
+    return this.#call('POST', '/se/log', { type: 'browser' });
+  }
+
   async screenshot() {
     return Buffer.from(await this.#call('GET', '/screenshot'), 'base64');
   }

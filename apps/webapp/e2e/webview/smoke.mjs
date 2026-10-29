@@ -86,7 +86,7 @@ function start(name, command, args, env = {}) {
   for (const stream of [child.stdout, child.stderr]) stream.on('data', (chunk) => log.push(chunk.toString()));
   const keep = () => writeFileSync(join(out, `${name}.log`), log.join(''));
   child.on('exit', keep);
-  children.push({ child, keep });
+  children.push({ name, child, keep, log: () => log.join('') });
   return { child, log: () => log.join('') };
 }
 
@@ -222,7 +222,10 @@ async function driverUp() {
   const capabilities = {
     linux: { 'webkitgtk:browserOptions': { binary: options.app, args: [] } },
     windows: { browserName: 'webview2', 'ms:edgeOptions': { debuggerAddress: `127.0.0.1:${DEVTOOLS}` } },
-    android: { 'goog:chromeOptions': { androidPackage: PACKAGE, androidUseRunningApp: true, androidDeviceSerial: options.device } },
+    android: {
+      'goog:chromeOptions': { androidPackage: PACKAGE, androidUseRunningApp: true, androidDeviceSerial: options.device },
+      'goog:loggingPrefs': { browser: 'ALL' },
+    },
   }[engine];
   const started = await startSession(`http://127.0.0.1:${DRIVER}`, capabilities);
   if (options.width) await started.resize(Number(options.width), 844);
@@ -248,6 +251,13 @@ async function windowsAppUp() {
  * Android's WebView opens its debugging socket only once the shell has created it, after the
  * activity started; chromedriver looks once, so the walk waits for the socket and then attaches.
  */
+/** Logcat's lines of the app, its webview and the shell; all of it kept in `out`. */
+function logcat() {
+  const all = adb('logcat', '-d', '-t', '3000');
+  writeFileSync(join(out, 'logcat.txt'), all);
+  return all.split('\n').filter((line) => /hubtask|chromium|WebView|AndroidRuntime|RustStdout|Tauri|cr_|Console/iu.test(line));
+}
+
 async function androidAppUp() {
   adb('install', '-r', options.app);
   adb('reverse', `tcp:${HTTP}`, `tcp:${HTTP}`);
@@ -257,10 +267,7 @@ async function androidAppUp() {
     const pid = await until('the app\'s process', () => adb('shell', 'pidof', PACKAGE).trim(), 60_000);
     await until('the app\'s webview to be debuggable', () => adb('shell', 'cat', '/proc/net/unix').includes(`webview_devtools_remote_${pid}`), 90_000);
   } catch (error) {
-    const logcat = adb('logcat', '-d', '-t', '2000');
-    writeFileSync(join(out, 'logcat.txt'), logcat);
-    const telling = logcat.split('\n').filter((line) => /hubtask|chromium|WebView|AndroidRuntime|RustStdout/iu.test(line)).slice(-60);
-    throw new Error(`${error.message}\nlogcat:\n${telling.join('\n')}`);
+    throw new Error(`${error.message}\nlogcat:\n${logcat().slice(-60).join('\n')}`);
   }
 }
 
@@ -311,6 +318,39 @@ async function items({ token, collection }) {
   return page.data ?? page.items ?? [];
 }
 
+/**
+ * A failure's record, kept in `out` and said in the walk's own output: CI keeps no file of a
+ * runner, so the screen, the page's console and requests, the browser's hand-offs, the server's
+ * last lines and Android's logcat are what tells a failure on an engine nobody can open.
+ */
+async function explain() {
+  const say = (title, body) => console.error(`--- ${engine}: ${title}\n${String(body ?? '').trim() || '(nothing)'}`);
+  if (session) {
+    await session.screenshot().then((png) => writeFileSync(join(out, 'failure.png'), png)).catch(() => {});
+    const text = await session.text().catch((error) => `(unreadable: ${error.message})`);
+    writeFileSync(join(out, 'failure.txt'), String(text));
+    say('the screen\'s text', String(text).slice(0, 3000));
+    say('the page\'s address', await session.url().catch((error) => `(unreadable: ${error.message})`));
+    say('the page\'s requests', await session.script(
+      'return performance.getEntriesByType("resource").slice(-40).map((e) => `${e.initiatorType} ${e.responseStatus ?? ""} ${e.name}`).join("\\n");',
+    ).catch((error) => `(unreadable: ${error.message})`));
+    say('the page\'s console', await session.log()
+      .then((entries) => entries.map((entry) => `${entry.level} ${entry.message}`).join('\n'))
+      .catch((error) => `(unreadable: ${error.message})`));
+    // What the walk could have reached: each control and the name it found it by.
+    await session.controls().then((list) => writeFileSync(join(out, 'failure-controls.json'), JSON.stringify(list, null, 1)))
+      .catch((error) => writeFileSync(join(out, 'failure-controls.json'), String(error)));
+  }
+  say('what the app opened in the browser', browser.opened.join('\n'));
+  const server = children.findLast(({ name }) => name.startsWith('server-'));
+  if (server) say('the server\'s last lines', server.log().slice(-2500));
+  if (engine === 'android') {
+    let lines;
+    try { lines = logcat().slice(-150).join('\n'); } catch (error) { lines = `(unreadable: ${error.message})`; }
+    say('logcat', lines);
+  }
+}
+
 const browser = standIn();
 let failed = false;
 try {
@@ -321,13 +361,7 @@ try {
 } catch (error) {
   failed = true;
   console.error(`smoke walk on ${engine} failed: ${error.stack ?? error}`);
-  if (session) {
-    await session.screenshot().then((png) => writeFileSync(join(out, 'failure.png'), png)).catch(() => {});
-    await session.text().then((text) => writeFileSync(join(out, 'failure.txt'), text)).catch(() => {});
-    // What the walk could have reached: each control and the name it found it by.
-    await session.controls().then((list) => writeFileSync(join(out, 'failure-controls.json'), JSON.stringify(list, null, 1)))
-      .catch((error) => writeFileSync(join(out, 'failure-controls.json'), String(error)));
-  }
+  await explain().catch((error) => console.error(`the failure's record is incomplete: ${error.message}`));
   console.error(`the logs and the last screen are in ${out}`);
 } finally {
   await session?.end();
