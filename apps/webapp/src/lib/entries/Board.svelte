@@ -38,7 +38,7 @@
     type RankCommand,
     type View,
   } from '@hubtask/design-system/components';
-  import type { Bucket, BulkResult, WorkItem } from '@hubtask/sync-engine';
+  import type { Bucket, BulkResult, WorkflowShape, WorkItem } from '@hubtask/sync-engine';
 
   import type { ItemsQuery } from '../data/items.svelte.ts';
 
@@ -58,6 +58,7 @@
   import CelebrationSlot from './CelebrationSlot.svelte';
   import { buckets } from '../data/buckets.svelte.ts';
   import { items } from '../data/items.svelte.ts';
+  import { statusLabel, workflows } from '../data/workflows.svelte.ts';
   import { queue } from '../data/queue.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
   import { media } from '../data/media.svelte.ts';
@@ -112,6 +113,12 @@
     mayCreate: boolean;
     /** Whether the reader may change the board's columns, which are the collection's shape (`STRUCTURE`). */
     mayShape: boolean;
+    /**
+     * The workflow the collection runs, where it runs one: the board is then one column per status
+     * (UC-FLW-03 check 2), a card carried into another column takes the step to that status - the
+     * server decides, as on every door - and the buckets stay out of it.
+     */
+    statuses?: WorkflowShape;
   }
 
   const {
@@ -126,6 +133,7 @@
     changeRefusal,
     mayCreate,
     mayShape,
+    statuses,
   }: Props = $props();
 
   /** Whether a card may be carried, ranked or moved: not archived, and the reader's to change. */
@@ -146,7 +154,8 @@
 
   $effect(() => {
     const wanted = collectionId;
-    const asked = query;
+    const byStatus = statuses !== undefined;
+    const asked = byStatus ? { ...query, group: { field: 'status', limit_per_group: query?.group?.limit_per_group ?? 50 } } : query;
     return untrack(() => {
       const stops = [
         buckets.open(wanted),
@@ -189,10 +198,19 @@
    * the query grouped on rather than the collection's buckets, because a `wip_limit` and a done
    * column are properties of a bucket and mean nothing about a title or a type.
    */
-  const isBucketBoard = $derived((query?.group?.field ?? 'bucket_id') === 'bucket_id');
+  const isStatusBoard = $derived(statuses !== undefined);
+  const isBucketBoard = $derived(!isStatusBoard && (query?.group?.field ?? 'bucket_id') === 'bucket_id');
 
   const columns = $derived(
-    isBucketBoard
+    statuses
+      ? statuses.statuses.map((status) => ({
+          id: status.key,
+          name: statusLabel(status, t),
+          wip_limit: null,
+          is_done_bucket: status.category === 'DONE',
+          version: 0,
+        }))
+      : isBucketBoard
       ? buckets.of(collectionId)
       : // A column per value the result came back grouped by, named by the value itself: the
         // grouping field is the installation's and this client has no vocabulary for its values.
@@ -398,6 +416,26 @@
   }
 
   /**
+   * Takes the step into a status column (UC-FLW-03 check 2): the same call the status control
+   * makes, so the same rules hold. A refusal names what the step still needs, and the card stays
+   * where the server has it.
+   */
+  async function stepTo(item: WorkItem, status: string): Promise<WorkItem | undefined> {
+    writeFailure = undefined;
+    const target = columns.find((column) => column.id === status);
+    try {
+      const moved = await workflows.take(item, { to_status: status });
+      if (moved.completion?.is_completed && !item.completion?.is_completed) void celebration.celebrate(moved);
+      announcer.say(t('app.board.moved', { title: item.title, name: target?.name ?? status, limit: '' }));
+      refocusId = item.id;
+      return moved;
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+      return undefined;
+    }
+  }
+
+  /**
    * Ranks a card within its column.
    *
    * **A column is not a level.** The level `:reorder` moves an entry within is the collection's
@@ -460,7 +498,12 @@
         mayShare,
         carries: (capability) => supports(card.type, capability).status === 'permitted',
         level: level && { ...level, outReason: level.outReason },
-        extras: isBucketBoard
+        extras: isStatusBoard
+          ? columns.filter((target) => target.id !== card.status).map((target) => ({
+              id: `status:${target.id}`,
+              label: t('app.board.move_to', { title: card.title, name: target.name }),
+            }))
+          : isBucketBoard
           ? [...columns, null].map((target) => ({
               id: `bucket:${target?.id ?? 'none'}`,
               label: t('app.board.move_to', { title: card.title, name: target?.name ?? t('app.board.unbucketed') }),
@@ -487,6 +530,10 @@
     // Ranked within the column, which is a position in the level the reader can see.
     if (id === 'up' || id === 'down' || id === 'top' || id === 'bottom') {
       void rank(card, cards, id);
+      return;
+    }
+    if (id.startsWith('status:')) {
+      void stepTo(card, id.slice('status:'.length));
       return;
     }
     if (id.startsWith('bucket:')) {
@@ -550,6 +597,12 @@
     // Across columns is a column change only where a column is a bucket. On any other grouping the
     // drag ranks within the column it was dropped in and changes nothing else, because the value
     // it was grouped by is not a place an entry can be put.
+    if (isStatusBoard && from !== to && to !== 'none') {
+      const cards = cardsOf(to);
+      const moved = await stepTo(card, to);
+      if (moved) await items.reorder(card.id, anchorFor(cards, card.id, position), moved.version, crypto.randomUUID());
+      return;
+    }
     if (!isBucketBoard) {
       await rankTo(card, cardsOf(to === 'none' ? null : to), position);
       return;

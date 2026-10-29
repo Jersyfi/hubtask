@@ -98,6 +98,7 @@
   import CollectionCards from '../lib/workspace/CollectionCards.svelte';
   import { ownsHub, privacyAction, shutOut } from '../lib/workspace/privacy.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
+  import { workflowFor, workflows } from '../lib/data/workflows.svelte.ts';
   import ItemView from './ItemView.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -211,6 +212,14 @@
   let query = $state<ItemsQuery>({});
 
   const container = $derived(containers.find(id));
+
+  // The workflow the collection runs for its tasks, where it runs one: the board is then one
+  // column per status (UC-FLW-03 check 2), and the head names it with a link to where it is
+  // defined (UC-FLW-02 check 5).
+  $effect(() => untrack(() => workflows.open()));
+  const workflowHere = $derived(
+    container?.type === 'COLLECTION' ? workflowFor(workflows.list, container.id, container.parent_id ?? undefined, 'task') : undefined,
+  );
 
   /** What this collection offers: the installation's answers, narrowed to its structure in force. */
   const offer = $derived(offerIn(container?.structure?.settings));
@@ -1052,6 +1061,15 @@
        collection or hub, while the reader celebrates (checks 4 and 7). -->
   {@const hasMilestone = showsMilestone(container.milestone, celebration.isOn)}
   {#snippet collectionFigure()}
+    {#if workflowHere}
+      <p class="workflow-line" data-collection-workflow={workflowHere.key}>
+        {t('app.workflows.runs_here')}
+        <a href="/administration/workflows" onclick={(event) => { event.preventDefault(); onnavigate('/administration/workflows'); }}>
+          {workflowHere.name ?? t('workflows.default_name')}
+        </a>
+      </p>
+    {/if}
+
     {#if container.type === 'COLLECTION' && hasAi}
       <!-- The ✦ where what counts is said (ux-inventory.md §E4): the question is about the figure. -->
       <IconButton
@@ -1361,6 +1379,7 @@
               changeRefusal={changeRefusalOf}
               mayCreate={mayCreateHere}
               {mayShape}
+              statuses={workflowHere?.published}
             />
           {:else}
             <!-- Read-only follows the container: an archived collection's entries are read-only with
@@ -1642,4 +1661,5 @@
   .mail-head { margin: 0; font-family: var(--font-display); font-size: var(--fs-200); font-weight: var(--fw-semibold); }
 
   .mail-hint { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
+  .workflow-line { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
 </style>
