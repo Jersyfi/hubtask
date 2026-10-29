@@ -202,7 +202,7 @@ func (h ListRuleRuns) Descriptor() usecase.Descriptor {
 			{
 				Name: "trigger", Kind: usecase.KindString,
 				Enum: []string{
-					"EVENT", "SCHEDULE", "RELATIVE_DATE", "INBOUND_WEBHOOK", "MANUAL", "JUMBLE_ENTRY",
+					"EVENT", "SCHEDULE", "RELATIVE_DATE", "INBOUND_WEBHOOK", "MANUAL", "JUMBLE_ENTRY", "STEP_TAKEN",
 				},
 				Description: "Narrow to one way of starting. \"Did the schedule fire last night\" " +
 					"and \"did anybody press the button\" are two questions about the same rule.",
