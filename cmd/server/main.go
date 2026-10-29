@@ -863,7 +863,7 @@ func run() error {
 	// The workflows in force (UC-FLW-02 … 05): one gate for the step a completion, a board's drop,
 	// the status control and a device's push take.
 	workflows := postgres.NewWorkflowRepository()
-	workflowGate := work.WorkflowGate{Workflows: workflows, Compiler: celexpression.New(), Roles: authorizer}
+	workflowGate := work.WorkflowGate{Workflows: workflows, Compiler: celexpression.New(), Roles: authorizer, Groups: groups}
 	completion := work.CompletionWriter{
 		Workflow: workflowGate,
 		Gate:     entryGate,
@@ -1762,7 +1762,7 @@ func run() error {
 		Mover: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid},
 		Gate:  workflowGate, Compiler: celexpression.New(), Authorizer: authorizer, Changes: changes,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
-		Roles: customRoles.Store,
+		Roles: customRoles.Store, Groups: groups,
 	}
 	linkTypeRegistry := work.LinkTypeRegistry{
 		Types: postgres.NewLinkTypeRepository(), Authorizer: authorizer, Audit: auditSink,

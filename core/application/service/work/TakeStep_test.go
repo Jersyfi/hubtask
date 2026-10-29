@@ -390,3 +390,40 @@ func TestAStepIsOpenedByACustomRoleAndByAStepPermission(t *testing.T) {
 		t.Fatalf("the step permission does not open the step: %v", keys)
 	}
 }
+
+type groupMembers map[shared.ID][]shared.ID
+
+func (g groupMembers) Members(_ context.Context, groupID shared.ID) ([]shared.ID, error) {
+	return g[groupID], nil
+}
+
+// UC-FLW-04 check 1: a step limited by group is offered to the group's members and to nobody
+// else by it; the owner and the administrators hold every step's permission as a family.
+func TestAStepIsOpenedByAGroupAndToTheShapersByTheFamily(t *testing.T) {
+	h, _ := workflowHarness(t)
+	buyers := shared.MustParseID("0192f000-0000-7000-8000-0000000006b1")
+	workflow := reviewWorkflow()
+	workflow.Published.Steps[3].Who = domain.StepWho{Groups: []string{buyers.String()}}
+	h.writer.Workflow.Workflows = &workflowStore{
+		rows:    []domain.Workflow{workflow},
+		schemes: []domain.WorkflowScheme{{ContainerID: hubID, WorkflowKey: "review"}},
+	}
+	offered := func(roles roleOf, members groupMembers) bool {
+		h.writer.Workflow.Roles, h.writer.Workflow.Groups = roles, members
+		steps, err := ListEntrySteps{Completion: h.writer}.Execute(t.Context(), actorFixture(), taskID)
+		if err != nil {
+			t.Fatalf("listing: %v", err)
+		}
+		return slices.ContainsFunc(steps.Offered, func(verdict StepVerdict) bool { return verdict.Step.Key == "reject" })
+	}
+	member := roleOf{role: identity.RoleMember}
+	if offered(member, groupMembers{}) {
+		t.Fatal("a member outside the group is offered its step")
+	}
+	if !offered(member, groupMembers{buyers: {actorFixture().AccountID}}) {
+		t.Fatal("the group's member is not offered its step")
+	}
+	if !offered(roleOf{role: identity.RoleAdmin}, groupMembers{}) {
+		t.Fatal("an administrator does not hold the step's permission")
+	}
+}

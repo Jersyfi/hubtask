@@ -30,6 +30,15 @@ type WorkflowGate struct {
 	Compiler  expression.Compiler
 	// Roles answers the actor's role along the entry's path, for a step limited by role.
 	Roles FormRoles
+	// Groups answers who is in a group, for a step limited by group. Optional: without it such a
+	// step opens to nobody by group.
+	Groups StepGroups
+}
+
+// StepGroups answers the members of one of the workspace's groups, inside the caller's
+// transaction.
+type StepGroups interface {
+	Members(ctx context.Context, groupID shared.ID) ([]shared.ID, error)
 }
 
 // Wired reports whether the gate has what it needs.
@@ -140,11 +149,12 @@ func (g WorkflowGate) allowed(
 			return false, err
 		}
 	}
-	// A step permission from the catalogue opens the step whatever its who names (UC-FLW-04).
-	if workflowKey != "" && slices.Contains(held.Permissions, service.TakeStep(workflowKey, step.Key)) {
+	// A step permission from the catalogue opens the step whatever its who names (UC-FLW-04); the
+	// owner and the administrators hold every one, as a family.
+	if workflowKey != "" && carriedBy(held)(service.TakeStep(workflowKey, step.Key)) {
 		return true, nil
 	}
-	if len(who.Roles) > 0 || len(who.PersonFields) > 0 {
+	if len(who.Roles) > 0 || len(who.PersonFields) > 0 || len(who.Groups) > 0 {
 		met := false
 		for _, role := range who.Roles {
 			if slices.Contains(held.Roles, role) {
@@ -157,6 +167,13 @@ func (g WorkflowGate) allowed(
 			}
 		}
 		if !met {
+			inGroup, err := g.inGroup(ctx, actor, who.Groups)
+			if err != nil {
+				return false, err
+			}
+			met = inGroup
+		}
+		if !met {
 			return false, nil
 		}
 	}
@@ -164,6 +181,23 @@ func (g WorkflowGate) allowed(
 		return true, nil
 	}
 	return g.holds(ctx, who.Condition, activation)
+}
+
+// inGroup reports whether the actor is in any of the groups a step names.
+func (g WorkflowGate) inGroup(ctx context.Context, actor appshared.ActorContext, groups []string) (bool, error) {
+	if g.Groups == nil || actor.AccountID.IsZero() {
+		return false, nil
+	}
+	for _, group := range groups {
+		members, err := g.Groups.Members(ctx, shared.ID(group))
+		if err != nil {
+			return false, err
+		}
+		if slices.Contains(members, actor.AccountID) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // namesPerson reports whether a person field of the entry names the account.
