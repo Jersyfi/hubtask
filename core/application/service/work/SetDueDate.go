@@ -401,7 +401,8 @@ func (w DueDateWriter) recordActivity(
 // REST, MCP and automation at once (arc42 §4).
 func (h SetDueDate) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SetDueDateName,
+		Permission: service.PermissionWriteItems,
+		Name:       SetDueDateName,
 		Summary: "Puts a due date on an entry, or moves it: the instant, the all-day flag and the " +
 			"IANA time zone, written together because the three describe one date. An all-day due " +
 			"date is a date in that zone, never a midnight that shifts with the viewer. A zone " +
@@ -443,7 +444,8 @@ func (h SetDueDate) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h ClearDueDate) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ClearDueDateName,
+		Permission: service.PermissionWriteItems,
+		Name:       ClearDueDateName,
 		Summary: "Takes the due date off an entry - the instant, the all-day flag and the zone " +
 			"together, because none of them means anything alone. Idempotent: an entry with no " +
 			"due date succeeds and announces nothing.",

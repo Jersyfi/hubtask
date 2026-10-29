@@ -339,7 +339,8 @@ func findCustomField(
 // Descriptor is the catalogue entry.
 func (h UpdateCustomField) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateCustomFieldName,
+		Permission: service.PermissionStructure,
+		Name:       UpdateCustomFieldName,
 		Summary: "Changes what a definition permits: its options, whether it is required, and " +
 			"which types carry it. The key and the kind are not among them - a key that moved " +
 			"would orphan every value stored under it, and a kind that changed would reinterpret " +
@@ -440,7 +441,8 @@ func (h UpdateCustomField) invoke(
 // Descriptor is the catalogue entry.
 func (h DeleteCustomField) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteCustomFieldName,
+		Permission: service.PermissionStructure,
+		Name:       DeleteCustomFieldName,
 		Summary: "Takes a definition out of use. A soft delete: the values stay in the entries and " +
 			"stop being visible, because rewriting the custom fields of every entry in a " +
 			"collection would be an unbounded write from one request. The key is free again at " +

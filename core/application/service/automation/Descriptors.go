@@ -13,6 +13,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
@@ -24,6 +25,7 @@ import (
 // Descriptor is the catalogue entry.
 func (h CreateRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        CreateRuleName,
 		Entitlement: entitlement.AutomationRules,
 		Summary: "Writes an automation rule, switched off. Enabling it is a separate call, so " +
@@ -120,6 +122,7 @@ func (h ListRules) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h UpdateRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        UpdateRuleName,
 		Entitlement: entitlement.AutomationRules,
 		Summary: "Changes what a rule does. An omitted field is left alone. `enabled` is not " +
@@ -160,6 +163,7 @@ func (h UpdateRule) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h EnableRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        EnableRuleName,
 		Entitlement: entitlement.AutomationRules,
 		Summary: "Switches a rule on, and clears its failure count. Its own call and its own " +
@@ -185,7 +189,8 @@ func (h EnableRule) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h DisableRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DisableRuleName,
+		Permission: service.PermissionAutomation,
+		Name:       DisableRuleName,
 		Summary: "Switches a rule off. It stays, and stops acting. What a run of failures does " +
 			"automatically, a person can do deliberately - and the trail says which of the two " +
 			"it was. The failure count is left alone: switching a rule off by hand has not fixed " +
@@ -209,7 +214,8 @@ func (h DisableRule) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h DeleteRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteRuleName,
+		Permission: service.PermissionAutomation,
+		Name:       DeleteRuleName,
 		Summary: "Removes a rule. A soft delete: it stops matching anything at once and leaves " +
 			"the listing, and the runs it produced stay readable - a run log whose rule vanished " +
 			"would be a record of actions nobody can account for.",

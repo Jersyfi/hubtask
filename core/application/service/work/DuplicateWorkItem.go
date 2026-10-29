@@ -1078,7 +1078,8 @@ func (h DuplicateWorkItem) hierarchy(ctx context.Context) (service.Hierarchy, er
 // rule performs, so the automation door is not a nicety here.
 func (h DuplicateWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DuplicateWorkItemName,
+		Permission: service.PermissionWriteItems,
+		Name:       DuplicateWorkItemName,
 		Summary: "Copies an entry, and everything below it when asked for. The copy carries the " +
 			"description - the title, the notes, the column, the labels, the members, the " +
 			"assignee, the cover, the attachments and the custom field values, as far as the " +

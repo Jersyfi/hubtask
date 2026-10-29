@@ -310,7 +310,8 @@ func (l Linking) announce(
 // Descriptor is the catalogue entry.
 func (h LinkEntries) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: LinkEntriesName,
+		Permission: service.PermissionWriteItems,
+		Name:       LinkEntriesName,
 		Summary: "Draws a link of a type from an entry (the source) to another (the target): blocks, " +
 			"depends_on, duplicates, runs_on, affects, implements, or one of the workspace's own types. " +
 			"Needs write access to the source and sight of the target. A link that would close a loop " +
@@ -642,7 +643,8 @@ func (h ListLinksAmong) Execute(ctx context.Context, actor appshared.ActorContex
 // Descriptor is the catalogue entry.
 func (h ListLinksAmong) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListLinksAmongName,
+		Permission: service.PermissionRead,
+		Name:       ListLinksAmongName,
 		Summary: "Reads the links between the given entries (at most 500), each with which end waits " +
 			"for the other (SOURCE, TARGET or NONE) - what a timeline draws as dependencies. A link " +
 			"with an end the caller may not see is left out.",

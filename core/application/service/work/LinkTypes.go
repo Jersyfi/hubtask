@@ -208,7 +208,8 @@ func (h CreateLinkType) Execute(ctx context.Context, actor appshared.ActorContex
 // Descriptor is the catalogue entry.
 func (h CreateLinkType) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateLinkTypeName,
+		Permission: service.PermissionStructure,
+		Name:       CreateLinkTypeName,
 		Summary: "Adds one of the workspace's own link types with its two names (read from the source " +
 			"and from the target), whether it is DIRECTED or SYMMETRIC, whether an entry may start MANY " +
 			"or ONE of it, whether loops are FORBIDDEN or ALLOWED, and which end waits for the other " +
@@ -300,7 +301,8 @@ func (h ChangeLinkType) Execute(ctx context.Context, actor appshared.ActorContex
 // Descriptor is the catalogue entry.
 func (h ChangeLinkType) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ChangeLinkTypeName,
+		Permission: service.PermissionStructure,
+		Name:       ChangeLinkTypeName,
 		Summary: "Renames, reorders, archives or restores one of the workspace's own link types. An " +
 			"archived type draws no new link, and the links that stand stay readable. The six shipped " +
 			"types do not change (link_types.system_fixed), nor does what a type means.",
@@ -373,7 +375,8 @@ func (h DeleteLinkType) Execute(ctx context.Context, actor appshared.ActorContex
 // Descriptor is the catalogue entry.
 func (h DeleteLinkType) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteLinkTypeName,
+		Permission: service.PermissionStructure,
+		Name:       DeleteLinkTypeName,
 		Summary: "Deletes one of the workspace's own link types that no link names. A type in use is " +
 			"refused with link_types.in_use - archive it instead; the shipped types are never deleted.",
 		SideEffects: "Deletes the type and writes an audit entry.",

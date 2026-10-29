@@ -463,7 +463,8 @@ func ensureLabelVersion(label domain.Label, expected int) error {
 // Descriptor is the catalogue entry.
 func (h UpdateLabel) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateLabelName,
+		Permission: service.PermissionStructure,
+		Name:       UpdateLabelName,
 		Summary: "Changes a label's own fields: what it is called, what colour it is, what it " +
 			"means. A field that is not sent is left alone; sending the description as empty " +
 			"clears it. The colour cannot be cleared - a label is rendered as a chip and nothing " +
@@ -543,7 +544,8 @@ func (h UpdateLabel) invoke(
 // Descriptor is the catalogue entry.
 func (h DeleteLabel) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteLabelName,
+		Permission: service.PermissionStructure,
+		Name:       DeleteLabelName,
 		Summary: "Takes a label out of a collection's vocabulary. The entries that carried it are " +
 			"not rewritten: they stop showing it because it is gone, which is what makes the " +
 			"deletion undoable without having to remember who wore it. Idempotent: deleting a " +
@@ -594,7 +596,8 @@ func (h DeleteLabel) invoke(
 // Descriptor is the catalogue entry.
 func (h RestoreLabel) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RestoreLabelName,
+		Permission: service.PermissionStructure,
+		Name:       RestoreLabelName,
 		Summary: "Brings a deleted label back into a collection's vocabulary, and with it onto every " +
 			"entry that carried it: the deletion never rewrote them. Refused when another label has " +
 			"taken the name in the meantime. Idempotent: restoring a label that is not deleted " +

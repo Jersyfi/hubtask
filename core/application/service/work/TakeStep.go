@@ -400,7 +400,8 @@ func nonNilStrings(values []string) []string {
 // Descriptor is the catalogue entry.
 func (h ListEntrySteps) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListEntryStepsName,
+		Permission: service.PermissionRead,
+		Name:       ListEntryStepsName,
 		Summary: "Answers the workflow an entry's collection runs for its type, the entry's status, " +
 			"and the steps the person may take from it - each with what it asks for, what it still " +
 			"needs and whether its checks hold. Empty where no workflow runs.",

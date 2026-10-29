@@ -764,7 +764,8 @@ func notEditable(item domain.WorkItem) error {
 // not a nicety here.
 func (h MoveWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: MoveWorkItemName,
+		Permission: service.PermissionWriteItems,
+		Name:       MoveWorkItemName,
 		Summary: "Moves an item, and everything below it, under a different parent or into a different " +
 			"collection. Which placements are permitted is configured per workspace rather than fixed, so a " +
 			"refusal names the reason. An item can never be moved into its own subtree.",
@@ -821,7 +822,8 @@ func (h MoveWorkItem) Descriptor() usecase.Descriptor {
 
 func (h ReorderWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReorderWorkItemName,
+		Permission: service.PermissionWriteItems,
+		Name:       ReorderWorkItemName,
 		Summary: "Changes an item's position among the items it already sits with. The position is given as " +
 			"the sibling to place it before; omitting it moves the item to the end. The rank is a fractional " +
 			"index, so nothing else is renumbered and two offline devices can reorder the same list without " +

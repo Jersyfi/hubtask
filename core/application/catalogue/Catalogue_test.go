@@ -385,7 +385,7 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 // F-7: a use case declares the catalogue permission it asks for, which *who may do what* and *view
 // as* read. The declarations grow towards every use case; the bound only falls, so a new use case
 // declares one or names why it cannot.
-const undeclaredPermissionsAtMost = 263
+const undeclaredPermissionsAtMost = 198
 
 func TestTheDeclaredPermissionsOnlyGrow(t *testing.T) {
 	undeclared := 0

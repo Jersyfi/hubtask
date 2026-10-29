@@ -275,7 +275,8 @@ func behaviourFields() []usecase.Field {
 // Descriptor is the catalogue entry.
 func (h CreateEntryType) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateEntryTypeName,
+		Permission: service.PermissionStructure,
+		Name:       CreateEntryTypeName,
 		Summary: "Adds an entry type of the workspace's own on one level - task, work package or " +
 			"activity - with a key, a name, an icon and a colour token, and the behaviours of its " +
 			"entries. A record is never completable. The key is free in the workspace and is not one " +
@@ -401,7 +402,8 @@ func (h ChangeEntryType) Descriptor() usecase.Descriptor {
 		{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true, Description: "The version last read, for optimistic locking."},
 	}, behaviourFields()...)
 	return usecase.Descriptor{
-		Name: ChangeEntryTypeName,
+		Permission: service.PermissionStructure,
+		Name:       ChangeEntryTypeName,
 		Summary: "Changes an entry type: its name, icon, colour, behaviours, allowed children or place, " +
 			"or archives it or brings it back. Only what is sent changes. A record is never " +
 			"completable, and a system type never becomes a record and is never archived.",
@@ -518,7 +520,8 @@ func (h DeleteEntryType) Execute(ctx context.Context, actor appshared.ActorConte
 // Descriptor is the catalogue entry.
 func (h DeleteEntryType) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteEntryTypeName,
+		Permission: service.PermissionStructure,
+		Name:       DeleteEntryTypeName,
 		Summary: "Deletes an entry type of the workspace's own that no entry carries, trashed ones " +
 			"included. A type in use is refused with entry_types.in_use and can only be archived; a " +
 			"system type is never deleted.",

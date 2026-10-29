@@ -455,7 +455,8 @@ func ensureBucketVersion(bucket domain.Bucket, expected int) error {
 // Descriptor is the catalogue entry.
 func (h UpdateBucket) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateBucketName,
+		Permission: service.PermissionStructure,
+		Name:       UpdateBucketName,
 		Summary: "Changes a column's own fields: what it is called, how much it should hold, " +
 			"whether it means finished, what colour it is. A field that is not sent is left alone; " +
 			"sending one as empty clears it. Where the column sits is not here - that is " +
@@ -554,7 +555,8 @@ func (h UpdateBucket) invoke(
 // Descriptor is the catalogue entry.
 func (h ReorderBucket) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReorderBucketName,
+		Permission: service.PermissionStructure,
+		Name:       ReorderBucketName,
 		Summary: "Moves a column along its board. An omitted before_bucket_id moves it to the right " +
 			"hand end. A column cannot leave its collection, so this is the whole of what moving one " +
 			"means. Asking for the position it already holds succeeds and leaves the board looking " +

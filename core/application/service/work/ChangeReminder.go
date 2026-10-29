@@ -323,7 +323,8 @@ func ensureReminderVersion(reminder domain.Reminder, expected int) error {
 // Descriptor is the catalogue entry.
 func (h UpdateReminder) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateReminderName,
+		Permission: service.PermissionWriteItems,
+		Name:       UpdateReminderName,
 		Summary: "Changes a reminder that has not fired yet: the offset, the channels, the " +
 			"recipients. A merge patch - a field that is not sent is not touched - and the lists " +
 			"are chosen whole, so the list sent replaces the list stored. A reminder that has " +
@@ -406,7 +407,8 @@ func (h UpdateReminder) invoke(
 // Descriptor is the catalogue entry.
 func (h DeleteReminder) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteReminderName,
+		Permission: service.PermissionWriteItems,
+		Name:       DeleteReminderName,
 		Summary: "Removes a reminder. A hard delete: a reminder is created and deleted whole, so " +
 			"what somebody deleted is gone rather than kept as a cancelled row they can still " +
 			"see. Deleting one that is not there answers that it is not there.",

@@ -454,7 +454,8 @@ func ensureContainerVersion(container domain.Container, expected int) error {
 // REST, MCP and automation at once (arc42 §4).
 func (h RenameContainer) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RenameContainerName,
+		Permission: service.PermissionStructure,
+		Name:       RenameContainerName,
 		Summary: "Changes a hub or collection's own descriptive fields: its name, description, icon " +
 			"and colour. A field that is not sent is left alone; sending one as empty clears it. The " +
 			"name stays unique among the containers at the same level. Idempotent: an update that " +
@@ -545,7 +546,8 @@ func (h RenameContainer) invoke(
 // Descriptor is the catalogue entry.
 func (h UpdateContainerPolicies) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateContainerPoliciesName,
+		Permission: service.PermissionStructure,
+		Name:       UpdateContainerPoliciesName,
 		Summary: "Replaces a collection's policies - how it works, as opposed to what it is called. " +
 			"A key that is not sent falls back to its default rather than keeping the stored value: " +
 			"this replaces the document. A hub carries no policies and is refused. Idempotent: " +

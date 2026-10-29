@@ -404,9 +404,14 @@ func mappingFromInput(raw any) map[string]string {
 func workflowDescriptor(name, summary, sideEffects, scope string, readOnly bool, action audit.Action,
 	input []usecase.Field, handler usecase.HandlerFunc,
 ) usecase.Descriptor {
+	// Every workflow operation but the listing, which any member reads, asks STRUCTURE.
+	permission := service.PermissionStructure
+	if name == ListWorkflowsName {
+		permission = ""
+	}
 	return usecase.Descriptor{
 		Name: name, Summary: summary, SideEffects: sideEffects, TokenScope: scope, ReadOnly: readOnly,
-		Module: module.Workflows, Input: input,
+		Module: module.Workflows, Input: input, Permission: permission,
 		Audit: usecase.AuditDeclaration{
 			Action: action, TargetType: WorkflowTarget, Severity: audit.SeverityInfo, Required: !readOnly,
 		},

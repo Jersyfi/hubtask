@@ -431,7 +431,8 @@ func ensureCommentVersion(comment domain.Comment, expected int) error {
 // Descriptor is the catalogue entry.
 func (h EditComment) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: EditCommentName,
+		Permission: service.PermissionWriteItems,
+		Name:       EditCommentName,
 		Summary: "Rewrites a comment's text. Only its author or an administrator may; anybody " +
 			"else is refused exactly as any other missing permission is. The displaced text is " +
 			"not preserved, and a deleted comment cannot be edited back into existence.",
@@ -458,7 +459,8 @@ func (h EditComment) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h DeleteComment) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteCommentName,
+		Permission: service.PermissionWriteItems,
+		Name:       DeleteCommentName,
 		Summary: "Removes a comment's text and marks it deleted, keeping the thread readable: " +
 			"the tombstone answers with its identifier, author and timestamps, so a reply does " +
 			"not dangle. Only the author or an administrator may. Idempotent: deleting a deleted " +

@@ -290,7 +290,8 @@ func ensureTemplateVersion(template domain.Template, expected int) error {
 // Descriptor is the catalogue entry.
 func (h UpdateTemplate) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateTemplateName,
+		Permission: service.PermissionStructure,
+		Name:       UpdateTemplateName,
 		Summary: "Changes a template's name, description or tree. A merge patch - a member that " +
 			"is not sent is not touched - and the tree travels whole, because a tree is a shape " +
 			"rather than a list of settings. The scope and the root type are not changeable: a " +
@@ -356,7 +357,8 @@ func (h UpdateTemplate) invoke(
 // Descriptor is the catalogue entry.
 func (h DeleteTemplate) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteTemplateName,
+		Permission: service.PermissionStructure,
+		Name:       DeleteTemplateName,
 		Summary: "Removes a template for good. The trees it has already stamped out are " +
 			"ordinary entries and outlive it, and a template defined afterwards under the same " +
 			"name is a new one rather than this one coming back. While a legal hold covers its " +

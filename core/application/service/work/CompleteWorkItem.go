@@ -580,7 +580,8 @@ func (w CompletionWriter) findCollection(ctx context.Context, id shared.ID) (dom
 // most, so all three doors leading to this one handler is the point rather than a nicety.
 func (h CompleteWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CompleteWorkItemName,
+		Permission: service.PermissionWriteItems,
+		Name:       CompleteWorkItemName,
 		Summary: "Marks a task, work package or activity done. Idempotent: completing an item that is " +
 			"already done succeeds and changes nothing. Where the collection is configured to roll up, " +
 			"completing the last open child also completes the item above it, and so on upwards until " +
@@ -600,7 +601,8 @@ func (h CompleteWorkItem) Descriptor() usecase.Descriptor {
 
 func (h ReopenWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReopenWorkItemName,
+		Permission: service.PermissionWriteItems,
+		Name:       ReopenWorkItemName,
 		Summary: "Marks a completed task, work package or activity open again. Idempotent: reopening an " +
 			"item that is already open succeeds and changes nothing. Where the collection is configured " +
 			"to roll up, reopening an item also reopens the completed items above it.",

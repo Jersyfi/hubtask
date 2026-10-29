@@ -1328,7 +1328,8 @@ func (h ListSuggestions) invoke(
 
 func (h AcceptSuggestion) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: AcceptSuggestionName,
+		Permission: service.PermissionWriteItems,
+		Name:       AcceptSuggestionName,
 		Summary: "Applies what was proposed, as the accepting person's own write: the ordinary " +
 			"use case, with the ordinary permission check and the ordinary history entry. A " +
 			"suggestion made against an entry that has since been rewritten is stale and is " +
@@ -1398,7 +1399,8 @@ func (h AcceptSuggestion) invoke(
 
 func (h DismissSuggestion) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DismissSuggestionName,
+		Permission: service.PermissionWriteItems,
+		Name:       DismissSuggestionName,
 		Summary: "Turns a proposal down. A state and not a deletion, so \"what was proposed and " +
 			"turned down\" has an answer, and the retention engine ages it out by rule.",
 		SideEffects: "Marks the suggestion dismissed and writes an audit entry. Changes nothing else.",

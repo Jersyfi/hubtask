@@ -110,7 +110,8 @@ func (h CloseStarter) Execute(ctx context.Context, actor appshared.ActorContext)
 // Descriptor is the catalogue entry.
 func (h CloseStarter) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CloseStarterName,
+		Permission: service.PermissionStructure,
+		Name:       CloseStarterName,
 		Summary: "Records that the workspace's first start - what it is used for, and a starter set " +
 			"of hubs and collections on matching presets - was answered or skipped, so nobody is " +
 			"asked again. Needs the right to change the workspace's shape. Closing it again changes nothing.",
