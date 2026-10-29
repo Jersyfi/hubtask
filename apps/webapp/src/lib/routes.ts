@@ -85,6 +85,7 @@ export const ROUTES: readonly Route[] = [
   // The workspace's entry types, where the workflows module is on (UC-FLW-01 check 1).
   { name: 'entry-types', pattern: '/administration/types', area: 'administration' },
   { name: 'link-types', pattern: '/administration/link-types', area: 'administration' },
+  { name: 'cmdb', pattern: '/administration/configuration-items', area: 'administration' },
   { name: 'changes', pattern: '/administration/changes', area: 'administration' },
   // The workflow designer, where the workflows module is on (UC-FLW-02 check 2).
   { name: 'workflows', pattern: '/administration/workflows', area: 'administration' },

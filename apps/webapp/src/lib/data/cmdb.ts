@@ -301,3 +301,69 @@ export function guessMapping(columns: readonly string[], attributes: readonly Ci
   }
   return { ...(name ? { name } : {}), ...(nativeKey ? { nativeKey } : {}), columns: mapped };
 }
+
+// --- The administration's definitions (UC-AST-02 check 6, UC-AST-06 check 5) -------------------
+
+export interface AttributeDraft {
+  key: string;
+  kind: CiAttribute['kind'];
+  need: NonNullable<CiAttribute['need']>;
+  identifier: boolean;
+  /** A choice's options, one per line. */
+  options: string;
+}
+
+export interface ClassDraft {
+  key: string;
+  parent: string;
+  name: string;
+  abstract: boolean;
+  attributes: AttributeDraft[];
+  /** One identifier rule per line, its attributes joined by `+`. */
+  rules: string;
+  required: { types: string[]; outgoing: boolean }[];
+  staleness: string;
+  archived: boolean;
+}
+
+const lines = (text: string) => text.split(/\r?\n/u).map((each) => each.trim()).filter(Boolean);
+
+/** A class as its editor holds it: only what the class itself declares, not what it inherits. */
+export function classDraft(of?: CiClass): ClassDraft {
+  return {
+    key: of?.key ?? '',
+    parent: of?.parent ?? ROOT_CLASS,
+    name: of?.name ?? '',
+    abstract: of?.abstract ?? false,
+    attributes: (of?.attributes ?? []).map((each) => ({
+      key: each.key, kind: each.kind, need: each.need ?? 'OPTIONAL', identifier: each.identifier ?? false, options: (each.options ?? []).join('\n'),
+    })),
+    rules: (of?.identifier_rules ?? []).filter((rule) => !rule.class || rule.class === of?.key).map((rule) => rule.attributes.join('+')).join('\n'),
+    required: (of?.required_relations ?? []).map((each) => ({ types: [...each.types], outgoing: each.outgoing })),
+    staleness: of && of.staleness_days ? String(of.staleness_days) : '',
+    archived: of?.archived ?? false,
+  };
+}
+
+/** The body `defineCiClass` takes; a staleness left empty inherits (0). */
+export function classDefine(draft: ClassDraft) {
+  return {
+    parent: draft.parent,
+    name: draft.name.trim(),
+    abstract: draft.abstract,
+    attributes: draft.attributes.filter((each) => each.key.trim()).map((each) => ({
+      key: each.key.trim(),
+      kind: each.kind,
+      need: each.need,
+      identifier: each.identifier,
+      ...(each.kind === 'CHOICE' ? { options: lines(each.options) } : {}),
+    })),
+    identifier_rules: lines(draft.rules).map((line) => ({ attributes: line.split('+').map((each) => each.trim()).filter(Boolean) })),
+    required_relations: draft.required.filter((each) => each.types.length > 0),
+    staleness_days: Math.max(0, Number.parseInt(draft.staleness, 10) || 0),
+    archived: draft.archived,
+  };
+}
+
+/** A key as a person may type one: small letters, digits and underscores, starting with a letter. */
+export const keyIsWellFormed = (key: string) => /^[a-z][a-z0-9_]{0,62}$/u.test(key);

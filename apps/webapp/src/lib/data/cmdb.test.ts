@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import type { CiAttribute, CiClass, CiRelationType, ConfigurationItem } from '@hubtask/sync-engine';
 
 import {
-  changedAttributes, cisPath, classWord, fileColumns, fileFormat, guessMapping, impactByDepth, instantiable, inventoryByClass,
+  changedAttributes, cisPath, classDefine, classDraft, keyIsWellFormed, classWord, fileColumns, fileFormat, guessMapping, impactByDepth, instantiable, inventoryByClass,
   missingRequired, outcomeTone, parseAttribute, percent, protectionRows, refinements, relationRows, relationWord, sectionOf,
   sideBySide, typeAllows,
 } from './cmdb.ts';
@@ -153,4 +153,29 @@ test('a file is read in the format it is, and its columns offered to the mapping
   assert.deepEqual(fileColumns('JSON', 'not json'), []);
   const guess = guessMapping(['Hostname', 'ID', 'OS', 'Colour'], [{ key: 'os', kind: 'TEXT' }]);
   assert.deepEqual(guess, { name: 'Hostname', nativeKey: 'ID', columns: { OS: 'os' } });
+});
+
+test('an own class is edited by what it declares and sent as the contract takes it (UC-AST-06 check 5)', () => {
+  const own = cls('rack_server', ['rack_server', 'server', 'computer', 'hardware', 'ci'], {
+    system: false, name: 'Rack server', parent: 'server', staleness_days: 30,
+    attributes: [{ key: 'rack', kind: 'CHOICE', need: 'REQUIRED', identifier: false, options: ['A', 'B'] }],
+    identifier_rules: [{ attributes: ['rack', 'name'], class: 'rack_server' }, { attributes: ['serial_number'], class: 'hardware' }],
+    required_relations: [{ types: ['hosted_on'], outgoing: true }],
+  });
+  const draft = classDraft(own);
+  assert.equal(draft.rules, 'rack+name', 'an inherited rule is not the class own');
+  assert.equal(draft.attributes[0]?.options, 'A\nB');
+  draft.attributes.push({ key: ' ', kind: 'TEXT', need: 'OPTIONAL', identifier: false, options: '' });
+  draft.required.push({ types: [], outgoing: false });
+  assert.deepEqual(classDefine(draft), {
+    parent: 'server', name: 'Rack server', abstract: false,
+    attributes: [{ key: 'rack', kind: 'CHOICE', need: 'REQUIRED', identifier: false, options: ['A', 'B'] }],
+    identifier_rules: [{ attributes: ['rack', 'name'] }],
+    required_relations: [{ types: ['hosted_on'], outgoing: true }],
+    staleness_days: 30, archived: false,
+  });
+  assert.equal(classDefine({ ...classDraft(), name: ' Printer ', staleness: '' }).staleness_days, 0, 'empty inherits');
+  assert.equal(keyIsWellFormed('rack_server'), true);
+  assert.equal(keyIsWellFormed('Rack'), false);
+  assert.equal(keyIsWellFormed('1rack'), false);
 });

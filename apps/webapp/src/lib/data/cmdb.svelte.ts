@@ -8,11 +8,11 @@
  */
 
 import type {
-  CiCompliance, CiDuplicateResolved, CiFileImport, CiImpact, CiRelation, CiRun, ConfigurationItem, ConfigurationItemCreate,
+  CiClass, CiClassDefine, CiRelationType, CiRelationTypeDefine, CiSource, CiSourceDefine, CiCompliance, CiDuplicateResolved, CiFileImport, CiImpact, CiRelation, CiRun, ConfigurationItem, ConfigurationItemCreate,
   ConfigurationItemList, ConfigurationItemUpdate,
 } from '@hubtask/sync-engine';
 
-import { ciPath, cisPath, duplicatesPath, healthPath, holdsPath, impactPath, runPath, runsPath } from './cmdb.ts';
+import { ciPath, cisPath, classesPath, duplicatesPath, healthPath, holdsPath, impactPath, relationTypesPath, runPath, runsPath, sourcesPath } from './cmdb.ts';
 import { engine } from './engine.ts';
 
 export * from './cmdb.ts';
@@ -96,6 +96,28 @@ class Cmdb {
   resolveDuplicate(hubId: string, duplicateId: string, survivorId?: string): Promise<CiDuplicateResolved> {
     return engine.mutate<CiDuplicateResolved>('POST', `/ci-duplicates/${duplicateId}:resolve`, survivorId ? { survivor_id: survivorId } : {}, {
       invalidates: reconciled(hubId),
+    });
+  }
+
+  /** An own class added, or changed with the version last read. */
+  defineClass(key: string, body: CiClassDefine, version?: number): Promise<CiClass> {
+    return engine.mutate<CiClass>('PUT', `${classesPath}/${encodeURIComponent(key)}`, body, {
+      ...(version ? { ifMatch: `"${version}"` } : {}),
+      invalidates: [classesPath],
+    });
+  }
+
+  defineRelationType(key: string, body: CiRelationTypeDefine, version?: number): Promise<CiRelationType> {
+    return engine.mutate<CiRelationType>('PUT', `${relationTypesPath}/${encodeURIComponent(key)}`, body, {
+      ...(version ? { ifMatch: `"${version}"` } : {}),
+      invalidates: [relationTypesPath],
+    });
+  }
+
+  defineSource(key: string, body: CiSourceDefine, version?: number): Promise<CiSource> {
+    return engine.mutate<CiSource>('PUT', `${sourcesPath}/${encodeURIComponent(key)}`, body, {
+      ...(version ? { ifMatch: `"${version}"` } : {}),
+      invalidates: [sourcesPath],
     });
   }
 }

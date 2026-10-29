@@ -208,6 +208,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       { id: 'workflows', icon: 'git-branch', code: 'app.workflow_designer.title', path: '/administration/workflows', routes: ['workflows'], module: 'WORKFLOWS' },
       // Links are the core's, not a module's (UC-PLN-01 check 5): the row is there in every workspace.
       { id: 'link-types', icon: 'link', code: 'app.link_types.title', path: '/administration/link-types', routes: ['link-types'] },
+      { id: 'cmdb', icon: 'shield', code: 'app.cmdb_admin.title', path: '/administration/configuration-items', routes: ['cmdb'], module: 'ASSETS' },
       // The editor's two routes are the rules' row as well: a reader inside a rule is inside
       // automation, and a column that marked nothing current there would say they are nowhere.
       { id: 'rules', icon: 'automation', code: 'app.admin.rules', path: '/administration/rules', routes: ['rules', 'rule', 'rule-new'] },

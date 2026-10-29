@@ -72,6 +72,7 @@
     ModulesView: () => import('./views/ModulesView.svelte'),
     EntryTypesView: () => import('./views/EntryTypesView.svelte'),
     LinkTypesView: () => import('./views/LinkTypesView.svelte'),
+    CmdbView: () => import('./views/CmdbView.svelte'),
     PagesView: () => import('./views/PagesView.svelte'),
     WhiteboardsView: () => import('./views/WhiteboardsView.svelte'),
     AssetsView: () => import('./views/AssetsView.svelte'),
@@ -339,6 +340,8 @@
     <LazyView load={views.EntryTypesView} />
   {:else if route.name === 'link-types'}
     <LazyView load={views.LinkTypesView} />
+  {:else if route.name === 'cmdb'}
+    <LazyView load={views.CmdbView} />
   {:else if route.name === 'changes'}
     <LazyView load={views.ChangesView} />
   {:else if route.name === 'workflows'}
