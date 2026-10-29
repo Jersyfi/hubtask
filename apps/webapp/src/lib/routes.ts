@@ -84,6 +84,7 @@ export const ROUTES: readonly Route[] = [
   { name: 'modules', pattern: '/administration/modules', area: 'administration' },
   // The workspace's entry types, where the workflows module is on (UC-FLW-01 check 1).
   { name: 'entry-types', pattern: '/administration/types', area: 'administration' },
+  { name: 'link-types', pattern: '/administration/link-types', area: 'administration' },
   // The private hubs, without their names (UC-ID-16 check 3).
   { name: 'private-hubs', pattern: '/administration/private-hubs', area: 'administration' },
   { name: 'backup', pattern: '/administration/backup', area: 'administration' },

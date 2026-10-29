@@ -205,6 +205,8 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       { id: 'presets', icon: 'sliders-horizontal', code: 'app.presets.title', path: '/administration/presets', routes: ['presets'] },
       { id: 'modules', icon: 'layout-template', code: 'app.modules.title', path: '/administration/modules', routes: ['modules'] },
       { id: 'entry-types', icon: 'tag', code: 'app.entry_types.title', path: '/administration/types', routes: ['entry-types'], module: 'WORKFLOWS' },
+      // Links are the core's, not a module's (UC-PLN-01 check 5): the row is there in every workspace.
+      { id: 'link-types', icon: 'link', code: 'app.link_types.title', path: '/administration/link-types', routes: ['link-types'] },
       // The editor's two routes are the rules' row as well: a reader inside a rule is inside
       // automation, and a column that marked nothing current there would say they are nowhere.
       { id: 'rules', icon: 'automation', code: 'app.admin.rules', path: '/administration/rules', routes: ['rules', 'rule', 'rule-new'] },
