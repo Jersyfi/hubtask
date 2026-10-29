@@ -269,7 +269,10 @@ func TestAPushMapsTheQueueAndTheResults(t *testing.T) {
 				 "payload": {"type": "TASK", "title": "Fix the tap"}},
 				{"op_id": "0192f000-0000-7000-8000-000000000f02", "kind": "ITEM_PATCH",
 				 "item_id": "0192f000-0000-7000-8000-0000000000e1", "base_version": 3,
-				 "fields": {"title": {"value": "x", "hlc": "1757937600000:00002:dev-a"}}}
+				 "fields": {"title": {"value": "x", "hlc": "1757937600000:00002:dev-a"}}},
+				{"op_id": "0192f000-0000-7000-8000-000000000f03", "kind": "ENTITY_UPSERT",
+				 "entity": "link_type", "entity_key": "feeds", "base_version": 2,
+				 "payload": {"name": "Feeds"}}
 			]}`)))
 	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
@@ -280,8 +283,12 @@ func TestAPushMapsTheQueueAndTheResults(t *testing.T) {
 
 	// The queue, mapped field for field.
 	if pusher.request.DeviceID != "0192f000-0000-7000-8000-0000000000d1" || pusher.request.Platform != "hubctl" ||
-		len(pusher.request.Mutations) != 2 {
+		len(pusher.request.Mutations) != 3 {
 		t.Fatalf("the request reached the service as %+v", pusher.request)
+	}
+	if third := pusher.request.Mutations[2]; third.Kind != "ENTITY_UPSERT" || third.Entity != "link_type" ||
+		third.EntityKey != "feeds" || *third.BaseVersion != 2 || third.Payload["name"] != "Feeds" {
+		t.Errorf("the entity mutation is %+v", third)
 	}
 	first, second := pusher.request.Mutations[0], pusher.request.Mutations[1]
 	if first.Kind != "ITEM_CREATE" || first.ItemID != itemID || first.HLC != "1757937600000:00001:dev-a" ||

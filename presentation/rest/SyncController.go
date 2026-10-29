@@ -298,6 +298,12 @@ func pushRequest(body openapi.SyncPushRequest) syncservice.PushRequest {
 		if m.Payload != nil {
 			mutation.Payload = *m.Payload
 		}
+		if m.Entity != nil {
+			mutation.Entity = syncdomain.Entity(*m.Entity)
+		}
+		if m.EntityKey != nil {
+			mutation.EntityKey = *m.EntityKey
+		}
 		if m.Fields != nil {
 			mutation.Fields = make(map[string]syncservice.FieldChange, len(*m.Fields))
 			for name, field := range *m.Fields {
