@@ -269,6 +269,8 @@ class Items {
       label_ids?: readonly string[];
       /** The key of the entry's type, absent for its level's own (UC-FLW-01). */
       entry_type?: string;
+      /** What the type's form asked for (UC-FLW-01 check 2), one value per custom key. */
+      custom_fields?: Readonly<Record<string, unknown>>;
     },
     idempotencyKey: string,
   ): Promise<WorkItem> {

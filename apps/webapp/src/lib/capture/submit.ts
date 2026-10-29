@@ -42,6 +42,9 @@ export interface CreateBody {
   readonly amount?: string;
   /** The key of the entry's type, absent for its level's own (UC-FLW-01 check 3). */
   readonly entry_type?: string;
+  /** What the type's form asked for beside the line (UC-FLW-01 check 2). */
+  readonly notes?: string;
+  readonly custom_fields?: Readonly<Record<string, unknown>>;
 }
 
 /** One line of a capture, as the target reads it: its chips, its title, its leading amount. */
