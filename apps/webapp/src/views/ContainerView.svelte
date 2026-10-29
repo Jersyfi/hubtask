@@ -953,8 +953,15 @@
             }
           : undefined,
   );
-  /** The head draws no secondary action: import is the place's menu's, the filter the toolbar's. */
-  const headSecondary: readonly [] = [];
+  /**
+   * The head's one secondary action is a hub's pages, where the knowledge module is on (M3): import
+   * is the place's menu's, the filter the toolbar's.
+   */
+  const headSecondary = $derived<readonly [] | readonly [PageAction]>(
+    container?.type === 'HUB' && (manifest.value?.modules_on ?? []).includes('KNOWLEDGE')
+      ? [{ label: t('app.pages.title'), icon: 'book-open', onclick: () => onnavigate(`/hubs/${id}/pages`) }]
+      : [],
+  );
   /**
    * The order, the toolbar's own menu (design-system.md §11.1): the fields the installation lets
    * the entries be ordered by, narrowed to what this collection carries, and the direction.

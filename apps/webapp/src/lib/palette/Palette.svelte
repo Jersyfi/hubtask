@@ -54,6 +54,7 @@
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { queryFields } from '../data/query.ts';
   import { search } from '../data/search.svelte.ts';
+  import { pages } from '../data/pages.svelte.ts';
   import { QUICK, compile, parse } from '../data/searchquery.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { DRAWABLE } from '../entries/layouts.ts';
@@ -75,6 +76,8 @@
   /** The highlighted row, held by identity (`rows.ts`). */
   let activeKey = $state<string | undefined>(undefined);
   let hits = $state<readonly WorkItem[]>([]);
+  /** Pages that match, where the knowledge module is on (M3): offered as places to go. */
+  let pageHits = $state<readonly { id: string; title: string }[]>([]);
   let searching = $state(false);
   let form = $state<HTMLFormElement | null>(null);
 
@@ -235,6 +238,7 @@
     ...settings,
     ...catalogueRows,
     ...hits.map((hit) => ({ kind: 'hit' as const, id: hit.id, label: hit.title ?? '', target: { kind: 'route' as const, path: `/items/${hit.id}` } })),
+    ...pageHits.map((hit) => ({ kind: 'place' as const, id: `page:${hit.id}`, label: hit.title, target: { kind: 'route' as const, path: `/pages/${hit.id}` } })),
     ...recentOffers(recents.rows),
   ]);
 
@@ -282,6 +286,7 @@
     const asked = words;
     if (!isOpen || asked === '') {
       hits = [];
+      pageHits = [];
       searching = false;
       return;
     }
@@ -302,6 +307,12 @@
           hits = [];
           searching = false;
         });
+      if ((manifest.value?.modules_on ?? []).includes('KNOWLEDGE')) {
+        void pages.search(asked, undefined, 5).then(
+          (found) => { if (mine === generation) pageHits = found; },
+          () => { if (mine === generation) pageHits = []; },
+        );
+      } else pageHits = [];
     }, 200);
     return () => clearTimeout(timer);
   });
@@ -438,7 +449,7 @@
     if (row.kind === 'hit') return hitById.get(row.id)?.completion?.is_completed ? 'square-check' : 'square';
     if (row.kind === 'container') return containers.find(row.id)?.type === 'HUB' ? 'hub' : 'collection';
     if (row.kind === 'source') return 'sparkles';
-    if (row.kind === 'place') return 'arrow-right';
+    if (row.kind === 'place') return row.id.startsWith('page:') ? 'file-text' : 'arrow-right';
     if (row.kind === 'setting') return 'settings';
     if (row.kind === 'recent') return 'clock';
     return 'zap';
