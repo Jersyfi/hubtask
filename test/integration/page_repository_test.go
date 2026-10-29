@@ -156,3 +156,35 @@ func TestAPageIsInvisibleToTheWorkspaceNextDoor(t *testing.T) {
 		t.Error("the workspace next door commented on the page")
 	}
 }
+
+// The initial sync's page walk (offline reading) answers a workspace's own living pages with their
+// bodies, and none of the workspace next door's.
+func TestThePageWalkStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	_, root, child := seedSpace(ctx, t)
+	snapshot := postgres.NewSnapshotRepository()
+	seen := func(tenant shared.ID) map[shared.ID]string {
+		found := map[shared.ID]string{}
+		if err := write(ctx, t, tenant, func(ctx context.Context) error {
+			pages, err := snapshot.Pages(ctx, "", 5000)
+			for _, page := range pages {
+				found[page.ID] = page.Body
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return found
+	}
+	own := seen(tenantA)
+	if own[child] != "Day one" || own[root] == "" {
+		t.Errorf("the workspace's walk holds %v, want both pages with their bodies", own)
+	}
+	next := seen(tenantB)
+	if _, found := next[root]; found {
+		t.Errorf("the workspace next door walked the page: %v", next)
+	}
+	if _, found := next[child]; found {
+		t.Errorf("the workspace next door walked the page: %v", next)
+	}
+}
