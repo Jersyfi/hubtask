@@ -603,6 +603,18 @@ func (q *Queries) ClearWhiteboard(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearWhiteboardMedia = `-- name: ClearWhiteboardMedia :execrows
+DELETE FROM whiteboard_media
+`
+
+func (q *Queries) ClearWhiteboardMedia(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearWhiteboardMedia)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearWhiteboardVersion = `-- name: ClearWhiteboardVersion :execrows
 DELETE FROM whiteboard_version
 `
@@ -1218,6 +1230,21 @@ SELECT EXISTS (SELECT 1 FROM whiteboard WHERE id = ($1::jsonb->>'id')::uuid) AS 
 
 func (q *Queries) HoldsWhiteboard(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsWhiteboard, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsWhiteboardMedia = `-- name: HoldsWhiteboardMedia :one
+SELECT EXISTS (
+  SELECT 1 FROM whiteboard_media
+  WHERE whiteboard_id = ($1::jsonb->>'whiteboard_id')::uuid
+    AND media_id = ($1::jsonb->>'media_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsWhiteboardMedia(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsWhiteboardMedia, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -3634,6 +3661,24 @@ type ImportWhiteboardParams struct {
 // Where the board points is the trigger's to build.
 func (q *Queries) ImportWhiteboard(ctx context.Context, arg ImportWhiteboardParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importWhiteboard, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importWhiteboardMedia = `-- name: ImportWhiteboardMedia :execrows
+INSERT INTO whiteboard_media (tenant_id, whiteboard_id, media_id)
+SELECT r.tenant_id, r.whiteboard_id, r.media_id
+FROM jsonb_populate_record(
+  NULL::whiteboard_media,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, whiteboard_id, media_id) DO NOTHING
+`
+
+func (q *Queries) ImportWhiteboardMedia(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importWhiteboardMedia, payload)
 	if err != nil {
 		return 0, err
 	}

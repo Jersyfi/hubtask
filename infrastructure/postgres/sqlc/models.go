@@ -2117,6 +2117,12 @@ type Whiteboard struct {
 	Version   int32
 }
 
+type WhiteboardMedium struct {
+	TenantID     pgtype.UUID
+	WhiteboardID pgtype.UUID
+	MediaID      pgtype.UUID
+}
+
 type WhiteboardReference struct {
 	TenantID     pgtype.UUID
 	WhiteboardID pgtype.UUID

@@ -79,7 +79,9 @@ FROM (
     -- not be reclaimed while the entry that carries it is still readable.
     + (SELECT count(*) FROM jumble_entry j WHERE o.id = ANY(j.attachments))
     -- A person's picture: reclaimed only once nobody shows it any more.
-    + (SELECT count(*) FROM account p WHERE p.avatar_media_id = o.id) AS total
+    + (SELECT count(*) FROM account p WHERE p.avatar_media_id = o.id)
+    -- A board's pictures and files, trashed boards included: they may come back.
+    + (SELECT count(*) FROM whiteboard_media b WHERE b.media_id = o.id) AS total
   FROM media_object o
   WHERE o.deleted_at IS NULL
 ) c
@@ -128,6 +130,14 @@ UNION
 SELECT w.id, w.collection_id
 FROM item_attachment a JOIN work_item w ON w.id = a.item_id
 WHERE a.media_id = sqlc.arg('media_id')::uuid
+LIMIT 50;
+
+-- name: ListMediaReferencingBoards :many
+-- The hubs of the boards that draw an object, for GetMedia's authorisation: whoever may read one
+-- of those boards may read the object. A trashed board serves nothing until it is restored.
+SELECT DISTINCT w.hub_id
+FROM whiteboard_media b JOIN whiteboard w ON w.tenant_id = b.tenant_id AND w.id = b.whiteboard_id
+WHERE b.media_id = sqlc.arg('media_id')::uuid AND w.deleted_at IS NULL
 LIMIT 50;
 
 -- name: MediaServesAvatar :one

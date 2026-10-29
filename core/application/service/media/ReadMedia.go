@@ -153,7 +153,15 @@ func (h GetMedia) read(
 		if err != nil {
 			return err
 		}
-		served.paths, err = h.pathsOf(ctx, items)
+		if served.paths, err = h.pathsOf(ctx, items); err != nil {
+			return err
+		}
+		// A board's picture or file is read by whoever may read the board, judged at its hub as
+		// the board is (UC-CNV-08).
+		hubs, err := h.Objects.ReferencingBoards(ctx, mediaID)
+		for _, hub := range hubs {
+			served.paths = append(served.paths, []identity.Scope{identity.TenantScope(), identity.HubScope(hub)})
+		}
 		return err
 	})
 	if err != nil {

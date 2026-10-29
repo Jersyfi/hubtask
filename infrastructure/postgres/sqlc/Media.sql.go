@@ -288,6 +288,35 @@ func (q *Queries) ListItemAttachments(ctx context.Context, arg ListItemAttachmen
 	return items, nil
 }
 
+const listMediaReferencingBoards = `-- name: ListMediaReferencingBoards :many
+SELECT DISTINCT w.hub_id
+FROM whiteboard_media b JOIN whiteboard w ON w.tenant_id = b.tenant_id AND w.id = b.whiteboard_id
+WHERE b.media_id = $1::uuid AND w.deleted_at IS NULL
+LIMIT 50
+`
+
+// The hubs of the boards that draw an object, for GetMedia's authorisation: whoever may read one
+// of those boards may read the object. A trashed board serves nothing until it is restored.
+func (q *Queries) ListMediaReferencingBoards(ctx context.Context, mediaID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listMediaReferencingBoards, mediaID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var hub_id pgtype.UUID
+		if err := rows.Scan(&hub_id); err != nil {
+			return nil, err
+		}
+		items = append(items, hub_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMediaReferencingItems = `-- name: ListMediaReferencingItems :many
 SELECT id, collection_id FROM work_item WHERE cover_media_id = $1::uuid
 UNION
@@ -390,7 +419,9 @@ FROM (
     -- not be reclaimed while the entry that carries it is still readable.
     + (SELECT count(*) FROM jumble_entry j WHERE o.id = ANY(j.attachments))
     -- A person's picture: reclaimed only once nobody shows it any more.
-    + (SELECT count(*) FROM account p WHERE p.avatar_media_id = o.id) AS total
+    + (SELECT count(*) FROM account p WHERE p.avatar_media_id = o.id)
+    -- A board's pictures and files, trashed boards included: they may come back.
+    + (SELECT count(*) FROM whiteboard_media b WHERE b.media_id = o.id) AS total
   FROM media_object o
   WHERE o.deleted_at IS NULL
 ) c

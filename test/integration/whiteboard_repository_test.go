@@ -170,3 +170,46 @@ func TestABoardsHistoryStaysInItsWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A picture placed on a board is held by it and read through it, and the workspace next door
+// neither places nor finds it (migration 0235, UC-CNV-08 check 4).
+func TestABoardsPicturesStayInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	hub, board, _ := seedBoard(ctx, t)
+	picture := freshID(t)
+	if _, err := adminPool(ctx, t).Exec(ctx, `INSERT INTO media_object (id, tenant_id, storage_key, mime_type, byte_size, usage, status)
+		VALUES ($1, $2, $3, 'image/png', 12, 'ATTACHMENT', 'READY')`,
+		picture.String(), tenantA.String(), "test/"+picture.String()); err != nil {
+		t.Fatalf("the picture: %v", err)
+	}
+	repo := postgres.NewWhiteboardRepository()
+	media := postgres.NewMediaRepository(pageCursors())
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		for range 2 {
+			if err := repo.AttachMedia(ctx, board, picture); err != nil {
+				return err
+			}
+		}
+		if n, err := repo.CountMedia(ctx, board); err != nil || n != 1 {
+			t.Errorf("held %d, %v", n, err)
+		}
+		hubs, err := media.ReferencingBoards(ctx, picture)
+		if err != nil || len(hubs) != 1 || hubs[0] != hub {
+			t.Errorf("boards %v, %v", hubs, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if err := repo.AttachMedia(ctx, board, picture); err == nil {
+			t.Error("the workspace next door placed a picture on the board")
+		}
+		if hubs, _ := media.ReferencingBoards(ctx, picture); len(hubs) != 0 {
+			t.Error("the workspace next door found the board holding the picture")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

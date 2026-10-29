@@ -11,6 +11,23 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const attachWhiteboardMedia = `-- name: AttachWhiteboardMedia :exec
+INSERT INTO whiteboard_media (tenant_id, whiteboard_id, media_id)
+VALUES (current_tenant_id(), $1, $2)
+ON CONFLICT DO NOTHING
+`
+
+type AttachWhiteboardMediaParams struct {
+	WhiteboardID pgtype.UUID
+	MediaID      pgtype.UUID
+}
+
+// A media object placed on a board; placing it twice is once.
+func (q *Queries) AttachWhiteboardMedia(ctx context.Context, arg AttachWhiteboardMediaParams) error {
+	_, err := q.db.Exec(ctx, attachWhiteboardMedia, arg.WhiteboardID, arg.MediaID)
+	return err
+}
+
 const countHubWhiteboards = `-- name: CountHubWhiteboards :one
 SELECT count(*)::int FROM whiteboard
 WHERE tenant_id = current_tenant_id() AND hub_id = $1 AND deleted_at IS NULL
@@ -18,6 +35,18 @@ WHERE tenant_id = current_tenant_id() AND hub_id = $1 AND deleted_at IS NULL
 
 func (q *Queries) CountHubWhiteboards(ctx context.Context, hubID pgtype.UUID) (int32, error) {
 	row := q.db.QueryRow(ctx, countHubWhiteboards, hubID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const countWhiteboardMedia = `-- name: CountWhiteboardMedia :one
+SELECT count(*)::int FROM whiteboard_media
+WHERE tenant_id = current_tenant_id() AND whiteboard_id = $1
+`
+
+func (q *Queries) CountWhiteboardMedia(ctx context.Context, whiteboardID pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countWhiteboardMedia, whiteboardID)
 	var column_1 int32
 	err := row.Scan(&column_1)
 	return column_1, err

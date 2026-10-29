@@ -83,3 +83,13 @@ ORDER BY seq DESC LIMIT sqlc.arg('batch');
 -- name: FindWhiteboardVersion :one
 SELECT seq, title, scene, author_id, name, created_at FROM whiteboard_version
 WHERE tenant_id = current_tenant_id() AND whiteboard_id = sqlc.arg('whiteboard_id') AND seq = sqlc.arg('seq');
+
+-- name: AttachWhiteboardMedia :exec
+-- A media object placed on a board; placing it twice is once.
+INSERT INTO whiteboard_media (tenant_id, whiteboard_id, media_id)
+VALUES (current_tenant_id(), sqlc.arg('whiteboard_id'), sqlc.arg('media_id'))
+ON CONFLICT DO NOTHING;
+
+-- name: CountWhiteboardMedia :one
+SELECT count(*)::int FROM whiteboard_media
+WHERE tenant_id = current_tenant_id() AND whiteboard_id = sqlc.arg('whiteboard_id');

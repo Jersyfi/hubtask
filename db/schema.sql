@@ -2012,6 +2012,7 @@ CREATE TABLE media_object (
   -- not evidence of anything.
   unreferenced_since timestamptz
 );
+
 CREATE UNIQUE INDEX media_object_tenant_id_uq ON media_object (tenant_id, id);
 CREATE INDEX media_object_reconcile_idx ON media_object (tenant_id, status, ref_count, created_at);
 -- A search finds an entry by the name of a file attached to it (migration 0226, F-9).
@@ -2020,6 +2021,24 @@ CREATE INDEX media_object_name_search_idx ON media_object USING gin (to_tsvector
 -- in this file; migration 0013 is where it arrived.
 ALTER TABLE work_item ADD CONSTRAINT work_item_cover_media_fkey
   FOREIGN KEY (tenant_id, cover_media_id) REFERENCES media_object (tenant_id, id) ON DELETE RESTRICT;
+
+-- A whiteboard's pictures and files (migration 0235, UC-CNV-08), placed by AttachWhiteboardMedia.
+CREATE TABLE whiteboard_media (
+  tenant_id     uuid NOT NULL,
+  whiteboard_id uuid NOT NULL,
+  media_id      uuid NOT NULL,
+  PRIMARY KEY (tenant_id, whiteboard_id, media_id),
+  CONSTRAINT whiteboard_media_board_fkey FOREIGN KEY (tenant_id, whiteboard_id)
+    REFERENCES whiteboard (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT whiteboard_media_object_fkey FOREIGN KEY (tenant_id, media_id)
+    REFERENCES media_object (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX whiteboard_media_object_idx ON whiteboard_media (tenant_id, media_id);
+ALTER TABLE whiteboard_media ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whiteboard_media FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON whiteboard_media
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON whiteboard_media TO hubtask_app;
 -- Cleared rather than refused when the picture goes: a replace-restore and an erasure both remove
 -- media before the account row is done with (migration 0199).
 ALTER TABLE account ADD CONSTRAINT account_avatar_media_fkey

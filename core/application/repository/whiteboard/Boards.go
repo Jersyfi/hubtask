@@ -62,4 +62,7 @@ type Boards interface {
 	// Versions answers a board's history newest first, before a place (0 for the newest).
 	Versions(ctx context.Context, boardID shared.ID, before, limit int) ([]VersionRow, error)
 	Version(ctx context.Context, boardID shared.ID, seq int) (whiteboard.Version, error)
+	// AttachMedia places a media object on a board (UC-CNV-08); placing it twice is once.
+	AttachMedia(ctx context.Context, boardID, mediaID shared.ID) error
+	CountMedia(ctx context.Context, boardID shared.ID) (int, error)
 }

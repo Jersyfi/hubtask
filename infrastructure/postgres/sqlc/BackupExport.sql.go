@@ -2510,6 +2510,53 @@ func (q *Queries) ExportWebhookSubscriptions(ctx context.Context, arg ExportWebh
 	return items, nil
 }
 
+const exportWhiteboardMedia = `-- name: ExportWhiteboardMedia :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (b.whiteboard_id::text || '/' || b.media_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(b) - 'tenant_id')::jsonb AS payload,
+         b.whiteboard_id AS key_1,
+         b.media_id AS key_2
+  FROM whiteboard_media b
+) s
+  WHERE (s.key_1, s.key_2) > ($1::uuid, $2::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportWhiteboardMediaParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond pgtype.UUID
+	Batch       int32
+}
+
+type ExportWhiteboardMediaRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportWhiteboardMedia(ctx context.Context, arg ExportWhiteboardMediaParams) ([]ExportWhiteboardMediaRow, error) {
+	rows, err := q.db.Query(ctx, exportWhiteboardMedia, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportWhiteboardMediaRow{}
+	for rows.Next() {
+		var i ExportWhiteboardMediaRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportWhiteboardVersions = `-- name: ExportWhiteboardVersions :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

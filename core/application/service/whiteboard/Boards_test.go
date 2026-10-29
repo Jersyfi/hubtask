@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -99,6 +100,7 @@ type store struct {
 	boards   map[shared.ID]domain.Board
 	versions map[shared.ID][]domain.Version
 	pointing []repository.Pointing
+	media    map[shared.ID][]shared.ID
 }
 
 func (s *store) Insert(_ context.Context, board domain.Board) error {
@@ -482,4 +484,18 @@ func TestABoardKeepsItsHistory(t *testing.T) {
 	if _, err := (NameWhiteboardVersion{Studio: readOnly}).Descriptor().Handler.Invoke(context.Background(), actor(bert), usecase.Input{"whiteboard_id": id, "seq": 1, "name": "x"}); err == nil {
 		t.Fatal("a reader named a version")
 	}
+}
+
+func (s *store) AttachMedia(_ context.Context, boardID, mediaID shared.ID) error {
+	if s.media == nil {
+		s.media = map[shared.ID][]shared.ID{}
+	}
+	if !slices.Contains(s.media[boardID], mediaID) {
+		s.media[boardID] = append(s.media[boardID], mediaID)
+	}
+	return nil
+}
+
+func (s *store) CountMedia(_ context.Context, boardID shared.ID) (int, error) {
+	return len(s.media[boardID]), nil
 }

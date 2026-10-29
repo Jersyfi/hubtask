@@ -293,6 +293,33 @@ func (r MediaRepository) ReferencingItems(
 	return refs, nil
 }
 
+// ReferencingBoards returns the hubs of the boards that draw the object.
+func (r MediaRepository) ReferencingBoards(ctx context.Context, mediaID shared.ID) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	id, err := uuidOf(mediaID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListMediaReferencingBoards(ctx, id)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the boards of %s: %w", mediaID, err))
+	}
+	hubs := make([]shared.ID, 0, len(rows))
+	for _, row := range rows {
+		hub, err := idFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		hubs = append(hubs, hub)
+	}
+	return hubs, nil
+}
+
 // ServesAvatar answers whether some account shows the object as its picture.
 func (r MediaRepository) ServesAvatar(ctx context.Context, mediaID shared.ID) (bool, error) {
 	queries, err := queriesFrom(ctx)

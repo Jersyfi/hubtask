@@ -628,6 +628,13 @@ var entities = []Entity{
 		References: []Reference{{Field: "hub_id", Table: "container"}},
 	},
 	{
+		Name: "whiteboard_media", Table: "whiteboard_media", Whole: true, Later: true, Keys: []string{"whiteboard_id", "media_id"},
+		References: []Reference{
+			{Field: "whiteboard_id", Table: "whiteboard"},
+			{Field: "media_id", Table: "media_object"},
+		},
+	},
+	{
 		Name: "whiteboard_versions", Table: "whiteboard_version", Whole: true, Later: true, Keys: []string{"whiteboard_id", "seq"},
 		References: []Reference{
 			{Field: "whiteboard_id", Table: "whiteboard"},

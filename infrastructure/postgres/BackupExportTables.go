@@ -289,6 +289,20 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"whiteboard_media": {
+		delta: false,
+		keys:  2,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportWhiteboardMedia(ctx, sqlc.ExportWhiteboardMediaParams{
+				AfterID:     cursorUUID(page.After, 0),
+				AfterSecond: cursorUUID(page.After, 1),
+				Batch:       page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportWhiteboardMediaRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"whiteboard_version": {
 		delta: false,
 		keys:  2,

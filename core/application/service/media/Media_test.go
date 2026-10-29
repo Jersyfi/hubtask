@@ -60,6 +60,8 @@ type objects struct {
 	referenced map[shared.ID]bool
 	// avatars are the objects some account shows as its picture.
 	avatars map[shared.ID]bool
+	// boards are the hubs of the boards drawing each object.
+	boards map[shared.ID][]shared.ID
 	marked  []shared.ID
 	// pages is what ListForItem answers, and asked records the page it was asked for - which is
 	// how a test says that the size was clamped rather than passed through.
@@ -131,6 +133,10 @@ func (o *objects) TakeOrphans(context.Context, time.Time, int) ([]repository.Orp
 
 func (o *objects) ReferencingItems(_ context.Context, id shared.ID) ([]repository.ItemRef, error) {
 	return o.refs[id], nil
+}
+
+func (o *objects) ReferencingBoards(_ context.Context, id shared.ID) ([]shared.ID, error) {
+	return o.boards[id], nil
 }
 
 func (o *objects) ServesAvatar(_ context.Context, id shared.ID) (bool, error) {

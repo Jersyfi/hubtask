@@ -2248,3 +2248,22 @@ SELECT EXISTS (
 
 -- name: ClearWhiteboardVersion :execrows
 DELETE FROM whiteboard_version;
+
+-- name: ImportWhiteboardMedia :execrows
+INSERT INTO whiteboard_media (tenant_id, whiteboard_id, media_id)
+SELECT r.tenant_id, r.whiteboard_id, r.media_id
+FROM jsonb_populate_record(
+  NULL::whiteboard_media,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, whiteboard_id, media_id) DO NOTHING;
+
+-- name: HoldsWhiteboardMedia :one
+SELECT EXISTS (
+  SELECT 1 FROM whiteboard_media
+  WHERE whiteboard_id = (sqlc.arg('payload')::jsonb->>'whiteboard_id')::uuid
+    AND media_id = (sqlc.arg('payload')::jsonb->>'media_id')::uuid
+) AS held;
+
+-- name: ClearWhiteboardMedia :execrows
+DELETE FROM whiteboard_media;

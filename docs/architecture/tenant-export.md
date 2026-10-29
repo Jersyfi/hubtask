@@ -168,7 +168,8 @@ re-mints identities must rewrite exactly these).
 | 50 | `page_comments` | `page_comment` | `id` | `page_id`→pages, `parent_id`→page_comments, `author_id`→accounts |
 | 51 | `whiteboards` | `whiteboard` | `id` | `hub_id`→containers (a hub's boards, migration 0233; `scene` is the board's objects as JSON in the contract's shape, a card naming its entry by identifier; where the board points is rebuilt on import) |
 | 52 | `whiteboard_versions` | `whiteboard_version` | `whiteboard_id`, `seq` | `whiteboard_id`→whiteboards, `author_id`→accounts (cleared when absent) (a board's history, migration 0234: one version per drawing session, its scene as JSON in the contract's shape) |
-| 53 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
+| 53 | `whiteboard_media` | `whiteboard_media` | `whiteboard_id`, `media_id` | `whiteboard_id`→whiteboards, `media_id`→media_objects (the pictures and files placed on a board, migration 0235) |
+| 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a
 reply's comment) are ordered within the file: the referenced row comes first.
