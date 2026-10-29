@@ -186,7 +186,7 @@ The architecture's roles; the people who use the product are
 | Goal/constraint | Approach |
 |---|---|
 | Extensibility (quality goal 1, Q-03) | **Generalisation:** one `WorkItem` with a **capability profile** per type and typed custom fields — a new level is configuration, not schema |
-| Integrability (quality goal 2, Q-05) | **One use case catalogue:** every use case is a REST operation, an MCP tool and an automation action (the parity gate) |
+| Integrability (quality goal 2, Q-05) | **One use case catalogue:** every use case is a REST operation, an MCP tool and an automation action (the parity gate); MCP and automation derive from the registry, and REST and `hubctl` are generated from the contract operation by operation (`tools/doors`, [api-guidelines.md](./api-guidelines.md) §1) |
 | Operability (quality goal 5, Q-01, Q-02) | **One artefact, several roles** chosen by configuration (§7.1) |
 | Few dependencies (C-05) | PostgreSQL is database, job queue, outbox, full-text search and pub/sub fallback; NATS and S3 are optional |
 | Tenant isolation (quality goal 3, F-15) | `tenant_id` in every table plus **row level security** under a role without `BYPASSRLS` ([multi-tenancy.md](./multi-tenancy.md)) |

@@ -195,7 +195,7 @@ Publishing a connector or an SDK to a registry is an account and a review outsid
 | Generated code | Never changed by hand; the list is §6 |
 | Tests | Domain = table tests without mocks; application = fakes of the ports; infrastructure = Testcontainers ([engineering-guidelines.md](./engineering-guidelines.md) §1) |
 | Comments | Explain the *why*; public types and functions carry a godoc comment; a decision's argument belongs in an ADR, cited by number |
-| CLI (`hubctl`) | Every command keeps `--json` pipeable, renders errors through the message-code catalogue, prints a secret once with its warning on stderr, and follows a `202` to completion through `/jobs/{id}` |
+| CLI (`hubctl`) | A command for a new use case is a line in the contract (`x-hubtask-cli: "<group> <verb>"`), not a hand-written function; every command keeps `--json` pipeable, renders errors through the message-code catalogue, prints a secret once with its warning on stderr, and follows a `202` to completion through `/jobs/{id}` |
 | Jobs in a client | Watched only through the one job store, `apps/webapp/src/lib/data/jobs.svelte.ts`, which polls `/jobs/{id}` with a backoff and stops at a terminal status; no screen polls a job itself |
 
 ---
@@ -244,6 +244,7 @@ toolchain needs it:
 | `api/openapi.json` | `make generate`, through `tools/openapijson` | the website's reference and the SDK generators read JSON and ship no YAML parser, and their Node lanes have no Go |
 | `sdk/typescript/src/client.gen.ts`, `sdk/python/hubtask/client.py`, `types.py`, `sdk/go/hubtask/client.gen.go` | `make generate`, through `tools/sdkgen` and `oapi-codegen` | the generator is Go, and the lanes that test its output have none |
 | `presentation/openapi/Api.gen.go`, `infrastructure/postgres/sqlc/`, `presentation/rest/Deprecations.gen.go`, `docs/audit/event-matrix.md` | `make generate` | ordinary Go-side output, so a checkout builds without the generators |
+| `presentation/rest/Doors.gen.go`, `cmd/hubctl/Doors.gen.go` | `make generate`, through `tools/doors` from the contract and `Api.gen.go` | the REST mapping and the `hubctl` commands an operation names with `x-hubtask-rest: generated` and `x-hubtask-cli` (api-guidelines.md §1, F-7); ordinary Go-side output |
 
 **None of them may be edited by hand.** CI regenerates them and fails on any difference.
 `LabelTokens.go` and `packages/api-client` (`make api-client`) stay outside `make generate` because

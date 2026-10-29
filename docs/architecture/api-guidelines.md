@@ -9,6 +9,16 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
 ## 1. Ground rules
 
 1. **Nothing exists only in the UI.** Every use case is reachable through the API (coverage test against `usecase.Registry`).
+   **The doors are generated** (F-7): an operation marked `x-hubtask-rest: generated` is answered by
+   the mapping `tools/doors` writes into `presentation/rest/Doors.gen.go` - the request body
+   decoded into its generated type first, its members, the path's and the query's parameters
+   handed to the use case by the contract's names (the operationId is the use case's), `If-Match`
+   as `expected_version`, the output passed through the generated answer type, its `version` as
+   the ETag. The use case's input therefore uses the contract's names; a test holds each mapping's
+   query and version to the descriptor's declared input. An operation taking a step-up proof, or
+   whose answer is drawn by a shared mapper (an entry), stays hand-written. `x-hubtask-cli` names
+   the `hubctl` command the same tool writes into `cmd/hubctl/Doors.gen.go`; a hand-written
+   command of the same name is kept.
 2. **One major path:** `/api/v1`. Additive changes (new fields, new endpoints, new enum values in *responses*) are compatible and need no new version.
 3. **Clients must be tolerant:** ignore unknown fields. This is documented in the contract.
 4. **Self-describing:** `GET /api/v1/meta/capabilities` answers the vocabulary (item types, capability profiles, field types, enum values, limits, locales, query fields, automation, event types); frontends and agents configure themselves from it rather than hard-coding. An optional surface is announced under `features`; a client that does not find its flag renders what it had before and calls no route of that surface.
