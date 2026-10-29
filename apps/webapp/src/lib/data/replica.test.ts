@@ -370,3 +370,27 @@ test('a copy held without a container\'s structure is fetched afresh where the m
   assert.deepEqual(await asked(current, { structure: true }), [], 'every container holds its structure');
   assert.deepEqual(await asked(new MemoryStorage(), { structure: true }), [], 'an empty copy waits for its first snapshot');
 });
+
+// A page read while the server is away (M3): a hub's tree without the bodies, in the server's
+// order and without the trashed; a page with its body and its breadcrumb, never writable.
+test('a hub\'s pages and a page are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  const page = (id: string, fields: Record<string, unknown>) => storage.put('pages', id, record({ id, hub_id: HUB, ...fields }));
+  await page('p-root', { title: 'Handbook', body: 'Travel', parent_id: null, position: 'a0' });
+  await page('p-child', { title: 'Trains', body: 'Book early', parent_id: 'p-root', position: 'a0', verified_until: '2020-01-01T00:00:00Z' });
+  await page('p-later', { title: 'Later', body: '', parent_id: null, position: 'a1', template: true });
+  await page('p-gone', { title: 'Gone', body: '', parent_id: null, position: 'a2', trashed_at: '2026-10-29T00:00:00Z' });
+
+  const tree = await storeFor({ path: `/hubs/${HUB}/pages` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(tree.data.map((row) => row.id), ['p-root', 'p-later', 'p-child']);
+  assert.ok(tree.data.every((row) => !('body' in row)), 'the tree carries no bodies');
+  const templates = await storeFor({ path: `/hubs/${HUB}/pages?templates=true` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(templates.data.map((row) => row.id), ['p-later']);
+
+  const read = await storeFor({ path: '/pages/p-child' }, storage) as Record<string, unknown>;
+  assert.equal(read.body, 'Book early');
+  assert.equal(read.writable, false);
+  assert.equal(read.due_for_review, true);
+  assert.deepEqual(read.ancestors, [{ id: 'p-root', title: 'Handbook' }]);
+  assert.equal(await storeFor({ path: '/pages/p-gone' }, storage), undefined);
+});

@@ -344,6 +344,43 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
     return (await documents(storage, 'recurrence_rule')).find((row) => row.item_id === itemId);
   }
 
+  // A hub's pages and a page read while the server is away (M3): the tree without the bodies, as
+  // the server lists it, and a page with its breadcrumb walked up the copy. Nothing is writable
+  // offline - a page is written through its live document, which needs the server.
+  match = /^\/hubs\/([^/:]+)\/pages$/.exec(pathname);
+  if (match?.[1]) {
+    const hubId = match[1];
+    const withArchived = query.get('include_archived') === 'true';
+    const templatesOnly = query.get('templates') === 'true';
+    const rows = (await documents(storage, 'pages'))
+      .filter((row) => row.hub_id === hubId && !row.trashed_at && (withArchived || !row.archived) && (!templatesOnly || row.template))
+      .map(({ body: _body, ...row }) => row)
+      .sort((a, b) => {
+        // The server's order: the top of the space first, then by position among siblings.
+        const x = `${String(a.parent_id ?? '')}\u0000${String(a.position ?? '')}`;
+        const y = `${String(b.parent_id ?? '')}\u0000${String(b.position ?? '')}`;
+        return x < y ? -1 : x > y ? 1 : 0;
+      });
+    return { data: rows };
+  }
+
+  match = /^\/pages\/([^/:]+)$/.exec(pathname);
+  if (match?.[1]) {
+    const held = await documents(storage, 'pages');
+    const byId = new Map(held.map((row) => [String(row.id), row]));
+    const page = byId.get(match[1]);
+    if (!page || page.trashed_at) return undefined;
+    const ancestors: { id: string; title: string }[] = [];
+    for (let above = page.parent_id; typeof above === 'string' && ancestors.length < 16; ) {
+      const parent = byId.get(above);
+      if (!parent) break;
+      ancestors.unshift({ id: String(parent.id), title: String(parent.title) });
+      above = parent.parent_id;
+    }
+    const until = typeof page.verified_until === 'string' ? Date.parse(page.verified_until) : Number.NaN;
+    return { ...page, ancestors, writable: false, due_for_review: Number.isFinite(until) && until <= Date.now() };
+  }
+
   if (pathname === '/entry-types') {
     // The server's order: by level as the levels run, then position, then key.
     const levels = ['TASK', 'WORK_PACKAGE', 'ACTIVITY'];
