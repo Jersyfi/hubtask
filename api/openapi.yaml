@@ -2885,6 +2885,8 @@ paths:
     post:
       tags: [items, containers]
       operationId: emptyTrash
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: purgeSummaryResponse
       summary: Remove everything in the trash for good
       description: >
         Irreversible, and it reaches hubs and collections as readily as entries - which is why it
@@ -11271,6 +11273,7 @@ paths:
     post:
       tags: [items]
       operationId: purgeWorkItem
+      x-hubtask-rest: generated
       description: >
         Removes an entry in the trash and everything under it for good, before its retention period
         is up. Irreversible: no restore brings it back, and a backup taken before it does not either

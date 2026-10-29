@@ -39,6 +39,7 @@ var restDoors = map[string]restDoor{
 	"deleteLinkType":         {UseCase: "DeleteLinkType", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteRole":             {UseCase: "DeleteRole", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteWorkflow":         {UseCase: "DeleteWorkflow", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"emptyTrash":             {UseCase: "EmptyTrash", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"evaluateEntryForm":      {UseCase: "EvaluateEntryForm", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"explainAccess":          {UseCase: "ExplainAccess", Status: 200, Query: []string{"account_id", "permission", "scope_id", "scope_type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"explainConfig":          {UseCase: "ExplainConfig", Status: 200, Query: []string{"hub_id", "key"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -66,6 +67,7 @@ var restDoors = map[string]restDoor{
 	"proposeConfig":          {UseCase: "ProposeConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
 	"publishConfigTemplate":  {UseCase: "PublishConfigTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"publishWorkflow":        {UseCase: "PublishWorkflow", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"purgeWorkItem":          {UseCase: "PurgeWorkItem", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readConfigSandbox":      {UseCase: "ReadConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readConfigSchema":       {UseCase: "ReadConfigSchema", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readConfigVersion":      {UseCase: "ReadConfigVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -256,6 +258,11 @@ func (c *RestController) DeleteWorkflow(w http.ResponseWriter, r *http.Request, 
 	c.door(w, r, restDoors["deleteWorkflow"], usecase.Input{"key": key}, nil, nil, nil)
 }
 
+// EmptyTrash answers POST /trash:empty by the generated mapping.
+func (c *RestController) EmptyTrash(w http.ResponseWriter, r *http.Request, params openapi.EmptyTrashParams) {
+	c.door(w, r, restDoors["emptyTrash"], usecase.Input{}, params, nil, answerBy(purgeSummaryResponse))
+}
+
 // EvaluateEntryForm answers POST /entry-types/{key}/form:evaluate by the generated mapping.
 func (c *RestController) EvaluateEntryForm(w http.ResponseWriter, r *http.Request, key string) {
 	var body openapi.EvaluateEntryFormJSONRequestBody
@@ -424,6 +431,11 @@ func (c *RestController) PublishWorkflow(w http.ResponseWriter, r *http.Request,
 	var body openapi.PublishWorkflowJSONRequestBody
 	var answer openapi.Workflow
 	c.door(w, r, restDoors["publishWorkflow"], usecase.Input{"key": key}, params, &body, &answer)
+}
+
+// PurgeWorkItem answers POST /items/{itemId}:purge by the generated mapping.
+func (c *RestController) PurgeWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.PurgeWorkItemParams) {
+	c.door(w, r, restDoors["purgeWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, nil)
 }
 
 // ReadConfigSandbox answers GET /config/sandbox by the generated mapping.
