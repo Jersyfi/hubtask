@@ -89,6 +89,8 @@ type DefineCustomFieldCommand struct {
 	IsRequired bool
 	// Restricted leaves the field to the holders of its permission (UC-ID-27).
 	Restricted bool
+	// ReadRestricted hides the field from readers without its permission as well (UC-ID-27).
+	ReadRestricted bool
 	// AppliesTo are the item types that carry the field. Empty means the column's default, which
 	// is a task alone.
 	AppliesTo []domain.ItemType
@@ -146,7 +148,8 @@ func (h DefineCustomField) Execute(
 		definition, err := domain.NewCustomFieldDefinition(domain.NewCustomFieldInput{
 			ID: h.IDs.NewID(), TenantID: actor.TenantID, CollectionID: cmd.CollectionID,
 			Key: cmd.Key, Kind: cmd.Kind, Options: cmd.Options, Currency: cmd.Currency, Formula: cmd.Formula,
-			IsRequired: cmd.IsRequired, Restricted: cmd.Restricted, AppliesTo: appliesTo, Now: now, Text: h.Text,
+			IsRequired: cmd.IsRequired, Restricted: cmd.Restricted, ReadRestricted: cmd.ReadRestricted,
+			AppliesTo: appliesTo, Now: now, Text: h.Text,
 		})
 		if err != nil {
 			return err
@@ -305,14 +308,15 @@ func customFieldOutput(definition domain.CustomFieldDefinition) usecase.Output {
 		// editor from this, and null would make it special-case the eight kinds.
 		"options": options,
 		// Null for every kind but MONEY, for the reason collection_id is always present.
-		"currency":    stringOrNil(definition.Currency),
-		"formula":     stringOrNil(definition.Formula),
-		"is_required": definition.IsRequired,
-		"restricted":  definition.Restricted,
-		"applies_to":  appliesTo,
-		"created_at":  definition.CreatedAt,
-		"updated_at":  definition.UpdatedAt,
-		"version":     definition.Version,
+		"currency":        stringOrNil(definition.Currency),
+		"formula":         stringOrNil(definition.Formula),
+		"is_required":     definition.IsRequired,
+		"restricted":      definition.Restricted,
+		"read_restricted": definition.ReadRestricted,
+		"applies_to":      appliesTo,
+		"created_at":      definition.CreatedAt,
+		"updated_at":      definition.UpdatedAt,
+		"version":         definition.Version,
 	}
 }
 
@@ -377,6 +381,11 @@ func (h DefineCustomField) Descriptor() usecase.Descriptor {
 					"write it; the owner and the administrators hold every one.",
 			},
 			{
+				Name: "read_restricted", Kind: usecase.KindBool,
+				Description: "Whether the field is hidden from readers who hold neither FIELD_READ:<key> " +
+					"nor FIELD_WRITE:<key>; true restricts it too.",
+			},
+			{
 				Name: "applies_to", Kind: usecase.KindList,
 				Description: "The item types that carry the field. Omitted means TASK alone.",
 			},
@@ -419,15 +428,16 @@ func (h DefineCustomField) invoke(
 	}
 
 	definition, err := h.Execute(ctx, actor, DefineCustomFieldCommand{
-		CollectionID: collectionID,
-		Key:          in.String("key"),
-		Kind:         kind,
-		Options:      options,
-		Currency:     in.String("currency"),
-		Formula:      in.String("formula"),
-		IsRequired:   in.Bool("is_required"),
-		Restricted:   in.Bool("restricted"),
-		AppliesTo:    appliesTo,
+		CollectionID:   collectionID,
+		Key:            in.String("key"),
+		Kind:           kind,
+		Options:        options,
+		Currency:       in.String("currency"),
+		Formula:        in.String("formula"),
+		IsRequired:     in.Bool("is_required"),
+		Restricted:     in.Bool("restricted"),
+		ReadRestricted: in.Bool("read_restricted"),
+		AppliesTo:      appliesTo,
 	})
 	if err != nil {
 		return nil, err

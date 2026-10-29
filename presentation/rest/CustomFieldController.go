@@ -90,6 +90,9 @@ func (c *RestController) DefineCustomField(
 	if body.Restricted != nil {
 		in["restricted"] = *body.Restricted
 	}
+	if body.ReadRestricted != nil {
+		in["read_restricted"] = *body.ReadRestricted
+	}
 	if body.AppliesTo != nil {
 		in["applies_to"] = itemTypeNames(*body.AppliesTo)
 	}
@@ -121,16 +124,17 @@ func customFieldResponse(out usecase.Output) openapi.CustomFieldDefinition {
 	updatedAt := timeValue(out["updated_at"])
 
 	definition := openapi.CustomFieldDefinition{
-		Id:         uuidValue(out.String("id")),
-		Key:        out.String("key"),
-		Kind:       openapi.CustomFieldKind(out.String("kind")),
-		Options:    stringsOf(out["options"]),
-		IsRequired: boolOf(out["is_required"]),
-		Restricted: optionalBool(boolOf(out["restricted"])),
-		AppliesTo:  itemTypesOf(out["applies_to"]),
-		CreatedAt:  &createdAt,
-		UpdatedAt:  &updatedAt,
-		Version:    out.Int("version"),
+		Id:             uuidValue(out.String("id")),
+		Key:            out.String("key"),
+		Kind:           openapi.CustomFieldKind(out.String("kind")),
+		Options:        stringsOf(out["options"]),
+		IsRequired:     boolOf(out["is_required"]),
+		Restricted:     optionalBool(boolOf(out["restricted"])),
+		ReadRestricted: optionalBool(boolOf(out["read_restricted"])),
+		AppliesTo:      itemTypesOf(out["applies_to"]),
+		CreatedAt:      &createdAt,
+		UpdatedAt:      &updatedAt,
+		Version:        out.Int("version"),
 	}
 	// Always present, as null for a workspace-wide field: absent would say this server does not
 	// know about scopes, which is a different statement from "this one is everywhere".
@@ -201,6 +205,9 @@ func (c *RestController) UpdateCustomField(
 	}
 	if body.Restricted != nil {
 		in["restricted"] = *body.Restricted
+	}
+	if body.ReadRestricted != nil {
+		in["read_restricted"] = *body.ReadRestricted
 	}
 	if body.AppliesTo != nil {
 		in["applies_to"] = itemTypeNames(*body.AppliesTo)

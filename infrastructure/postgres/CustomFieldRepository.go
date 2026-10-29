@@ -61,7 +61,8 @@ func (r CustomFieldRepository) Insert(
 		Kind: string(definition.Kind), Options: options, Currency: currencyOf(definition.Currency),
 		Formula:    currencyOf(definition.Formula),
 		IsRequired: definition.IsRequired, Restricted: definition.Restricted,
-		AppliesTo: typesOf(definition.AppliesTo), CreatedAt: timestampOf(definition.CreatedAt),
+		ReadRestricted: definition.ReadRestricted,
+		AppliesTo:      typesOf(definition.AppliesTo), CreatedAt: timestampOf(definition.CreatedAt),
 	})
 	if err != nil {
 		return insertCustomFieldError(err, definition)
@@ -188,7 +189,8 @@ func (r CustomFieldRepository) SetAttributes(
 
 	affected, err := queries.UpdateCustomField(ctx, sqlc.UpdateCustomFieldParams{
 		Options: options, IsRequired: definition.IsRequired, Restricted: definition.Restricted,
-		AppliesTo: typesOf(definition.AppliesTo), UpdatedAt: timestampOf(definition.UpdatedAt),
+		ReadRestricted: definition.ReadRestricted,
+		AppliesTo:      typesOf(definition.AppliesTo), UpdatedAt: timestampOf(definition.UpdatedAt),
 		ID: id,
 		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
 		ExpectedVersion: int32(expectedVersion),
@@ -286,7 +288,8 @@ func customFieldFrom(row sqlc.FindCustomFieldRow) (work.CustomFieldDefinition, e
 	return work.CustomFieldDefinition{
 		ID: id, TenantID: tenantID, CollectionID: collectionID,
 		Key: row.Key, Kind: work.CustomFieldKind(row.Kind), Options: options,
-		Currency: currencyFrom(row.Currency), Formula: currencyFrom(row.Formula), IsRequired: row.IsRequired, Restricted: row.Restricted, AppliesTo: appliesTo,
+		Currency: currencyFrom(row.Currency), Formula: currencyFrom(row.Formula), IsRequired: row.IsRequired, Restricted: row.Restricted,
+		ReadRestricted: row.ReadRestricted, AppliesTo: appliesTo,
 		CreatedAt: timeFrom(row.CreatedAt), UpdatedAt: timeFrom(row.UpdatedAt),
 		DeletedAt: optionalTime(row.DeletedAt), Version: int(row.Version),
 	}, nil
@@ -350,4 +353,27 @@ func optionsFrom(document []byte) ([]string, error) {
 		return nil, nil
 	}
 	return options, nil
+}
+
+// ReadRestricted answers every live definition hidden from readers (UC-ID-27 check 3).
+func (r CustomFieldRepository) ReadRestricted(ctx context.Context) ([]repository.FieldHiding, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListReadRestrictedFields(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the hidden custom fields: %w", err))
+	}
+	hidings := make([]repository.FieldHiding, 0, len(rows))
+	for _, row := range rows {
+		collectionID, err := optionalID(row.CollectionID)
+		if err != nil {
+			return nil, err
+		}
+		hidings = append(hidings, repository.FieldHiding{Key: row.Key, CollectionID: collectionID})
+	}
+	return hidings, nil
 }

@@ -8140,6 +8140,9 @@ type CustomFieldDefinition struct {
 	// Options The permitted values of a SELECT or a MULTI_SELECT, and empty for every other kind. Values rather than labels: what a person sees is the client's to render.
 	Options []string `json:"options"`
 
+	// ReadRestricted Whether the field is hidden from readers as well: only holders of `FIELD_READ:<key>` or `FIELD_WRITE:<key>` see its value, and it is absent from every other answer - the entry, a list, a query, the change stream, an export and a search. A query that filters, sorts or groups by it for anybody else is refused with `fields.read_restricted`. A hidden field is always restricted.
+	ReadRestricted *bool `json:"read_restricted,omitempty"`
+
 	// Restricted Whether only holders of the field's permission `FIELD_WRITE:<key>` may write it: a role of the workspace's own that names it, or the owner and the administrators. A write by anybody else is refused with `fields.restricted` on every door. A calculated field is never restricted.
 	Restricted *bool      `json:"restricted,omitempty"`
 	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
@@ -8165,9 +8168,12 @@ type CustomFieldDefinitionCreate struct {
 	Key        string  `json:"key"`
 
 	// Kind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`.
-	Kind       CustomFieldKind `json:"kind"`
-	Options    *[]string       `json:"options,omitempty"`
-	Restricted *bool           `json:"restricted,omitempty"`
+	Kind    CustomFieldKind `json:"kind"`
+	Options *[]string       `json:"options,omitempty"`
+
+	// ReadRestricted True restricts the field as well.
+	ReadRestricted *bool `json:"read_restricted,omitempty"`
+	Restricted     *bool `json:"restricted,omitempty"`
 }
 
 // CustomFieldDefinitionUpdate JSON Merge Patch. The key and the kind are not in it: a key that moved would orphan every value stored under it, and a kind that changed would reinterpret them.
@@ -8176,7 +8182,10 @@ type CustomFieldDefinitionUpdate struct {
 	IsRequired *bool       `json:"is_required,omitempty"`
 	Options    *[]string   `json:"options,omitempty"`
 
-	// Restricted Changing it takes the field's permission `FIELD_WRITE:<key>` at the workspace.
+	// ReadRestricted Changing it takes the field's permission `FIELD_WRITE:<key>` at the workspace. True restricts the field as well.
+	ReadRestricted *bool `json:"read_restricted,omitempty"`
+
+	// Restricted Changing it takes the field's permission `FIELD_WRITE:<key>` at the workspace. False lifts `read_restricted` as well.
 	Restricted *bool `json:"restricted,omitempty"`
 }
 
@@ -11466,7 +11475,7 @@ type PermissionEntry struct {
 	Group string              `json:"group"`
 	Kind  PermissionEntryKind `json:"kind"`
 
-	// Permission A name, or a family (`FIELD_WRITE:*`, `TAKE_STEP:*`).
+	// Permission A name, or a family (`FIELD_WRITE:*`, `FIELD_READ:*`, `TAKE_STEP:*`).
 	Permission string           `json:"permission"`
 	Shipped    []MembershipRole `json:"shipped"`
 }
@@ -22124,9 +22133,9 @@ type ClientInterface interface {
 	// ListRoles The permission catalogue and the roles
 	//
 	// The closed catalogue of permissions a role is built from, the seven shipped roles with
-	// what each carries, the workspace's own roles, and where its own roles are held. The two
-	// families `FIELD_WRITE:*` and `TAKE_STEP:*` stand for the permission of every restricted
-	// field and every workflow step; the owner and the administrators hold all of them. What the
+	// what each carries, the workspace's own roles, and where its own roles are held. The
+	// families `FIELD_WRITE:*`, `FIELD_READ:*` and `TAKE_STEP:*` stand for the permission of
+	// every restricted field and every workflow step; the owner and the administrators hold all of them. What the
 	// roles screen and the who-may-do-what matrix are drawn from. Needs `MANAGE_MEMBERS` or
 	// `READ_CONFIGURATION` at the workspace.
 	//
@@ -33629,9 +33638,9 @@ func (c *Client) RevokeRoleGrant(ctx context.Context, grantId openapi_types.UUID
 // ListRoles The permission catalogue and the roles
 //
 // The closed catalogue of permissions a role is built from, the seven shipped roles with
-// what each carries, the workspace's own roles, and where its own roles are held. The two
-// families `FIELD_WRITE:*` and `TAKE_STEP:*` stand for the permission of every restricted
-// field and every workflow step; the owner and the administrators hold all of them. What the
+// what each carries, the workspace's own roles, and where its own roles are held. The
+// families `FIELD_WRITE:*`, `FIELD_READ:*` and `TAKE_STEP:*` stand for the permission of
+// every restricted field and every workflow step; the owner and the administrators hold all of them. What the
 // roles screen and the who-may-do-what matrix are drawn from. Needs `MANAGE_MEMBERS` or
 // `READ_CONFIGURATION` at the workspace.
 //
@@ -61135,9 +61144,9 @@ type ClientWithResponsesInterface interface {
 	// ListRolesWithResponse The permission catalogue and the roles
 	//
 	// The closed catalogue of permissions a role is built from, the seven shipped roles with
-	// what each carries, the workspace's own roles, and where its own roles are held. The two
-	// families `FIELD_WRITE:*` and `TAKE_STEP:*` stand for the permission of every restricted
-	// field and every workflow step; the owner and the administrators hold all of them. What the
+	// what each carries, the workspace's own roles, and where its own roles are held. The
+	// families `FIELD_WRITE:*`, `FIELD_READ:*` and `TAKE_STEP:*` stand for the permission of
+	// every restricted field and every workflow step; the owner and the administrators hold all of them. What the
 	// roles screen and the who-may-do-what matrix are drawn from. Needs `MANAGE_MEMBERS` or
 	// `READ_CONFIGURATION` at the workspace.
 	//
@@ -91925,9 +91934,9 @@ func (c *ClientWithResponses) RevokeRoleGrantWithResponse(ctx context.Context, g
 // ListRolesWithResponse The permission catalogue and the roles
 //
 // The closed catalogue of permissions a role is built from, the seven shipped roles with
-// what each carries, the workspace's own roles, and where its own roles are held. The two
-// families `FIELD_WRITE:*` and `TAKE_STEP:*` stand for the permission of every restricted
-// field and every workflow step; the owner and the administrators hold all of them. What the
+// what each carries, the workspace's own roles, and where its own roles are held. The
+// families `FIELD_WRITE:*`, `FIELD_READ:*` and `TAKE_STEP:*` stand for the permission of
+// every restricted field and every workflow step; the owner and the administrators hold all of them. What the
 // roles screen and the who-may-do-what matrix are drawn from. Needs `MANAGE_MEMBERS` or
 // `READ_CONFIGURATION` at the workspace.
 //

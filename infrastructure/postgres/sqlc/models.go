@@ -840,21 +840,22 @@ type ContainerMilestone struct {
 }
 
 type CustomFieldDefinition struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	CollectionID pgtype.UUID
-	Key          string
-	Kind         string
-	Options      []byte
-	IsRequired   bool
-	AppliesTo    []ItemType
-	DeletedAt    pgtype.Timestamptz
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	Version      int32
-	Currency     *string
-	Formula      *string
-	Restricted   bool
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	CollectionID   pgtype.UUID
+	Key            string
+	Kind           string
+	Options        []byte
+	IsRequired     bool
+	AppliesTo      []ItemType
+	DeletedAt      pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
+	Currency       *string
+	Formula        *string
+	Restricted     bool
+	ReadRestricted bool
 }
 
 type CustomRole struct {

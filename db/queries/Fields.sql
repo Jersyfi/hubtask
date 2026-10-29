@@ -9,17 +9,17 @@
 -- The unique index cfd_key_uq decides whether the key is free, rather than a check followed by an
 -- insert: two requests arriving in the gap between the two would both pass the check.
 INSERT INTO custom_field_definition (
-  id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, restricted, applies_to,
+  id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, restricted, read_restricted, applies_to,
   created_at, updated_at, version
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.narg('collection_id'), sqlc.arg('key'),
   sqlc.arg('kind'), sqlc.arg('options'), sqlc.narg('currency'), sqlc.narg('formula'), sqlc.arg('is_required'),
-  sqlc.arg('restricted'), sqlc.arg('applies_to')::item_type[], sqlc.arg('created_at'), sqlc.arg('created_at'), 1
+  sqlc.arg('restricted'), sqlc.arg('read_restricted'), sqlc.arg('applies_to')::item_type[], sqlc.arg('created_at'), sqlc.arg('created_at'), 1
 );
 
 -- name: FindCustomField :one
 SELECT id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
-       created_at, updated_at, deleted_at, version, restricted
+       created_at, updated_at, deleted_at, version, restricted, read_restricted
 FROM custom_field_definition
 WHERE id = $1;
 
@@ -29,7 +29,7 @@ WHERE id = $1;
 -- overridable by a team that needs something narrower - `ORDER BY` puts the specific one first and
 -- the row limit takes it.
 SELECT id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
-       created_at, updated_at, deleted_at, version, restricted
+       created_at, updated_at, deleted_at, version, restricted, read_restricted
 FROM custom_field_definition
 WHERE deleted_at IS NULL
   AND key = sqlc.arg('key')
@@ -43,7 +43,7 @@ LIMIT 1;
 -- workspace asks for. Ordered by scope and then by key, so the answer is stable and the specific
 -- definitions sit beside the general ones they narrow.
 SELECT id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
-       created_at, updated_at, deleted_at, version, restricted
+       created_at, updated_at, deleted_at, version, restricted, read_restricted
 FROM custom_field_definition
 WHERE deleted_at IS NULL
   AND (collection_id = sqlc.narg('collection_id')::uuid OR collection_id IS NULL)
@@ -57,6 +57,7 @@ UPDATE custom_field_definition SET
   options     = sqlc.arg('options'),
   is_required = sqlc.arg('is_required'),
   restricted  = sqlc.arg('restricted'),
+  read_restricted = sqlc.arg('read_restricted'),
   applies_to  = sqlc.arg('applies_to')::item_type[],
   updated_at  = sqlc.arg('updated_at'),
   version     = version + 1
@@ -88,3 +89,11 @@ WHERE d.deleted_at IS NULL
        OR d.collection_id = sqlc.narg('scope')::uuid
        OR d.collection_id IN (SELECT c.id FROM container c WHERE c.parent_id = sqlc.narg('scope')::uuid))
 ORDER BY d.key, d.kind;
+
+-- name: ListReadRestrictedFields :many
+-- The definitions hidden from readers, across the workspace: what every read asks before it
+-- narrows an answer (UC-ID-27 check 3). Small - a handful per workspace - and empty for most.
+SELECT key, collection_id
+FROM custom_field_definition
+WHERE deleted_at IS NULL AND read_restricted
+ORDER BY key, collection_id NULLS FIRST;

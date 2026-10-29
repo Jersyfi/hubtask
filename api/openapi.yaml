@@ -8657,9 +8657,9 @@ paths:
       summary: The permission catalogue and the roles
       description: |
         The closed catalogue of permissions a role is built from, the seven shipped roles with
-        what each carries, the workspace's own roles, and where its own roles are held. The two
-        families `FIELD_WRITE:*` and `TAKE_STEP:*` stand for the permission of every restricted
-        field and every workflow step; the owner and the administrators hold all of them. What the
+        what each carries, the workspace's own roles, and where its own roles are held. The
+        families `FIELD_WRITE:*`, `FIELD_READ:*` and `TAKE_STEP:*` stand for the permission of
+        every restricted field and every workflow step; the owner and the administrators hold all of them. What the
         roles screen and the who-may-do-what matrix are drawn from. Needs `MANAGE_MEMBERS` or
         `READ_CONFIGURATION` at the workspace.
       responses:
@@ -16310,7 +16310,7 @@ components:
       description: One permission of the catalogue, with the shipped roles that hold it.
       required: [permission, kind, group, shipped]
       properties:
-        permission: { type: string, description: "A name, or a family (`FIELD_WRITE:*`, `TAKE_STEP:*`)." }
+        permission: { type: string, description: "A name, or a family (`FIELD_WRITE:*`, `FIELD_READ:*`, `TAKE_STEP:*`)." }
         kind: { type: string, enum: [BASE, FIELD, STEP] }
         group: { type: string, description: "The area of the administration it belongs to." }
         shipped:
@@ -20582,6 +20582,14 @@ components:
             role of the workspace's own that names it, or the owner and the administrators. A
             write by anybody else is refused with `fields.restricted` on every door. A calculated
             field is never restricted.
+        read_restricted:
+          type: boolean
+          description: >
+            Whether the field is hidden from readers as well: only holders of `FIELD_READ:<key>` or
+            `FIELD_WRITE:<key>` see its value, and it is absent from every other answer - the
+            entry, a list, a query, the change stream, an export and a search. A query that
+            filters, sorts or groups by it for anybody else is refused with
+            `fields.read_restricted`. A hidden field is always restricted.
         applies_to:
           type: array
           description: >
@@ -20633,6 +20641,10 @@ components:
             position.
         is_required: { type: boolean, default: false }
         restricted: { type: boolean, default: false }
+        read_restricted:
+          type: boolean
+          default: false
+          description: True restricts the field as well.
         applies_to:
           type: array
           description: Omitted means TASK alone, which is the column's default.
@@ -20650,7 +20662,14 @@ components:
         is_required: { type: boolean }
         restricted:
           type: boolean
-          description: Changing it takes the field's permission `FIELD_WRITE:<key>` at the workspace.
+          description: >
+            Changing it takes the field's permission `FIELD_WRITE:<key>` at the workspace. False
+            lifts `read_restricted` as well.
+        read_restricted:
+          type: boolean
+          description: >
+            Changing it takes the field's permission `FIELD_WRITE:<key>` at the workspace. True
+            restricts the field as well.
         applies_to:
           type: array
           items: { $ref: "#/components/schemas/ItemType" }

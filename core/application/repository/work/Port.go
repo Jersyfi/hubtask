@@ -1175,6 +1175,20 @@ type Trash interface {
 	BatchMembers(ctx context.Context, batchIDs []shared.ID) ([]TrashMember, error)
 }
 
+// FieldHiding is one definition hidden from readers: its key, and the collection it is defined
+// for, zero for the whole workspace (UC-ID-27 check 3).
+type FieldHiding struct {
+	Key          string
+	CollectionID shared.ID
+}
+
+// FieldHidings answers the definitions hidden from readers. Its own interface beside CustomFields,
+// because every read asks it and nothing else: the narrowing needs no other statement.
+type FieldHidings interface {
+	// ReadRestricted answers every live definition hidden from readers, workspace-wide.
+	ReadRestricted(ctx context.Context) ([]FieldHiding, error)
+}
+
 // CustomFields stores the definitions a workspace or a collection adds to its entries.
 //
 // Its own interface rather than methods on Items, because the two are not the same thing: this is

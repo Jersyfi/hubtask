@@ -89,7 +89,7 @@ func (h UpdateCustomField) Execute(
 	}
 	// Whoever decides who may write a field holds its permission (UC-ID-27): otherwise STRUCTURE
 	// alone would open a restricted field to its writer.
-	if cmd.Attributes.Restricted != nil {
+	if cmd.Attributes.Restricted != nil || cmd.Attributes.ReadRestricted != nil {
 		if err := h.Writer.Authorizer.Authorize(ctx, actor, access.Request{
 			Permission: service.FieldWrite(reached.Key),
 			Path:       []identity.Scope{identity.TenantScope()},
@@ -364,7 +364,12 @@ func (h UpdateCustomField) Descriptor() usecase.Descriptor {
 			{
 				Name: "restricted", Kind: usecase.KindBool,
 				Description: "Whether only holders of the field's permission FIELD_WRITE:<key> may " +
-					"write it from now on. Changing it takes that permission.",
+					"write it from now on. Changing it takes that permission; false lifts read_restricted too.",
+			},
+			{
+				Name: "read_restricted", Kind: usecase.KindBool,
+				Description: "Whether the field is hidden from readers who hold neither FIELD_READ:<key> " +
+					"nor FIELD_WRITE:<key>. Changing it takes FIELD_WRITE:<key>; true restricts it too.",
 			},
 			{
 				Name: "applies_to", Kind: usecase.KindList,
@@ -411,6 +416,10 @@ func (h UpdateCustomField) invoke(
 	if in.Present("restricted") {
 		restricted := in.Bool("restricted")
 		attributes.Restricted = &restricted
+	}
+	if in.Present("read_restricted") {
+		hidden := in.Bool("read_restricted")
+		attributes.ReadRestricted = &hidden
 	}
 	if in.Present("applies_to") {
 		raw, err := in.StringList("applies_to")

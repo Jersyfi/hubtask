@@ -13,27 +13,28 @@ import (
 
 const findCustomField = `-- name: FindCustomField :one
 SELECT id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
-       created_at, updated_at, deleted_at, version, restricted
+       created_at, updated_at, deleted_at, version, restricted, read_restricted
 FROM custom_field_definition
 WHERE id = $1
 `
 
 type FindCustomFieldRow struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	CollectionID pgtype.UUID
-	Key          string
-	Kind         string
-	Options      []byte
-	Currency     *string
-	Formula      *string
-	IsRequired   bool
-	AppliesTo    []ItemType
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	Version      int32
-	Restricted   bool
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	CollectionID   pgtype.UUID
+	Key            string
+	Kind           string
+	Options        []byte
+	Currency       *string
+	Formula        *string
+	IsRequired     bool
+	AppliesTo      []ItemType
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	DeletedAt      pgtype.Timestamptz
+	Version        int32
+	Restricted     bool
+	ReadRestricted bool
 }
 
 func (q *Queries) FindCustomField(ctx context.Context, id pgtype.UUID) (FindCustomFieldRow, error) {
@@ -55,13 +56,14 @@ func (q *Queries) FindCustomField(ctx context.Context, id pgtype.UUID) (FindCust
 		&i.DeletedAt,
 		&i.Version,
 		&i.Restricted,
+		&i.ReadRestricted,
 	)
 	return i, err
 }
 
 const findCustomFieldInScope = `-- name: FindCustomFieldInScope :one
 SELECT id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
-       created_at, updated_at, deleted_at, version, restricted
+       created_at, updated_at, deleted_at, version, restricted, read_restricted
 FROM custom_field_definition
 WHERE deleted_at IS NULL
   AND key = $1
@@ -76,21 +78,22 @@ type FindCustomFieldInScopeParams struct {
 }
 
 type FindCustomFieldInScopeRow struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	CollectionID pgtype.UUID
-	Key          string
-	Kind         string
-	Options      []byte
-	Currency     *string
-	Formula      *string
-	IsRequired   bool
-	AppliesTo    []ItemType
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	Version      int32
-	Restricted   bool
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	CollectionID   pgtype.UUID
+	Key            string
+	Kind           string
+	Options        []byte
+	Currency       *string
+	Formula        *string
+	IsRequired     bool
+	AppliesTo      []ItemType
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	DeletedAt      pgtype.Timestamptz
+	Version        int32
+	Restricted     bool
+	ReadRestricted bool
 }
 
 // The definition one entry's collection sees under a key: its collection's own, or the
@@ -116,6 +119,7 @@ func (q *Queries) FindCustomFieldInScope(ctx context.Context, arg FindCustomFiel
 		&i.DeletedAt,
 		&i.Version,
 		&i.Restricted,
+		&i.ReadRestricted,
 	)
 	return i, err
 }
@@ -123,27 +127,28 @@ func (q *Queries) FindCustomFieldInScope(ctx context.Context, arg FindCustomFiel
 const insertCustomField = `-- name: InsertCustomField :exec
 
 INSERT INTO custom_field_definition (
-  id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, restricted, applies_to,
+  id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, restricted, read_restricted, applies_to,
   created_at, updated_at, version
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6, $7, $8,
-  $9, $10::item_type[], $11, $11, 1
+  $9, $10, $11::item_type[], $12, $12, 1
 )
 `
 
 type InsertCustomFieldParams struct {
-	ID           pgtype.UUID
-	CollectionID pgtype.UUID
-	Key          string
-	Kind         string
-	Options      []byte
-	Currency     *string
-	Formula      *string
-	IsRequired   bool
-	Restricted   bool
-	AppliesTo    []ItemType
-	CreatedAt    pgtype.Timestamptz
+	ID             pgtype.UUID
+	CollectionID   pgtype.UUID
+	Key            string
+	Kind           string
+	Options        []byte
+	Currency       *string
+	Formula        *string
+	IsRequired     bool
+	Restricted     bool
+	ReadRestricted bool
+	AppliesTo      []ItemType
+	CreatedAt      pgtype.Timestamptz
 }
 
 // Custom field definitions.
@@ -165,6 +170,7 @@ func (q *Queries) InsertCustomField(ctx context.Context, arg InsertCustomFieldPa
 		arg.Formula,
 		arg.IsRequired,
 		arg.Restricted,
+		arg.ReadRestricted,
 		arg.AppliesTo,
 		arg.CreatedAt,
 	)
@@ -220,7 +226,7 @@ func (q *Queries) ListCustomFieldKindsByKey(ctx context.Context, arg ListCustomF
 
 const listCustomFieldsInScope = `-- name: ListCustomFieldsInScope :many
 SELECT id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
-       created_at, updated_at, deleted_at, version, restricted
+       created_at, updated_at, deleted_at, version, restricted, read_restricted
 FROM custom_field_definition
 WHERE deleted_at IS NULL
   AND (collection_id = $1::uuid OR collection_id IS NULL)
@@ -228,21 +234,22 @@ ORDER BY collection_id NULLS FIRST, key
 `
 
 type ListCustomFieldsInScopeRow struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	CollectionID pgtype.UUID
-	Key          string
-	Kind         string
-	Options      []byte
-	Currency     *string
-	Formula      *string
-	IsRequired   bool
-	AppliesTo    []ItemType
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	Version      int32
-	Restricted   bool
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	CollectionID   pgtype.UUID
+	Key            string
+	Kind           string
+	Options        []byte
+	Currency       *string
+	Formula        *string
+	IsRequired     bool
+	AppliesTo      []ItemType
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	DeletedAt      pgtype.Timestamptz
+	Version        int32
+	Restricted     bool
+	ReadRestricted bool
 }
 
 // Every definition in force for one collection: its own and the workspace-wide ones above it. A
@@ -274,7 +281,42 @@ func (q *Queries) ListCustomFieldsInScope(ctx context.Context, collectionID pgty
 			&i.DeletedAt,
 			&i.Version,
 			&i.Restricted,
+			&i.ReadRestricted,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listReadRestrictedFields = `-- name: ListReadRestrictedFields :many
+SELECT key, collection_id
+FROM custom_field_definition
+WHERE deleted_at IS NULL AND read_restricted
+ORDER BY key, collection_id NULLS FIRST
+`
+
+type ListReadRestrictedFieldsRow struct {
+	Key          string
+	CollectionID pgtype.UUID
+}
+
+// The definitions hidden from readers, across the workspace: what every read asks before it
+// narrows an answer (UC-ID-27 check 3). Small - a handful per workspace - and empty for most.
+func (q *Queries) ListReadRestrictedFields(ctx context.Context) ([]ListReadRestrictedFieldsRow, error) {
+	rows, err := q.db.Query(ctx, listReadRestrictedFields)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListReadRestrictedFieldsRow{}
+	for rows.Next() {
+		var i ListReadRestrictedFieldsRow
+		if err := rows.Scan(&i.Key, &i.CollectionID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -316,16 +358,18 @@ UPDATE custom_field_definition SET
   options     = $1,
   is_required = $2,
   restricted  = $3,
-  applies_to  = $4::item_type[],
-  updated_at  = $5,
+  read_restricted = $4,
+  applies_to  = $5::item_type[],
+  updated_at  = $6,
   version     = version + 1
-WHERE id = $6::uuid AND version = $7 AND deleted_at IS NULL
+WHERE id = $7::uuid AND version = $8 AND deleted_at IS NULL
 `
 
 type UpdateCustomFieldParams struct {
 	Options         []byte
 	IsRequired      bool
 	Restricted      bool
+	ReadRestricted  bool
 	AppliesTo       []ItemType
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
@@ -340,6 +384,7 @@ func (q *Queries) UpdateCustomField(ctx context.Context, arg UpdateCustomFieldPa
 		arg.Options,
 		arg.IsRequired,
 		arg.Restricted,
+		arg.ReadRestricted,
 		arg.AppliesTo,
 		arg.UpdatedAt,
 		arg.ID,

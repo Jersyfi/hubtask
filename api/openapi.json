@@ -10949,7 +10949,7 @@
         ],
         "operationId": "listRoles",
         "summary": "The permission catalogue and the roles",
-        "description": "The closed catalogue of permissions a role is built from, the seven shipped roles with\nwhat each carries, the workspace's own roles, and where its own roles are held. The two\nfamilies `FIELD_WRITE:*` and `TAKE_STEP:*` stand for the permission of every restricted\nfield and every workflow step; the owner and the administrators hold all of them. What the\nroles screen and the who-may-do-what matrix are drawn from. Needs `MANAGE_MEMBERS` or\n`READ_CONFIGURATION` at the workspace.\n",
+        "description": "The closed catalogue of permissions a role is built from, the seven shipped roles with\nwhat each carries, the workspace's own roles, and where its own roles are held. The\nfamilies `FIELD_WRITE:*`, `FIELD_READ:*` and `TAKE_STEP:*` stand for the permission of\nevery restricted field and every workflow step; the owner and the administrators hold all of them. What the\nroles screen and the who-may-do-what matrix are drawn from. Needs `MANAGE_MEMBERS` or\n`READ_CONFIGURATION` at the workspace.\n",
         "responses": {
           "200": {
             "description": "The catalogue and the roles",
@@ -21947,7 +21947,7 @@
         "properties": {
           "permission": {
             "type": "string",
-            "description": "A name, or a family (`FIELD_WRITE:*`, `TAKE_STEP:*`)."
+            "description": "A name, or a family (`FIELD_WRITE:*`, `FIELD_READ:*`, `TAKE_STEP:*`)."
           },
           "kind": {
             "type": "string",
@@ -29818,6 +29818,10 @@
             "type": "boolean",
             "description": "Whether only holders of the field's permission `FIELD_WRITE:<key>` may write it: a role of the workspace's own that names it, or the owner and the administrators. A write by anybody else is refused with `fields.restricted` on every door. A calculated field is never restricted.\n"
           },
+          "read_restricted": {
+            "type": "boolean",
+            "description": "Whether the field is hidden from readers as well: only holders of `FIELD_READ:<key>` or `FIELD_WRITE:<key>` see its value, and it is absent from every other answer - the entry, a list, a query, the change stream, an export and a search. A query that filters, sorts or groups by it for anybody else is refused with `fields.read_restricted`. A hidden field is always restricted.\n"
+          },
           "applies_to": {
             "type": "array",
             "description": "The item types that carry the field, bounded by the CUSTOM_FIELDS capability. Never empty - a definition no type carries is one nothing could ever hold.\n",
@@ -29909,6 +29913,11 @@
             "type": "boolean",
             "default": false
           },
+          "read_restricted": {
+            "type": "boolean",
+            "default": false,
+            "description": "True restricts the field as well."
+          },
           "applies_to": {
             "type": "array",
             "description": "Omitted means TASK alone, which is the column's default.",
@@ -29935,7 +29944,11 @@
           },
           "restricted": {
             "type": "boolean",
-            "description": "Changing it takes the field's permission `FIELD_WRITE:<key>` at the workspace."
+            "description": "Changing it takes the field's permission `FIELD_WRITE:<key>` at the workspace. False lifts `read_restricted` as well.\n"
+          },
+          "read_restricted": {
+            "type": "boolean",
+            "description": "Changing it takes the field's permission `FIELD_WRITE:<key>` at the workspace. True restricts the field as well.\n"
           },
           "applies_to": {
             "type": "array",

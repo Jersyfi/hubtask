@@ -2692,6 +2692,7 @@ class CustomFieldDefinition(TypedDict, total=False):
     formula: str | None
     is_required: Required[bool]
     restricted: bool
+    read_restricted: bool
     applies_to: Required[list["ItemType"]]
     created_at: str
     updated_at: str
@@ -2708,6 +2709,7 @@ class CustomFieldDefinitionCreate(TypedDict, total=False):
     formula: str
     is_required: bool
     restricted: bool
+    read_restricted: bool
     applies_to: list["ItemType"]
 
 class CustomFieldDefinitionUpdate(TypedDict, total=False):
@@ -2715,6 +2717,7 @@ class CustomFieldDefinitionUpdate(TypedDict, total=False):
     options: list[str]
     is_required: bool
     restricted: bool
+    read_restricted: bool
     applies_to: list["ItemType"]
 
 class CustomFieldValue(TypedDict, total=False):
