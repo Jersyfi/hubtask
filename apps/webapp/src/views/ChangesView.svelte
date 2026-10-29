@@ -138,6 +138,33 @@
 
   const file = $derived(current?.status === 'ready' ? JSON.stringify(current.data.document, null, 2) : '');
 
+  // What an agent's apply does (D-16): read from the document in force, set by a person.
+  type AgentApply = 'ALLOWED' | 'APPROVAL' | 'NEVER';
+  const agentApply = $derived.by(() => {
+    if (current?.status !== 'ready') return undefined;
+    const settings = (current.data.document as { settings?: Record<string, { value?: unknown }> }).settings;
+    const value = settings?.['config.agent_apply']?.value;
+    return typeof value === 'string' ? value : undefined;
+  });
+  let agentApplyDraft = $state('');
+  $effect(() => {
+    agentApplyDraft = agentApply ?? '';
+  });
+  const agentApplyOptions = $derived((['APPROVAL', 'ALLOWED', 'NEVER'] as const).map((value) => ({ value, label: t('app.changes.agent_apply_option', { value }) })));
+  let policyBusy = $state(false);
+  async function saveAgentApply() {
+    if (agentApplyDraft === '' || agentApplyDraft === agentApply) return;
+    policyBusy = true;
+    try {
+      await config.setAgentApply(agentApplyDraft as AgentApply);
+      toast.show({ text: t('app.changes.agent_apply_saved'), tone: 'success' });
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    } finally {
+      policyBusy = false;
+    }
+  }
+
   // *Sandbox* (config-document.md §3): a copy where an agent changes freely and nothing runs;
   // promoting it applies what it changed since its copy, by the plan shown here.
   let sandbox = $state<ResourceState<ConfigSandbox>>();
@@ -216,6 +243,21 @@
       </ul>
     {/if}
   </section>
+
+  {#if agentApply !== undefined}
+    <section class="panel" data-agent-apply>
+      <h2>{t('app.changes.agent_apply')}</h2>
+      <p class="quiet">{t('app.changes.agent_apply_explain')}</p>
+      {#if mayChange}
+        <Select label={t('app.changes.agent_apply')} bind:value={agentApplyDraft} options={agentApplyOptions} />
+        <div class="actions">
+          <Button tone="secondary" size="sm" isBusy={policyBusy} data-agent-apply-save onclick={() => void saveAgentApply()}>{t('app.changes.agent_apply_save')}</Button>
+        </div>
+      {:else}
+        <p class="note">{t('app.changes.agent_apply_option', { value: agentApply })}</p>
+      {/if}
+    </section>
+  {/if}
 
   <section class="panel" data-versions>
     <h2>{t('app.changes.history')}</h2>

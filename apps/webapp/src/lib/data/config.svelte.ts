@@ -99,6 +99,14 @@ class Config {
     });
   }
 
+  /** Sets what an agent's apply does in the workspace (D-16); a person's decision, never an agent's. */
+  async setAgentApply(agentApply: 'ALLOWED' | 'APPROVAL' | 'NEVER'): Promise<{ agent_apply: string }> {
+    return engine.mutate<{ agent_apply: string }>('PUT', '/config/policy', { agent_apply: agentApply }, {
+      idempotencyKey: crypto.randomUUID(),
+      invalidates: [DOCUMENT, VERSIONS],
+    });
+  }
+
   /** Applies or declines a proposal. */
   async decide(id: string, decision: 'APPLY' | 'DECLINE', acknowledge: boolean): Promise<ConfigApplyResult> {
     return engine.mutate<ConfigApplyResult>('POST', `${PROPOSALS}/${encodeURIComponent(id)}:decide`, { decision, acknowledge }, {
