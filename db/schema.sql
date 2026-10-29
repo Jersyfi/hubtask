@@ -1528,6 +1528,144 @@ CREATE INDEX realtime_snapshot_superseded_idx ON realtime_snapshot (tenant_id, s
   WHERE superseded_at IS NOT NULL;
 GRANT SELECT, INSERT, UPDATE, DELETE ON realtime_snapshot TO hubtask_app;
 
+-- Pages of the knowledge module (migration 0231, M3).
+CREATE TABLE page (
+  id               uuid PRIMARY KEY,
+  tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id           uuid NOT NULL,
+  parent_id        uuid,
+  title            text NOT NULL CHECK (char_length(title) BETWEEN 1 AND 200),
+  body             text NOT NULL DEFAULT '' CHECK (octet_length(body) <= 1048576),
+  icon             text NOT NULL DEFAULT '' CHECK (char_length(icon) <= 16),
+  order_key        text NOT NULL,
+  template         boolean NOT NULL DEFAULT false,
+  content_language text,
+  owner_id         uuid,
+  verified_until   timestamptz,
+  verified_at      timestamptz,
+  verified_by      uuid,
+  archived_at      timestamptz,
+  deleted_at       timestamptz,
+  created_by       uuid NOT NULL,
+  created_at       timestamptz NOT NULL,
+  updated_by       uuid NOT NULL,
+  updated_at       timestamptz NOT NULL,
+  version          integer NOT NULL DEFAULT 1,
+  search_document  tsvector,
+  UNIQUE (tenant_id, id),
+  CHECK (parent_id IS NULL OR parent_id <> id),
+  CONSTRAINT page_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_parent_fkey FOREIGN KEY (tenant_id, parent_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_owner_fkey FOREIGN KEY (tenant_id, owner_id)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (owner_id)
+);
+-- The tree a space reads: its pages in order under each parent.
+CREATE INDEX page_tree_idx ON page (tenant_id, hub_id, parent_id, order_key);
+CREATE INDEX page_search_idx ON page USING gin (search_document);
+-- The review list: the pages whose verification runs out.
+CREATE INDEX page_verified_until_idx ON page (tenant_id, verified_until)
+  WHERE verified_until IS NOT NULL AND deleted_at IS NULL;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON page TO hubtask_app;
+
+CREATE OR REPLACE FUNCTION page_search_document() RETURNS trigger
+  LANGUAGE plpgsql AS
+$$
+BEGIN
+  NEW.search_document := hubtask_search_document(NEW.content_language, NEW.title, NEW.body);
+  RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS page_search_document ON page;
+CREATE TRIGGER page_search_document
+  BEFORE INSERT OR UPDATE OF title, body, content_language ON page
+  FOR EACH ROW EXECUTE FUNCTION page_search_document();
+
+CREATE TABLE page_version (
+  tenant_id  uuid NOT NULL,
+  page_id    uuid NOT NULL,
+  seq        integer NOT NULL CHECK (seq > 0),
+  title      text NOT NULL,
+  body       text NOT NULL,
+  author_id  uuid,
+  name       text NOT NULL DEFAULT '' CHECK (char_length(name) <= 120),
+  restored   integer NOT NULL DEFAULT 0 CHECK (restored >= 0),
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id, seq),
+  CONSTRAINT page_version_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_version_author_fkey FOREIGN KEY (tenant_id, author_id)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (author_id)
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON page_version TO hubtask_app;
+
+CREATE TABLE page_comment (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id     uuid NOT NULL,
+  parent_id   uuid,
+  author_id   uuid,
+  body        text NOT NULL CHECK (octet_length(body) <= 65536),
+  anchor      text NOT NULL DEFAULT '' CHECK (anchor ~ '^[A-Za-z0-9_-]{0,64}$'),
+  quote       text NOT NULL DEFAULT '' CHECK (char_length(quote) <= 500),
+  resolved_at timestamptz,
+  resolved_by uuid,
+  created_at  timestamptz NOT NULL,
+  edited_at   timestamptz,
+  deleted_at  timestamptz,
+  version     integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT page_comment_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_comment_parent_fkey FOREIGN KEY (tenant_id, parent_id)
+    REFERENCES page_comment (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_comment_author_fkey FOREIGN KEY (tenant_id, author_id)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (author_id)
+);
+CREATE INDEX page_comment_page_idx ON page_comment (tenant_id, page_id, created_at);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON page_comment TO hubtask_app;
+
+CREATE TABLE page_reference (
+  tenant_id   uuid NOT NULL,
+  page_id     uuid NOT NULL,
+  target_kind text NOT NULL CHECK (target_kind IN
+                ('ENTRY', 'HUB', 'COLLECTION', 'VIEW', 'PAGE', 'WHITEBOARD', 'DASHBOARD', 'GOAL', 'SPRINT')),
+  target_id   uuid NOT NULL,
+  anchor      text NOT NULL DEFAULT '' CHECK (anchor ~ '^[A-Za-z0-9_-]{0,64}$'),
+  strength    text NOT NULL CHECK (strength IN ('MENTION', 'CARD', 'EMBED')),
+  PRIMARY KEY (tenant_id, page_id, target_kind, target_id, anchor),
+  CONSTRAINT page_reference_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX page_reference_target_idx ON page_reference (tenant_id, target_kind, target_id);
+
+GRANT SELECT, INSERT, DELETE ON page_reference TO hubtask_app;
+
+CREATE OR REPLACE FUNCTION page_reference_of_body() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  DELETE FROM page_reference WHERE tenant_id = NEW.tenant_id AND page_id = NEW.id;
+  -- A trashed page points nowhere until it is restored.
+  IF NEW.deleted_at IS NULL AND position('hubtask:' IN NEW.body) > 0 THEN
+    INSERT INTO page_reference (tenant_id, page_id, target_kind, target_id, anchor, strength)
+    SELECT NEW.tenant_id, NEW.id, r.target_kind, r.target_id, r.anchor, r.strength
+      FROM entry_references_of(NEW.body) AS r
+     WHERE NOT (r.target_kind = 'PAGE' AND r.target_id = NEW.id);
+  END IF;
+  RETURN NULL;
+END $$;
+
+DROP TRIGGER IF EXISTS page_references_insert ON page;
+CREATE TRIGGER page_references_insert AFTER INSERT ON page
+  FOR EACH ROW EXECUTE FUNCTION page_reference_of_body();
+DROP TRIGGER IF EXISTS page_references_update ON page;
+CREATE TRIGGER page_references_update AFTER UPDATE OF body, deleted_at ON page
+  FOR EACH ROW EXECUTE FUNCTION page_reference_of_body();
+
 -- Links and references (migration 0213, F-3). The six shipped link types have no row.
 CREATE TABLE link_type (
   id           uuid PRIMARY KEY,
@@ -3293,7 +3431,8 @@ BEGIN
     'config_revision','config_proposal','config_template','config_template_use',
     'config_sandbox',
     'work_item_announcement','work_item_flow','work_item_retention','durable_timer',
-    'realtime_document','realtime_update','realtime_snapshot'
+    'realtime_document','realtime_update','realtime_snapshot',
+    'page','page_version','page_comment','page_reference'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);

@@ -1515,6 +1515,69 @@ type OutboxEvent struct {
 	PushID         pgtype.UUID
 }
 
+type Page struct {
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	HubID           pgtype.UUID
+	ParentID        pgtype.UUID
+	Title           string
+	Body            string
+	Icon            string
+	OrderKey        string
+	Template        bool
+	ContentLanguage *string
+	OwnerID         pgtype.UUID
+	VerifiedUntil   pgtype.Timestamptz
+	VerifiedAt      pgtype.Timestamptz
+	VerifiedBy      pgtype.UUID
+	ArchivedAt      pgtype.Timestamptz
+	DeletedAt       pgtype.Timestamptz
+	CreatedBy       pgtype.UUID
+	CreatedAt       pgtype.Timestamptz
+	UpdatedBy       pgtype.UUID
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+	SearchDocument  interface{}
+}
+
+type PageComment struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	PageID     pgtype.UUID
+	ParentID   pgtype.UUID
+	AuthorID   pgtype.UUID
+	Body       string
+	Anchor     string
+	Quote      string
+	ResolvedAt pgtype.Timestamptz
+	ResolvedBy pgtype.UUID
+	CreatedAt  pgtype.Timestamptz
+	EditedAt   pgtype.Timestamptz
+	DeletedAt  pgtype.Timestamptz
+	Version    int32
+}
+
+type PageReference struct {
+	TenantID   pgtype.UUID
+	PageID     pgtype.UUID
+	TargetKind string
+	TargetID   pgtype.UUID
+	Anchor     string
+	Strength   string
+}
+
+type PageVersion struct {
+	TenantID  pgtype.UUID
+	PageID    pgtype.UUID
+	Seq       int32
+	Title     string
+	Body      string
+	AuthorID  pgtype.UUID
+	Name      string
+	Restored  int32
+	CreatedAt pgtype.Timestamptz
+}
+
 type Plan struct {
 	ID          pgtype.UUID
 	Name        string
