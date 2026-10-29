@@ -72,6 +72,8 @@
   let currency = $state('');
   let formula = $state('');
   let isRequired = $state(false);
+  /** Whether only holders of `FIELD_WRITE:<key>` write it (UC-ID-27 check 1). */
+  let isRestricted = $state(false);
   let chosen = $state<string[]>([]);
   let editing = $state<CustomFieldDefinition | undefined>(undefined);
   let deleting = $state<CustomFieldDefinition | undefined>(undefined);
@@ -100,6 +102,7 @@
     currency = '';
     formula = '';
     isRequired = false;
+    isRestricted = false;
     // The default is what the column's default is — every carrier rather than a guess at one.
     chosen = [...carriers];
     editing = undefined;
@@ -116,6 +119,7 @@
     currency = definition.currency ?? '';
     formula = definition.formula ?? '';
     isRequired = definition.is_required ?? false;
+    isRestricted = definition.restricted ?? false;
     chosen = [...((definition.applies_to ?? []) as readonly string[])];
     failure = undefined;
   }
@@ -173,6 +177,7 @@
           {
             options: takesOptions(current.kind) ? optionList() : [],
             is_required: isRequired,
+            ...(isRestricted !== (current.restricted ?? false) ? { restricted: isRestricted } : {}),
             applies_to: chosen as never,
           },
           current.version,
@@ -187,6 +192,7 @@
             ...(takesCurrency(kind) ? { currency } : {}),
             ...(isCalculated(kind) ? { formula } : {}),
             is_required: isCalculated(kind) ? false : isRequired,
+            restricted: isCalculated(kind) ? false : isRestricted,
             applies_to: chosen as never,
           },
           crypto.randomUUID(),
@@ -305,6 +311,7 @@
 
         {#if !isCalculated(editing?.kind ?? kind)}
           <Checkbox label={t('app.fields.required')} bind:checked={isRequired} />
+          <Checkbox label={t('app.fields.restricted')} hint={t('app.fields.restricted_hint')} bind:checked={isRestricted} />
         {/if}
 
         {#if carriers.length === 0}
