@@ -871,9 +871,11 @@ func run() error {
 	// The one gate every writer placing an entry in a column asks (UC-WRK-31 check 2).
 	flowGate := work.FlowGate{Buckets: buckets, Fields: customFields}
 	placement := work.PlacementWriter{
-		Gate:  entryGate,
-		Flow:  flowGate,
-		Items: items, Buckets: buckets, Containers: containers, Profiles: profiles,
+		Gate:     entryGate,
+		Flow:     flowGate,
+		Workflow: workflowGate,
+		Statuses: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid},
+		Items:    items, Buckets: buckets, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
 		Activity: journal, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		HLC: hybrid,

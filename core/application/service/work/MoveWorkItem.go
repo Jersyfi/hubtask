@@ -50,7 +50,11 @@ type PlacementWriter struct {
 	Gate EntryGate
 	// Flow refuses an entry moved into a column past the first without its required fields, where
 	// the destination applies that (FlowGate).
-	Flow       FlowGate
+	Flow FlowGate
+	// Workflow and Statuses settle the statuses of what moved into another collection: the
+	// workflow in force there decides (WorkflowGate.Settle). Unwired, statuses stay as they were.
+	Workflow   WorkflowGate
+	Statuses   StatusMover
 	Authorizer Authorizer
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
@@ -579,10 +583,31 @@ func (w PlacementWriter) write(
 	if err := w.recordActivity(ctx, before, after, actor, verb, profile, now); err != nil {
 		return MoveResult{}, err
 	}
+	if after.CollectionID != before.CollectionID && w.Statuses.Workflows != nil {
+		if after, err = w.settleStatuses(ctx, actor, plan.destination, after, now); err != nil {
+			return MoveResult{}, err
+		}
+	}
 
 	// Always present, and empty for a move that resolved everything: a client that iterates the
 	// losses should not have to nil-check the field (I-W6).
 	return MoveResult{Item: after, SubtreeSize: size, DroppedReferences: dropped}, nil
+}
+
+// settleStatuses moves the statuses of the entries that came into the destination and answers the
+// entry as it now stands. No step is taken: a move is not a transition, so it lands where entering
+// the destination's workflow puts it, as a publish does (UC-FLW-05 check 6).
+func (w PlacementWriter) settleStatuses(
+	ctx context.Context, actor appshared.ActorContext, destination domain.Container, after domain.WorkItem, now time.Time,
+) (domain.WorkItem, error) {
+	moves, err := w.Workflow.Settle(ctx, destination)
+	if err != nil || len(moves) == 0 {
+		return after, err
+	}
+	if _, err := w.Statuses.Move(ctx, actor, moves, now); err != nil {
+		return after, err
+	}
+	return w.findItem(ctx, after.ID)
 }
 
 // recordChanges writes what an offline client has to be told: one entry per field that moved

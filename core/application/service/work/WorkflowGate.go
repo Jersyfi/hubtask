@@ -318,6 +318,44 @@ func (g WorkflowGate) initialStatus(ctx context.Context, collection domain.Conta
 	return workflow.Published.Entering("", item.Completion.IsCompleted), nil
 }
 
+// Settle answers the moves that put a collection's entries where its workflows stand: an entry
+// moved in from elsewhere keeps a status the workflow in force for its type knows, enters it
+// otherwise, and loses its status where none runs for its type. Entries already in place do not
+// move, so after a move only what came in does (UC-FLW-03, the suite plan's F-4).
+func (g WorkflowGate) Settle(ctx context.Context, collection domain.Container) ([]domain.StatusMove, error) {
+	if !g.Wired() {
+		return nil, nil
+	}
+	groups, err := g.Workflows.StatusGroups(ctx, []shared.ID{collection.ID})
+	if err != nil || len(groups) == 0 {
+		return nil, err
+	}
+	schemes, err := g.Workflows.Schemes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := g.Workflows.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	set := domain.NewWorkflows(rows)
+	var moves []domain.StatusMove
+	for _, group := range groups {
+		var shape *domain.WorkflowShape
+		if key, found := domain.ResolveWorkflow(schemes, collection.ID, collection.ParentID, group.EntryType); found {
+			if workflow, known := set.Find(key); known {
+				shape = &workflow.Published
+			}
+		}
+		planned, err := domain.PlanStatusMoves([]domain.StatusGroup{group}, nil, shape, nil)
+		if err != nil {
+			return nil, err
+		}
+		moves = append(moves, planned...)
+	}
+	return moves, nil
+}
+
 // StatusMover writes the moves of a publish or a change of scheme (UC-FLW-05 checks 3, 4, 6):
 // every group in the caller's transaction, each moved entry's history saying the workflow changed
 // and from which status to which, its change recorded for offline clients - and no step's

@@ -259,3 +259,34 @@ func TestTheMoverRecordsAWorkflowChange(t *testing.T) {
 		t.Fatalf("history: %+v", h.history.entries)
 	}
 }
+
+// An entry moved into another collection lands where that collection's workflow stands: a status
+// it knows is kept, a foreign one enters it, and where no workflow runs for the type the status
+// goes - no step is taken (F-4).
+func TestAMovedEntrySettlesInTheDestinationsWorkflow(t *testing.T) {
+	store := &workflowStore{
+		rows:    []domain.Workflow{reviewWorkflow()},
+		schemes: []domain.WorkflowScheme{{ContainerID: hubID, EntryType: "task", WorkflowKey: "review"}},
+		groups: []domain.StatusGroup{
+			{CollectionID: collectionID, EntryType: "task", Status: "review", Count: 3},
+			{CollectionID: collectionID, EntryType: "task", Status: "waiting", Count: 2},
+			{CollectionID: collectionID, EntryType: "task", Status: "", Count: 1},
+			{CollectionID: collectionID, EntryType: "task", Status: "closed", Completed: true, Count: 1},
+			{CollectionID: collectionID, EntryType: "bug", Status: "triage", Count: 4},
+		},
+	}
+	gate := WorkflowGate{Workflows: store}
+	moves, err := gate.Settle(context.Background(), domain.Container{ID: collectionID, ParentID: hubID})
+	if err != nil {
+		t.Fatalf("settle: %v", err)
+	}
+	want := map[string]string{"task/waiting": "todo", "task/": "todo", "task/closed": "done", "bug/triage": ""}
+	if len(moves) != len(want) {
+		t.Fatalf("moves = %+v, want %d", moves, len(want))
+	}
+	for _, move := range moves {
+		if to, ok := want[move.EntryType+"/"+move.From]; !ok || to != move.To {
+			t.Errorf("%s from %q went to %q", move.EntryType, move.From, move.To)
+		}
+	}
+}
