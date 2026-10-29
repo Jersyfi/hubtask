@@ -114,6 +114,11 @@ func (d Desk) authorizeAt(ctx context.Context, actor appshared.ActorContext, hub
 		Action: action, TokenScope: scope, TargetType: target, TargetID: actor.TenantID,
 	}
 	if !hub.IsZero() {
+		// A hub the reader does not reach is not found, before any permission is asked of it, in
+		// the words a missing one produces (T-04).
+		if err := d.isHub(ctx, actor, hub); err != nil {
+			return err
+		}
 		request.Path = append(request.Path, identity.HubScope(hub))
 	}
 	if read {
