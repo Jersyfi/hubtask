@@ -1178,7 +1178,12 @@ jobs:
           tools="$ANDROID_HOME/cmdline-tools/latest/bin"
           image='system-images;android-35;google_apis;x86_64'
           "$tools/sdkmanager" --install emulator platform-tools "$image" < /dev/null > /dev/null
-          echo no | "$tools/avdmanager" create avd --force -n walk -k "$image" -d pixel_7
+          # One place for the AVD, named to both tools: avdmanager and the emulator otherwise disagree
+          # about the default directory on the runner.
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | "$tools/avdmanager" create avd --force -n walk -k "$image" -d pixel_7 -p "$ANDROID_AVD_HOME/walk.avd"
+          "$tools/avdmanager" list avd
           emulator="$ANDROID_HOME/emulator/emulator"
           "$emulator" -accel-check
           log="$RUNNER_TEMP/emulator.log"
@@ -1207,7 +1212,7 @@ jobs:
             Linux) dbus-run-session -- bash -c 'echo -n walk | gnome-keyring-daemon --unlock --components=secrets >/dev/null; exec "$@"' walk \
               xvfb-run -a "${walk[@]}" --engine linux --app apps/webapp/src-tauri/target/debug/hubtask --driver WebKitWebDriver ;;
             Windows) "${walk[@]}" --engine windows --app "$(cygpath -w "$PWD/apps/webapp/src-tauri/target/debug/hubtask.exe")" \
-              --driver "$EDGEWEBDRIVER/msedgedriver.exe" ;;
+              --driver "$(cygpath -u "${EDGEWEBDRIVER:-C:\\SeleniumWebDrivers\\EdgeDriver}")/msedgedriver.exe" ;;
             Android) "${walk[@]}" --engine android --driver "$CHROMEWEBDRIVER/chromedriver" \
               --app "$(find apps/webapp/src-tauri/gen/android/app/build/outputs/apk -name '*.apk' | head -1)" ;;
           esac
