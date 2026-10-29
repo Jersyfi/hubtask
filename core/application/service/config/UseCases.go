@@ -111,6 +111,7 @@ func PlanOutput(p plan) usecase.Output {
 		"base_hash": p.Base, "plan_hash": nil, "changes": changes, "operations": ops,
 		"refusals": RefusalsOutput(p.Refusals),
 		"flags":    usecase.Output{"hides_data": p.Flags.HidesData, "changes_permissions": p.Flags.ChangesPermissions},
+		"step_up":  p.StepUp,
 		"counts":   usecase.Output{"added": counts.Added, "changed": counts.Changed, "removed": counts.Removed},
 	}
 	if p.Hash != "" {
@@ -268,12 +269,34 @@ func (d Desk) explain(ctx context.Context, actor appshared.ActorContext, path st
 			return err
 		}
 		block, held := now.Document[name][key]
-		if !held {
+		row, read := now.Rows[sectionSettings][key]
+		if !held && !(name == sectionSettings && read) {
 			return unknown
 		}
 		out = usecase.Output{
 			"key": path, "value": map[string]any(block), "source": string(setting.LevelWorkspace),
 			"locked_by": nil, "permission": string(service.PermissionStructure), "applies_to": "WORKSPACE",
+		}
+		if name == sectionSettings && read {
+			// A catalogue setting is explained even where the workspace left it to the level
+			// above: its value in force, where that comes from, and who may change it here.
+			out["value"] = map[string]any{settingValueField: row[settingValueField]}
+			out["source"] = text(row["source"])
+			if locked := text(row["locked_by"]); locked != "" {
+				out["locked_by"] = locked
+			}
+			if definition, found := definitionOf(key); found {
+				out["permission"] = definition.Writers[setting.LevelWorkspace]
+				if len(definition.Options) > 0 {
+					out["allowed"] = definition.Options
+				}
+			}
+			if area, found := areaOf(key); found {
+				if op, err := area.write(domain.Change{Section: name, Key: key, Op: domain.OpChange, After: domain.Block{}}, row); err == nil {
+					out["operation"] = op.UseCase
+				}
+			}
+			return nil
 		}
 		if name == sectionSettings {
 			p, err := d.agentApply(ctx, actor.TenantID)
@@ -396,6 +419,7 @@ func applyFields() []usecase.Field {
 		usecase.Field{Name: "base_hash", Kind: usecase.KindString, CallerOnly: true, Description: "The hash of the configuration the plan was made on (If-Match), so a changed document is told from a changed configuration."},
 		usecase.Field{Name: "acknowledge", Kind: usecase.KindBool, Description: "True once the person has seen that the plan hides data or changes permissions; required when it does."},
 		usecase.Field{Name: "template", Kind: usecase.KindString, Description: "The template@version the document came from, recorded as the workspace's provenance."},
+		usecase.Field{Name: "step_up_token", Kind: usecase.KindString, CallerOnly: true, Description: "The fresh proof from /auth/step-up, needed where the plan changes the sign-in rule (step_up)."},
 	)
 }
 
@@ -547,7 +571,7 @@ func (d Desk) apply(ctx context.Context, actor appshared.ActorContext, in usecas
 		if p.Flags.Any() && !in.Bool("acknowledge") {
 			return domain.ErrNotAcknowledged()
 		}
-		if err := d.run(ctx, actor, p.Ops); err != nil {
+		if err := d.run(ctx, actor, p.Ops, in.String("step_up_token")); err != nil {
 			return err
 		}
 		template, err := d.provenance(ctx, actor, in.String("template"))
@@ -737,6 +761,7 @@ func (h DecideConfigProposal) Descriptor() usecase.Descriptor {
 			{Name: "proposal_id", Kind: usecase.KindID, Required: true, Description: "The proposal."},
 			{Name: "decision", Kind: usecase.KindString, Required: true, Enum: []string{"APPLY", "DECLINE"}, Description: "APPLY or DECLINE."},
 			{Name: "acknowledge", Kind: usecase.KindBool, Description: "True once the person has seen that the plan hides data or changes permissions."},
+			{Name: "step_up_token", Kind: usecase.KindString, CallerOnly: true, Description: "The fresh proof from /auth/step-up, needed where the plan changes the sign-in rule."},
 		},
 		Audit:    usecase.AuditDeclaration{Action: AppliedAction, TargetType: target, Severity: audit.SeverityInfo, Required: true},
 		Activity: usecase.ActivityDeclaration{Exempt: "configuration is not an item; the version and the trail hold the change."},
@@ -751,12 +776,12 @@ func (h DecideConfigProposal) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			return h.Desk.decide(ctx, actor, id, strings.ToUpper(in.String("decision")) == "APPLY", in.Bool("acknowledge"))
+			return h.Desk.decide(ctx, actor, id, strings.ToUpper(in.String("decision")) == "APPLY", in.Bool("acknowledge"), in.String("step_up_token"))
 		}),
 	}
 }
 
-func (d Desk) decide(ctx context.Context, actor appshared.ActorContext, id shared.ID, apply, acknowledge bool) (usecase.Output, error) {
+func (d Desk) decide(ctx context.Context, actor appshared.ActorContext, id shared.ID, apply, acknowledge bool, stepUp string) (usecase.Output, error) {
 	var out usecase.Output
 	err := d.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		proposal, err := d.Store.FindProposal(ctx, id)
@@ -794,7 +819,7 @@ func (d Desk) decide(ctx context.Context, actor appshared.ActorContext, id share
 		if p.Flags.Any() && !acknowledge {
 			return domain.ErrNotAcknowledged()
 		}
-		if err := d.run(ctx, actor, p.Ops); err != nil {
+		if err := d.run(ctx, actor, p.Ops, stepUp); err != nil {
 			return err
 		}
 		template, err := d.provenance(ctx, actor, proposal.Template)

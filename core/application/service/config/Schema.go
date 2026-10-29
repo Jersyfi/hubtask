@@ -8,9 +8,11 @@ import (
 	"slices"
 	"strings"
 
+	settingservice "github.com/Jersyfi/hubtask/core/application/service/setting"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
+	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -48,21 +50,7 @@ func (d Desk) Schema() map[string]any {
 			"additionalProperties": map[string]any{"oneOf": []any{block, map[string]any{"type": "null"}}},
 		}
 	}
-	definition := domain.AgentApplyDefinition()
-	properties[sectionSettings] = map[string]any{
-		"type": "object", "additionalProperties": false,
-		"properties": map[string]any{
-			string(domain.AgentApplyKey): map[string]any{
-				"type": "object", "additionalProperties": false,
-				"properties": map[string]any{
-					settingValueField: map[string]any{
-						"type": "string", "enum": slices.Clone(definition.Options), "default": definition.Default,
-						"description": "What an agent's apply does: APPROVAL keeps it for a person, ALLOWED applies it, NEVER refuses it.",
-					},
-				},
-			},
-		},
-	}
+	properties[sectionSettings] = settingsSchema()
 	return map[string]any{
 		"$schema": "https://json-schema.org/draft/2020-12/schema",
 		"title":   "Hubtask configuration document",
@@ -123,3 +111,68 @@ func jsonType(kind usecase.Kind) string {
 }
 
 func asError(err error, target **shared.Error) bool { return errors.As(err, target) }
+
+// settingsSchema is the `settings` section's schema from the catalogue: every setting the
+// workspace decides and the document writes, with its kind, bounds and options.
+func settingsSchema() map[string]any {
+	keys := map[string]any{}
+	catalogue, err := settingservice.Catalogue()
+	if err == nil {
+		for _, definition := range catalogue.Definitions() {
+			key := string(definition.Key)
+			if !definition.DecidedAt(setting.LevelWorkspace) {
+				continue
+			}
+			if _, held := areaOf(key); !held && definition.Key != domain.AgentApplyKey {
+				continue
+			}
+			if strings.HasPrefix(key, signInPrefix) && !knownSignIn(key) {
+				continue
+			}
+			value := valueSchema(definition)
+			attributes := map[string]any{settingValueField: value}
+			if key == aiPersonOptOutKey {
+				attributes[basisAttribute] = map[string]any{"type": "string", "description": "The legal basis, required with NOT_OFFERED."}
+				attributes[contactAttribute] = map[string]any{"type": "string", "description": "Whom people may ask about it."}
+			}
+			keys[key] = map[string]any{"type": "object", "additionalProperties": false, "properties": attributes}
+		}
+	}
+	return map[string]any{
+		"type": "object", "additionalProperties": false, "properties": keys,
+		"description": "Catalogue settings the workspace decides itself; a value left to the level above has no block. " +
+			"A change to a sign-in switch or a legal link is applied with a fresh proof (step_up).",
+	}
+}
+
+// valueSchema is a setting's value as JSON Schema.
+func valueSchema(definition setting.Definition) map[string]any {
+	out := map[string]any{}
+	switch definition.Kind {
+	case setting.KindCount:
+		out["type"] = "integer"
+		if definition.Minimum != nil {
+			out["minimum"] = *definition.Minimum
+		}
+		if definition.Maximum != nil {
+			out["maximum"] = *definition.Maximum
+		}
+	case setting.KindFlag:
+		out["type"] = "boolean"
+	case setting.KindChoices:
+		items := map[string]any{"type": "string"}
+		if len(definition.Options) > 0 {
+			items["enum"] = slices.Clone(definition.Options)
+		}
+		out["type"], out["items"] = "array", items
+	default:
+		out["type"] = "string"
+		if len(definition.Options) > 0 {
+			out["enum"] = slices.Clone(definition.Options)
+		}
+	}
+	if definition.Default != nil {
+		out["default"] = definition.Default
+	}
+	return out
+}

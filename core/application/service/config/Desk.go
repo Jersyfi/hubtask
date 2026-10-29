@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strconv"
+	"strings"
 	"time"
 
 	configrepo "github.com/Jersyfi/hubtask/core/application/repository/config"
@@ -81,8 +82,10 @@ type Desk struct {
 type current struct {
 	Document domain.Document
 	Rows     map[string]map[string]map[string]any
-	// Withheld are the sections the reader may not read or whose module is off.
-	Withheld []string
+	// Withheld are the sections the reader may not read or whose module is off; WithheldSettings
+	// the key prefixes of the settings areas the reader may not read.
+	Withheld         []string
+	WithheldSettings []string
 }
 
 func (c current) hash() string { return domain.Hash(c.Document) }
@@ -141,9 +144,31 @@ func (d Desk) export(ctx context.Context, actor appshared.ActorContext) (current
 	if err != nil {
 		return current{}, err
 	}
-	out.Document[sectionSettings] = domain.Section{
-		settingKey(domain.AgentApplyKey): domain.Block{settingValueField: policy.value},
+	settings := domain.Section{settingKey(domain.AgentApplyKey): domain.Block{settingValueField: policy.value}}
+	rows := map[string]map[string]any{}
+	for _, area := range settingAreas() {
+		answer, err := d.Catalogue.Invoke(ctx, area.read, actor, usecase.Input{})
+		if err != nil {
+			if withheld(err) {
+				out.WithheldSettings = append(out.WithheldSettings, area.prefixes...)
+				continue
+			}
+			return current{}, err
+		}
+		normal, err := normalise(map[string]any(answer))
+		if err != nil {
+			return current{}, err
+		}
+		answerMap, _ := normal.(map[string]any)
+		for key, row := range area.rows(answerMap) {
+			rows[key] = row
+			if block := settingBlock(key, row); block != nil {
+				settings[key] = block
+			}
+		}
 	}
+	out.Document[sectionSettings] = settings
+	out.Rows[sectionSettings] = rows
 	return out, nil
 }
 
@@ -232,6 +257,8 @@ type plan struct {
 	Flags    domain.Flags
 	Hash     string
 	Policy   *domain.AgentApply
+	// StepUp is whether the plan changes the sign-in rule, which its apply proves afresh.
+	StepUp bool
 }
 
 // planOf compares a desired document, in its mode, with the one in force and checks every change
@@ -256,6 +283,13 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 			if !domain.ValidKey(key) && name != sectionSettings {
 				p.Refusals = append(p.Refusals, domain.Refusal("config.key_invalid", name+"."+key, nil))
 			}
+			if name == sectionSettings {
+				for _, prefix := range now.WithheldSettings {
+					if strings.HasPrefix(key, prefix) {
+						p.Refusals = append(p.Refusals, domain.Refusal("config.section_withheld", name+"."+key, nil))
+					}
+				}
+			}
 		}
 	}
 	if len(p.Refusals) > 0 {
@@ -266,8 +300,16 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 		// A section nobody read is not compared: it is neither in force nor removed.
 		delete(p.Target, w)
 	}
+	for key := range p.Target[sectionSettings] {
+		for _, prefix := range now.WithheldSettings {
+			if strings.HasPrefix(key, prefix) {
+				delete(p.Target[sectionSettings], key)
+			}
+		}
+	}
 	changes := domain.Diff(now.Document, p.Target)
 	var removals []operation
+	var settingChanges []domain.Change
 	for _, s := range append(sections(), section{name: sectionSettings}) {
 		for _, change := range changes {
 			if change.Section != s.name {
@@ -275,9 +317,7 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 			}
 			p.Changes = append(p.Changes, change)
 			if s.name == sectionSettings {
-				ops, refusals := settingOps(change)
-				p.Refusals = append(p.Refusals, refusals...)
-				p.Ops = append(p.Ops, ops...)
+				settingChanges = append(settingChanges, change)
 				if change.Key == settingKey(domain.AgentApplyKey) {
 					value := domain.AgentApply(text(change.After[settingValueField]))
 					p.Policy = &value
@@ -313,6 +353,12 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 				p.Flags.ChangesPermissions = true
 			}
 		}
+	}
+	ops, refusals := settingsOps(settingChanges, now.Rows[sectionSettings])
+	p.Refusals = append(p.Refusals, refusals...)
+	p.Ops = append(p.Ops, ops...)
+	for _, op := range ops {
+		p.StepUp = p.StepUp || op.StepUp
 	}
 	p.Ops = append(p.Ops, removals...)
 	if len(p.Refusals) == 0 {
@@ -457,25 +503,19 @@ func (d Desk) resolveAgentApply(ctx context.Context, definition setting.Definiti
 	return setting.Resolve(definition, layers...), nil
 }
 
-// settingOps writes a catalogue setting the document holds: today the agents' apply policy.
-func settingOps(change domain.Change) ([]operation, []shared.FieldError) {
-	path := change.Path()
-	if change.Key != settingKey(domain.AgentApplyKey) {
-		return nil, []shared.FieldError{domain.Refusal("setting.unknown", path, nil)}
-	}
-	if change.Op != domain.OpChange {
-		return nil, []shared.FieldError{domain.Refusal("config.not_removable", path, nil)}
-	}
-	return []operation{{UseCase: SetConfigPolicyName, Path: path, Input: usecase.Input{
-		"agent_apply": change.After[settingValueField],
-	}}}, nil
-}
-
 // run applies a plan's operations in the caller's transaction; the first refusal ends it, named
 // by the key path it was for.
-func (d Desk) run(ctx context.Context, actor appshared.ActorContext, ops []operation) error {
+// stepUp is the fresh proof an apply carries, handed to the operation changing the sign-in rule.
+func (d Desk) run(ctx context.Context, actor appshared.ActorContext, ops []operation, stepUp string) error {
 	for _, op := range ops {
-		if _, err := d.Catalogue.Invoke(ctx, op.UseCase, actor, op.Input); err != nil {
+		in := op.Input
+		if op.StepUp && stepUp != "" {
+			in = usecase.Input{"step_up_token": stepUp}
+			for k, v := range op.Input {
+				in[k] = v
+			}
+		}
+		if _, err := d.Catalogue.Invoke(ctx, op.UseCase, actor, in); err != nil {
 			var e *shared.Error
 			if errors.As(err, &e) {
 				params := map[string]string{"config_path": op.Path}

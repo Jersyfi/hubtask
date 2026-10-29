@@ -30,13 +30,19 @@ type world struct {
 	roles map[string]map[string]any
 	// structure is the workspace's own structure values; nil withholds the section.
 	structure map[string]any
+	// workspace is what ReadWorkspace answers besides the structure; ai what ReadAiSource answers,
+	// nil withholding it. inputs records what each writing use case was given.
+	workspace map[string]any
+	ai        map[string]any
+	inputs    map[string][]usecase.Input
 	// failOn makes one use case refuse, as a block its own checks reject would.
 	failOn string
 	calls  []string
 }
 
 func (w *world) clone() *world {
-	out := &world{types: map[string]map[string]any{}, roles: map[string]map[string]any{}, failOn: w.failOn}
+	out := &world{types: map[string]map[string]any{}, roles: map[string]map[string]any{}, failOn: w.failOn,
+		workspace: w.workspace, ai: w.ai, inputs: maps.Clone(w.inputs)}
 	if w.structure != nil {
 		out.structure = maps.Clone(w.structure)
 	}
@@ -97,7 +103,19 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 			sources[name] = "WORKSPACE"
 		}
 		sources["views"] = "DEFAULT"
-		return usecase.Output{"structure": map[string]any{"settings": maps.Clone(w.structure), "sources": sources}}, nil
+		out := usecase.Output{"structure": map[string]any{"settings": maps.Clone(w.structure), "sources": sources}}
+		maps.Copy(out, w.workspace)
+		return out, nil
+	case "ReadAiSource":
+		if w.ai == nil {
+			return nil, shared.ErrForbidden
+		}
+		return usecase.Output(maps.Clone(w.ai)), nil
+	case "UpdateWorkspace", "ChooseAiSource", "SetAiPersonOptOut":
+		if w.inputs == nil {
+			w.inputs = map[string][]usecase.Input{}
+		}
+		w.inputs[name] = append(w.inputs[name], in)
 	case "SetWorkspaceStructure":
 		if values, held := in["settings"].(map[string]any); held {
 			maps.Copy(w.structure, values)

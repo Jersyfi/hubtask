@@ -19,6 +19,8 @@ type operation struct {
 	Input   usecase.Input
 	// Path is the key path the operation is for, named in a refusal.
 	Path string
+	// StepUp marks an operation that changes the sign-in rule: it carries the apply's fresh proof.
+	StepUp bool
 }
 
 // section is one family of building blocks the document holds, declared by the use cases that
@@ -145,7 +147,7 @@ func sections() []section {
 		{
 			// The workspace's own structure, one block per setting it decides itself; a setting
 			// left to the installation's or Hubtask's default has no block (configuration/model.md).
-			name: sectionStructure, list: "ReadWorkspace", key: "setting", attributes: []string{settingValueField},
+			name: sectionStructure, list: ReadWorkspaceName, key: "setting", attributes: []string{settingValueField},
 			rowsOf: structureRows,
 			block: func(row map[string]any) (string, domain.Block) {
 				if text(row["source"]) != "WORKSPACE" {
