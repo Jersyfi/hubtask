@@ -9186,6 +9186,7 @@ paths:
       tags: [structure]
       operationId: listWorkflows
       x-hubtask-cli: "workflow ls"
+      x-hubtask-rest: generated
       summary: List the workflows and the scheme
       description: >
         The workspace's workflows - the shipped one, keyed `default`, and its own - each with the
@@ -9204,6 +9205,7 @@ paths:
       tags: [structure]
       operationId: createWorkflow
       x-hubtask-cli: "workflow create"
+      x-hubtask-rest: generated
       summary: Add a workflow
       description: >
         Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it.
@@ -9237,6 +9239,7 @@ paths:
       tags: [structure]
       operationId: saveWorkflowDraft
       x-hubtask-cli: "workflow draft"
+      x-hubtask-rest: generated
       summary: Save a draft, rename, or discard the draft
       description: >
         Saves a draft beside the shape in force, which stays in force until the draft is published;
@@ -9265,6 +9268,7 @@ paths:
       tags: [structure]
       operationId: deleteWorkflow
       x-hubtask-cli: "workflow rm"
+      x-hubtask-rest: generated
       summary: Delete an unused workflow
       description: >
         Deletes a workflow of the workspace's own that no hub or collection uses; one in use is
@@ -9285,6 +9289,7 @@ paths:
       tags: [structure]
       operationId: previewWorkflowPublish
       x-hubtask-cli: "workflow preview"
+      x-hubtask-rest: generated
       summary: Show what publishing the draft would do
       description: >
         Answers, changing nothing, which statuses in use the draft removes with their counts, how
@@ -9317,6 +9322,7 @@ paths:
       tags: [structure]
       operationId: publishWorkflow
       x-hubtask-cli: "workflow publish"
+      x-hubtask-rest: generated
       summary: Publish the draft
       description: >
         Puts the draft in force. Every removed status that entries are in needs a target in
@@ -9358,6 +9364,7 @@ paths:
       tags: [structure]
       operationId: tryWorkflowStep
       x-hubtask-cli: "workflow try"
+      x-hubtask-rest: generated
       summary: Try a step against an entry
       description: >
         Judges a step - of the draft where `draft` is true and there is one - against an entry,
@@ -9388,6 +9395,7 @@ paths:
       tags: [structure]
       operationId: setWorkflowScheme
       x-hubtask-cli: "workflow scheme set"
+      x-hubtask-rest: generated
       summary: Use a workflow in a hub or collection
       description: >
         Names the workflow a hub or collection runs for a type - or for every type when
@@ -9415,6 +9423,7 @@ paths:
       tags: [structure]
       operationId: previewWorkflowScheme
       x-hubtask-cli: "workflow scheme preview"
+      x-hubtask-rest: generated
       summary: Show what using a workflow would do
       description: >
         Answers, changing nothing, which status every existing entry would get - by collection,
@@ -9442,6 +9451,7 @@ paths:
       tags: [items]
       operationId: listEntrySteps
       x-hubtask-cli: "item steps"
+      x-hubtask-rest: generated
       summary: The entry's status and the steps the person may take
       description: >
         The workflow the entry's collection runs for its type, the entry's status, and the steps

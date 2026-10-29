@@ -11710,6 +11710,7 @@
         ],
         "operationId": "listWorkflows",
         "x-hubtask-cli": "workflow ls",
+        "x-hubtask-rest": "generated",
         "summary": "List the workflows and the scheme",
         "description": "The workspace's workflows - the shipped one, keyed `default`, and its own - each with the shape in force and any draft, and the scheme: which hub or collection runs which workflow for which type. Any member may read them; a board draws its columns from them.\n",
         "responses": {
@@ -11734,6 +11735,7 @@
         ],
         "operationId": "createWorkflow",
         "x-hubtask-cli": "workflow create",
+        "x-hubtask-rest": "generated",
         "summary": "Add a workflow",
         "description": "Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.\n",
         "requestBody": {
@@ -11788,6 +11790,7 @@
         ],
         "operationId": "saveWorkflowDraft",
         "x-hubtask-cli": "workflow draft",
+        "x-hubtask-rest": "generated",
         "summary": "Save a draft, rename, or discard the draft",
         "description": "Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.\n",
         "parameters": [
@@ -11834,6 +11837,7 @@
         ],
         "operationId": "deleteWorkflow",
         "x-hubtask-cli": "workflow rm",
+        "x-hubtask-rest": "generated",
         "summary": "Delete an unused workflow",
         "description": "Deletes a workflow of the workspace's own that no hub or collection uses; one in use is refused with `workflows.in_use`, the shipped one with `workflows.system_kept`.\n",
         "responses": {
@@ -11864,6 +11868,7 @@
         ],
         "operationId": "previewWorkflowPublish",
         "x-hubtask-cli": "workflow preview",
+        "x-hubtask-rest": "generated",
         "summary": "Show what publishing the draft would do",
         "description": "Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after. Given `shape`, it answers for that shape instead of the stored draft - what a configuration plan shows before anything is saved.\n",
         "requestBody": {
@@ -11911,6 +11916,7 @@
         ],
         "operationId": "publishWorkflow",
         "x-hubtask-cli": "workflow publish",
+        "x-hubtask-rest": "generated",
         "summary": "Publish the draft",
         "description": "Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.\n",
         "parameters": [
@@ -11979,6 +11985,7 @@
         ],
         "operationId": "tryWorkflowStep",
         "x-hubtask-cli": "workflow try",
+        "x-hubtask-rest": "generated",
         "summary": "Try a step against an entry",
         "description": "Judges a step - of the draft where `draft` is true and there is one - against an entry, without taking it: whether the person may take it, which required fields are empty, and each check's outcome.\n",
         "requestBody": {
@@ -12028,6 +12035,7 @@
         ],
         "operationId": "setWorkflowScheme",
         "x-hubtask-cli": "workflow scheme set",
+        "x-hubtask-rest": "generated",
         "summary": "Use a workflow in a hub or collection",
         "description": "Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.\n",
         "requestBody": {
@@ -12064,6 +12072,7 @@
         ],
         "operationId": "previewWorkflowScheme",
         "x-hubtask-cli": "workflow scheme preview",
+        "x-hubtask-rest": "generated",
         "summary": "Show what using a workflow would do",
         "description": "Answers, changing nothing, which status every existing entry would get - by collection, type and status - and the board's columns.\n",
         "requestBody": {
@@ -12105,6 +12114,7 @@
         ],
         "operationId": "listEntrySteps",
         "x-hubtask-cli": "item steps",
+        "x-hubtask-rest": "generated",
         "summary": "The entry's status and the steps the person may take",
         "description": "The workflow the entry's collection runs for its type, the entry's status, and the steps the person may take from it, each with what it asks for, what it still needs and whether its checks hold. `workflow` is null where none runs; a reader gets no steps.\n",
         "responses": {

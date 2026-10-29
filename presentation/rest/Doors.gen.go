@@ -13,22 +13,32 @@ import (
 
 // restDoors is every operation answered by the generated mapping, by operationId.
 var restDoors = map[string]restDoor{
-	"changeLinkType":    {UseCase: "ChangeLinkType", Status: 200, Query: []string(nil), IfMatch: true, BodyRequired: true, ETag: true},
-	"changeRole":        {UseCase: "ChangeRole", Status: 200, Query: []string(nil), IfMatch: true, BodyRequired: true, ETag: true},
-	"createLinkType":    {UseCase: "CreateLinkType", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: true},
-	"createRole":        {UseCase: "CreateRole", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: true},
-	"deleteLinkType":    {UseCase: "DeleteLinkType", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"deleteRole":        {UseCase: "DeleteRole", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"explainAccess":     {UseCase: "ExplainAccess", Status: 200, Query: []string{"account_id", "permission", "scope_id", "scope_type"}, IfMatch: false, BodyRequired: false, ETag: false},
-	"grantRole":         {UseCase: "GrantRole", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
-	"linkEntries":       {UseCase: "LinkEntries", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
-	"listEntryLinks":    {UseCase: "ListEntryLinks", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"listLinkTypes":     {UseCase: "ListLinkTypes", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"listLinksAmong":    {UseCase: "ListLinksAmong", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
-	"listRoles":         {UseCase: "ListRoles", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"resolveReferences": {UseCase: "ResolveReferences", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
-	"revokeRoleGrant":   {UseCase: "RevokeRoleGrant", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"unlinkEntries":     {UseCase: "UnlinkEntries", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
+	"changeLinkType":         {UseCase: "ChangeLinkType", Status: 200, Query: []string(nil), IfMatch: true, BodyRequired: true, ETag: true},
+	"changeRole":             {UseCase: "ChangeRole", Status: 200, Query: []string(nil), IfMatch: true, BodyRequired: true, ETag: true},
+	"createLinkType":         {UseCase: "CreateLinkType", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: true},
+	"createRole":             {UseCase: "CreateRole", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: true},
+	"createWorkflow":         {UseCase: "CreateWorkflow", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: true},
+	"deleteLinkType":         {UseCase: "DeleteLinkType", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
+	"deleteRole":             {UseCase: "DeleteRole", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
+	"deleteWorkflow":         {UseCase: "DeleteWorkflow", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
+	"explainAccess":          {UseCase: "ExplainAccess", Status: 200, Query: []string{"account_id", "permission", "scope_id", "scope_type"}, IfMatch: false, BodyRequired: false, ETag: false},
+	"grantRole":              {UseCase: "GrantRole", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
+	"linkEntries":            {UseCase: "LinkEntries", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
+	"listEntryLinks":         {UseCase: "ListEntryLinks", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
+	"listEntrySteps":         {UseCase: "ListEntrySteps", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
+	"listLinkTypes":          {UseCase: "ListLinkTypes", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
+	"listLinksAmong":         {UseCase: "ListLinksAmong", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
+	"listRoles":              {UseCase: "ListRoles", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
+	"listWorkflows":          {UseCase: "ListWorkflows", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
+	"previewWorkflowPublish": {UseCase: "PreviewWorkflowPublish", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
+	"previewWorkflowScheme":  {UseCase: "PreviewWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
+	"publishWorkflow":        {UseCase: "PublishWorkflow", Status: 200, Query: []string(nil), IfMatch: true, BodyRequired: false, ETag: true},
+	"resolveReferences":      {UseCase: "ResolveReferences", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
+	"revokeRoleGrant":        {UseCase: "RevokeRoleGrant", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
+	"saveWorkflowDraft":      {UseCase: "SaveWorkflowDraft", Status: 200, Query: []string(nil), IfMatch: true, BodyRequired: true, ETag: true},
+	"setWorkflowScheme":      {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
+	"tryWorkflowStep":        {UseCase: "TryWorkflowStep", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
+	"unlinkEntries":          {UseCase: "UnlinkEntries", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
 }
 
 // ChangeLinkType answers PATCH /link-types/{key} by the generated mapping.
@@ -59,6 +69,13 @@ func (c *RestController) CreateRole(w http.ResponseWriter, r *http.Request, para
 	c.door(w, r, restDoors["createRole"], usecase.Input{}, params, &body, &answer)
 }
 
+// CreateWorkflow answers POST /workflows by the generated mapping.
+func (c *RestController) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
+	var body openapi.CreateWorkflowJSONRequestBody
+	var answer openapi.Workflow
+	c.door(w, r, restDoors["createWorkflow"], usecase.Input{}, nil, &body, &answer)
+}
+
 // DeleteLinkType answers DELETE /link-types/{key} by the generated mapping.
 func (c *RestController) DeleteLinkType(w http.ResponseWriter, r *http.Request, key string) {
 	c.door(w, r, restDoors["deleteLinkType"], usecase.Input{"key": key}, nil, nil, nil)
@@ -67,6 +84,11 @@ func (c *RestController) DeleteLinkType(w http.ResponseWriter, r *http.Request, 
 // DeleteRole answers DELETE /roles/{key} by the generated mapping.
 func (c *RestController) DeleteRole(w http.ResponseWriter, r *http.Request, key string) {
 	c.door(w, r, restDoors["deleteRole"], usecase.Input{"key": key}, nil, nil, nil)
+}
+
+// DeleteWorkflow answers DELETE /workflows/{key} by the generated mapping.
+func (c *RestController) DeleteWorkflow(w http.ResponseWriter, r *http.Request, key string) {
+	c.door(w, r, restDoors["deleteWorkflow"], usecase.Input{"key": key}, nil, nil, nil)
 }
 
 // ExplainAccess answers GET /access/explain by the generated mapping.
@@ -95,6 +117,12 @@ func (c *RestController) ListEntryLinks(w http.ResponseWriter, r *http.Request, 
 	c.door(w, r, restDoors["listEntryLinks"], usecase.Input{"item_id": itemId.String()}, nil, nil, &answer)
 }
 
+// ListEntrySteps answers GET /items/{itemId}/steps by the generated mapping.
+func (c *RestController) ListEntrySteps(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
+	var answer openapi.EntrySteps
+	c.door(w, r, restDoors["listEntrySteps"], usecase.Input{"item_id": itemId.String()}, nil, nil, &answer)
+}
+
 // ListLinkTypes answers GET /link-types by the generated mapping.
 func (c *RestController) ListLinkTypes(w http.ResponseWriter, r *http.Request) {
 	var answer openapi.LinkTypeList
@@ -114,6 +142,33 @@ func (c *RestController) ListRoles(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["listRoles"], usecase.Input{}, nil, nil, &answer)
 }
 
+// ListWorkflows answers GET /workflows by the generated mapping.
+func (c *RestController) ListWorkflows(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.WorkflowList
+	c.door(w, r, restDoors["listWorkflows"], usecase.Input{}, nil, nil, &answer)
+}
+
+// PreviewWorkflowPublish answers POST /workflows/{key}:preview-publish by the generated mapping.
+func (c *RestController) PreviewWorkflowPublish(w http.ResponseWriter, r *http.Request, key string) {
+	var body openapi.PreviewWorkflowPublishJSONRequestBody
+	var answer openapi.WorkflowPreview
+	c.door(w, r, restDoors["previewWorkflowPublish"], usecase.Input{"key": key}, nil, &body, &answer)
+}
+
+// PreviewWorkflowScheme answers POST /workflow-scheme:preview by the generated mapping.
+func (c *RestController) PreviewWorkflowScheme(w http.ResponseWriter, r *http.Request) {
+	var body openapi.PreviewWorkflowSchemeJSONRequestBody
+	var answer openapi.WorkflowPreview
+	c.door(w, r, restDoors["previewWorkflowScheme"], usecase.Input{}, nil, &body, &answer)
+}
+
+// PublishWorkflow answers POST /workflows/{key}:publish by the generated mapping.
+func (c *RestController) PublishWorkflow(w http.ResponseWriter, r *http.Request, key string, params openapi.PublishWorkflowParams) {
+	var body openapi.PublishWorkflowJSONRequestBody
+	var answer openapi.Workflow
+	c.door(w, r, restDoors["publishWorkflow"], usecase.Input{"key": key}, params, &body, &answer)
+}
+
 // ResolveReferences answers POST /references:resolve by the generated mapping.
 func (c *RestController) ResolveReferences(w http.ResponseWriter, r *http.Request) {
 	var body openapi.ResolveReferencesJSONRequestBody
@@ -123,6 +178,27 @@ func (c *RestController) ResolveReferences(w http.ResponseWriter, r *http.Reques
 // RevokeRoleGrant answers DELETE /role-grants/{grantId} by the generated mapping.
 func (c *RestController) RevokeRoleGrant(w http.ResponseWriter, r *http.Request, grantId openapi_types.UUID) {
 	c.door(w, r, restDoors["revokeRoleGrant"], usecase.Input{"grant_id": grantId.String()}, nil, nil, nil)
+}
+
+// SaveWorkflowDraft answers PATCH /workflows/{key} by the generated mapping.
+func (c *RestController) SaveWorkflowDraft(w http.ResponseWriter, r *http.Request, key string, params openapi.SaveWorkflowDraftParams) {
+	var body openapi.SaveWorkflowDraftJSONRequestBody
+	var answer openapi.Workflow
+	c.door(w, r, restDoors["saveWorkflowDraft"], usecase.Input{"key": key}, params, &body, &answer)
+}
+
+// SetWorkflowScheme answers PUT /workflow-scheme by the generated mapping.
+func (c *RestController) SetWorkflowScheme(w http.ResponseWriter, r *http.Request) {
+	var body openapi.SetWorkflowSchemeJSONRequestBody
+	var answer openapi.WorkflowSchemeResult
+	c.door(w, r, restDoors["setWorkflowScheme"], usecase.Input{}, nil, &body, &answer)
+}
+
+// TryWorkflowStep answers POST /workflows/{key}/steps/{step}:try by the generated mapping.
+func (c *RestController) TryWorkflowStep(w http.ResponseWriter, r *http.Request, key string, step string) {
+	var body openapi.TryWorkflowStepJSONRequestBody
+	var answer openapi.StepVerdict
+	c.door(w, r, restDoors["tryWorkflowStep"], usecase.Input{"key": key, "step": step}, nil, &body, &answer)
 }
 
 // UnlinkEntries answers DELETE /links/{linkId} by the generated mapping.

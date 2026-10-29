@@ -141,3 +141,42 @@ func TestEveryGeneratedMappingIsADescriptors(t *testing.T) {
 		}
 	}
 }
+
+// A workflow's shape reaches the use case as the document it was sent as, and the answer passes
+// through the contract's type: a member the contract does not declare is not written.
+func TestAGeneratedAnswerHoldsToTheContractsType(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"key": "triage", "name": "Triage", "version": 1, "internal_note": "not in the contract",
+	}}
+
+	recorder := callDoor(t, registry, http.MethodPost, "/workflows",
+		`{"key":"triage","name":"Triage","shape":{"statuses":[{"key":"open","name":"Open","category":"TODO"}],"initial":"open","steps":[]}}`,
+		map[string]string{"Content-Type": "application/json"})
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if shape, _ := registry.in["shape"].(map[string]any); shape["initial"] != "open" {
+		t.Errorf("the shape arrived as %#v", registry.in["shape"])
+	}
+	if strings.Contains(recorder.Body.String(), "internal_note") {
+		t.Errorf("an undeclared member was written: %s", recorder.Body)
+	}
+	if tag := recorder.Header().Get("ETag"); tag != `"1"` {
+		t.Errorf("ETag %q", tag)
+	}
+}
+
+// Publishing without a body sends no mapping, which the use case reads as none.
+func TestAGeneratedActionTakesAnOptionalBody(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"key": "triage", "name": "Triage", "version": 2}}
+
+	recorder := callDoor(t, registry, http.MethodPost, "/workflows/triage:publish", "", map[string]string{"If-Match": `"1"`})
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "PublishWorkflow" || registry.in["key"] != "triage" || registry.in["expected_version"] != 1 {
+		t.Errorf("%s %v", registry.name, registry.in)
+	}
+}
