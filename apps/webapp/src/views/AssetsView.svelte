@@ -72,8 +72,10 @@
 <div class="assets">
   {#if ciId}
     {#if hub}<a class="hub" href={`/hubs/${hub.id}/assets`}>{hub.name} · {t('app.assets.title')}</a>{/if}
-    {#if openRefusal}
+    {#if openRefusal || !current || classesRead.state.status !== 'ready'}
       <h1 class="title">{t('app.assets.title')}</h1>
+    {/if}
+    {#if openRefusal}
       <Banner tone="danger">{openRefusal}</Banner>
     {:else if !current || classesRead.state.status !== 'ready'}
       <Spinner label={t('app.assets.loading')} />

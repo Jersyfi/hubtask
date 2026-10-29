@@ -410,7 +410,7 @@
   <nav class="tree" aria-label={t('app.pages.tree', { hub: hub?.name ?? '' })}>
     <Stack gap="100">
       <Inline justify="between" align="center">
-        <h2 class="heading">{t('app.pages.title')}</h2>
+        <h1 class="heading">{t('app.pages.title')}</h1>
         {#if mayWrite}
           <IconButton icon="plus" label={t('app.pages.new')} onclick={() => startCreate()} />
         {/if}
@@ -521,7 +521,7 @@
                 onkeydown={(event) => { if (event.key === 'Enter') (event.currentTarget as HTMLInputElement).blur(); }}
               />
             {:else}
-              <h1 class="title">{current.title}</h1>
+              <h2 class="title">{current.title}</h2>
             {/if}
             {#if current.template}<Badge size="sm">{t('app.pages.is_template')}</Badge>{/if}
             {#if current.due_for_review}
