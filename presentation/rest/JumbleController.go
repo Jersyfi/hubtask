@@ -11,7 +11,6 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	jumbledomain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -21,76 +20,6 @@ import (
 
 // The jumble. The controller maps documents and nothing else: what may be submitted, who
 // may read the inbox and what a conversion produces are all decided inwards of here (ADR-0005).
-
-const (
-	submitJumbleEntryUseCase      = "SubmitJumbleEntry"
-	listJumbleEntriesUseCase      = "ListJumbleEntries"
-	getJumbleEntryUseCase         = "GetJumbleEntry"
-	listJumbleDestinationsUseCase = "ListJumbleDestinations"
-	convertJumbleEntryUseCase     = "ConvertJumbleEntry"
-	suggestFromJumbleEntryUseCase = "SuggestFromJumbleEntry"
-	dismissJumbleEntryUseCase     = "DismissJumbleEntry"
-)
-
-// ConvertJumbleEntry answers POST /jumble/entries/{entryId}:convert.
-func (c *RestController) ConvertJumbleEntry(
-	w http.ResponseWriter, r *http.Request, entryID openapi_types.UUID,
-	_ openapi.ConvertJumbleEntryParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.JumbleEntryConvert
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-
-		input := usecase.Input{
-			"entry_id":      entryID.String(),
-			"collection_id": body.CollectionId.String(),
-		}
-		if body.BucketId != nil {
-			input["bucket_id"] = body.BucketId.String()
-		}
-		if body.Title != nil {
-			input["title"] = *body.Title
-		}
-		if body.Type != nil {
-			input["type"] = string(*body.Type)
-		}
-		return c.UseCases.Invoke(r.Context(), convertJumbleEntryUseCase, actor, input)
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, jumbleEntryResponse(out))
-	})
-}
-
-// SuggestFromJumbleEntry answers POST /jumble/entries/{entryId}:suggest.
-//
-// 202 and the job: the provider has not been asked yet, so the job is all there is to answer with.
-// The proposal appears under /suggestions when it has.
-func (c *RestController) SuggestFromJumbleEntry(
-	w http.ResponseWriter, r *http.Request, entryID openapi_types.UUID,
-	_ openapi.SuggestFromJumbleEntryParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), suggestFromJumbleEntryUseCase, actor, usecase.Input{
-			"entry_id": entryID.String(),
-		})
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusAccepted, acceptedAsk(out))
-	})
-}
-
-// DismissJumbleEntry answers POST /jumble/entries/{entryId}:dismiss.
-func (c *RestController) DismissJumbleEntry(
-	w http.ResponseWriter, r *http.Request, entryID openapi_types.UUID,
-	_ openapi.DismissJumbleEntryParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), dismissJumbleEntryUseCase, actor,
-			usecase.Input{"entry_id": entryID.String()})
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, jumbleEntryResponse(out))
-	})
-}
 
 // DeliverMail answers POST /jumble/mail/{token}.
 //
@@ -123,113 +52,6 @@ func (c *RestController) DeliverMail(w http.ResponseWriter, r *http.Request, pre
 	}
 	writeJSON(w, r, http.StatusCreated, openapi.JumbleIntakeAccepted{
 		EntryId: uuidValue(entry.ID.String()),
-	})
-}
-
-// ListJumbleEntries answers GET /jumble/entries.
-func (c *RestController) ListJumbleEntries(
-	w http.ResponseWriter, r *http.Request, params openapi.ListJumbleEntriesParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		input := usecase.Input{}
-		if params.Status != nil {
-			input["status"] = string(*params.Status)
-		}
-		if params.Channel != nil {
-			input["channel"] = string(*params.Channel)
-		}
-		if params.Cursor != nil {
-			input["cursor"] = *params.Cursor
-		}
-		if params.Size != nil {
-			input["size"] = *params.Size
-		}
-		return c.UseCases.Invoke(r.Context(), listJumbleEntriesUseCase, actor, input)
-	}, func(out usecase.Output) {
-		rows, _ := out["data"].([]usecase.Output)
-		entries := make([]openapi.JumbleEntry, 0, len(rows))
-		for _, row := range rows {
-			entries = append(entries, jumbleEntryResponse(row))
-		}
-		writeJSON(w, r, http.StatusOK, openapi.JumbleEntryPage{
-			Data: entries, Page: pageResponse(out),
-		})
-	})
-}
-
-// GetJumbleEntry answers GET /jumble/entries/{entryId}.
-func (c *RestController) GetJumbleEntry(w http.ResponseWriter, r *http.Request, entryID openapi_types.UUID) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), getJumbleEntryUseCase, actor, usecase.Input{
-			"entry_id": entryID.String(),
-		})
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, jumbleEntryResponse(out))
-	})
-}
-
-// ListJumbleDestinations answers GET /jumble/destinations.
-func (c *RestController) ListJumbleDestinations(
-	w http.ResponseWriter, r *http.Request, params openapi.ListJumbleDestinationsParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		input := usecase.Input{}
-		if params.Cursor != nil {
-			input["cursor"] = *params.Cursor
-		}
-		if params.Size != nil {
-			input["size"] = *params.Size
-		}
-		return c.UseCases.Invoke(r.Context(), listJumbleDestinationsUseCase, actor, input)
-	}, func(out usecase.Output) {
-		rows, _ := out["data"].([]usecase.Output)
-		destinations := make([]openapi.JumbleDestination, 0, len(rows))
-		for _, row := range rows {
-			destinations = append(destinations, openapi.JumbleDestination{
-				Id: uuidValue(row.String("id")), Name: row.String("name"),
-				HubId: uuidValue(row.String("hub_id")), HubName: row.String("hub_name"),
-				HubPrivate: row["hub_private"] == true,
-			})
-		}
-		writeJSON(w, r, http.StatusOK, openapi.JumbleDestinationPage{
-			Data: destinations, Page: pageResponse(out),
-		})
-	})
-}
-
-// SubmitJumbleEntry answers POST /jumble/entries.
-func (c *RestController) SubmitJumbleEntry(
-	w http.ResponseWriter, r *http.Request, _ openapi.SubmitJumbleEntryParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.JumbleEntrySubmit
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-
-		input := usecase.Input{}
-		if body.Channel != nil {
-			input["channel"] = string(*body.Channel)
-		}
-		if body.Sender != nil {
-			input["sender"] = *body.Sender
-		}
-		if body.RawSubject != nil {
-			input["raw_subject"] = *body.RawSubject
-		}
-		if body.RawBody != nil {
-			input["raw_body"] = *body.RawBody
-		}
-		if body.Attachments != nil {
-			attachments := make([]any, 0, len(*body.Attachments))
-			for _, id := range *body.Attachments {
-				attachments = append(attachments, id.String())
-			}
-			input["attachments"] = attachments
-		}
-		return c.UseCases.Invoke(r.Context(), submitJumbleEntryUseCase, actor, input)
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusCreated, jumbleEntryResponse(out))
 	})
 }
 
@@ -296,22 +118,6 @@ type MailDeliverer interface {
 	Deliver(ctx context.Context, presented string, raw []byte) (jumbledomain.Entry, error)
 }
 
-const rotateJumbleIntakeUseCase = "RotateJumbleIntake"
-
-// RotateJumbleIntake answers POST /jumble/intake:rotate-token.
-func (c *RestController) RotateJumbleIntake(
-	w http.ResponseWriter, r *http.Request, _ openapi.RotateJumbleIntakeParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), rotateJumbleIntakeUseCase, actor, usecase.Input{})
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, openapi.JumbleIntakeToken{
-			Token:     out.String("token"),
-			RotatedAt: timeValue(out["rotated_at"]),
-		})
-	})
-}
-
 // StartJumbleIntake answers POST /jumble/inbound/{token}.
 func (c *RestController) StartJumbleIntake(
 	w http.ResponseWriter, r *http.Request, presented string,
@@ -348,4 +154,18 @@ func (c *RestController) StartJumbleIntake(
 	writeJSON(w, r, http.StatusCreated, openapi.JumbleIntakeAccepted{
 		EntryId: uuidValue(entry.ID.String()),
 	})
+}
+
+// jumbleDestinationResponse is one collection an entry can be converted into, with its hub.
+func jumbleDestinationResponse(row usecase.Output) openapi.JumbleDestination {
+	return openapi.JumbleDestination{
+		Id: uuidValue(row.String("id")), Name: row.String("name"),
+		HubId: uuidValue(row.String("hub_id")), HubName: row.String("hub_name"),
+		HubPrivate: row["hub_private"] == true,
+	}
+}
+
+// jumbleIntakeTokenResponse is the one answer that carries the intake's token.
+func jumbleIntakeTokenResponse(out usecase.Output) openapi.JumbleIntakeToken {
+	return openapi.JumbleIntakeToken{Token: out.String("token"), RotatedAt: timeValue(out["rotated_at"])}
 }

@@ -523,6 +523,8 @@ paths:
     get:
       tags: [jumble]
       operationId: listJumbleEntries
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: jumbleEntryResponse
       summary: The jumble, newest first
       description: >
         Everything that arrived and what became of it. The raw content is answered here - to a
@@ -557,6 +559,8 @@ paths:
     post:
       tags: [jumble]
       operationId: submitJumbleEntry
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: jumbleEntryResponse
       summary: Put something in the jumble
       description: >
         The near channels: a quick capture or a plain API call, stored as an entry and announced
@@ -589,6 +593,8 @@ paths:
     get:
       tags: [jumble]
       operationId: listJumbleDestinations
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: jumbleDestinationResponse
       summary: Where an entry may become work for you
       description: >
         The collections a jumble entry may be converted into by the caller: neither trashed nor
@@ -624,6 +630,8 @@ paths:
     get:
       tags: [jumble]
       operationId: getJumbleEntry
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: jumbleEntryResponse
       summary: One jumble entry
       description: >
         One entry, whatever its state: what arrived and what became of it. The raw content is
@@ -648,6 +656,8 @@ paths:
     post:
       tags: [jumble]
       operationId: convertJumbleEntry
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: jumbleEntryResponse
       summary: Turn an entry into work
       description: >
         Creates a work item at the named destination - through the same use case a plain create
@@ -685,6 +695,8 @@ paths:
     post:
       tags: [jumble]
       operationId: suggestFromJumbleEntry
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: acceptedAsk
       summary: Ask AI what this entry should become
       description: >
         Asks the workspace's AI provider to propose a title, notes, a due date, the steps the
@@ -722,6 +734,8 @@ paths:
     post:
       tags: [jumble]
       operationId: dismissJumbleEntry
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: jumbleEntryResponse
       summary: Decide against an entry
       description: >
         A state, not a deletion: the entry stays readable, and the retention engine ages it out
@@ -748,6 +762,8 @@ paths:
     post:
       tags: [jumble]
       operationId: commentJumbleEntry
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: jumbleEntryResponse
       summary: Settle an entry as a comment on an entry
       description: >
         What a mail meant for an entry becomes once somebody sorts it in: a comment on that entry
@@ -775,6 +791,7 @@ paths:
     get:
       tags: [jumble]
       operationId: showMailSettings
+      x-hubtask-rest: generated
       summary: The workspace's mail intake
       description: >
         Whether the workspace takes mail, its name on the operator's receiving domain and the
@@ -792,6 +809,7 @@ paths:
     put:
       tags: [jumble]
       operationId: saveMailSettings
+      x-hubtask-rest: generated
       summary: Replace the workspace's mail intake settings
       description: >
         Whoever saves is the account a sender who is not a member writes through, under
@@ -819,6 +837,7 @@ paths:
     get:
       tags: [jumble]
       operationId: listMailboxes
+      x-hubtask-rest: generated
       summary: The workspace's connected mailboxes
       description: >
         Each mailbox the intake reads, how its last read went, and the provider presets a new one
@@ -835,6 +854,7 @@ paths:
     post:
       tags: [jumble]
       operationId: connectMailbox
+      x-hubtask-rest: generated
       summary: Connect a mailbox to the mail intake
       description: >
         Signs in once with the given secret - a password, an app password, or a JMAP token - and
@@ -864,6 +884,7 @@ paths:
     post:
       tags: [jumble]
       operationId: authorizeMailbox
+      x-hubtask-rest: generated
       summary: Start connecting a mailbox through its provider's sign-in
       description: >
         OAuth 2.0 authorization code flow with PKCE (S256) for any provider: Google and Microsoft
@@ -895,6 +916,7 @@ paths:
     post:
       tags: [jumble]
       operationId: completeMailboxAuthorization
+      x-hubtask-rest: generated
       summary: Finish connecting a mailbox with the provider's answer
       description: >
         Trades the code at the provider's token endpoint, signs in to the mailbox once with the
@@ -924,6 +946,7 @@ paths:
     delete:
       tags: [jumble]
       operationId: removeMailbox
+      x-hubtask-rest: generated
       summary: Disconnect a mailbox
       description: The secret is forgotten and the mailbox is read no more; the mail in it stays.
       parameters:
@@ -941,6 +964,7 @@ paths:
     post:
       tags: [jumble]
       operationId: checkMailbox
+      x-hubtask-rest: generated
       summary: Sign in to a connected mailbox again and read it now
       parameters:
         - name: mailbox_id
@@ -962,6 +986,7 @@ paths:
     get:
       tags: [jumble]
       operationId: listMailReceipts
+      x-hubtask-rest: generated
       summary: What the mail intake received
       description: >
         The newest hundred messages of the last 30 days: when, from whom, what each became and,
@@ -980,6 +1005,7 @@ paths:
     put:
       tags: [containers]
       operationId: setCollectionHandle
+      x-hubtask-rest: generated
       summary: Give a collection another handle
       description: >
         The short name a mail subject (`#einkauf`), an address and the collection's ticket keys
@@ -1535,6 +1561,8 @@ paths:
     post:
       tags: [jumble]
       operationId: rotateJumbleIntake
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: jumbleIntakeTokenResponse
       summary: Mint the address the jumble accepts webhooks on
       description: >
         The tenant's one intake credential, the inbound trigger's discipline applied to

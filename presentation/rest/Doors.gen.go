@@ -13,187 +13,206 @@ import (
 
 // restDoors is every operation answered by the generated mapping, by operationId.
 var restDoors = map[string]restDoor{
-	"addComment":                {UseCase: "AddComment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"addLabel":                  {UseCase: "AddLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"addMember":                 {UseCase: "AddMember", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"aggregateView":             {UseCase: "AggregateView", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"applyConfig":               {UseCase: "ApplyConfig", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "base_hash", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
-	"archiveContainer":          {UseCase: "ArchiveContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"archiveWorkItem":           {UseCase: "ArchiveWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"assignWorkItem":            {UseCase: "AssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"attachMedia":               {UseCase: "AttachMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"autoAssignWorkItem":        {UseCase: "AutoAssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"cancelJob":                 {UseCase: "CancelJob", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"cancelTenantDeletion":      {UseCase: "CancelTenantDeletion", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"changeEntryType":           {UseCase: "ChangeEntryType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
-	"changeLinkType":            {UseCase: "ChangeLinkType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
-	"changeRole":                {UseCase: "ChangeRole", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"checkRules":                {UseCase: "CheckRules", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"clearCover":                {UseCase: "ClearCover", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"clearDueDate":              {UseCase: "ClearDueDate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"completeWorkItem":          {UseCase: "CompleteWorkItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"createBucket":              {UseCase: "CreateBucket", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/containers/{collection_id}/buckets/{id}", NullClears: false, Integers: []string{"wip_limit"}},
-	"createEntryType":           {UseCase: "CreateEntryType", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
-	"createLabel":               {UseCase: "CreateLabel", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/containers/{collection_id}/labels/{id}", NullClears: false, Integers: []string(nil)},
-	"createLinkType":            {UseCase: "CreateLinkType", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
-	"createReminder":            {UseCase: "CreateReminder", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"createRole":                {UseCase: "CreateRole", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"createRule":                {UseCase: "CreateRule", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"createSavedView":           {UseCase: "CreateSavedView", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/views/{id}", NullClears: false, Integers: []string(nil)},
-	"createTemplate":            {UseCase: "CreateTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"createWebhookSubscription": {UseCase: "CreateWebhookSubscription", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "/integrations/webhooks/{id}", NullClears: false, Integers: []string(nil)},
-	"createWorkflow":            {UseCase: "CreateWorkflow", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"decideConfigProposal":      {UseCase: "DecideConfigProposal", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"defineCustomField":         {UseCase: "DefineCustomField", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/custom-fields/{id}", NullClears: false, Integers: []string(nil)},
-	"deleteBucket":              {UseCase: "DeleteBucket", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"deleteComment":             {UseCase: "DeleteComment", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"deleteCustomField":         {UseCase: "DeleteCustomField", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"deleteEntryType":           {UseCase: "DeleteEntryType", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"deleteLabel":               {UseCase: "DeleteLabel", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"deleteLinkType":            {UseCase: "DeleteLinkType", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"deleteReminder":            {UseCase: "DeleteReminder", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"deleteRole":                {UseCase: "DeleteRole", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"deleteRule":                {UseCase: "DeleteRule", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"deleteSavedView":           {UseCase: "DeleteSavedView", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"deleteTemplate":            {UseCase: "DeleteTemplate", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"deleteWebhookSubscription": {UseCase: "DeleteWebhookSubscription", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"deleteWorkflow":            {UseCase: "DeleteWorkflow", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"detachMedia":               {UseCase: "DetachMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"disableRule":               {UseCase: "DisableRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"editComment":               {UseCase: "EditComment", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"emptyTrash":                {UseCase: "EmptyTrash", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"enableRule":                {UseCase: "EnableRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"evaluateEntryForm":         {UseCase: "EvaluateEntryForm", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"explainAccess":             {UseCase: "ExplainAccess", Status: 200, Query: []string{"account_id", "permission", "scope_id", "scope_type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"explainConfig":             {UseCase: "ExplainConfig", Status: 200, Query: []string{"hub_id", "key"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"exportConfig":              {UseCase: "ExportConfig", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "hash", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"getBackupRun":              {UseCase: "GetBackupRun", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"getContainer":              {UseCase: "GetContainer", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"getImport":                 {UseCase: "GetImport", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"getJob":                    {UseCase: "GetJob", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"getRecurrence":             {UseCase: "GetRecurrence", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"getRestoreRun":             {UseCase: "GetRestoreRun", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"getRule":                   {UseCase: "GetRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"getRuleRun":                {UseCase: "GetRuleRun", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"getSavedView":              {UseCase: "GetSavedView", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"getTemplate":               {UseCase: "GetTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"getWebhookSubscription":    {UseCase: "GetWebhookSubscription", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"giveKudos":                 {UseCase: "GiveKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"grantRole":                 {UseCase: "GrantRole", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"instantiateTemplate":       {UseCase: "InstantiateTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"linkEntries":               {UseCase: "LinkEntries", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listActivity":              {UseCase: "ListActivity", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
-	"listAttachments":           {UseCase: "ListAttachments", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
-	"listBuckets":               {UseCase: "ListBuckets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listCalendarFeeds":         {UseCase: "ListCalendarFeeds", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listComments":              {UseCase: "ListComments", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
-	"listConfigProposals":       {UseCase: "ListConfigProposals", Status: 200, Query: []string{"state"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listConfigTemplates":       {UseCase: "ListConfigTemplates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listConfigVersions":        {UseCase: "ListConfigVersions", Status: 200, Query: []string{"before", "hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"before"}},
-	"listContainers":            {UseCase: "ListContainers", Status: 200, Query: []string{"cursor", "include_archived", "parent_id", "size", "type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
-	"listCustomFields":          {UseCase: "ListCustomFields", Status: 200, Query: []string{"collection_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listEmergencyNotices":      {UseCase: "ListEmergencyNotices", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listEntryLinks":            {UseCase: "ListEntryLinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listEntrySteps":            {UseCase: "ListEntrySteps", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listEntryTypes":            {UseCase: "ListEntryTypes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listLabels":                {UseCase: "ListLabels", Status: 200, Query: []string{"include_deleted"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listLinkTypes":             {UseCase: "ListLinkTypes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listLinksAmong":            {UseCase: "ListLinksAmong", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listModules":               {UseCase: "ListModules", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listPrivateHubAccesses":    {UseCase: "ListPrivateHubAccesses", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listPrivateHubs":           {UseCase: "ListPrivateHubs", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listReminders":             {UseCase: "ListReminders", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listRetentionPolicies":     {UseCase: "ListRetentionPolicies", Status: 200, Query: []string{"container_id", "effective"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listRoles":                 {UseCase: "ListRoles", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listRuleRuns":              {UseCase: "ListRuleRuns", Status: 200, Query: []string{"cursor", "from", "rule_id", "size", "status", "to", "trigger"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
-	"listRules":                 {UseCase: "ListRules", Status: 200, Query: []string{"cursor", "enabled", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
-	"listSavedViews":            {UseCase: "ListSavedViews", Status: 200, Query: []string{"container_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listTemplates":             {UseCase: "ListTemplates", Status: 200, Query: []string{"container_id", "cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
-	"listTrash":                 {UseCase: "ListTrash", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
-	"listWebhookDeliveries":     {UseCase: "ListWebhookDeliveries", Status: 200, Query: []string{"cursor", "size", "status"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
-	"listWebhookSubscriptions":  {UseCase: "ListWebhookSubscriptions", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listWorkflows":             {UseCase: "ListWorkflows", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"openPrivateHub":            {UseCase: "OpenPrivateHub", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"planConfig":                {UseCase: "PlanConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
-	"planConfigTemplate":        {UseCase: "PlanConfigTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"version"}},
-	"previewCustomFieldReach":   {UseCase: "PreviewCustomFieldReach", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"previewModuleReach":        {UseCase: "PreviewModuleReach", Status: 200, Query: []string{"hub_id", "switch"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"previewRetentionPolicy":    {UseCase: "PreviewRetentionPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"previewWorkflowPublish":    {UseCase: "PreviewWorkflowPublish", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"previewWorkflowScheme":     {UseCase: "PreviewWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"previewWorkspaceStructure": {UseCase: "PreviewWorkspaceStructure", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"proposeConfig":             {UseCase: "ProposeConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
-	"publishConfigTemplate":     {UseCase: "PublishConfigTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"publishWorkflow":           {UseCase: "PublishWorkflow", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"purgeWorkItem":             {UseCase: "PurgeWorkItem", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"readAiBudgetState":         {UseCase: "ReadAiBudgetState", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"readAiProvider":            {UseCase: "ReadAiProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"readAiSource":              {UseCase: "ReadAiSource", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"readConfigSandbox":         {UseCase: "ReadConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"readConfigSchema":          {UseCase: "ReadConfigSchema", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"readConfigVersion":         {UseCase: "ReadConfigVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"readIdentityProvider":      {UseCase: "ReadIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"readInstanceSettings":      {UseCase: "ReadInstanceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"readKudos":                 {UseCase: "ReadKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"readOauthClient":           {UseCase: "ReadOauthClient", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"readOwnAiPosition":         {UseCase: "ReadOwnAiPosition", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"readQuotas":                {UseCase: "ReadQuotas", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"readSettingsCatalogue":     {UseCase: "ReadSettingsCatalogue", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"readTenant":                {UseCase: "ReadTenant", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"readWorkspace":             {UseCase: "ReadWorkspace", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"removeLabel":               {UseCase: "RemoveLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"removeMember":              {UseCase: "RemoveMember", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"removeRecurrence":          {UseCase: "RemoveRecurrence", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"renameContainer":           {UseCase: "RenameContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
-	"reopenWorkItem":            {UseCase: "ReopenWorkItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"reorderBucket":             {UseCase: "ReorderBucket", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"reorderWorkItem":           {UseCase: "ReorderWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"replayRuleRun":             {UseCase: "ReplayRuleRun", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"replayWebhookDelivery":     {UseCase: "ReplayWebhookDelivery", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"resolveReferences":         {UseCase: "ResolveReferences", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"restoreContainer":          {UseCase: "RestoreContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"restoreLabel":              {UseCase: "RestoreLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"restoreWorkItem":           {UseCase: "RestoreWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"resumeTenant":              {UseCase: "ResumeTenant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"revokeCalendarFeed":        {UseCase: "RevokeCalendarFeed", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"revokeRoleGrant":           {UseCase: "RevokeRoleGrant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"rotateInboundTrigger":      {UseCase: "RotateInboundTrigger", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"rotateWebhookSecret":       {UseCase: "RotateWebhookSecret", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"grace_seconds"}},
-	"saveWorkflowDraft":         {UseCase: "SaveWorkflowDraft", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"sendWebhook":               {UseCase: "SendWebhook", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"setConfigPolicy":           {UseCase: "SetConfigPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"setCover":                  {UseCase: "SetCover", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"setCustomField":            {UseCase: "SetCustomField", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"setDueDate":                {UseCase: "SetDueDate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"setEntryTypeForm":          {UseCase: "SetEntryTypeForm", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "form", Location: "", NullClears: false, Integers: []string(nil)},
-	"setHubPrivacy":             {UseCase: "SetHubPrivacy", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"setItemEntryType":          {UseCase: "SetItemEntryType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"setModule":                 {UseCase: "SetModule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"setRecurrence":             {UseCase: "SetRecurrence", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"horizon_days", "max_count"}},
-	"setWorkflowScheme":         {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"shareSavedView":            {UseCase: "ShareSavedView", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"skipOccurrence":            {UseCase: "SkipOccurrence", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"suspendTenant":             {UseCase: "SuspendTenant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"takeBackKudos":             {UseCase: "TakeBackKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"takeStep":                  {UseCase: "TakeStep", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"trashContainer":            {UseCase: "TrashContainer", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"trashWorkItem":             {UseCase: "TrashWorkItem", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"triggerRuleManually":       {UseCase: "TriggerRuleManually", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"tryWorkflowStep":           {UseCase: "TryWorkflowStep", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"unarchiveContainer":        {UseCase: "UnarchiveContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"unarchiveWorkItem":         {UseCase: "UnarchiveWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"unassignWorkItem":          {UseCase: "UnassignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"unlinkEntries":             {UseCase: "UnlinkEntries", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"updateCustomField":         {UseCase: "UpdateCustomField", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"updateLabel":               {UseCase: "UpdateLabel", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
-	"updateReminder":            {UseCase: "UpdateReminder", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"updateRule":                {UseCase: "UpdateRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version"}},
-	"updateSavedView":           {UseCase: "UpdateSavedView", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"updateTemplate":            {UseCase: "UpdateTemplate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"updateWebhookSubscription": {UseCase: "UpdateWebhookSubscription", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"validateConfig":            {UseCase: "ValidateConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"verifyBackup":              {UseCase: "VerifyBackup", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"writeConfigSandbox":        {UseCase: "WriteConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addComment":                   {UseCase: "AddComment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addLabel":                     {UseCase: "AddLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addMember":                    {UseCase: "AddMember", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"aggregateView":                {UseCase: "AggregateView", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"applyConfig":                  {UseCase: "ApplyConfig", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "base_hash", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
+	"archiveContainer":             {UseCase: "ArchiveContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"archiveWorkItem":              {UseCase: "ArchiveWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"assignWorkItem":               {UseCase: "AssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"attachMedia":                  {UseCase: "AttachMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"authorizeMailbox":             {UseCase: "AuthorizeMailbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"port"}},
+	"autoAssignWorkItem":           {UseCase: "AutoAssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"cancelJob":                    {UseCase: "CancelJob", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"cancelTenantDeletion":         {UseCase: "CancelTenantDeletion", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"changeEntryType":              {UseCase: "ChangeEntryType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
+	"changeLinkType":               {UseCase: "ChangeLinkType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
+	"changeRole":                   {UseCase: "ChangeRole", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"checkMailbox":                 {UseCase: "CheckMailbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"checkRules":                   {UseCase: "CheckRules", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"clearCover":                   {UseCase: "ClearCover", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"clearDueDate":                 {UseCase: "ClearDueDate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"commentJumbleEntry":           {UseCase: "CommentJumbleEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"completeMailboxAuthorization": {UseCase: "CompleteMailboxAuthorization", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"completeWorkItem":             {UseCase: "CompleteWorkItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"connectMailbox":               {UseCase: "ConnectMailbox", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"port"}},
+	"convertJumbleEntry":           {UseCase: "ConvertJumbleEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"createBucket":                 {UseCase: "CreateBucket", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/containers/{collection_id}/buckets/{id}", NullClears: false, Integers: []string{"wip_limit"}},
+	"createEntryType":              {UseCase: "CreateEntryType", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
+	"createLabel":                  {UseCase: "CreateLabel", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/containers/{collection_id}/labels/{id}", NullClears: false, Integers: []string(nil)},
+	"createLinkType":               {UseCase: "CreateLinkType", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
+	"createReminder":               {UseCase: "CreateReminder", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"createRole":                   {UseCase: "CreateRole", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"createRule":                   {UseCase: "CreateRule", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"createSavedView":              {UseCase: "CreateSavedView", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/views/{id}", NullClears: false, Integers: []string(nil)},
+	"createTemplate":               {UseCase: "CreateTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"createWebhookSubscription":    {UseCase: "CreateWebhookSubscription", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "/integrations/webhooks/{id}", NullClears: false, Integers: []string(nil)},
+	"createWorkflow":               {UseCase: "CreateWorkflow", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"decideConfigProposal":         {UseCase: "DecideConfigProposal", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"defineCustomField":            {UseCase: "DefineCustomField", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/custom-fields/{id}", NullClears: false, Integers: []string(nil)},
+	"deleteBucket":                 {UseCase: "DeleteBucket", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteComment":                {UseCase: "DeleteComment", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteCustomField":            {UseCase: "DeleteCustomField", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteEntryType":              {UseCase: "DeleteEntryType", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteLabel":                  {UseCase: "DeleteLabel", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteLinkType":               {UseCase: "DeleteLinkType", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteReminder":               {UseCase: "DeleteReminder", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteRole":                   {UseCase: "DeleteRole", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteRule":                   {UseCase: "DeleteRule", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteSavedView":              {UseCase: "DeleteSavedView", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteTemplate":               {UseCase: "DeleteTemplate", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteWebhookSubscription":    {UseCase: "DeleteWebhookSubscription", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteWorkflow":               {UseCase: "DeleteWorkflow", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"detachMedia":                  {UseCase: "DetachMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"disableRule":                  {UseCase: "DisableRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"dismissJumbleEntry":           {UseCase: "DismissJumbleEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"editComment":                  {UseCase: "EditComment", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"emptyTrash":                   {UseCase: "EmptyTrash", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"enableRule":                   {UseCase: "EnableRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"evaluateEntryForm":            {UseCase: "EvaluateEntryForm", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"explainAccess":                {UseCase: "ExplainAccess", Status: 200, Query: []string{"account_id", "permission", "scope_id", "scope_type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"explainConfig":                {UseCase: "ExplainConfig", Status: 200, Query: []string{"hub_id", "key"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"exportConfig":                 {UseCase: "ExportConfig", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "hash", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getBackupRun":                 {UseCase: "GetBackupRun", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getContainer":                 {UseCase: "GetContainer", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getImport":                    {UseCase: "GetImport", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getJob":                       {UseCase: "GetJob", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getJumbleEntry":               {UseCase: "GetJumbleEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getRecurrence":                {UseCase: "GetRecurrence", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getRestoreRun":                {UseCase: "GetRestoreRun", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getRule":                      {UseCase: "GetRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getRuleRun":                   {UseCase: "GetRuleRun", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getSavedView":                 {UseCase: "GetSavedView", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getTemplate":                  {UseCase: "GetTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getWebhookSubscription":       {UseCase: "GetWebhookSubscription", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"giveKudos":                    {UseCase: "GiveKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"grantRole":                    {UseCase: "GrantRole", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"instantiateTemplate":          {UseCase: "InstantiateTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"linkEntries":                  {UseCase: "LinkEntries", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listActivity":                 {UseCase: "ListActivity", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
+	"listAttachments":              {UseCase: "ListAttachments", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
+	"listBuckets":                  {UseCase: "ListBuckets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listCalendarFeeds":            {UseCase: "ListCalendarFeeds", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listComments":                 {UseCase: "ListComments", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
+	"listConfigProposals":          {UseCase: "ListConfigProposals", Status: 200, Query: []string{"state"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listConfigTemplates":          {UseCase: "ListConfigTemplates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listConfigVersions":           {UseCase: "ListConfigVersions", Status: 200, Query: []string{"before", "hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"before"}},
+	"listContainers":               {UseCase: "ListContainers", Status: 200, Query: []string{"cursor", "include_archived", "parent_id", "size", "type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
+	"listCustomFields":             {UseCase: "ListCustomFields", Status: 200, Query: []string{"collection_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listEmergencyNotices":         {UseCase: "ListEmergencyNotices", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listEntryLinks":               {UseCase: "ListEntryLinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listEntrySteps":               {UseCase: "ListEntrySteps", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listEntryTypes":               {UseCase: "ListEntryTypes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listJumbleDestinations":       {UseCase: "ListJumbleDestinations", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
+	"listJumbleEntries":            {UseCase: "ListJumbleEntries", Status: 200, Query: []string{"channel", "cursor", "size", "status"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
+	"listLabels":                   {UseCase: "ListLabels", Status: 200, Query: []string{"include_deleted"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listLinkTypes":                {UseCase: "ListLinkTypes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listLinksAmong":               {UseCase: "ListLinksAmong", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listMailReceipts":             {UseCase: "ListMailReceipts", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listMailboxes":                {UseCase: "ListMailboxes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listModules":                  {UseCase: "ListModules", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listPrivateHubAccesses":       {UseCase: "ListPrivateHubAccesses", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listPrivateHubs":              {UseCase: "ListPrivateHubs", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listReminders":                {UseCase: "ListReminders", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listRetentionPolicies":        {UseCase: "ListRetentionPolicies", Status: 200, Query: []string{"container_id", "effective"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listRoles":                    {UseCase: "ListRoles", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listRuleRuns":                 {UseCase: "ListRuleRuns", Status: 200, Query: []string{"cursor", "from", "rule_id", "size", "status", "to", "trigger"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
+	"listRules":                    {UseCase: "ListRules", Status: 200, Query: []string{"cursor", "enabled", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
+	"listSavedViews":               {UseCase: "ListSavedViews", Status: 200, Query: []string{"container_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listTemplates":                {UseCase: "ListTemplates", Status: 200, Query: []string{"container_id", "cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
+	"listTrash":                    {UseCase: "ListTrash", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
+	"listWebhookDeliveries":        {UseCase: "ListWebhookDeliveries", Status: 200, Query: []string{"cursor", "size", "status"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
+	"listWebhookSubscriptions":     {UseCase: "ListWebhookSubscriptions", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listWorkflows":                {UseCase: "ListWorkflows", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"openPrivateHub":               {UseCase: "OpenPrivateHub", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"planConfig":                   {UseCase: "PlanConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
+	"planConfigTemplate":           {UseCase: "PlanConfigTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"version"}},
+	"previewCustomFieldReach":      {UseCase: "PreviewCustomFieldReach", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"previewModuleReach":           {UseCase: "PreviewModuleReach", Status: 200, Query: []string{"hub_id", "switch"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"previewRetentionPolicy":       {UseCase: "PreviewRetentionPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"previewWorkflowPublish":       {UseCase: "PreviewWorkflowPublish", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"previewWorkflowScheme":        {UseCase: "PreviewWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"previewWorkspaceStructure":    {UseCase: "PreviewWorkspaceStructure", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"proposeConfig":                {UseCase: "ProposeConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
+	"publishConfigTemplate":        {UseCase: "PublishConfigTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"publishWorkflow":              {UseCase: "PublishWorkflow", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"purgeWorkItem":                {UseCase: "PurgeWorkItem", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readAiBudgetState":            {UseCase: "ReadAiBudgetState", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readAiProvider":               {UseCase: "ReadAiProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readAiSource":                 {UseCase: "ReadAiSource", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readConfigSandbox":            {UseCase: "ReadConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readConfigSchema":             {UseCase: "ReadConfigSchema", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readConfigVersion":            {UseCase: "ReadConfigVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readIdentityProvider":         {UseCase: "ReadIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readInstanceSettings":         {UseCase: "ReadInstanceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readKudos":                    {UseCase: "ReadKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readOauthClient":              {UseCase: "ReadOauthClient", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readOwnAiPosition":            {UseCase: "ReadOwnAiPosition", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readQuotas":                   {UseCase: "ReadQuotas", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readSettingsCatalogue":        {UseCase: "ReadSettingsCatalogue", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readTenant":                   {UseCase: "ReadTenant", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readWorkspace":                {UseCase: "ReadWorkspace", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"removeLabel":                  {UseCase: "RemoveLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"removeMailbox":                {UseCase: "RemoveMailbox", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"removeMember":                 {UseCase: "RemoveMember", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"removeRecurrence":             {UseCase: "RemoveRecurrence", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"renameContainer":              {UseCase: "RenameContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
+	"reopenWorkItem":               {UseCase: "ReopenWorkItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"reorderBucket":                {UseCase: "ReorderBucket", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"reorderWorkItem":              {UseCase: "ReorderWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"replayRuleRun":                {UseCase: "ReplayRuleRun", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"replayWebhookDelivery":        {UseCase: "ReplayWebhookDelivery", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"resolveReferences":            {UseCase: "ResolveReferences", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"restoreContainer":             {UseCase: "RestoreContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"restoreLabel":                 {UseCase: "RestoreLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"restoreWorkItem":              {UseCase: "RestoreWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"resumeTenant":                 {UseCase: "ResumeTenant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"revokeCalendarFeed":           {UseCase: "RevokeCalendarFeed", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"revokeRoleGrant":              {UseCase: "RevokeRoleGrant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"rotateInboundTrigger":         {UseCase: "RotateInboundTrigger", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"rotateJumbleIntake":           {UseCase: "RotateJumbleIntake", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"rotateWebhookSecret":          {UseCase: "RotateWebhookSecret", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"grace_seconds"}},
+	"saveMailSettings":             {UseCase: "SaveMailSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"saveWorkflowDraft":            {UseCase: "SaveWorkflowDraft", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"sendWebhook":                  {UseCase: "SendWebhook", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setCollectionHandle":          {UseCase: "SetCollectionHandle", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setConfigPolicy":              {UseCase: "SetConfigPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setCover":                     {UseCase: "SetCover", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setCustomField":               {UseCase: "SetCustomField", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setDueDate":                   {UseCase: "SetDueDate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setEntryTypeForm":             {UseCase: "SetEntryTypeForm", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "form", Location: "", NullClears: false, Integers: []string(nil)},
+	"setHubPrivacy":                {UseCase: "SetHubPrivacy", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setItemEntryType":             {UseCase: "SetItemEntryType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setModule":                    {UseCase: "SetModule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setRecurrence":                {UseCase: "SetRecurrence", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"horizon_days", "max_count"}},
+	"setWorkflowScheme":            {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"shareSavedView":               {UseCase: "ShareSavedView", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"showMailSettings":             {UseCase: "ShowMailSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"skipOccurrence":               {UseCase: "SkipOccurrence", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"submitJumbleEntry":            {UseCase: "SubmitJumbleEntry", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"suggestFromJumbleEntry":       {UseCase: "SuggestFromJumbleEntry", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"suspendTenant":                {UseCase: "SuspendTenant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"takeBackKudos":                {UseCase: "TakeBackKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"takeStep":                     {UseCase: "TakeStep", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"trashContainer":               {UseCase: "TrashContainer", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"trashWorkItem":                {UseCase: "TrashWorkItem", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"triggerRuleManually":          {UseCase: "TriggerRuleManually", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"tryWorkflowStep":              {UseCase: "TryWorkflowStep", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"unarchiveContainer":           {UseCase: "UnarchiveContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"unarchiveWorkItem":            {UseCase: "UnarchiveWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"unassignWorkItem":             {UseCase: "UnassignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"unlinkEntries":                {UseCase: "UnlinkEntries", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"updateCustomField":            {UseCase: "UpdateCustomField", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"updateLabel":                  {UseCase: "UpdateLabel", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
+	"updateReminder":               {UseCase: "UpdateReminder", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"updateRule":                   {UseCase: "UpdateRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version"}},
+	"updateSavedView":              {UseCase: "UpdateSavedView", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"updateTemplate":               {UseCase: "UpdateTemplate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"updateWebhookSubscription":    {UseCase: "UpdateWebhookSubscription", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"validateConfig":               {UseCase: "ValidateConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"verifyBackup":                 {UseCase: "VerifyBackup", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"writeConfigSandbox":           {UseCase: "WriteConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 }
 
 // AddComment answers POST /items/{itemId}/comments by the generated mapping.
@@ -246,6 +265,13 @@ func (c *RestController) AttachMedia(w http.ResponseWriter, r *http.Request, ite
 	c.door(w, r, restDoors["attachMedia"], usecase.Input{"item_id": itemId.String(), "media_id": mediaId.String()}, nil, nil, answerBy(attachmentsResponse))
 }
 
+// AuthorizeMailbox answers POST /mail/mailboxes:authorize by the generated mapping.
+func (c *RestController) AuthorizeMailbox(w http.ResponseWriter, r *http.Request, params openapi.AuthorizeMailboxParams) {
+	var body openapi.AuthorizeMailboxJSONRequestBody
+	var answer openapi.MailboxAuthorization
+	c.door(w, r, restDoors["authorizeMailbox"], usecase.Input{}, params, &body, &answer)
+}
+
 // AutoAssignWorkItem answers POST /items/{itemId}:auto-assign by the generated mapping.
 func (c *RestController) AutoAssignWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.AutoAssignWorkItemParams) {
 	c.door(w, r, restDoors["autoAssignWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
@@ -282,6 +308,12 @@ func (c *RestController) ChangeRole(w http.ResponseWriter, r *http.Request, key 
 	c.door(w, r, restDoors["changeRole"], usecase.Input{"key": key}, params, &body, &answer)
 }
 
+// CheckMailbox answers POST /mail/mailboxes/{mailbox_id}:check by the generated mapping.
+func (c *RestController) CheckMailbox(w http.ResponseWriter, r *http.Request, mailboxId openapi_types.UUID, params openapi.CheckMailboxParams) {
+	var answer openapi.Mailbox
+	c.door(w, r, restDoors["checkMailbox"], usecase.Input{"mailbox_id": mailboxId.String()}, params, nil, &answer)
+}
+
 // CheckRules answers POST /automation/rules:check by the generated mapping.
 func (c *RestController) CheckRules(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["checkRules"], usecase.Input{}, nil, nil, answerBy(checkedRulesResponse))
@@ -297,10 +329,36 @@ func (c *RestController) ClearDueDate(w http.ResponseWriter, r *http.Request, it
 	c.door(w, r, restDoors["clearDueDate"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
 }
 
+// CommentJumbleEntry answers POST /jumble/entries/{entryId}:comment by the generated mapping.
+func (c *RestController) CommentJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params openapi.CommentJumbleEntryParams) {
+	var body openapi.CommentJumbleEntryJSONRequestBody
+	c.door(w, r, restDoors["commentJumbleEntry"], usecase.Input{"entry_id": entryId.String()}, params, &body, answerBy(jumbleEntryResponse))
+}
+
+// CompleteMailboxAuthorization answers POST /mail/mailboxes:complete by the generated mapping.
+func (c *RestController) CompleteMailboxAuthorization(w http.ResponseWriter, r *http.Request, params openapi.CompleteMailboxAuthorizationParams) {
+	var body openapi.CompleteMailboxAuthorizationJSONRequestBody
+	var answer openapi.Mailbox
+	c.door(w, r, restDoors["completeMailboxAuthorization"], usecase.Input{}, params, &body, &answer)
+}
+
 // CompleteWorkItem answers POST /items/{itemId}:complete by the generated mapping.
 func (c *RestController) CompleteWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.CompleteWorkItemParams) {
 	var body openapi.CompleteWorkItemJSONRequestBody
 	c.door(w, r, restDoors["completeWorkItem"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(workItemResponse))
+}
+
+// ConnectMailbox answers POST /mail/mailboxes by the generated mapping.
+func (c *RestController) ConnectMailbox(w http.ResponseWriter, r *http.Request, params openapi.ConnectMailboxParams) {
+	var body openapi.ConnectMailboxJSONRequestBody
+	var answer openapi.Mailbox
+	c.door(w, r, restDoors["connectMailbox"], usecase.Input{}, params, &body, &answer)
+}
+
+// ConvertJumbleEntry answers POST /jumble/entries/{entryId}:convert by the generated mapping.
+func (c *RestController) ConvertJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params openapi.ConvertJumbleEntryParams) {
+	var body openapi.ConvertJumbleEntryJSONRequestBody
+	c.door(w, r, restDoors["convertJumbleEntry"], usecase.Input{"entry_id": entryId.String()}, params, &body, answerBy(jumbleEntryResponse))
 }
 
 // CreateBucket answers POST /containers/{containerId}/buckets by the generated mapping.
@@ -462,6 +520,11 @@ func (c *RestController) DisableRule(w http.ResponseWriter, r *http.Request, rul
 	c.door(w, r, restDoors["disableRule"], usecase.Input{"rule_id": ruleId.String()}, params, nil, answerBy(ruleResponse))
 }
 
+// DismissJumbleEntry answers POST /jumble/entries/{entryId}:dismiss by the generated mapping.
+func (c *RestController) DismissJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params openapi.DismissJumbleEntryParams) {
+	c.door(w, r, restDoors["dismissJumbleEntry"], usecase.Input{"entry_id": entryId.String()}, params, nil, answerBy(jumbleEntryResponse))
+}
+
 // EditComment answers PATCH /items/{itemId}/comments/{commentId} by the generated mapping.
 func (c *RestController) EditComment(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, commentId openapi.CommentId, params openapi.EditCommentParams) {
 	var body openapi.EditCommentApplicationMergePatchPlusJSONRequestBody
@@ -521,6 +584,11 @@ func (c *RestController) GetImport(w http.ResponseWriter, r *http.Request, impor
 // GetJob answers GET /jobs/{jobId} by the generated mapping.
 func (c *RestController) GetJob(w http.ResponseWriter, r *http.Request, jobId openapi.JobId) {
 	c.door(w, r, restDoors["getJob"], usecase.Input{"job_id": jobId.String()}, nil, nil, answerBy(jobResponse))
+}
+
+// GetJumbleEntry answers GET /jumble/entries/{entryId} by the generated mapping.
+func (c *RestController) GetJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID) {
+	c.door(w, r, restDoors["getJumbleEntry"], usecase.Input{"entry_id": entryId.String()}, nil, nil, answerBy(jumbleEntryResponse))
 }
 
 // GetRecurrence answers GET /items/{itemId}/recurrence by the generated mapping.
@@ -659,6 +727,16 @@ func (c *RestController) ListEntryTypes(w http.ResponseWriter, r *http.Request) 
 	c.door(w, r, restDoors["listEntryTypes"], usecase.Input{}, nil, nil, &answer)
 }
 
+// ListJumbleDestinations answers GET /jumble/destinations by the generated mapping.
+func (c *RestController) ListJumbleDestinations(w http.ResponseWriter, r *http.Request, params openapi.ListJumbleDestinationsParams) {
+	c.door(w, r, restDoors["listJumbleDestinations"], usecase.Input{}, params, nil, answerPage(jumbleDestinationResponse))
+}
+
+// ListJumbleEntries answers GET /jumble/entries by the generated mapping.
+func (c *RestController) ListJumbleEntries(w http.ResponseWriter, r *http.Request, params openapi.ListJumbleEntriesParams) {
+	c.door(w, r, restDoors["listJumbleEntries"], usecase.Input{}, params, nil, answerPage(jumbleEntryResponse))
+}
+
 // ListLabels answers GET /containers/{containerId}/labels by the generated mapping.
 func (c *RestController) ListLabels(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId, params openapi.ListLabelsParams) {
 	c.door(w, r, restDoors["listLabels"], usecase.Input{"collection_id": containerId.String()}, params, nil, answerRows(labelResponse))
@@ -675,6 +753,18 @@ func (c *RestController) ListLinksAmong(w http.ResponseWriter, r *http.Request) 
 	var body openapi.ListLinksAmongJSONRequestBody
 	var answer openapi.EntryLinkList
 	c.door(w, r, restDoors["listLinksAmong"], usecase.Input{}, nil, &body, &answer)
+}
+
+// ListMailReceipts answers GET /mail/receipts by the generated mapping.
+func (c *RestController) ListMailReceipts(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.MailReceiptList
+	c.door(w, r, restDoors["listMailReceipts"], usecase.Input{}, nil, nil, &answer)
+}
+
+// ListMailboxes answers GET /mail/mailboxes by the generated mapping.
+func (c *RestController) ListMailboxes(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.MailboxList
+	c.door(w, r, restDoors["listMailboxes"], usecase.Input{}, nil, nil, &answer)
 }
 
 // ListModules answers GET /tenant/modules by the generated mapping.
@@ -918,6 +1008,11 @@ func (c *RestController) RemoveLabel(w http.ResponseWriter, r *http.Request, ite
 	c.door(w, r, restDoors["removeLabel"], usecase.Input{"item_id": itemId.String(), "label_id": labelId.String()}, nil, nil, answerBy(itemLabelsResponse))
 }
 
+// RemoveMailbox answers DELETE /mail/mailboxes/{mailbox_id} by the generated mapping.
+func (c *RestController) RemoveMailbox(w http.ResponseWriter, r *http.Request, mailboxId openapi_types.UUID) {
+	c.door(w, r, restDoors["removeMailbox"], usecase.Input{"mailbox_id": mailboxId.String()}, nil, nil, nil)
+}
+
 // RemoveMember answers DELETE /items/{itemId}/members/{accountId} by the generated mapping.
 func (c *RestController) RemoveMember(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, accountId openapi.AccountId) {
 	c.door(w, r, restDoors["removeMember"], usecase.Input{"item_id": itemId.String(), "account_id": accountId.String()}, nil, nil, answerBy(itemMembersResponse))
@@ -1002,10 +1097,22 @@ func (c *RestController) RotateInboundTrigger(w http.ResponseWriter, r *http.Req
 	c.door(w, r, restDoors["rotateInboundTrigger"], usecase.Input{"rule_id": ruleId.String()}, params, nil, answerBy(inboundTriggerTokenResponse))
 }
 
+// RotateJumbleIntake answers POST /jumble/intake:rotate-token by the generated mapping.
+func (c *RestController) RotateJumbleIntake(w http.ResponseWriter, r *http.Request, params openapi.RotateJumbleIntakeParams) {
+	c.door(w, r, restDoors["rotateJumbleIntake"], usecase.Input{}, params, nil, answerBy(jumbleIntakeTokenResponse))
+}
+
 // RotateWebhookSecret answers POST /integrations/webhooks/{webhookId}:rotate-secret by the generated mapping.
 func (c *RestController) RotateWebhookSecret(w http.ResponseWriter, r *http.Request, webhookId openapi.WebhookId, params openapi.RotateWebhookSecretParams) {
 	var body openapi.RotateWebhookSecretJSONRequestBody
 	c.door(w, r, restDoors["rotateWebhookSecret"], usecase.Input{"webhook_id": webhookId.String()}, params, &body, answerBy(webhookSecretResponse))
+}
+
+// SaveMailSettings answers PUT /mail/settings by the generated mapping.
+func (c *RestController) SaveMailSettings(w http.ResponseWriter, r *http.Request, params openapi.SaveMailSettingsParams) {
+	var body openapi.SaveMailSettingsJSONRequestBody
+	var answer openapi.MailSettings
+	c.door(w, r, restDoors["saveMailSettings"], usecase.Input{}, params, &body, &answer)
 }
 
 // SaveWorkflowDraft answers PATCH /workflows/{key} by the generated mapping.
@@ -1019,6 +1126,13 @@ func (c *RestController) SaveWorkflowDraft(w http.ResponseWriter, r *http.Reques
 func (c *RestController) SendWebhook(w http.ResponseWriter, r *http.Request, webhookId openapi.WebhookId) {
 	var body openapi.SendWebhookJSONRequestBody
 	c.door(w, r, restDoors["sendWebhook"], usecase.Input{"subscription_id": webhookId.String()}, nil, &body, answerBy(deliveryResponse))
+}
+
+// SetCollectionHandle answers PUT /collections/{collection_id}/handle by the generated mapping.
+func (c *RestController) SetCollectionHandle(w http.ResponseWriter, r *http.Request, collectionId openapi_types.UUID, params openapi.SetCollectionHandleParams) {
+	var body openapi.SetCollectionHandleJSONRequestBody
+	var answer openapi.CollectionHandle
+	c.door(w, r, restDoors["setCollectionHandle"], usecase.Input{"collection_id": collectionId.String()}, params, &body, &answer)
 }
 
 // SetConfigPolicy answers PUT /config/policy by the generated mapping.
@@ -1091,9 +1205,26 @@ func (c *RestController) ShareSavedView(w http.ResponseWriter, r *http.Request, 
 	c.door(w, r, restDoors["shareSavedView"], usecase.Input{"view_id": viewId.String()}, params, &body, answerBy(savedViewResponse))
 }
 
+// ShowMailSettings answers GET /mail/settings by the generated mapping.
+func (c *RestController) ShowMailSettings(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.MailSettings
+	c.door(w, r, restDoors["showMailSettings"], usecase.Input{}, nil, nil, &answer)
+}
+
 // SkipOccurrence answers POST /items/{itemId}/recurrence:skip by the generated mapping.
 func (c *RestController) SkipOccurrence(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.SkipOccurrenceParams) {
 	c.door(w, r, restDoors["skipOccurrence"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(recurrenceResponse))
+}
+
+// SubmitJumbleEntry answers POST /jumble/entries by the generated mapping.
+func (c *RestController) SubmitJumbleEntry(w http.ResponseWriter, r *http.Request, params openapi.SubmitJumbleEntryParams) {
+	var body openapi.SubmitJumbleEntryJSONRequestBody
+	c.door(w, r, restDoors["submitJumbleEntry"], usecase.Input{}, params, &body, answerBy(jumbleEntryResponse))
+}
+
+// SuggestFromJumbleEntry answers POST /jumble/entries/{entryId}:suggest by the generated mapping.
+func (c *RestController) SuggestFromJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params openapi.SuggestFromJumbleEntryParams) {
+	c.door(w, r, restDoors["suggestFromJumbleEntry"], usecase.Input{"entry_id": entryId.String()}, params, nil, answerBy(acceptedAsk))
 }
 
 // SuspendTenant answers POST /admin/tenants/{tenantId}:suspend by the generated mapping.
