@@ -131,6 +131,11 @@ const (
 	// next write re-seeds it.
 	KindReminderFire Kind = "reminder.fire"
 
+	// KindTimerFire fires a tenant's durable timers whose due moment has come (domain-model.md
+	// §3.7). The reminder's shape: one job per tenant, seeded by the write that armed or resumed a
+	// timer, rescheduling itself to the tenant's next due moment and completing when none runs.
+	KindTimerFire Kind = "timer.fire"
+
 	// KindMailboxPoll reads one connected mailbox into the workspace's mail intake (ADR-0094).
 	//
 	// The reminder's shape: one job per mailbox, seeded by the write that connected it, and the

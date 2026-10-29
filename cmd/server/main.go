@@ -41,6 +41,7 @@ import (
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
+	calendarservice "github.com/Jersyfi/hubtask/core/application/service/calendar"
 	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
@@ -3889,8 +3890,20 @@ func run() error {
 		},
 		Progress: jobs,
 	}
+	// Durable timers on business calendars (domain-model.md §3.7). No purpose registers a handler
+	// yet: the SLA, approval and effectiveness steps each add theirs to Elapsed.
+	timerFiring := worker.TimerFiring{
+		Firing: calendarservice.FireTimers{
+			Timers: postgres.NewTimerRepository(), Clock: clockadapter.System{},
+			BatchSize: calendarservice.DefaultTimerBatch,
+		},
+		Queue: jobs, Clock: clockadapter.System{},
+		Continuation: cfg.Queue.OutboxMinInterval,
+		MinimumWait:  cfg.Queue.OutboxMinInterval,
+	}
 	handlers := map[queueport.Kind]queueport.Handler{
 		queueport.KindReminderFire: reminderFiring,
+		queueport.KindTimerFire:    timerFiring,
 		// A connected mailbox read into the intake, a minute at a time (ADR-0094).
 		queueport.KindMailboxPoll: mailservice.PollMailbox{
 			Boxes: mailBoxes, Receive: receiveMail,
