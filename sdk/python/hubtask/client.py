@@ -1615,6 +1615,10 @@ class Client:
         """The generic query - the basis for list, kanban, and timeline"""
         return self._call("POST", "/items:query", {}, None, {}, body, "json", "application/json", "json")
 
+    def aggregate_items(self, body: "ItemAggregateQuery") -> "ItemAggregateResult":
+        """A summary of what a query keeps"""
+        return self._call("POST", "/items:aggregate", {}, None, {}, body, "json", "application/json", "json")
+
     def export_items(self, body: "ItemExport", *, idempotency_key: str | None = None) -> bytes:
         """The result of a query, as a file"""
         return self._call("POST", "/items:export", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "raw")

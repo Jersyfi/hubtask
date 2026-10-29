@@ -1139,6 +1139,9 @@ func (pending) DeleteReminder(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+// AggregateItems is overridden by RestController, for the reason given at CreateContainer.
+func (pending) AggregateItems(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 // QueryItems is overridden by RestController, for the reason given at CreateContainer.
 func (pending) QueryItems(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

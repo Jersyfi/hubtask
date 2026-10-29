@@ -3081,6 +3081,17 @@ class FilterNode(TypedDict, total=False):
     value: Any
     nodes: list["FilterNode"]
 
+class ItemAggregateQuery(TypedDict, total=False):
+    scope: Required[dict[str, Any]]
+    filter: "FilterNode"
+    include_archived: bool
+    include_trashed: bool
+    aggregate: Required[dict[str, Any]]
+
+class ItemAggregateResult(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
+    truncated: Required[bool]
+
 class ItemQuery(TypedDict, total=False):
     scope: Required[dict[str, Any]]
     filter: "FilterNode"

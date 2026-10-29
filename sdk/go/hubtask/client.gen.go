@@ -2874,6 +2874,54 @@ func (e ItemAccess) Valid() bool {
 	}
 }
 
+// Defines values for ItemAggregateQueryAggregateBucketPeriod.
+const (
+	Day   ItemAggregateQueryAggregateBucketPeriod = "day"
+	Month ItemAggregateQueryAggregateBucketPeriod = "month"
+	Week  ItemAggregateQueryAggregateBucketPeriod = "week"
+)
+
+// Valid indicates whether the value is a known member of the ItemAggregateQueryAggregateBucketPeriod enum.
+func (e ItemAggregateQueryAggregateBucketPeriod) Valid() bool {
+	switch e {
+	case Day:
+		return true
+	case Month:
+		return true
+	case Week:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ItemAggregateQueryAggregateFunction.
+const (
+	ItemAggregateQueryAggregateFunctionAVG   ItemAggregateQueryAggregateFunction = "AVG"
+	ItemAggregateQueryAggregateFunctionCOUNT ItemAggregateQueryAggregateFunction = "COUNT"
+	ItemAggregateQueryAggregateFunctionMAX   ItemAggregateQueryAggregateFunction = "MAX"
+	ItemAggregateQueryAggregateFunctionMIN   ItemAggregateQueryAggregateFunction = "MIN"
+	ItemAggregateQueryAggregateFunctionSUM   ItemAggregateQueryAggregateFunction = "SUM"
+)
+
+// Valid indicates whether the value is a known member of the ItemAggregateQueryAggregateFunction enum.
+func (e ItemAggregateQueryAggregateFunction) Valid() bool {
+	switch e {
+	case ItemAggregateQueryAggregateFunctionAVG:
+		return true
+	case ItemAggregateQueryAggregateFunctionCOUNT:
+		return true
+	case ItemAggregateQueryAggregateFunctionMAX:
+		return true
+	case ItemAggregateQueryAggregateFunctionMIN:
+		return true
+	case ItemAggregateQueryAggregateFunctionSUM:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ItemExportFormat.
 const (
 	ItemExportFormatCSV  ItemExportFormat = "CSV"
@@ -6080,16 +6128,16 @@ func (e TrashEntryKind) Valid() bool {
 
 // Defines values for UsageMetricAggregate.
 const (
-	HIGHEST UsageMetricAggregate = "HIGHEST"
-	SUM     UsageMetricAggregate = "SUM"
+	UsageMetricAggregateHIGHEST UsageMetricAggregate = "HIGHEST"
+	UsageMetricAggregateSUM     UsageMetricAggregate = "SUM"
 )
 
 // Valid indicates whether the value is a known member of the UsageMetricAggregate enum.
 func (e UsageMetricAggregate) Valid() bool {
 	switch e {
-	case HIGHEST:
+	case UsageMetricAggregateHIGHEST:
 		return true
-	case SUM:
+	case UsageMetricAggregateSUM:
 		return true
 	default:
 		return false
@@ -10303,6 +10351,64 @@ type InvitedAccountWeekStart string
 // ItemAccess How far a role reaches into one entry.
 // `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
 type ItemAccess string
+
+// ItemAggregateQuery defines model for ItemAggregateQuery.
+type ItemAggregateQuery struct {
+	Aggregate struct {
+		Bucket *struct {
+			// Field A timestamp field, or `custom_fields.<key>` of a date.
+			Field  string                                  `json:"field"`
+			Period ItemAggregateQueryAggregateBucketPeriod `json:"period"`
+		} `json:"bucket,omitempty"`
+
+		// Field The measure, `custom_fields.<key>` of a number, money or a duration; required for every function but `COUNT`, refused for `COUNT`.
+		Field    *string                             `json:"field,omitempty"`
+		Function ItemAggregateQueryAggregateFunction `json:"function"`
+
+		// GroupBy A field a query may group by; one row per value.
+		GroupBy *string `json:"group_by,omitempty"`
+	} `json:"aggregate"`
+
+	// Filter Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
+	// `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
+	// `nodes`, is refused rather than half-read.
+	//
+	// Combinations nest at most five deep and a filter holds at most fifty nodes in total - the
+	// bound that keeps a query's cost a function of the data rather than of the request.
+	Filter          *FilterNode `json:"filter,omitempty"`
+	IncludeArchived *bool       `json:"include_archived,omitempty"`
+	IncludeTrashed  *bool       `json:"include_trashed,omitempty"`
+
+	// Scope Where to look, exactly as `POST /items:query` takes it.
+	Scope struct {
+		ContainerId        *openapi_types.UUID `json:"container_id,omitempty"`
+		IncludeDescendants *bool               `json:"include_descendants,omitempty"`
+		ItemId             *openapi_types.UUID `json:"item_id,omitempty"`
+	} `json:"scope"`
+}
+
+// ItemAggregateQueryAggregateBucketPeriod defines model for ItemAggregateQuery.Aggregate.Bucket.Period.
+type ItemAggregateQueryAggregateBucketPeriod string
+
+// ItemAggregateQueryAggregateFunction defines model for ItemAggregateQuery.Aggregate.Function.
+type ItemAggregateQueryAggregateFunction string
+
+// ItemAggregateResult defines model for ItemAggregateResult.
+type ItemAggregateResult struct {
+	Data []struct {
+		Count int64 `json:"count"`
+
+		// Group The group's value; null without `group_by` or where an entry has none.
+		Group *string `json:"group"`
+
+		// Period The period's first day; null without `bucket`.
+		Period *openapi_types.Date `json:"period"`
+
+		// Value The function's result as a decimal, so that money keeps its digits; null for `COUNT` and where no entry holds the measure.
+		Value *string `json:"value"`
+	} `json:"data"`
+	Truncated bool `json:"truncated"`
+}
 
 // ItemAttachments The attachments one entry carries. Returned by attaching and detaching rather than the entry itself, for the reason ItemMembers is: neither touches the entry's own row.
 type ItemAttachments struct {
@@ -17427,6 +17533,9 @@ type AiSummarizeThreadJSONRequestBody = AiAsk
 // AiTranslateJSONRequestBody defines body for AiTranslate for application/json ContentType.
 type AiTranslateJSONRequestBody = AiTranslateRequest
 
+// AggregateItemsJSONRequestBody defines body for AggregateItems for application/json ContentType.
+type AggregateItemsJSONRequestBody = ItemAggregateQuery
+
 // BulkUpdateWorkItemsJSONRequestBody defines body for BulkUpdateWorkItems for application/json ContentType.
 type BulkUpdateWorkItemsJSONRequestBody BulkUpdateWorkItemsJSONBody
 
@@ -21887,6 +21996,34 @@ type ClientInterface interface {
 	//
 	// Takes the assignee off the entry. Idempotent: an entry nobody is assigned to succeeds and announces nothing.
 	UnassignWorkItem(ctx context.Context, itemId ItemId, params *UnassignWorkItemParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AggregateItemsWithBody A summary of what a query keeps
+	//
+	// How many entries the query's scope and filter keep, and the sum, average, least or greatest
+	// of a custom field holding a number, money or a duration - optionally per value of a field a
+	// query may group by, and per day, week or month of a timestamp, cut in the caller's time
+	// zone (a week starts on Monday). The permission is the query's: checked against the scope
+	// once. At most 5000 rows, in the group's order and then the period's; `truncated` says a
+	// longer answer was cut.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /items:aggregate (the `AggregateItems` operationId).
+	AggregateItemsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AggregateItems A summary of what a query keeps
+	//
+	// How many entries the query's scope and filter keep, and the sum, average, least or greatest
+	// of a custom field holding a number, money or a duration - optionally per value of a field a
+	// query may group by, and per day, week or month of a timestamp, cut in the caller's time
+	// zone (a week starts on Monday). The permission is the query's: checked against the scope
+	// once. At most 5000 rows, in the group's order and then the period's; `truncated` says a
+	// longer answer was cut.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /items:aggregate (the `AggregateItems` operationId).
+	AggregateItems(ctx context.Context, body AggregateItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// BulkUpdateWorkItemsWithBody performs a POST /items:bulk (the `BulkUpdateWorkItems` operationId) request,
 	// with any type of body and a specified content type.
@@ -32662,6 +32799,54 @@ func (c *Client) UnarchiveWorkItem(ctx context.Context, itemId ItemId, params *U
 // Takes the assignee off the entry. Idempotent: an entry nobody is assigned to succeeds and announces nothing.
 func (c *Client) UnassignWorkItem(ctx context.Context, itemId ItemId, params *UnassignWorkItemParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUnassignWorkItemRequest(c.Server, itemId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AggregateItemsWithBody A summary of what a query keeps
+//
+// How many entries the query's scope and filter keep, and the sum, average, least or greatest
+// of a custom field holding a number, money or a duration - optionally per value of a field a
+// query may group by, and per day, week or month of a timestamp, cut in the caller's time
+// zone (a week starts on Monday). The permission is the query's: checked against the scope
+// once. At most 5000 rows, in the group's order and then the period's; `truncated` says a
+// longer answer was cut.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /items:aggregate (the `AggregateItems` operationId).
+func (c *Client) AggregateItemsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAggregateItemsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AggregateItems A summary of what a query keeps
+//
+// How many entries the query's scope and filter keep, and the sum, average, least or greatest
+// of a custom field holding a number, money or a duration - optionally per value of a field a
+// query may group by, and per day, week or month of a timestamp, cut in the caller's time
+// zone (a week starts on Monday). The permission is the query's: checked against the scope
+// once. At most 5000 rows, in the group's order and then the period's; `truncated` says a
+// longer answer was cut.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /items:aggregate (the `AggregateItems` operationId).
+func (c *Client) AggregateItems(ctx context.Context, body AggregateItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAggregateItemsRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -51412,6 +51597,46 @@ func NewUnassignWorkItemRequest(server string, itemId ItemId, params *UnassignWo
 	return req, nil
 }
 
+// NewAggregateItemsRequest calls the generic AggregateItems builder with application/json body
+func NewAggregateItemsRequest(server string, body AggregateItemsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAggregateItemsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewAggregateItemsRequestWithBody constructs an http.Request for the AggregateItems method, with any body, and a specified content type
+func NewAggregateItemsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items:aggregate")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewBulkUpdateWorkItemsRequest calls the generic BulkUpdateWorkItems builder with application/json body
 func NewBulkUpdateWorkItemsRequest(server string, params *BulkUpdateWorkItemsParams, body BulkUpdateWorkItemsJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -62357,6 +62582,34 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	UnassignWorkItemWithResponse(ctx context.Context, itemId ItemId, params *UnassignWorkItemParams, reqEditors ...RequestEditorFn) (*UnassignWorkItemResult, error)
+
+	// AggregateItemsWithBodyWithResponse A summary of what a query keeps
+	//
+	// How many entries the query's scope and filter keep, and the sum, average, least or greatest
+	// of a custom field holding a number, money or a duration - optionally per value of a field a
+	// query may group by, and per day, week or month of a timestamp, cut in the caller's time
+	// zone (a week starts on Monday). The permission is the query's: checked against the scope
+	// once. At most 5000 rows, in the group's order and then the period's; `truncated` says a
+	// longer answer was cut.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items:aggregate (the `AggregateItems` operationId).
+	AggregateItemsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AggregateItemsResult, error)
+
+	// AggregateItemsWithResponse A summary of what a query keeps
+	//
+	// How many entries the query's scope and filter keep, and the sum, average, least or greatest
+	// of a custom field holding a number, money or a duration - optionally per value of a field a
+	// query may group by, and per day, week or month of a timestamp, cut in the caller's time
+	// zone (a week starts on Monday). The permission is the query's: checked against the scope
+	// once. At most 5000 rows, in the group's order and then the period's; `truncated` says a
+	// longer answer was cut.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items:aggregate (the `AggregateItems` operationId).
+	AggregateItemsWithResponse(ctx context.Context, body AggregateItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*AggregateItemsResult, error)
 
 	// BulkUpdateWorkItemsWithBodyWithResponse performs a POST /items:bulk (the `BulkUpdateWorkItems` operationId) request,
 	// with any type of body and a specified content type.
@@ -79674,6 +79927,61 @@ func (r UnassignWorkItemResult) ContentType() string {
 	return ""
 }
 
+type AggregateItemsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ItemAggregateResult
+	// ApplicationproblemJSON422 the response for an HTTP 422 `application/problem+json` response
+	ApplicationproblemJSON422 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AggregateItemsResult) GetJSON200() *ItemAggregateResult {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON422 returns the response for an HTTP 422 `application/problem+json` response
+func (r AggregateItemsResult) GetApplicationproblemJSON422() *Problem {
+	return r.ApplicationproblemJSON422
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AggregateItemsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AggregateItemsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AggregateItemsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AggregateItemsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AggregateItemsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type BulkUpdateWorkItemsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -93640,6 +93948,46 @@ func (c *ClientWithResponses) UnassignWorkItemWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseUnassignWorkItemResult(rsp)
+}
+
+// AggregateItemsWithBodyWithResponse A summary of what a query keeps
+//
+// How many entries the query's scope and filter keep, and the sum, average, least or greatest
+// of a custom field holding a number, money or a duration - optionally per value of a field a
+// query may group by, and per day, week or month of a timestamp, cut in the caller's time
+// zone (a week starts on Monday). The permission is the query's: checked against the scope
+// once. At most 5000 rows, in the group's order and then the period's; `truncated` says a
+// longer answer was cut.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items:aggregate (the `AggregateItems` operationId).
+func (c *ClientWithResponses) AggregateItemsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AggregateItemsResult, error) {
+	rsp, err := c.AggregateItemsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAggregateItemsResult(rsp)
+}
+
+// AggregateItemsWithResponse A summary of what a query keeps
+//
+// How many entries the query's scope and filter keep, and the sum, average, least or greatest
+// of a custom field holding a number, money or a duration - optionally per value of a field a
+// query may group by, and per day, week or month of a timestamp, cut in the caller's time
+// zone (a week starts on Monday). The permission is the query's: checked against the scope
+// once. At most 5000 rows, in the group's order and then the period's; `truncated` says a
+// longer answer was cut.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items:aggregate (the `AggregateItems` operationId).
+func (c *ClientWithResponses) AggregateItemsWithResponse(ctx context.Context, body AggregateItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*AggregateItemsResult, error) {
+	rsp, err := c.AggregateItems(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAggregateItemsResult(rsp)
 }
 
 // BulkUpdateWorkItemsWithBodyWithResponse performs a POST /items:bulk (the `BulkUpdateWorkItems` operationId) request,
@@ -107983,6 +108331,46 @@ func ParseUnassignWorkItemResult(rsp *http.Response) (*UnassignWorkItemResult, e
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseAggregateItemsResult parses an HTTP response from a AggregateItemsWithResponse call
+func ParseAggregateItemsResult(rsp *http.Response) (*AggregateItemsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AggregateItemsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ItemAggregateResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

@@ -11002,6 +11002,36 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items:aggregate:
+    post:
+      tags: [items]
+      operationId: aggregateItems
+      summary: A summary of what a query keeps
+      description: |
+        How many entries the query's scope and filter keep, and the sum, average, least or greatest
+        of a custom field holding a number, money or a duration - optionally per value of a field a
+        query may group by, and per day, week or month of a timestamp, cut in the caller's time
+        zone (a week starts on Monday). The permission is the query's: checked against the scope
+        once. At most 5000 rows, in the group's order and then the period's; `truncated` says a
+        longer answer was cut.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemAggregateQuery"
+      responses:
+        "200":
+          description: The summary's rows
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemAggregateResult"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /items:export:
     post:
       tags: [items]
@@ -22206,6 +22236,71 @@ components:
           type: array
           description: On a combination, the nodes it joins. `NOT` takes exactly one.
           items: { $ref: "#/components/schemas/FilterNode" }
+
+    ItemAggregateQuery:
+      type: object
+      required: [scope, aggregate]
+      properties:
+        scope:
+          type: object
+          description: Where to look, exactly as `POST /items:query` takes it.
+          properties:
+            container_id: { type: string, format: uuid }
+            item_id: { type: string, format: uuid }
+            include_descendants: { type: boolean, default: true }
+        filter: { $ref: "#/components/schemas/FilterNode" }
+        include_archived: { type: boolean, default: false }
+        include_trashed: { type: boolean, default: false }
+        aggregate:
+          type: object
+          required: [function]
+          properties:
+            function:
+              type: string
+              enum: [COUNT, SUM, AVG, MIN, MAX]
+            field:
+              type: string
+              description: >
+                The measure, `custom_fields.<key>` of a number, money or a duration; required for
+                every function but `COUNT`, refused for `COUNT`.
+            group_by:
+              type: string
+              description: A field a query may group by; one row per value.
+            bucket:
+              type: object
+              required: [field, period]
+              properties:
+                field:
+                  type: string
+                  description: A timestamp field, or `custom_fields.<key>` of a date.
+                period:
+                  type: string
+                  enum: [day, week, month]
+
+    ItemAggregateResult:
+      type: object
+      required: [data, truncated]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [count, group, period, value]
+            properties:
+              group:
+                type: [string, "null"]
+                description: The group's value; null without `group_by` or where an entry has none.
+              period:
+                type: [string, "null"]
+                format: date
+                description: The period's first day; null without `bucket`.
+              count: { type: integer, format: int64 }
+              value:
+                type: [string, "null"]
+                description: >
+                  The function's result as a decimal, so that money keeps its digits; null for
+                  `COUNT` and where no entry holds the measure.
+        truncated: { type: boolean }
 
     ItemQuery:
       type: object

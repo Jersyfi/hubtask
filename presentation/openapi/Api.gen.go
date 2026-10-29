@@ -2868,6 +2868,54 @@ func (e ItemAccess) Valid() bool {
 	}
 }
 
+// Defines values for ItemAggregateQueryAggregateBucketPeriod.
+const (
+	Day   ItemAggregateQueryAggregateBucketPeriod = "day"
+	Month ItemAggregateQueryAggregateBucketPeriod = "month"
+	Week  ItemAggregateQueryAggregateBucketPeriod = "week"
+)
+
+// Valid indicates whether the value is a known member of the ItemAggregateQueryAggregateBucketPeriod enum.
+func (e ItemAggregateQueryAggregateBucketPeriod) Valid() bool {
+	switch e {
+	case Day:
+		return true
+	case Month:
+		return true
+	case Week:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ItemAggregateQueryAggregateFunction.
+const (
+	ItemAggregateQueryAggregateFunctionAVG   ItemAggregateQueryAggregateFunction = "AVG"
+	ItemAggregateQueryAggregateFunctionCOUNT ItemAggregateQueryAggregateFunction = "COUNT"
+	ItemAggregateQueryAggregateFunctionMAX   ItemAggregateQueryAggregateFunction = "MAX"
+	ItemAggregateQueryAggregateFunctionMIN   ItemAggregateQueryAggregateFunction = "MIN"
+	ItemAggregateQueryAggregateFunctionSUM   ItemAggregateQueryAggregateFunction = "SUM"
+)
+
+// Valid indicates whether the value is a known member of the ItemAggregateQueryAggregateFunction enum.
+func (e ItemAggregateQueryAggregateFunction) Valid() bool {
+	switch e {
+	case ItemAggregateQueryAggregateFunctionAVG:
+		return true
+	case ItemAggregateQueryAggregateFunctionCOUNT:
+		return true
+	case ItemAggregateQueryAggregateFunctionMAX:
+		return true
+	case ItemAggregateQueryAggregateFunctionMIN:
+		return true
+	case ItemAggregateQueryAggregateFunctionSUM:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ItemExportFormat.
 const (
 	ItemExportFormatCSV  ItemExportFormat = "CSV"
@@ -6074,16 +6122,16 @@ func (e TrashEntryKind) Valid() bool {
 
 // Defines values for UsageMetricAggregate.
 const (
-	HIGHEST UsageMetricAggregate = "HIGHEST"
-	SUM     UsageMetricAggregate = "SUM"
+	UsageMetricAggregateHIGHEST UsageMetricAggregate = "HIGHEST"
+	UsageMetricAggregateSUM     UsageMetricAggregate = "SUM"
 )
 
 // Valid indicates whether the value is a known member of the UsageMetricAggregate enum.
 func (e UsageMetricAggregate) Valid() bool {
 	switch e {
-	case HIGHEST:
+	case UsageMetricAggregateHIGHEST:
 		return true
-	case SUM:
+	case UsageMetricAggregateSUM:
 		return true
 	default:
 		return false
@@ -10297,6 +10345,64 @@ type InvitedAccountWeekStart string
 // ItemAccess How far a role reaches into one entry.
 // `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
 type ItemAccess string
+
+// ItemAggregateQuery defines model for ItemAggregateQuery.
+type ItemAggregateQuery struct {
+	Aggregate struct {
+		Bucket *struct {
+			// Field A timestamp field, or `custom_fields.<key>` of a date.
+			Field  string                                  `json:"field"`
+			Period ItemAggregateQueryAggregateBucketPeriod `json:"period"`
+		} `json:"bucket,omitempty"`
+
+		// Field The measure, `custom_fields.<key>` of a number, money or a duration; required for every function but `COUNT`, refused for `COUNT`.
+		Field    *string                             `json:"field,omitempty"`
+		Function ItemAggregateQueryAggregateFunction `json:"function"`
+
+		// GroupBy A field a query may group by; one row per value.
+		GroupBy *string `json:"group_by,omitempty"`
+	} `json:"aggregate"`
+
+	// Filter Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
+	// `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
+	// `nodes`, is refused rather than half-read.
+	//
+	// Combinations nest at most five deep and a filter holds at most fifty nodes in total - the
+	// bound that keeps a query's cost a function of the data rather than of the request.
+	Filter          *FilterNode `json:"filter,omitempty"`
+	IncludeArchived *bool       `json:"include_archived,omitempty"`
+	IncludeTrashed  *bool       `json:"include_trashed,omitempty"`
+
+	// Scope Where to look, exactly as `POST /items:query` takes it.
+	Scope struct {
+		ContainerId        *openapi_types.UUID `json:"container_id,omitempty"`
+		IncludeDescendants *bool               `json:"include_descendants,omitempty"`
+		ItemId             *openapi_types.UUID `json:"item_id,omitempty"`
+	} `json:"scope"`
+}
+
+// ItemAggregateQueryAggregateBucketPeriod defines model for ItemAggregateQuery.Aggregate.Bucket.Period.
+type ItemAggregateQueryAggregateBucketPeriod string
+
+// ItemAggregateQueryAggregateFunction defines model for ItemAggregateQuery.Aggregate.Function.
+type ItemAggregateQueryAggregateFunction string
+
+// ItemAggregateResult defines model for ItemAggregateResult.
+type ItemAggregateResult struct {
+	Data []struct {
+		Count int64 `json:"count"`
+
+		// Group The group's value; null without `group_by` or where an entry has none.
+		Group *string `json:"group"`
+
+		// Period The period's first day; null without `bucket`.
+		Period *openapi_types.Date `json:"period"`
+
+		// Value The function's result as a decimal, so that money keeps its digits; null for `COUNT` and where no entry holds the measure.
+		Value *string `json:"value"`
+	} `json:"data"`
+	Truncated bool `json:"truncated"`
+}
 
 // ItemAttachments The attachments one entry carries. Returned by attaching and detaching rather than the entry itself, for the reason ItemMembers is: neither touches the entry's own row.
 type ItemAttachments struct {
@@ -17421,6 +17527,9 @@ type AiSummarizeThreadJSONRequestBody = AiAsk
 // AiTranslateJSONRequestBody defines body for AiTranslate for application/json ContentType.
 type AiTranslateJSONRequestBody = AiTranslateRequest
 
+// AggregateItemsJSONRequestBody defines body for AggregateItems for application/json ContentType.
+type AggregateItemsJSONRequestBody = ItemAggregateQuery
+
 // BulkUpdateWorkItemsJSONRequestBody defines body for BulkUpdateWorkItems for application/json ContentType.
 type BulkUpdateWorkItemsJSONRequestBody BulkUpdateWorkItemsJSONBody
 
@@ -18536,6 +18645,9 @@ type ServerInterface interface {
 
 	// (POST /items/{itemId}:unassign)
 	UnassignWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params UnassignWorkItemParams)
+	// AggregateItems A summary of what a query keeps
+	// (POST /items:aggregate)
+	AggregateItems(w http.ResponseWriter, r *http.Request)
 
 	// (POST /items:bulk)
 	BulkUpdateWorkItems(w http.ResponseWriter, r *http.Request, params BulkUpdateWorkItemsParams)
@@ -29735,6 +29847,20 @@ func (siw *ServerInterfaceWrapper) UnassignWorkItem(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// AggregateItems operation middleware
+func (siw *ServerInterfaceWrapper) AggregateItems(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AggregateItems(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // BulkUpdateWorkItems operation middleware
 func (siw *ServerInterfaceWrapper) BulkUpdateWorkItems(w http.ResponseWriter, r *http.Request) {
 
@@ -34633,6 +34759,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}", wrapper.GetWorkItem)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/items/{itemId}", wrapper.UpdateWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:query", wrapper.QueryItems)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:aggregate", wrapper.AggregateItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:export", wrapper.ExportItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search", wrapper.SearchItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search:reindex", wrapper.ReindexSearch)
