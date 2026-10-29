@@ -788,6 +788,27 @@ func TestASearchReadsCommentsAndTextFields(t *testing.T) {
 	}
 }
 
+// An attached hit is ranked by how well it matched (F-9), as a real so the keyset compares one real
+// with the cursor's, and both rank expressions - the column and the boundary - carry it.
+func TestAnAttachedHitIsRanked(t *testing.T) {
+	boundary := SearchBoundary{Rank: 0.1, ID: shared.ID("0190a4c2-7b1e-7000-8000-000000000001")}
+	statement, err := Search(textSearchOf("quarterly report"), "", boundary, 51)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+	for _, want := range []string{
+		"0.5::real * coalesce((SELECT max(ts_rank_cd(to_tsvector('simple'::regconfig, cm.body), websearch_to_tsquery('simple', normalize($",
+		"0.5::real * coalesce((SELECT max(ts_rank_cd(to_tsvector('simple'::regconfig, fv.text), websearch_to_tsquery('simple', normalize($",
+	} {
+		if got := strings.Count(statement.SQL, want); got != 2 {
+			t.Errorf("%q appears %d times, want 2 (rank and boundary):\n  %s", want, got, statement.SQL)
+		}
+	}
+	if strings.Contains(statement.SQL, "quarterly") {
+		t.Fatalf("the words reached the statement's text:\n  %s", statement.SQL)
+	}
+}
+
 // `blocked` traverses the links that wait (F-9): the system types by their key, a workspace's own
 // by its `waits`. True and false compile to one text, so the value is never statement text.
 func TestBlockedTraversesTheWaitingLinks(t *testing.T) {

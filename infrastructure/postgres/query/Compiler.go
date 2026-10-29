@@ -312,6 +312,7 @@ func (b *builder) rank(search repository.TextSearch, meaning string) {
 	b.write(`), ts_rank_cd(wi.search_document, `)
 	b.simpleQuery(search.Request.Words)
 	b.write(`))`)
+	b.attachedRank(search.Request.Words)
 
 	if meaning == "" {
 		return
@@ -433,6 +434,26 @@ func (b *builder) attachedMatch(words string) {
 	b.simpleQuery(words)
 	b.write(`)`)
 }
+
+// attachedRank adds what an attached hit is worth, so an entry found by its comment or a text field
+// ranks by how well that matched rather than at zero beside every other such entry. The best
+// comment and the best field count, each at attachedWeight, below the entry's own document. Kept
+// `real` like ts_rank_cd, so the keyset still compares one real with the cursor's.
+func (b *builder) attachedRank(words string) {
+	b.write(` + `, attachedWeight, ` * coalesce((SELECT max(ts_rank_cd(to_tsvector('simple'::regconfig, cm.body), `)
+	b.simpleQuery(words)
+	b.write(`)) FROM comment cm WHERE cm.tenant_id = wi.tenant_id AND cm.item_id = wi.id AND cm.deleted_at IS NULL), 0)`)
+	b.write(` + `, attachedWeight, ` * coalesce((SELECT max(ts_rank_cd(to_tsvector('simple'::regconfig, fv.text), `)
+	b.simpleQuery(words)
+	b.write(`)) FROM entry_field_value fv JOIN custom_field_definition fd`)
+	b.write(` ON fd.tenant_id = fv.tenant_id AND fd.id = fv.definition_id`)
+	b.write(` WHERE fv.tenant_id = wi.tenant_id AND fv.entry_id = wi.id AND fv.text IS NOT NULL`)
+	b.write(` AND fd.kind IN ('TEXT', 'URL') AND fd.deleted_at IS NULL), 0)`)
+}
+
+// attachedWeight is what an attached hit is worth beside the entry's own: half, so the same words in
+// a title still win, while a comment that matches well outranks one that merely mentions them.
+const attachedWeight = `0.5::real`
 
 // neighbourhood is the branch that makes the search find an entry sharing no word with the query.
 //

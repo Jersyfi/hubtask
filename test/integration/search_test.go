@@ -578,3 +578,29 @@ func TestAnEntryIsFoundByItsComment(t *testing.T) {
 		t.Errorf("a word in a comment found %v", titles)
 	}
 }
+
+// An entry found by its comment ranks by how well the comment matched (F-9): the comment that holds
+// every word comes before the one that holds only one of them, where before both ranked at zero.
+func TestACommentHitIsRankedByTheComment(t *testing.T) {
+	ctx := context.Background()
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	word := "Rangwort" + shortSuffix(t)
+
+	weak := taskIn(tenantA, authorA, collection, freshID(t), "Weak match", "a0")
+	strong := taskIn(tenantA, authorA, collection, freshID(t), "Strong match", "a1")
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := insertErr(itemRepo().Insert(ctx, weak)); err != nil {
+			return err
+		}
+		return insertErr(itemRepo().Insert(ctx, strong))
+	}); err != nil {
+		t.Fatalf("seeding the entries: %v", err)
+	}
+	seedComment(ctx, t, tenantA, weak.ID, authorA, word+" and much else beside it in a long remark", time.Now().UTC())
+	seedComment(ctx, t, tenantA, strong.ID, authorA, word+" "+word+" "+word, time.Now().UTC())
+
+	titles := found(ctx, t, tenantA, searchWithin(collection, word, "en"))
+	if len(titles) != 2 || titles[0] != "Strong match" {
+		t.Errorf("the comment hits came back as %v", titles)
+	}
+}
