@@ -203,3 +203,23 @@ func TestARelationIsHeldToItsClassPairs(t *testing.T) {
 		t.Fatal("an application does not run on a room")
 	}
 }
+
+func TestAVirtualMachineIsHostedOnAVirtualisationCluster(t *testing.T) {
+	classes, types := NewClasses(nil), NewRelationTypes(nil)
+	hostedOn, _ := types.Find(RelHostedOn)
+	vm := CI{ID: id("01"), HubID: id("50"), Class: "virtual_machine"}
+	cluster := CI{ID: id("02"), HubID: id("50"), Class: "virtualization_cluster"}
+	host := CI{ID: id("03"), HubID: id("50"), Class: "server"}
+	if err := CheckRelation(hostedOn, vm, cluster, classes); err != nil {
+		t.Fatalf("a VM is hosted on its cluster: %v", err)
+	}
+	if err := CheckRelation(hostedOn, cluster, host, classes); err != nil {
+		t.Fatalf("a cluster is hosted on its servers: %v", err)
+	}
+	if code(CheckRelation(hostedOn, host, cluster, classes)) != "cmdb.relation_not_allowed" {
+		t.Fatal("a server is not hosted on a cluster")
+	}
+	if c, ok := classes.Find("virtualization_cluster"); !ok || !c.System {
+		t.Fatal("the cluster is a shipped class")
+	}
+}

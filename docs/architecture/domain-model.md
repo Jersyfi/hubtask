@@ -762,8 +762,8 @@ key their device minted.
 
 A hub holds an inventory of `CI`s (at most 20,000), judged at the hub as its pages are: READ to
 read, WRITE_ITEMS to write. A CI is of a `Class` with single inheritance - the hierarchy Hubtask
-ships (hardware, computers, network and storage devices, virtual machines, cloud resources,
-container clusters, database instances, software, the service model of business and technical
+ships (hardware, computers, network and storage devices, virtual machines, virtualisation
+clusters, cloud resources, container clusters, database instances, software, the service model of business and technical
 services with their offerings and application services, locations, contracts, business processes,
 information objects) is declared in the domain and never stored, and a workspace's own classes sit
 beneath it. A class declares typed attributes (text, number, boolean, date, choice, URL, group,

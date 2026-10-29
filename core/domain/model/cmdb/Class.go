@@ -167,6 +167,9 @@ func SystemClasses() []Class {
 			attr("provider", AttrText, NeedRequired, true), attr("resource_id", AttrText, NeedRequired, true),
 			attr("region", AttrText, NeedRecommended, false),
 		}, Rules: rules([]string{"provider", "resource_id"})},
+		{Key: "virtualization_cluster", Parent: RootClass, Icon: "server-cog", Attributes: []Attribute{
+			attr("cluster_id", AttrText, NeedOptional, true), attr("cluster_type", AttrText, NeedOptional, false),
+		}, Rules: rules([]string{"cluster_id"}, []string{"name"})},
 		{Key: "container_cluster", Parent: RootClass, Icon: "boxes", Attributes: []Attribute{
 			attr("cluster_id", AttrText, NeedOptional, true), attr("distribution", AttrText, NeedOptional, false),
 		}, Rules: rules([]string{"cluster_id"}, []string{"name"})},

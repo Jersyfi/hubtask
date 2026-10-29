@@ -79,7 +79,8 @@ func SystemRelationTypes() []RelationType {
 			{From: "software", To: "virtual_machine"}, {From: "software", To: "container_cluster"},
 		}},
 		{Key: RelHostedOn, Impact: ImpactSource, Pairs: []ClassPair{
-			{From: "virtual_machine", To: "server"}, {From: "container_cluster", To: "server"},
+			{From: "virtual_machine", To: "server"}, {From: "virtual_machine", To: "virtualization_cluster"},
+			{From: "virtualization_cluster", To: "server"}, {From: "container_cluster", To: "server"},
 			{From: "container_cluster", To: "virtual_machine"}, {From: "container_cluster", To: "cloud_resource"},
 		}},
 		{Key: RelInstalled, Impact: ImpactSource, Pairs: []ClassPair{
