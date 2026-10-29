@@ -27,7 +27,7 @@ func TestTheCatalogueHoldsEveryArea(t *testing.T) {
 			}
 		}
 	}
-	for _, area := range []string{"sign_in", "legal", "localisation", "quotas", "ai", "structure", "module"} {
+	for _, area := range []string{"sign_in", "legal", "localisation", "quotas", "ai", "structure", "module", "config"} {
 		if areas[area] == 0 {
 			t.Errorf("the area %s is missing", area)
 		}
