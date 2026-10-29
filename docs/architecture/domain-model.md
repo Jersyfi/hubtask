@@ -758,6 +758,34 @@ own (P-03). A voting session and a timer live in the live document beside the ob
 (`facilitation`, `votes`), never in the scene: an anonymous vote keeps each person's votes under a
 key their device minted.
 
+### 3.10 Configuration items (context: Assets, M6)
+
+A hub holds an inventory of `CI`s (at most 20,000), judged at the hub as its pages are: READ to
+read, WRITE_ITEMS to write. A CI is of a `Class` with single inheritance - the hierarchy Hubtask
+ships (hardware, computers, network and storage devices, virtual machines, cloud resources,
+container clusters, database instances, software, the service model of business and technical
+services with their offerings and application services, locations, contracts, business processes,
+information objects) is declared in the domain and never stored, and a workspace's own classes sit
+beneath it. A class declares typed attributes (text, number, boolean, date, choice, URL, group,
+account; optional, recommended or required; identifying or not), ordered identifier rules, the
+relations a CI of it is an orphan without and its staleness period; a class inherits all of it,
+its own rules tried before its ancestors'. A CI carries its attributes with their `provenance`
+(source, run, moment), a lifecycle (stage and status, the same for every class), and the compliance
+fields: an owner (a person or a group), a location (a CI of a location class), a protection need
+for confidentiality, integrity and availability, a review date and a quantity of alike objects.
+A CI is not an entry: it has no level, completion or collection, and it is pointed at by its
+identifier. A `Relation` joins two CIs of one hub by a `RelationType` whose `impact` says which end
+suffers when the other fails; impact analysis walks it, and a CI's effective protection need is the
+highest of its own and that of everything that suffers when it fails (the maximum principle), save
+a dimension fixed with a reason. Every write of a CI - a person's (source `manual`), a payload's,
+a file's - goes through one reconciliation: an item is identified by its source's own key, then by
+its class's rules among the CIs of the rule's class and its descendants; it is created, updated
+under the sources' precedence (a lower rank number wins an attribute, until its writer has gone
+silent for the class's staleness period), held for review (`Hold`) when nothing identifies it or the
+source may not create it, or opens a `Duplicate` when it matches several. A `Run` keeps every
+decision by attribute name, never value. Merging a duplicate keeps the survivor and retires the
+others as merged; no use case deletes a CI.
+
 ## 4. Domain events
 
 Named `de.hubtask.<context>.<entity>.<action>.v1`, every event carries `tenantId`,

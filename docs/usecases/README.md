@@ -36,6 +36,7 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`planning/`](./planning/) | `UC-PLN` | Dependencies between entries and, later, the plan they make | `service/work` (links) |
 | [`knowledge/`](./knowledge/) | `UC-DOC` | A hub's pages: writing together, finding, linking, versions, comments, export | `service/knowledge` |
 | [`whiteboard/`](./whiteboard/) | `UC-CNV` | A hub's whiteboards: drawing together, notes made tasks, cards of entries, export, arranging, sessions with votes and a timer, history | `service/whiteboard` |
+| [`assets/`](./assets/) | `UC-AST` | A hub's configuration items: classes, relations, compliance fields, one reconciliation for every source, files, duplicates, impact, health | `service/cmdb` |
 
 ## What a use case looks like
 
@@ -266,6 +267,12 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-CNV-06](./whiteboard/UC-CNV-06-go-back-to-an-earlier-state-of-a-whiteboard.md) | Go back to an earlier state of a whiteboard | whiteboard |
 | [UC-CNV-07](./whiteboard/UC-CNV-07-see-what-points-at-a-whiteboard.md) | See what points at a whiteboard | whiteboard |
 | [UC-CNV-08](./whiteboard/UC-CNV-08-put-pictures-and-files-on-a-whiteboard.md) | Put pictures and files on a whiteboard | whiteboard |
+| [UC-AST-01](./assets/UC-AST-01-keep-an-inventory-of-what-our-services-run-on.md) | Keep an inventory of what our services run on | assets |
+| [UC-AST-02](./assets/UC-AST-02-let-every-source-write-through-one-reconciliation.md) | Let every source write through one reconciliation | assets |
+| [UC-AST-03](./assets/UC-AST-03-merge-duplicate-configuration-items-without-losing-one.md) | Merge duplicate configuration items without losing one | assets |
+| [UC-AST-04](./assets/UC-AST-04-bring-an-inventory-in-from-a-file.md) | Bring an inventory in from a file | assets |
+| [UC-AST-05](./assets/UC-AST-05-see-what-a-failure-reaches.md) | See what a failure reaches | assets |
+| [UC-AST-06](./assets/UC-AST-06-see-how-healthy-our-inventory-is.md) | See how healthy our inventory is | assets |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work |
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work |
