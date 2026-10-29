@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11]
 state: partial
 tasks: []
-checked_by: [core/application/service/work/FormGate_test.go, core/domain/service/PermissionCatalogue_test.go, apps/webapp/src/lib/data/roles.test.ts]
+checked_by: [core/application/service/work/FormGate_test.go, core/application/service/work/FieldSight_test.go, core/domain/service/PermissionCatalogue_test.go, core/domain/model/work/CustomField_test.go, test/integration/custom_field_test.go, apps/webapp/src/lib/data/roles.test.ts]
 ---
 
 # Hide a field from those who must not see it
@@ -44,4 +44,7 @@ token is refused when it tries to write it.
 
 ## Today
 
-* Check 3: not met — no field is restricted for reading; every reader of the entry reads it.
+* Check 3: met for the entry, a list, a query and every export built on it, a search, a write's
+  answer, the entry's history, the change stream and the initial walk (`work.FieldSight`;
+  `FieldSight_test.go`, `custom_field_test.go`). Not narrowed yet: a calculated field whose
+  formula reads a hidden one shows a value computed from it.

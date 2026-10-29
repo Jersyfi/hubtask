@@ -457,7 +457,7 @@ are the shipped scheme. A workspace may define roles of its own (`custom_role`, 
 name, permissions) from one closed catalogue (`service.PermissionCatalogue`): the eight columns
 above, `COMMENT` and `WRITE_ASSIGNED` (the guest's and the contributor's narrowings spelled as
 permissions), `REQUEST`, and two families that name an object - a restricted field's
-`FIELD_WRITE:<key>` and a workflow step's `TAKE_STEP:<workflow>/<step>`, held by `OWNER` and
+`FIELD_WRITE:<key>` and `FIELD_READ:<key>`, and a workflow step's `TAKE_STEP:<workflow>/<step>`, held by `OWNER` and
 `ADMIN` for every field and step. A custom role is granted at the workspace, a hub or a collection
 (`custom_role_grant`, never at `ITEM`), counts in the same resolution as a membership along the
 path, and decides by the union over what counts: its per-entry reach is the shipped rows spelled as
@@ -474,7 +474,13 @@ portal's principal, refused by every other use case by the ordinary rule.
 
 A **restricted field** (`custom_field_definition.restricted`, UC-ID-27) is written only by holders
 of its `FIELD_WRITE:<key>` along the entry's path, through every door (`FormGate.holdRestricted`);
-changing the flag takes that permission. A **step** limited to roles may name a custom role's key,
+changing the flag takes that permission. A field **hidden from readers**
+(`read_restricted`, which implies `restricted`; lifting the restriction lifts it) is seen only by
+holders of its `FIELD_READ:<key>` or `FIELD_WRITE:<key>` along the entry's path: every other
+answer leaves the value out (`work.FieldSight` - the entry, a list, a query and so an export, a
+search, a write's answer, the entry's history, the change stream and the initial walk), and a query or search that
+filters, sorts or groups by it is refused with `fields.read_restricted`. A key hidden anywhere in
+the workspace is hidden in a collection where a definition of its own narrows it. A **step** limited to roles may name a custom role's key,
 and `TAKE_STEP:<workflow>/<step>` opens it whatever it names.
 
 ### 3.3 `Container` (hub / collection)
