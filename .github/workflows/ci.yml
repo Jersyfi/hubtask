@@ -1048,6 +1048,10 @@ jobs:
         shell: bash
     env:
       CARGO_TERM_COLOR: never
+      # The walk's app and server carry one version: Android takes no `0.0.0` (its version code
+      # would be 0), and an app newer than its server refuses the workspace at the address field
+      # (UC-SYN-07), as the server's untagged `0.0.0-dev` would be.
+      WALK_VERSION: 0.0.1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -1144,7 +1148,7 @@ jobs:
           export NDK_HOME="$ANDROID_NDK_LATEST_HOME"
           export JAVA_HOME="$JAVA_HOME_17_X64"
           pnpm --filter @hubtask/webapp android:openssl x86_64-linux-android
-          pnpm --filter @hubtask/webapp android:build --debug --apk --ci --target x86_64 --features walk --config '{"version":"0.0.1"}'
+          pnpm --filter @hubtask/webapp android:build --debug --apk --ci --target x86_64 --features walk --config "{\"version\":\"$WALK_VERSION\"}"
       # UC-SYN-07 check 9 from here on. The walk's server and its database: the runner's own
       # PostgreSQL, a database of its own, and the server and its migrations built from this commit.
       - name: The walk's server
@@ -1165,7 +1169,7 @@ jobs:
             echo "WALK_DB=postgres://postgres:walk@127.0.0.1:5432/hubtask?sslmode=disable" >> "$GITHUB_ENV"
             exe=
           fi
-          go build -o "$walk/hubtask$exe" ./cmd/server
+          go build -ldflags "-X main.version=$WALK_VERSION" -o "$walk/hubtask$exe" ./cmd/server
           go build -o "$walk/hubtask-migrate$exe" ./cmd/migrate
           echo "WALK_SERVER=$walk/hubtask$exe" >> "$GITHUB_ENV"
           echo "WALK_MIGRATE=$walk/hubtask-migrate$exe" >> "$GITHUB_ENV"
