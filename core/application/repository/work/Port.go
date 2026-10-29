@@ -1187,6 +1187,19 @@ type FieldHiding struct {
 type FieldHidings interface {
 	// ReadRestricted answers every live definition hidden from readers, workspace-wide.
 	ReadRestricted(ctx context.Context) ([]FieldHiding, error)
+
+	// ReadFormulas answers every live CALCULATED definition and every one a formula may read,
+	// workspace-wide: what hides a calculated field together with a hidden field it reads.
+	ReadFormulas(ctx context.Context) ([]FieldFormula, error)
+}
+
+// FieldFormula is one definition a formula concerns: a CALCULATED one with its formula, or one
+// whose kind a formula may read; the collection it is defined for, zero for the whole workspace.
+type FieldFormula struct {
+	Key          string
+	CollectionID shared.ID
+	Kind         work.CustomFieldKind
+	Formula      string
 }
 
 // CustomFields stores the definitions a workspace or a collection adds to its entries.

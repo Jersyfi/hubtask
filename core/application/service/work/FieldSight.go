@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
+	"github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
@@ -28,11 +29,16 @@ const FieldReadRestrictedCode = "fields.read_restricted"
 // along neither of the entry's paths. Asked by every read - the entry, a list, a query and so an
 // export, a search, the change stream - and by every write's answer, from this one place.
 //
+// A calculated field whose formula reads a hidden field is hidden with it: its value is the hidden
+// one told another way. A build without the compiler hides every calculated field beside a hidden
+// one rather than guess which formula reads it.
+//
 // A build without it narrows nothing, which is every workspace without a hidden field anyway.
 type FieldSight struct {
 	Hidings    repository.FieldHidings
 	Containers repository.Containers
 	Roles      FormRoles
+	Compiler   expression.Compiler
 }
 
 // Wired reports whether the sight has what it needs.
@@ -43,8 +49,9 @@ func (s FieldSight) Wired() bool { return s.Hidings != nil && s.Containers != ni
 type FieldLens struct {
 	sight   FieldSight
 	actor   appshared.ActorContext
-	hidings []repository.FieldHiding
-	hidden  map[shared.ID][]string
+	hidings  []repository.FieldHiding
+	formulas []repository.FieldFormula
+	hidden   map[shared.ID][]string
 }
 
 // Lens starts the narrowing of one answer for its reader, in a read-only transaction of its own.
@@ -57,7 +64,10 @@ func (s FieldSight) Lens(
 	}
 	err := uow.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		lens.hidings, err = s.Hidings.ReadRestricted(ctx)
+		if lens.hidings, err = s.Hidings.ReadRestricted(ctx); err != nil || len(lens.hidings) == 0 {
+			return err
+		}
+		lens.formulas, err = s.Hidings.ReadFormulas(ctx)
 		return err
 	})
 	if err != nil {
@@ -96,6 +106,7 @@ func (l *FieldLens) HiddenIn(ctx context.Context, collection domain.Container) (
 			}
 		}
 	}
+	keys = append(keys, l.calculatedReading(l.formulasIn(collection.ID), keys)...)
 	l.hidden[collection.ID] = keys
 	return keys, nil
 }
@@ -118,14 +129,74 @@ func (l *FieldLens) HiddenFrom(ctx context.Context, path []identity.Scope, keys 
 	if err != nil {
 		return nil, err
 	}
+	// Every hidden key, named or not: a calculated field the query names may read one it does not.
+	unseen := []string{}
+	for _, hiding := range l.hidings {
+		if !slices.Contains(unseen, hiding.Key) && !service.SeesField(carriedBy(held), hiding.Key) {
+			unseen = append(unseen, hiding.Key)
+		}
+	}
 	hidden := []string{}
 	for _, key := range keys {
-		named := slices.ContainsFunc(l.hidings, func(h repository.FieldHiding) bool { return h.Key == key })
-		if named && !service.SeesField(carriedBy(held), key) && !slices.Contains(hidden, key) {
+		if slices.Contains(unseen, key) && !slices.Contains(hidden, key) {
+			hidden = append(hidden, key)
+		}
+	}
+	for _, key := range l.calculatedReading(l.formulas, unseen) {
+		if slices.Contains(keys, key) && !slices.Contains(hidden, key) {
 			hidden = append(hidden, key)
 		}
 	}
 	return hidden, nil
+}
+
+// formulasIn are the formula definitions in force in a collection: the workspace-wide ones, and
+// the collection's own in their place where it defines the key again.
+func (l *FieldLens) formulasIn(collectionID shared.ID) []repository.FieldFormula {
+	byKey := map[string]int{}
+	var effective []repository.FieldFormula
+	for _, formula := range l.formulas {
+		if !formula.CollectionID.IsZero() && formula.CollectionID != collectionID {
+			continue
+		}
+		if at, seen := byKey[formula.Key]; seen {
+			if !formula.CollectionID.IsZero() {
+				effective[at] = formula
+			}
+			continue
+		}
+		byKey[formula.Key] = len(effective)
+		effective = append(effective, formula)
+	}
+	return effective
+}
+
+// calculatedReading answers the CALCULATED keys among the definitions whose formula reads one of
+// the hidden keys: held to the inputs left visible, such a formula no longer compiles.
+func (l *FieldLens) calculatedReading(definitions []repository.FieldFormula, hidden []string) []string {
+	if len(hidden) == 0 {
+		return nil
+	}
+	var visible []string
+	for _, definition := range definitions {
+		if definition.Kind.IsFormulaInput() && !slices.Contains(hidden, definition.Key) && !slices.Contains(visible, definition.Key) {
+			visible = append(visible, definition.Key)
+		}
+	}
+	environment := FormulaEnvironment(visible)
+	var reading []string
+	for _, definition := range definitions {
+		if definition.Kind != domain.CustomFieldCalculated || slices.Contains(reading, definition.Key) {
+			continue
+		}
+		if l.sight.Compiler != nil {
+			if _, err := l.sight.Compiler.Compile(definition.Formula, environment, expression.Number); err == nil {
+				continue
+			}
+		}
+		reading = append(reading, definition.Key)
+	}
+	return reading
 }
 
 // refuseHidden is the refusal of a query over a hidden field, naming the first.

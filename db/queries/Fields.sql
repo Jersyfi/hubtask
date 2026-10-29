@@ -97,3 +97,11 @@ SELECT key, collection_id
 FROM custom_field_definition
 WHERE deleted_at IS NULL AND read_restricted
 ORDER BY key, collection_id NULLS FIRST;
+
+-- name: ListFormulaFields :many
+-- The CALCULATED definitions and those a formula may read, across the workspace: asked only where
+-- a field is hidden from readers, to hide with it a calculated field that reads it.
+SELECT key, collection_id, kind, formula
+FROM custom_field_definition
+WHERE deleted_at IS NULL AND kind IN ('CALCULATED', 'NUMBER', 'MONEY', 'DURATION', 'BOOL')
+ORDER BY key, collection_id NULLS FIRST;

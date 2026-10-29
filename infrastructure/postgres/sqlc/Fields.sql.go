@@ -293,6 +293,47 @@ func (q *Queries) ListCustomFieldsInScope(ctx context.Context, collectionID pgty
 	return items, nil
 }
 
+const listFormulaFields = `-- name: ListFormulaFields :many
+SELECT key, collection_id, kind, formula
+FROM custom_field_definition
+WHERE deleted_at IS NULL AND kind IN ('CALCULATED', 'NUMBER', 'MONEY', 'DURATION', 'BOOL')
+ORDER BY key, collection_id NULLS FIRST
+`
+
+type ListFormulaFieldsRow struct {
+	Key          string
+	CollectionID pgtype.UUID
+	Kind         string
+	Formula      *string
+}
+
+// The CALCULATED definitions and those a formula may read, across the workspace: asked only where
+// a field is hidden from readers, to hide with it a calculated field that reads it.
+func (q *Queries) ListFormulaFields(ctx context.Context) ([]ListFormulaFieldsRow, error) {
+	rows, err := q.db.Query(ctx, listFormulaFields)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFormulaFieldsRow{}
+	for rows.Next() {
+		var i ListFormulaFieldsRow
+		if err := rows.Scan(
+			&i.Key,
+			&i.CollectionID,
+			&i.Kind,
+			&i.Formula,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listReadRestrictedFields = `-- name: ListReadRestrictedFields :many
 SELECT key, collection_id
 FROM custom_field_definition

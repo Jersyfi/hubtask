@@ -415,3 +415,57 @@ func TestAHiddenFieldIsAnsweredOnlyInItsWorkspace(t *testing.T) {
 		t.Fatalf("restricted/read after lifting = %v/%v, want true/false", again.Restricted, again.ReadRestricted)
 	}
 }
+
+// UC-ID-27 check 3 against the real boundary: ReadFormulas answers a calculated field with its
+// formula and a number field it may read, a text field not at all, and the workspace next door
+// none of them (gate SG-3).
+func TestTheFormulaFieldsAreAnsweredOnlyInTheirWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+
+	suffix := shortSuffix(t)
+	hours, cost, note := "hours_"+suffix, "cost_"+suffix, "note_"+suffix
+	for _, in := range []work.NewCustomFieldInput{
+		{Key: hours, Kind: work.CustomFieldNumber},
+		{Key: cost, Kind: work.CustomFieldCalculated, Formula: "entry.custom_fields." + hours + " * 2"},
+		{Key: note, Kind: work.CustomFieldText},
+	} {
+		in.ID, in.TenantID, in.CollectionID, in.Now = freshID(t), tenantA, collection, created
+		in.AppliesTo = []work.ItemType{work.ItemTask}
+		built, err := work.NewCustomFieldDefinition(in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := write(ctx, t, tenantA, func(ctx context.Context) error { return fieldRepo().Insert(ctx, built) }); err != nil {
+			t.Fatalf("defining %s: %v", in.Key, err)
+		}
+	}
+
+	formulas := func(tenant shared.ID) []repository.FieldFormula {
+		t.Helper()
+		var answered []repository.FieldFormula
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			answered, err = fieldRepo().ReadFormulas(ctx)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return answered
+	}
+	answered := formulas(tenantA)
+	if !slices.Contains(answered, repository.FieldFormula{Key: hours, CollectionID: collection, Kind: work.CustomFieldNumber}) {
+		t.Fatalf("the number field is not answered: %v", answered)
+	}
+	if !slices.Contains(answered, repository.FieldFormula{Key: cost, CollectionID: collection, Kind: work.CustomFieldCalculated,
+		Formula: "entry.custom_fields." + hours + " * 2"}) {
+		t.Fatalf("the calculated field is not answered with its formula: %v", answered)
+	}
+	if slices.ContainsFunc(answered, func(f repository.FieldFormula) bool { return f.Key == note }) {
+		t.Fatal("a text field is answered as a formula's")
+	}
+	if slices.ContainsFunc(formulas(tenantB), func(f repository.FieldFormula) bool { return f.Key == hours || f.Key == cost }) {
+		t.Fatal("tenant B was answered tenant A's formula fields")
+	}
+}

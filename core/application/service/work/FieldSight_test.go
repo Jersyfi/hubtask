@@ -5,6 +5,9 @@ package work
 
 import (
 	"context"
+	"errors"
+	"slices"
+	"strings"
 	"testing"
 
 	activityrepo "github.com/Jersyfi/hubtask/core/application/repository/activity"
@@ -15,11 +18,45 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
+	"github.com/Jersyfi/hubtask/core/port/expression"
 )
 
 type hidings []repository.FieldHiding
 
 func (h hidings) ReadRestricted(context.Context) ([]repository.FieldHiding, error) { return h, nil }
+
+func (h hidings) ReadFormulas(context.Context) ([]repository.FieldFormula, error) { return nil, nil }
+
+// hidingsAndFormulas is a workspace that also defines formulas beside its hidden fields.
+type hidingsAndFormulas struct {
+	hidden   []repository.FieldHiding
+	formulas []repository.FieldFormula
+}
+
+func (h hidingsAndFormulas) ReadRestricted(context.Context) ([]repository.FieldHiding, error) {
+	return h.hidden, nil
+}
+
+func (h hidingsAndFormulas) ReadFormulas(context.Context) ([]repository.FieldFormula, error) {
+	return h.formulas, nil
+}
+
+// naming is a compiler whose formulas are the input keys they read, separated by spaces: one names
+// a key its environment does not declare and is refused, as the adapter refuses it.
+type naming struct{}
+
+func (naming) Compile(formula string, env expression.Environment, _ expression.Result) (expression.Program, error) {
+	declared := map[string]bool{}
+	for _, field := range env.Variables[0].Fields[0].Fields {
+		declared[field.Name] = true
+	}
+	for _, key := range strings.Fields(formula) {
+		if !declared[key] {
+			return nil, errors.New("undeclared " + key)
+		}
+	}
+	return nil, nil
+}
 
 var hidingCollectionID = shared.MustParseID("0192f000-0000-7000-8000-0000000005c2")
 
@@ -163,5 +200,80 @@ func TestTheHistoryLeavesOutAHiddenFieldsValues(t *testing.T) {
 	admin := ListActivity{Sight: sightFor(roleOf{role: identity.RoleAdmin}, repository.FieldHiding{Key: "cost"}), UnitOfWork: &unitOfWork{}}
 	if narrowed, _ = admin.narrowed(ctx, itemActor(), collection, page); narrowed.Entries[0].ChangeSet["custom_fields.cost"] == nil {
 		t.Fatal("an administrator lost the hidden step")
+	}
+}
+
+// UC-ID-27 check 3: a calculated field whose formula reads a hidden field is hidden with it from
+// whoever may not see that field - on the entry and in a query over it - while one reading only
+// open fields stays, and the field's reader sees both.
+func TestACalculatedFieldReadingAHiddenOneIsHiddenWithIt(t *testing.T) {
+	ctx := context.Background()
+	workspace := hidingsAndFormulas{
+		hidden: []repository.FieldHiding{{Key: "rate"}},
+		formulas: []repository.FieldFormula{
+			{Key: "hours", Kind: domain.CustomFieldNumber},
+			{Key: "rate", Kind: domain.CustomFieldMoney},
+			{Key: "cost", Kind: domain.CustomFieldCalculated, Formula: "hours rate"},
+			{Key: "double", Kind: domain.CustomFieldCalculated, Formula: "hours"},
+			{Key: "elsewhere", Kind: domain.CustomFieldCalculated, Formula: "rate", CollectionID: hidingCollectionID},
+		},
+	}
+	sight := func(roles roleOf, compiler expression.Compiler) FieldSight {
+		s := sightFor(roles)
+		s.Hidings, s.Compiler = workspace, compiler
+		return s
+	}
+	item := domain.WorkItem{ID: shared.MustParseID("0192f000-0000-7000-8000-0000000005c4"), CollectionID: collectionID,
+		CustomFields: map[string]any{"hours": 3.0, "rate": 80.0, "cost": 240.0, "double": 6.0}}
+
+	cases := []struct {
+		name     string
+		roles    roleOf
+		compiler expression.Compiler
+		sees     []string
+		misses   []string
+	}{
+		{"a member", roleOf{role: identity.RoleMember}, naming{}, []string{"hours", "double"}, []string{"rate", "cost"}},
+		{"the field's reader", roleOf{custom: []string{"finance"}, permissions: []service.Permission{service.FieldRead("rate")}},
+			naming{}, []string{"hours", "rate", "cost", "double"}, nil},
+		{"a member, no compiler", roleOf{role: identity.RoleMember}, nil, []string{"hours"}, []string{"rate", "cost", "double"}},
+	}
+	for _, c := range cases {
+		lens, err := sight(c.roles, c.compiler).Lens(ctx, &unitOfWork{}, itemActor())
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		narrowed, err := lens.Item(ctx, &unitOfWork{}, item)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		for _, key := range c.sees {
+			if _, held := narrowed.CustomFields[key]; !held {
+				t.Errorf("%s: %s went missing", c.name, key)
+			}
+		}
+		for _, key := range c.misses {
+			if _, held := narrowed.CustomFields[key]; held {
+				t.Errorf("%s: sees %s", c.name, key)
+			}
+		}
+	}
+
+	lens, err := sight(roleOf{role: identity.RoleMember}, naming{}).Lens(ctx, &unitOfWork{}, itemActor())
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := containerPath(domain.Container{ID: collectionID, TenantID: tenantID})
+	hidden, err := lens.HiddenFrom(ctx, path, []string{"double"})
+	if err != nil || len(hidden) != 0 {
+		t.Fatalf("a query over a calculation of open fields: %v, %v, want nothing hidden", hidden, err)
+	}
+	hidden, err = lens.HiddenFrom(ctx, path, []string{"cost", "double"})
+	if err != nil || !slices.Equal(hidden, []string{"cost"}) {
+		t.Fatalf("a query over the calculation alone: %v, %v, want [cost]", hidden, err)
+	}
+	hidden, err = lens.HiddenFrom(ctx, path, []string{"rate", "cost", "double"})
+	if err != nil || !slices.Equal(hidden, []string{"rate", "cost"}) {
+		t.Fatalf("a query over the hidden field and its calculation: %v, %v, want [rate cost]", hidden, err)
 	}
 }

@@ -377,3 +377,30 @@ func (r CustomFieldRepository) ReadRestricted(ctx context.Context) ([]repository
 	}
 	return hidings, nil
 }
+
+// ReadFormulas answers the CALCULATED definitions and those a formula may read (UC-ID-27 check 3).
+func (r CustomFieldRepository) ReadFormulas(ctx context.Context) ([]repository.FieldFormula, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListFormulaFields(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the formula custom fields: %w", err))
+	}
+	formulas := make([]repository.FieldFormula, 0, len(rows))
+	for _, row := range rows {
+		collectionID, err := optionalID(row.CollectionID)
+		if err != nil {
+			return nil, err
+		}
+		formula := repository.FieldFormula{Key: row.Key, CollectionID: collectionID, Kind: work.CustomFieldKind(row.Kind)}
+		if row.Formula != nil {
+			formula.Formula = *row.Formula
+		}
+		formulas = append(formulas, formula)
+	}
+	return formulas, nil
+}

@@ -740,7 +740,7 @@ func run() error {
 	// A type's form holds every writer of its entries (P-18, D-13), through the one gate.
 	// What a reader may not see of an entry's fields (UC-ID-27 check 3): every read and every
 	// answer, the change stream included, narrows through it.
-	fieldSight := work.FieldSight{Hidings: customFields, Containers: containers, Roles: authorizer}
+	fieldSight := work.FieldSight{Hidings: customFields, Containers: containers, Roles: authorizer, Compiler: celexpression.New()}
 	entryGate := work.EntryGate{Structure: structures, Types: items, EntryTypes: entryTypes, Forms: work.FormGate{
 		Types: entryTypes, Fields: customFields, Compiler: celexpression.New(), Roles: authorizer,
 	}, Sight: fieldSight}
