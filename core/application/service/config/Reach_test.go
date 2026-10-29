@@ -133,3 +133,29 @@ func TestAPlanCountsTheEntriesAFieldItRemovesHolds(t *testing.T) {
 		t.Fatalf("the count was asked %v", asked)
 	}
 }
+
+// S-09's gap: a plan that changes the workspace's own structure says what it would stop showing in
+// every hub and collection that follows the workspace, from the workspace's structure preview.
+func TestAPlanCountsWhatTheWorkspacesStructureWouldStopShowing(t *testing.T) {
+	f := newFixture()
+	f.world.structure = map[string]any{"completion": "MANUAL"}
+	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{
+		"document": map[string]any{"structure": map[string]any{"capture": map[string]any{"value": "INBOX"}}},
+	})
+
+	reached, _ := plan["reach"].([]usecase.Output)
+	if len(reached) != 1 || reached[0]["path"] != "structure" ||
+		reached[0]["hidden_entries"] != 3 || reached[0]["hidden_values"] != 5 {
+		t.Fatalf("reach %v", reached)
+	}
+	asked := f.world.inputs["PreviewWorkspaceStructure"]
+	if len(asked) != 1 || asked[0]["container_id"] != nil {
+		t.Fatalf("the workspace's preview was asked %v", asked)
+	}
+	if settings, _ := asked[0]["settings"].(map[string]any); settings["capture"] != "INBOX" {
+		t.Errorf("the preview was asked for %v", asked[0])
+	}
+	if f.world.inputs["PreviewContainerStructure"] != nil {
+		t.Errorf("a hub's preview was asked for the workspace: %v", f.world.inputs["PreviewContainerStructure"])
+	}
+}

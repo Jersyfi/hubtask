@@ -130,7 +130,7 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 		return usecase.Output{"type": "HUB", "structure": map[string]any{
 			"settings": maps.Clone(w.hubStructure), "sources": sources,
 		}}, nil
-	case "PreviewContainerStructure":
+	case "PreviewContainerStructure", "PreviewWorkspaceStructure":
 		if w.inputs == nil {
 			w.inputs = map[string][]usecase.Input{}
 		}

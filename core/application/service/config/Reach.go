@@ -40,12 +40,15 @@ const (
 	previewWorkflowPublish  = "PreviewWorkflowPublish"
 	listRoles               = "ListRoles"
 	previewCustomFieldReach = "PreviewCustomFieldReach"
+	// The structure previews: a hub's, and the workspace's over every hub that follows it.
+	previewContainerStructure = "PreviewContainerStructure"
+	previewWorkspaceStructure = "PreviewWorkspaceStructure"
 )
 
 // reachOf asks the use cases that know what a change touches, in the plan's read: a workflow's
-// publish preview for the shape the plan sets, a hub scheme's preview, the role grants for a
-// changed role. A shape that
-// removes a status entries are in is refused here, as its publish would refuse the apply.
+// publish preview for the shape the plan sets, a hub scheme's preview, a structure preview, the
+// role grants for a changed role. A shape that removes a status entries are in is refused here,
+// as its publish would refuse the apply.
 func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan) error {
 	var grants []any
 	grantsRead, grantsWithheld := false, false
@@ -53,7 +56,7 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 	reset := []any{}
 	for _, change := range p.Changes {
 		switch {
-		case change.Section == sectionStructure && !p.Hub.IsZero():
+		case change.Section == sectionStructure:
 			if change.Op == domain.OpRemove {
 				reset = append(reset, change.Key)
 			} else {
@@ -180,17 +183,21 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 	return nil
 }
 
-// structureReach asks a hub's structure preview, once for every structure change the plan makes
+// structureReach asks the structure preview of the plan's scope - a hub's, or the workspace's
+// over every hub and collection that follows it - once for every structure change the plan makes
 // there, what it would stop showing.
 func (d Desk) structureReach(ctx context.Context, actor appshared.ActorContext, p *plan, settings map[string]any, reset []any) error {
-	in := usecase.Input{"container_id": p.Hub.String()}
+	asked, in := previewWorkspaceStructure, usecase.Input{}
+	if !p.Hub.IsZero() {
+		asked, in = previewContainerStructure, usecase.Input{"container_id": p.Hub.String()}
+	}
 	if len(settings) > 0 {
 		in["settings"] = settings
 	}
 	if len(reset) > 0 {
 		in["reset"] = reset
 	}
-	answer, err := d.Catalogue.Invoke(ctx, "PreviewContainerStructure", actor, in)
+	answer, err := d.Catalogue.Invoke(ctx, asked, actor, in)
 	if err != nil {
 		if withheld(err) {
 			p.Reach = append(p.Reach, reach{Path: sectionStructure, Withheld: true})
