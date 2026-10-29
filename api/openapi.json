@@ -11313,6 +11313,103 @@
         }
       }
     },
+    "/entry-types/{key}/form": {
+      "parameters": [
+        {
+          "name": "key",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "setEntryTypeForm",
+        "summary": "Set an entry type's form",
+        "description": "Replaces the type's form: its sections, its fields in order with required, read-only and hidden conditions, defaults, validations and the channels that narrow it. Every door that creates or edits an entry of the type - the web app, hubctl, the API, MCP, a rule, a device's push, mail - is held to it. A condition is a CEL expression over `entry`, `actor`, `channel` and `step`; one that names a field the form does not hold is refused with `expression.unknown_name`. An empty form asks nothing. Needs STRUCTURE at the workspace.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryForm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The type with its form",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryType"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/entry-types/{key}/form:evaluate": {
+      "parameters": [
+        {
+          "name": "key",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "items"
+        ],
+        "operationId": "evaluateEntryForm",
+        "summary": "Answer a type's form for a draft",
+        "description": "Answers how the type's form stands for a draft - an entry being edited (`item_id`) or a new one in a collection - without writing anything: which fields are required, read-only or hidden, which validations do not hold, and whether this door may create the type. An editor renders it before sending; the write itself is held to the same answer. Needs READ where the entry is.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryFormDraft"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The form's state for the draft",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryFormState"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/items/{itemId}/entry-type": {
       "parameters": [
         {
@@ -21628,6 +21725,238 @@
           "version": {
             "type": "integer",
             "description": "The optimistic lock; zero for a system type the workspace never changed."
+          },
+          "form": {
+            "$ref": "#/components/schemas/EntryForm"
+          }
+        }
+      },
+      "EntryForm": {
+        "type": "object",
+        "description": "A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them.\n",
+        "properties": {
+          "sections": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "required": [
+                "key",
+                "name"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,49}$"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                }
+              }
+            }
+          },
+          "fields": {
+            "type": "array",
+            "maxItems": 104,
+            "items": {
+              "$ref": "#/components/schemas/EntryFormField"
+            }
+          },
+          "validations": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "type": "object",
+              "required": [
+                "key",
+                "holds"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,49}$"
+                },
+                "field": {
+                  "type": "string",
+                  "description": "The field the refusal points at; empty for the entry as a whole."
+                },
+                "holds": {
+                  "type": "string",
+                  "maxLength": 4096,
+                  "description": "A CEL condition that must be true."
+                },
+                "message": {
+                  "type": "string",
+                  "maxLength": 500,
+                  "description": "The workspace's own words shown when it does not hold."
+                }
+              }
+            }
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntryFormChannel"
+            }
+          }
+        }
+      },
+      "EntryFormField": {
+        "type": "object",
+        "required": [
+          "key"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "title, notes, due_date, start_at or custom_fields.<key>."
+          },
+          "section": {
+            "type": "string",
+            "description": "The section's key; empty for none."
+          },
+          "required": {
+            "type": "boolean",
+            "default": false
+          },
+          "required_when": {
+            "type": "string",
+            "maxLength": 4096,
+            "description": "A CEL condition under which the field is required."
+          },
+          "read_only_when": {
+            "type": "string",
+            "maxLength": 4096,
+            "description": "A CEL condition under which the field may not change."
+          },
+          "hidden_when": {
+            "type": "string",
+            "maxLength": 4096,
+            "description": "A CEL condition under which the field is hidden; never on the title."
+          },
+          "default": {
+            "description": "What a new entry starts with; only a custom field takes one."
+          },
+          "help": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
+      },
+      "EntryFormChannel": {
+        "type": "object",
+        "required": [
+          "channel"
+        ],
+        "properties": {
+          "channel": {
+            "type": "string",
+            "enum": [
+              "APP",
+              "MCP",
+              "RULE",
+              "SYNC",
+              "IMPORT",
+              "MAIL"
+            ],
+            "description": "The door; APP is the REST API the web app and hubctl share."
+          },
+          "closed": {
+            "type": "boolean",
+            "default": false,
+            "description": "No entry of the type is created through this door."
+          },
+          "hidden": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Fields of the form this door hides; a required one must be preset or have a default."
+          },
+          "presets": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Values by field key this door fills; a hidden field takes its preset whatever is sent."
+          }
+        }
+      },
+      "EntryFormDraft": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The entry being edited; empty for a new one."
+          },
+          "collection_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Where a new entry would be created."
+          },
+          "title": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "custom_fields": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "EntryFormState": {
+        "type": "object",
+        "required": [
+          "entry_type",
+          "channel",
+          "fields",
+          "failed",
+          "closed"
+        ],
+        "properties": {
+          "entry_type": {
+            "type": "string",
+            "description": "Empty where the type has no form."
+          },
+          "channel": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "object",
+            "description": "The state of each field of the form, by its key.",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "required",
+                "read_only",
+                "hidden"
+              ],
+              "properties": {
+                "required": {
+                  "type": "boolean"
+                },
+                "read_only": {
+                  "type": "boolean"
+                },
+                "hidden": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "failed": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The keys of the validations that do not hold."
+          },
+          "closed": {
+            "type": "boolean",
+            "description": "This door may not create the type."
           }
         }
       },

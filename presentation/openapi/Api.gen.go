@@ -1830,6 +1830,36 @@ func (e EncryptionStoreCountStore) Valid() bool {
 	}
 }
 
+// Defines values for EntryFormChannelChannel.
+const (
+	EntryFormChannelChannelAPP    EntryFormChannelChannel = "APP"
+	EntryFormChannelChannelIMPORT EntryFormChannelChannel = "IMPORT"
+	EntryFormChannelChannelMAIL   EntryFormChannelChannel = "MAIL"
+	EntryFormChannelChannelMCP    EntryFormChannelChannel = "MCP"
+	EntryFormChannelChannelRULE   EntryFormChannelChannel = "RULE"
+	EntryFormChannelChannelSYNC   EntryFormChannelChannel = "SYNC"
+)
+
+// Valid indicates whether the value is a known member of the EntryFormChannelChannel enum.
+func (e EntryFormChannelChannel) Valid() bool {
+	switch e {
+	case EntryFormChannelChannelAPP:
+		return true
+	case EntryFormChannelChannelIMPORT:
+		return true
+	case EntryFormChannelChannelMAIL:
+		return true
+	case EntryFormChannelChannelMCP:
+		return true
+	case EntryFormChannelChannelRULE:
+		return true
+	case EntryFormChannelChannelSYNC:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EntryLinkWaits.
 const (
 	EntryLinkWaitsNONE   EntryLinkWaits = "NONE"
@@ -5345,31 +5375,31 @@ func (e SuggestionSource) Valid() bool {
 
 // Defines values for SuggestionKind.
 const (
-	ANSWER        SuggestionKind = "ANSWER"
-	DECOMPOSITION SuggestionKind = "DECOMPOSITION"
-	DUPLICATES    SuggestionKind = "DUPLICATES"
-	ENTRIES       SuggestionKind = "ENTRIES"
-	FIELDS        SuggestionKind = "FIELDS"
-	RULE          SuggestionKind = "RULE"
-	TEMPLATE      SuggestionKind = "TEMPLATE"
+	SuggestionKindANSWER        SuggestionKind = "ANSWER"
+	SuggestionKindDECOMPOSITION SuggestionKind = "DECOMPOSITION"
+	SuggestionKindDUPLICATES    SuggestionKind = "DUPLICATES"
+	SuggestionKindENTRIES       SuggestionKind = "ENTRIES"
+	SuggestionKindFIELDS        SuggestionKind = "FIELDS"
+	SuggestionKindRULE          SuggestionKind = "RULE"
+	SuggestionKindTEMPLATE      SuggestionKind = "TEMPLATE"
 )
 
 // Valid indicates whether the value is a known member of the SuggestionKind enum.
 func (e SuggestionKind) Valid() bool {
 	switch e {
-	case ANSWER:
+	case SuggestionKindANSWER:
 		return true
-	case DECOMPOSITION:
+	case SuggestionKindDECOMPOSITION:
 		return true
-	case DUPLICATES:
+	case SuggestionKindDUPLICATES:
 		return true
-	case ENTRIES:
+	case SuggestionKindENTRIES:
 		return true
-	case FIELDS:
+	case SuggestionKindFIELDS:
 		return true
-	case RULE:
+	case SuggestionKindRULE:
 		return true
-	case TEMPLATE:
+	case SuggestionKindTEMPLATE:
 		return true
 	default:
 		return false
@@ -8244,6 +8274,101 @@ type EntriesText struct {
 	Text string `json:"text"`
 }
 
+// EntryForm A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them.
+type EntryForm struct {
+	Channels *[]EntryFormChannel `json:"channels,omitempty"`
+	Fields   *[]EntryFormField   `json:"fields,omitempty"`
+	Sections *[]struct {
+		Key  string `json:"key"`
+		Name string `json:"name"`
+	} `json:"sections,omitempty"`
+	Validations *[]struct {
+		// Field The field the refusal points at; empty for the entry as a whole.
+		Field *string `json:"field,omitempty"`
+
+		// Holds A CEL condition that must be true.
+		Holds string `json:"holds"`
+		Key   string `json:"key"`
+
+		// Message The workspace's own words shown when it does not hold.
+		Message *string `json:"message,omitempty"`
+	} `json:"validations,omitempty"`
+}
+
+// EntryFormChannel defines model for EntryFormChannel.
+type EntryFormChannel struct {
+	// Channel The door; APP is the REST API the web app and hubctl share.
+	Channel EntryFormChannelChannel `json:"channel"`
+
+	// Closed No entry of the type is created through this door.
+	Closed *bool `json:"closed,omitempty"`
+
+	// Hidden Fields of the form this door hides; a required one must be preset or have a default.
+	Hidden *[]string `json:"hidden,omitempty"`
+
+	// Presets Values by field key this door fills; a hidden field takes its preset whatever is sent.
+	Presets *map[string]interface{} `json:"presets,omitempty"`
+}
+
+// EntryFormChannelChannel The door; APP is the REST API the web app and hubctl share.
+type EntryFormChannelChannel string
+
+// EntryFormDraft defines model for EntryFormDraft.
+type EntryFormDraft struct {
+	// CollectionId Where a new entry would be created.
+	CollectionId *openapi_types.UUID     `json:"collection_id,omitempty"`
+	CustomFields *map[string]interface{} `json:"custom_fields,omitempty"`
+
+	// ItemId The entry being edited; empty for a new one.
+	ItemId *openapi_types.UUID `json:"item_id,omitempty"`
+	Notes  *string             `json:"notes,omitempty"`
+	Title  *string             `json:"title,omitempty"`
+}
+
+// EntryFormField defines model for EntryFormField.
+type EntryFormField struct {
+	// Default What a new entry starts with; only a custom field takes one.
+	Default interface{} `json:"default,omitempty"`
+	Help    *string     `json:"help,omitempty"`
+
+	// HiddenWhen A CEL condition under which the field is hidden; never on the title.
+	HiddenWhen *string `json:"hidden_when,omitempty"`
+
+	// Key title, notes, due_date, start_at or custom_fields.<key>.
+	Key string `json:"key"`
+
+	// ReadOnlyWhen A CEL condition under which the field may not change.
+	ReadOnlyWhen *string `json:"read_only_when,omitempty"`
+	Required     *bool   `json:"required,omitempty"`
+
+	// RequiredWhen A CEL condition under which the field is required.
+	RequiredWhen *string `json:"required_when,omitempty"`
+
+	// Section The section's key; empty for none.
+	Section *string `json:"section,omitempty"`
+}
+
+// EntryFormState defines model for EntryFormState.
+type EntryFormState struct {
+	Channel string `json:"channel"`
+
+	// Closed This door may not create the type.
+	Closed bool `json:"closed"`
+
+	// EntryType Empty where the type has no form.
+	EntryType string `json:"entry_type"`
+
+	// Failed The keys of the validations that do not hold.
+	Failed []string `json:"failed"`
+
+	// Fields The state of each field of the form, by its key.
+	Fields map[string]struct {
+		Hidden   bool `json:"hidden"`
+		ReadOnly bool `json:"read_only"`
+		Required bool `json:"required"`
+	} `json:"fields"`
+}
+
 // EntryHidden What the entry's collection does not show of it. A collection's structure (its levels and fields) may offer less than the entry holds; nothing is deleted when it does. The entry and every value stay stored, are answered here as they are, and writing them is refused with `capability_not_supported` until the collection offers them again.
 //
 // Present on every read of an entry and in the answer of every write to one. Absent from the records of the synchronisation (`:pull`, `:snapshot`, the change stream and the answer of `:push`): a client holding the container's `structure` derives it, since a change of the structure would otherwise rewrite every entry under it.
@@ -8342,6 +8467,9 @@ type EntryType struct {
 	ColorToken  string `json:"color_token"`
 	Completable bool   `json:"completable"`
 	Estimable   bool   `json:"estimable"`
+
+	// Form A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them.
+	Form *EntryForm `json:"form,omitempty"`
 
 	// Icon The name of an icon of the design system's set.
 	Icon string `json:"icon"`
@@ -14717,6 +14845,12 @@ type ChangeEntryTypeParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetEntryTypeFormParams defines parameters for SetEntryTypeForm.
+type SetEntryTypeFormParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListGroupsParams defines parameters for ListGroups.
 type ListGroupsParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -15826,6 +15960,12 @@ type CreateEntryTypeJSONRequestBody = EntryTypeCreate
 // ChangeEntryTypeApplicationMergePatchPlusJSONRequestBody defines body for ChangeEntryType for application/merge-patch+json ContentType.
 type ChangeEntryTypeApplicationMergePatchPlusJSONRequestBody = EntryTypeChange
 
+// SetEntryTypeFormJSONRequestBody defines body for SetEntryTypeForm for application/json ContentType.
+type SetEntryTypeFormJSONRequestBody = EntryForm
+
+// EvaluateEntryFormJSONRequestBody defines body for EvaluateEntryForm for application/json ContentType.
+type EvaluateEntryFormJSONRequestBody = EntryFormDraft
+
 // CreateGroupJSONRequestBody defines body for CreateGroup for application/json ContentType.
 type CreateGroupJSONRequestBody = GroupCreate
 
@@ -16698,6 +16838,12 @@ type ServerInterface interface {
 	// ChangeEntryType Change an entry type
 	// (PATCH /entry-types/{key})
 	ChangeEntryType(w http.ResponseWriter, r *http.Request, key string, params ChangeEntryTypeParams)
+	// SetEntryTypeForm Set an entry type's form
+	// (PUT /entry-types/{key}/form)
+	SetEntryTypeForm(w http.ResponseWriter, r *http.Request, key string, params SetEntryTypeFormParams)
+	// EvaluateEntryForm Answer a type's form for a draft
+	// (POST /entry-types/{key}/form:evaluate)
+	EvaluateEntryForm(w http.ResponseWriter, r *http.Request, key string)
 	// ListGroups The workspace's groups
 	// (GET /groups)
 	ListGroups(w http.ResponseWriter, r *http.Request, params ListGroupsParams)
@@ -23725,6 +23871,82 @@ func (siw *ServerInterfaceWrapper) ChangeEntryType(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ChangeEntryType(w, r, key, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetEntryTypeForm operation middleware
+func (siw *ServerInterfaceWrapper) SetEntryTypeForm(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetEntryTypeFormParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetEntryTypeForm(w, r, key, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EvaluateEntryForm operation middleware
+func (siw *ServerInterfaceWrapper) EvaluateEntryForm(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EvaluateEntryForm(w, r, key)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -31684,6 +31906,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/entry-types", wrapper.CreateEntryType)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/entry-types/{key}", wrapper.DeleteEntryType)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/entry-types/{key}", wrapper.ChangeEntryType)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/entry-types/{key}/form", wrapper.SetEntryTypeForm)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/entry-types/{key}/form:evaluate", wrapper.EvaluateEntryForm)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/entry-type", wrapper.SetItemEntryType)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/link-types", wrapper.ListLinkTypes)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/link-types", wrapper.CreateLinkType)

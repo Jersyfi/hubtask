@@ -1836,6 +1836,36 @@ func (e EncryptionStoreCountStore) Valid() bool {
 	}
 }
 
+// Defines values for EntryFormChannelChannel.
+const (
+	EntryFormChannelChannelAPP    EntryFormChannelChannel = "APP"
+	EntryFormChannelChannelIMPORT EntryFormChannelChannel = "IMPORT"
+	EntryFormChannelChannelMAIL   EntryFormChannelChannel = "MAIL"
+	EntryFormChannelChannelMCP    EntryFormChannelChannel = "MCP"
+	EntryFormChannelChannelRULE   EntryFormChannelChannel = "RULE"
+	EntryFormChannelChannelSYNC   EntryFormChannelChannel = "SYNC"
+)
+
+// Valid indicates whether the value is a known member of the EntryFormChannelChannel enum.
+func (e EntryFormChannelChannel) Valid() bool {
+	switch e {
+	case EntryFormChannelChannelAPP:
+		return true
+	case EntryFormChannelChannelIMPORT:
+		return true
+	case EntryFormChannelChannelMAIL:
+		return true
+	case EntryFormChannelChannelMCP:
+		return true
+	case EntryFormChannelChannelRULE:
+		return true
+	case EntryFormChannelChannelSYNC:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EntryLinkWaits.
 const (
 	EntryLinkWaitsNONE   EntryLinkWaits = "NONE"
@@ -5351,31 +5381,31 @@ func (e SuggestionSource) Valid() bool {
 
 // Defines values for SuggestionKind.
 const (
-	ANSWER        SuggestionKind = "ANSWER"
-	DECOMPOSITION SuggestionKind = "DECOMPOSITION"
-	DUPLICATES    SuggestionKind = "DUPLICATES"
-	ENTRIES       SuggestionKind = "ENTRIES"
-	FIELDS        SuggestionKind = "FIELDS"
-	RULE          SuggestionKind = "RULE"
-	TEMPLATE      SuggestionKind = "TEMPLATE"
+	SuggestionKindANSWER        SuggestionKind = "ANSWER"
+	SuggestionKindDECOMPOSITION SuggestionKind = "DECOMPOSITION"
+	SuggestionKindDUPLICATES    SuggestionKind = "DUPLICATES"
+	SuggestionKindENTRIES       SuggestionKind = "ENTRIES"
+	SuggestionKindFIELDS        SuggestionKind = "FIELDS"
+	SuggestionKindRULE          SuggestionKind = "RULE"
+	SuggestionKindTEMPLATE      SuggestionKind = "TEMPLATE"
 )
 
 // Valid indicates whether the value is a known member of the SuggestionKind enum.
 func (e SuggestionKind) Valid() bool {
 	switch e {
-	case ANSWER:
+	case SuggestionKindANSWER:
 		return true
-	case DECOMPOSITION:
+	case SuggestionKindDECOMPOSITION:
 		return true
-	case DUPLICATES:
+	case SuggestionKindDUPLICATES:
 		return true
-	case ENTRIES:
+	case SuggestionKindENTRIES:
 		return true
-	case FIELDS:
+	case SuggestionKindFIELDS:
 		return true
-	case RULE:
+	case SuggestionKindRULE:
 		return true
-	case TEMPLATE:
+	case SuggestionKindTEMPLATE:
 		return true
 	default:
 		return false
@@ -8250,6 +8280,101 @@ type EntriesText struct {
 	Text string `json:"text"`
 }
 
+// EntryForm A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them.
+type EntryForm struct {
+	Channels *[]EntryFormChannel `json:"channels,omitempty"`
+	Fields   *[]EntryFormField   `json:"fields,omitempty"`
+	Sections *[]struct {
+		Key  string `json:"key"`
+		Name string `json:"name"`
+	} `json:"sections,omitempty"`
+	Validations *[]struct {
+		// Field The field the refusal points at; empty for the entry as a whole.
+		Field *string `json:"field,omitempty"`
+
+		// Holds A CEL condition that must be true.
+		Holds string `json:"holds"`
+		Key   string `json:"key"`
+
+		// Message The workspace's own words shown when it does not hold.
+		Message *string `json:"message,omitempty"`
+	} `json:"validations,omitempty"`
+}
+
+// EntryFormChannel defines model for EntryFormChannel.
+type EntryFormChannel struct {
+	// Channel The door; APP is the REST API the web app and hubctl share.
+	Channel EntryFormChannelChannel `json:"channel"`
+
+	// Closed No entry of the type is created through this door.
+	Closed *bool `json:"closed,omitempty"`
+
+	// Hidden Fields of the form this door hides; a required one must be preset or have a default.
+	Hidden *[]string `json:"hidden,omitempty"`
+
+	// Presets Values by field key this door fills; a hidden field takes its preset whatever is sent.
+	Presets *map[string]interface{} `json:"presets,omitempty"`
+}
+
+// EntryFormChannelChannel The door; APP is the REST API the web app and hubctl share.
+type EntryFormChannelChannel string
+
+// EntryFormDraft defines model for EntryFormDraft.
+type EntryFormDraft struct {
+	// CollectionId Where a new entry would be created.
+	CollectionId *openapi_types.UUID     `json:"collection_id,omitempty"`
+	CustomFields *map[string]interface{} `json:"custom_fields,omitempty"`
+
+	// ItemId The entry being edited; empty for a new one.
+	ItemId *openapi_types.UUID `json:"item_id,omitempty"`
+	Notes  *string             `json:"notes,omitempty"`
+	Title  *string             `json:"title,omitempty"`
+}
+
+// EntryFormField defines model for EntryFormField.
+type EntryFormField struct {
+	// Default What a new entry starts with; only a custom field takes one.
+	Default interface{} `json:"default,omitempty"`
+	Help    *string     `json:"help,omitempty"`
+
+	// HiddenWhen A CEL condition under which the field is hidden; never on the title.
+	HiddenWhen *string `json:"hidden_when,omitempty"`
+
+	// Key title, notes, due_date, start_at or custom_fields.<key>.
+	Key string `json:"key"`
+
+	// ReadOnlyWhen A CEL condition under which the field may not change.
+	ReadOnlyWhen *string `json:"read_only_when,omitempty"`
+	Required     *bool   `json:"required,omitempty"`
+
+	// RequiredWhen A CEL condition under which the field is required.
+	RequiredWhen *string `json:"required_when,omitempty"`
+
+	// Section The section's key; empty for none.
+	Section *string `json:"section,omitempty"`
+}
+
+// EntryFormState defines model for EntryFormState.
+type EntryFormState struct {
+	Channel string `json:"channel"`
+
+	// Closed This door may not create the type.
+	Closed bool `json:"closed"`
+
+	// EntryType Empty where the type has no form.
+	EntryType string `json:"entry_type"`
+
+	// Failed The keys of the validations that do not hold.
+	Failed []string `json:"failed"`
+
+	// Fields The state of each field of the form, by its key.
+	Fields map[string]struct {
+		Hidden   bool `json:"hidden"`
+		ReadOnly bool `json:"read_only"`
+		Required bool `json:"required"`
+	} `json:"fields"`
+}
+
 // EntryHidden What the entry's collection does not show of it. A collection's structure (its levels and fields) may offer less than the entry holds; nothing is deleted when it does. The entry and every value stay stored, are answered here as they are, and writing them is refused with `capability_not_supported` until the collection offers them again.
 //
 // Present on every read of an entry and in the answer of every write to one. Absent from the records of the synchronisation (`:pull`, `:snapshot`, the change stream and the answer of `:push`): a client holding the container's `structure` derives it, since a change of the structure would otherwise rewrite every entry under it.
@@ -8348,6 +8473,9 @@ type EntryType struct {
 	ColorToken  string `json:"color_token"`
 	Completable bool   `json:"completable"`
 	Estimable   bool   `json:"estimable"`
+
+	// Form A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them.
+	Form *EntryForm `json:"form,omitempty"`
 
 	// Icon The name of an icon of the design system's set.
 	Icon string `json:"icon"`
@@ -14723,6 +14851,12 @@ type ChangeEntryTypeParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetEntryTypeFormParams defines parameters for SetEntryTypeForm.
+type SetEntryTypeFormParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListGroupsParams defines parameters for ListGroups.
 type ListGroupsParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -15831,6 +15965,12 @@ type CreateEntryTypeJSONRequestBody = EntryTypeCreate
 
 // ChangeEntryTypeApplicationMergePatchPlusJSONRequestBody defines body for ChangeEntryType for application/merge-patch+json ContentType.
 type ChangeEntryTypeApplicationMergePatchPlusJSONRequestBody = EntryTypeChange
+
+// SetEntryTypeFormJSONRequestBody defines body for SetEntryTypeForm for application/json ContentType.
+type SetEntryTypeFormJSONRequestBody = EntryForm
+
+// EvaluateEntryFormJSONRequestBody defines body for EvaluateEntryForm for application/json ContentType.
+type EvaluateEntryFormJSONRequestBody = EntryFormDraft
 
 // CreateGroupJSONRequestBody defines body for CreateGroup for application/json ContentType.
 type CreateGroupJSONRequestBody = GroupCreate
@@ -19167,6 +19307,42 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /entry-types/{key} (the `ChangeEntryType` operationId).
 	ChangeEntryTypeWithApplicationMergePatchPlusJSONBody(ctx context.Context, key string, params *ChangeEntryTypeParams, body ChangeEntryTypeApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetEntryTypeFormWithBody Set an entry type's form
+	//
+	// Replaces the type's form: its sections, its fields in order with required, read-only and hidden conditions, defaults, validations and the channels that narrow it. Every door that creates or edits an entry of the type - the web app, hubctl, the API, MCP, a rule, a device's push, mail - is held to it. A condition is a CEL expression over `entry`, `actor`, `channel` and `step`; one that names a field the form does not hold is refused with `expression.unknown_name`. An empty form asks nothing. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /entry-types/{key}/form (the `SetEntryTypeForm` operationId).
+	SetEntryTypeFormWithBody(ctx context.Context, key string, params *SetEntryTypeFormParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetEntryTypeForm Set an entry type's form
+	//
+	// Replaces the type's form: its sections, its fields in order with required, read-only and hidden conditions, defaults, validations and the channels that narrow it. Every door that creates or edits an entry of the type - the web app, hubctl, the API, MCP, a rule, a device's push, mail - is held to it. A condition is a CEL expression over `entry`, `actor`, `channel` and `step`; one that names a field the form does not hold is refused with `expression.unknown_name`. An empty form asks nothing. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /entry-types/{key}/form (the `SetEntryTypeForm` operationId).
+	SetEntryTypeForm(ctx context.Context, key string, params *SetEntryTypeFormParams, body SetEntryTypeFormJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// EvaluateEntryFormWithBody Answer a type's form for a draft
+	//
+	// Answers how the type's form stands for a draft - an entry being edited (`item_id`) or a new one in a collection - without writing anything: which fields are required, read-only or hidden, which validations do not hold, and whether this door may create the type. An editor renders it before sending; the write itself is held to the same answer. Needs READ where the entry is.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /entry-types/{key}/form:evaluate (the `EvaluateEntryForm` operationId).
+	EvaluateEntryFormWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// EvaluateEntryForm Answer a type's form for a draft
+	//
+	// Answers how the type's form stands for a draft - an entry being edited (`item_id`) or a new one in a collection - without writing anything: which fields are required, read-only or hidden, which validations do not hold, and whether this door may create the type. An editor renders it before sending; the write itself is held to the same answer. Needs READ where the entry is.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /entry-types/{key}/form:evaluate (the `EvaluateEntryForm` operationId).
+	EvaluateEntryForm(ctx context.Context, key string, body EvaluateEntryFormJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListGroups The workspace's groups
 	//
@@ -27885,6 +28061,82 @@ func (c *Client) ChangeEntryTypeWithBody(ctx context.Context, key string, params
 // Corresponds with PATCH /entry-types/{key} (the `ChangeEntryType` operationId).
 func (c *Client) ChangeEntryTypeWithApplicationMergePatchPlusJSONBody(ctx context.Context, key string, params *ChangeEntryTypeParams, body ChangeEntryTypeApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewChangeEntryTypeRequestWithApplicationMergePatchPlusJSONBody(c.Server, key, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetEntryTypeFormWithBody Set an entry type's form
+//
+// Replaces the type's form: its sections, its fields in order with required, read-only and hidden conditions, defaults, validations and the channels that narrow it. Every door that creates or edits an entry of the type - the web app, hubctl, the API, MCP, a rule, a device's push, mail - is held to it. A condition is a CEL expression over `entry`, `actor`, `channel` and `step`; one that names a field the form does not hold is refused with `expression.unknown_name`. An empty form asks nothing. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /entry-types/{key}/form (the `SetEntryTypeForm` operationId).
+func (c *Client) SetEntryTypeFormWithBody(ctx context.Context, key string, params *SetEntryTypeFormParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetEntryTypeFormRequestWithBody(c.Server, key, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetEntryTypeForm Set an entry type's form
+//
+// Replaces the type's form: its sections, its fields in order with required, read-only and hidden conditions, defaults, validations and the channels that narrow it. Every door that creates or edits an entry of the type - the web app, hubctl, the API, MCP, a rule, a device's push, mail - is held to it. A condition is a CEL expression over `entry`, `actor`, `channel` and `step`; one that names a field the form does not hold is refused with `expression.unknown_name`. An empty form asks nothing. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /entry-types/{key}/form (the `SetEntryTypeForm` operationId).
+func (c *Client) SetEntryTypeForm(ctx context.Context, key string, params *SetEntryTypeFormParams, body SetEntryTypeFormJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetEntryTypeFormRequest(c.Server, key, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// EvaluateEntryFormWithBody Answer a type's form for a draft
+//
+// Answers how the type's form stands for a draft - an entry being edited (`item_id`) or a new one in a collection - without writing anything: which fields are required, read-only or hidden, which validations do not hold, and whether this door may create the type. An editor renders it before sending; the write itself is held to the same answer. Needs READ where the entry is.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /entry-types/{key}/form:evaluate (the `EvaluateEntryForm` operationId).
+func (c *Client) EvaluateEntryFormWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewEvaluateEntryFormRequestWithBody(c.Server, key, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// EvaluateEntryForm Answer a type's form for a draft
+//
+// Answers how the type's form stands for a draft - an entry being edited (`item_id`) or a new one in a collection - without writing anything: which fields are required, read-only or hidden, which validations do not hold, and whether this door may create the type. An editor renders it before sending; the write itself is held to the same answer. Needs READ where the entry is.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /entry-types/{key}/form:evaluate (the `EvaluateEntryForm` operationId).
+func (c *Client) EvaluateEntryForm(ctx context.Context, key string, body EvaluateEntryFormJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewEvaluateEntryFormRequest(c.Server, key, body)
 	if err != nil {
 		return nil, err
 	}
@@ -42757,6 +43009,115 @@ func NewChangeEntryTypeRequestWithBody(server string, key string, params *Change
 	return req, nil
 }
 
+// NewSetEntryTypeFormRequest calls the generic SetEntryTypeForm builder with application/json body
+func NewSetEntryTypeFormRequest(server string, key string, params *SetEntryTypeFormParams, body SetEntryTypeFormJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetEntryTypeFormRequestWithBody(server, key, params, "application/json", bodyReader)
+}
+
+// NewSetEntryTypeFormRequestWithBody constructs an http.Request for the SetEntryTypeForm method, with any body, and a specified content type
+func NewSetEntryTypeFormRequestWithBody(server string, key string, params *SetEntryTypeFormParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/entry-types/%s/form", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewEvaluateEntryFormRequest calls the generic EvaluateEntryForm builder with application/json body
+func NewEvaluateEntryFormRequest(server string, key string, body EvaluateEntryFormJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewEvaluateEntryFormRequestWithBody(server, key, "application/json", bodyReader)
+}
+
+// NewEvaluateEntryFormRequestWithBody constructs an http.Request for the EvaluateEntryForm method, with any body, and a specified content type
+func NewEvaluateEntryFormRequestWithBody(server string, key string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/entry-types/%s/form:evaluate", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListGroupsRequest constructs an http.Request for the ListGroups method
 func NewListGroupsRequest(server string, params *ListGroupsParams) (*http.Request, error) {
 	var err error
@@ -56037,6 +56398,42 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /entry-types/{key} (the `ChangeEntryType` operationId).
 	ChangeEntryTypeWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, key string, params *ChangeEntryTypeParams, body ChangeEntryTypeApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeEntryTypeResult, error)
 
+	// SetEntryTypeFormWithBodyWithResponse Set an entry type's form
+	//
+	// Replaces the type's form: its sections, its fields in order with required, read-only and hidden conditions, defaults, validations and the channels that narrow it. Every door that creates or edits an entry of the type - the web app, hubctl, the API, MCP, a rule, a device's push, mail - is held to it. A condition is a CEL expression over `entry`, `actor`, `channel` and `step`; one that names a field the form does not hold is refused with `expression.unknown_name`. An empty form asks nothing. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /entry-types/{key}/form (the `SetEntryTypeForm` operationId).
+	SetEntryTypeFormWithBodyWithResponse(ctx context.Context, key string, params *SetEntryTypeFormParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetEntryTypeFormResult, error)
+
+	// SetEntryTypeFormWithResponse Set an entry type's form
+	//
+	// Replaces the type's form: its sections, its fields in order with required, read-only and hidden conditions, defaults, validations and the channels that narrow it. Every door that creates or edits an entry of the type - the web app, hubctl, the API, MCP, a rule, a device's push, mail - is held to it. A condition is a CEL expression over `entry`, `actor`, `channel` and `step`; one that names a field the form does not hold is refused with `expression.unknown_name`. An empty form asks nothing. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /entry-types/{key}/form (the `SetEntryTypeForm` operationId).
+	SetEntryTypeFormWithResponse(ctx context.Context, key string, params *SetEntryTypeFormParams, body SetEntryTypeFormJSONRequestBody, reqEditors ...RequestEditorFn) (*SetEntryTypeFormResult, error)
+
+	// EvaluateEntryFormWithBodyWithResponse Answer a type's form for a draft
+	//
+	// Answers how the type's form stands for a draft - an entry being edited (`item_id`) or a new one in a collection - without writing anything: which fields are required, read-only or hidden, which validations do not hold, and whether this door may create the type. An editor renders it before sending; the write itself is held to the same answer. Needs READ where the entry is.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /entry-types/{key}/form:evaluate (the `EvaluateEntryForm` operationId).
+	EvaluateEntryFormWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*EvaluateEntryFormResult, error)
+
+	// EvaluateEntryFormWithResponse Answer a type's form for a draft
+	//
+	// Answers how the type's form stands for a draft - an entry being edited (`item_id`) or a new one in a collection - without writing anything: which fields are required, read-only or hidden, which validations do not hold, and whether this door may create the type. An editor renders it before sending; the write itself is held to the same answer. Needs READ where the entry is.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /entry-types/{key}/form:evaluate (the `EvaluateEntryForm` operationId).
+	EvaluateEntryFormWithResponse(ctx context.Context, key string, body EvaluateEntryFormJSONRequestBody, reqEditors ...RequestEditorFn) (*EvaluateEntryFormResult, error)
+
 	// ListGroupsWithResponse The workspace's groups
 	//
 	// Every group of the workspace, by name. Any member may read it, for the reason any member
@@ -68848,6 +69245,102 @@ func (r ChangeEntryTypeResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ChangeEntryTypeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetEntryTypeFormResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *EntryType
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetEntryTypeFormResult) GetJSON200() *EntryType {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetEntryTypeFormResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetEntryTypeFormResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetEntryTypeFormResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetEntryTypeFormResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetEntryTypeFormResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type EvaluateEntryFormResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *EntryFormState
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r EvaluateEntryFormResult) GetJSON200() *EntryFormState {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r EvaluateEntryFormResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r EvaluateEntryFormResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r EvaluateEntryFormResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r EvaluateEntryFormResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r EvaluateEntryFormResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -84056,6 +84549,66 @@ func (c *ClientWithResponses) ChangeEntryTypeWithApplicationMergePatchPlusJSONBo
 	return ParseChangeEntryTypeResult(rsp)
 }
 
+// SetEntryTypeFormWithBodyWithResponse Set an entry type's form
+//
+// Replaces the type's form: its sections, its fields in order with required, read-only and hidden conditions, defaults, validations and the channels that narrow it. Every door that creates or edits an entry of the type - the web app, hubctl, the API, MCP, a rule, a device's push, mail - is held to it. A condition is a CEL expression over `entry`, `actor`, `channel` and `step`; one that names a field the form does not hold is refused with `expression.unknown_name`. An empty form asks nothing. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /entry-types/{key}/form (the `SetEntryTypeForm` operationId).
+func (c *ClientWithResponses) SetEntryTypeFormWithBodyWithResponse(ctx context.Context, key string, params *SetEntryTypeFormParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetEntryTypeFormResult, error) {
+	rsp, err := c.SetEntryTypeFormWithBody(ctx, key, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetEntryTypeFormResult(rsp)
+}
+
+// SetEntryTypeFormWithResponse Set an entry type's form
+//
+// Replaces the type's form: its sections, its fields in order with required, read-only and hidden conditions, defaults, validations and the channels that narrow it. Every door that creates or edits an entry of the type - the web app, hubctl, the API, MCP, a rule, a device's push, mail - is held to it. A condition is a CEL expression over `entry`, `actor`, `channel` and `step`; one that names a field the form does not hold is refused with `expression.unknown_name`. An empty form asks nothing. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /entry-types/{key}/form (the `SetEntryTypeForm` operationId).
+func (c *ClientWithResponses) SetEntryTypeFormWithResponse(ctx context.Context, key string, params *SetEntryTypeFormParams, body SetEntryTypeFormJSONRequestBody, reqEditors ...RequestEditorFn) (*SetEntryTypeFormResult, error) {
+	rsp, err := c.SetEntryTypeForm(ctx, key, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetEntryTypeFormResult(rsp)
+}
+
+// EvaluateEntryFormWithBodyWithResponse Answer a type's form for a draft
+//
+// Answers how the type's form stands for a draft - an entry being edited (`item_id`) or a new one in a collection - without writing anything: which fields are required, read-only or hidden, which validations do not hold, and whether this door may create the type. An editor renders it before sending; the write itself is held to the same answer. Needs READ where the entry is.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /entry-types/{key}/form:evaluate (the `EvaluateEntryForm` operationId).
+func (c *ClientWithResponses) EvaluateEntryFormWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*EvaluateEntryFormResult, error) {
+	rsp, err := c.EvaluateEntryFormWithBody(ctx, key, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseEvaluateEntryFormResult(rsp)
+}
+
+// EvaluateEntryFormWithResponse Answer a type's form for a draft
+//
+// Answers how the type's form stands for a draft - an entry being edited (`item_id`) or a new one in a collection - without writing anything: which fields are required, read-only or hidden, which validations do not hold, and whether this door may create the type. An editor renders it before sending; the write itself is held to the same answer. Needs READ where the entry is.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /entry-types/{key}/form:evaluate (the `EvaluateEntryForm` operationId).
+func (c *ClientWithResponses) EvaluateEntryFormWithResponse(ctx context.Context, key string, body EvaluateEntryFormJSONRequestBody, reqEditors ...RequestEditorFn) (*EvaluateEntryFormResult, error) {
+	rsp, err := c.EvaluateEntryForm(ctx, key, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseEvaluateEntryFormResult(rsp)
+}
+
 // ListGroupsWithResponse The workspace's groups
 //
 // Every group of the workspace, by name. Any member may read it, for the reason any member
@@ -95830,6 +96383,72 @@ func ParseChangeEntryTypeResult(rsp *http.Response) (*ChangeEntryTypeResult, err
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest EntryType
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetEntryTypeFormResult parses an HTTP response from a SetEntryTypeFormWithResponse call
+func ParseSetEntryTypeFormResult(rsp *http.Response) (*SetEntryTypeFormResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetEntryTypeFormResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EntryType
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseEvaluateEntryFormResult parses an HTTP response from a EvaluateEntryFormWithResponse call
+func ParseEvaluateEntryFormResult(rsp *http.Response) (*EvaluateEntryFormResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &EvaluateEntryFormResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EntryFormState
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

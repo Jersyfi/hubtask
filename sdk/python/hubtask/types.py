@@ -1241,6 +1241,44 @@ class EntryType(TypedDict, total=False):
     position: Required[int]
     archived: Required[bool]
     version: Required[int]
+    form: "EntryForm"
+
+class EntryForm(TypedDict, total=False):
+    """A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them."""
+    sections: list[dict[str, Any]]
+    fields: list["EntryFormField"]
+    validations: list[dict[str, Any]]
+    channels: list["EntryFormChannel"]
+
+class EntryFormField(TypedDict, total=False):
+    key: Required[str]
+    section: str
+    required: bool
+    required_when: str
+    read_only_when: str
+    hidden_when: str
+    default: Any
+    help: str
+
+class EntryFormChannel(TypedDict, total=False):
+    channel: Required[Literal["APP", "MCP", "RULE", "SYNC", "IMPORT", "MAIL"]]
+    closed: bool
+    hidden: list[str]
+    presets: dict[str, Any]
+
+class EntryFormDraft(TypedDict, total=False):
+    item_id: str
+    collection_id: str
+    title: str
+    notes: str
+    custom_fields: dict[str, Any]
+
+class EntryFormState(TypedDict, total=False):
+    entry_type: Required[str]
+    channel: Required[str]
+    fields: Required[dict[str, Any]]
+    failed: Required[list[str]]
+    closed: Required[bool]
 
 class EntryTypeList(TypedDict, total=False):
     data: Required[list["EntryType"]]

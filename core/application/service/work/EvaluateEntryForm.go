@@ -73,6 +73,19 @@ func (h EvaluateEntryForm) Execute(
 			return shared.ErrValidation.WithDetail("items.collection_or_parent_required").
 				WithFields(shared.FieldError{Path: "/collection_id", Code: "items.collection_or_parent_required"})
 		}
+		if !draft.Type.Valid() && draft.EntryType != "" && h.Gate.Forms.Types != nil {
+			// A draft named by its type alone sits on the type's level.
+			rows, err := h.Gate.Forms.Types.List(ctx)
+			if err != nil {
+				return err
+			}
+			if found, held := domain.NewEntryTypes(rows).Find(draft.EntryType); held {
+				draft.Type = found.Level
+			}
+		}
+		if draft.EntryType == domain.SystemEntryTypeKey(draft.Type) {
+			draft.EntryType = ""
+		}
 		var err error
 		collection, err = findCollection(ctx, h.Containers, draft.CollectionID)
 		return err

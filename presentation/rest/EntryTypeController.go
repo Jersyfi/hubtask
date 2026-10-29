@@ -160,5 +160,11 @@ func entryTypeResponse(out usecase.Output) openapi.EntryType {
 	if name := out.String("name"); name != "" {
 		t.Name = &name
 	}
+	if form, held := out["form"]; held {
+		var typed openapi.EntryForm
+		if remarshal(form, &typed) == nil {
+			t.Form = &typed
+		}
+	}
 	return t
 }

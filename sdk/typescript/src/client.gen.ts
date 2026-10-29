@@ -1662,6 +1662,16 @@ export class HubtaskClient {
     return this.call("DELETE", "/entry-types/{key}", { "key": key }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** Set an entry type's form */
+  setEntryTypeForm(key: string, body: NonNullable<operations["setEntryTypeForm"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setEntryTypeForm"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/entry-types/{key}/form", { "key": key }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Answer a type's form for a draft */
+  evaluateEntryForm(key: string, body: NonNullable<operations["evaluateEntryForm"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["evaluateEntryForm"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/entry-types/{key}/form:evaluate", { "key": key }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Change an entry's type */
   setItemEntryType(itemId: string, body: NonNullable<operations["setItemEntryType"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setItemEntryType"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/items/{itemId}/entry-type", { "itemId": itemId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);

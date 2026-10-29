@@ -1319,6 +1319,14 @@ class Client:
         """Delete an unused entry type"""
         return self._call("DELETE", "/entry-types/{key}", {"key": key}, None, {}, None, "none", None, "void")
 
+    def set_entry_type_form(self, key: str, body: "EntryForm", *, if_match: str | None = None) -> "EntryType":
+        """Set an entry type's form"""
+        return self._call("PUT", "/entry-types/{key}/form", {"key": key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def evaluate_entry_form(self, key: str, body: "EntryFormDraft") -> "EntryFormState":
+        """Answer a type's form for a draft"""
+        return self._call("POST", "/entry-types/{key}/form:evaluate", {"key": key}, None, {}, body, "json", "application/json", "json")
+
     def set_item_entry_type(self, item_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "WorkItem":
         """Change an entry's type"""
         return self._call("PUT", "/items/{itemId}/entry-type", {"itemId": item_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
