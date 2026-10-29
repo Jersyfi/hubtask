@@ -41,16 +41,17 @@ type RESTDoor struct {
 	// AnswerBy is the adapter's shared mapper that draws the answer (an entry is drawn by one
 	// mapper wherever it is answered); empty passes the output through the answer's type.
 	AnswerBy string
-	// AnswerRows says the answer is a bare array, each of the output's rows drawn by AnswerBy.
-	AnswerRows bool
+	// AnswerRows says the answer is a bare array, each of the output's rows drawn by AnswerBy;
+	// AnswerPage that it is a page, `data` drawn so and `page` as every page is.
+	AnswerRows, AnswerPage bool
 	// Location is the created resource's path below the API, its `{member}`s filled from the
 	// answer.
 	Location string
 	// NullClears passes a member sent as null as the empty text, which is how the use case reads
 	// "clear it" (`x-hubtask-rest-null: empty`).
 	NullClears bool
-	// Integers are the body's members the contract types as integers, handed on as Go integers
-	// as a hand-written handler's typed body did.
+	// Integers are the query's parameters and the body's members the contract types as integers,
+	// handed on as Go integers as a hand-written handler's typed values were.
 	Integers []string
 }
 
@@ -146,6 +147,9 @@ func restDoor(
 		switch {
 		case p.In == "query":
 			door.Query = append(door.Query, p.Name)
+			if doc.kind(p.Schema) == "integer" {
+				door.Integers = append(door.Integers, p.Name)
+			}
 		case p.In == "header" && p.Name == "If-Match":
 			door.IfMatch = true
 		case p.In == "header" && p.Name == "X-Hubtask-Step-Up":
@@ -216,6 +220,10 @@ func restDoor(
 		if content, ok := response.Content["application/json"]; ok {
 			answer := doc.resolve(content.Schema)
 			door.AnswerRows = answer.Type == "array"
+			_, paged := answer.Properties["page"]
+			if data, listed := answer.Properties["data"]; listed && paged && data.Type == "array" && door.AnswerBy != "" {
+				door.AnswerPage = true
+			}
 			if door.AnswerRows && door.AnswerBy == "" {
 				return door, fmt.Errorf("an answer that is a bare array needs x-hubtask-rest-answer")
 			}
@@ -347,6 +355,8 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 		switch {
 		case d.AnswerBy != "" && d.AnswerRows:
 			answer = "answerRows(" + d.AnswerBy + ")"
+		case d.AnswerBy != "" && d.AnswerPage:
+			answer = "answerPage(" + d.AnswerBy + ")"
 		case d.AnswerBy != "":
 			answer = "answerBy(" + d.AnswerBy + ")"
 		case d.AnswerType != "":

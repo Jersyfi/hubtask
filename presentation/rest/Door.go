@@ -67,7 +67,7 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 		}
 		for _, name := range d.Query {
 			if value, ok := values[name]; ok && value != nil {
-				in[name] = value
+				in[name] = whole(d, name, value)
 			}
 		}
 	}
@@ -98,10 +98,7 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 					if value == nil && d.NullClears {
 						value = ""
 					}
-					if number, ok := value.(float64); ok && number == float64(int(number)) && slices.Contains(d.Integers, name) {
-						value = int(number)
-					}
-					in[name] = value
+					in[name] = whole(d, name, value)
 				}
 			}
 		}
@@ -203,4 +200,24 @@ func answerRows[T any](draw func(usecase.Output) T) answerer {
 		}
 		return answer
 	}
+}
+
+// answerPage draws a page: each of its rows by the shared mapper, its walk as every page's.
+func answerPage[T any](draw func(usecase.Output) T) answerer {
+	return func(out usecase.Output) any {
+		rows := rowsOf(out)
+		data := make([]T, 0, len(rows))
+		for _, row := range rows {
+			data = append(data, draw(row))
+		}
+		return map[string]any{"data": data, "page": pageResponse(out)}
+	}
+}
+
+// whole hands an integer the contract declares on as a Go integer rather than JSON's float64.
+func whole(d restDoor, name string, value any) any {
+	if number, ok := value.(float64); ok && number == float64(int(number)) && slices.Contains(d.Integers, name) {
+		return int(number)
+	}
+	return value
 }

@@ -3958,6 +3958,8 @@
           "containers"
         ],
         "operationId": "listTrash",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "trashEntryResponse",
         "summary": "What is in the trash",
         "description": "One entry per deletion, newest first - not one per deleted row. A hub with two hundred entries under it went into the trash as one act and comes back as one act, so what is listed is the root of each deletion: the thing somebody deleted. The batch beside it is what took the rest, and restoring the root brings all of it back.\nThe list spans hubs, so it is narrowed to what the caller may see rather than refused: an entry deleted out of a hub the caller has no access to is not in the page. Pages can therefore be shorter than the requested size; walk on until has_more is false.\n",
         "parameters": [

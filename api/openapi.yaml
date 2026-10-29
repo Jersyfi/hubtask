@@ -2858,6 +2858,8 @@ paths:
     get:
       tags: [items, containers]
       operationId: listTrash
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: trashEntryResponse
       summary: What is in the trash
       description: >
         One entry per deletion, newest first - not one per deleted row. A hub with two hundred
