@@ -2103,6 +2103,29 @@ type WebhookSubscription struct {
 	ScopeID             pgtype.UUID
 }
 
+type Whiteboard struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	HubID     pgtype.UUID
+	Title     string
+	Scene     []byte
+	DeletedAt pgtype.Timestamptz
+	CreatedBy pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	UpdatedBy pgtype.UUID
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
+type WhiteboardReference struct {
+	TenantID     pgtype.UUID
+	WhiteboardID pgtype.UUID
+	TargetKind   string
+	TargetID     pgtype.UUID
+	Anchor       string
+	Strength     string
+}
+
 type WorkItem struct {
 	ID                    pgtype.UUID
 	TenantID              pgtype.UUID

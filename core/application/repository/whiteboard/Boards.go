@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+// Package whiteboard is the storage port of the whiteboard module's boards (M4). Every method runs
+// inside the caller's transaction, under the tenant it names (rule 3); another workspace's board is
+// not found.
+package whiteboard
+
+import (
+	"context"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
+)
+
+// Summary is a board without its scene, as a list or a reference shows it.
+type Summary struct {
+	Board    whiteboard.Board
+	Elements int
+}
+
+// Pointing is a board that points at an object, with how it draws it.
+type Pointing struct {
+	ID       shared.ID
+	HubID    shared.ID
+	Title    string
+	Strength string
+}
+
+// Boards stores boards.
+type Boards interface {
+	Insert(ctx context.Context, board whiteboard.Board) error
+	// Find answers a board, trashed ones included.
+	Find(ctx context.Context, id shared.ID) (whiteboard.Board, error)
+	FindForUpdate(ctx context.Context, id shared.ID) (whiteboard.Board, error)
+	// Update writes a board at the version expected; another version is a conflict.
+	Update(ctx context.Context, board whiteboard.Board, expected int) error
+	// List answers a hub's boards without their scenes, the trashed ones or the others.
+	List(ctx context.Context, hubID shared.ID, trashed bool, limit int) ([]Summary, error)
+	Count(ctx context.Context, hubID shared.ID) (int, error)
+	// Referencing answers the boards that point at an object, at most limit.
+	Referencing(ctx context.Context, targetKind string, targetID shared.ID, limit int) ([]Pointing, error)
+	// Summaries answers the boards of these identifiers that are not trashed.
+	Summaries(ctx context.Context, ids []shared.ID) ([]Summary, error)
+}
