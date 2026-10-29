@@ -85,10 +85,13 @@ const (
 	FieldType = "type"
 	// FieldEntryType is the key of the entry's type (UC-FLW-01): a workspace's own, or its level's
 	// system type when it has none, so the field is never absent.
-	FieldEntryType   = "entry_type"
-	FieldParentID    = "parent_id"
-	FieldCollection  = "collection_id"
-	FieldBucketID    = "bucket_id"
+	FieldEntryType  = "entry_type"
+	FieldParentID   = "parent_id"
+	FieldCollection = "collection_id"
+	FieldBucketID   = "bucket_id"
+	// FieldStatus is the key of the entry's status in its workflow (UC-FLW-03); absent where no
+	// workflow runs, which is what IS_NULL asks.
+	FieldStatus      = "status"
 	FieldIsCompleted = "is_completed"
 	FieldTitle       = "title"
 	FieldNotes       = "notes"
@@ -190,6 +193,12 @@ var catalogue = []Field{
 	},
 	{
 		Name: FieldBucketID, Kind: KindID,
+		Operators: []Operator{OpEq, OpNeq, OpIn, OpNotIn, OpIsNull},
+		Nullable:  true, Groupable: true,
+	},
+	{
+		// A string for the reason entry_type is one: the keys are the workflow's, not the catalogue's.
+		Name: FieldStatus, Kind: KindString,
 		Operators: []Operator{OpEq, OpNeq, OpIn, OpNotIn, OpIsNull},
 		Nullable:  true, Groupable: true,
 	},

@@ -265,6 +265,8 @@ func groupKeyOf(field view.Field, item work.WorkItem) (string, bool) {
 		return item.BucketID.String(), !item.BucketID.IsZero()
 	case view.FieldCollection:
 		return item.CollectionID.String(), true
+	case view.FieldStatus:
+		return item.Status, item.Status != ""
 	case view.FieldCreatedBy:
 		return item.CreatedBy.String(), true
 	case view.FieldType:

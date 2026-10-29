@@ -206,6 +206,8 @@ func column(field view.Field, prefix string) (string, bool) {
 		return prefix + `collection_id`, true
 	case view.FieldBucketID:
 		return prefix + `bucket_id`, true
+	case view.FieldStatus:
+		return prefix + `status`, true
 	case view.FieldIsCompleted:
 		return prefix + `is_completed`, true
 	case view.FieldTitle:
