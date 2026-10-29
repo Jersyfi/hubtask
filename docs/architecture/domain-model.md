@@ -519,7 +519,9 @@ holders of its `FIELD_READ:<key>` or `FIELD_WRITE:<key>` along the entry's path:
 answer leaves the value out (`work.FieldSight` - the entry, a list, a query and so an export, a
 search, a write's answer, the entry's history, the change stream and the initial walk), and a query or search that
 filters, sorts or groups by it is refused with `fields.read_restricted`. A key hidden anywhere in
-the workspace is hidden in a collection where a definition of its own narrows it. A **step** limited to roles may name a custom role's key,
+the workspace is hidden in a collection where a definition of its own narrows it. A calculated field
+whose formula reads a hidden field is hidden with it, on every answer and in every query: held to
+the inputs left visible, its formula no longer compiles. A **step** limited to roles may name a custom role's key,
 a step's *who* may name the workspace's groups (`who.groups`, whose members may take it), and
 `TAKE_STEP:<workflow>/<step>` opens it whatever it names - the owner and the administrators hold
 every one as a family.
