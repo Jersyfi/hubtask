@@ -32,6 +32,9 @@
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import MentionDialog from '../entries/MentionDialog.svelte';
+  import ReferenceChip from '../entries/ReferenceChip.svelte';
+  import { inserted, referencesIn, resolved } from '../data/links.svelte.ts';
 
   /**
    * `mayComment`: whether the reader may add to this thread, from their role on the entry - a
@@ -93,6 +96,17 @@
   $effect(() => {
     accounts.resolve(rows.map((comment) => comment.author_id));
   });
+
+  // What the conversation mentions (UC-PLN-01 check 7): the body stays plain text, and the entries
+  // it points at are drawn under the thread, each resolved for this reader - one out of their sight
+  // is "not available to you".
+  const mentioned = $derived(referencesIn(rows.map((comment) => comment.body ?? '').join('\n')));
+  const mentions = resolved(() => mentioned.map((found) => found.reference));
+  let isMentionOpen = $state(false);
+
+  function mention(text: string) {
+    draft = inserted(draft, draft.length, draft.length, text).text;
+  }
 
   function threadRows(): readonly ThreadComment[] {
     return threadOf(rows).map(({ comment, replies }) => ({
@@ -203,6 +217,7 @@
           <Button isBusy={isSending} busyLabel={t('app.workspace.saving')} onclick={send}>
             {editing ? t('app.workspace.save') : t('app.comments.send')}
           </Button>
+          <Button tone="subtle" icon="link" data-mention-in-comment onclick={() => (isMentionOpen = true)}>{t('app.mentions.insert')}</Button>
           {#if replyTo || editing}
             <Button
               tone="secondary"
@@ -238,10 +253,25 @@
       onDelete={remove}
       onReply={mayComment ? startReply : undefined}
     />
+    {#if mentioned.length > 0}
+      <div class="mentions" data-comment-mentions>
+        <h3 class="mentions-title">{t('app.mentions.title')}</h3>
+        <ul class="mentions-list">
+          {#each mentioned as found, index (`${found.reference.kind}/${found.reference.id}#${found.reference.anchor ?? ''}`)}
+            <li><ReferenceChip target={mentions.targets[index]} strength={found.strength} /></li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
   </Stack>
+  {#if mayComment}<MentionDialog bind:isOpen={isMentionOpen} selfId={item.id} oninsert={mention} />{/if}
 
 <style>
   .actions { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
 
   .failure { margin: 0; color: var(--text-danger); }
+
+  .mentions { display: flex; flex-direction: column; gap: var(--sp-050); }
+  .mentions-title { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); }
+  .mentions-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
 </style>

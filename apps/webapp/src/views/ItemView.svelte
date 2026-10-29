@@ -87,6 +87,9 @@
   import AmountPanel from '../lib/entries/AmountPanel.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
   import LabelsPanel from '../lib/entries/LabelsPanel.svelte';
+  import LinksSection from '../lib/entries/LinksSection.svelte';
+  import MentionDialog from '../lib/entries/MentionDialog.svelte';
+  import { inserted } from '../lib/data/links.ts';
   import ReplicaMark from '../lib/frame/ReplicaMark.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { recents } from '../lib/recents.svelte.ts';
@@ -954,6 +957,27 @@
     }
   }
 
+  /**
+   * A mention or a card put into the notes where the caret was when the reader left them, and
+   * saved as any other change of the notes is (UC-PLN-01 check 7).
+   */
+  let notesSelection = { start: 0, end: 0 };
+  let isMentionOpen = $state(false);
+
+  function rememberSelection(event: FocusEvent) {
+    const field = event.currentTarget as HTMLTextAreaElement;
+    notesSelection = { start: field.selectionStart, end: field.selectionEnd };
+  }
+
+  function insertMention(text: string) {
+    const at = Math.min(notesSelection.start, inlineNotes.length);
+    const result = inserted(inlineNotes, at, Math.max(at, Math.min(notesSelection.end, inlineNotes.length)), text);
+    inlineNotes = result.text;
+    notesSelection = { start: result.caret, end: result.caret };
+    isInlineDirty = true;
+    void commitInline();
+  }
+
   function onNotesKey(event: KeyboardEvent) {
     if (event.key !== 'Escape') return;
     event.preventDefault();
@@ -1189,9 +1213,15 @@
             bind:value={inlineNotes}
             readonly={!isWritable}
             oninput={() => (isInlineDirty = true)}
-            onblur={() => void commitInline()}
+            onblur={(event) => { rememberSelection(event); void commitInline(); }}
             onkeydown={onNotesKey}
           ></textarea>
+          {#if isWritable}
+            <div class="notes-tools">
+              <Button size="sm" tone="subtle" icon="link" data-mention-entry onclick={() => (isMentionOpen = true)}>{t('app.mentions.insert')}</Button>
+            </div>
+            <MentionDialog bind:isOpen={isMentionOpen} selfId={item.id} oninsert={insertMention} />
+          {/if}
           {/if}
           {#if hasAi && isTypeKnown && carries('NOTES')}
             {#if isChangeable}
@@ -1230,6 +1260,10 @@
             <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} isReadOnly={isCollectionArchived} readOnlyReason={isCollectionArchived ? readOnlyReason : undefined} readOnlyNoticeId={readOnlyNoticeId} {onnavigate} mayShare={mayShareHere} changeRefusal={changeRefusalOf} mayCreate={mayCreateHere} />
           </Stack></div>
         {/if}
+
+        <!-- Links from both sides, backlinks and what the notes mention (UC-PLN-01). Keyed, so
+             each entry reads its own. -->
+        {#key item.id}<LinksSection {item} mayChange={isWritable} />{/key}
 
         <Tabs
           label={t('app.item.tabs')}
@@ -1482,6 +1516,8 @@
     field-sizing: content;
     min-block-size: var(--density-control-md-min);
   }
+
+  .notes-tools { display: flex; justify-content: end; }
 
   .notes-field:placeholder-shown { color: var(--text-subtle); }
   .notes-field:hover:not(:read-only) { border-color: var(--border-default); }
