@@ -35,6 +35,7 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`workflow/`](./workflow/) | `UC-FLW` | A workspace's own entry types and how its work moves | `service/workflow` |
 | [`planning/`](./planning/) | `UC-PLN` | Dependencies between entries and, later, the plan they make | `service/work` (links) |
 | [`knowledge/`](./knowledge/) | `UC-DOC` | A hub's pages: writing together, finding, linking, versions, comments, export | `service/knowledge` |
+| [`whiteboard/`](./whiteboard/) | `UC-CNV` | A hub's whiteboards: drawing together, notes made tasks, cards of entries, export | `service/whiteboard` |
 
 ## What a use case looks like
 
@@ -257,6 +258,9 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-DOC-09](./knowledge/UC-DOC-09-take-a-wiki-out-again.md) | Take a wiki out again | knowledge |
 | [UC-DOC-11](./knowledge/UC-DOC-11-discuss-a-page-beside-its-words.md) | Discuss a page beside its words | knowledge |
 | [UC-DOC-12](./knowledge/UC-DOC-12-keep-a-page-known-to-be-right.md) | Keep a page known to be right | knowledge |
+| [UC-CNV-01](./whiteboard/UC-CNV-01-draw-on-a-whiteboard-together.md) | Draw on a whiteboard together | whiteboard |
+| [UC-CNV-02](./whiteboard/UC-CNV-02-turn-a-sticky-note-into-a-task-and-keep-it-on-the-board.md) | Turn a sticky note into a task and keep it on the board | whiteboard |
+| [UC-CNV-03](./whiteboard/UC-CNV-03-take-a-whiteboard-out-again.md) | Take a whiteboard out again | whiteboard |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work |
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work |

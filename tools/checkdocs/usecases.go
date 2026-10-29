@@ -52,6 +52,8 @@ var ucContexts = map[string]string{
 	"importer":     "IMP",
 	"workflow":     "FLW",
 	"planning":     "PLN",
+	"knowledge":    "DOC",
+	"whiteboard":   "CNV",
 }
 
 var ucStates = map[string]bool{
