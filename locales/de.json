@@ -7178,5 +7178,15 @@
   "module.off": "Dieser Teil von Hubtask ist hier ausgeschaltet. Seine Daten bleiben erhalten und sind nach dem Einschalten wieder da.",
   "module.unknown": "Dieses Modul gibt es nicht.",
   "module.hub_only": "Ein Modul wird für den Arbeitsbereich oder einen Hub geschaltet, nicht für eine einzelne Sammlung.",
-  "module.switch_invalid": "Wähle an, aus oder wie darüber."
+  "module.switch_invalid": "Wähle an, aus oder wie darüber.",
+  "access.permission_above_own": "Du kannst hier nur Berechtigungen vergeben, die du selbst hast; dir fehlt {permissions}.",
+  "roles.identity_incomplete": "Diese Installation konnte die Rolle nicht speichern.",
+  "roles.key_invalid": "Der Schlüssel einer Rolle ist klein geschrieben, beginnt mit einem Buchstaben und enthält Buchstaben, Ziffern und Unterstriche – {key} ist keiner, oder er lautet wie eine mitgelieferte Rolle.",
+  "roles.name_invalid": "Eine Rolle braucht einen Namen mit bis zu 120 Zeichen in einer Zeile.",
+  "roles.permissions_empty": "Eine Rolle trägt mindestens eine Berechtigung.",
+  "roles.permission_unknown": "{permission} ist keine Berechtigung, die Hubtask kennt.",
+  "roles.not_found": "In diesem Arbeitsbereich gibt es keine Rolle {key}.",
+  "roles.key_taken": "Der Arbeitsbereich hat schon eine Rolle {key}.",
+  "roles.version_conflict": "Jemand hat die Rolle {key} inzwischen geändert. Lade sie neu und wiederhole deine Änderung.",
+  "fields.restricted": "Nur wer eine Rolle mit der Berechtigung des Felds hat, darf {key} ändern."
 }

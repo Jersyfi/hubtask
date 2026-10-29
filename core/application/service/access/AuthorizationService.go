@@ -636,6 +636,25 @@ func (s Service) writeRefusal(ctx context.Context, actor appshared.ActorContext,
 type Held struct {
 	Roles       []string
 	Permissions []service.Permission
+	// Sources are the memberships that count, one per role and place: where each is held.
+	Sources []Source
+}
+
+// Source is one role held at one place on the path.
+type Source struct {
+	// Role is a built-in role's name or a custom role's key.
+	Role        string
+	Custom      bool
+	Scope       identity.Scope
+	permissions []string
+}
+
+// Carries reports whether the role carries the permission, as the decision reads it.
+func (s Source) Carries(permission service.Permission) bool {
+	if s.Custom {
+		return slices.Contains(s.permissions, string(permission))
+	}
+	return service.RoleAllows(identity.Role(s.Role), permission)
 }
 
 // HeldAlong answers what the actor holds along the path, and records nothing: for a step limited
@@ -675,6 +694,9 @@ func heldOf(memberships []identity.Membership, at resolved) Held {
 		if !slices.Contains(held.Roles, key) {
 			held.Roles = append(held.Roles, key)
 		}
+		held.Sources = append(held.Sources, Source{
+			Role: key, Custom: membership.IsCustom(), Scope: membership.Scope, permissions: membership.Permissions,
+		})
 	}
 	return held
 }

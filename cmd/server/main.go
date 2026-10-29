@@ -842,6 +842,13 @@ func run() error {
 		Changes: changes, HLC: hybrid,
 	}
 
+	// The workspace's own roles (D-05): shared by the seven role use cases.
+	customRoles := identity.Roles{
+		Store: postgres.NewCustomRoleRepository(), Authorizer: authorizer, Held: authorizer,
+		Revocations: revocations, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+	}
+
 	// What every writer of an entry needs in order to leave a step in its history. Held as one
 	// value rather than two fields per writer, so that what the history says about a change cannot
 	// depend on which use case made it (work.ActivityJournal).
@@ -1895,6 +1902,15 @@ func run() error {
 			StepUp:   identity.StepUpVerifier{Writer: sessionWriter},
 			Platform: platformEvents,
 		}.Descriptor(),
+		identity.ListRoles{Roles: customRoles}.Descriptor(),
+		identity.CreateRole{Roles: customRoles}.Descriptor(),
+		identity.ChangeRole{Roles: customRoles}.Descriptor(),
+		identity.DeleteRole{Roles: customRoles}.Descriptor(),
+		identity.GrantRole{Roles: customRoles, Grants: identity.GrantMembership{
+			Accounts: accounts, Groups: groups, Hubs: postgres.NewHubLockRepository(),
+		}}.Descriptor(),
+		identity.RevokeRoleGrant{Roles: customRoles}.Descriptor(),
+		identity.ExplainAccess{Roles: customRoles}.Descriptor(),
 		identity.ListGroups{Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.GetGroup{Groups: groups, Grants: grants, Grantable: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.CreateGroup{

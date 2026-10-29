@@ -7181,5 +7181,15 @@
   "module.off": "This part of Hubtask is switched off here. Its data is kept and comes back when it is switched on.",
   "module.unknown": "There is no such module.",
   "module.hub_only": "A module is switched for the workspace or a hub, not for a single collection.",
-  "module.switch_invalid": "Choose on, off, or as above."
+  "module.switch_invalid": "Choose on, off, or as above.",
+  "access.permission_above_own": "You can hand out only permissions you hold yourself here; you lack {permissions}.",
+  "roles.identity_incomplete": "This installation could not record the role.",
+  "roles.key_invalid": "A role's key is lower case, starts with a letter and holds letters, digits and underscores - {key} is not one, or it spells a shipped role.",
+  "roles.name_invalid": "A role needs a name of up to 120 characters on one line.",
+  "roles.permissions_empty": "A role carries at least one permission.",
+  "roles.permission_unknown": "{permission} is not a permission Hubtask knows.",
+  "roles.not_found": "There is no role {key} in this workspace.",
+  "roles.key_taken": "The workspace already has a role {key}.",
+  "roles.version_conflict": "Someone changed the role {key} meanwhile. Load it again and repeat your change.",
+  "fields.restricted": "Only people whose role carries the field's permission may change {key}."
 }
