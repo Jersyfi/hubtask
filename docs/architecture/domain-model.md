@@ -481,7 +481,9 @@ answer leaves the value out (`work.FieldSight` - the entry, a list, a query and 
 search, a write's answer, the entry's history, the change stream and the initial walk), and a query or search that
 filters, sorts or groups by it is refused with `fields.read_restricted`. A key hidden anywhere in
 the workspace is hidden in a collection where a definition of its own narrows it. A **step** limited to roles may name a custom role's key,
-and `TAKE_STEP:<workflow>/<step>` opens it whatever it names.
+a step's *who* may name the workspace's groups (`who.groups`, whose members may take it), and
+`TAKE_STEP:<workflow>/<step>` opens it whatever it names - the owner and the administrators hold
+every one as a family.
 
 ### 3.3 `Container` (hub / collection)
 
