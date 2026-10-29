@@ -1556,6 +1556,8 @@ class ConfigReach(TypedDict, total=False):
     entries: int
     moves: list[dict[str, Any]]
     removed: list[dict[str, Any]]
+    hidden_entries: int
+    hidden_values: int
     accounts: int
     groups: int
     gained: list[str]

@@ -73,8 +73,18 @@ func TestAHubsDocumentIsAppliedThroughItsUseCasesAndVersionedApart(t *testing.T)
 	if plan["plan_hash"] == nil {
 		t.Fatalf("plan %v", plan)
 	}
-	if reached := plan["reach"].([]usecase.Output); len(reached) != 1 || reached[0]["path"] != "scheme.every_type" || reached[0]["entries"] != 4 {
+	reached := map[string]usecase.Output{}
+	for _, row := range plan["reach"].([]usecase.Output) {
+		reached[row["path"].(string)] = row
+	}
+	if len(reached) != 2 || reached["scheme.every_type"]["entries"] != 4 {
 		t.Errorf("the scheme's reach is not the preview's: %v", reached)
+	}
+	if hidden := reached["structure"]; hidden["hidden_entries"] != 3 || hidden["hidden_values"] != 5 {
+		t.Errorf("the structure's reach is not its preview's: %v", hidden)
+	}
+	if asked := f.world.inputs["PreviewContainerStructure"]; len(asked) != 1 || asked[0]["container_id"] != supportHub {
+		t.Errorf("the structure preview was asked %v", asked)
 	}
 	out := invoke(t, ApplyConfig{f.desk}.Descriptor(), person, usecase.Input{
 		"document": document, "hub_id": supportHub, "plan_hash": plan["plan_hash"], "acknowledge": true,

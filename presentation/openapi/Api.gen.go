@@ -8318,7 +8318,7 @@ type ConfigPlan struct {
 	// PlanHash Null where the plan refuses.
 	PlanHash *string `json:"plan_hash"`
 
-	// Reach What the changes touch beyond the configuration, by key path: the entries a workflow's new shape moves, the people a role's change gives or takes a permission. Counts only.
+	// Reach What the changes touch beyond the configuration, by key path: the entries a workflow's new shape or a hub's scheme moves, the entries a hub's structure would stop showing, the people a role's change gives or takes a permission. Counts only.
 	Reach    *[]ConfigReach  `json:"reach,omitempty"`
 	Refusals []ConfigRefusal `json:"refusals"`
 
@@ -8397,8 +8397,14 @@ type ConfigReach struct {
 	Gained  *[]string `json:"gained,omitempty"`
 
 	// Groups Groups that hold the role.
-	Groups *int      `json:"groups,omitempty"`
-	Lost   *[]string `json:"lost,omitempty"`
+	Groups *int `json:"groups,omitempty"`
+
+	// HiddenEntries Entries a hub's new structure would stop showing by their level - hidden, never deleted.
+	HiddenEntries *int `json:"hidden_entries,omitempty"`
+
+	// HiddenValues Entries whose field values a hub's new structure would hide.
+	HiddenValues *int      `json:"hidden_values,omitempty"`
+	Lost         *[]string `json:"lost,omitempty"`
 
 	// Moves Per collection and entry type, the status entries move from and to, and how many (as WorkflowPreview).
 	Moves   *[]map[string]interface{} `json:"moves,omitempty"`
@@ -8502,7 +8508,7 @@ type ConfigTemplatePlan struct {
 	// PlanHash Null where the plan refuses.
 	PlanHash *string `json:"plan_hash"`
 
-	// Reach What the changes touch beyond the configuration, by key path: the entries a workflow's new shape moves, the people a role's change gives or takes a permission. Counts only.
+	// Reach What the changes touch beyond the configuration, by key path: the entries a workflow's new shape or a hub's scheme moves, the entries a hub's structure would stop showing, the people a role's change gives or takes a permission. Counts only.
 	Reach    *[]ConfigReach  `json:"reach,omitempty"`
 	Refusals []ConfigRefusal `json:"refusals"`
 

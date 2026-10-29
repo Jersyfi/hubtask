@@ -17606,8 +17606,8 @@ components:
           type: array
           description: >
             What the changes touch beyond the configuration, by key path: the entries a
-            workflow's new shape moves, the people a role's change gives or takes a permission.
-            Counts only.
+            workflow's new shape or a hub's scheme moves, the entries a hub's structure would stop
+            showing, the people a role's change gives or takes a permission. Counts only.
           items: { $ref: "#/components/schemas/ConfigReach" }
         counts: { $ref: "#/components/schemas/ConfigCounts" }
 
@@ -17633,6 +17633,12 @@ components:
             properties:
               status: { type: string }
               count: { type: integer }
+        hidden_entries:
+          type: integer
+          description: Entries a hub's new structure would stop showing by their level - hidden, never deleted.
+        hidden_values:
+          type: integer
+          description: Entries whose field values a hub's new structure would hide.
         accounts:
           type: integer
           description: People who hold the role directly.

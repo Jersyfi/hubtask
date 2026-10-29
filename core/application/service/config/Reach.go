@@ -26,6 +26,10 @@ type reach struct {
 	// permissions the change gives and takes.
 	Accounts, Groups int
 	Gained, Lost     []string
+	// HiddenEntries and HiddenValues are a hub's structure preview: the entries its levels would
+	// stop showing, and the entries whose field values would be hidden. Hidden, never deleted.
+	HiddenEntries, HiddenValues int
+	Hides                       bool
 }
 
 const (
@@ -40,8 +44,16 @@ const (
 func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan) error {
 	var grants []any
 	grantsRead := false
+	structure := map[string]any{}
+	reset := []any{}
 	for _, change := range p.Changes {
 		switch {
+		case change.Section == sectionStructure && !p.Hub.IsZero():
+			if change.Op == domain.OpRemove {
+				reset = append(reset, change.Key)
+			} else {
+				structure[change.Key] = change.After[settingValueField]
+			}
 		case change.Section == sectionWorkflows && change.Op == domain.OpChange && slices.Contains(change.Fields, "shape"):
 			answer, err := d.Catalogue.Invoke(ctx, previewWorkflowPublish, actor, usecase.Input{
 				"key": change.Key, "shape": change.After["shape"],
@@ -144,8 +156,54 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 			}
 		}
 	}
+	if len(structure)+len(reset) > 0 {
+		if err := d.structureReach(ctx, actor, p, structure, reset); err != nil {
+			return err
+		}
+	}
 	if len(p.Refusals) > 0 {
 		p.Hash = ""
+	}
+	return nil
+}
+
+// structureReach asks a hub's structure preview, once for every structure change the plan makes
+// there, what it would stop showing.
+func (d Desk) structureReach(ctx context.Context, actor appshared.ActorContext, p *plan, settings map[string]any, reset []any) error {
+	in := usecase.Input{"container_id": p.Hub.String()}
+	if len(settings) > 0 {
+		in["settings"] = settings
+	}
+	if len(reset) > 0 {
+		in["reset"] = reset
+	}
+	answer, err := d.Catalogue.Invoke(ctx, "PreviewContainerStructure", actor, in)
+	if err != nil {
+		if withheld(err) {
+			return nil
+		}
+		p.Refusals = append(p.Refusals, fieldsOf(err, sectionStructure)...)
+		return nil
+	}
+	normal, err := normalise(map[string]any(answer))
+	if err != nil {
+		return err
+	}
+	preview, _ := normal.(map[string]any)
+	r := reach{Path: sectionStructure}
+	r.Hides, _ = preview["narrows"].(bool)
+	levels, _ := preview["levels"].([]any)
+	for _, raw := range levels {
+		level, _ := raw.(map[string]any)
+		r.HiddenEntries += whole(level["entries"])
+	}
+	fields, _ := preview["fields"].([]any)
+	for _, raw := range fields {
+		field, _ := raw.(map[string]any)
+		r.HiddenValues += whole(field["entries"])
+	}
+	if r.Hides {
+		p.Reach = append(p.Reach, r)
 	}
 	return nil
 }
@@ -175,6 +233,10 @@ func ReachOutput(rows []reach) []usecase.Output {
 			row["entries"] = r.Entries
 			row["moves"] = orEmpty(r.Moves)
 			row["removed"] = orEmpty(r.Removed)
+		}
+		if r.Hides {
+			row["hidden_entries"] = r.HiddenEntries
+			row["hidden_values"] = r.HiddenValues
 		}
 		if r.Gained != nil || r.Lost != nil {
 			row["accounts"] = r.Accounts

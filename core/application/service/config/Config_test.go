@@ -110,6 +110,13 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 		return usecase.Output{"type": "HUB", "structure": map[string]any{
 			"settings": maps.Clone(w.hubStructure), "sources": sources,
 		}}, nil
+	case "PreviewContainerStructure":
+		if w.inputs == nil {
+			w.inputs = map[string][]usecase.Input{}
+		}
+		w.inputs[name] = append(w.inputs[name], in)
+		return usecase.Output{"narrows": true, "levels": []any{map[string]any{"type": "ACTIVITY", "entries": 3}},
+			"fields": []any{map[string]any{"type": "TASK", "capability": "dates", "entries": 5}}}, nil
 	case "SetContainerStructure", "SetWorkflowScheme":
 		if w.inputs == nil {
 			w.inputs = map[string][]usecase.Input{}
