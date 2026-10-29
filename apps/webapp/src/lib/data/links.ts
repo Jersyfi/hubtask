@@ -136,15 +136,16 @@ export function referencesIn(markdown: string): FoundReference[] {
   const found: FoundReference[] = [];
   const index = new Map<string, number>();
   for (const match of markdown.matchAll(ADDRESS)) {
-    const kind = match[2].toUpperCase() as ReferenceKind;
+    const kind = (match[2] ?? '').toUpperCase() as ReferenceKind;
     if (!KINDS.includes(kind)) continue;
-    const id = match[3].toLowerCase();
+    const id = (match[3] ?? '').toLowerCase();
     const anchor = match[4];
     const strength: ReferenceStrength = match[1] !== '!' ? 'MENTION' : VIEWABLE.has(kind) ? 'EMBED' : 'CARD';
     const key = `${kind}/${id}#${anchor ?? ''}`;
     const at = index.get(key);
-    if (at !== undefined) {
-      if (RANK[strength] > RANK[found[at].strength]) found[at] = { ...found[at], strength };
+    const seen = at === undefined ? undefined : found[at];
+    if (at !== undefined && seen !== undefined) {
+      if (RANK[strength] > RANK[seen.strength]) found[at] = { ...seen, strength };
       continue;
     }
     index.set(key, found.length);

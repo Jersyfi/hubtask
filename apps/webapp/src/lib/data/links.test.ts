@@ -82,7 +82,7 @@ test('a dependency points from the entry waited for to the waiting one, early wh
     { id: 'd1', waitedFor: A, waiting: B, isEarly: true },
     { id: 'd2', waitedFor: A, waiting: C, isEarly: false },
   ]);
-  assert.equal(dependenciesAmong(links.slice(0, 1), [{ id: A }, { id: B, due: '2026-11-01' }])[0].isEarly, false, 'nothing due, nothing early');
+  assert.equal(dependenciesAmong(links.slice(0, 1), [{ id: A }, { id: B, due: '2026-11-01' }])[0]?.isEarly, false, 'nothing due, nothing early');
 });
 
 test('a text names its references once each, a card over a mention, a view embedded (check 7)', () => {

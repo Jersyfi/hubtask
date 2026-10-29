@@ -11,7 +11,11 @@
  * nothing else: the entries themselves do not change.
  */
 
-import type { EntryLink, LinkType, LinkTypeChange, LinkTypeCreate, LinkTypeList, Reference, ResourceState } from '@hubtask/sync-engine';
+import { untrack } from 'svelte';
+
+import type {
+  EntryLink, EntryLinkList, LinkType, LinkTypeChange, LinkTypeCreate, LinkTypeList, Reference, ReferenceTarget, ResourceState,
+} from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
@@ -109,3 +113,52 @@ class Links {
 }
 
 export const links = new Links();
+
+/**
+ * What the reader may see of a set of references, in the order asked, re-read whenever the set
+ * changes. Called from a component's script: the read lives as long as the component.
+ */
+export function resolved(references: () => readonly Reference[]): { readonly targets: readonly ReferenceTarget[] } {
+  let targets = $state<readonly ReferenceTarget[]>([]);
+  $effect(() => {
+    const asked = references();
+    if (asked.length === 0) {
+      targets = [];
+      return;
+    }
+    const request = resolveRequest(asked);
+    return untrack(() =>
+      engine.subscribe<{ data: ReferenceTarget[] }>(request, (next) => {
+        if (next.status === 'ready') targets = next.data.data;
+      }),
+    );
+  });
+  return {
+    get targets() {
+      return targets;
+    },
+  };
+}
+
+/** The links among a set of shown entries, re-read whenever the set changes (check 6). */
+export function linksAmong(itemIds: () => readonly string[]): { readonly links: readonly EntryLink[] } {
+  let found = $state<readonly EntryLink[]>([]);
+  $effect(() => {
+    const asked = itemIds();
+    if (asked.length < 2) {
+      found = [];
+      return;
+    }
+    const request = amongRequest(asked);
+    return untrack(() =>
+      engine.subscribe<EntryLinkList>(request, (next) => {
+        if (next.status === 'ready') found = next.data.data;
+      }),
+    );
+  });
+  return {
+    get links() {
+      return found;
+    },
+  };
+}
