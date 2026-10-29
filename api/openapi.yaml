@@ -2739,6 +2739,8 @@ paths:
     get:
       tags: [jobs]
       operationId: getJob
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: jobResponse
       summary: How a piece of background work is getting on
       description: >
         What a `202 Accepted` handed back is polled here. The answer is the status, how far along
@@ -2766,6 +2768,8 @@ paths:
     post:
       tags: [jobs]
       operationId: cancelJob
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: jobResponse
       summary: Stop a piece of background work
       description: >
         Cooperative, not a kill: it moves the job to `CANCELLED`, and a pass that is under way

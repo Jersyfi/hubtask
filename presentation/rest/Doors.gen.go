@@ -20,6 +20,7 @@ var restDoors = map[string]restDoor{
 	"archiveWorkItem":        {UseCase: "ArchiveWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"assignWorkItem":         {UseCase: "AssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"autoAssignWorkItem":     {UseCase: "AutoAssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"cancelJob":              {UseCase: "CancelJob", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"changeEntryType":        {UseCase: "ChangeEntryType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"changeLinkType":         {UseCase: "ChangeLinkType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"changeRole":             {UseCase: "ChangeRole", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -44,6 +45,7 @@ var restDoors = map[string]restDoor{
 	"explainAccess":          {UseCase: "ExplainAccess", Status: 200, Query: []string{"account_id", "permission", "scope_id", "scope_type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"explainConfig":          {UseCase: "ExplainConfig", Status: 200, Query: []string{"hub_id", "key"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"exportConfig":           {UseCase: "ExportConfig", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "hash", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getJob":                 {UseCase: "GetJob", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"grantRole":              {UseCase: "GrantRole", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"linkEntries":            {UseCase: "LinkEntries", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listBuckets":            {UseCase: "ListBuckets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -141,6 +143,11 @@ func (c *RestController) AssignWorkItem(w http.ResponseWriter, r *http.Request, 
 // AutoAssignWorkItem answers POST /items/{itemId}:auto-assign by the generated mapping.
 func (c *RestController) AutoAssignWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.AutoAssignWorkItemParams) {
 	c.door(w, r, restDoors["autoAssignWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
+}
+
+// CancelJob answers POST /jobs/{jobId}:cancel by the generated mapping.
+func (c *RestController) CancelJob(w http.ResponseWriter, r *http.Request, jobId openapi.JobId, params openapi.CancelJobParams) {
+	c.door(w, r, restDoors["cancelJob"], usecase.Input{"job_id": jobId.String()}, params, nil, answerBy(jobResponse))
 }
 
 // ChangeEntryType answers PATCH /entry-types/{key} by the generated mapping.
@@ -287,6 +294,11 @@ func (c *RestController) ExplainConfig(w http.ResponseWriter, r *http.Request, p
 func (c *RestController) ExportConfig(w http.ResponseWriter, r *http.Request, params openapi.ExportConfigParams) {
 	var answer openapi.ConfigExport
 	c.door(w, r, restDoors["exportConfig"], usecase.Input{}, params, nil, &answer)
+}
+
+// GetJob answers GET /jobs/{jobId} by the generated mapping.
+func (c *RestController) GetJob(w http.ResponseWriter, r *http.Request, jobId openapi.JobId) {
+	c.door(w, r, restDoors["getJob"], usecase.Input{"job_id": jobId.String()}, nil, nil, answerBy(jobResponse))
 }
 
 // GrantRole answers POST /role-grants by the generated mapping.

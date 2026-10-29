@@ -3821,6 +3821,8 @@
           "jobs"
         ],
         "operationId": "getJob",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "jobResponse",
         "summary": "How a piece of background work is getting on",
         "description": "What a `202 Accepted` handed back is polled here. The answer is the status, how far along it is where the job can say so, where the result will be, and the code of the last failure - and nothing else the queue row holds.\nA job belongs to the tenant that asked for it and is answered to that tenant only. A job that belongs to no tenant - the queue's own housekeeping - is answered to nobody here, and is indistinguishable from one that never existed.\nA question to AI is also answered to the person who asked it, as long as they may still read what it is about - wherever their role sits.\n",
         "responses": {
@@ -3851,6 +3853,8 @@
           "jobs"
         ],
         "operationId": "cancelJob",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "jobResponse",
         "summary": "Stop a piece of background work",
         "description": "Cooperative, not a kill: it moves the job to `CANCELLED`, and a pass that is under way finds at its next write that the job is no longer its own and leaves nothing behind. What a pass already put outside the database - bytes at a backup target, a message handed to a mail server - a cancellation cannot take back.\nA job that has already finished, failed or been cancelled answers `409`: there is nothing left to stop, and pretending otherwise would let a client believe it had prevented something that had already happened.\nA question to AI may also be stopped by the person who asked it, as long as they may still read what it is about. Stopped before its proposal is recorded, it records none; stopped after, its proposal stands - the provider had already answered - and the job reads `CANCELLED` all the same.\n",
         "parameters": [
