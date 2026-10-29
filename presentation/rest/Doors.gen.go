@@ -14,12 +14,15 @@ import (
 // restDoors is every operation answered by the generated mapping, by operationId.
 var restDoors = map[string]restDoor{
 	"applyConfig":            {UseCase: "ApplyConfig", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "base_hash", StepUp: true, BodyRequired: true, ETag: ""},
+	"changeEntryType":        {UseCase: "ChangeEntryType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version"},
 	"changeLinkType":         {UseCase: "ChangeLinkType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version"},
 	"changeRole":             {UseCase: "ChangeRole", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version"},
+	"createEntryType":        {UseCase: "CreateEntryType", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version"},
 	"createLinkType":         {UseCase: "CreateLinkType", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version"},
 	"createRole":             {UseCase: "CreateRole", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version"},
 	"createWorkflow":         {UseCase: "CreateWorkflow", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version"},
 	"decideConfigProposal":   {UseCase: "DecideConfigProposal", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: ""},
+	"deleteEntryType":        {UseCase: "DeleteEntryType", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
 	"deleteLinkType":         {UseCase: "DeleteLinkType", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
 	"deleteRole":             {UseCase: "DeleteRole", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
 	"deleteWorkflow":         {UseCase: "DeleteWorkflow", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
@@ -33,6 +36,7 @@ var restDoors = map[string]restDoor{
 	"listConfigVersions":     {UseCase: "ListConfigVersions", Status: 200, Query: []string{"before", "hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
 	"listEntryLinks":         {UseCase: "ListEntryLinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
 	"listEntrySteps":         {UseCase: "ListEntrySteps", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"listEntryTypes":         {UseCase: "ListEntryTypes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
 	"listLinkTypes":          {UseCase: "ListLinkTypes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
 	"listLinksAmong":         {UseCase: "ListLinksAmong", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
 	"listModules":            {UseCase: "ListModules", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
@@ -68,6 +72,13 @@ func (c *RestController) ApplyConfig(w http.ResponseWriter, r *http.Request, par
 	c.door(w, r, restDoors["applyConfig"], usecase.Input{}, params, &body, &answer)
 }
 
+// ChangeEntryType answers PATCH /entry-types/{key} by the generated mapping.
+func (c *RestController) ChangeEntryType(w http.ResponseWriter, r *http.Request, key string, params openapi.ChangeEntryTypeParams) {
+	var body openapi.ChangeEntryTypeApplicationMergePatchPlusJSONRequestBody
+	var answer openapi.EntryType
+	c.door(w, r, restDoors["changeEntryType"], usecase.Input{"key": key}, params, &body, &answer)
+}
+
 // ChangeLinkType answers PATCH /link-types/{key} by the generated mapping.
 func (c *RestController) ChangeLinkType(w http.ResponseWriter, r *http.Request, key string, params openapi.ChangeLinkTypeParams) {
 	var body openapi.ChangeLinkTypeApplicationMergePatchPlusJSONRequestBody
@@ -80,6 +91,13 @@ func (c *RestController) ChangeRole(w http.ResponseWriter, r *http.Request, key 
 	var body openapi.ChangeRoleApplicationMergePatchPlusJSONRequestBody
 	var answer openapi.CustomRole
 	c.door(w, r, restDoors["changeRole"], usecase.Input{"key": key}, params, &body, &answer)
+}
+
+// CreateEntryType answers POST /entry-types by the generated mapping.
+func (c *RestController) CreateEntryType(w http.ResponseWriter, r *http.Request) {
+	var body openapi.CreateEntryTypeJSONRequestBody
+	var answer openapi.EntryType
+	c.door(w, r, restDoors["createEntryType"], usecase.Input{}, nil, &body, &answer)
 }
 
 // CreateLinkType answers POST /link-types by the generated mapping.
@@ -108,6 +126,11 @@ func (c *RestController) DecideConfigProposal(w http.ResponseWriter, r *http.Req
 	var body openapi.DecideConfigProposalJSONRequestBody
 	var answer openapi.ConfigApplyResult
 	c.door(w, r, restDoors["decideConfigProposal"], usecase.Input{"proposal_id": proposalId.String()}, params, &body, &answer)
+}
+
+// DeleteEntryType answers DELETE /entry-types/{key} by the generated mapping.
+func (c *RestController) DeleteEntryType(w http.ResponseWriter, r *http.Request, key string) {
+	c.door(w, r, restDoors["deleteEntryType"], usecase.Input{"key": key}, nil, nil, nil)
 }
 
 // DeleteLinkType answers DELETE /link-types/{key} by the generated mapping.
@@ -185,6 +208,12 @@ func (c *RestController) ListEntryLinks(w http.ResponseWriter, r *http.Request, 
 func (c *RestController) ListEntrySteps(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
 	var answer openapi.EntrySteps
 	c.door(w, r, restDoors["listEntrySteps"], usecase.Input{"item_id": itemId.String()}, nil, nil, &answer)
+}
+
+// ListEntryTypes answers GET /entry-types by the generated mapping.
+func (c *RestController) ListEntryTypes(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.EntryTypeList
+	c.door(w, r, restDoors["listEntryTypes"], usecase.Input{}, nil, nil, &answer)
 }
 
 // ListLinkTypes answers GET /link-types by the generated mapping.

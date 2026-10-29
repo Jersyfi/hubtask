@@ -267,3 +267,25 @@ func TestSwitchingAModuleReachesItsUseCase(t *testing.T) {
 		t.Errorf("an unlocked module answers a lock: %s", recorder.Body)
 	}
 }
+
+// A type created with its behaviours: the members reach the use case by the contract's names, and
+// a system type's missing name is answered as null, as before.
+func TestCreatingAnEntryTypeReachesItsUseCase(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"key": "bug", "level": "TASK", "system": false, "name": nil,
+		"icon": "bug", "color_token": "red", "allowed_children": []string{}, "position": 0, "version": 1}}
+	recorder := callDoor(t, registry, http.MethodPost, "/entry-types",
+		`{"key":"bug","level":"TASK","name":"Bug","icon":"bug","color_token":"red","record":false,"allowed_children":["sub"]}`,
+		map[string]string{"Content-Type": "application/json"})
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "CreateEntryType" || registry.in["level"] != "TASK" || registry.in["record"] != false {
+		t.Errorf("%s %v", registry.name, registry.in)
+	}
+	if children, _ := registry.in["allowed_children"].([]any); len(children) != 1 {
+		t.Errorf("allowed_children arrived as %#v", registry.in["allowed_children"])
+	}
+	if !strings.Contains(recorder.Body.String(), `"name":null`) || !strings.Contains(recorder.Body.String(), `"allowed_children":[]`) {
+		t.Errorf("the answer is %s", recorder.Body)
+	}
+}

@@ -11485,6 +11485,7 @@
           "structure"
         ],
         "operationId": "listEntryTypes",
+        "x-hubtask-rest": "generated",
         "summary": "The workspace's entry types",
         "description": "Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.\n",
         "responses": {
@@ -11508,6 +11509,7 @@
           "structure"
         ],
         "operationId": "createEntryType",
+        "x-hubtask-rest": "generated",
         "summary": "Add an entry type",
         "description": "Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace.\n",
         "requestBody": {
@@ -11554,6 +11556,7 @@
           "structure"
         ],
         "operationId": "changeEntryType",
+        "x-hubtask-rest": "generated",
         "summary": "Change an entry type",
         "description": "Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace.\n",
         "parameters": [
@@ -11592,6 +11595,7 @@
           "structure"
         ],
         "operationId": "deleteEntryType",
+        "x-hubtask-rest": "generated",
         "summary": "Delete an unused entry type",
         "description": "Deletes a type of the workspace's own that no entry carries, trashed ones included. A type in use is refused with `entry_types.in_use` and can only be archived; a system type is never deleted. Needs STRUCTURE at the workspace.\n",
         "responses": {
