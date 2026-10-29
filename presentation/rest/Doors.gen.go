@@ -66,6 +66,7 @@ var restDoors = map[string]restDoor{
 	"explainConfig":             {UseCase: "ExplainConfig", Status: 200, Query: []string{"hub_id", "key"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"exportConfig":              {UseCase: "ExportConfig", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "hash", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getBackupRun":              {UseCase: "GetBackupRun", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getContainer":              {UseCase: "GetContainer", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getImport":                 {UseCase: "GetImport", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getJob":                    {UseCase: "GetJob", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getRecurrence":             {UseCase: "GetRecurrence", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -87,6 +88,7 @@ var restDoors = map[string]restDoor{
 	"listConfigProposals":       {UseCase: "ListConfigProposals", Status: 200, Query: []string{"state"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listConfigTemplates":       {UseCase: "ListConfigTemplates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listConfigVersions":        {UseCase: "ListConfigVersions", Status: 200, Query: []string{"before", "hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"before"}},
+	"listContainers":            {UseCase: "ListContainers", Status: 200, Query: []string{"cursor", "include_archived", "parent_id", "size", "type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listCustomFields":          {UseCase: "ListCustomFields", Status: 200, Query: []string{"collection_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listEmergencyNotices":      {UseCase: "ListEmergencyNotices", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listEntryLinks":            {UseCase: "ListEntryLinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -126,9 +128,15 @@ var restDoors = map[string]restDoor{
 	"readConfigSandbox":         {UseCase: "ReadConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readConfigSchema":          {UseCase: "ReadConfigSchema", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readConfigVersion":         {UseCase: "ReadConfigVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readIdentityProvider":      {UseCase: "ReadIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readInstanceSettings":      {UseCase: "ReadInstanceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readKudos":                 {UseCase: "ReadKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readOauthClient":           {UseCase: "ReadOauthClient", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readOwnAiPosition":         {UseCase: "ReadOwnAiPosition", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readQuotas":                {UseCase: "ReadQuotas", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readSettingsCatalogue":     {UseCase: "ReadSettingsCatalogue", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readTenant":                {UseCase: "ReadTenant", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readWorkspace":             {UseCase: "ReadWorkspace", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeLabel":               {UseCase: "RemoveLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeMember":              {UseCase: "RemoveMember", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeRecurrence":          {UseCase: "RemoveRecurrence", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -481,6 +489,11 @@ func (c *RestController) GetBackupRun(w http.ResponseWriter, r *http.Request, ba
 	c.door(w, r, restDoors["getBackupRun"], usecase.Input{"run_id": backupId.String()}, nil, nil, answerBy(backupRunResponse))
 }
 
+// GetContainer answers GET /containers/{containerId} by the generated mapping.
+func (c *RestController) GetContainer(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId) {
+	c.door(w, r, restDoors["getContainer"], usecase.Input{"container_id": containerId.String()}, nil, nil, answerBy(containerResponse))
+}
+
 // GetImport answers GET /imports/{importId} by the generated mapping.
 func (c *RestController) GetImport(w http.ResponseWriter, r *http.Request, importId openapi.ImportId) {
 	c.door(w, r, restDoors["getImport"], usecase.Input{"import_id": importId.String()}, nil, nil, answerBy(importRunResponse))
@@ -592,6 +605,11 @@ func (c *RestController) ListConfigTemplates(w http.ResponseWriter, r *http.Requ
 func (c *RestController) ListConfigVersions(w http.ResponseWriter, r *http.Request, params openapi.ListConfigVersionsParams) {
 	var answer openapi.ConfigVersionList
 	c.door(w, r, restDoors["listConfigVersions"], usecase.Input{}, params, nil, &answer)
+}
+
+// ListContainers answers GET /containers by the generated mapping.
+func (c *RestController) ListContainers(w http.ResponseWriter, r *http.Request, params openapi.ListContainersParams) {
+	c.door(w, r, restDoors["listContainers"], usecase.Input{}, params, nil, answerPage(containerResponse))
 }
 
 // ListCustomFields answers GET /custom-fields by the generated mapping.
@@ -820,9 +838,29 @@ func (c *RestController) ReadConfigVersion(w http.ResponseWriter, r *http.Reques
 	c.door(w, r, restDoors["readConfigVersion"], usecase.Input{"version": version}, nil, nil, &answer)
 }
 
+// ReadIdentityProvider answers GET /identity-provider by the generated mapping.
+func (c *RestController) ReadIdentityProvider(w http.ResponseWriter, r *http.Request) {
+	c.door(w, r, restDoors["readIdentityProvider"], usecase.Input{}, nil, nil, answerBy(identityProviderResponse))
+}
+
+// ReadInstanceSettings answers GET /admin/settings by the generated mapping.
+func (c *RestController) ReadInstanceSettings(w http.ResponseWriter, r *http.Request) {
+	c.door(w, r, restDoors["readInstanceSettings"], usecase.Input{}, nil, nil, answerBy(instanceSettingsResponse))
+}
+
 // ReadKudos answers GET /items/{itemId}/kudos by the generated mapping.
 func (c *RestController) ReadKudos(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
 	c.door(w, r, restDoors["readKudos"], usecase.Input{"item_id": itemId.String()}, nil, nil, answerBy(kudosResponse))
+}
+
+// ReadOauthClient answers GET /oauth/clients/{clientId} by the generated mapping.
+func (c *RestController) ReadOauthClient(w http.ResponseWriter, r *http.Request, clientId openapi.OauthClientId) {
+	c.door(w, r, restDoors["readOauthClient"], usecase.Input{"client_id": clientId.String()}, nil, nil, answerBy(oauthClientSummaryResponse))
+}
+
+// ReadOwnAiPosition answers GET /privacy/ai-objection by the generated mapping.
+func (c *RestController) ReadOwnAiPosition(w http.ResponseWriter, r *http.Request) {
+	c.door(w, r, restDoors["readOwnAiPosition"], usecase.Input{}, nil, nil, answerBy(ownAiPositionOf))
 }
 
 // ReadQuotas answers GET /quotas by the generated mapping.
@@ -834,6 +872,16 @@ func (c *RestController) ReadQuotas(w http.ResponseWriter, r *http.Request) {
 func (c *RestController) ReadSettingsCatalogue(w http.ResponseWriter, r *http.Request) {
 	var answer openapi.SettingsCatalogue
 	c.door(w, r, restDoors["readSettingsCatalogue"], usecase.Input{}, nil, nil, &answer)
+}
+
+// ReadTenant answers GET /admin/tenants/{tenantId} by the generated mapping.
+func (c *RestController) ReadTenant(w http.ResponseWriter, r *http.Request, tenantId openapi.AdminTenantId) {
+	c.door(w, r, restDoors["readTenant"], usecase.Input{"tenant_id": tenantId.String()}, nil, nil, answerBy(adminTenantResponse))
+}
+
+// ReadWorkspace answers GET /tenant by the generated mapping.
+func (c *RestController) ReadWorkspace(w http.ResponseWriter, r *http.Request) {
+	c.door(w, r, restDoors["readWorkspace"], usecase.Input{}, nil, nil, answerBy(workspaceResponse))
 }
 
 // RemoveLabel answers DELETE /items/{itemId}/labels/{labelId} by the generated mapping.

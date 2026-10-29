@@ -6614,6 +6614,8 @@
           "admin"
         ],
         "operationId": "readTenant",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "adminTenantResponse",
         "summary": "One workspace",
         "description": "One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "responses": {
@@ -7173,6 +7175,8 @@
           "admin"
         ],
         "operationId": "readInstanceSettings",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "instanceSettingsResponse",
         "summary": "What this installation has decided for every workspace on it",
         "description": "The level above the workspaces: the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.\nOnly what was decided. A level that answered the product's defaults for everything else would be one nobody could tell apart from an operator who had chosen them - and \"the operator decided nothing here\" is a value the resolver acts on.\nBehind `admin:tenants` **and** the operator register, both checked: the scope says what a credential may reach and the register says whose credential it may be, and either alone is a hole.\nThe `ETag` is the level's version, which a save presents in `If-Match`.\n",
         "responses": {
@@ -8641,6 +8645,8 @@
           "meta"
         ],
         "operationId": "readWorkspace",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "workspaceResponse",
         "summary": "The workspace the caller is in, and how it is set up",
         "description": "The workspace's own view of itself: the slug it is reached by, its display name, its standing, the locale and time zone every member without a preference of their own falls back to, and the settings it configures - today the one switch that demands a second factor of its administrators.\nNeeds `READ`, or the auditor's read-only configuration permission: how a workspace is set up is configuration, and an auditor reads configuration without holding `READ`.\nThis is not `/admin/tenants`. That listing is the installation operator's and crosses workspaces; this answers one workspace to the people inside it, and answers no other.\n",
         "responses": {
@@ -9121,6 +9127,8 @@
           "auth"
         ],
         "operationId": "readIdentityProvider",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "identityProviderResponse",
         "summary": "The workspace's first identity provider",
         "description": "**Kept, because nothing in this contract disappears.** It was the whole of the provider surface before providers became plural, and a caller written against it keeps working: it reads the workspace's own first provider, in the order the collection lists them, and `PUT` writes that one - creating it where there is none.\nIt cannot reach a second provider, it never answers one the installation offers, and it has no `DELETE`: removing one of several through a route that cannot name which would be a route that removes the wrong one. Use `/identity-providers` for all of that.\nNeeds the permission that manages structure, or the auditor's read-only configuration permission. The client secret is never a member of the answer.\n",
         "responses": {
@@ -10318,6 +10326,8 @@
           "oauth"
         ],
         "operationId": "readOauthClient",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "oauthClientSummaryResponse",
         "summary": "What an app is called, for the person being asked to allow it",
         "description": "The half of a registered client a consent screen needs: its name. Any signed-in member of the workspace may read it, and that is the point - the person deciding whether to allow an app is usually not an administrator, and a consent screen that cannot name the app is a screen that asks somebody to approve an identifier. That is the shape a phishing attempt wants.\nDeliberately narrower than the listing. The registered redirect URIs and whether the client is confidential are the administrator's business and are answered by `GET /oauth/clients` behind the permission that manages members; nothing here helps somebody enumerate the workspace's apps, because reading one requires already knowing its identifier - which the authorization request the reader arrived with already carries.\n",
         "responses": {
@@ -10921,6 +10931,8 @@
           "privacy"
         ],
         "operationId": "readOwnAiPosition",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "ownAiPositionOf",
         "summary": "The caller's own view of keeping their content out of AI",
         "description": "Whether there is anything to choose here (`shown`: AI answers this workspace and more than\none person works in it), the workspace's position - with the legal basis and whom to ask\nwhere AI is part of everybody's work - the caller's own choice, whether it takes effect,\nand whether they still have to be told that it stopped taking effect.\n\nThe caller keeps their content out with `POST /privacy/consents:withdraw` and lets it back\nin with `POST /privacy/consents:give`, both with the purpose `ai_processing`.\n",
         "responses": {
@@ -13734,6 +13746,8 @@
           "containers"
         ],
         "operationId": "listContainers",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "containerResponse",
         "parameters": [
           {
             "$ref": "#/components/parameters/ContainerTypeFilter"
@@ -13822,6 +13836,8 @@
           "containers"
         ],
         "operationId": "getContainer",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "containerResponse",
         "responses": {
           "200": {
             "description": "The container",

@@ -22,7 +22,6 @@ import (
 // is decided inwards of here, behind the scope and the register both.
 
 const (
-	readInstanceSettingsUseCase  = "ReadInstanceSettings"
 	writeInstanceSettingsUseCase = "WriteInstanceSettings"
 	readInstanceOverviewUseCase  = "ReadInstanceOverview"
 	listInstanceJournalUseCase   = "ListInstanceJournal"
@@ -36,24 +35,6 @@ const (
 // The four operations below are written out rather than taken through the identity helper, for the
 // reason `ListServiceAccounts` is: the helper's closure takes no context, and an operation with no
 // parameters gives the linter nothing to trace the request's context through.
-
-// ReadInstanceSettings answers GET /admin/settings.
-func (c *RestController) ReadInstanceSettings(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(
-		r.Context(), readInstanceSettingsUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.Header().Set("ETag", etag(out.Int("version")))
-	writeJSON(w, r, http.StatusOK, instanceSettingsResponse(out))
-}
 
 // WriteInstanceSettings answers PUT /admin/settings.
 func (c *RestController) WriteInstanceSettings(

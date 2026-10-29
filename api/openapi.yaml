@@ -5242,6 +5242,8 @@ paths:
     get:
       tags: [admin]
       operationId: readTenant
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: adminTenantResponse
       summary: One workspace
       description: >
         One workspace as the control plane sees it: its state, plan, version, the platform's own
@@ -5656,6 +5658,8 @@ paths:
     get:
       tags: [admin]
       operationId: readInstanceSettings
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: instanceSettingsResponse
       summary: What this installation has decided for every workspace on it
       description: >
         The level above the workspaces: the sign-in switches this installation set,
@@ -6729,6 +6733,8 @@ paths:
     get:
       tags: [meta]
       operationId: readWorkspace
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workspaceResponse
       summary: The workspace the caller is in, and how it is set up
       description: >
         The workspace's own view of itself: the slug it is reached by, its display name, its
@@ -7166,6 +7172,8 @@ paths:
     get:
       tags: [auth]
       operationId: readIdentityProvider
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: identityProviderResponse
       summary: The workspace's first identity provider
       description: >
         **Kept, because nothing in this contract disappears.** It was the whole of the provider
@@ -8208,6 +8216,8 @@ paths:
     get:
       tags: [oauth]
       operationId: readOauthClient
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: oauthClientSummaryResponse
       summary: What an app is called, for the person being asked to allow it
       description: >
         The half of a registered client a consent screen needs: its name. Any signed-in member of
@@ -8644,6 +8654,8 @@ paths:
     get:
       tags: [privacy]
       operationId: readOwnAiPosition
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: ownAiPositionOf
       summary: The caller's own view of keeping their content out of AI
       description: |
         Whether there is anything to choose here (`shown`: AI answers this workspace and more than
@@ -10623,6 +10635,8 @@ paths:
     get:
       tags: [containers]
       operationId: listContainers
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: containerResponse
       parameters:
         - $ref: "#/components/parameters/ContainerTypeFilter"
         - $ref: "#/components/parameters/ParentId"
@@ -10668,6 +10682,8 @@ paths:
     get:
       tags: [containers]
       operationId: getContainer
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: containerResponse
       responses:
         "200":
           description: The container

@@ -266,25 +266,6 @@ func (c *RestController) UpdateTenant(
 	writeJSON(w, r, http.StatusOK, answer)
 }
 
-// ReadTenant answers GET /admin/tenants/{tenantId}, with the version as the tag.
-func (c *RestController) ReadTenant(w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), "ReadTenant", actorOf(r), usecase.Input{"tenant_id": tenantID.String()})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	answer := adminTenantResponse(out)
-	if answer.Version != nil {
-		w.Header().Set("ETag", etag(*answer.Version))
-	}
-	writeJSON(w, r, http.StatusOK, answer)
-}
-
 // QueryTenants answers POST /admin/tenants:query.
 func (c *RestController) QueryTenants(w http.ResponseWriter, r *http.Request) {
 	requestID := correlation.RequestIDFrom(r.Context())

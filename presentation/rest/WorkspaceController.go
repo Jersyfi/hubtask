@@ -9,7 +9,6 @@ import (
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -18,27 +17,6 @@ const (
 	readWorkspaceUseCase   = "ReadWorkspace"
 	updateWorkspaceUseCase = "UpdateWorkspace"
 )
-
-// ReadWorkspace answers GET /tenant.
-//
-// Written out rather than through the identity helper, for `ListWebhookSubscriptions`' reason:
-// the helper's closure takes no context, and an operation with no parameters gives the linter
-// nothing to trace the request's context through.
-func (c *RestController) ReadWorkspace(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), readWorkspaceUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.Header().Set("ETag", etag(out.Int("version")))
-	writeJSON(w, r, http.StatusOK, workspaceResponse(out))
-}
 
 // UpdateWorkspace answers PATCH /tenant.
 func (c *RestController) UpdateWorkspace(

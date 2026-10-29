@@ -19,55 +19,10 @@ import (
 // the paging all happen in the application layer, once, for every channel (ADR-0005, arc42 §4).
 
 const (
-	getContainerUseCase   = "GetContainer"
-	listContainersUseCase = "ListContainers"
-	getWorkItemUseCase    = "GetWorkItem"
-	listWorkItemsUseCase  = "ListWorkItems"
+	getContainerUseCase  = "GetContainer"
+	getWorkItemUseCase   = "GetWorkItem"
+	listWorkItemsUseCase = "ListWorkItems"
 )
-
-// GetContainer answers GET /containers/{containerId}.
-func (c *RestController) GetContainer(w http.ResponseWriter, r *http.Request, containerID openapi.ContainerId) {
-	out, ok := c.read(w, r, getContainerUseCase, usecase.Input{
-		"container_id": containerID.String(),
-	})
-	if !ok {
-		return
-	}
-
-	// The ETag is what makes the round trip possible at all: it is the version the client may write
-	// against, and the value it sends back as If-Match (api-guidelines.md §5).
-	w.Header().Set("ETag", etag(out.Int("version")))
-	writeJSON(w, r, http.StatusOK, containerResponse(out))
-}
-
-// ListContainers answers GET /containers.
-//
-// No ETag. A page is not an entity with a version - there is nothing for a client to write back
-// against, and an entity tag over a list would have to change whenever any row in it did.
-func (c *RestController) ListContainers(
-	w http.ResponseWriter, r *http.Request, params openapi.ListContainersParams,
-) {
-	in := usecase.Input{
-		"parent_id":        optionalUUIDField(params.ParentId),
-		"include_archived": optionalBoolField(params.IncludeArchived),
-		"cursor":           optionalStringField(params.Cursor),
-		"size":             optionalIntField(params.Size),
-	}
-	if params.Type != nil {
-		in["type"] = string(*params.Type)
-	}
-
-	out, ok := c.read(w, r, listContainersUseCase, in)
-	if !ok {
-		return
-	}
-
-	page := openapi.ContainerPage{Data: []openapi.Container{}, Page: pageResponse(out)}
-	for _, row := range rowsOf(out) {
-		page.Data = append(page.Data, containerResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, page)
-}
 
 // GetWorkItem answers GET /items/{itemId}.
 func (c *RestController) GetWorkItem(

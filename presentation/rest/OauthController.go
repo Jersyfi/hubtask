@@ -24,7 +24,6 @@ const (
 	registerOauthClientUseCase  = "RegisterOauthClient"
 	listOauthClientsUseCase     = "ListOauthClients"
 	deleteOauthClientUseCase    = "DeleteOauthClient"
-	readOauthClientUseCase      = "ReadOauthClient"
 	authorizeOauthClientUseCase = "AuthorizeOauthClient"
 	exchangeOauthCodeUseCase    = "ExchangeOauthCode"
 	listOauthGrantsUseCase      = "ListOauthGrants"
@@ -81,23 +80,6 @@ func (c *RestController) ListOauthClients(w http.ResponseWriter, r *http.Request
 		clients = append(clients, oauthClientResponse(row))
 	}
 	writeJSON(w, r, http.StatusOK, clients)
-}
-
-// ReadOauthClient answers GET /oauth/clients/{clientId}: what the app is called, for the person
-// being asked to allow it.
-func (c *RestController) ReadOauthClient(
-	w http.ResponseWriter, r *http.Request, clientID openapi.OauthClientId,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), readOauthClientUseCase, actor, usecase.Input{
-			"client_id": clientID.String(),
-		})
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, openapi.OauthClientSummary{
-			Id:   uuidValue(out.String("id")),
-			Name: out.String("name"),
-		})
-	})
 }
 
 // DeleteOauthClient answers DELETE /oauth/clients/{clientId}.
@@ -314,4 +296,9 @@ func writeOauthError(w http.ResponseWriter, status int, code string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": code})
+}
+
+// oauthClientSummaryResponse is what a consent screen shows of a client: its name.
+func oauthClientSummaryResponse(out usecase.Output) openapi.OauthClientSummary {
+	return openapi.OauthClientSummary{Id: uuidValue(out.String("id")), Name: out.String("name")}
 }

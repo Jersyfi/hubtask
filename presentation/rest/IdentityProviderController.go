@@ -17,7 +17,6 @@ import (
 
 // The relying party's configuration use cases.
 const (
-	readIdentityProviderUseCase           = "ReadIdentityProvider"
 	configureFirstIdentityProviderUseCase = "ConfigureFirstIdentityProvider"
 	offerIdentityProviderUseCase          = "OfferIdentityProvider"
 	listIdentityProvidersUseCase          = "ListIdentityProviders"
@@ -33,23 +32,6 @@ const (
 	withdrawInstanceIdentityProviderUseCase         = "WithdrawInstanceIdentityProvider"
 	cancelInstanceIdentityProviderWithdrawalUseCase = "CancelInstanceIdentityProviderWithdrawal"
 )
-
-// ReadIdentityProvider answers GET /identity-provider — the singular surface, kept.
-func (c *RestController) ReadIdentityProvider(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(
-		r.Context(), readIdentityProviderUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, identityProviderResponse(out))
-}
 
 // ConfigureFirstIdentityProvider answers PUT /identity-provider.
 func (c *RestController) ConfigureFirstIdentityProvider(

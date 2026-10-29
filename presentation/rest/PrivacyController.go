@@ -28,7 +28,6 @@ const (
 	withdrawConsentUseCase          = "WithdrawConsent"
 	giveConsentUseCase              = "GiveConsent"
 	listConsentsUseCase             = "ListConsents"
-	readOwnAiPositionUseCase        = "ReadOwnAiPosition"
 	acknowledgeAiPositionUseCase    = "AcknowledgeAiPosition"
 )
 
@@ -388,15 +387,6 @@ func (c *RestController) GiveConsent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, r, http.StatusOK, consentRecordOf(out))
-}
-
-// ReadOwnAiPosition answers GET /privacy/ai-objection.
-func (c *RestController) ReadOwnAiPosition(w http.ResponseWriter, r *http.Request) {
-	out, ok := c.read(w, r, readOwnAiPositionUseCase, usecase.Input{})
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, ownAiPositionOf(out))
 }
 
 // AcknowledgeAiPosition answers POST /privacy/ai-objection:noticed.
