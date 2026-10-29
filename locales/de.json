@@ -2030,6 +2030,7 @@
   "app.workflow_designer.step_from": "Geht aus von",
   "app.workflow_designer.step_from_hint": "Keiner gewählt: aus jedem anderen Status.",
   "app.workflow_designer.who": "Wer ihn gehen darf",
+  "app.workflow_designer.groups": "Oder die Mitglieder dieser Gruppen",
   "app.workflow_designer.person_fields": "Oder die Person in diesen Feldern",
   "app.workflow_designer.person_fields_hint": "assignee, created_by oder custom_fields.<key>, durch Kommas getrennt.",
   "app.workflow_designer.who_condition": "Oder wenn das gilt",

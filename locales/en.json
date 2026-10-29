@@ -2033,6 +2033,7 @@
   "app.workflow_designer.step_from": "Leaves from",
   "app.workflow_designer.step_from_hint": "None chosen: from any other status.",
   "app.workflow_designer.who": "Who may take it",
+  "app.workflow_designer.groups": "Or the members of these groups",
   "app.workflow_designer.person_fields": "Or the person in these fields",
   "app.workflow_designer.person_fields_hint": "assignee, created_by or custom_fields.<key>, separated by commas.",
   "app.workflow_designer.who_condition": "Or when this holds",

@@ -7,7 +7,7 @@
   // (check 4) and are written in the rule editor from the same actions as every rule. Every edit is a function over the draft (lib/data/workflows.ts);
   // nothing is sent from here - the page saves the draft.
 
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { Button, Checkbox, IconButton, Inline, Input, Select, Stack } from '@hubtask/design-system/components';
   import { labelTokens } from '@hubtask/design-system';
   import type { WorkflowShape, WorkflowStep } from '@hubtask/sync-engine';
@@ -16,6 +16,7 @@
     CATEGORIES, addStatus, addStep, changeStatus, changeStep, moveStatus, removeStatus, removeStep, statusLabel,
     stepLabel, type Category,
   } from '../data/workflows.ts';
+  import { groups } from '../data/groups.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
@@ -85,10 +86,22 @@
   }
 
   function toggleRole(step: WorkflowStep, role: string, on: boolean) {
-    const roles = new Set(step.who?.roles ?? []);
-    if (on) roles.add(role as (typeof ROLES)[number]);
-    else roles.delete(role as (typeof ROLES)[number]);
-    onchange(changeStep(shape, step.key, { who: { ...step.who, roles: ROLES.filter((each) => roles.has(each)) } }));
+    const roles = new Set<string>(step.who?.roles ?? []);
+    if (on) roles.add(role);
+    else roles.delete(role);
+    // The shipped roles in their order, then the workspace's own keys the step already names.
+    const ordered = [...ROLES.filter((each) => roles.has(each)), ...[...roles].filter((each) => !(ROLES as readonly string[]).includes(each))];
+    onchange(changeStep(shape, step.key, { who: { ...step.who, roles: ordered as never } }));
+  }
+
+  // The workspace's groups, which a step may be limited to (UC-FLW-04 check 1).
+  $effect(() => untrack(() => groups.open()));
+
+  function toggleGroup(step: WorkflowStep, groupId: string, on: boolean) {
+    const chosen = new Set(step.who?.groups ?? []);
+    if (on) chosen.add(groupId);
+    else chosen.delete(groupId);
+    onchange(changeStep(shape, step.key, { who: { ...step.who, groups: [...chosen] } }));
   }
 
   function changeCheck(step: WorkflowStep, index: number, change: { holds?: string; message?: string | null }) {
@@ -244,6 +257,18 @@
                   />
                 {/each}
               </div>
+              {#if groups.all.length > 0}
+                <div class="choices" role="group" aria-label={t('app.workflow_designer.groups')}>
+                  {#each groups.all as group (group.id)}
+                    <Checkbox
+                      label={group.name}
+                      checked={step.who?.groups?.includes(group.id) ?? false}
+                      disabledReason={isReadOnly ? t('app.workflow_designer.read_only') : undefined}
+                      onchange={(event: Event) => toggleGroup(step, group.id, checked(event))}
+                    />
+                  {/each}
+                </div>
+              {/if}
               <Input
                 label={t('app.workflow_designer.person_fields')}
                 hint={t('app.workflow_designer.person_fields_hint')}
