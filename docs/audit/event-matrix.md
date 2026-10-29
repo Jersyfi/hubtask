@@ -717,10 +717,13 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `whiteboard.changed` | UpdateWhiteboard | `whiteboard` | INFO | Every time |
 | `whiteboard.created` | CreateWhiteboard | `whiteboard` | INFO | Every time |
 | `whiteboard.exported` | ExportWhiteboard | `whiteboard` | INFO | Every time |
+| `whiteboard.read` | ListWhiteboardVersions | `whiteboard` | INFO | When refused |
 | `whiteboard.read` | ListWhiteboards | `whiteboard` | INFO | When refused |
 | `whiteboard.read` | ReadWhiteboard | `whiteboard` | INFO | When refused |
+| `whiteboard.read` | ReadWhiteboardVersion | `whiteboard` | INFO | When refused |
 | `whiteboard.restored` | RestoreWhiteboard | `whiteboard` | INFO | Every time |
 | `whiteboard.trashed` | TrashWhiteboard | `whiteboard` | INFO | Every time |
+| `whiteboard.version_named` | NameWhiteboardVersion | `whiteboard` | INFO | Every time |
 
 ## Workflow
 

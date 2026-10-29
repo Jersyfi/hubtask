@@ -7691,6 +7691,8 @@
   "whiteboards.title_too_long": "A whiteboard's title may be at most {maximum} characters.",
   "whiteboards.too_many_elements": "A whiteboard may hold at most {maximum} objects.",
   "whiteboards.version_conflict": "Someone changed the whiteboard meanwhile. Reload it and try again.",
+  "whiteboards.version_name_malformed": "A version's name is one line of at most {maximum} characters.",
+  "whiteboards.version_not_found": "The whiteboard has no such version.",
   "app.pages.export_format": "Format",
   "app.pages.export_download": "Download",
   "app.pages.format.MARKDOWN": "Markdown files",

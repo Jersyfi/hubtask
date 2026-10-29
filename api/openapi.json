@@ -18768,6 +18768,133 @@
           }
         }
       }
+    },
+    "/whiteboards/{whiteboardId}/versions": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/WhiteboardId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "whiteboards"
+        ],
+        "operationId": "listWhiteboardVersions",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "whiteboard versions",
+        "summary": "A whiteboard's history",
+        "description": "The board's versions newest first - one per drawing session, a named one its own - with who saved it last, the moment, how many objects it held and its name, without the objects. Continue with `before`. Needs READ on the hub.\n",
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhiteboardVersionList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/whiteboards/{whiteboardId}/versions/{seq}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/WhiteboardId"
+        },
+        {
+          "name": "seq",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "whiteboards"
+        ],
+        "operationId": "readWhiteboardVersion",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "whiteboard version",
+        "summary": "Read one version of a whiteboard",
+        "description": "The version's title and objects as they stood, to compare or to bring back: a client brings a version back by writing its objects onto the board, which saves as a version of its own. Needs READ on the hub.\n",
+        "responses": {
+          "200": {
+            "description": "The version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhiteboardVersionRead"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "whiteboards"
+        ],
+        "operationId": "nameWhiteboardVersion",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "whiteboard version-name",
+        "summary": "Name a version of a whiteboard",
+        "description": "Names the version, or takes its name away with an empty name. A named version stays as it is: the next save starts a new one. Needs WRITE_ITEMS on the hub.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageVersionName"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Named",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageVersionNamed"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -40880,6 +41007,82 @@
             "description": "The board's objects, sent whole in drawing order, the last on top.",
             "items": {
               "$ref": "#/components/schemas/WhiteboardElement"
+            }
+          }
+        }
+      },
+      "WhiteboardVersion": {
+        "type": "object",
+        "required": [
+          "seq",
+          "title",
+          "author_id",
+          "name",
+          "element_count",
+          "created_at"
+        ],
+        "properties": {
+          "seq": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "author_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Who saved the version last."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "element_count": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "WhiteboardVersionRead": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/WhiteboardVersion"
+          },
+          {
+            "type": "object",
+            "required": [
+              "elements"
+            ],
+            "properties": {
+              "elements": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WhiteboardElement"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "WhiteboardVersionList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WhiteboardVersion"
             }
           }
         }

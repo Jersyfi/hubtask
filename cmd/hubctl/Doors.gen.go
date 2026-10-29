@@ -416,6 +416,30 @@ var generatedCommands = []door{
 			{Name: "title", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{}},
+	{Group: "whiteboard", Verb: "version", OperationID: "readWhiteboardVersion", Method: "GET", Path: "/whiteboards/{whiteboardId}/versions/{seq}", Summary: "Read one version of a whiteboard",
+		PathParams: []doorParam{
+			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},
+			{Name: "seq", Kind: "integer", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "whiteboard", Verb: "version-name", OperationID: "nameWhiteboardVersion", Method: "PATCH", Path: "/whiteboards/{whiteboardId}/versions/{seq}", Summary: "Name a version of a whiteboard",
+		PathParams: []doorParam{
+			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},
+			{Name: "seq", Kind: "integer", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "name", Kind: "string", Help: "Empty takes the name away", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"name"}},
+	{Group: "whiteboard", Verb: "versions", OperationID: "listWhiteboardVersions", Method: "GET", Path: "/whiteboards/{whiteboardId}/versions", Summary: "A whiteboard's history",
+		PathParams: []doorParam{
+			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "before", Kind: "integer", Help: "", Required: false},
+			{Name: "limit", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"name", "title"}},
 	{Group: "workflow", Verb: "create", OperationID: "createWorkflow", Method: "POST", Path: "/workflows", Summary: "Add a workflow",
 		Body: []doorParam{
 			{Name: "key", Kind: "string", Help: "", Required: true},

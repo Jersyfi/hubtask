@@ -7688,6 +7688,8 @@
   "whiteboards.title_too_long": "Der Titel eines Whiteboards darf höchstens {maximum} Zeichen lang sein.",
   "whiteboards.too_many_elements": "Ein Whiteboard darf höchstens {maximum} Objekte enthalten.",
   "whiteboards.version_conflict": "Jemand hat das Whiteboard inzwischen geändert. Lade es neu und versuche es noch einmal.",
+  "whiteboards.version_name_malformed": "Der Name einer Version ist eine Zeile mit höchstens {maximum} Zeichen.",
+  "whiteboards.version_not_found": "Diese Version des Whiteboards gibt es nicht.",
   "app.pages.export_format": "Format",
   "app.pages.export_download": "Herunterladen",
   "app.pages.format.MARKDOWN": "Markdown-Dateien",

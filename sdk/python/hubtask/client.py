@@ -2006,3 +2006,15 @@ class Client:
     def export_whiteboard(self, whiteboard_id: str, body: "WhiteboardExportRequest") -> "WhiteboardExport":
         """Export a whiteboard"""
         return self._call("POST", "/whiteboards/{whiteboardId}:export", {"whiteboardId": whiteboard_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_whiteboard_versions(self, whiteboard_id: str, *, query: dict[str, Any] | None = None) -> "WhiteboardVersionList":
+        """A whiteboard's history"""
+        return self._call("GET", "/whiteboards/{whiteboardId}/versions", {"whiteboardId": whiteboard_id}, query, {}, None, "none", None, "json")
+
+    def read_whiteboard_version(self, whiteboard_id: str, seq: str) -> "WhiteboardVersionRead":
+        """Read one version of a whiteboard"""
+        return self._call("GET", "/whiteboards/{whiteboardId}/versions/{seq}", {"whiteboardId": whiteboard_id, "seq": seq}, None, {}, None, "none", None, "json")
+
+    def name_whiteboard_version(self, whiteboard_id: str, seq: str, body: "PageVersionName") -> "PageVersionNamed":
+        """Name a version of a whiteboard"""
+        return self._call("PATCH", "/whiteboards/{whiteboardId}/versions/{seq}", {"whiteboardId": whiteboard_id, "seq": seq}, None, {}, body, "json", "application/merge-patch+json", "json")

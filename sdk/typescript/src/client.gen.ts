@@ -2523,4 +2523,19 @@ export class HubtaskClient {
   exportWhiteboard(whiteboardId: string, body: NonNullable<operations["exportWhiteboard"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["exportWhiteboard"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/whiteboards/{whiteboardId}:export", { "whiteboardId": whiteboardId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
+
+  /** A whiteboard's history */
+  listWhiteboardVersions(whiteboardId: string, options: CallOptions & { readonly query?: NonNullable<operations["listWhiteboardVersions"]['parameters']['query']> } = {}): Promise<operations["listWhiteboardVersions"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/whiteboards/{whiteboardId}/versions", { "whiteboardId": whiteboardId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Read one version of a whiteboard */
+  readWhiteboardVersion(whiteboardId: string, seq: string, options: CallOptions = {}): Promise<operations["readWhiteboardVersion"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/whiteboards/{whiteboardId}/versions/{seq}", { "whiteboardId": whiteboardId, "seq": seq }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Name a version of a whiteboard */
+  nameWhiteboardVersion(whiteboardId: string, seq: string, body: NonNullable<operations["nameWhiteboardVersion"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions = {}): Promise<operations["nameWhiteboardVersion"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/whiteboards/{whiteboardId}/versions/{seq}", { "whiteboardId": whiteboardId, "seq": seq }, undefined, {  }, body, "json", "application/merge-patch+json", "json", options.signal);
+  }
 }

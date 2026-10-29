@@ -80,6 +80,11 @@ func (h CreateWhiteboard) Execute(ctx context.Context, actor appshared.ActorCont
 		if err := h.Studio.Boards.Insert(ctx, board); err != nil {
 			return err
 		}
+		if len(board.Scene.Elements) > 0 {
+			if err := h.Studio.snapshot(ctx, board, actor.AccountID); err != nil {
+				return err
+			}
+		}
 		return h.Studio.record(ctx, actor, BoardCreatedAction, board, []string{domain.FieldTitle, domain.FieldScene})
 	})
 	return board, err
@@ -262,6 +267,9 @@ func (h UpdateWhiteboard) Execute(ctx context.Context, actor appshared.ActorCont
 		}
 		next.Version = current.Version + 1
 		board = next
+		if err := h.Studio.snapshot(ctx, next, actor.AccountID); err != nil {
+			return err
+		}
 		return h.Studio.record(ctx, actor, BoardChangedAction, next, fields)
 	})
 	return board, err

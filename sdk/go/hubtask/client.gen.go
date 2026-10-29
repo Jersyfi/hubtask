@@ -15933,6 +15933,34 @@ type WhiteboardRead struct {
 	Writable bool `json:"writable"`
 }
 
+// WhiteboardVersion defines model for WhiteboardVersion.
+type WhiteboardVersion struct {
+	// AuthorId Who saved the version last.
+	AuthorId     *openapi_types.UUID `json:"author_id"`
+	CreatedAt    time.Time           `json:"created_at"`
+	ElementCount int                 `json:"element_count"`
+	Name         *string             `json:"name"`
+	Seq          int                 `json:"seq"`
+	Title        string              `json:"title"`
+}
+
+// WhiteboardVersionList defines model for WhiteboardVersionList.
+type WhiteboardVersionList struct {
+	Data []WhiteboardVersion `json:"data"`
+}
+
+// WhiteboardVersionRead defines model for WhiteboardVersionRead.
+type WhiteboardVersionRead struct {
+	// AuthorId Who saved the version last.
+	AuthorId     *openapi_types.UUID `json:"author_id"`
+	CreatedAt    time.Time           `json:"created_at"`
+	ElementCount int                 `json:"element_count"`
+	Elements     []WhiteboardElement `json:"elements"`
+	Name         *string             `json:"name"`
+	Seq          int                 `json:"seq"`
+	Title        string              `json:"title"`
+}
+
 // WorkItem defines model for WorkItem.
 type WorkItem struct {
 	// Amount How much of it - "2", "1 kg" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.
@@ -18141,6 +18169,12 @@ type UpdateWhiteboardParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListWhiteboardVersionsParams defines parameters for ListWhiteboardVersions.
+type ListWhiteboardVersionsParams struct {
+	Before *int `form:"before,omitempty" json:"before,omitempty"`
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // SaveWorkflowDraftParams defines parameters for SaveWorkflowDraft.
 type SaveWorkflowDraftParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -18815,6 +18849,9 @@ type TryVoiceSentenceJSONRequestBody = VoiceTry
 
 // UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody defines body for UpdateWhiteboard for application/merge-patch+json ContentType.
 type UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody = WhiteboardChange
+
+// NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody defines body for NameWhiteboardVersion for application/merge-patch+json ContentType.
+type NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody = PageVersionName
 
 // ExportWhiteboardJSONRequestBody defines body for ExportWhiteboard for application/json ContentType.
 type ExportWhiteboardJSONRequestBody = WhiteboardExportRequest
@@ -25409,6 +25446,38 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /whiteboards/{whiteboardId} (the `UpdateWhiteboard` operationId).
 	UpdateWhiteboardWithApplicationMergePatchPlusJSONBody(ctx context.Context, whiteboardId WhiteboardId, params *UpdateWhiteboardParams, body UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListWhiteboardVersions A whiteboard's history
+	//
+	// The board's versions newest first - one per drawing session, a named one its own - with who saved it last, the moment, how many objects it held and its name, without the objects. Continue with `before`. Needs READ on the hub.
+	//
+	// Corresponds with GET /whiteboards/{whiteboardId}/versions (the `ListWhiteboardVersions` operationId).
+	ListWhiteboardVersions(ctx context.Context, whiteboardId WhiteboardId, params *ListWhiteboardVersionsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadWhiteboardVersion Read one version of a whiteboard
+	//
+	// The version's title and objects as they stood, to compare or to bring back: a client brings a version back by writing its objects onto the board, which saves as a version of its own. Needs READ on the hub.
+	//
+	// Corresponds with GET /whiteboards/{whiteboardId}/versions/{seq} (the `ReadWhiteboardVersion` operationId).
+	ReadWhiteboardVersion(ctx context.Context, whiteboardId WhiteboardId, seq int, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// NameWhiteboardVersionWithBody Name a version of a whiteboard
+	//
+	// Names the version, or takes its name away with an empty name. A named version stays as it is: the next save starts a new one. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /whiteboards/{whiteboardId}/versions/{seq} (the `NameWhiteboardVersion` operationId).
+	NameWhiteboardVersionWithBody(ctx context.Context, whiteboardId WhiteboardId, seq int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// NameWhiteboardVersionWithApplicationMergePatchPlusJSONBody Name a version of a whiteboard
+	//
+	// Names the version, or takes its name away with an empty name. A named version stays as it is: the next save starts a new one. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/merge-patch+json` content type.
+	//
+	// Corresponds with PATCH /whiteboards/{whiteboardId}/versions/{seq} (the `NameWhiteboardVersion` operationId).
+	NameWhiteboardVersionWithApplicationMergePatchPlusJSONBody(ctx context.Context, whiteboardId WhiteboardId, seq int, body NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ExportWhiteboardWithBody Export a whiteboard
 	//
@@ -38892,6 +38961,78 @@ func (c *Client) UpdateWhiteboardWithBody(ctx context.Context, whiteboardId Whit
 // Corresponds with PATCH /whiteboards/{whiteboardId} (the `UpdateWhiteboard` operationId).
 func (c *Client) UpdateWhiteboardWithApplicationMergePatchPlusJSONBody(ctx context.Context, whiteboardId WhiteboardId, params *UpdateWhiteboardParams, body UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateWhiteboardRequestWithApplicationMergePatchPlusJSONBody(c.Server, whiteboardId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListWhiteboardVersions A whiteboard's history
+//
+// The board's versions newest first - one per drawing session, a named one its own - with who saved it last, the moment, how many objects it held and its name, without the objects. Continue with `before`. Needs READ on the hub.
+//
+// Corresponds with GET /whiteboards/{whiteboardId}/versions (the `ListWhiteboardVersions` operationId).
+func (c *Client) ListWhiteboardVersions(ctx context.Context, whiteboardId WhiteboardId, params *ListWhiteboardVersionsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListWhiteboardVersionsRequest(c.Server, whiteboardId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadWhiteboardVersion Read one version of a whiteboard
+//
+// The version's title and objects as they stood, to compare or to bring back: a client brings a version back by writing its objects onto the board, which saves as a version of its own. Needs READ on the hub.
+//
+// Corresponds with GET /whiteboards/{whiteboardId}/versions/{seq} (the `ReadWhiteboardVersion` operationId).
+func (c *Client) ReadWhiteboardVersion(ctx context.Context, whiteboardId WhiteboardId, seq int, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadWhiteboardVersionRequest(c.Server, whiteboardId, seq)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NameWhiteboardVersionWithBody Name a version of a whiteboard
+//
+// Names the version, or takes its name away with an empty name. A named version stays as it is: the next save starts a new one. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /whiteboards/{whiteboardId}/versions/{seq} (the `NameWhiteboardVersion` operationId).
+func (c *Client) NameWhiteboardVersionWithBody(ctx context.Context, whiteboardId WhiteboardId, seq int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewNameWhiteboardVersionRequestWithBody(c.Server, whiteboardId, seq, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NameWhiteboardVersionWithApplicationMergePatchPlusJSONBody Name a version of a whiteboard
+//
+// Names the version, or takes its name away with an empty name. A named version stays as it is: the next save starts a new one. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/merge-patch+json` content type.
+//
+// Corresponds with PATCH /whiteboards/{whiteboardId}/versions/{seq} (the `NameWhiteboardVersion` operationId).
+func (c *Client) NameWhiteboardVersionWithApplicationMergePatchPlusJSONBody(ctx context.Context, whiteboardId WhiteboardId, seq int, body NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewNameWhiteboardVersionRequestWithApplicationMergePatchPlusJSONBody(c.Server, whiteboardId, seq, body)
 	if err != nil {
 		return nil, err
 	}
@@ -61311,6 +61452,174 @@ func NewUpdateWhiteboardRequestWithBody(server string, whiteboardId WhiteboardId
 	return req, nil
 }
 
+// NewListWhiteboardVersionsRequest constructs an http.Request for the ListWhiteboardVersions method
+func NewListWhiteboardVersionsRequest(server string, whiteboardId WhiteboardId, params *ListWhiteboardVersionsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "whiteboardId", whiteboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/whiteboards/%s/versions", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Before != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "before", *params.Before, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadWhiteboardVersionRequest constructs an http.Request for the ReadWhiteboardVersion method
+func NewReadWhiteboardVersionRequest(server string, whiteboardId WhiteboardId, seq int) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "whiteboardId", whiteboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "seq", seq, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/whiteboards/%s/versions/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewNameWhiteboardVersionRequestWithApplicationMergePatchPlusJSONBody calls the generic NameWhiteboardVersion builder with application/merge-patch+json body
+func NewNameWhiteboardVersionRequestWithApplicationMergePatchPlusJSONBody(server string, whiteboardId WhiteboardId, seq int, body NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewNameWhiteboardVersionRequestWithBody(server, whiteboardId, seq, "application/merge-patch+json", bodyReader)
+}
+
+// NewNameWhiteboardVersionRequestWithBody constructs an http.Request for the NameWhiteboardVersion method, with any body, and a specified content type
+func NewNameWhiteboardVersionRequestWithBody(server string, whiteboardId WhiteboardId, seq int, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "whiteboardId", whiteboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "seq", seq, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/whiteboards/%s/versions/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewExportWhiteboardRequest calls the generic ExportWhiteboard builder with application/json body
 func NewExportWhiteboardRequest(server string, whiteboardId WhiteboardId, body ExportWhiteboardJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -68911,6 +69220,42 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PATCH /whiteboards/{whiteboardId} (the `UpdateWhiteboard` operationId).
 	UpdateWhiteboardWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, params *UpdateWhiteboardParams, body UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateWhiteboardResult, error)
+
+	// ListWhiteboardVersionsWithResponse A whiteboard's history
+	//
+	// The board's versions newest first - one per drawing session, a named one its own - with who saved it last, the moment, how many objects it held and its name, without the objects. Continue with `before`. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /whiteboards/{whiteboardId}/versions (the `ListWhiteboardVersions` operationId).
+	ListWhiteboardVersionsWithResponse(ctx context.Context, whiteboardId WhiteboardId, params *ListWhiteboardVersionsParams, reqEditors ...RequestEditorFn) (*ListWhiteboardVersionsResult, error)
+
+	// ReadWhiteboardVersionWithResponse Read one version of a whiteboard
+	//
+	// The version's title and objects as they stood, to compare or to bring back: a client brings a version back by writing its objects onto the board, which saves as a version of its own. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /whiteboards/{whiteboardId}/versions/{seq} (the `ReadWhiteboardVersion` operationId).
+	ReadWhiteboardVersionWithResponse(ctx context.Context, whiteboardId WhiteboardId, seq int, reqEditors ...RequestEditorFn) (*ReadWhiteboardVersionResult, error)
+
+	// NameWhiteboardVersionWithBodyWithResponse Name a version of a whiteboard
+	//
+	// Names the version, or takes its name away with an empty name. A named version stays as it is: the next save starts a new one. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /whiteboards/{whiteboardId}/versions/{seq} (the `NameWhiteboardVersion` operationId).
+	NameWhiteboardVersionWithBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, seq int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*NameWhiteboardVersionResult, error)
+
+	// NameWhiteboardVersionWithApplicationMergePatchPlusJSONBodyWithResponse Name a version of a whiteboard
+	//
+	// Names the version, or takes its name away with an empty name. A named version stays as it is: the next save starts a new one. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /whiteboards/{whiteboardId}/versions/{seq} (the `NameWhiteboardVersion` operationId).
+	NameWhiteboardVersionWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, seq int, body NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*NameWhiteboardVersionResult, error)
 
 	// ExportWhiteboardWithBodyWithResponse Export a whiteboard
 	//
@@ -91914,6 +92259,150 @@ func (r UpdateWhiteboardResult) ContentType() string {
 	return ""
 }
 
+type ListWhiteboardVersionsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WhiteboardVersionList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListWhiteboardVersionsResult) GetJSON200() *WhiteboardVersionList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListWhiteboardVersionsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListWhiteboardVersionsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListWhiteboardVersionsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListWhiteboardVersionsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListWhiteboardVersionsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadWhiteboardVersionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WhiteboardVersionRead
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadWhiteboardVersionResult) GetJSON200() *WhiteboardVersionRead {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadWhiteboardVersionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadWhiteboardVersionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadWhiteboardVersionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadWhiteboardVersionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadWhiteboardVersionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type NameWhiteboardVersionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageVersionNamed
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r NameWhiteboardVersionResult) GetJSON200() *PageVersionNamed {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r NameWhiteboardVersionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r NameWhiteboardVersionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r NameWhiteboardVersionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r NameWhiteboardVersionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r NameWhiteboardVersionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ExportWhiteboardResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -103622,6 +104111,66 @@ func (c *ClientWithResponses) UpdateWhiteboardWithApplicationMergePatchPlusJSONB
 		return nil, err
 	}
 	return ParseUpdateWhiteboardResult(rsp)
+}
+
+// ListWhiteboardVersionsWithResponse A whiteboard's history
+//
+// The board's versions newest first - one per drawing session, a named one its own - with who saved it last, the moment, how many objects it held and its name, without the objects. Continue with `before`. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /whiteboards/{whiteboardId}/versions (the `ListWhiteboardVersions` operationId).
+func (c *ClientWithResponses) ListWhiteboardVersionsWithResponse(ctx context.Context, whiteboardId WhiteboardId, params *ListWhiteboardVersionsParams, reqEditors ...RequestEditorFn) (*ListWhiteboardVersionsResult, error) {
+	rsp, err := c.ListWhiteboardVersions(ctx, whiteboardId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListWhiteboardVersionsResult(rsp)
+}
+
+// ReadWhiteboardVersionWithResponse Read one version of a whiteboard
+//
+// The version's title and objects as they stood, to compare or to bring back: a client brings a version back by writing its objects onto the board, which saves as a version of its own. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /whiteboards/{whiteboardId}/versions/{seq} (the `ReadWhiteboardVersion` operationId).
+func (c *ClientWithResponses) ReadWhiteboardVersionWithResponse(ctx context.Context, whiteboardId WhiteboardId, seq int, reqEditors ...RequestEditorFn) (*ReadWhiteboardVersionResult, error) {
+	rsp, err := c.ReadWhiteboardVersion(ctx, whiteboardId, seq, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadWhiteboardVersionResult(rsp)
+}
+
+// NameWhiteboardVersionWithBodyWithResponse Name a version of a whiteboard
+//
+// Names the version, or takes its name away with an empty name. A named version stays as it is: the next save starts a new one. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /whiteboards/{whiteboardId}/versions/{seq} (the `NameWhiteboardVersion` operationId).
+func (c *ClientWithResponses) NameWhiteboardVersionWithBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, seq int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*NameWhiteboardVersionResult, error) {
+	rsp, err := c.NameWhiteboardVersionWithBody(ctx, whiteboardId, seq, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNameWhiteboardVersionResult(rsp)
+}
+
+// NameWhiteboardVersionWithApplicationMergePatchPlusJSONBodyWithResponse Name a version of a whiteboard
+//
+// Names the version, or takes its name away with an empty name. A named version stays as it is: the next save starts a new one. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /whiteboards/{whiteboardId}/versions/{seq} (the `NameWhiteboardVersion` operationId).
+func (c *ClientWithResponses) NameWhiteboardVersionWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, seq int, body NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*NameWhiteboardVersionResult, error) {
+	rsp, err := c.NameWhiteboardVersionWithApplicationMergePatchPlusJSONBody(ctx, whiteboardId, seq, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNameWhiteboardVersionResult(rsp)
 }
 
 // ExportWhiteboardWithBodyWithResponse Export a whiteboard
@@ -120291,6 +120840,105 @@ func ParseUpdateWhiteboardResult(rsp *http.Response) (*UpdateWhiteboardResult, e
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest WhiteboardRead
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListWhiteboardVersionsResult parses an HTTP response from a ListWhiteboardVersionsWithResponse call
+func ParseListWhiteboardVersionsResult(rsp *http.Response) (*ListWhiteboardVersionsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListWhiteboardVersionsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WhiteboardVersionList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadWhiteboardVersionResult parses an HTTP response from a ReadWhiteboardVersionWithResponse call
+func ParseReadWhiteboardVersionResult(rsp *http.Response) (*ReadWhiteboardVersionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadWhiteboardVersionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WhiteboardVersionRead
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseNameWhiteboardVersionResult parses an HTTP response from a NameWhiteboardVersionWithResponse call
+func ParseNameWhiteboardVersionResult(rsp *http.Response) (*NameWhiteboardVersionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &NameWhiteboardVersionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageVersionNamed
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

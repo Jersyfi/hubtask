@@ -15927,6 +15927,34 @@ type WhiteboardRead struct {
 	Writable bool `json:"writable"`
 }
 
+// WhiteboardVersion defines model for WhiteboardVersion.
+type WhiteboardVersion struct {
+	// AuthorId Who saved the version last.
+	AuthorId     *openapi_types.UUID `json:"author_id"`
+	CreatedAt    time.Time           `json:"created_at"`
+	ElementCount int                 `json:"element_count"`
+	Name         *string             `json:"name"`
+	Seq          int                 `json:"seq"`
+	Title        string              `json:"title"`
+}
+
+// WhiteboardVersionList defines model for WhiteboardVersionList.
+type WhiteboardVersionList struct {
+	Data []WhiteboardVersion `json:"data"`
+}
+
+// WhiteboardVersionRead defines model for WhiteboardVersionRead.
+type WhiteboardVersionRead struct {
+	// AuthorId Who saved the version last.
+	AuthorId     *openapi_types.UUID `json:"author_id"`
+	CreatedAt    time.Time           `json:"created_at"`
+	ElementCount int                 `json:"element_count"`
+	Elements     []WhiteboardElement `json:"elements"`
+	Name         *string             `json:"name"`
+	Seq          int                 `json:"seq"`
+	Title        string              `json:"title"`
+}
+
 // WorkItem defines model for WorkItem.
 type WorkItem struct {
 	// Amount How much of it - "2", "1 kg" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.
@@ -18135,6 +18163,12 @@ type UpdateWhiteboardParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListWhiteboardVersionsParams defines parameters for ListWhiteboardVersions.
+type ListWhiteboardVersionsParams struct {
+	Before *int `form:"before,omitempty" json:"before,omitempty"`
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // SaveWorkflowDraftParams defines parameters for SaveWorkflowDraft.
 type SaveWorkflowDraftParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -18809,6 +18843,9 @@ type TryVoiceSentenceJSONRequestBody = VoiceTry
 
 // UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody defines body for UpdateWhiteboard for application/merge-patch+json ContentType.
 type UpdateWhiteboardApplicationMergePatchPlusJSONRequestBody = WhiteboardChange
+
+// NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody defines body for NameWhiteboardVersion for application/merge-patch+json ContentType.
+type NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody = PageVersionName
 
 // ExportWhiteboardJSONRequestBody defines body for ExportWhiteboard for application/json ContentType.
 type ExportWhiteboardJSONRequestBody = WhiteboardExportRequest
@@ -20231,6 +20268,15 @@ type ServerInterface interface {
 	// UpdateWhiteboard Rename a whiteboard or save its objects
 	// (PATCH /whiteboards/{whiteboardId})
 	UpdateWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId, params UpdateWhiteboardParams)
+	// ListWhiteboardVersions A whiteboard's history
+	// (GET /whiteboards/{whiteboardId}/versions)
+	ListWhiteboardVersions(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId, params ListWhiteboardVersionsParams)
+	// ReadWhiteboardVersion Read one version of a whiteboard
+	// (GET /whiteboards/{whiteboardId}/versions/{seq})
+	ReadWhiteboardVersion(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId, seq int)
+	// NameWhiteboardVersion Name a version of a whiteboard
+	// (PATCH /whiteboards/{whiteboardId}/versions/{seq})
+	NameWhiteboardVersion(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId, seq int)
 	// ExportWhiteboard Export a whiteboard
 	// (POST /whiteboards/{whiteboardId}:export)
 	ExportWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
@@ -36238,6 +36284,131 @@ func (siw *ServerInterfaceWrapper) UpdateWhiteboard(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// ListWhiteboardVersions operation middleware
+func (siw *ServerInterfaceWrapper) ListWhiteboardVersions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "whiteboardId" -------------
+	var whiteboardId WhiteboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "whiteboardId", r.PathValue("whiteboardId"), &whiteboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "whiteboardId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListWhiteboardVersionsParams
+
+	// ------------- Optional query parameter "before" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "before", r.URL.Query(), &params.Before, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "before"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "before", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWhiteboardVersions(w, r, whiteboardId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadWhiteboardVersion operation middleware
+func (siw *ServerInterfaceWrapper) ReadWhiteboardVersion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "whiteboardId" -------------
+	var whiteboardId WhiteboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "whiteboardId", r.PathValue("whiteboardId"), &whiteboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "whiteboardId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "seq" -------------
+	var seq int
+
+	err = runtime.BindStyledParameterWithOptions("simple", "seq", r.PathValue("seq"), &seq, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "seq", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadWhiteboardVersion(w, r, whiteboardId, seq)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// NameWhiteboardVersion operation middleware
+func (siw *ServerInterfaceWrapper) NameWhiteboardVersion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "whiteboardId" -------------
+	var whiteboardId WhiteboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "whiteboardId", r.PathValue("whiteboardId"), &whiteboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "whiteboardId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "seq" -------------
+	var seq int
+
+	err = runtime.BindStyledParameterWithOptions("simple", "seq", r.PathValue("seq"), &seq, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "seq", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.NameWhiteboardVersion(w, r, whiteboardId, seq)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ExportWhiteboard operation middleware
 func (siw *ServerInterfaceWrapper) ExportWhiteboard(w http.ResponseWriter, r *http.Request) {
 
@@ -37129,6 +37300,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/whiteboards/{whiteboardId}", wrapper.UpdateWhiteboard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}:restore", wrapper.RestoreWhiteboard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}:export", wrapper.ExportWhiteboard)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/whiteboards/{whiteboardId}/versions", wrapper.ListWhiteboardVersions)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/whiteboards/{whiteboardId}/versions/{seq}", wrapper.ReadWhiteboardVersion)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/whiteboards/{whiteboardId}/versions/{seq}", wrapper.NameWhiteboardVersion)
 
 	return m
 }

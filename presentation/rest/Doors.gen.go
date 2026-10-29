@@ -201,11 +201,13 @@ var restDoors = map[string]restDoor{
 	"listTrashedPages":                  {UseCase: "ListTrashedPages", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listWebhookDeliveries":             {UseCase: "ListWebhookDeliveries", Status: 200, Query: []string{"cursor", "size", "status"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listWebhookSubscriptions":          {UseCase: "ListWebhookSubscriptions", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listWhiteboardVersions":            {UseCase: "ListWhiteboardVersions", Status: 200, Query: []string{"before", "limit"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"before", "limit"}},
 	"listWhiteboards":                   {UseCase: "ListWhiteboards", Status: 200, Query: []string{"trashed"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listWorkflows":                     {UseCase: "ListWorkflows", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"makeEntries":                       {UseCase: "MakeEntries", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"movePage":                          {UseCase: "MovePage", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"namePageVersion":                   {UseCase: "NamePageVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"nameWhiteboardVersion":             {UseCase: "NameWhiteboardVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"openPrivateHub":                    {UseCase: "OpenPrivateHub", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"planConfig":                        {UseCase: "PlanConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
 	"planConfigTemplate":                {UseCase: "PlanConfigTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"version"}},
@@ -239,6 +241,7 @@ var restDoors = map[string]restDoor{
 	"readTenant":                        {UseCase: "ReadTenant", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readUsage":                         {UseCase: "ReadUsage", Status: 200, Query: []string{"cursor", "from", "metric", "size", "to", "workspace"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}, QueryAs: map[string]string{"size": "limit"}},
 	"readWhiteboard":                    {UseCase: "ReadWhiteboard", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readWhiteboardVersion":             {UseCase: "ReadWhiteboardVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readWorkspace":                     {UseCase: "ReadWorkspace", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"redeliverPlatformSubscription":     {UseCase: "RedeliverPlatformSubscription", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reindexSearch":                     {UseCase: "ReindexSearch", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1401,6 +1404,12 @@ func (c *RestController) ListWebhookSubscriptions(w http.ResponseWriter, r *http
 	c.door(w, r, restDoors["listWebhookSubscriptions"], usecase.Input{}, nil, nil, answerRows(webhookResponse))
 }
 
+// ListWhiteboardVersions answers GET /whiteboards/{whiteboardId}/versions by the generated mapping.
+func (c *RestController) ListWhiteboardVersions(w http.ResponseWriter, r *http.Request, whiteboardId openapi.WhiteboardId, params openapi.ListWhiteboardVersionsParams) {
+	var answer openapi.WhiteboardVersionList
+	c.door(w, r, restDoors["listWhiteboardVersions"], usecase.Input{"whiteboard_id": whiteboardId.String()}, params, nil, &answer)
+}
+
 // ListWhiteboards answers GET /hubs/{hubId}/whiteboards by the generated mapping.
 func (c *RestController) ListWhiteboards(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params openapi.ListWhiteboardsParams) {
 	var answer openapi.WhiteboardList
@@ -1431,6 +1440,13 @@ func (c *RestController) NamePageVersion(w http.ResponseWriter, r *http.Request,
 	var body openapi.NamePageVersionApplicationMergePatchPlusJSONRequestBody
 	var answer openapi.PageVersionNamed
 	c.door(w, r, restDoors["namePageVersion"], usecase.Input{"page_id": pageId.String(), "seq": seq}, nil, &body, &answer)
+}
+
+// NameWhiteboardVersion answers PATCH /whiteboards/{whiteboardId}/versions/{seq} by the generated mapping.
+func (c *RestController) NameWhiteboardVersion(w http.ResponseWriter, r *http.Request, whiteboardId openapi.WhiteboardId, seq int) {
+	var body openapi.NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody
+	var answer openapi.PageVersionNamed
+	c.door(w, r, restDoors["nameWhiteboardVersion"], usecase.Input{"whiteboard_id": whiteboardId.String(), "seq": seq}, nil, &body, &answer)
 }
 
 // OpenPrivateHub answers POST /private-hubs/{hubId}/accesses by the generated mapping.
@@ -1624,6 +1640,12 @@ func (c *RestController) ReadUsage(w http.ResponseWriter, r *http.Request, param
 func (c *RestController) ReadWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId openapi.WhiteboardId) {
 	var answer openapi.WhiteboardRead
 	c.door(w, r, restDoors["readWhiteboard"], usecase.Input{"whiteboard_id": whiteboardId.String()}, nil, nil, &answer)
+}
+
+// ReadWhiteboardVersion answers GET /whiteboards/{whiteboardId}/versions/{seq} by the generated mapping.
+func (c *RestController) ReadWhiteboardVersion(w http.ResponseWriter, r *http.Request, whiteboardId openapi.WhiteboardId, seq int) {
+	var answer openapi.WhiteboardVersionRead
+	c.door(w, r, restDoors["readWhiteboardVersion"], usecase.Input{"whiteboard_id": whiteboardId.String(), "seq": seq}, nil, nil, &answer)
 }
 
 // ReadWorkspace answers GET /tenant by the generated mapping.

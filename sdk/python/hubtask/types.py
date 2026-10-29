@@ -4259,6 +4259,26 @@ class WhiteboardChange(TypedDict, total=False):
     title: str
     elements: list["WhiteboardElement"]
 
+class WhiteboardVersion(TypedDict, total=False):
+    seq: Required[int]
+    title: Required[str]
+    author_id: Required[str | None]
+    name: Required[str | None]
+    element_count: Required[int]
+    created_at: Required[str]
+
+class WhiteboardVersionRead(TypedDict, total=False):
+    seq: Required[int]
+    title: Required[str]
+    author_id: Required[str | None]
+    name: Required[str | None]
+    element_count: Required[int]
+    created_at: Required[str]
+    elements: Required[list["WhiteboardElement"]]
+
+class WhiteboardVersionList(TypedDict, total=False):
+    data: Required[list["WhiteboardVersion"]]
+
 class WhiteboardExportRequest(TypedDict, total=False):
     frame: str
 

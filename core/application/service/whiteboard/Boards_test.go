@@ -95,7 +95,10 @@ func (hubs) Find(_ context.Context, id shared.ID) (work.Container, error) {
 	return work.Container{ID: id, Type: work.ContainerHub}, nil
 }
 
-type store struct{ boards map[shared.ID]domain.Board }
+type store struct {
+	boards   map[shared.ID]domain.Board
+	versions map[shared.ID][]domain.Version
+}
 
 func (s *store) Insert(_ context.Context, board domain.Board) error {
 	s.boards[board.ID] = board
@@ -142,10 +145,60 @@ func (s *store) Referencing(context.Context, string, shared.ID, int) ([]reposito
 	return nil, nil
 }
 
-func (s *store) Summaries(context.Context, []shared.ID) ([]repository.Summary, error) { return nil, nil }
+func (s *store) Summaries(context.Context, []shared.ID) ([]repository.Summary, error) {
+	return nil, nil
+}
+
+func (s *store) LastVersion(_ context.Context, id shared.ID) (domain.Version, bool, error) {
+	list := s.versions[id]
+	if len(list) == 0 {
+		return domain.Version{}, false, nil
+	}
+	return list[len(list)-1], true, nil
+}
+
+func (s *store) InsertVersion(_ context.Context, version domain.Version) error {
+	s.versions[version.BoardID] = append(s.versions[version.BoardID], version)
+	return nil
+}
+
+func (s *store) FoldVersion(_ context.Context, version domain.Version) error {
+	list := s.versions[version.BoardID]
+	list[len(list)-1] = version
+	return nil
+}
+
+func (s *store) NameVersion(_ context.Context, id shared.ID, seq int, name string) error {
+	for i := range s.versions[id] {
+		if s.versions[id][i].Seq == seq {
+			s.versions[id][i].Name = name
+			return nil
+		}
+	}
+	return shared.ErrNotFound.WithDetail("whiteboards.version_not_found")
+}
+
+func (s *store) Versions(_ context.Context, id shared.ID, _, _ int) ([]repository.VersionRow, error) {
+	var out []repository.VersionRow
+	list := s.versions[id]
+	for i := len(list) - 1; i >= 0; i-- {
+		v := list[i]
+		out = append(out, repository.VersionRow{Seq: v.Seq, Title: v.Title, AuthorID: v.AuthorID, Name: v.Name, CreatedAt: v.CreatedAt, Elements: len(v.Scene.Elements)})
+	}
+	return out, nil
+}
+
+func (s *store) Version(_ context.Context, id shared.ID, seq int) (domain.Version, error) {
+	for _, v := range s.versions[id] {
+		if v.Seq == seq {
+			return v, nil
+		}
+	}
+	return domain.Version{}, shared.ErrNotFound.WithDetail("whiteboards.version_not_found")
+}
 
 func studio(g gate) (Studio, *store, *trail) {
-	boards, sink := &store{boards: map[shared.ID]domain.Board{}}, &trail{}
+	boards, sink := &store{boards: map[shared.ID]domain.Board{}, versions: map[shared.ID][]domain.Version{}}, &trail{}
 	return Studio{
 		Boards: boards, Containers: hubs{}, Authorizer: g, Audit: sink, UnitOfWork: passthrough{},
 		Clock: fixedClock{}, IDs: &counter{},
@@ -372,5 +425,60 @@ func TestAStrokeALinkAndAGroupAreReadBack(t *testing.T) {
 	})
 	if detail(err) != "whiteboards.elements_malformed" {
 		t.Fatalf("an odd list of numbers: %v", err)
+	}
+}
+
+type movingClock struct{ at *time.Time }
+
+func (c movingClock) Now() time.Time { return *c.at }
+
+// UC-CNV-06 checks 1 and 2: the saves of one drawing session are one version, a rest starts the
+// next; a version is read back with its objects and named, and a reader may not name one.
+func TestABoardKeepsItsHistory(t *testing.T) {
+	s, boards, _ := studio(gate{})
+	at := start
+	s.Clock = movingClock{at: &at}
+	out, err := CreateWhiteboard{Studio: s}.Descriptor().Handler.Invoke(context.Background(), actor(anna), usecase.Input{"hub_id": hub.String(), "title": "Retro"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := out["id"].(string)
+	update := UpdateWhiteboard{Studio: s}.Descriptor().Handler
+	save := func(who shared.ID, elements []any) {
+		t.Helper()
+		if _, err := update.Invoke(context.Background(), actor(who), usecase.Input{"whiteboard_id": id, "elements": elements}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	save(anna, sent()[:1])
+	at = at.Add(2 * time.Minute)
+	save(bert, sent()[:2])
+	at = at.Add(domain.SessionGap)
+	save(anna, sent())
+	list, err := ListWhiteboardVersions{Studio: s}.Descriptor().Handler.Invoke(context.Background(), actor(anna), usecase.Input{"whiteboard_id": id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := list["data"].([]usecase.Output)
+	if len(rows) != 2 || rows[0]["seq"] != 2 || rows[0]["element_count"] != 5 || rows[1]["element_count"] != 2 || rows[1]["author_id"] != bert.String() {
+		t.Fatalf("history %+v", rows)
+	}
+	read, err := ReadWhiteboardVersion{Studio: s}.Descriptor().Handler.Invoke(context.Background(), actor(anna), usecase.Input{"whiteboard_id": id, "seq": 1})
+	if err != nil || len(read["elements"].([]usecase.Output)) != 2 {
+		t.Fatalf("version 1: %+v, %v", read, err)
+	}
+	named, err := NameWhiteboardVersion{Studio: s}.Descriptor().Handler.Invoke(context.Background(), actor(anna), usecase.Input{"whiteboard_id": id, "seq": 2, "name": " Before the workshop "})
+	if err != nil || named["name"] != "Before the workshop" {
+		t.Fatalf("named %+v, %v", named, err)
+	}
+	at = at.Add(time.Minute)
+	save(anna, sent()[:3])
+	if got := len(boards.versions[shared.MustParseID(id)]); got != 3 {
+		t.Fatalf("a save after a named version folded into it: %d versions", got)
+	}
+	readOnly := s
+	readOnly.Authorizer = gate{reader: true}
+	if _, err := (NameWhiteboardVersion{Studio: readOnly}).Descriptor().Handler.Invoke(context.Background(), actor(bert), usecase.Input{"whiteboard_id": id, "seq": 1, "name": "x"}); err == nil {
+		t.Fatal("a reader named a version")
 	}
 }
