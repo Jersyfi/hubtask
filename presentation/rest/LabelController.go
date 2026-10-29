@@ -31,4 +31,3 @@ func labelResponse(out usecase.Output) openapi.Label {
 	}
 	return label
 }
-

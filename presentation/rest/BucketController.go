@@ -111,4 +111,3 @@ func (c *RestController) UpdateBucket(
 	w.Header().Set("ETag", etag(bucket.Version))
 	writeJSON(w, r, http.StatusOK, bucket)
 }
-

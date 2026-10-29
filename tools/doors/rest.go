@@ -58,16 +58,16 @@ type RESTDoor struct {
 type pathArg struct{ Input, Value string }
 
 type restOperation struct {
-	OperationID string      `yaml:"operationId"`
-	REST        string      `yaml:"x-hubtask-rest"`
+	OperationID string            `yaml:"operationId"`
+	REST        string            `yaml:"x-hubtask-rest"`
 	IfMatchAs   string            `yaml:"x-hubtask-rest-if-match"`
 	PathAs      map[string]string `yaml:"x-hubtask-rest-path"`
 	BodyAs      string            `yaml:"x-hubtask-rest-body"`
 	AnswerBy    string            `yaml:"x-hubtask-rest-answer"`
 	Location    string            `yaml:"x-hubtask-rest-location"`
 	Null        string            `yaml:"x-hubtask-rest-null"`
-	ETagFrom    string      `yaml:"x-hubtask-rest-etag"`
-	Parameters  []parameter `yaml:"parameters"`
+	ETagFrom    string            `yaml:"x-hubtask-rest-etag"`
+	Parameters  []parameter       `yaml:"parameters"`
 	RequestBody *struct {
 		Required bool                 `yaml:"required"`
 		Content  map[string]mediaType `yaml:"content"`
