@@ -136,3 +136,13 @@ export function keyFrom(name: string): string {
 export function typeOrder(types: readonly EntryType[]): readonly EntryType[] {
   return TYPE_LEVELS.flatMap((level) => levelTypes(types, level));
 }
+
+/**
+ * A type's name by its key: its own, a level's own type named after its level (`levelName`, the
+ * caller's translation), a key no read type carries as itself - a list and a board head a group so.
+ */
+export function typeNameOf(types: readonly EntryType[], key: string, levelName: (level: string) => string): string {
+  const type = types.find((each) => each.key === key);
+  if (!type) return key;
+  return type.name ?? levelName(type.level);
+}

@@ -15,7 +15,7 @@
 
   import { untrack } from 'svelte';
   import { manifest } from '../data/capabilities.svelte.ts';
-  import { entryTypes, iconOf, rowMarkOf, typeOf, typeOrder, typesShown } from '../data/entrytypes.svelte.ts';
+  import { entryTypes, iconOf, rowMarkOf, typeNameOf, typeOf, typeOrder, typesShown } from '../data/entrytypes.svelte.ts';
 
   import {
     Badge,
@@ -605,9 +605,7 @@
 
   /** A type's name: its own, a level's own type named after its level, an unread key as itself. */
   function typeName(key: string): string {
-    const type = entryTypes.all.find((each) => each.key === key);
-    if (!type) return key;
-    return type.name ?? t('app.entry_types.level', { level: type.level });
+    return typeNameOf(entryTypes.all, key, (level) => t('app.entry_types.level', { level }));
   }
 
   /** A category's heading: its label's name, or the words for the entries that carry none. */

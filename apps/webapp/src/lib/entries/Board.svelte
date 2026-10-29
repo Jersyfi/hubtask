@@ -61,6 +61,7 @@
   import { statusLabel, workflows } from '../data/workflows.svelte.ts';
   import { queue } from '../data/queue.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
+  import { entryTypes, typeNameOf } from '../data/entrytypes.svelte.ts';
   import { media } from '../data/media.svelte.ts';
   import { selection } from '../data/selection.svelte.ts';
   import DueMark from './DueMark.svelte';
@@ -161,6 +162,8 @@
         buckets.open(wanted),
         items.openBoard(wanted, asked),
         labels.open(wanted),
+        // A board grouped by type heads its columns by the types' names, so it reads them.
+        ...(asked?.group?.field === 'entry_type' ? [entryTypes.open()] : []),
       ];
       return () => {
         for (const stop of stops) stop();
@@ -213,12 +216,15 @@
       : isBucketBoard
       ? buckets.of(collectionId)
       : // A column per value the result came back grouped by, named by the value itself: the
-        // grouping field is the installation's and this client has no vocabulary for its values.
+        // grouping field is the installation's and this client has no vocabulary for its values -
+        // except a type, whose key the workspace names (S-03), as the list names it.
         groups
           .filter((group) => group.key !== null)
           .map((group) => ({
             id: group.key as string,
-            name: group.key as string,
+            name: query?.group?.field === 'entry_type'
+              ? typeNameOf(entryTypes.all, group.key as string, (level) => t('app.entry_types.level', { level }))
+              : (group.key as string),
             wip_limit: null,
             is_done_bucket: false,
             version: 0,

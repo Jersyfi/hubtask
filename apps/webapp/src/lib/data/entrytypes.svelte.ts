@@ -25,6 +25,7 @@ export {
   rowMarkOf,
   systemKeyOf,
   typeOf,
+  typeNameOf,
   typeOrder,
   typesShown,
 } from './entrytypes.ts';
