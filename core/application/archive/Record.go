@@ -693,6 +693,22 @@ var entities = []Entity{
 			{Field: "hub_id", Table: "container"},
 		},
 	},
+	// A hub's connectors and the alerts they took in (migration 0238). An export leaves the sealed
+	// credential out (tenant-export.md §9); a backup keeps it, so that a restore keeps pulling.
+	{
+		Name: "cmdb_connectors", Table: "cmdb_connector", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+			{Field: "collection_id", Table: "container", Clearable: true},
+			{Field: "run_as", Table: "account"},
+		},
+	},
+	{
+		Name: "cmdb_alerts", Table: "cmdb_alert", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "connector_id", Table: "cmdb_connector"},
+		},
+	},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a
@@ -875,6 +891,7 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"entry_reference":      "the references texts hold, rebuilt from the notes and comments the archive carries",
 	"page_reference":       "the references a page's body holds, rebuilt by the trigger as each page is restored",
 	"whiteboard_reference": "the references a board's scene holds, rebuilt by the trigger as each board is restored",
+	"cmdb_intake_seen":     "the signatures of the last minutes' alert deliveries, kept only to refuse a replay",
 	// Written by the trigger of migration 0211 from the entry's custom fields, which the archive
 	// carries: the restore's write of each entry rebuilds it.
 	"entry_field_value": "a typed projection of the custom fields the entries carry, rebuilt by the trigger as each entry is restored",

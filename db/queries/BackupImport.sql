@@ -2465,3 +2465,68 @@ SELECT EXISTS (SELECT 1 FROM cmdb_duplicate WHERE id = (sqlc.arg('payload')::jso
 
 -- name: ClearCmdbDuplicate :execrows
 DELETE FROM cmdb_duplicate;
+
+-- name: ImportCmdbConnector :execrows
+INSERT INTO cmdb_connector (id, tenant_id, hub_id, key, kind, source_key, base_url, settings, allowed_hosts,
+  every_minutes, enabled, collection_id, run_as, credential_enc, credential_key_id, cursor, next_run_at,
+  last_run_at, last_run_id, last_outcome, last_error, failures, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.key, r.kind, r.source_key, r.base_url, r.settings, r.allowed_hosts,
+  r.every_minutes, r.enabled, r.collection_id, r.run_as, r.credential_enc, r.credential_key_id, r.cursor, r.next_run_at,
+  r.last_run_at, r.last_run_id, r.last_outcome, r.last_error, r.failures, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::cmdb_connector,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  source_key = EXCLUDED.source_key,
+  base_url = EXCLUDED.base_url,
+  settings = EXCLUDED.settings,
+  allowed_hosts = EXCLUDED.allowed_hosts,
+  every_minutes = EXCLUDED.every_minutes,
+  enabled = EXCLUDED.enabled,
+  collection_id = EXCLUDED.collection_id,
+  run_as = EXCLUDED.run_as,
+  credential_enc = EXCLUDED.credential_enc,
+  credential_key_id = EXCLUDED.credential_key_id,
+  cursor = EXCLUDED.cursor,
+  next_run_at = EXCLUDED.next_run_at,
+  last_run_at = EXCLUDED.last_run_at,
+  last_run_id = EXCLUDED.last_run_id,
+  last_outcome = EXCLUDED.last_outcome,
+  last_error = EXCLUDED.last_error,
+  failures = EXCLUDED.failures,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbConnector :one
+SELECT EXISTS (SELECT 1 FROM cmdb_connector WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbConnector :execrows
+DELETE FROM cmdb_connector;
+
+-- name: ImportCmdbAlert :execrows
+INSERT INTO cmdb_alert (id, tenant_id, hub_id, connector_id, dedup_key, status, severity, title, ci_id, entry_id,
+  first_at, last_at, resolved_at, count)
+SELECT r.id, r.tenant_id, r.hub_id, r.connector_id, r.dedup_key, r.status, r.severity, r.title, r.ci_id, r.entry_id,
+  r.first_at, r.last_at, r.resolved_at, r.count
+FROM jsonb_populate_record(
+  NULL::cmdb_alert,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  status = EXCLUDED.status,
+  severity = EXCLUDED.severity,
+  title = EXCLUDED.title,
+  ci_id = EXCLUDED.ci_id,
+  entry_id = EXCLUDED.entry_id,
+  last_at = EXCLUDED.last_at,
+  resolved_at = EXCLUDED.resolved_at,
+  count = EXCLUDED.count
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbAlert :one
+SELECT EXISTS (SELECT 1 FROM cmdb_alert WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbAlert :execrows
+DELETE FROM cmdb_alert;

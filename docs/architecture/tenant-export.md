@@ -178,6 +178,8 @@ re-mints identities must rewrite exactly these).
 | 60 | `cmdb_runs` | `cmdb_run` | `id` | `hub_id`→containers (the reconciliation's runs with their decisions) |
 | 61 | `cmdb_holds` | `cmdb_hold` | `id` | `run_id`→cmdb_runs (items held for review, the item as reported) |
 | 62 | `cmdb_duplicates` | `cmdb_duplicate` | `id` | `hub_id`→containers (duplicates opened to merge, with their survivor once resolved) |
+| 63 | `cmdb_connectors` | `cmdb_connector` | `id` | `hub_id`→containers, `collection_id`→containers (cleared when absent), `run_as`→accounts (a hub's connectors with their settings, schedule, cursor and last run, migration 0238; the sealed credential is a backup's only) |
+| 64 | `cmdb_alerts` | `cmdb_alert` | `id` | `connector_id`→cmdb_connectors (the alerts an intake took in, bound to a CI and an entry by identifier, without a foreign key) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a
@@ -230,7 +232,8 @@ reasoning is backup-restore.md §8.4):
   second-factor enrolments and recovery codes, password history, pending sign-ins and provider
   flows, OAuth clients/grants/codes, sign-in provider configurations and linked external
   identities, the workspace's host names, calendar feed token hashes, the jumble intake credential,
-  device registrations. A copy of a credential is a credential.
+  device registrations, the digests of the CMDB's alert deliveries that refuse a replay
+  (`cmdb_intake_seen`). A copy of a credential is a credential.
 * **Live plumbing**: the outbox and event consumptions, notification rows, webhook deliveries,
   rule runs and occurrences, durable timers (migration 0229; a clock towards the source system's
   future), idempotency keys, the synchronisation's change log, operation log,
@@ -269,6 +272,7 @@ is absent from the record, not null. The redacted fields, exhaustively:
 | `automation_rules` | `inbound_token_hash` |
 | `webhook_subscriptions` | `secret_enc`, `secret_key_id`, `previous_secret_enc`, `previous_secret_key_id`, `previous_secret_until` |
 | `calendar_feeds` | `token_hash` |
+| `cmdb_connectors` | `credential_enc`, `credential_key_id` |
 | `webauthn_credentials` | `credential_id`, `public_key`, `user_handle` — the passkey leaves by name and dates, and an import skips it ([identity.md](./identity.md) §23.5) |
 
 A *backup* keeps these columns: it is encrypted at the operator's own target, and a restore is

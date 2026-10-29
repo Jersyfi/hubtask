@@ -75,11 +75,13 @@ var subjectColumns = map[string][]string{
 	"realtime_update": {"author_id"},
 	// The configuration items they made, changed or own, the relations they made, the
 	// reconciliations they ran and the holds and duplicates they closed (M6).
-	"cmdb_ci":         {"created_by", "updated_by", "owner_account_id"},
-	"cmdb_relation":   {"created_by"},
-	"cmdb_run":        {"actor_id"},
-	"cmdb_hold":       {"resolved_by"},
-	"cmdb_duplicate":  {"resolved_by"},
+	"cmdb_ci":        {"created_by", "updated_by", "owner_account_id"},
+	"cmdb_relation":  {"created_by"},
+	"cmdb_run":       {"actor_id"},
+	"cmdb_hold":      {"resolved_by"},
+	"cmdb_duplicate": {"resolved_by"},
+	// The connectors that run with their rights (M6).
+	"cmdb_connector":  {"run_as"},
 	"config_revision": {"actor_id", "proposed_by"},
 	"config_proposal": {"proposed_by", "decided_by"},
 	"config_template": {"created_by"},
@@ -131,6 +133,7 @@ var notThePersons = map[string]string{
 	"cmdb_relation_type":      "the workspace's vocabulary of relations between configuration items",
 	"cmdb_source":             "a source of the inventory is an integration of the workspace's, not a person",
 	"cmdb_ci_identifier":      "the identifying values of a configuration item, which arrive with nobody's name; the CI itself is in the map above",
+	"cmdb_alert":              "a monitoring program's problem bound to a configuration item, which names nobody; its entry is the entry's",
 }
 
 // SubjectTables answers which tables a subject export reads and which it deliberately leaves out,

@@ -282,6 +282,28 @@ var importers = map[string]importer{
 			return queries.ClearPageComment(ctx)
 		},
 	},
+	"cmdb_connector": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportCmdbConnector(ctx, sqlc.ImportCmdbConnectorParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsCmdbConnector(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearCmdbConnector(ctx)
+		},
+	},
+	"cmdb_alert": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportCmdbAlert(ctx, sqlc.ImportCmdbAlertParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsCmdbAlert(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearCmdbAlert(ctx)
+		},
+	},
 	"cmdb_class": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportCmdbClass(ctx, sqlc.ImportCmdbClassParams{Payload: payload, Overwrite: overwrite})
