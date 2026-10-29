@@ -73,6 +73,35 @@ module: its operations are refused with `module.off` where the module is off. Th
 and the level CHECKs on `work_item` stay as the level's: dropping the enum is a contract step for the
 release after the one whose statements stop casting to it (`versioning-release.md` §4).
 
+**Forms** (F-4, D-13, P-18, UC-FLW-01 check 2, migration 0214). A type carries its **form**, the one
+layout and logic of every door that creates or edits an entry of it (`work.Form`, stored whole in
+`entry_type.form`): sections in order; fields in order, each named `title`, `notes`, `due_date`,
+`start_at` or `custom_fields.<key>`, with *required*, *required when*, *read-only when* and
+*hidden when*; a default (custom fields only); validations - a condition that must hold, with the
+workspace's own words and a key the refusal names; and **channels** that may only narrow the form:
+a channel closes itself for creating the type, hides fields and presets them, and never adds a
+field or a rule of its own (`model.md` §6 of the suite plan). The channels are the doors the server
+tells apart - `APP` (the REST door the web app and hubctl share), `MCP`, `RULE`, `SYNC`, `IMPORT`,
+`MAIL` - and the adapter sets one on the actor (`ActorContext.Channel`); a channel the server could
+not tell apart would be a narrowing anybody could step around. A condition is CEL over `entry`,
+`actor` (`role`, `kind`), `channel` and `step` (empty until workflows). Saving a form compiles each
+condition in the **type's environment**, where `entry` and `entry.custom_fields` are typed maps
+(`expression.Variable.Fields`): a field the form does not hold is refused with
+`expression.unknown_name` when it is written. One gate holds every write - `EntryGate.Forms`
+(`FormGate`), asked inside each writing use case's transaction with the entry as it would be
+written (`CreateWorkItem`, `UpdateWorkItem`, `SetCustomField`, `SetDueDate`), so REST, MCP, a
+rule, a device's push and mail meet the same refusal. The rule it applies is that **a write may not
+move an entry further from its form** (`CheckFormWrite`): a creation needs every required field and
+every validation; an edit may not change a field that was read-only or hidden as the entry stood,
+clear a required one, or make a validation fail that held - an entry created before its form is not
+refused for what it already lacked. A creation starts with the channel's presets and the fields'
+defaults for what the request left out; a field the channel hides takes its preset whatever was
+sent. The refusal is `forms.refused` naming each field (`fields.value_required`,
+`forms.field_read_only`, `forms.field_hidden`, `forms.validation_failed`), and a closed channel is
+`forms.channel_closed`. `EvaluateEntryForm` answers the same state for a draft, so an editor unfolds
+what the form asks before it sends: the browser renders the server's answer rather than evaluating
+CEL itself.
+
 **Levels and presets** (decisions #1619–#1622). A collection's *level* is a preset — *List*,
 *Tasks*, *Project*, *Flow*, or one a workspace or installation defines — that sets eight things:
 the levels and their names, the fields (capabilities), the views, what counts, what completion

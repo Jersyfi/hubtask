@@ -253,7 +253,7 @@ func (g FormGate) Evaluate(
 	return &state, check.entryType, nil
 }
 
-// FormEnvironment is a form's CEL environment (domain-model.md §2.4): the entry with its own
+// FormEnvironment is a form's CEL environment (domain-model.md §2, "Forms"): the entry with its own
 // values and its custom fields, the actor's role and kind, the channel and the step. Typed by the
 // custom field keys given; nil keeps the custom fields open.
 func FormEnvironment(customKeys []string) expression.Environment {

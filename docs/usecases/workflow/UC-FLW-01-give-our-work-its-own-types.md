@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-12, P-17]
 state: partial
 tasks: []
-checked_by: [core/domain/model/work/EntryType_test.go, core/application/service/workflow/EntryTypes_test.go, core/application/service/work/SetItemEntryType_test.go, test/integration/entry_type_test.go, apps/webapp/src/lib/data/entrytypes.test.ts, apps/webapp/src/lib/navigation.test.ts, cmd/hubctl/EntryType_test.go, infrastructure/postgres/query/EntryType_test.go, test/integration/query_entry_type_test.go]
+checked_by: [core/domain/model/work/EntryType_test.go, core/application/service/workflow/EntryTypes_test.go, core/application/service/work/SetItemEntryType_test.go, test/integration/entry_type_test.go, apps/webapp/src/lib/data/entrytypes.test.ts, apps/webapp/src/lib/navigation.test.ts, cmd/hubctl/EntryType_test.go, infrastructure/postgres/query/EntryType_test.go, test/integration/query_entry_type_test.go, core/domain/model/work/Form_test.go, core/application/service/work/FormGate_test.go, core/application/service/workflow/EntryTypeForm_test.go, test/integration/entry_type_form_test.go, infrastructure/expression/CEL_test.go]
 ---
 
 # Give our work its own types
@@ -53,7 +53,12 @@ works in every view. An agent creating an entry through MCP names the type the s
   operations over MCP and as rule actions) create, rename, recolour, order and archive types, and
   *How we work → Types* in the administration does the same by level, where the workflows module
   is on.
-* Check 2: not met — the suite plan, S-04, S-06.
+* Check 2: partly met — a type has its form (`PUT /entry-types/{key}/form`, the use case
+  `SetEntryTypeForm` over REST, MCP and rules): which fields it shows in which section and order,
+  which are required, read-only or hidden and when, defaults, validations and channels that only
+  narrow it. The server holds every creation and edit to it, through every door, and answers a
+  draft's state (`POST /entry-types/{key}/form:evaluate`). The web app's form editor and capture
+  and the entry panel rendering the form are the suite plan's S-06, second part.
 * Check 3: partly met — capture offers the workspace's types of the level, the level's own first;
   which types one collection offers is not narrowed yet (the suite plan, S-06).
 * Check 4: partly met — a change of type that would drop a value is refused, naming each field;

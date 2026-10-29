@@ -116,7 +116,7 @@ type Variable struct {
 	// Fields types a map: the names an expression may select from it with a dot, each with its
 	// own kind (a map's own Fields typing it in turn). Empty leaves the map open - a rule's `item`
 	// keeps compiling when a field is added. A form's environment types the entry per type
-	// (domain-model.md §2.4), so `entry.custom_fields.severty` is refused when it is written.
+	// (domain-model.md §2, "Forms"), so `entry.custom_fields.severty` is refused when it is written.
 	Fields []Variable
 }
 

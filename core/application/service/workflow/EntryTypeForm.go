@@ -103,7 +103,7 @@ func (h SetEntryTypeForm) Execute(ctx context.Context, actor appshared.ActorCont
 
 // check refuses a custom field no collection of the workspace defines, and a condition that does
 // not compile in the type's environment: the entry's own values and the form's custom fields,
-// typed, so that a misspelt key is answered when it is written (domain-model.md §2.4).
+// typed, so that a misspelt key is answered when it is written (domain-model.md §2, "Forms").
 func (d FormDesk) check(ctx context.Context, form domain.Form) error {
 	keys := form.CustomKeys()
 	if len(keys) > 0 && d.Fields != nil {

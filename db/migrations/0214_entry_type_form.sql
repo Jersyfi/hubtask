@@ -1,4 +1,4 @@
--- A type's form (F-4, D-13, domain-model.md §2.4): its sections, fields, conditions, defaults,
+-- A type's form (F-4, D-13, domain-model.md §2, "Forms"): its sections, fields, conditions, defaults,
 -- validations and channels as one document on the type's row. One column with a default, so expand
 -- only (versioning-release.md §4): a type without a form has the empty one, which asks nothing. The
 -- shape is the application's (Form); the database holds it whole, because a form is read and

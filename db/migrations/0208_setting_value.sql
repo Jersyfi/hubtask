@@ -1,5 +1,5 @@
 -- One storage shape for the settings a workspace and the places in it decide (the settings
--- catalogue, domain-model.md §2.4): a dotted key, its value as JSON, how the level holds it, and
+-- catalogue, domain-model.md §2, "Forms"): a dotted key, its value as JSON, how the level holds it, and
 -- what it leaves the levels below. The installation's and a plan's levels keep their own tables
 -- (instance_setting, plan_setting) in the same shape - a key and a JSON value with a lock - because
 -- they are nobody's rows and carry no row level security.

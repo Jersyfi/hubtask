@@ -346,7 +346,7 @@ func actorOf(scope persistence.Scope, account identity.Account) appshared.ActorC
 		Scopes:   []string{itemsWriteScope, commentsWrite},
 		Locale:   account.Locale,
 		TimeZone: account.TimeZone,
-		// A type's form narrows what arrives by mail (domain-model.md §2.4).
+		// A type's form narrows what arrives by mail (domain-model.md §2, "Forms").
 		Channel: string(work.ChannelMail),
 	}
 }

@@ -197,7 +197,7 @@ func actorOf(r *http.Request) (appshared.ActorContext, bool) {
 		return appshared.ActorContext{}, false
 	}
 	actor.Kind = appshared.ActorAIAgent
-	// The door a type's form narrows (domain-model.md §2.4).
+	// The door a type's form narrows (domain-model.md §2, "Forms").
 	actor.Channel = string(work.ChannelMCP)
 	return actor, true
 }
@@ -518,7 +518,7 @@ func agentFromContext(ctx context.Context) (appshared.ActorContext, bool) {
 		return appshared.ActorContext{}, false
 	}
 	actor.Kind = appshared.ActorAIAgent
-	// The door a type's form narrows (domain-model.md §2.4).
+	// The door a type's form narrows (domain-model.md §2, "Forms").
 	actor.Channel = string(work.ChannelMCP)
 	return actor, true
 }
