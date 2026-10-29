@@ -221,6 +221,9 @@ test('UC-AST-07 check 7: the screen lists, defines and runs the connectors of a 
   entra.settings = { tenant: 't', client_id: 'c', authority: 'https://login.example.org', other: 'dropped' };
   assert.deepEqual(connectorMissing(entra, true), []);
   assert.deepEqual(connectorDefine(entra).settings, { tenant: 't', client_id: 'c', authority: 'https://login.example.org' });
+  const intune = { ...entra, kind: 'INTUNE' as const, settings: { ...entra.settings, detected_apps: 'off' } };
+  assert.equal(connectorDefine(intune).settings?.detected_apps, 'off', 'the apps switched off are kept');
+  assert.equal(connectorDefine({ ...intune, settings: { ...intune.settings, detected_apps: '' } }).settings?.detected_apps, undefined);
   assert.deepEqual(connectorMissing({ ...entra, key: 'Bad Key', baseUrl: 'http://graph.example.org', source: '' }, true), [
     'cmdb.connector_key_malformed', 'app.assets.connector_source_missing', 'cmdb.connector_base_url_invalid',
   ]);

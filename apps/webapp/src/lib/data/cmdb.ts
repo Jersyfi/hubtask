@@ -405,17 +405,19 @@ export type ConnectorKind = CiConnector['kind'];
 /**
  * What each kind needs, as the domain's `ConnectorSpec` states it: whether it is posted to rather
  * than pulled, and the settings it cannot run without. The server refuses a missing one by its
- * code either way; the form asks for them so nobody types a key by hand.
+ * code either way; the form asks for them so nobody types a key by hand. A switch is a setting that
+ * is on unless it says `off`.
  */
 export const CONNECTOR_KINDS: readonly {
   readonly kind: ConnectorKind;
   readonly push: boolean;
   readonly inventory?: boolean;
   readonly settings: readonly string[];
+  readonly switches?: readonly string[];
 }[] = [
   { kind: 'GLPI', push: false, settings: ['client_id'] },
   { kind: 'NETBOX', push: false, settings: [] },
-  { kind: 'INTUNE', push: false, settings: ['tenant', 'client_id', 'authority'] },
+  { kind: 'INTUNE', push: false, settings: ['tenant', 'client_id', 'authority'], switches: ['detected_apps'] },
   { kind: 'ENTRA', push: false, settings: ['tenant', 'client_id', 'authority'] },
   { kind: 'HETZNER', push: false, settings: [] },
   { kind: 'OPENSTACK', push: false, settings: ['application_credential_id'] },
@@ -462,7 +464,10 @@ export function connectorDraft(of?: CiConnector): ConnectorDraft {
  */
 export function connectorDefine(draft: ConnectorDraft): CiConnectorDefine {
   const spec = kindSpec(draft.kind);
-  const settings = Object.fromEntries(spec.settings.map((key) => [key, (draft.settings[key] ?? '').trim()]).filter(([, value]) => value));
+  const settings = Object.fromEntries([
+    ...spec.settings.map((key) => [key, (draft.settings[key] ?? '').trim()]),
+    ...(spec.switches ?? []).map((key) => [key, draft.settings[key] === 'off' ? 'off' : '']),
+  ].filter(([, value]) => value));
   return {
     kind: draft.kind,
     source: draft.source,

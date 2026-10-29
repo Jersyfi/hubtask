@@ -273,6 +273,12 @@
       {#each spec?.settings ?? [] as key (key)}
         <Input label={settingWord(key)} bind:value={draft.settings[key]} maxlength={500} />
       {/each}
+      {#each spec?.switches ?? [] as key (key)}
+        <Switch
+          label={t(`app.assets.connector_switch.${key}`)}
+          bind:checked={() => draft?.settings[key] !== 'off', (on) => draft && (draft.settings[key] = on ? '' : 'off')}
+        />
+      {/each}
       {#if spec && !spec.push}
         <Textarea label={t('app.assets.connector_hosts')} hint={t('app.assets.connector_hosts_hint')} rows={2} bind:value={draft.hosts} />
         <Select label={t('app.assets.connector_period')} options={periodOptions} bind:value={period} />

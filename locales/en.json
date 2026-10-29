@@ -8044,6 +8044,7 @@
   "app.assets.connector_setting.tenant": "Directory (tenant) ID",
   "app.assets.connector_setting.authority": "Sign-in address of the identity provider",
   "app.assets.connector_setting.application_credential_id": "Application credential ID",
+  "app.assets.connector_switch.detected_apps": "Also the apps Intune detected on the devices, as software",
   "app.assets.connector_source_label": "Writes as source",
   "app.assets.connector_source_hint": "Its rank decides which values win over other sources.",
   "app.assets.connector_source_missing": "Define a source of kind connector under How we work, Configuration items, first.",
