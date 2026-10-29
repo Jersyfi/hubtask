@@ -212,6 +212,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `item.moved` | MoveWorkItem | `item` | INFO | Every time |
 | `item.moved` | ReorderWorkItem | `item` | INFO | Every time |
 | `item.purged` | PurgeWorkItem | `item` | WARNING | Every time |
+| `item.read` | EvaluateEntryForm | `item` | INFO | When refused |
 | `item.read` | GetWorkItem | `item` | INFO | When refused |
 | `item.read` | ListEntryLinks | `item` | INFO | When refused |
 | `item.read` | ListLinksAmong | `item` | INFO | When refused |
@@ -294,6 +295,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `entry_type.changed` | ChangeEntryType | `entry_type` | INFO | Every time |
 | `entry_type.created` | CreateEntryType | `entry_type` | INFO | Every time |
 | `entry_type.deleted` | DeleteEntryType | `entry_type` | INFO | Every time |
+| `entry_type.form_set` | SetEntryTypeForm | `entry_type` | INFO | Every time |
 | `entry_type.read` | ListEntryTypes | `entry_type` | INFO | When refused |
 
 ## Health
