@@ -319,3 +319,12 @@ func Counting(memberships []identity.Membership, path []identity.Scope, privacy 
 	}
 	return out
 }
+
+// IsRequester reports whether the account is a requester along the path: the portal's principal
+// (F-7), who raises and follows their own requests (REQUEST) and reads none of the team's work
+// (no READ). The portal's use cases ask REQUEST; every other use case refuses a requester by the
+// ordinary rule, because a requester holds nothing else.
+func IsRequester(memberships []identity.Membership, path []identity.Scope, privacy Privacy) bool {
+	return Allows(memberships, path, privacy, PermissionRequest) &&
+		!Allows(memberships, path, privacy, PermissionRead)
+}

@@ -22266,6 +22266,10 @@
               "$ref": "#/components/schemas/AccessSource"
             }
           },
+          "requester": {
+            "type": "boolean",
+            "description": "Whether the person is a requester there: their roles carry `REQUEST` and not `READ`, so they raise and follow their own requests through the portal and see none of the team's work.\n"
+          },
           "asked": {
             "type": "string",
             "description": "The permission asked about, when one was."

@@ -687,6 +687,7 @@ func AccessExplainedOutput(e AccessExplained) usecase.Output {
 		"roles":       slices.Clone(e.Held.Roles),
 		"permissions": permissionStrings(e.Held.Permissions),
 		"sources":     sources(e.Held.Sources),
+		"requester":   e.Held.Requester,
 	}
 	if !e.Scope.ID.IsZero() {
 		out["scope_id"] = e.Scope.ID.String()

@@ -236,3 +236,17 @@ func TestNoRandomSchemeLetsAGrantReachBeyondTheGranter(t *testing.T) {
 		}
 	}
 }
+
+func TestARequesterRaisesRequestsAndReadsNothing(t *testing.T) {
+	requester := []identity.Membership{custom(identity.TenantScope(), "requester", service.PermissionRequest)}
+	if !service.IsRequester(requester, collectionPth, service.SharedPath) {
+		t.Fatal("REQUEST alone is not a requester")
+	}
+	if service.Allows(requester, collectionPth, service.SharedPath, service.PermissionRead) {
+		t.Fatal("a requester reads the team's work")
+	}
+	member := append(requester, grant(identity.HubScope(hub), identity.RoleMember))
+	if service.IsRequester(member, collectionPth, service.SharedPath) {
+		t.Fatal("a member of the team is a requester")
+	}
+}

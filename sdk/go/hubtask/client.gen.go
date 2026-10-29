@@ -6488,11 +6488,14 @@ type AccessExplanation struct {
 	Holds *bool `json:"holds,omitempty"`
 
 	// Permissions Every permission held there; a field or step permission only where a custom role names it.
-	Permissions []string                   `json:"permissions"`
-	Roles       []string                   `json:"roles"`
-	ScopeId     *openapi_types.UUID        `json:"scope_id,omitempty"`
-	ScopeType   AccessExplanationScopeType `json:"scope_type"`
-	Sources     []AccessSource             `json:"sources"`
+	Permissions []string `json:"permissions"`
+
+	// Requester Whether the person is a requester there: their roles carry `REQUEST` and not `READ`, so they raise and follow their own requests through the portal and see none of the team's work.
+	Requester *bool                      `json:"requester,omitempty"`
+	Roles     []string                   `json:"roles"`
+	ScopeId   *openapi_types.UUID        `json:"scope_id,omitempty"`
+	ScopeType AccessExplanationScopeType `json:"scope_type"`
+	Sources   []AccessSource             `json:"sources"`
 }
 
 // AccessExplanationScopeType defines model for AccessExplanation.ScopeType.

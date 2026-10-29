@@ -1209,6 +1209,7 @@ class AccessExplanation(TypedDict, total=False):
     roles: Required[list[str]]
     permissions: Required[list[str]]
     sources: Required[list["AccessSource"]]
+    requester: bool
     asked: str
     holds: bool
     held_through: list["AccessSource"]

@@ -638,6 +638,8 @@ type Held struct {
 	Permissions []service.Permission
 	// Sources are the memberships that count, one per role and place: where each is held.
 	Sources []Source
+	// Requester is whether the account is the portal's principal there (service.IsRequester).
+	Requester bool
 }
 
 // Source is one role held at one place on the path.
@@ -685,7 +687,10 @@ func (s Service) HeldBy(
 }
 
 func heldOf(memberships []identity.Membership, at resolved) Held {
-	held := Held{Roles: []string{}, Permissions: service.Held(memberships, at.path, at.privacy)}
+	held := Held{
+		Roles: []string{}, Permissions: service.Held(memberships, at.path, at.privacy),
+		Requester: service.IsRequester(memberships, at.path, at.privacy),
+	}
 	for _, membership := range service.Counting(memberships, at.path, at.privacy) {
 		key := string(membership.Role)
 		if membership.IsCustom() {
