@@ -10934,6 +10934,7 @@ paths:
     delete:
       tags: [items]
       operationId: trashWorkItem
+      x-hubtask-rest: generated
       parameters:
         - $ref: "#/components/parameters/IfMatch"
       responses:
@@ -11275,6 +11276,8 @@ paths:
     post:
       tags: [items]
       operationId: restoreWorkItem
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
       description: >
         Takes one deletion back out of the trash, whole. Exactly the entries that went in together
         come back: a separate, younger deletion inside the same subtree stays where it is, because a
@@ -11304,6 +11307,8 @@ paths:
     post:
       tags: [items]
       operationId: archiveWorkItem
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
       description: >
         Archives the entry: it is kept and becomes read-only. Distinct from the trash, which is a
         deletion with a retention period running against it - an archived entry stays until somebody
@@ -11332,6 +11337,8 @@ paths:
     post:
       tags: [items]
       operationId: unarchiveWorkItem
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
       description: >
         Makes an archived entry writable again. Refused for an entry in the trash: restore it first,
         and the answer says so. Idempotent.

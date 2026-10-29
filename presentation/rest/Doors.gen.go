@@ -16,6 +16,7 @@ var restDoors = map[string]restDoor{
 	"addLabel":               {UseCase: "AddLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addMember":              {UseCase: "AddMember", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"applyConfig":            {UseCase: "ApplyConfig", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "base_hash", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
+	"archiveWorkItem":        {UseCase: "ArchiveWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"assignWorkItem":         {UseCase: "AssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"autoAssignWorkItem":     {UseCase: "AutoAssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"changeEntryType":        {UseCase: "ChangeEntryType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
@@ -74,6 +75,7 @@ var restDoors = map[string]restDoor{
 	"reorderBucket":          {UseCase: "ReorderBucket", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"resolveReferences":      {UseCase: "ResolveReferences", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"restoreLabel":           {UseCase: "RestoreLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"restoreWorkItem":        {UseCase: "RestoreWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"revokeRoleGrant":        {UseCase: "RevokeRoleGrant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"saveWorkflowDraft":      {UseCase: "SaveWorkflowDraft", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setConfigPolicy":        {UseCase: "SetConfigPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -83,7 +85,9 @@ var restDoors = map[string]restDoor{
 	"setModule":              {UseCase: "SetModule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setWorkflowScheme":      {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"takeStep":               {UseCase: "TakeStep", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"trashWorkItem":          {UseCase: "TrashWorkItem", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"tryWorkflowStep":        {UseCase: "TryWorkflowStep", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"unarchiveWorkItem":      {UseCase: "UnarchiveWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unassignWorkItem":       {UseCase: "UnassignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unlinkEntries":          {UseCase: "UnlinkEntries", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateCustomField":      {UseCase: "UpdateCustomField", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -107,6 +111,11 @@ func (c *RestController) ApplyConfig(w http.ResponseWriter, r *http.Request, par
 	var body openapi.ApplyConfigJSONRequestBody
 	var answer openapi.ConfigApplyResult
 	c.door(w, r, restDoors["applyConfig"], usecase.Input{}, params, &body, &answer)
+}
+
+// ArchiveWorkItem answers POST /items/{itemId}:archive by the generated mapping.
+func (c *RestController) ArchiveWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.ArchiveWorkItemParams) {
+	c.door(w, r, restDoors["archiveWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
 }
 
 // AssignWorkItem answers POST /items/{itemId}:assign by the generated mapping.
@@ -462,6 +471,11 @@ func (c *RestController) RestoreLabel(w http.ResponseWriter, r *http.Request, co
 	c.door(w, r, restDoors["restoreLabel"], usecase.Input{"label_id": labelId.String()}, params, nil, answerBy(labelResponse))
 }
 
+// RestoreWorkItem answers POST /items/{itemId}:restore by the generated mapping.
+func (c *RestController) RestoreWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.RestoreWorkItemParams) {
+	c.door(w, r, restDoors["restoreWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
+}
+
 // RevokeRoleGrant answers DELETE /role-grants/{grantId} by the generated mapping.
 func (c *RestController) RevokeRoleGrant(w http.ResponseWriter, r *http.Request, grantId openapi_types.UUID) {
 	c.door(w, r, restDoors["revokeRoleGrant"], usecase.Input{"grant_id": grantId.String()}, nil, nil, nil)
@@ -520,11 +534,21 @@ func (c *RestController) TakeStep(w http.ResponseWriter, r *http.Request, itemId
 	c.door(w, r, restDoors["takeStep"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(workItemResponse))
 }
 
+// TrashWorkItem answers DELETE /items/{itemId} by the generated mapping.
+func (c *RestController) TrashWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.TrashWorkItemParams) {
+	c.door(w, r, restDoors["trashWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, nil)
+}
+
 // TryWorkflowStep answers POST /workflows/{key}/steps/{step}:try by the generated mapping.
 func (c *RestController) TryWorkflowStep(w http.ResponseWriter, r *http.Request, key string, step string) {
 	var body openapi.TryWorkflowStepJSONRequestBody
 	var answer openapi.StepVerdict
 	c.door(w, r, restDoors["tryWorkflowStep"], usecase.Input{"key": key, "step": step}, nil, &body, &answer)
+}
+
+// UnarchiveWorkItem answers POST /items/{itemId}:unarchive by the generated mapping.
+func (c *RestController) UnarchiveWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.UnarchiveWorkItemParams) {
+	c.door(w, r, restDoors["unarchiveWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
 }
 
 // UnassignWorkItem answers POST /items/{itemId}:unassign by the generated mapping.

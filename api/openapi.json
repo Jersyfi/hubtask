@@ -14295,6 +14295,7 @@
           "items"
         ],
         "operationId": "trashWorkItem",
+        "x-hubtask-rest": "generated",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -14756,6 +14757,8 @@
           "items"
         ],
         "operationId": "restoreWorkItem",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "workItemResponse",
         "description": "Takes one deletion back out of the trash, whole. Exactly the entries that went in together come back: a separate, younger deletion inside the same subtree stays where it is, because a restore is keyed on the deletion rather than on the subtree. An entry that was archived when it was deleted comes back archived - restoring undoes the deletion and nothing else. Refused while the entry above it, or its collection, is still in the trash; the answer names what to restore first. Idempotent.\n",
         "parameters": [
           {
@@ -14800,6 +14803,8 @@
           "items"
         ],
         "operationId": "archiveWorkItem",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "workItemResponse",
         "description": "Archives the entry: it is kept and becomes read-only. Distinct from the trash, which is a deletion with a retention period running against it - an archived entry stays until somebody says otherwise. Nothing below it is archived with it: an entry's children are entries in their own right, unlike the collections of a hub. Idempotent - archiving an archived entry succeeds and changes nothing.\n",
         "parameters": [
           {
@@ -14844,6 +14849,8 @@
           "items"
         ],
         "operationId": "unarchiveWorkItem",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "workItemResponse",
         "description": "Makes an archived entry writable again. Refused for an entry in the trash: restore it first, and the answer says so. Idempotent.\n",
         "parameters": [
           {
