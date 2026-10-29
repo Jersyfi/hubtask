@@ -171,6 +171,18 @@ func (q *Queries) ClearCustomFieldDefinition(ctx context.Context) (int64, error)
 	return result.RowsAffected(), nil
 }
 
+const clearEntryLink = `-- name: ClearEntryLink :execrows
+DELETE FROM entry_link
+`
+
+func (q *Queries) ClearEntryLink(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearEntryLink)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearEntryType = `-- name: ClearEntryType :execrows
 DELETE FROM entry_type
 `
@@ -249,6 +261,18 @@ DELETE FROM legal_hold
 
 func (q *Queries) ClearLegalHold(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, clearLegalHold)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearLinkType = `-- name: ClearLinkType :execrows
+DELETE FROM link_type
+`
+
+func (q *Queries) ClearLinkType(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearLinkType)
 	if err != nil {
 		return 0, err
 	}
@@ -578,6 +602,17 @@ func (q *Queries) HoldsCustomFieldDefinition(ctx context.Context, payload []byte
 	return held, err
 }
 
+const holdsEntryLink = `-- name: HoldsEntryLink :one
+SELECT EXISTS (SELECT 1 FROM entry_link WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsEntryLink(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsEntryLink, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const holdsEntryType = `-- name: HoldsEntryType :one
 SELECT EXISTS (SELECT 1 FROM entry_type WHERE id = ($1::jsonb->>'id')::uuid) AS held
 `
@@ -650,6 +685,17 @@ SELECT EXISTS (SELECT 1 FROM legal_hold WHERE id = ($1::jsonb->>'id')::uuid) AS 
 
 func (q *Queries) HoldsLegalHold(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsLegalHold, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsLinkType = `-- name: HoldsLinkType :one
+SELECT EXISTS (SELECT 1 FROM link_type WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsLinkType(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsLinkType, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -1597,6 +1643,32 @@ func (q *Queries) ImportCustomFieldDefinition(ctx context.Context, arg ImportCus
 	return result.RowsAffected(), nil
 }
 
+const importEntryLink = `-- name: ImportEntryLink :execrows
+INSERT INTO entry_link (id, tenant_id, link_type, source_id, target_id, created_by, created_at)
+SELECT r.id, r.tenant_id, r.link_type, r.source_id, r.target_id, r.created_by, r.created_at
+FROM jsonb_populate_record(
+  NULL::entry_link,
+  ($1::jsonb - 'own_type') || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  created_at = EXCLUDED.created_at
+WHERE $2::boolean
+`
+
+type ImportEntryLinkParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+// A link is drawn and removed, never changed: an overwrite has nothing to replace but its moment.
+func (q *Queries) ImportEntryLink(ctx context.Context, arg ImportEntryLinkParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importEntryLink, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const importEntryType = `-- name: ImportEntryType :execrows
 INSERT INTO entry_type (
   id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
@@ -1895,6 +1967,41 @@ type ImportLegalHoldParams struct {
 
 func (q *Queries) ImportLegalHold(ctx context.Context, arg ImportLegalHoldParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importLegalHold, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importLinkType = `-- name: ImportLinkType :execrows
+INSERT INTO link_type (
+  id, tenant_id, key, name, inverse_name, direction, cardinality, cycles, waits, position,
+  archived_at, created_at, updated_at, version
+)
+SELECT
+  r.id, r.tenant_id, r.key, r.name, r.inverse_name, r.direction, r.cardinality, r.cycles, r.waits,
+  r.position, r.archived_at, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::link_type,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  inverse_name = EXCLUDED.inverse_name,
+  position = EXCLUDED.position,
+  archived_at = EXCLUDED.archived_at,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportLinkTypeParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportLinkType(ctx context.Context, arg ImportLinkTypeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importLinkType, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

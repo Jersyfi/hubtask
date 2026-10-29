@@ -526,6 +526,21 @@ var entities = []Entity{
 	// The settings catalogue's entries of the workspace, its hubs, collections and people
 	// (migration 0208): the module switches among them, so that a restore keeps what was on.
 	{Name: "setting_values", Table: "setting_value", Keys: []string{"id"}},
+	// The workspace's own link types and the links between entries (migration 0213, F-3). Whole:
+	// a link is removed without a marker. The types precede the links that name them by key; a
+	// duplicate skips a key the workspace holds, and its links then name that type.
+	{
+		Name: "link_types", Table: "link_type", Whole: true, Keys: []string{"id"}, Duplicable: true,
+		Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
+	},
+	{
+		Name: "entry_links", Table: "entry_link", Whole: true, Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "source_id", Table: "work_item"},
+			{Field: "target_id", Table: "work_item"},
+			{Field: "created_by", Table: "account", Clearable: true},
+		},
+	},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a
@@ -699,6 +714,9 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// them under whatever model produced them, into an installation that may run another - and
 	// vectors from two models are not comparable, which is the one failure the store exists to
 	// avoid. The entries come back and the embedding job re-derives them.
+	// Derived from the notes and comments the archive carries: the restore's write of each rebuilds
+	// it through the triggers of migration 0213.
+	"entry_reference":       "the references texts hold, rebuilt from the notes and comments the archive carries",
 	"item_embedding":        "a derived vector, re-computed from the entries the archive does carry, and not comparable across models",
 	"sync_device":           "a device registration carries a push token, and §8.4's reasoning covers it",
 	"jumble_intake":         "the intake token's hash is a credential store, and §8.4's reasoning covers it: a restored address would open the inbox to whoever held the old token",

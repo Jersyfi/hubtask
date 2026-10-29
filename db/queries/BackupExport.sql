@@ -557,3 +557,30 @@ FROM (
   WHERE s.key_1 > sqlc.arg('after_id')::uuid
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportLinkTypes :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (t.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(t) - 'tenant_id')::jsonb AS payload,
+         t.id AS key_1
+  FROM link_type t
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportEntryLinks :many
+-- The generated `own_type` stays out: the restore's insert derives it again.
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (l.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(l) - 'tenant_id' - 'own_type')::jsonb AS payload,
+         l.id AS key_1
+  FROM entry_link l
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;

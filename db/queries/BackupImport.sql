@@ -1813,3 +1813,48 @@ SELECT EXISTS (SELECT 1 FROM entry_type WHERE id = (sqlc.arg('payload')::jsonb->
 
 -- name: ClearEntryType :execrows
 DELETE FROM entry_type;
+
+-- name: ImportLinkType :execrows
+INSERT INTO link_type (
+  id, tenant_id, key, name, inverse_name, direction, cardinality, cycles, waits, position,
+  archived_at, created_at, updated_at, version
+)
+SELECT
+  r.id, r.tenant_id, r.key, r.name, r.inverse_name, r.direction, r.cardinality, r.cycles, r.waits,
+  r.position, r.archived_at, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::link_type,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  inverse_name = EXCLUDED.inverse_name,
+  position = EXCLUDED.position,
+  archived_at = EXCLUDED.archived_at,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsLinkType :one
+SELECT EXISTS (SELECT 1 FROM link_type WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearLinkType :execrows
+DELETE FROM link_type;
+
+-- name: ImportEntryLink :execrows
+-- A link is drawn and removed, never changed: an overwrite has nothing to replace but its moment.
+INSERT INTO entry_link (id, tenant_id, link_type, source_id, target_id, created_by, created_at)
+SELECT r.id, r.tenant_id, r.link_type, r.source_id, r.target_id, r.created_by, r.created_at
+FROM jsonb_populate_record(
+  NULL::entry_link,
+  (sqlc.arg('payload')::jsonb - 'own_type') || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  created_at = EXCLUDED.created_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsEntryLink :one
+SELECT EXISTS (SELECT 1 FROM entry_link WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearEntryLink :execrows
+DELETE FROM entry_link;

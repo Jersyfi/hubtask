@@ -703,6 +703,52 @@ func (q *Queries) ExportCustomFieldDefinitions(ctx context.Context, arg ExportCu
 	return items, nil
 }
 
+const exportEntryLinks = `-- name: ExportEntryLinks :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (l.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(l) - 'tenant_id' - 'own_type')::jsonb AS payload,
+         l.id AS key_1
+  FROM entry_link l
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportEntryLinksParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportEntryLinksRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+// The generated `own_type` stays out: the restore's insert derives it again.
+func (q *Queries) ExportEntryLinks(ctx context.Context, arg ExportEntryLinksParams) ([]ExportEntryLinksRow, error) {
+	rows, err := q.db.Query(ctx, exportEntryLinks, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportEntryLinksRow{}
+	for rows.Next() {
+		var i ExportEntryLinksRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportEntryTypes = `-- name: ExportEntryTypes :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (
@@ -1021,6 +1067,51 @@ func (q *Queries) ExportLegalHolds(ctx context.Context, arg ExportLegalHoldsPara
 	items := []ExportLegalHoldsRow{}
 	for rows.Next() {
 		var i ExportLegalHoldsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportLinkTypes = `-- name: ExportLinkTypes :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (t.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(t) - 'tenant_id')::jsonb AS payload,
+         t.id AS key_1
+  FROM link_type t
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportLinkTypesParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportLinkTypesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportLinkTypes(ctx context.Context, arg ExportLinkTypesParams) ([]ExportLinkTypesRow, error) {
+	rows, err := q.db.Query(ctx, exportLinkTypes, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportLinkTypesRow{}
+	for rows.Next() {
+		var i ExportLinkTypesRow
 		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
 			return nil, err
 		}

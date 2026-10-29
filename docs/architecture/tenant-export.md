@@ -152,7 +152,9 @@ re-mints identities must rewrite exactly these).
 | 34 | `set_elements` | `set_element` | `item_id/set_name/element_id` | `item_id`→work_items |
 | 35 | `structure_presets` | `structure_preset` | `id` | `owner_id`→accounts (the workspace's presets and each person's own; an own preset whose account is not restored is skipped) |
 | 36 | `setting_values` | `setting_value` | `id` | — (the settings catalogue's entries of the workspace, its hubs, collections and people, the module switches among them; `scope_id` names the workspace, a container or an account by `level`, and a workspace's own entries follow the workspace written into) |
-| 37 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
+| 37 | `link_types` | `link_type` | `id` | — (the workspace's own link types, migration 0213; the six shipped ones have no row; a link names one by `key`, so they precede the links; a duplicate skips a key the workspace holds) |
+| 38 | `entry_links` | `entry_link` | `id` | `source_id`→work_items, `target_id`→work_items, `created_by`→accounts (`link_type` names a shipped type or one of `link_types` by key) |
+| 39 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a
 reply's comment) are ordered within the file: the referenced row comes first.
@@ -210,7 +212,9 @@ reasoning is backup-restore.md §8.4):
   field clocks and tombstones, usage records.
 * **Projections rebuilt from the archive**: the typed custom field values (`entry_field_value`,
   migration 0211), which the restore's own write of each entry's `custom_fields` rebuilds - the
-  definitions precede the work items, so every value finds the definition it was written under.
+  definitions precede the work items, so every value finds the definition it was written under;
+  and the references texts hold (`entry_reference`, migration 0213), which the restore's write of
+  each entry's notes and each comment rebuilds.
 * **AI machinery**: the AI provider configuration (with its sealed key), the workspace's choice of AI
   source (choosing an offered model is a consent a restore must not resume), suggestions, pending AI
   requests, and embedding vectors (derived from content that is in the export). The workspace's own

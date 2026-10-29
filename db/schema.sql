@@ -1224,6 +1224,76 @@ CREATE INDEX efv_ref_idx  ON entry_field_value (tenant_id, definition_id, ref)  
 GRANT SELECT, INSERT, UPDATE, DELETE ON entry_field_value TO hubtask_app;
 -- entry_field_values_of(work_item) and the trigger work_item_field_values: migration 0211.
 
+-- Links and references (migration 0213, F-3). The six shipped link types have no row.
+CREATE TABLE link_type (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key          text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'
+                 AND key NOT IN ('blocks', 'depends_on', 'duplicates', 'runs_on', 'affects', 'implements')),
+  name         text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  inverse_name text NOT NULL CHECK (char_length(inverse_name) <= 120),
+  direction    text NOT NULL CHECK (direction IN ('DIRECTED', 'SYMMETRIC')),
+  cardinality  text NOT NULL CHECK (cardinality IN ('MANY', 'ONE')),
+  cycles       text NOT NULL CHECK (cycles IN ('FORBIDDEN', 'ALLOWED')),
+  waits        text NOT NULL CHECK (waits IN ('NONE', 'SOURCE', 'TARGET')),
+  position     integer NOT NULL DEFAULT 0,
+  archived_at  timestamptz,
+  created_at   timestamptz NOT NULL,
+  updated_at   timestamptz NOT NULL,
+  version      integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT link_type_key_uq UNIQUE (tenant_id, key),
+  CHECK (direction = 'DIRECTED' OR (waits = 'NONE' AND cardinality = 'MANY')),
+  CHECK (direction = 'SYMMETRIC' OR inverse_name <> ''),
+  CHECK (waits = 'NONE' OR cycles = 'FORBIDDEN')
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON link_type TO hubtask_app;
+
+CREATE TABLE entry_link (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  link_type   text NOT NULL CHECK (link_type ~ '^[a-z][a-z0-9_]{0,49}$'),
+  own_type    text GENERATED ALWAYS AS (
+                CASE WHEN link_type IN ('blocks', 'depends_on', 'duplicates', 'runs_on', 'affects', 'implements')
+                     THEN NULL ELSE link_type END) STORED,
+  source_id   uuid NOT NULL,
+  target_id   uuid NOT NULL,
+  created_by  uuid,
+  created_at  timestamptz NOT NULL,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT entry_link_uq UNIQUE (tenant_id, link_type, source_id, target_id),
+  CHECK (source_id <> target_id),
+  CONSTRAINT entry_link_source_fkey
+    FOREIGN KEY (tenant_id, source_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT entry_link_target_fkey
+    FOREIGN KEY (tenant_id, target_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT entry_link_type_fkey
+    FOREIGN KEY (tenant_id, own_type) REFERENCES link_type (tenant_id, key)
+);
+CREATE INDEX entry_link_source_idx ON entry_link (tenant_id, source_id, link_type);
+CREATE INDEX entry_link_target_idx ON entry_link (tenant_id, target_id, link_type);
+CREATE INDEX entry_link_own_type_idx ON entry_link (tenant_id, own_type) WHERE own_type IS NOT NULL;
+GRANT SELECT, INSERT, DELETE ON entry_link TO hubtask_app;
+
+CREATE TABLE entry_reference (
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  source_kind text NOT NULL CHECK (source_kind IN ('ENTRY', 'COMMENT')),
+  source_id   uuid NOT NULL,
+  entry_id    uuid NOT NULL,
+  target_kind text NOT NULL CHECK (target_kind IN
+                ('ENTRY', 'HUB', 'COLLECTION', 'VIEW', 'PAGE', 'WHITEBOARD', 'DASHBOARD', 'GOAL', 'SPRINT')),
+  target_id   uuid NOT NULL,
+  anchor      text NOT NULL DEFAULT '' CHECK (anchor ~ '^[A-Za-z0-9_-]{0,64}$'),
+  strength    text NOT NULL CHECK (strength IN ('MENTION', 'CARD', 'EMBED')),
+  PRIMARY KEY (tenant_id, source_kind, source_id, target_kind, target_id, anchor),
+  CONSTRAINT entry_reference_entry_fkey
+    FOREIGN KEY (tenant_id, entry_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX entry_reference_target_idx ON entry_reference (tenant_id, target_kind, target_id);
+GRANT SELECT, INSERT, DELETE ON entry_reference TO hubtask_app;
+-- entry_references_of(text) and the triggers work_item_references_* and comment_references_*,
+-- which keep entry_reference from an entry's notes and its comments: migration 0213.
+
 CREATE TABLE comment (
   id                uuid PRIMARY KEY,
   tenant_id         uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -2904,7 +2974,8 @@ BEGIN
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'retention_rule','retention_cursor',
     'legal_hold','tombstone','sync_device','sync_op_log','set_element','field_clock',
-    'import_run','quota_reached','entry_type','entry_field_value'
+    'import_run','quota_reached','entry_type','entry_field_value',
+    'link_type','entry_link','entry_reference'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);

@@ -897,6 +897,28 @@ type EntryFieldValue struct {
 	Ref          pgtype.UUID
 }
 
+type EntryLink struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	LinkType  string
+	OwnType   *string
+	SourceID  pgtype.UUID
+	TargetID  pgtype.UUID
+	CreatedBy pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+type EntryReference struct {
+	TenantID   pgtype.UUID
+	SourceKind string
+	SourceID   pgtype.UUID
+	EntryID    pgtype.UUID
+	TargetKind string
+	TargetID   pgtype.UUID
+	Anchor     string
+	Strength   string
+}
+
 type EntryType struct {
 	ID              pgtype.UUID
 	TenantID        pgtype.UUID
@@ -1144,6 +1166,23 @@ type LegalHold struct {
 	ReleasedBy     pgtype.UUID
 	ReleasedAt     pgtype.Timestamptz
 	ReleasedReason *string
+}
+
+type LinkType struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	Key         string
+	Name        string
+	InverseName string
+	Direction   string
+	Cardinality string
+	Cycles      string
+	Waits       string
+	Position    int32
+	ArchivedAt  pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	Version     int32
 }
 
 type MailReceipt struct {
