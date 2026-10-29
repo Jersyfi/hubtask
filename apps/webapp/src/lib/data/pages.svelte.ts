@@ -117,9 +117,9 @@ class Pages {
     });
   }
 
-  /** The page, or it and every page under it, as Markdown files. A read: it invalidates nothing. */
-  export(pageId: string, subtree: boolean): Promise<PageExport> {
-    return engine.mutate<PageExport>('POST', `${pagePath(pageId)}:export`, { subtree }, { invalidates: [] });
+  /** The page, or it and every page under it, as files of one format. A read: it invalidates nothing. */
+  export(pageId: string, subtree: boolean, format: PageExport['format']): Promise<PageExport> {
+    return engine.mutate<PageExport>('POST', `${pagePath(pageId)}:export`, { subtree, format }, { invalidates: [] });
   }
 
   /** The pages that match, over every space the reader may read or one hub's. A read. */

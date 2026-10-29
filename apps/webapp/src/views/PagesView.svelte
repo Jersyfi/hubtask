@@ -27,7 +27,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    SHIPPED_TEMPLATES, VERIFY_DAYS, ancestorsOf, backlinksPath, exportFileName, pageCommentsPath, pagePath, pageTree, pages,
+    EXPORT_TYPES, SHIPPED_TEMPLATES, VERIFY_DAYS, ancestorsOf, exportBytes, backlinksPath, exportFileName, pageCommentsPath, pagePath, pageTree, pages,
     pagesPath, shippedTemplate, subtreeOf, templatesPath, trashedPagesPath, verifiedUntil, versionPath, versionsPath, visibleRows,
     type ShippedTemplate,
   } from '../lib/data/pages.svelte.ts';
@@ -213,12 +213,13 @@
 
   // Export (UC-DOC-12): the page, or it and its pages, as Markdown files saved by the browser.
   let exportsSubtree = $state(false);
+  let exportFormat = $state<'MARKDOWN' | 'HTML' | 'DOCX'>('MARKDOWN');
   async function exportPage() {
     if (!current) return;
-    const answer = await act(() => pages.export(current.id, exportsSubtree));
+    const answer = await act(() => pages.export(current.id, exportsSubtree, exportFormat));
     if (!answer) return;
     for (const file of answer.files) {
-      platform.saveFile(new Blob([file.content], { type: 'text/markdown' }), exportFileName(file.path));
+      platform.saveFile(new Blob([exportBytes(file) as BlobPart], { type: EXPORT_TYPES[answer.format] }), exportFileName(file.path));
     }
   }
 
@@ -619,7 +620,9 @@
                   <section>
                     <h3 class="heading">{t('app.pages.export')}</h3>
                     <Switch label={t('app.pages.export_subtree')} checked={exportsSubtree} onchange={(event: Event) => (exportsSubtree = (event.currentTarget as HTMLInputElement).checked)} />
-                    <Button size="sm" tone="secondary" onclick={exportPage}>{t('app.pages.export_markdown')}</Button>
+                    <Select label={t('app.pages.export_format')} size="sm" bind:value={exportFormat}
+                      options={(['MARKDOWN', 'HTML', 'DOCX'] as const).map((format) => ({ value: format, label: t(`app.pages.format.${format}`) }))} />
+                    <Button size="sm" tone="secondary" onclick={exportPage}>{t('app.pages.export_download')}</Button>
                   </section>
                   <p class="meta">{t('app.pages.changed_by', { name: nameOf(current.updated_by), date: when(current.updated_at) })}</p>
                 </Stack>

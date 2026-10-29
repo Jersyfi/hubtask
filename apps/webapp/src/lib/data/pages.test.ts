@@ -51,3 +51,9 @@ test('a verification runs whole days from now; a caret colour is the same for a 
   assert.ok(caretOf('person-2') >= 0 && caretOf('person-2') < 8);
   assert.equal(exportFileName('Handbook/Onboarding.md'), 'Handbook-Onboarding.md');
 });
+
+test('an exported DOCX document is saved as its decoded bytes, text as its UTF-8 (UC-DOC-12)', async () => {
+  const { exportBytes } = await import('./pages.ts');
+  assert.deepEqual([...exportBytes({ content: 'UEs=', encoding: 'BASE64' })], [0x50, 0x4b]);
+  assert.deepEqual([...exportBytes({ content: 'ä', encoding: 'TEXT' })], [0xc3, 0xa4]);
+});

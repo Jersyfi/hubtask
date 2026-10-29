@@ -135,3 +135,19 @@ export function verifiedUntil(now: Date, days: number): string {
 export function exportFileName(path: string): string {
   return path.replace(/[\\/]+/gu, '-').replace(/^-+/u, '') || 'page.md';
 }
+
+/** The media type a downloaded export is saved with. */
+export const EXPORT_TYPES = {
+  MARKDOWN: 'text/markdown',
+  HTML: 'text/html',
+  DOCX: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+} as const;
+
+/** An exported file's bytes: its text, or its base64 decoded (a DOCX document). */
+export function exportBytes(file: { content: string; encoding: 'TEXT' | 'BASE64' }): Uint8Array {
+  if (file.encoding === 'TEXT') return new TextEncoder().encode(file.content);
+  const binary = atob(file.content);
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  return out;
+}
