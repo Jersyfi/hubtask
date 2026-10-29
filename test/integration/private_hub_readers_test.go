@@ -68,7 +68,7 @@ func readerRegistry(ctx context.Context, t *testing.T) *usecase.Registry {
 			Items: items, ItemLabels: labels, Containers: containers, Authorizer: authoriser, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		work.SearchItems{
-			Items: items, Containers: containers, Authorizer: authoriser, Anchored: authoriser,
+			Searcher: items, Containers: containers, Authorizer: authoriser, Anchored: authoriser,
 			Reader: authoriser, UnitOfWork: unitOfWork, Clock: fixed,
 		}.Descriptor(),
 		work.ListComments{

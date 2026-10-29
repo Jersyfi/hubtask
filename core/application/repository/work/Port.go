@@ -706,14 +706,6 @@ type Items interface {
 	// It judges no further than the query asks, as List does: whether the actor may see the scope
 	// is decided in the application layer, once, before this runs (ADR-0005).
 	Query(ctx context.Context, search ItemSearch) (ItemQueryResult, error)
-
-	// Search answers the full text search: one page of entries in the order the database ranked
-	// them, with the hub each one sits under.
-	//
-	// Ranked rather than sorted, which is what makes the cursor a keyset over the rank. The order
-	// is `ts_rank_cd` descending and the identifier descending after it, so that entries matching
-	// equally well come newest first - a UUIDv7 carries its own time (ADR-0034).
-	Search(ctx context.Context, search TextSearch) (ItemHitPage, error)
 }
 
 // Buckets stores the columns of a collection's board.

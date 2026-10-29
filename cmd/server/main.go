@@ -2490,8 +2490,8 @@ func run() error {
 		// shapes: about a hub the client named, about how far the caller reaches into a collection,
 		// and about each row of an unanchored page (SearchItems.reach).
 		work.SearchItems{
-			Gate:  entryGate,
-			Items: items, Containers: containers, Fields: customFields,
+			Gate:     entryGate,
+			Searcher: items, Containers: containers, Fields: customFields,
 			Authorizer: authorizer, Anchored: authorizer, Reader: authorizer,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			// The semantic half. Optional four times over - the extension, the provider,

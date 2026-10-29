@@ -44,7 +44,8 @@ const (
 // different verb, and no scope check upstream can prevent it: the rows come from everywhere at
 // once. It is asked here, in the application layer, like every other permission (rule 2, ADR-0005).
 type SearchItems struct {
-	Items      repository.Items
+	// Searcher is the search port: the PostgreSQL index today, an external one as an option.
+	Searcher   repository.TextSearcher
 	Containers repository.Containers
 	// Fields answers what a custom field the search ranges over or sorts by holds (F-2).
 	Fields     repository.CustomFields
@@ -179,7 +180,7 @@ func (h SearchItems) Execute(
 			return err
 		}
 		request.Filter, request.Sort = shaped.Filter, shaped.Sort
-		page, err = h.Items.Search(ctx, repository.TextSearch{
+		page, err = h.Searcher.Search(ctx, repository.TextSearch{
 			Anchor: reach.anchor, Request: request, RestrictTo: reach.restrictTo,
 			Meaning: meaning, MeaningModel: model,
 		})
