@@ -252,6 +252,8 @@ async function views() {
     ['collection-settings-section', await load('ContainerView'), { id: COLLECTION, section: 'structure', onnavigate: noop }],
     ['hub-pages', await load('PagesView'), { hubId: COLLECTION, onnavigate: noop }],
     ['page', await load('PagesView'), { pageId: ITEM, onnavigate: noop }],
+    ['hub-whiteboards', await load('WhiteboardsView'), { hubId: COLLECTION, onnavigate: noop }],
+    ['whiteboard', await load('WhiteboardsView'), { boardId: ITEM, onnavigate: noop }],
     ['administration', await load('AdministrationOverviewView'), {}],
     ['sign-in-settings', await load('SignInSettingsView'), {}],
     ['legal', await load('SignInSettingsView'), { part: 'legal' }],
