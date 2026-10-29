@@ -32,6 +32,19 @@
       ],
     },
     {
+      id: 'priority',
+      label: 'Priority',
+      operators: [
+        { id: 'EQ', label: 'is', takesValue: true },
+        { id: 'IN', label: 'is one of', takesValue: true, takesList: true },
+      ],
+      values: [
+        { value: 'LOW', label: 'Low' },
+        { value: 'MEDIUM', label: 'Medium' },
+        { value: 'HIGH', label: 'High' },
+      ],
+    },
+    {
       id: 'label_ids',
       label: 'Labels',
       operators: [

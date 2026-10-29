@@ -130,6 +130,7 @@
           label: t(`app.query.op.${op}`),
           takesValue: takesValue(op),
           hint: takesList(op) ? t('app.query.list_hint') : t('app.query.placeholder_hint'),
+          takesList: takesList(op),
         })),
       values: field.field === ENTRY_TYPE && typeValues.length > 0 ? typeValues : field.values?.map((value) => ({ value, label: value })),
     })),

@@ -306,3 +306,13 @@ test('a custom field with an order is a sort and a grouping', () => {
   assert.equal(sortOf(today, 'custom_fields.tags', 'ASC', custom), undefined);
   assert.deepEqual(groupOf(today, 'custom_fields.budget', custom), { field: 'custom_fields.budget', limit_per_group: 50 });
 });
+
+test('several types chosen for IN travel as a list and come back as the parts the chooser ticks', () => {
+  const typed = {
+    query_fields: [field('entry_type', 'enum', ['EQ', 'IN', 'NOT_IN'], { groupable: true })],
+  } as unknown as Capabilities;
+  // The chooser joins the ticked keys with commas, as a person would type them.
+  const node = filterOf(typed, [{ field: 'entry_type', op: 'NOT_IN', value: 'bug, feature' }]);
+  assert.deepEqual(node, { op: 'NOT_IN', field: 'entry_type', value: ['bug', 'feature'] });
+  assert.deepEqual(conditionsOf(node), [{ field: 'entry_type', op: 'NOT_IN', value: 'bug, feature' }]);
+});
