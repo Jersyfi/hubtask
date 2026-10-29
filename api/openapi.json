@@ -12587,7 +12587,12 @@
         ],
         "operationId": "exportConfig",
         "summary": "The configuration document in force",
-        "description": "The workspace's configuration as one document - modules, roles, fields, link types, entry types with their forms, workflows and the configuration settings - each block by its stable key, never content and never a secret. `hash` is what a plan is made against and is the `ETag`; a section the reader may not read, or whose module is off, is listed in `withheld`. Needs the right to change the workspace's shape, or to read its configuration.\n",
+        "description": "The workspace's configuration as one document - modules, roles, fields, link types, entry types with their forms, workflows and the configuration settings - each block by its stable key, never content and never a secret. `hash` is what a plan is made against and is the `ETag`; a section the reader may not read, or whose module is off, is listed in `withheld`. Needs the right to change the workspace's shape, or to read its configuration. Given `hub_id`, the hub's own document, which needs that right at the hub.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ConfigHub"
+          }
+        ],
         "responses": {
           "200": {
             "description": "The document",
@@ -12629,6 +12634,9 @@
               "type": "string",
               "maxLength": 200
             }
+          },
+          {
+            "$ref": "#/components/parameters/ConfigHub"
           }
         ],
         "responses": {
@@ -12813,6 +12821,9 @@
               "type": "integer",
               "minimum": 1
             }
+          },
+          {
+            "$ref": "#/components/parameters/ConfigHub"
           }
         ],
         "responses": {
@@ -17156,6 +17167,16 @@
         "description": "The ETag of the state last read (optimistic locking).",
         "schema": {
           "type": "string"
+        }
+      },
+      "ConfigHub": {
+        "name": "hub_id",
+        "in": "query",
+        "required": false,
+        "description": "A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
         }
       }
     },
@@ -24449,6 +24470,14 @@
             "items": {
               "type": "string"
             }
+          },
+          "hub_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The hub whose own document this is; null for the workspace's."
           }
         }
       },
@@ -24532,6 +24561,11 @@
               "MERGE",
               "REPLACE"
             ]
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's."
           }
         }
       },
@@ -24569,6 +24603,11 @@
           "to_version": {
             "type": "integer",
             "minimum": 1
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's."
           }
         }
       },
@@ -24812,7 +24851,12 @@
           },
           "template": {
             "type": "string",
-            "description": "The template@version the document came from."
+            "description": "The template@version the document came from; a hub's document takes none."
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's."
           }
         }
       },
@@ -24882,6 +24926,14 @@
           },
           "document": {
             "$ref": "#/components/schemas/ConfigDocument"
+          },
+          "hub_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The hub whose document the version is; null for the workspace's."
           }
         }
       },
@@ -24989,6 +25041,14 @@
               "null"
             ],
             "format": "date-time"
+          },
+          "hub_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The hub whose document the proposal changes; null for the workspace's."
           }
         }
       },

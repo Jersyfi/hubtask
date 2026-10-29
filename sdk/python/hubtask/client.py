@@ -1447,9 +1447,9 @@ class Client:
         """The configuration document's JSON Schema"""
         return self._call("GET", "/meta/config-schema", {}, None, {}, None, "none", None, "json")
 
-    def export_config(self) -> "ConfigExport":
+    def export_config(self, *, query: dict[str, Any] | None = None) -> "ConfigExport":
         """The configuration document in force"""
-        return self._call("GET", "/config", {}, None, {}, None, "none", None, "json")
+        return self._call("GET", "/config", {}, query, {}, None, "none", None, "json")
 
     def explain_config(self, *, query: dict[str, Any] | None = None) -> "ConfigExplanation":
         """Explain one key of the configuration"""

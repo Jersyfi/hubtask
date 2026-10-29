@@ -1498,6 +1498,7 @@ class ConfigExport(TypedDict, total=False):
     hash: Required[str]
     version: Required[int]
     withheld: Required[list[str]]
+    hub_id: str | None
 
 class ConfigExplanation(TypedDict, total=False):
     key: Required[str]
@@ -1517,6 +1518,7 @@ class ConfigRefusal(TypedDict, total=False):
 class ConfigDocumentRequest(TypedDict, total=False):
     document: Required["ConfigDocument"]
     mode: Literal["MERGE", "REPLACE"]
+    hub_id: str
 
 class ConfigValidation(TypedDict, total=False):
     valid: Required[bool]
@@ -1526,6 +1528,7 @@ class ConfigPlanRequest(TypedDict, total=False):
     document: "ConfigDocument"
     mode: Literal["MERGE", "REPLACE"]
     to_version: int
+    hub_id: str
 
 class ConfigChange(TypedDict, total=False):
     path: Required[str]
@@ -1569,6 +1572,7 @@ class ConfigApplyRequest(TypedDict, total=False):
     plan_hash: Required[str]
     acknowledge: bool
     template: str
+    hub_id: str
 
 class ConfigVersion(TypedDict, total=False):
     version: Required[int]
@@ -1584,6 +1588,7 @@ class ConfigVersion(TypedDict, total=False):
     removed: Required[int]
     created_at: Required[str]
     document: "ConfigDocument"
+    hub_id: str | None
 
 class ConfigVersionList(TypedDict, total=False):
     data: Required[list["ConfigVersion"]]
@@ -1605,6 +1610,7 @@ class ConfigProposal(TypedDict, total=False):
     decided_by: str | None
     created_at: Required[str]
     decided_at: str | None
+    hub_id: str | None
 
 class ConfigProposalList(TypedDict, total=False):
     data: Required[list["ConfigProposal"]]

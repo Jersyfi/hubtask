@@ -9771,7 +9771,10 @@ paths:
         types with their forms, workflows and the configuration settings - each block by its stable
         key, never content and never a secret. `hash` is what a plan is made against and is the
         `ETag`; a section the reader may not read, or whose module is off, is listed in `withheld`.
-        Needs the right to change the workspace's shape, or to read its configuration.
+        Needs the right to change the workspace's shape, or to read its configuration. Given
+        `hub_id`, the hub's own document, which needs that right at the hub.
+      parameters:
+        - $ref: "#/components/parameters/ConfigHub"
       responses:
         "200":
           description: The document
@@ -9799,6 +9802,7 @@ paths:
           in: query
           required: true
           schema: { type: string, maxLength: 200 }
+        - $ref: "#/components/parameters/ConfigHub"
       responses:
         "200":
           description: The explanation
@@ -9927,6 +9931,7 @@ paths:
           in: query
           required: false
           schema: { type: integer, minimum: 1 }
+        - $ref: "#/components/parameters/ConfigHub"
       responses:
         "200":
           description: The versions
@@ -12867,6 +12872,13 @@ components:
       required: false
       description: The ETag of the state last read (optimistic locking).
       schema: { type: string }
+
+    ConfigHub:
+      name: hub_id
+      in: query
+      required: false
+      description: A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+      schema: { type: string, format: uuid }
 
   responses:
     Problem:
@@ -17435,6 +17447,7 @@ components:
         withheld:
           type: array
           items: { type: string }
+        hub_id: { type: [string, "null"], format: uuid, description: The hub whose own document this is; null for the workspace's. }
 
     ConfigExplanation:
       type: object
@@ -17469,6 +17482,10 @@ components:
       properties:
         document: { $ref: "#/components/schemas/ConfigDocument" }
         mode: { type: string, enum: [MERGE, REPLACE] }
+        hub_id:
+          type: string
+          format: uuid
+          description: A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
 
     ConfigValidation:
       type: object
@@ -17485,6 +17502,10 @@ components:
         document: { $ref: "#/components/schemas/ConfigDocument" }
         mode: { type: string, enum: [MERGE, REPLACE] }
         to_version: { type: integer, minimum: 1 }
+        hub_id:
+          type: string
+          format: uuid
+          description: A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
 
     ConfigChange:
       type: object
@@ -17596,7 +17617,11 @@ components:
         acknowledge: { type: boolean }
         template:
           type: string
-          description: The template@version the document came from.
+          description: The template@version the document came from; a hub's document takes none.
+        hub_id:
+          type: string
+          format: uuid
+          description: A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
 
     ConfigVersion:
       type: object
@@ -17615,6 +17640,7 @@ components:
         removed: { type: integer }
         created_at: { type: string, format: date-time }
         document: { $ref: "#/components/schemas/ConfigDocument" }
+        hub_id: { type: [string, "null"], format: uuid, description: The hub whose document the version is; null for the workspace's. }
 
     ConfigVersionList:
       type: object
@@ -17644,6 +17670,7 @@ components:
         decided_by: { type: [string, "null"], format: uuid }
         created_at: { type: string, format: date-time }
         decided_at: { type: [string, "null"], format: date-time }
+        hub_id: { type: [string, "null"], format: uuid, description: The hub whose document the proposal changes; null for the workspace's. }
 
     ConfigProposalList:
       type: object

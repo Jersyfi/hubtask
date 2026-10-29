@@ -42,14 +42,22 @@ func (c *RestController) configCall(w http.ResponseWriter, r *http.Request, name
 	return out, true
 }
 
+// withHub names the hub whose own document a read is for, where the query names one.
+func withHub(in usecase.Input, hub *openapi_types.UUID) usecase.Input {
+	if hub != nil {
+		in["hub_id"] = hub.String()
+	}
+	return in
+}
+
 func (c *RestController) ReadConfigSchema(w http.ResponseWriter, r *http.Request) {
 	if out, ok := c.read(w, r, "ReadConfigSchema", usecase.Input{}); ok {
 		writeJSON(w, r, http.StatusOK, out)
 	}
 }
 
-func (c *RestController) ExportConfig(w http.ResponseWriter, r *http.Request) {
-	out, ok := c.read(w, r, "ExportConfig", usecase.Input{})
+func (c *RestController) ExportConfig(w http.ResponseWriter, r *http.Request, params openapi.ExportConfigParams) {
+	out, ok := c.read(w, r, "ExportConfig", withHub(usecase.Input{}, params.HubId))
 	if !ok {
 		return
 	}
@@ -60,7 +68,7 @@ func (c *RestController) ExportConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *RestController) ExplainConfig(w http.ResponseWriter, r *http.Request, params openapi.ExplainConfigParams) {
-	if out, ok := c.read(w, r, "ExplainConfig", usecase.Input{"key": params.Key}); ok {
+	if out, ok := c.read(w, r, "ExplainConfig", withHub(usecase.Input{"key": params.Key}, params.HubId)); ok {
 		writeJSON(w, r, http.StatusOK, out)
 	}
 }
@@ -91,7 +99,7 @@ func (c *RestController) ApplyConfig(w http.ResponseWriter, r *http.Request, par
 }
 
 func (c *RestController) ListConfigVersions(w http.ResponseWriter, r *http.Request, params openapi.ListConfigVersionsParams) {
-	in := usecase.Input{}
+	in := withHub(usecase.Input{}, params.HubId)
 	if params.Before != nil {
 		in["before"] = *params.Before
 	}

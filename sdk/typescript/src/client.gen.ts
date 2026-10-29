@@ -1823,8 +1823,8 @@ export class HubtaskClient {
   }
 
   /** The configuration document in force */
-  exportConfig(options: CallOptions = {}): Promise<operations["exportConfig"]['responses'][200]['content']["application/json"]> {
-    return this.call("GET", "/config", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  exportConfig(options: CallOptions & { readonly query?: NonNullable<operations["exportConfig"]['parameters']['query']> } = {}): Promise<operations["exportConfig"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/config", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** Explain one key of the configuration */

@@ -8183,11 +8183,14 @@ type ConfigApplyRequest struct {
 	Acknowledge *bool `json:"acknowledge,omitempty"`
 
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
-	Document *ConfigDocument         `json:"document,omitempty"`
+	Document *ConfigDocument `json:"document,omitempty"`
+
+	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+	HubId    *openapi_types.UUID     `json:"hub_id,omitempty"`
 	Mode     *ConfigApplyRequestMode `json:"mode,omitempty"`
 	PlanHash string                  `json:"plan_hash"`
 
-	// Template The template@version the document came from.
+	// Template The template@version the document came from; a hub's document takes none.
 	Template  *string `json:"template,omitempty"`
 	ToVersion *int    `json:"to_version,omitempty"`
 }
@@ -8241,8 +8244,11 @@ type ConfigDocument map[string]map[string]*map[string]interface{}
 // ConfigDocumentRequest defines model for ConfigDocumentRequest.
 type ConfigDocumentRequest struct {
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
-	Document ConfigDocument             `json:"document"`
-	Mode     *ConfigDocumentRequestMode `json:"mode,omitempty"`
+	Document ConfigDocument `json:"document"`
+
+	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+	HubId *openapi_types.UUID        `json:"hub_id,omitempty"`
+	Mode  *ConfigDocumentRequestMode `json:"mode,omitempty"`
 }
 
 // ConfigDocumentRequestMode defines model for ConfigDocumentRequest.Mode.
@@ -8265,6 +8271,9 @@ type ConfigExport struct {
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document ConfigDocument `json:"document"`
 	Hash     string         `json:"hash"`
+
+	// HubId The hub whose own document this is; null for the workspace's.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 
 	// Version The newest applied version; 0 where none was applied yet.
 	Version  int      `json:"version"`
@@ -8299,7 +8308,10 @@ type ConfigPlan struct {
 // ConfigPlanRequest defines model for ConfigPlanRequest.
 type ConfigPlanRequest struct {
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
-	Document  *ConfigDocument        `json:"document,omitempty"`
+	Document *ConfigDocument `json:"document,omitempty"`
+
+	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+	HubId     *openapi_types.UUID    `json:"hub_id,omitempty"`
 	Mode      *ConfigPlanRequestMode `json:"mode,omitempty"`
 	ToVersion *int                   `json:"to_version,omitempty"`
 }
@@ -8326,8 +8338,11 @@ type ConfigProposal struct {
 	DecidedBy          *openapi_types.UUID `json:"decided_by,omitempty"`
 
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
-	Document   ConfigDocument      `json:"document"`
-	HidesData  bool                `json:"hides_data"`
+	Document  ConfigDocument `json:"document"`
+	HidesData bool           `json:"hides_data"`
+
+	// HubId The hub whose document the proposal changes; null for the workspace's.
+	HubId      *openapi_types.UUID `json:"hub_id,omitempty"`
 	Id         openapi_types.UUID  `json:"id"`
 	Mode       ConfigProposalMode  `json:"mode"`
 	PlanHash   string              `json:"plan_hash"`
@@ -8488,8 +8503,11 @@ type ConfigVersion struct {
 	CreatedAt time.Time           `json:"created_at"`
 
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
-	Document     *ConfigDocument     `json:"document,omitempty"`
-	Hash         string              `json:"hash"`
+	Document *ConfigDocument `json:"document,omitempty"`
+	Hash     string          `json:"hash"`
+
+	// HubId The hub whose document the version is; null for the workspace's.
+	HubId        *openapi_types.UUID `json:"hub_id,omitempty"`
 	PlanHash     string              `json:"plan_hash"`
 	ProposedBy   *openapi_types.UUID `json:"proposed_by,omitempty"`
 	Removed      int                 `json:"removed"`
@@ -15254,6 +15272,9 @@ type CollectionId = openapi_types.UUID
 // CommentId defines model for CommentId.
 type CommentId = openapi_types.UUID
 
+// ConfigHub defines model for ConfigHub.
+type ConfigHub = openapi_types.UUID
+
 // ContainerId defines model for ContainerId.
 type ContainerId = openapi_types.UUID
 
@@ -15790,9 +15811,18 @@ type SetCollectionHandleParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ExportConfigParams defines parameters for ExportConfig.
+type ExportConfigParams struct {
+	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+	HubId *ConfigHub `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+}
+
 // ExplainConfigParams defines parameters for ExplainConfig.
 type ExplainConfigParams struct {
 	Key string `form:"key" json:"key"`
+
+	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+	HubId *ConfigHub `form:"hub_id,omitempty" json:"hub_id,omitempty"`
 }
 
 // ListConfigProposalsParams defines parameters for ListConfigProposals.
@@ -15812,6 +15842,9 @@ type DecideConfigProposalParams struct {
 // ListConfigVersionsParams defines parameters for ListConfigVersions.
 type ListConfigVersionsParams struct {
 	Before *int `form:"before,omitempty" json:"before,omitempty"`
+
+	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+	HubId *ConfigHub `form:"hub_id,omitempty" json:"hub_id,omitempty"`
 }
 
 // ApplyConfigParams defines parameters for ApplyConfig.
@@ -18001,7 +18034,7 @@ type ServerInterface interface {
 	SetCollectionHandle(w http.ResponseWriter, r *http.Request, collectionId openapi_types.UUID, params SetCollectionHandleParams)
 	// ExportConfig The configuration document in force
 	// (GET /config)
-	ExportConfig(w http.ResponseWriter, r *http.Request)
+	ExportConfig(w http.ResponseWriter, r *http.Request, params ExportConfigParams)
 	// ExplainConfig Explain one key of the configuration
 	// (GET /config/explain)
 	ExplainConfig(w http.ResponseWriter, r *http.Request, params ExplainConfigParams)
@@ -23789,8 +23822,27 @@ func (siw *ServerInterfaceWrapper) SetCollectionHandle(w http.ResponseWriter, r 
 // ExportConfig operation middleware
 func (siw *ServerInterfaceWrapper) ExportConfig(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ExportConfigParams
+
+	// ------------- Optional query parameter "hub_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "hub_id", r.URL.Query(), &params.HubId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "hub_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hub_id", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ExportConfig(w, r)
+		siw.Handler.ExportConfig(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -23818,6 +23870,19 @@ func (siw *ServerInterfaceWrapper) ExplainConfig(w http.ResponseWriter, r *http.
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "key"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "hub_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "hub_id", r.URL.Query(), &params.HubId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "hub_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hub_id", Err: err})
 		}
 		return
 	}
@@ -24002,6 +24067,19 @@ func (siw *ServerInterfaceWrapper) ListConfigVersions(w http.ResponseWriter, r *
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "before"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "before", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "hub_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "hub_id", r.URL.Query(), &params.HubId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "hub_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hub_id", Err: err})
 		}
 		return
 	}

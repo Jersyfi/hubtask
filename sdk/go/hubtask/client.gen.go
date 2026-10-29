@@ -8189,11 +8189,14 @@ type ConfigApplyRequest struct {
 	Acknowledge *bool `json:"acknowledge,omitempty"`
 
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
-	Document *ConfigDocument         `json:"document,omitempty"`
+	Document *ConfigDocument `json:"document,omitempty"`
+
+	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+	HubId    *openapi_types.UUID     `json:"hub_id,omitempty"`
 	Mode     *ConfigApplyRequestMode `json:"mode,omitempty"`
 	PlanHash string                  `json:"plan_hash"`
 
-	// Template The template@version the document came from.
+	// Template The template@version the document came from; a hub's document takes none.
 	Template  *string `json:"template,omitempty"`
 	ToVersion *int    `json:"to_version,omitempty"`
 }
@@ -8247,8 +8250,11 @@ type ConfigDocument map[string]map[string]*map[string]interface{}
 // ConfigDocumentRequest defines model for ConfigDocumentRequest.
 type ConfigDocumentRequest struct {
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
-	Document ConfigDocument             `json:"document"`
-	Mode     *ConfigDocumentRequestMode `json:"mode,omitempty"`
+	Document ConfigDocument `json:"document"`
+
+	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+	HubId *openapi_types.UUID        `json:"hub_id,omitempty"`
+	Mode  *ConfigDocumentRequestMode `json:"mode,omitempty"`
 }
 
 // ConfigDocumentRequestMode defines model for ConfigDocumentRequest.Mode.
@@ -8271,6 +8277,9 @@ type ConfigExport struct {
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document ConfigDocument `json:"document"`
 	Hash     string         `json:"hash"`
+
+	// HubId The hub whose own document this is; null for the workspace's.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 
 	// Version The newest applied version; 0 where none was applied yet.
 	Version  int      `json:"version"`
@@ -8305,7 +8314,10 @@ type ConfigPlan struct {
 // ConfigPlanRequest defines model for ConfigPlanRequest.
 type ConfigPlanRequest struct {
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
-	Document  *ConfigDocument        `json:"document,omitempty"`
+	Document *ConfigDocument `json:"document,omitempty"`
+
+	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+	HubId     *openapi_types.UUID    `json:"hub_id,omitempty"`
 	Mode      *ConfigPlanRequestMode `json:"mode,omitempty"`
 	ToVersion *int                   `json:"to_version,omitempty"`
 }
@@ -8332,8 +8344,11 @@ type ConfigProposal struct {
 	DecidedBy          *openapi_types.UUID `json:"decided_by,omitempty"`
 
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
-	Document   ConfigDocument      `json:"document"`
-	HidesData  bool                `json:"hides_data"`
+	Document  ConfigDocument `json:"document"`
+	HidesData bool           `json:"hides_data"`
+
+	// HubId The hub whose document the proposal changes; null for the workspace's.
+	HubId      *openapi_types.UUID `json:"hub_id,omitempty"`
 	Id         openapi_types.UUID  `json:"id"`
 	Mode       ConfigProposalMode  `json:"mode"`
 	PlanHash   string              `json:"plan_hash"`
@@ -8494,8 +8509,11 @@ type ConfigVersion struct {
 	CreatedAt time.Time           `json:"created_at"`
 
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
-	Document     *ConfigDocument     `json:"document,omitempty"`
-	Hash         string              `json:"hash"`
+	Document *ConfigDocument `json:"document,omitempty"`
+	Hash     string          `json:"hash"`
+
+	// HubId The hub whose document the version is; null for the workspace's.
+	HubId        *openapi_types.UUID `json:"hub_id,omitempty"`
 	PlanHash     string              `json:"plan_hash"`
 	ProposedBy   *openapi_types.UUID `json:"proposed_by,omitempty"`
 	Removed      int                 `json:"removed"`
@@ -15260,6 +15278,9 @@ type CollectionId = openapi_types.UUID
 // CommentId defines model for CommentId.
 type CommentId = openapi_types.UUID
 
+// ConfigHub defines model for ConfigHub.
+type ConfigHub = openapi_types.UUID
+
 // ContainerId defines model for ContainerId.
 type ContainerId = openapi_types.UUID
 
@@ -15796,9 +15817,18 @@ type SetCollectionHandleParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ExportConfigParams defines parameters for ExportConfig.
+type ExportConfigParams struct {
+	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+	HubId *ConfigHub `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+}
+
 // ExplainConfigParams defines parameters for ExplainConfig.
 type ExplainConfigParams struct {
 	Key string `form:"key" json:"key"`
+
+	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+	HubId *ConfigHub `form:"hub_id,omitempty" json:"hub_id,omitempty"`
 }
 
 // ListConfigProposalsParams defines parameters for ListConfigProposals.
@@ -15818,6 +15848,9 @@ type DecideConfigProposalParams struct {
 // ListConfigVersionsParams defines parameters for ListConfigVersions.
 type ListConfigVersionsParams struct {
 	Before *int `form:"before,omitempty" json:"before,omitempty"`
+
+	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+	HubId *ConfigHub `form:"hub_id,omitempty" json:"hub_id,omitempty"`
 }
 
 // ApplyConfigParams defines parameters for ApplyConfig.
@@ -20255,10 +20288,10 @@ type ClientInterface interface {
 
 	// ExportConfig The configuration document in force
 	//
-	// The workspace's configuration as one document - modules, roles, fields, link types, entry types with their forms, workflows and the configuration settings - each block by its stable key, never content and never a secret. `hash` is what a plan is made against and is the `ETag`; a section the reader may not read, or whose module is off, is listed in `withheld`. Needs the right to change the workspace's shape, or to read its configuration.
+	// The workspace's configuration as one document - modules, roles, fields, link types, entry types with their forms, workflows and the configuration settings - each block by its stable key, never content and never a secret. `hash` is what a plan is made against and is the `ETag`; a section the reader may not read, or whose module is off, is listed in `withheld`. Needs the right to change the workspace's shape, or to read its configuration. Given `hub_id`, the hub's own document, which needs that right at the hub.
 	//
 	// Corresponds with GET /config (the `ExportConfig` operationId).
-	ExportConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ExportConfig(ctx context.Context, params *ExportConfigParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ExplainConfig Explain one key of the configuration
 	//
@@ -28964,11 +28997,11 @@ func (c *Client) SetCollectionHandle(ctx context.Context, collectionId openapi_t
 
 // ExportConfig The configuration document in force
 //
-// The workspace's configuration as one document - modules, roles, fields, link types, entry types with their forms, workflows and the configuration settings - each block by its stable key, never content and never a secret. `hash` is what a plan is made against and is the `ETag`; a section the reader may not read, or whose module is off, is listed in `withheld`. Needs the right to change the workspace's shape, or to read its configuration.
+// The workspace's configuration as one document - modules, roles, fields, link types, entry types with their forms, workflows and the configuration settings - each block by its stable key, never content and never a secret. `hash` is what a plan is made against and is the `ETag`; a section the reader may not read, or whose module is off, is listed in `withheld`. Needs the right to change the workspace's shape, or to read its configuration. Given `hub_id`, the hub's own document, which needs that right at the hub.
 //
 // Corresponds with GET /config (the `ExportConfig` operationId).
-func (c *Client) ExportConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewExportConfigRequest(c.Server)
+func (c *Client) ExportConfig(ctx context.Context, params *ExportConfigParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExportConfigRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -43935,7 +43968,7 @@ func NewSetCollectionHandleRequestWithBody(server string, collectionId openapi_t
 }
 
 // NewExportConfigRequest constructs an http.Request for the ExportConfig method
-func NewExportConfigRequest(server string) (*http.Request, error) {
+func NewExportConfigRequest(server string, params *ExportConfigParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -43951,6 +43984,33 @@ func NewExportConfigRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.HubId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "hub_id", *params.HubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -43995,6 +44055,18 @@ func NewExplainConfigRequest(server string, params *ExplainConfigParams) (*http.
 			for _, qp := range strings.Split(queryFrag, "&") {
 				rawQueryFragments = append(rawQueryFragments, qp)
 			}
+		}
+
+		if params.HubId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "hub_id", *params.HubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
 		}
 
 		if encoded := queryValues.Encode(); encoded != "" {
@@ -44312,6 +44384,18 @@ func NewListConfigVersionsRequest(server string, params *ListConfigVersionsParam
 		if params.Before != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "before", *params.Before, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.HubId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "hub_id", *params.HubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {
@@ -60242,12 +60326,12 @@ type ClientWithResponsesInterface interface {
 
 	// ExportConfigWithResponse The configuration document in force
 	//
-	// The workspace's configuration as one document - modules, roles, fields, link types, entry types with their forms, workflows and the configuration settings - each block by its stable key, never content and never a secret. `hash` is what a plan is made against and is the `ETag`; a section the reader may not read, or whose module is off, is listed in `withheld`. Needs the right to change the workspace's shape, or to read its configuration.
+	// The workspace's configuration as one document - modules, roles, fields, link types, entry types with their forms, workflows and the configuration settings - each block by its stable key, never content and never a secret. `hash` is what a plan is made against and is the `ETag`; a section the reader may not read, or whose module is off, is listed in `withheld`. Needs the right to change the workspace's shape, or to read its configuration. Given `hub_id`, the hub's own document, which needs that right at the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /config (the `ExportConfig` operationId).
-	ExportConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ExportConfigResult, error)
+	ExportConfigWithResponse(ctx context.Context, params *ExportConfigParams, reqEditors ...RequestEditorFn) (*ExportConfigResult, error)
 
 	// ExplainConfigWithResponse Explain one key of the configuration
 	//
@@ -90173,13 +90257,13 @@ func (c *ClientWithResponses) SetCollectionHandleWithResponse(ctx context.Contex
 
 // ExportConfigWithResponse The configuration document in force
 //
-// The workspace's configuration as one document - modules, roles, fields, link types, entry types with their forms, workflows and the configuration settings - each block by its stable key, never content and never a secret. `hash` is what a plan is made against and is the `ETag`; a section the reader may not read, or whose module is off, is listed in `withheld`. Needs the right to change the workspace's shape, or to read its configuration.
+// The workspace's configuration as one document - modules, roles, fields, link types, entry types with their forms, workflows and the configuration settings - each block by its stable key, never content and never a secret. `hash` is what a plan is made against and is the `ETag`; a section the reader may not read, or whose module is off, is listed in `withheld`. Needs the right to change the workspace's shape, or to read its configuration. Given `hub_id`, the hub's own document, which needs that right at the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with GET /config (the `ExportConfig` operationId).
-func (c *ClientWithResponses) ExportConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ExportConfigResult, error) {
-	rsp, err := c.ExportConfig(ctx, reqEditors...)
+func (c *ClientWithResponses) ExportConfigWithResponse(ctx context.Context, params *ExportConfigParams, reqEditors ...RequestEditorFn) (*ExportConfigResult, error) {
+	rsp, err := c.ExportConfig(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
