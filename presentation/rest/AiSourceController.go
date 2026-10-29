@@ -17,28 +17,12 @@ import (
 // Which AI answers a workspace (ADR-0072 §2, §3), over REST.
 
 const (
-	readAiSourceUseCase   = "ReadAiSource"
 	chooseAiSourceUseCase = "ChooseAiSource"
 	setOwnAiBudgetUseCase = "SetOwnAiBudget"
 
 	setAiPersonOptOutUseCase     = "SetAiPersonOptOut"
 	setAiArrivalProposalsUseCase = "SetAiArrivalProposals"
 )
-
-// ReadAiSource answers GET /ai-source.
-func (c *RestController) ReadAiSource(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), readAiSourceUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, aiSourceResponse(out))
-}
 
 // ChooseAiSource answers PUT /ai-source.
 func (c *RestController) ChooseAiSource(w http.ResponseWriter, r *http.Request) {

@@ -14,26 +14,9 @@ import (
 
 // The AI provider's configuration use cases.
 const (
-	readAiProviderUseCase      = "ReadAiProvider"
 	configureAiProviderUseCase = "ConfigureAiProvider"
 	removeAiProviderUseCase    = "RemoveAiProvider"
 )
-
-// ReadAiProvider answers GET /ai-provider.
-func (c *RestController) ReadAiProvider(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), readAiProviderUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, aiProviderResponse(out))
-}
 
 // ConfigureAiProvider answers PUT /ai-provider.
 func (c *RestController) ConfigureAiProvider(w http.ResponseWriter, r *http.Request) {

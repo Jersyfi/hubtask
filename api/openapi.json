@@ -8597,6 +8597,8 @@
           "meta"
         ],
         "operationId": "readQuotas",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "quotaStandingResponse",
         "summary": "The workspace's quota standing",
         "description": "Every quota as it applies to this workspace: the resolved ceiling (0 means unlimited), what is currently used where a live count exists, and the approach ratio. Needs the permission that manages structure, or the auditor's read-only configuration permission - a quota is workspace configuration, and who is near a wall is exactly what an auditor reads.\n",
         "responses": {
@@ -8691,6 +8693,8 @@
           "meta"
         ],
         "operationId": "listPrivateHubs",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "privateHubSummaryResponse",
         "summary": "The workspace's private hubs, without their names",
         "description": "Every private hub of the workspace, the trashed ones included: whose it is - the accounts holding OWNER on it - and how much it holds, with no name, description or content. Enough to run the workspace - its storage, a person leaving - and nothing to read. Needs the permission that manages members. Oldest first; a workspace has a handful, so the answer is not paged.\n",
         "responses": {
@@ -8724,6 +8728,8 @@
           "meta"
         ],
         "operationId": "listPrivateHubAccesses",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "privateHubAccessResponse",
         "summary": "Who opened this private hub through the emergency access, and why",
         "description": "Every emergency access to the hub, newest first, with the person who opened it, when, until when and the reason they gave. Read by whoever reads the hub - its members, and the workspace's owner while their access runs; to everybody else the hub is not there, and this answers not found as it does.\n",
         "responses": {
@@ -8750,6 +8756,8 @@
           "meta"
         ],
         "operationId": "openPrivateHub",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "privateHubAccessResponse",
         "summary": "Open a private hub through the emergency access",
         "description": "The workspace's owner - only the owner, as a person - opens a private hub they hold nothing in, for one hour, with a reason. Every member of the hub is told at once, in the same step: by mail where they have an address, and in the app whatever their mail did; the opening is in the workspace's trail. The hour is not extended, and a second access is refused while one runs (`containers.emergency_running`, naming its end); once it has ended, a new one is a new act, told again. During the hour the hub answers its opener as a hub of the workspace would, through the opener's own requests only - never into a device's copy, a calendar feed or a job.\nDemands a fresh step-up in the `X-Hubtask-Step-Up` header. A shared hub is refused (`containers.emergency_not_private`), and so is a private hub the owner already holds a role in (`containers.emergency_not_needed`).\n",
         "parameters": [
@@ -9044,6 +9052,8 @@
           "identity"
         ],
         "operationId": "listEmergencyNotices",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "privateHubAccessResponse",
         "summary": "The emergency accesses the caller was told of in the last 30 days",
         "description": "Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.\n",
         "responses": {
@@ -9955,6 +9965,8 @@
           "ai"
         ],
         "operationId": "readAiProvider",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "aiProviderResponse",
         "summary": "The workspace's AI provider, and whether it may be used",
         "description": "Which provider this workspace would ask, under which models, and whether AI processing is allowed here at all. Needs the permission that manages structure, or the auditor's read-only configuration permission: where a workspace's content may be sent is exactly what an auditor reads.\nThe API key is never a member of this answer. It is sealed at configuration time and opened only by the adapter that makes the call.\n",
         "responses": {
@@ -10029,6 +10041,8 @@
           "ai"
         ],
         "operationId": "readAiSource",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "aiSourceResponse",
         "summary": "Which AI answers this workspace, and what it may use",
         "description": "The workspace's own model, a model the installation offers, or none - with what the installation allows, whether that is locked and by whom, and the least a workspace's own model must declare. An offered model is answered by its name, its processor and its jurisdiction only. With nothing offered and nothing decided, `sources` is `OWN` and `offered` is empty: the workspace's own model, as always.\n",
         "responses": {
@@ -10154,6 +10168,8 @@
           "ai"
         ],
         "operationId": "readAiBudgetState",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "aiBudgetStateResponse",
         "summary": "How today's AI budget stands, for everybody here",
         "description": "Whether the source this workspace chose - the model the installation offers, its own model, or none - can still be asked today: `OK`, `NEARLY_SPENT` (more than nine tenths of the day's budget used), `SPENT` (none left until `renews_at`, the workspace's next midnight), or `OFF` (the workspace chose no source). A budget without a ceiling is `OK`.\nAnswered to every signed-in person of the workspace, whatever their role, because it is what a person reads before asking AI something; it names no number and nobody's use - those are the administrator's, under `GET /quotas`. It changes nothing and is not audited.\n",
         "responses": {
@@ -15635,6 +15651,8 @@
           "items"
         ],
         "operationId": "listActivity",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "activityEntryResponse",
         "description": "The entry's own history, newest first: who did what, and when. It is the product's record and not the audit trail - it is readable by whoever may read the entry, and it is deleted with the entry. Each step carries a message code rather than a sentence, and the client renders it. For an activity the history is compact: the code, the actor and the time, without the fields that moved.\n",
         "parameters": [
           {
@@ -17051,6 +17069,8 @@
           "items"
         ],
         "operationId": "listAttachments",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "mediaResponse",
         "description": "The entry's attachments as media objects, oldest first. Readable by whoever may read the entry.\n",
         "parameters": [
           {
@@ -17091,6 +17111,8 @@
           "items"
         ],
         "operationId": "attachMedia",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "attachmentsResponse",
         "description": "Attaches a media object to the entry. Idempotent: an entry that already carries it succeeds. The object has to be READY, of usage ATTACHMENT and of this workspace, and the entry's type has to carry the ATTACHMENTS capability - an activity does not. Attaching raises the object's reference count; the bytes are shared, never copied.\n",
         "responses": {
           "200": {
@@ -17113,6 +17135,8 @@
           "items"
         ],
         "operationId": "detachMedia",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "attachmentsResponse",
         "description": "Takes a media object off the entry. Idempotent: an entry that does not carry it succeeds. The object itself stays; once nothing references it, the reconciliation job removes it.\n",
         "responses": {
           "200": {

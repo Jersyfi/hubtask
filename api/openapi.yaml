@@ -6690,6 +6690,8 @@ paths:
     get:
       tags: [meta]
       operationId: readQuotas
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: quotaStandingResponse
       summary: The workspace's quota standing
       description: >
         Every quota as it applies to this workspace: the resolved
@@ -6785,6 +6787,8 @@ paths:
     get:
       tags: [meta]
       operationId: listPrivateHubs
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: privateHubSummaryResponse
       summary: The workspace's private hubs, without their names
       description: >
         Every private hub of the workspace, the trashed ones included: whose it is - the accounts
@@ -6810,6 +6814,8 @@ paths:
     get:
       tags: [meta]
       operationId: listPrivateHubAccesses
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: privateHubAccessResponse
       summary: Who opened this private hub through the emergency access, and why
       description: >
         Every emergency access to the hub, newest first, with the person who opened it, when, until
@@ -6830,6 +6836,8 @@ paths:
     post:
       tags: [meta]
       operationId: openPrivateHub
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: privateHubAccessResponse
       summary: Open a private hub through the emergency access
       description: >
         The workspace's owner - only the owner, as a person - opens a private hub they hold nothing in,
@@ -7092,6 +7100,8 @@ paths:
     get:
       tags: [identity]
       operationId: listEmergencyNotices
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: privateHubAccessResponse
       summary: The emergency accesses the caller was told of in the last 30 days
       description: >
         Each time the workspace's owner opened a private hub the caller is a member of, within the
@@ -7901,6 +7911,8 @@ paths:
     get:
       tags: [ai]
       operationId: readAiProvider
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: aiProviderResponse
       summary: The workspace's AI provider, and whether it may be used
       description: >
         Which provider this workspace would ask, under which models, and whether AI processing is
@@ -7970,6 +7982,8 @@ paths:
     get:
       tags: [ai]
       operationId: readAiSource
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: aiSourceResponse
       summary: Which AI answers this workspace, and what it may use
       description: >
         The workspace's own model, a model the installation offers, or none - with what the
@@ -8073,6 +8087,8 @@ paths:
     get:
       tags: [ai]
       operationId: readAiBudgetState
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: aiBudgetStateResponse
       summary: How today's AI budget stands, for everybody here
       description: >
         Whether the source this workspace chose - the model the installation offers, its own model,
@@ -11913,6 +11929,8 @@ paths:
     get:
       tags: [items]
       operationId: listActivity
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: activityEntryResponse
       description: >
         The entry's own history, newest first: who did what, and when. It is the product's record
         and not the audit trail - it is readable by whoever may read the entry, and it is deleted
@@ -12858,6 +12876,8 @@ paths:
     get:
       tags: [items]
       operationId: listAttachments
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: mediaResponse
       description: >
         The entry's attachments as media objects, oldest first. Readable by whoever may read the
         entry.
@@ -12881,6 +12901,8 @@ paths:
     put:
       tags: [items]
       operationId: attachMedia
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: attachmentsResponse
       description: >
         Attaches a media object to the entry. Idempotent: an entry that already carries it
         succeeds. The object has to be READY, of usage ATTACHMENT and of this workspace, and the
@@ -12898,6 +12920,8 @@ paths:
     delete:
       tags: [items]
       operationId: detachMedia
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: attachmentsResponse
       description: >
         Takes a media object off the entry. Idempotent: an entry that does not carry it succeeds.
         The object itself stays; once nothing references it, the reconciliation job removes it.
