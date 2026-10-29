@@ -13,6 +13,7 @@ import (
 
 // restDoors is every operation answered by the generated mapping, by operationId.
 var restDoors = map[string]restDoor{
+	"addComment":                {UseCase: "AddComment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addLabel":                  {UseCase: "AddLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addMember":                 {UseCase: "AddMember", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"aggregateView":             {UseCase: "AggregateView", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -39,6 +40,7 @@ var restDoors = map[string]restDoor{
 	"decideConfigProposal":      {UseCase: "DecideConfigProposal", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"defineCustomField":         {UseCase: "DefineCustomField", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/custom-fields/{id}", NullClears: false, Integers: []string(nil)},
 	"deleteBucket":              {UseCase: "DeleteBucket", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteComment":             {UseCase: "DeleteComment", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteCustomField":         {UseCase: "DeleteCustomField", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteEntryType":           {UseCase: "DeleteEntryType", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteLabel":               {UseCase: "DeleteLabel", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -48,6 +50,7 @@ var restDoors = map[string]restDoor{
 	"deleteRule":                {UseCase: "DeleteRule", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteWorkflow":            {UseCase: "DeleteWorkflow", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"disableRule":               {UseCase: "DisableRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"editComment":               {UseCase: "EditComment", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"emptyTrash":                {UseCase: "EmptyTrash", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"enableRule":                {UseCase: "EnableRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"evaluateEntryForm":         {UseCase: "EvaluateEntryForm", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -65,6 +68,7 @@ var restDoors = map[string]restDoor{
 	"grantRole":                 {UseCase: "GrantRole", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"linkEntries":               {UseCase: "LinkEntries", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listBuckets":               {UseCase: "ListBuckets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listComments":              {UseCase: "ListComments", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listConfigProposals":       {UseCase: "ListConfigProposals", Status: 200, Query: []string{"state"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listConfigTemplates":       {UseCase: "ListConfigTemplates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listConfigVersions":        {UseCase: "ListConfigVersions", Status: 200, Query: []string{"before", "hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"before"}},
@@ -139,6 +143,12 @@ var restDoors = map[string]restDoor{
 	"validateConfig":            {UseCase: "ValidateConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"verifyBackup":              {UseCase: "VerifyBackup", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"writeConfigSandbox":        {UseCase: "WriteConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+}
+
+// AddComment answers POST /items/{itemId}/comments by the generated mapping.
+func (c *RestController) AddComment(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.AddCommentParams) {
+	var body openapi.AddCommentJSONRequestBody
+	c.door(w, r, restDoors["addComment"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(commentResponse))
 }
 
 // AddLabel answers PUT /items/{itemId}/labels/{labelId} by the generated mapping.
@@ -297,6 +307,11 @@ func (c *RestController) DeleteBucket(w http.ResponseWriter, r *http.Request, co
 	c.door(w, r, restDoors["deleteBucket"], usecase.Input{"bucket_id": bucketId.String()}, params, nil, &answer)
 }
 
+// DeleteComment answers DELETE /items/{itemId}/comments/{commentId} by the generated mapping.
+func (c *RestController) DeleteComment(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, commentId openapi.CommentId, params openapi.DeleteCommentParams) {
+	c.door(w, r, restDoors["deleteComment"], usecase.Input{"item_id": itemId.String(), "comment_id": commentId.String()}, params, nil, nil)
+}
+
 // DeleteCustomField answers DELETE /custom-fields/{fieldId} by the generated mapping.
 func (c *RestController) DeleteCustomField(w http.ResponseWriter, r *http.Request, fieldId openapi.CustomFieldId, params openapi.DeleteCustomFieldParams) {
 	c.door(w, r, restDoors["deleteCustomField"], usecase.Input{"field_id": fieldId.String()}, params, nil, nil)
@@ -340,6 +355,12 @@ func (c *RestController) DeleteWorkflow(w http.ResponseWriter, r *http.Request, 
 // DisableRule answers POST /automation/rules/{ruleId}:disable by the generated mapping.
 func (c *RestController) DisableRule(w http.ResponseWriter, r *http.Request, ruleId openapi.RuleId, params openapi.DisableRuleParams) {
 	c.door(w, r, restDoors["disableRule"], usecase.Input{"rule_id": ruleId.String()}, params, nil, answerBy(ruleResponse))
+}
+
+// EditComment answers PATCH /items/{itemId}/comments/{commentId} by the generated mapping.
+func (c *RestController) EditComment(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, commentId openapi.CommentId, params openapi.EditCommentParams) {
+	var body openapi.EditCommentApplicationMergePatchPlusJSONRequestBody
+	c.door(w, r, restDoors["editComment"], usecase.Input{"item_id": itemId.String(), "comment_id": commentId.String()}, params, &body, answerBy(commentResponse))
 }
 
 // EmptyTrash answers POST /trash:empty by the generated mapping.
@@ -434,6 +455,11 @@ func (c *RestController) LinkEntries(w http.ResponseWriter, r *http.Request, ite
 // ListBuckets answers GET /containers/{containerId}/buckets by the generated mapping.
 func (c *RestController) ListBuckets(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId) {
 	c.door(w, r, restDoors["listBuckets"], usecase.Input{"collection_id": containerId.String()}, nil, nil, answerRows(bucketResponse))
+}
+
+// ListComments answers GET /items/{itemId}/comments by the generated mapping.
+func (c *RestController) ListComments(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.ListCommentsParams) {
+	c.door(w, r, restDoors["listComments"], usecase.Input{"item_id": itemId.String()}, params, nil, answerPage(commentResponse))
 }
 
 // ListConfigProposals answers GET /config/proposals by the generated mapping.

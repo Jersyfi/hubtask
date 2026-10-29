@@ -15424,6 +15424,8 @@
           "comments"
         ],
         "operationId": "listComments",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "commentResponse",
         "parameters": [
           {
             "$ref": "#/components/parameters/Cursor"
@@ -15453,6 +15455,8 @@
           "comments"
         ],
         "operationId": "addComment",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "commentResponse",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -15515,6 +15519,8 @@
           "comments"
         ],
         "operationId": "editComment",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "commentResponse",
         "description": "Rewrites a comment's text. Only its author or an administrator may; anybody else is refused exactly as any other missing permission is. The displaced text is not preserved - an edit is last writer wins over the body - and a deleted comment cannot be edited back into existence.\n",
         "parameters": [
           {
@@ -15568,6 +15574,7 @@
           "comments"
         ],
         "operationId": "deleteComment",
+        "x-hubtask-rest": "generated",
         "description": "Removes a comment's text and marks it deleted, keeping the thread readable: the comment still answers with its identifier, author and timestamps, so a reply does not dangle. Only the author or an administrator may. Idempotent - deleting a deleted comment succeeds and announces nothing.\n",
         "parameters": [
           {

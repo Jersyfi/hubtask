@@ -11774,6 +11774,8 @@ paths:
     get:
       tags: [comments]
       operationId: listComments
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: commentResponse
       parameters:
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/PageSize"
@@ -11790,6 +11792,8 @@ paths:
     post:
       tags: [comments]
       operationId: addComment
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: commentResponse
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -11823,6 +11827,8 @@ paths:
     patch:
       tags: [comments]
       operationId: editComment
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: commentResponse
       description: >
         Rewrites a comment's text. Only its author or an administrator may; anybody else is
         refused exactly as any other missing permission is. The displaced text is not preserved -
@@ -11856,6 +11862,7 @@ paths:
     delete:
       tags: [comments]
       operationId: deleteComment
+      x-hubtask-rest: generated
       description: >
         Removes a comment's text and marks it deleted, keeping the thread readable: the comment
         still answers with its identifier, author and timestamps, so a reply does not dangle. Only
