@@ -162,7 +162,7 @@ func TestTheResourceListEnumeratesWhatCanBeEnumerated(t *testing.T) {
 
 	result, _ := answer["result"].(map[string]any)
 	resources, _ := result["resources"].([]any)
-	if len(resources) != 2 {
+	if len(resources) != 2+len(FixedResources()) {
 		t.Fatalf("the list answered %v", result)
 	}
 
@@ -297,5 +297,27 @@ func TestUriOfAndParseAreEachOthersInverse(t *testing.T) {
 		if parsed.Segment != kind.Segment || back != id {
 			t.Errorf("%q parsed as %s/%s", uri, parsed.Segment, back)
 		}
+	}
+}
+
+// The configuration document is a resource an agent reads before it plans (config-document.md §2):
+// one address per workspace, read through the same use case as GET /config.
+func TestTheConfigurationInForceIsAResource(t *testing.T) {
+	store := listCatalogue()
+	store.outs["ExportConfig"] = usecase.Output{"hash": "abc", "document": map[string]any{}}
+
+	answer := rpc(t, serverWith(store),
+		`{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"hubtask://config/current"}}`, true)
+	result, _ := answer["result"].(map[string]any)
+	contents, _ := result["contents"].([]any)
+	if len(contents) != 1 {
+		t.Fatalf("the read answered %v", answer)
+	}
+	var read bool
+	for _, call := range store.calls {
+		read = read || call.name == "ExportConfig"
+	}
+	if !read {
+		t.Error("the resource was not read through ExportConfig")
 	}
 }

@@ -429,6 +429,13 @@ func (s Server) list(ctx context.Context, params json.RawMessage) (map[string]an
 
 	resources := make([]Resource, 0, 16)
 	next := ""
+	if call.Cursor == "" {
+		for _, fixed := range FixedResources() {
+			resources = append(resources, Resource{
+				URI: fixed.URI, Name: fixed.Name, Title: fixed.Title, Description: fixed.Description, MimeType: MimeType,
+			})
+		}
+	}
 
 	for _, kind := range ResourceKinds() {
 		switch {
@@ -475,9 +482,15 @@ func (s Server) read(ctx context.Context, params json.RawMessage) (map[string]an
 		return nil, &rpcError{Code: codeInvalidParams, Message: "invalid params"}
 	}
 
-	kind, id, err := ParseResourceURI(call.URI)
-	if err != nil {
-		return nil, &rpcError{Code: codeInvalidParams, Message: err.Error()}
+	useCase, input := "", usecase.Input{}
+	if fixed, found := fixedResourceOf(call.URI); found {
+		useCase = fixed.UseCase
+	} else {
+		kind, id, err := ParseResourceURI(call.URI)
+		if err != nil {
+			return nil, &rpcError{Code: codeInvalidParams, Message: err.Error()}
+		}
+		useCase, input = kind.UseCase, usecase.Input{kind.Field: id.String()}
 	}
 
 	actor, rpcErr := agentFrom(ctx)
@@ -485,9 +498,7 @@ func (s Server) read(ctx context.Context, params json.RawMessage) (map[string]an
 		return nil, rpcErr
 	}
 
-	out, err := s.Catalogue.Invoke(ctx, kind.UseCase, actor, usecase.Input{
-		kind.Field: id.String(),
-	})
+	out, err := s.Catalogue.Invoke(ctx, useCase, actor, input)
 	if err != nil {
 		return nil, refusal(err)
 	}

@@ -83,6 +83,48 @@ var resourceKinds = []ResourceKind{
 	},
 }
 
+// FixedResource is one resource with a single address per workspace: the configuration document's
+// schema, the document in force and its history (config-document.md §2). A read of one takes no
+// identifier, so it is a table of its own beside the kinds.
+type FixedResource struct {
+	URI         string
+	UseCase     string
+	Name        string
+	Title       string
+	Description string
+}
+
+var fixedResources = []FixedResource{
+	{
+		URI: Scheme + "config/schema", UseCase: "ReadConfigSchema", Name: "config-schema",
+		Title:       "Configuration schema",
+		Description: "The configuration document's JSON Schema: sections, stable keys, each attribute's type and allowed values.",
+	},
+	{
+		URI: Scheme + "config/current", UseCase: "ExportConfig", Name: "config-current",
+		Title: "Configuration in force",
+		Description: "The workspace's configuration document as it is in force, with its hash - " +
+			"what config_plan plans against.",
+	},
+	{
+		URI: Scheme + "config/versions", UseCase: "ListConfigVersions", Name: "config-versions",
+		Title:       "Configuration history",
+		Description: "The configuration's versions, newest first, with who applied each and the counts.",
+	},
+}
+
+// FixedResources answers the table.
+func FixedResources() []FixedResource { return fixedResources }
+
+func fixedResourceOf(uri string) (FixedResource, bool) {
+	for _, resource := range fixedResources {
+		if resource.URI == uri {
+			return resource, true
+		}
+	}
+	return FixedResource{}, false
+}
+
 // MimeType is what every resource in this server answers as. One type for all of them, because
 // every one of them is a use case result rendered the way `tools/call` renders one - a client that
 // can read a tool result can read a resource.
