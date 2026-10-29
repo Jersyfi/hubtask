@@ -360,3 +360,10 @@ test('a write its caller stopped is neither queued nor taken for an outage', asy
   assert.equal(answer.title, 'Renamed');
   assert.equal(engine.queueState.count, 0);
 });
+
+test('an entry deleted offline is queued once: a deletion predicts no document and is still queued', async () => {
+  const { transport, engine } = await synced();
+  transport.down = true;
+  await engine.mutate('DELETE', `/items/${ITEM}`, undefined, { invalidates: ['/items'] });
+  assert.equal(engine.queueState.count, 1, 'queued once, not queued and then queued again after a failed send');
+});

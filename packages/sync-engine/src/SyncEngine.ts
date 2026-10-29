@@ -523,7 +523,7 @@ export class SyncEngine {
       const waiting = this.#queueState.count > 0 || !this.#reachable;
       if (waiting) {
         const queued = await this.#enqueue(method, path, body, options);
-        if (queued !== undefined) return queued as T;
+        if (queued) return queued.prediction as T;
       }
     }
     try {
@@ -538,22 +538,24 @@ export class SyncEngine {
       if (options.signal?.aborted) throw cause;
       if (!(cause instanceof TransportError) || !unreachable(cause) || !queue || !this.#mutationFor) throw cause;
       const queued = await this.#enqueue(method, path, body, options);
-      if (queued === undefined) throw cause;
-      return queued as T;
+      if (!queued) throw cause;
+      return queued.prediction as T;
     }
   }
 
   /**
    * Queues a write the application knows how to queue, applies its prediction to the replica,
    * tells the screens that show it, and pushes at once where the server answers. Answers the
-   * prediction as the write's result, or `undefined` for a write that cannot be queued.
+   * prediction as the write's result, or `undefined` for a write that cannot be queued. A queued
+   * deletion predicts no document, which is why the answer is wrapped: an empty prediction is
+   * still a queued write and must not be sent a second time.
    */
   async #enqueue(
     method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
     path: string,
     body: unknown,
     options: MutateOptions,
-  ): Promise<unknown> {
+  ): Promise<{ prediction: unknown } | undefined> {
     const queue = this.#queue;
     const replica = this.#replica;
     if (!queue || !replica || !this.#mutationFor) return undefined;
@@ -576,7 +578,7 @@ export class SyncEngine {
     const entity = write.kind === 'COMMENT_ADD' ? 'comments' : 'items';
     const entityId = write.kind === 'COMMENT_ADD' ? String(write.payload?.id ?? mutation.op_id) : write.itemId;
     const held = await replica.store.get<{ document: unknown }>(entity, entityId);
-    return held?.document;
+    return { prediction: held?.document };
   }
 
   /** The next clock reading, formatted; the store is told afterwards without being waited for. */
