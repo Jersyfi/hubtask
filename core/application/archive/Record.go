@@ -782,7 +782,11 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// of which the archive carries, and every one of them is a moment in the *source* system's
 	// future - a restore months later would owe a night that has long passed. The rules themselves
 	// are restored; what they owe is worked out again from the anchors, as it always is.
-	"rule_occurrence":   "§8.4 - a debt owed at a moment in the source system's future; the rules are restored, what they owe is recomputed",
+	"rule_occurrence": "§8.4 - a debt owed at a moment in the source system's future; the rules are restored, what they owe is recomputed",
+	// A running clock, like an occurrence: its due moment is in the source system's future, and a
+	// restore months later would fire every one at once. What a fired timer meant is recorded by
+	// its purpose's own data (a breach on the entry), which the archive carries.
+	"durable_timer":     "§8.4 - a clock running towards a moment in the source system's future; what a fired one meant is in the entries",
 	"webhook_delivery":  "§8.4 - nothing is re-delivered",
 	"outbox_event":      "§8.4 - the archive's outbox is not imported",
 	"event_consumption": "the outbox's companion; without the outbox it says nothing",

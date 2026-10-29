@@ -214,7 +214,8 @@ reasoning is backup-restore.md §8.4):
   identities, the workspace's host names, calendar feed token hashes, the jumble intake credential,
   device registrations. A copy of a credential is a credential.
 * **Live plumbing**: the outbox and event consumptions, notification rows, webhook deliveries,
-  rule runs and occurrences, idempotency keys, the synchronisation's change log, operation log,
+  rule runs and occurrences, durable timers (migration 0229; a clock towards the source system's
+  future), idempotency keys, the synchronisation's change log, operation log,
   field clocks and tombstones, usage records.
 * **Projections rebuilt from the archive**: the typed custom field values (`entry_field_value`,
   migration 0211), which the restore's own write of each entry's `custom_fields` rebuilds - the

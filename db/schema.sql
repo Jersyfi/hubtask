@@ -1452,6 +1452,32 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON work_item_announcement, work_item_flow, 
   TO hubtask_app;
 -- work_item_mirror_side_rows(work_item) and the trigger work_item_side_rows: migration 0227.
 
+-- Durable timers on business calendars (migration 0229, F-10, domain-model.md §3.7).
+CREATE TABLE durable_timer (
+  id               uuid PRIMARY KEY,
+  tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  purpose          text NOT NULL CHECK (purpose IN ('SLA', 'APPROVAL', 'EFFECTIVENESS_CHECK')),
+  subject_id       uuid NOT NULL,
+  name             text NOT NULL CHECK (name ~ '^[a-z][a-z0-9_]{0,49}$'),
+  calendar         jsonb NOT NULL,   -- the calendar it was armed on
+  budget_seconds   bigint NOT NULL CHECK (budget_seconds > 0),
+  consumed_seconds bigint NOT NULL DEFAULT 0 CHECK (consumed_seconds >= 0),
+  running_since    timestamptz,
+  due_at           timestamptz,
+  state            text NOT NULL CHECK (state IN ('RUNNING', 'PAUSED', 'FIRED', 'STOPPED')),
+  fired_at         timestamptz,
+  created_at       timestamptz NOT NULL,
+  updated_at       timestamptz NOT NULL,
+  version          integer NOT NULL DEFAULT 1,
+  CHECK ((state = 'RUNNING') = (running_since IS NOT NULL)),
+  CHECK (state <> 'RUNNING' OR due_at IS NOT NULL),
+  CHECK ((state = 'FIRED') = (fired_at IS NOT NULL))
+);
+CREATE UNIQUE INDEX durable_timer_live_uq ON durable_timer (tenant_id, purpose, subject_id, name)
+  WHERE state IN ('RUNNING', 'PAUSED');
+CREATE INDEX durable_timer_due_idx ON durable_timer (tenant_id, due_at) WHERE state = 'RUNNING';
+GRANT SELECT, INSERT, UPDATE, DELETE ON durable_timer TO hubtask_app;
+
 -- Links and references (migration 0213, F-3). The six shipped link types have no row.
 CREATE TABLE link_type (
   id           uuid PRIMARY KEY,
@@ -3211,7 +3237,7 @@ BEGIN
     'custom_role','custom_role_grant',
     'config_revision','config_proposal','config_template','config_template_use',
     'config_sandbox',
-    'work_item_announcement','work_item_flow','work_item_retention'
+    'work_item_announcement','work_item_flow','work_item_retention','durable_timer'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);

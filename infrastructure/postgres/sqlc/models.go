@@ -980,6 +980,24 @@ type DeletionJournal struct {
 	Reason    string
 }
 
+type DurableTimer struct {
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	Purpose         string
+	SubjectID       pgtype.UUID
+	Name            string
+	Calendar        []byte
+	BudgetSeconds   int64
+	ConsumedSeconds int64
+	RunningSince    pgtype.Timestamptz
+	DueAt           pgtype.Timestamptz
+	State           string
+	FiredAt         pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+}
+
 type EntryFieldValue struct {
 	TenantID     pgtype.UUID
 	EntryID      pgtype.UUID
