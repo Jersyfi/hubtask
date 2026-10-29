@@ -1344,6 +1344,10 @@ class WorkflowDraft(TypedDict, total=False):
 class WorkflowPublish(TypedDict, total=False):
     mapping: dict[str, Any]
 
+class WorkflowPublishPreview(TypedDict, total=False):
+    mapping: dict[str, Any]
+    shape: "WorkflowShape"
+
 class WorkflowPreview(TypedDict, total=False):
     moves: Required[list[dict[str, Any]]]
     entries: Required[int]

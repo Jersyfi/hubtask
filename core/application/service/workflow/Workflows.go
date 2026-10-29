@@ -679,7 +679,9 @@ func (h SaveWorkflowDraft) Descriptor() usecase.Descriptor {
 }
 
 // publishPlan answers what publishing a workflow's draft does.
-func (d Desk) publishPlan(ctx context.Context, key string, mapping map[string]string) (
+// A shape given stands in for the stored draft: what a configuration plan previews before it
+// saves anything.
+func (d Desk) publishPlan(ctx context.Context, key string, mapping map[string]string, shape *domain.WorkflowShape) (
 	domain.Workflow, domain.Workflow, []domain.StatusMove, map[string]int, error,
 ) {
 	set, err := d.read(ctx)
@@ -690,7 +692,13 @@ func (d Desk) publishPlan(ctx context.Context, key string, mapping map[string]st
 	if !found {
 		return domain.Workflow{}, domain.Workflow{}, nil, nil, shared.ErrNotFound.WithDetail("workflows.not_found")
 	}
-	next, err := current.Publish(shared.ID(""), d.Clock.Now())
+	drafted := current
+	if shape != nil {
+		if drafted, err = current.WithDraft(*shape, d.Clock.Now(), d.Text); err != nil {
+			return domain.Workflow{}, domain.Workflow{}, nil, nil, err
+		}
+	}
+	next, err := drafted.Publish(shared.ID(""), d.Clock.Now())
 	if err != nil {
 		return domain.Workflow{}, domain.Workflow{}, nil, nil, err
 	}
@@ -757,19 +765,32 @@ func (h PreviewWorkflowPublish) Descriptor() usecase.Descriptor {
 	return workflowDescriptor(PreviewWorkflowPublishName,
 		"Answers what publishing a workflow's draft would do: which statuses in use it removes with "+
 			"their counts, how many entries move from which status to which in each collection, and "+
-			"the board's columns before and after. Changes nothing.",
+			"the board's columns before and after. Given a shape, answers for it instead of the "+
+			"stored draft. Changes nothing.",
 		"None. Reads only.", typesWrite, true, WorkflowPublishedAction,
 		[]usecase.Field{
 			{Name: "key", Kind: usecase.KindString, Required: true, Description: "The workflow."},
 			{Name: "mapping", Kind: usecase.KindObject, Description: "Per removed status, the status its entries move to."},
+			{Name: "shape", Kind: usecase.KindObject, Description: "A shape to preview instead of the stored draft (schema WorkflowShape)."},
 		},
 		func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			if err := h.Desk.authorizeShape(ctx, actor, WorkflowPublishedAction); err != nil {
 				return nil, err
 			}
+			var shape *domain.WorkflowShape
+			if in.Present("shape") {
+				read, err := ShapeFromInput(in["shape"])
+				if err != nil {
+					return nil, err
+				}
+				if err := h.Desk.compile(read); err != nil {
+					return nil, err
+				}
+				shape = &read
+			}
 			var out usecase.Output
 			err := h.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-				current, next, moves, removed, err := h.Desk.publishPlan(ctx, in.String("key"), mappingFromInput(in["mapping"]))
+				current, next, moves, removed, err := h.Desk.publishPlan(ctx, in.String("key"), mappingFromInput(in["mapping"]), shape)
 				if err != nil {
 					return err
 				}
@@ -794,7 +815,7 @@ func (h PublishWorkflow) Execute(ctx context.Context, actor appshared.ActorConte
 		moved     int
 	)
 	err := h.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		current, next, moves, removed, err := h.Desk.publishPlan(ctx, key, mapping)
+		current, next, moves, removed, err := h.Desk.publishPlan(ctx, key, mapping, nil)
 		if err != nil {
 			return err
 		}

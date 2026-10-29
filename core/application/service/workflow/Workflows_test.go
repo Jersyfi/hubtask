@@ -265,3 +265,31 @@ func TestAStepNamesOnlyACustomRoleTheWorkspaceDefines(t *testing.T) {
 		t.Fatalf("a draft with an undefined role: %v, want workflows.role_unknown", err)
 	}
 }
+
+// UC-FLW-05 check 2: the preview answers for a shape it is given as for a stored draft, so a
+// configuration plan names the entries a workflow's change moves before anything is saved.
+func TestPreviewingAShapeAnswersWithoutADraft(t *testing.T) {
+	f := newDesk()
+	if _, err := (workflow.CreateWorkflow{Desk: f.desk}).Execute(t.Context(), actor(), "service", "Service", serviceShape(true)); err != nil {
+		t.Fatalf("creating: %v", err)
+	}
+	f.workflows.schemes = []work.WorkflowScheme{{ContainerID: hub, WorkflowKey: "service"}}
+	f.workflows.groups = []work.StatusGroup{{CollectionID: collection, EntryType: "task", Status: "waiting", Count: 12}}
+	shape := map[string]any(workflow.ShapeOutput(serviceShape(false)))
+	preview := workflow.PreviewWorkflowPublish{Desk: f.desk}.Descriptor().Handler
+
+	unmapped, err := preview.Invoke(t.Context(), actor(), usecase.Input{"key": "service", "shape": shape})
+	removed, _ := unmapped["removed"].([]usecase.Output)
+	if err != nil || len(removed) != 1 || removed[0]["status"] != "waiting" || removed[0]["count"] != 12 {
+		t.Fatalf("a shape removing a status in use names it with its count: %+v: %v", unmapped, err)
+	}
+	out, err := preview.Invoke(t.Context(), actor(), usecase.Input{
+		"key": "service", "shape": shape, "mapping": map[string]any{"waiting": "doing"},
+	})
+	if err != nil || out["entries"] != 12 {
+		t.Fatalf("preview %+v: %v", out, err)
+	}
+	if f.workflows.rows[0].Draft != nil || len(f.workflows.moves) != 0 {
+		t.Fatal("previewing a shape saved or moved something")
+	}
+}

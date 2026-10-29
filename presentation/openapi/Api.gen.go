@@ -14944,6 +14944,13 @@ type WorkflowPublish struct {
 	Mapping *map[string]string `json:"mapping,omitempty"`
 }
 
+// WorkflowPublishPreview defines model for WorkflowPublishPreview.
+type WorkflowPublishPreview struct {
+	// Mapping Per removed status, the status its entries move to.
+	Mapping *map[string]string `json:"mapping,omitempty"`
+	Shape   *WorkflowShape     `json:"shape,omitempty"`
+}
+
 // WorkflowSchemeChange defines model for WorkflowSchemeChange.
 type WorkflowSchemeChange struct {
 	// Confirm True once the person has seen the preview.
@@ -17456,7 +17463,7 @@ type SaveWorkflowDraftJSONRequestBody = WorkflowDraft
 type TryWorkflowStepJSONRequestBody TryWorkflowStepJSONBody
 
 // PreviewWorkflowPublishJSONRequestBody defines body for PreviewWorkflowPublish for application/json ContentType.
-type PreviewWorkflowPublishJSONRequestBody = WorkflowPublish
+type PreviewWorkflowPublishJSONRequestBody = WorkflowPublishPreview
 
 // PublishWorkflowJSONRequestBody defines body for PublishWorkflow for application/json ContentType.
 type PublishWorkflowJSONRequestBody = WorkflowPublish

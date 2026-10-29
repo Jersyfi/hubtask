@@ -119,12 +119,22 @@ func mappingOf(r *http.Request) (map[string]any, error) {
 
 // PreviewWorkflowPublish answers POST /workflows/{key}:preview-publish (UC-FLW-05 check 2).
 func (c *RestController) PreviewWorkflowPublish(w http.ResponseWriter, r *http.Request, key string) {
-	mapping, err := mappingOf(r)
-	if err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
+	in := usecase.Input{"key": key, "mapping": map[string]any{}}
+	if r.ContentLength != 0 {
+		var body openapi.WorkflowPublishPreview
+		document, err := decodeDocument(r, &body)
+		if err != nil {
+			WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+			return
+		}
+		if mapping, held := document["mapping"].(map[string]any); held {
+			in["mapping"] = mapping
+		}
+		if shape, held := document["shape"]; held && shape != nil {
+			in["shape"] = shape
+		}
 	}
-	out, ok := c.read(w, r, previewWorkflowPublishUseCase, usecase.Input{"key": key, "mapping": mapping})
+	out, ok := c.read(w, r, previewWorkflowPublishUseCase, in)
 	if !ok {
 		return
 	}

@@ -1371,7 +1371,7 @@ class Client:
         """Delete an unused workflow"""
         return self._call("DELETE", "/workflows/{key}", {"key": key}, None, {}, None, "none", None, "void")
 
-    def preview_workflow_publish(self, key: str, body: "WorkflowPublish") -> "WorkflowPreview":
+    def preview_workflow_publish(self, key: str, body: "WorkflowPublishPreview") -> "WorkflowPreview":
         """Show what publishing the draft would do"""
         return self._call("POST", "/workflows/{key}:preview-publish", {"key": key}, None, {}, body, "json", "application/json", "json")
 

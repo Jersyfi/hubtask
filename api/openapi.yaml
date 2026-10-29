@@ -9261,13 +9261,14 @@ paths:
       description: >
         Answers, changing nothing, which statuses in use the draft removes with their counts, how
         many entries move from which status to which in each collection, and the board's columns
-        before and after.
+        before and after. Given `shape`, it answers for that shape instead of the stored draft -
+        what a configuration plan shows before anything is saved.
       requestBody:
         required: false
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/WorkflowPublish"
+              $ref: "#/components/schemas/WorkflowPublishPreview"
       responses:
         "200":
           description: What publishing would do
@@ -17091,6 +17092,16 @@ components:
           type: object
           additionalProperties: { type: string }
           description: Per removed status, the status its entries move to.
+
+    WorkflowPublishPreview:
+      type: object
+      properties:
+        mapping:
+          type: object
+          additionalProperties: { type: string }
+          description: Per removed status, the status its entries move to.
+        shape:
+          $ref: "#/components/schemas/WorkflowShape"
 
     WorkflowPreview:
       type: object
