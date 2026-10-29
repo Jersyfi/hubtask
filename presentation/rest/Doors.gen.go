@@ -40,13 +40,18 @@ var restDoors = map[string]restDoor{
 	"deleteLabel":               {UseCase: "DeleteLabel", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteLinkType":            {UseCase: "DeleteLinkType", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteRole":                {UseCase: "DeleteRole", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteRule":                {UseCase: "DeleteRule", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteWorkflow":            {UseCase: "DeleteWorkflow", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"disableRule":               {UseCase: "DisableRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"emptyTrash":                {UseCase: "EmptyTrash", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"enableRule":                {UseCase: "EnableRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"evaluateEntryForm":         {UseCase: "EvaluateEntryForm", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"explainAccess":             {UseCase: "ExplainAccess", Status: 200, Query: []string{"account_id", "permission", "scope_id", "scope_type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"explainConfig":             {UseCase: "ExplainConfig", Status: 200, Query: []string{"hub_id", "key"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"exportConfig":              {UseCase: "ExportConfig", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "hash", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getJob":                    {UseCase: "GetJob", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getRule":                   {UseCase: "GetRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getRuleRun":                {UseCase: "GetRuleRun", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"giveKudos":                 {UseCase: "GiveKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"grantRole":                 {UseCase: "GrantRole", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"linkEntries":               {UseCase: "LinkEntries", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -277,14 +282,29 @@ func (c *RestController) DeleteRole(w http.ResponseWriter, r *http.Request, key 
 	c.door(w, r, restDoors["deleteRole"], usecase.Input{"key": key}, nil, nil, nil)
 }
 
+// DeleteRule answers DELETE /automation/rules/{ruleId} by the generated mapping.
+func (c *RestController) DeleteRule(w http.ResponseWriter, r *http.Request, ruleId openapi.RuleId) {
+	c.door(w, r, restDoors["deleteRule"], usecase.Input{"rule_id": ruleId.String()}, nil, nil, nil)
+}
+
 // DeleteWorkflow answers DELETE /workflows/{key} by the generated mapping.
 func (c *RestController) DeleteWorkflow(w http.ResponseWriter, r *http.Request, key string) {
 	c.door(w, r, restDoors["deleteWorkflow"], usecase.Input{"key": key}, nil, nil, nil)
 }
 
+// DisableRule answers POST /automation/rules/{ruleId}:disable by the generated mapping.
+func (c *RestController) DisableRule(w http.ResponseWriter, r *http.Request, ruleId openapi.RuleId, params openapi.DisableRuleParams) {
+	c.door(w, r, restDoors["disableRule"], usecase.Input{"rule_id": ruleId.String()}, params, nil, answerBy(ruleResponse))
+}
+
 // EmptyTrash answers POST /trash:empty by the generated mapping.
 func (c *RestController) EmptyTrash(w http.ResponseWriter, r *http.Request, params openapi.EmptyTrashParams) {
 	c.door(w, r, restDoors["emptyTrash"], usecase.Input{}, params, nil, answerBy(purgeSummaryResponse))
+}
+
+// EnableRule answers POST /automation/rules/{ruleId}:enable by the generated mapping.
+func (c *RestController) EnableRule(w http.ResponseWriter, r *http.Request, ruleId openapi.RuleId, params openapi.EnableRuleParams) {
+	c.door(w, r, restDoors["enableRule"], usecase.Input{"rule_id": ruleId.String()}, params, nil, answerBy(ruleResponse))
 }
 
 // EvaluateEntryForm answers POST /entry-types/{key}/form:evaluate by the generated mapping.
@@ -315,6 +335,16 @@ func (c *RestController) ExportConfig(w http.ResponseWriter, r *http.Request, pa
 // GetJob answers GET /jobs/{jobId} by the generated mapping.
 func (c *RestController) GetJob(w http.ResponseWriter, r *http.Request, jobId openapi.JobId) {
 	c.door(w, r, restDoors["getJob"], usecase.Input{"job_id": jobId.String()}, nil, nil, answerBy(jobResponse))
+}
+
+// GetRule answers GET /automation/rules/{ruleId} by the generated mapping.
+func (c *RestController) GetRule(w http.ResponseWriter, r *http.Request, ruleId openapi.RuleId) {
+	c.door(w, r, restDoors["getRule"], usecase.Input{"rule_id": ruleId.String()}, nil, nil, answerBy(ruleResponse))
+}
+
+// GetRuleRun answers GET /automation/runs/{runId} by the generated mapping.
+func (c *RestController) GetRuleRun(w http.ResponseWriter, r *http.Request, runId openapi_types.UUID) {
+	c.door(w, r, restDoors["getRuleRun"], usecase.Input{"run_id": runId.String()}, nil, nil, answerBy(runResponse))
 }
 
 // GiveKudos answers PUT /items/{itemId}/kudos by the generated mapping.

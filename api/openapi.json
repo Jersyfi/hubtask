@@ -1762,6 +1762,8 @@
           "automation"
         ],
         "operationId": "getRule",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "ruleResponse",
         "summary": "One rule, as it stands",
         "responses": {
           "200": {
@@ -1817,6 +1819,7 @@
           "automation"
         ],
         "operationId": "deleteRule",
+        "x-hubtask-rest": "generated",
         "summary": "Remove a rule",
         "description": "A soft delete. The rule stops matching anything at once and disappears from the listing, and the runs it produced stay readable: a run log whose rule vanished would be a record of actions nobody can account for.\n",
         "responses": {
@@ -1840,6 +1843,8 @@
           "automation"
         ],
         "operationId": "enableRule",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "ruleResponse",
         "summary": "Switch a rule on",
         "description": "Its own call and its own audit entry, on both sides. Letting a rule act on the workspace is the decision worth recording, and the permission is re-checked here rather than trusted from whenever the rule was written: the writer's rights may have narrowed since.\nEnabling also clears the failure counter, because a rule somebody has looked at and turned back on is a rule whose run of failures has been dealt with.\n",
         "parameters": [
@@ -1875,6 +1880,8 @@
           "automation"
         ],
         "operationId": "disableRule",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "ruleResponse",
         "summary": "Switch a rule off",
         "description": "The rule stays, and stops acting. What a run of failures does automatically, a person can do deliberately - and the trail says which of the two it was.\n",
         "parameters": [
@@ -2373,6 +2380,8 @@
           "automation"
         ],
         "operationId": "getRuleRun",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "runResponse",
         "summary": "One run, with every condition and every action",
         "responses": {
           "200": {

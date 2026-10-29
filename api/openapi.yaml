@@ -1220,6 +1220,8 @@ paths:
     get:
       tags: [automation]
       operationId: getRule
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: ruleResponse
       summary: One rule, as it stands
       responses:
         "200":
@@ -1259,6 +1261,7 @@ paths:
     delete:
       tags: [automation]
       operationId: deleteRule
+      x-hubtask-rest: generated
       summary: Remove a rule
       description: >
         A soft delete. The rule stops matching anything at once and disappears from the listing,
@@ -1276,6 +1279,8 @@ paths:
     post:
       tags: [automation]
       operationId: enableRule
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: ruleResponse
       summary: Switch a rule on
       description: >
         Its own call and its own audit entry, on both sides. Letting a rule act on the workspace is
@@ -1302,6 +1307,8 @@ paths:
     post:
       tags: [automation]
       operationId: disableRule
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: ruleResponse
       summary: Switch a rule off
       description: >
         The rule stays, and stops acting. What a run of failures does automatically, a person can
@@ -1737,6 +1744,8 @@ paths:
     get:
       tags: [automation]
       operationId: getRuleRun
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: runResponse
       summary: One run, with every condition and every action
       responses:
         "200":

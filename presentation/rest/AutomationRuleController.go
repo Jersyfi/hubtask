@@ -22,12 +22,8 @@ import (
 
 const (
 	createRuleUseCase    = "CreateRule"
-	getRuleUseCase       = "GetRule"
 	listRulesUseCase     = "ListRules"
 	updateRuleUseCase    = "UpdateRule"
-	enableRuleUseCase    = "EnableRule"
-	disableRuleUseCase   = "DisableRule"
-	deleteRuleUseCase    = "DeleteRule"
 	triggerRuleUseCase   = "TriggerRuleManually"
 	rotateInboundUseCase = "RotateInboundTrigger"
 )
@@ -94,18 +90,6 @@ func (c *RestController) CreateRule(
 	})
 }
 
-// GetAutomationRule answers GET /automation/rules/{ruleId}.
-func (c *RestController) GetRule(
-	w http.ResponseWriter, r *http.Request, ruleID openapi.RuleId,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), getRuleUseCase, actor,
-			usecase.Input{"rule_id": ruleID.String()})
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, ruleResponse(out))
-	})
-}
-
 // UpdateAutomationRule answers PATCH /automation/rules/{ruleId}.
 func (c *RestController) UpdateRule(
 	w http.ResponseWriter, r *http.Request, ruleID openapi.RuleId,
@@ -147,47 +131,6 @@ func (c *RestController) UpdateRule(
 		return c.UseCases.Invoke(r.Context(), updateRuleUseCase, actor, input)
 	}, func(out usecase.Output) {
 		writeJSON(w, r, http.StatusOK, ruleResponse(out))
-	})
-}
-
-// EnableAutomationRule answers POST /automation/rules/{ruleId}:enable.
-func (c *RestController) EnableRule(
-	w http.ResponseWriter, r *http.Request, ruleID openapi.RuleId,
-	_ openapi.EnableRuleParams,
-) {
-	c.switchRule(w, r, ruleID, enableRuleUseCase)
-}
-
-// DisableAutomationRule answers POST /automation/rules/{ruleId}:disable.
-func (c *RestController) DisableRule(
-	w http.ResponseWriter, r *http.Request, ruleID openapi.RuleId,
-	_ openapi.DisableRuleParams,
-) {
-	c.switchRule(w, r, ruleID, disableRuleUseCase)
-}
-
-// switchRule is what the two switches share: the same request and the same answer, and only the use
-// case behind them differs - which is exactly the distinction the two routes exist to record.
-func (c *RestController) switchRule(
-	w http.ResponseWriter, r *http.Request, ruleID openapi.RuleId, useCase string,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), useCase, actor,
-			usecase.Input{"rule_id": ruleID.String()})
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, ruleResponse(out))
-	})
-}
-
-// DeleteAutomationRule answers DELETE /automation/rules/{ruleId}.
-func (c *RestController) DeleteRule(
-	w http.ResponseWriter, r *http.Request, ruleID openapi.RuleId,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), deleteRuleUseCase, actor,
-			usecase.Input{"rule_id": ruleID.String()})
-	}, func(_ usecase.Output) {
-		w.WriteHeader(http.StatusNoContent)
 	})
 }
 
@@ -465,7 +408,6 @@ func textField(document map[string]any, name string) string {
 
 const (
 	listRuleRunsUseCase = "ListRuleRuns"
-	getRuleRunUseCase   = "GetRuleRun"
 )
 
 // ListRuleRuns answers GET /automation/runs.
@@ -517,18 +459,6 @@ func (c *RestController) ReplayRuleRun(
 		writeJSON(w, r, http.StatusAccepted, openapi.RuleRunAccepted{
 			RunId: uuidValue(out.String("run_id")), RuleId: uuidValue(out.String("rule_id")),
 		})
-	})
-}
-
-// GetRuleRun answers GET /automation/runs/{runId}.
-func (c *RestController) GetRuleRun(
-	w http.ResponseWriter, r *http.Request, runID openapi_types.UUID,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), getRuleRunUseCase, actor,
-			usecase.Input{"run_id": runID.String()})
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, runResponse(out))
 	})
 }
 
