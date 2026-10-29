@@ -57,6 +57,10 @@ type SetItemEntryType struct {
 	// Recurrences removes the series a confirmed change drops; unwired, a recurrence is never
 	// dropped and its change stays refused.
 	Recurrences repository.Recurrences
+	// Workflow and Statuses settle the entry in the workflow in force for its new type, as a move
+	// into another collection does (WorkflowGate.Settle). Unwired, the status stays as it was.
+	Workflow WorkflowGate
+	Statuses StatusMover
 }
 
 // SetItemEntryTypeCommand is the input, typed.
@@ -167,6 +171,9 @@ func (h SetItemEntryType) Execute(ctx context.Context, actor appshared.ActorCont
 		}); err != nil {
 			return err
 		}
+		if changed, err = h.settle(ctx, actor, collection, next, now); err != nil {
+			return err
+		}
 		changes := []audit.Change{{
 			Field: "entry_type", Classification: audit.Open,
 			From: entryTypeKeyOf(domain.WorkItem{Type: current.Type, EntryType: before}), To: entryTypeKeyOf(next),
@@ -190,6 +197,25 @@ func (h SetItemEntryType) Execute(ctx context.Context, actor appshared.ActorCont
 		return domain.WorkItem{}, err
 	}
 	return changed, nil
+}
+
+// settle moves the entry's status where the workflow in force for its new type stands: kept where
+// that workflow knows it, entered otherwise, cleared where none runs. No step is taken - a change
+// of type is not a transition (UC-FLW-05 check 6).
+func (h SetItemEntryType) settle(
+	ctx context.Context, actor appshared.ActorContext, collection domain.Container, next domain.WorkItem, now time.Time,
+) (domain.WorkItem, error) {
+	if h.Statuses.Workflows == nil {
+		return next, nil
+	}
+	moves, err := h.Workflow.Settle(ctx, collection)
+	if err != nil || len(moves) == 0 {
+		return next, err
+	}
+	if _, err := h.Statuses.Move(ctx, actor, moves, now); err != nil {
+		return next, err
+	}
+	return findItem(ctx, h.Items, next.ID)
 }
 
 // refuseDrop names the values a change would drop, unless the caller confirmed them - and a
@@ -292,9 +318,10 @@ func (h SetItemEntryType) Descriptor() usecase.Descriptor {
 			"the entry holds is refused with entry_types.values_dropped, naming each field, unless " +
 			"drop_values confirms them; one whose form " +
 			"the entry does not meet is refused with forms.refused, naming each field.",
-		SideEffects: "Writes the entry's type, records a change for offline clients, and writes an audit entry.",
-		TokenScope:  itemsWrite,
-		Module:      module.Workflows,
+		SideEffects: "Writes the entry's type, settles its status in the workflow in force for the new " +
+			"type, records a change for offline clients, and writes an audit entry.",
+		TokenScope: itemsWrite,
+		Module:     module.Workflows,
 		Input: []usecase.Field{
 			{Name: "item_id", Kind: usecase.KindID, Required: true, Description: "The entry."},
 			{Name: "entry_type", Kind: usecase.KindString, Required: true, Description: "The key of the type to give it."},

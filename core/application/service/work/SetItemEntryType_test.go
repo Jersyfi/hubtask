@@ -227,3 +227,49 @@ func TestAConfirmedTypeChangeDropsWhatItNamed(t *testing.T) {
 		t.Fatalf("a completion was dropped: %v", err)
 	}
 }
+
+// A change of type settles the entry in the workflow in force for its new type, as a move into
+// another collection does: here no workflow runs for a bug, so its status goes - and no step is
+// taken, the history says the workflow changed (UC-FLW-05 check 6).
+func TestAChangeOfTypeSettlesTheEntrysStatus(t *testing.T) {
+	ctx := context.Background()
+	h := newItemHarness()
+	entry := domain.WorkItem{
+		ID: shared.MustParseID("0192f000-0000-7000-8000-0000000000f3"), TenantID: tenantID,
+		CollectionID: collectionID, Type: domain.ItemTask, Title: "Login fails", Status: "review", Version: 3,
+	}
+	h.items.stored[entry.ID] = entry
+	store := &workflowStore{
+		rows:    []domain.Workflow{reviewWorkflow()},
+		schemes: []domain.WorkflowScheme{{ContainerID: collectionID, EntryType: "task", WorkflowKey: "review"}},
+		groups:  []domain.StatusGroup{{CollectionID: collectionID, EntryType: "bug", Status: "review", Count: 1}},
+	}
+	handler := SetItemEntryType{
+		Items: h.items, Containers: h.containers, Profiles: h.profiles, EntryTypes: workspaceTypes(),
+		Authorizer: h.authorizer, Changes: h.changes, Audit: h.audit, UnitOfWork: h.uow,
+		Clock: clock.Fixed(now), HLC: &hlcSource{},
+		Workflow: WorkflowGate{Workflows: store},
+		Statuses: StatusMover{Workflows: store, Activity: ActivityJournal{Entries: h.history, IDs: &ids{}}, Changes: h.changes, HLC: &hlcSource{}},
+	}
+
+	if _, err := handler.Execute(ctx, actor(), SetItemEntryTypeCommand{ItemID: entry.ID, EntryType: "bug"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(store.moves) != 1 || store.moves[0].EntryType != "bug" || store.moves[0].From != "review" || store.moves[0].To != "" {
+		t.Fatalf("moves = %+v", store.moves)
+	}
+	if len(h.history.entries) != 1 {
+		t.Errorf("the history holds %d steps, want the workflow change", len(h.history.entries))
+	}
+
+	unwired := handler
+	unwired.Statuses = StatusMover{}
+	store.moves = nil
+	h.items.stored[entry.ID] = entry
+	if _, err := unwired.Execute(ctx, actor(), SetItemEntryTypeCommand{ItemID: entry.ID, EntryType: "bug"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(store.moves) != 0 {
+		t.Error("an unwired change of type moved a status")
+	}
+}
