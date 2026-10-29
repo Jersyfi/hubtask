@@ -17,11 +17,12 @@ import type { AccessExplanation, CustomRole, PermissionEntry, RoleCatalogue } fr
 export type PermissionKind = 'BASE' | 'FIELD' | 'STEP';
 
 export const FIELD_WRITE = 'FIELD_WRITE:';
+export const FIELD_READ = 'FIELD_READ:';
 export const TAKE_STEP = 'TAKE_STEP:';
 
 /** The family a permission belongs to, as the server sorts it. */
 export function kindOf(permission: string): PermissionKind {
-  if (permission.startsWith(FIELD_WRITE)) return 'FIELD';
+  if (permission.startsWith(FIELD_WRITE) || permission.startsWith(FIELD_READ)) return 'FIELD';
   if (permission.startsWith(TAKE_STEP)) return 'STEP';
   return 'BASE';
 }
@@ -50,6 +51,19 @@ export function mayWriteField(field: { key: string; restricted?: boolean }, expl
   return field.restricted !== true || holds(explained ?? undefined, `${FIELD_WRITE}${field.key}`);
 }
 
+/**
+ * Whether the reader sees a field (UC-ID-27 check 3): any field not hidden from readers, and a
+ * hidden one with its `FIELD_READ:<key>` or `FIELD_WRITE:<key>`. The server leaves its value out of
+ * every answer to anybody else; the panel then draws no row for it rather than an empty one.
+ */
+export function mayReadField(
+  field: { key: string; read_restricted?: boolean },
+  explained: AccessExplanation | null | undefined,
+): boolean {
+  if (field.read_restricted !== true) return true;
+  return holds(explained ?? undefined, `${FIELD_READ}${field.key}`) || holds(explained ?? undefined, `${FIELD_WRITE}${field.key}`);
+}
+
 /** A permission a role editor shows, and whether the reader may set or clear it. */
 export interface Offer {
   readonly permission: string;
@@ -63,6 +77,8 @@ export interface Offer {
 /** The objects a field or step permission may name: restricted fields and published steps. */
 export interface Objects {
   readonly restrictedFields: readonly string[];
+  /** The fields hidden from readers, whose `FIELD_READ:<key>` a role may name. */
+  readonly hiddenFields?: readonly string[];
   readonly steps: readonly { readonly workflow: string; readonly step: string }[];
 }
 
@@ -90,7 +106,10 @@ export function offers(
     if (entry.kind === 'BASE') {
       add(entry.permission, 'BASE', entry.group);
     } else if (entry.kind === 'FIELD') {
-      for (const key of objects.restrictedFields) add(`${FIELD_WRITE}${key}`, 'FIELD', entry.group);
+      const reading = entry.permission.startsWith(FIELD_READ);
+      for (const key of reading ? (objects.hiddenFields ?? []) : objects.restrictedFields) {
+        add(`${reading ? FIELD_READ : FIELD_WRITE}${key}`, 'FIELD', entry.group);
+      }
     } else {
       for (const { workflow, step } of objects.steps) add(`${TAKE_STEP}${workflow}/${step}`, 'STEP', entry.group);
     }

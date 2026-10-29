@@ -10,7 +10,7 @@
 import type { CustomRole } from '@hubtask/sync-engine';
 
 import { t } from '../i18n/i18n.svelte.ts';
-import { FIELD_WRITE, TAKE_STEP } from '../data/roles.ts';
+import { FIELD_READ, FIELD_WRITE, TAKE_STEP } from '../data/roles.ts';
 
 const DESCRIBED = new Set([
   'READ', 'WRITE_ITEMS', 'WRITE_ASSIGNED', 'COMMENT', 'STRUCTURE', 'AUTOMATION', 'DELETE_CONTAINER',
@@ -23,7 +23,9 @@ const SHIPPED = new Set(['OWNER', 'ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'G
 export function permissionLabel(permission: string): string {
   if (permission === `${FIELD_WRITE}*`) return t('app.roles.family_field');
   if (permission === `${TAKE_STEP}*`) return t('app.roles.family_step');
+  if (permission === `${FIELD_READ}*`) return t('app.roles.family_field_read');
   if (permission.startsWith(FIELD_WRITE)) return t('app.roles.field_write', { field: permission.slice(FIELD_WRITE.length) });
+  if (permission.startsWith(FIELD_READ)) return t('app.roles.field_read', { field: permission.slice(FIELD_READ.length) });
   if (permission.startsWith(TAKE_STEP)) {
     const [workflow = '', step = ''] = permission.slice(TAKE_STEP.length).split('/');
     return t('app.roles.take_step', { workflow, step });

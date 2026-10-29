@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { AccessExplanation, RoleCatalogue } from '@hubtask/sync-engine';
 
-import { chosen, holds, keyFrom, matrixOf, mayWriteField, offers } from './roles.ts';
+import { chosen, holds, keyFrom, matrixOf, mayReadField, mayWriteField, offers } from './roles.ts';
 
 const LUKAS = '22222222-0000-4000-8000-00000000000c';
 
@@ -100,4 +100,28 @@ test('a restricted field is written only with its permission', () => {
   assert.equal(mayWriteField(cost, ADMIN), true);
   const finance = explained(['READ', 'FIELD_WRITE:cost'], [{ role: 'finance', custom: true, scope_type: 'HUB' }]);
   assert.equal(mayWriteField(cost, finance), true);
+});
+
+test('a field hidden from readers is seen only with its read or write permission (UC-ID-27 check 3)', () => {
+  const cost = { key: 'cost', restricted: true, read_restricted: true };
+  assert.equal(mayReadField({ key: 'severity' }, undefined), true);
+  assert.equal(mayReadField({ key: 'cost', read_restricted: false }, undefined), true);
+  assert.equal(mayReadField(cost, undefined), false);
+  assert.equal(mayReadField(cost, LEAD), false);
+  assert.equal(mayReadField(cost, ADMIN), true);
+  const reader = explained(['READ', 'FIELD_READ:cost'], [{ role: 'controlling', custom: true, scope_type: 'HUB' }]);
+  assert.equal(mayReadField(cost, reader), true);
+  assert.equal(mayWriteField(cost, reader), false);
+  const writer = explained(['READ', 'FIELD_WRITE:cost'], [{ role: 'finance', custom: true, scope_type: 'HUB' }]);
+  assert.equal(mayReadField(cost, writer), true);
+});
+
+test('a role editor offers the read permission of each hidden field', () => {
+  const catalogue: RoleCatalogue['catalogue'] = [
+    { permission: 'FIELD_WRITE:*', kind: 'FIELD', group: 'fields', shipped: ['OWNER', 'ADMIN'] },
+    { permission: 'FIELD_READ:*', kind: 'FIELD', group: 'fields', shipped: ['OWNER', 'ADMIN'] },
+  ];
+  const offered = offers(catalogue, { restrictedFields: ['cost', 'band'], hiddenFields: ['cost'], steps: [] }, ADMIN)
+    .map((offer) => offer.permission);
+  assert.deepEqual(offered, ['FIELD_WRITE:cost', 'FIELD_WRITE:band', 'FIELD_READ:cost']);
 });

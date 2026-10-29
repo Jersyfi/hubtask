@@ -7201,6 +7201,8 @@
   "app.roles.family_field": "Every restricted field",
   "app.roles.family_step": "Every workflow step",
   "app.roles.field_write": "Write the field {field}",
+  "app.roles.field_read": "See the field {field}",
+  "app.roles.family_field_read": "See every hidden field",
   "app.roles.take_step": "Take the step {step} in {workflow}",
   "app.roles.area.content": "Content",
   "app.roles.area.how_we_work": "How we work",
@@ -7270,5 +7272,7 @@
   "app.access.families_note": "The owner and the administrators hold every restricted field's and every step's permission; a role of the workspace's own holds those it names.",
   "app.fields.restricted": "Restricted",
   "app.fields.restricted_hint": "Only roles that carry this field's permission write it: the owner, the administrators and a role of this workspace's own that names it.",
+  "app.fields.hidden_hint": "Only roles that carry this field's permission see its value; everybody else does not see the field at all. A hidden field is restricted as well.",
+  "app.fields.hidden": "Hidden from readers",
   "app.fields.restricted_read_only": "Only roles that carry this field's permission change it."
 }

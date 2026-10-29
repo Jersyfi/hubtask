@@ -54,6 +54,7 @@
   /** The objects a field or step permission may name. */
   const objects = $derived({
     restrictedFields: customFields.of().filter((field) => field.restricted === true).map((field) => field.key),
+    hiddenFields: customFields.of().filter((field) => field.read_restricted === true).map((field) => field.key),
     steps: (workflows.list?.data ?? []).flatMap((workflow) =>
       (workflow.published.steps ?? []).map((step) => ({ workflow: workflow.key, step: step.key })),
     ),

@@ -7198,6 +7198,8 @@
   "app.roles.family_field": "Jedes geschützte Feld",
   "app.roles.family_step": "Jeder Workflow-Schritt",
   "app.roles.field_write": "Das Feld {field} schreiben",
+  "app.roles.field_read": "Das Feld {field} sehen",
+  "app.roles.family_field_read": "Jedes verborgene Feld sehen",
   "app.roles.take_step": "Den Schritt {step} in {workflow} gehen",
   "app.roles.area.content": "Inhalte",
   "app.roles.area.how_we_work": "Wie wir arbeiten",
@@ -7267,5 +7269,7 @@
   "app.access.families_note": "Eigentümer und Administratoren haben die Berechtigung jedes geschützten Felds und jedes Schritts; eine eigene Rolle hat die, die sie nennt.",
   "app.fields.restricted": "Geschützt",
   "app.fields.restricted_hint": "Nur Rollen mit der Berechtigung dieses Felds schreiben es: Eigentümer, Administratoren und eine eigene Rolle, die es nennt.",
+  "app.fields.hidden_hint": "Nur Rollen mit der Berechtigung dieses Felds sehen seinen Wert; alle anderen sehen das Feld gar nicht. Ein verborgenes Feld ist auch geschützt.",
+  "app.fields.hidden": "Vor Lesenden verborgen",
   "app.fields.restricted_read_only": "Nur Rollen mit der Berechtigung dieses Felds ändern es."
 }

@@ -40,7 +40,7 @@
   import { formatDuration, parseDuration } from '../i18n/duration.ts';
   import { items } from '../data/items.svelte.ts';
   import { resolved, targetLabel } from '../data/links.svelte.ts';
-  import { mayWriteField, roles } from '../data/roles.svelte.ts';
+  import { mayReadField, mayWriteField, roles } from '../data/roles.svelte.ts';
   import EntryPicker from './EntryPicker.svelte';
   import { renderProblem } from '../problem.ts';
 
@@ -119,8 +119,12 @@
    * entry's collection carries `FIELD_WRITE:<key>`. Asked only where a field is restricted, and
    * until answered no control is drawn for one - the server would refuse it (`fields.restricted`).
    */
-  const isAnyRestricted = $derived(applicable.some((definition) => definition.restricted === true));
+  const isAnyRestricted = $derived(
+    applicable.some((definition) => definition.restricted === true || definition.read_restricted === true),
+  );
   const mine = $derived(isAnyRestricted ? roles.mineAt(item.collection_id) : undefined);
+  /** The fields the reader sees: a field hidden from readers only with its permission (check 3). */
+  const visible = $derived(applicable.filter((definition) => mayReadField(definition, mine)));
   function isWritable(definition: CustomFieldDefinition): boolean {
     return mayWriteField(definition, mine);
   }
@@ -214,10 +218,10 @@
      (`carries`, ItemView), so a refusal could never reach it - a refused capability is an absent
      row, not a dead one (design-system.md §11.8). -->
   <Stack gap="150">
-    {#if applicable.length === 0}
+    {#if visible.length === 0}
       <p class="quiet">{t('app.fields.values_none')}</p>
     {:else}
-      {#each applicable as definition (definition.id)}
+      {#each visible as definition (definition.id)}
         {@const held = values[definition.key]}
         {#if isCalculated(definition.kind as string)}
           <!-- The server computes it from the entry's other fields: shown, never an input (UC-WRK-12). -->
