@@ -2047,6 +2047,29 @@ type WorkItem struct {
 	Status                *string
 }
 
+type WorkItemAnnouncement struct {
+	TenantID           pgtype.UUID
+	ItemID             pgtype.UUID
+	DueSoonAnnouncedAt pgtype.Timestamptz
+	OverdueAnnouncedAt pgtype.Timestamptz
+}
+
+type WorkItemFlow struct {
+	TenantID       pgtype.UUID
+	ItemID         pgtype.UUID
+	FlowStartedAt  pgtype.Timestamptz
+	FlowFinishedAt pgtype.Timestamptz
+}
+
+type WorkItemRetention struct {
+	TenantID     pgtype.UUID
+	ItemID       pgtype.UUID
+	PendingUntil pgtype.Timestamptz
+	RuleID       pgtype.UUID
+	Action       *string
+	BlockedBy    *string
+}
+
 type Workflow struct {
 	ID          pgtype.UUID
 	TenantID    pgtype.UUID

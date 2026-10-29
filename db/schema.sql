@@ -1411,6 +1411,47 @@ CREATE INDEX efv_search_idx ON entry_field_value USING gin (to_tsvector('simple'
 GRANT SELECT, INSERT, UPDATE, DELETE ON entry_field_value TO hubtask_app;
 -- entry_field_values_of(work_item) and the trigger work_item_field_values: migration 0211.
 
+-- The slim entry's side tables (migrations 0227, 0228; F-10): what background loops keep on an
+-- entry, mirrored from its columns by the trigger work_item_side_rows until the contract release
+-- moves the readers here and drops the columns. A row exists only while one of its values does.
+CREATE TABLE work_item_announcement (
+  tenant_id             uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id               uuid NOT NULL,
+  due_soon_announced_at timestamptz,
+  overdue_announced_at  timestamptz,
+  PRIMARY KEY (tenant_id, item_id),
+  CHECK (num_nonnulls(due_soon_announced_at, overdue_announced_at) > 0),
+  CONSTRAINT work_item_announcement_item_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+CREATE TABLE work_item_flow (
+  tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id          uuid NOT NULL,
+  flow_started_at  timestamptz,
+  flow_finished_at timestamptz,
+  PRIMARY KEY (tenant_id, item_id),
+  CHECK (num_nonnulls(flow_started_at, flow_finished_at) > 0),
+  CONSTRAINT work_item_flow_item_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+CREATE TABLE work_item_retention (
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id       uuid NOT NULL,
+  pending_until timestamptz,
+  rule_id       uuid,
+  action        text,
+  blocked_by    text,
+  PRIMARY KEY (tenant_id, item_id),
+  CHECK (num_nonnulls(pending_until, rule_id, action, blocked_by) > 0),
+  CONSTRAINT work_item_retention_item_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX work_item_retention_due_idx ON work_item_retention (tenant_id, pending_until)
+  WHERE pending_until IS NOT NULL;
+GRANT SELECT, INSERT, UPDATE, DELETE ON work_item_announcement, work_item_flow, work_item_retention
+  TO hubtask_app;
+-- work_item_mirror_side_rows(work_item) and the trigger work_item_side_rows: migration 0227.
+
 -- Links and references (migration 0213, F-3). The six shipped link types have no row.
 CREATE TABLE link_type (
   id           uuid PRIMARY KEY,
@@ -3169,7 +3210,8 @@ BEGIN
     'link_type','entry_link','entry_reference','workflow','workflow_scheme',
     'custom_role','custom_role_grant',
     'config_revision','config_proposal','config_template','config_template_use',
-    'config_sandbox'
+    'config_sandbox',
+    'work_item_announcement','work_item_flow','work_item_retention'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
