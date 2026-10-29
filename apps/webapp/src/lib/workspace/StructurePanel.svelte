@@ -4,7 +4,8 @@
   // A hub's or a collection's settings page (UC-WRK-23 checks 1-3, 7; design-system.md §11.8):
   // the sections as a list at the start, the open one beside it - the shape of the administration,
   // so setting something up looks the same everywhere. Its *Structure* section is a preset to start
-  // from and the eight settings, each with where its value comes from, its lock and a reset.
+  // from and the nine settings, each with where its value comes from, its lock and a reset; the
+  // entry types only where the workflows module is on (UC-FLW-01 check 8).
   //
   // Drawn only for a reader who may change the shape (check 9, P-05): the caller leaves the
   // way in out for anybody else. One save per sitting, through the save bar - every setting is
@@ -27,6 +28,7 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
+  import { entryTypes, offeredTypes as typesOfLevel, typesShown } from '../data/entrytypes.svelte.ts';
   import { countsChange, figureOffer, isComplete, type FigureKind } from '../data/figureOffer.ts';
   import { levelWords } from '../data/levels.ts';
   import { presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
@@ -48,6 +50,7 @@
     lockOf,
     renameLevel,
     resetSetting,
+    chooseEntryTypesOf,
     chooseFieldsOf,
     setValue,
     startDraft,
@@ -102,7 +105,7 @@
     const id = container.id;
     const hub = isHub;
     return untrack(() => {
-      const stops = [presets.open(), customFields.open(), ...(hub ? [] : [customFields.open(id)])];
+      const stops = [presets.open(), customFields.open(), entryTypes.open(), ...(hub ? [] : [customFields.open(id)])];
       return () => {
         for (const stop of stops) stop();
       };
@@ -233,7 +236,26 @@
         return t(`app.structure.celebration.${settings.celebration ?? 'ALL'}`);
       case 'automation':
         return (settings.automation ?? []).map((behaviour) => t(`app.structure.automation.${behaviour}`)).join(', ') || t('app.structure.nothing');
+      case 'entry_types': {
+        const narrowed = Object.keys(settings.entry_types ?? {});
+        return narrowed.length === 0
+          ? t('app.structure.entry_types_all')
+          : narrowed.map((type) => levelWords(settings, type, t).label).join(', ');
+      }
     }
+  }
+
+  /** The settings this reader is shown: the entry types only where types are shown at all. */
+  const shownSettings = $derived(SETTINGS.filter((setting) => setting !== 'entry_types' || typesShown(manifest.value)));
+
+  /** A level's types in use, as the entry types setting offers them for ticking. */
+  const typeOptionsOf = (type: string) =>
+    typesOfLevel(entryTypes.all, type).map((each) => ({ value: each.key, label: each.name ?? levelName(type), disabledReason: lockReason('entry_types') }));
+
+  function chooseEntryTypes(type: string, selected: readonly string[]) {
+    if (!draft) return;
+    const inUse = typesOfLevel(entryTypes.all, type).map((each) => each.key);
+    draft = setValue(draft, 'entry_types', chooseEntryTypesOf(values.entry_types, type, inUse, selected));
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -443,7 +465,7 @@
   const titleOf = (setting: SettingName): string => t(`app.structure.setting.${setting}`);
 </script>
 
-<!-- The eight settings: the panel's first tab, or the whole panel where it has no other. -->
+<!-- The nine settings: the panel's first tab, or the whole panel where it has no other. -->
 {#snippet settingsBody()}
   {#if structure && draft}
     <form class="panel" data-structure-panel onsubmit={(event) => { event.preventDefault(); void save(); }}>
@@ -475,7 +497,7 @@
           </div>
         </section>
 
-        {#each SETTINGS as setting (setting)}
+        {#each shownSettings as setting (setting)}
           {@const chip = chipOf(setting)}
           <section class="setting" data-setting={setting} aria-labelledby="structure-{setting}">
             <div class="head">
@@ -607,6 +629,16 @@
                 selected={(values.automation ?? []) as readonly string[]}
                 onChange={(selected) => draft && (draft = setValue(draft, 'automation', AUTOMATION.filter((behaviour) => selected.includes(behaviour))))}
               />
+            {:else if setting === 'entry_types'}
+              <p class="hint">{t('app.structure.entry_types_hint')}</p>
+              {#each offeredTypes as type (type)}
+                <CheckboxGroup
+                  label={t('app.structure.entry_types_of', { level: levelName(type) })}
+                  options={typeOptionsOf(type)}
+                  selected={typesOfLevel(entryTypes.all, type, values.entry_types?.[type]).map((each) => each.key)}
+                  onChange={(selected) => chooseEntryTypes(type, selected)}
+                />
+              {/each}
             {/if}
           </section>
         {/each}
