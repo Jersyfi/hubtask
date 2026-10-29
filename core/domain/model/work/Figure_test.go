@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -85,7 +86,7 @@ func TestTheFigureRequestFollowsTheStructureInForce(t *testing.T) {
 	id := shared.MustParseID("0192f000-0000-7000-8000-0000000000c1")
 	bound := seededBound()
 	resolve := func(values StructureValues) EffectiveStructure {
-		return ResolveStructure(bound, WorkspaceStructure{}, LayerAt{Layer: StructureLayer{Values: values}})
+		return ResolveStructure(bound, WorkspaceStructure{}, LayerAt{Source: identity.SourceCollection, Layer: StructureLayer{Values: values}})
 	}
 
 	if _, counted := FigureRequestFor(id, resolve(StructureValues{Counts: counting(FigureNone)})); counted {

@@ -302,7 +302,7 @@ func TestAContainerReadAnswersItsStructure(t *testing.T) {
 	}
 	structure, _ := out["structure"].(map[string]any)
 	settings, _ := structure["settings"].(map[string]any)
-	if len(settings) != 8 || structure["preset"] != nil {
+	if len(settings) != len(domain.StructureSettingNames()) || structure["preset"] != nil {
 		t.Fatalf("structure %v", structure)
 	}
 	for _, setting := range domain.StructureSettingNames() {
