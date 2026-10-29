@@ -405,19 +405,19 @@ export type ConnectorKind = CiConnector['kind'];
 /**
  * What each kind needs, as the domain's `ConnectorSpec` states it: whether it is posted to rather
  * than pulled, and the settings it cannot run without. The server refuses a missing one by its
- * code either way; the form asks for them so nobody types a key by hand. A switch is a setting that
- * is on unless it says `off`.
+ * code either way; the form asks for them so nobody types a key by hand. A switch is a setting of two
+ * values, the empty one sent as none.
  */
 export const CONNECTOR_KINDS: readonly {
   readonly kind: ConnectorKind;
   readonly push: boolean;
   readonly inventory?: boolean;
   readonly settings: readonly string[];
-  readonly switches?: readonly string[];
+  readonly switches?: readonly ConnectorSwitch[];
 }[] = [
   { kind: 'GLPI', push: false, settings: ['client_id'] },
-  { kind: 'NETBOX', push: false, settings: [] },
-  { kind: 'INTUNE', push: false, settings: ['tenant', 'client_id', 'authority'], switches: ['detected_apps'] },
+  { kind: 'NETBOX', push: false, settings: [], switches: [{ key: 'dialect', on: 'nautobot', off: '' }] },
+  { kind: 'INTUNE', push: false, settings: ['tenant', 'client_id', 'authority'], switches: [{ key: 'detected_apps', on: '', off: 'off' }] },
   { kind: 'ENTRA', push: false, settings: ['tenant', 'client_id', 'authority'] },
   { kind: 'HETZNER', push: false, settings: [] },
   { kind: 'OPENSTACK', push: false, settings: ['application_credential_id'] },
@@ -426,6 +426,13 @@ export const CONNECTOR_KINDS: readonly {
   { kind: 'CHECKMK', push: true, settings: [] },
   { kind: 'GLPI_AGENT', push: true, inventory: true, settings: [] },
 ];
+export interface ConnectorSwitch {
+  readonly key: string;
+  readonly on: string;
+  readonly off: string;
+}
+/** Whether a draft's switch is on: a value other than the two counts as off. */
+export const switchOn = (draft: ConnectorDraft, each: ConnectorSwitch) => (draft.settings[each.key] ?? '') === each.on;
 export const kindSpec = (kind: ConnectorKind) => CONNECTOR_KINDS.find((each) => each.kind === kind) ?? { kind, push: false, settings: [] };
 
 /** The periods offered, in minutes; 0 runs only when asked. The server takes any from 15 to a week. */
@@ -466,14 +473,14 @@ export function connectorDefine(draft: ConnectorDraft): CiConnectorDefine {
   const spec = kindSpec(draft.kind);
   const settings = Object.fromEntries([
     ...spec.settings.map((key) => [key, (draft.settings[key] ?? '').trim()]),
-    ...(spec.switches ?? []).map((key) => [key, draft.settings[key] === 'off' ? 'off' : '']),
+    ...(spec.switches ?? []).map((each) => [each.key, switchOn(draft, each) ? each.on : each.off]),
   ].filter(([, value]) => value));
   return {
     kind: draft.kind,
     source: draft.source,
     enabled: draft.enabled,
     allowed_hosts: lines(draft.hosts),
-    ...(spec.settings.length ? { settings } : {}),
+    ...(Object.keys(settings).length ? { settings } : {}),
     ...(spec.push
       ? { every_minutes: 0, ...(draft.collection && !spec.inventory ? { collection_id: draft.collection } : {}) }
       : { base_url: draft.baseUrl.trim(), every_minutes: draft.every }),

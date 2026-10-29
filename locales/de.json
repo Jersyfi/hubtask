@@ -8042,6 +8042,7 @@
   "app.assets.connector_setting.authority": "Anmeldeadresse des Identitätsanbieters",
   "app.assets.connector_setting.application_credential_id": "ID der Anwendungsanmeldung",
   "app.assets.connector_switch.detected_apps": "Auch die Apps, die Intune auf den Geräten erkannt hat, als Software",
+  "app.assets.connector_switch.dialect": "Es ist Nautobot, der Fork von NetBox",
   "app.assets.connector_source_label": "Schreibt als Quelle",
   "app.assets.connector_source_hint": "Ihr Rang entscheidet, welche Werte gegenüber anderen Quellen gelten.",
   "app.assets.connector_source_missing": "Lege zuerst unter So arbeiten wir, Konfigurationselemente, eine Quelle der Art Konnektor an.",

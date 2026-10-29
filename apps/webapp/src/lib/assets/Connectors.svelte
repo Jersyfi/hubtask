@@ -19,7 +19,7 @@
   import { holdsHere } from '../data/capability.svelte.ts';
   import {
     CONNECTOR_KINDS, CONNECTOR_PERIODS, cmdb, connectorDefine, connectorDraft, connectorMissing, connectorTone, connectorsPath, intakeAddress, kindSpec,
-    sourcesPath, type ConnectorDraft, type Words,
+    sourcesPath, switchOn, type ConnectorDraft, type Words,
   } from '../data/cmdb.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { engine } from '../data/engine.ts';
@@ -273,10 +273,10 @@
       {#each spec?.settings ?? [] as key (key)}
         <Input label={settingWord(key)} bind:value={draft.settings[key]} maxlength={500} />
       {/each}
-      {#each spec?.switches ?? [] as key (key)}
+      {#each spec?.switches ?? [] as each (each.key)}
         <Switch
-          label={t(`app.assets.connector_switch.${key}`)}
-          bind:checked={() => draft?.settings[key] !== 'off', (on) => draft && (draft.settings[key] = on ? '' : 'off')}
+          label={t(`app.assets.connector_switch.${each.key}`)}
+          bind:checked={() => !!draft && switchOn(draft, each), (on) => draft && (draft.settings[each.key] = on ? each.on : each.off)}
         />
       {/each}
       {#if spec && !spec.push}
