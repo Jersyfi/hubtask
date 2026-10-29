@@ -15,38 +15,10 @@ import (
 // The plans (multi-tenancy.md §4.2): five handlers over five use cases, the values in the
 // installation level's own shape both ways.
 const (
-	listPlansUseCase  = "ListPlans"
-	readPlanUseCase   = "ReadPlan"
 	createPlanUseCase = "CreatePlan"
 	changePlanUseCase = "ChangePlan"
-	removePlanUseCase = "RemovePlan"
 	moveTenantPlanUse = "MoveTenantPlan"
 )
-
-// ListPlans answers GET /admin/plans.
-func (c *RestController) ListPlans(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), listPlansUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	rows, _ := out["data"].([]usecase.Output)
-	plans := make([]openapi.Plan, 0, len(rows))
-	for _, row := range rows {
-		plans = append(plans, planResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, map[string]any{"data": plans})
-}
-
-// ReadPlan answers GET /admin/plans/{planName}.
-func (c *RestController) ReadPlan(w http.ResponseWriter, r *http.Request, planName string) {
-	c.answerPlan(w, r, http.StatusOK, readPlanUseCase, usecase.Input{"name": planName})
-}
 
 // CreatePlan answers POST /admin/plans.
 func (c *RestController) CreatePlan(w http.ResponseWriter, r *http.Request, _ openapi.CreatePlanParams) {
@@ -75,20 +47,6 @@ func (c *RestController) ChangePlan(
 		in["expected_version"] = version
 	}
 	c.answerPlan(w, r, http.StatusOK, changePlanUseCase, in)
-}
-
-// RemovePlan answers DELETE /admin/plans/{planName}.
-func (c *RestController) RemovePlan(w http.ResponseWriter, r *http.Request, planName string) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	if _, err := c.UseCases.Invoke(r.Context(), removePlanUseCase, actorOf(r), usecase.Input{"name": planName}); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 // answerPlan invokes a use case that answers one plan, and writes it with its version as the tag.

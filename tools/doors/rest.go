@@ -44,6 +44,9 @@ type RESTDoor struct {
 	// AnswerRows says the answer is a bare array, each of the output's rows drawn by AnswerBy;
 	// AnswerPage that it is a page, `data` drawn so and `page` as every page is.
 	AnswerRows, AnswerPage bool
+	// AnswerData says the answer is a list under `data` without a page, each row drawn by AnswerBy
+	// (`x-hubtask-rest-list: data`); without the mark the mapper draws the whole answer.
+	AnswerData bool
 	// Location is the created resource's path below the API, its `{member}`s filled from the
 	// answer.
 	Location string
@@ -74,6 +77,8 @@ type restOperation struct {
 	ETagFrom    string            `yaml:"x-hubtask-rest-etag"`
 	ShownOnce   string            `yaml:"x-hubtask-rest-shown-once"`
 	QueryAs     map[string]string `yaml:"x-hubtask-rest-query"`
+	List        string            `yaml:"x-hubtask-rest-list"`
+	UseCase     string            `yaml:"x-hubtask-rest-use-case"`
 	Parameters  []parameter       `yaml:"parameters"`
 	RequestBody *struct {
 		Required bool                 `yaml:"required"`
@@ -124,7 +129,7 @@ func restTable(raw, server []byte) ([]RESTDoor, error) {
 			doors = append(doors, door)
 		}
 	}
-	sort.Slice(doors, func(i, j int) bool { return doors[i].UseCase < doors[j].UseCase })
+	sort.Slice(doors, func(i, j int) bool { return doors[i].OperationID < doors[j].OperationID })
 	return doors, nil
 }
 
@@ -143,6 +148,10 @@ func restDoor(
 		door.NullClears = true
 	default:
 		return door, fmt.Errorf("x-hubtask-rest-null %q is not \"empty\"", op.Null)
+	}
+	if op.UseCase != "" {
+		// Two doors onto one use case - creating and replacing, told apart by an identifier.
+		door.UseCase = op.UseCase
 	}
 	signature, ok := signatures[name]
 	if !ok {
@@ -236,8 +245,11 @@ func restDoor(
 			answer := doc.composed(content.Schema)
 			door.AnswerRows = answer.Type == "array"
 			_, paged := answer.Properties["page"]
-			if data, listed := answer.Properties["data"]; listed && paged && data.Type == "array" && door.AnswerBy != "" {
-				door.AnswerPage = true
+			if data, listed := answer.Properties["data"]; listed && data.Type == "array" && door.AnswerBy != "" {
+				door.AnswerPage, door.AnswerData = paged, !paged && op.List == "data"
+			}
+			if op.List != "" && !door.AnswerData {
+				return door, fmt.Errorf("x-hubtask-rest-list %q needs an answer listed under data, without a page, and its mapper", op.List)
 			}
 			if door.AnswerRows && door.AnswerBy == "" {
 				return door, fmt.Errorf("an answer that is a bare array needs x-hubtask-rest-answer")
@@ -376,8 +388,8 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 	}
 	b.WriteString("}\n")
 	for _, d := range doors {
-		fmt.Fprintf(&b, "\n// %s answers %s %s by the generated mapping.\n", d.UseCase, d.Method, d.Path)
-		fmt.Fprintf(&b, "func (c *RestController) %s(%s) {\n", d.UseCase,
+		fmt.Fprintf(&b, "\n// %s answers %s %s by the generated mapping.\n", upperFirst(d.OperationID), d.Method, d.Path)
+		fmt.Fprintf(&b, "func (c *RestController) %s(%s) {\n", upperFirst(d.OperationID),
 			strings.Join(append([]string{"w http.ResponseWriter", "r *http.Request"}, d.Params...), ", "))
 		in := make([]string, 0, len(d.PathArgs))
 		for _, arg := range d.PathArgs {
@@ -397,6 +409,8 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 			answer = "answerRows(" + d.AnswerBy + ")"
 		case d.AnswerBy != "" && d.AnswerPage:
 			answer = "answerPage(" + d.AnswerBy + ")"
+		case d.AnswerBy != "" && d.AnswerData:
+			answer = "answerData(" + d.AnswerBy + ")"
 		case d.AnswerBy != "":
 			answer = "answerBy(" + d.AnswerBy + ")"
 		case d.AnswerType != "":

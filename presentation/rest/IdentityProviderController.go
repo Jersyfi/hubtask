@@ -17,26 +17,13 @@ import (
 
 // The relying party's configuration use cases.
 const (
-	configureFirstIdentityProviderUseCase = "ConfigureFirstIdentityProvider"
-	offerIdentityProviderUseCase          = "OfferIdentityProvider"
-	listIdentityProvidersUseCase          = "ListIdentityProviders"
-	countAccountsWithoutProviderUseCase   = "CountAccountsWithoutProvider"
-	configureIdentityProviderUseCase      = "ConfigureIdentityProvider"
-	listIdentityProviderPresetsUseCase    = "ListIdentityProviderPresets"
-
-	listInstanceIdentityProvidersUseCase     = "ListInstanceIdentityProviders"
-	configureInstanceIdentityProviderUseCase = "ConfigureInstanceIdentityProvider"
+	offerIdentityProviderUseCase        = "OfferIdentityProvider"
+	countAccountsWithoutProviderUseCase = "CountAccountsWithoutProvider"
+	listIdentityProviderPresetsUseCase  = "ListIdentityProviderPresets"
 
 	withdrawInstanceIdentityProviderUseCase         = "WithdrawInstanceIdentityProvider"
 	cancelInstanceIdentityProviderWithdrawalUseCase = "CancelInstanceIdentityProviderWithdrawal"
 )
-
-// ConfigureFirstIdentityProvider answers PUT /identity-provider.
-func (c *RestController) ConfigureFirstIdentityProvider(
-	w http.ResponseWriter, r *http.Request, params openapi.ConfigureFirstIdentityProviderParams,
-) {
-	c.writeProvider(w, r, configureFirstIdentityProviderUseCase, "", params.XHubtaskStepUp, http.StatusOK)
-}
 
 // OfferIdentityProvider answers POST /identity-providers/{providerId}:offer.
 func (c *RestController) OfferIdentityProvider(
@@ -65,147 +52,6 @@ func (c *RestController) OfferIdentityProvider(
 		return
 	}
 	writeJSON(w, r, http.StatusOK, identityProviderResponse(out))
-}
-
-// CountAccountsWithoutProvider answers GET /tenant/accounts-without-provider: the number the password
-// switch says before the password is switched off (ADR-0078 §1).
-func (c *RestController) CountAccountsWithoutProvider(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), countAccountsWithoutProviderUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, openapi.AccountsWithoutProvider{Count: out.Int("count")})
-}
-
-// ListIdentityProviders answers GET /identity-providers.
-func (c *RestController) ListIdentityProviders(w http.ResponseWriter, r *http.Request) {
-	c.listProviders(w, r, listIdentityProvidersUseCase)
-}
-
-// ListInstanceIdentityProviders answers GET /admin/identity-providers.
-func (c *RestController) ListInstanceIdentityProviders(w http.ResponseWriter, r *http.Request) {
-	c.listProviders(w, r, listInstanceIdentityProvidersUseCase)
-}
-
-// listProviders serves both levels. The two answer the same shape because they project the same
-// row: a second mapping would drift on the day a field is added.
-func (c *RestController) listProviders(w http.ResponseWriter, r *http.Request, useCase string) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), useCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, identityProvidersResponse(out))
-}
-
-// CreateIdentityProvider answers POST /identity-providers.
-func (c *RestController) CreateIdentityProvider(
-	w http.ResponseWriter, r *http.Request, params openapi.CreateIdentityProviderParams,
-) {
-	c.writeProvider(w, r, configureIdentityProviderUseCase, "", params.XHubtaskStepUp, http.StatusCreated)
-}
-
-// ConfigureIdentityProvider answers PUT /identity-providers/{providerId}.
-func (c *RestController) ConfigureIdentityProvider(
-	w http.ResponseWriter, r *http.Request, providerID openapi.ProviderId,
-	params openapi.ConfigureIdentityProviderParams,
-) {
-	c.writeProvider(w, r, configureIdentityProviderUseCase, providerID.String(), params.XHubtaskStepUp, http.StatusOK)
-}
-
-// CreateInstanceIdentityProvider answers POST /admin/identity-providers.
-func (c *RestController) CreateInstanceIdentityProvider(
-	w http.ResponseWriter, r *http.Request, params openapi.CreateInstanceIdentityProviderParams,
-) {
-	c.writeProvider(w, r, configureInstanceIdentityProviderUseCase, "", params.XHubtaskStepUp, http.StatusCreated)
-}
-
-// ConfigureInstanceIdentityProvider answers PUT /admin/identity-providers/{providerId}.
-func (c *RestController) ConfigureInstanceIdentityProvider(
-	w http.ResponseWriter, r *http.Request, providerID openapi.ProviderId,
-	params openapi.ConfigureInstanceIdentityProviderParams,
-) {
-	c.writeProvider(w, r, configureInstanceIdentityProviderUseCase, providerID.String(),
-		params.XHubtaskStepUp, http.StatusOK)
-}
-
-// writeProvider decodes the body once for four routes. Which level and whether it adds or replaces
-// are the use case's name and the presence of an identifier - nothing here decides either.
-func (c *RestController) writeProvider(
-	w http.ResponseWriter, r *http.Request, useCase, providerID string,
-	stepUp *openapi.StepUpToken, created int,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.IdentityProviderConfiguration
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	in := usecase.Input{
-		"issuer":        body.Issuer,
-		"client_id":     body.ClientId,
-		"step_up_token": stepUpHeaderField(stepUp),
-	}
-	if providerID != "" {
-		in["id"] = providerID
-	}
-	// An absent secret is the promise of the contract: it keeps the one that is sealed. Written
-	// only when it is there, so that "absent" and "empty" do not become the same request.
-	if body.ClientSecret != nil {
-		in["client_secret"] = *body.ClientSecret
-	}
-	if body.DisplayName != nil {
-		in["display_name"] = *body.DisplayName
-	}
-	if body.Kind != nil {
-		in["kind"] = string(*body.Kind)
-	}
-	if body.Provisioning != nil {
-		in["provisioning"] = string(*body.Provisioning)
-	}
-	if body.Position != nil {
-		in["position"] = *body.Position
-	}
-	if body.AllowedEmailDomains != nil {
-		in["allowed_email_domains"] = *body.AllowedEmailDomains
-	}
-	if body.AllowedDirectories != nil {
-		in["allowed_directories"] = *body.AllowedDirectories
-	}
-	if body.Enabled != nil {
-		in["enabled"] = *body.Enabled
-	}
-	if body.NewcomerRole != nil {
-		in["newcomer_role"] = string(*body.NewcomerRole)
-	}
-	if body.NewcomerGroupId != nil {
-		in["newcomer_group_id"] = body.NewcomerGroupId.String()
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), useCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, created, identityProviderResponse(out))
 }
 
 // WithdrawInstanceIdentityProvider answers POST /admin/identity-providers/{providerId}:withdraw.

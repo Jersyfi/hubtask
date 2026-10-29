@@ -231,6 +231,18 @@ func answerPage[T any](draw func(usecase.Output) T) answerer {
 	}
 }
 
+// answerData draws an answer that is a list under `data` with no page: every row by the mapper.
+func answerData[T any](draw func(usecase.Output) T) answerer {
+	return func(out usecase.Output) any {
+		rows := rowsOf(out)
+		data := make([]T, 0, len(rows))
+		for _, row := range rows {
+			data = append(data, draw(row))
+		}
+		return map[string]any{"data": data}
+	}
+}
+
 // whole hands an integer the contract declares on as a Go integer rather than JSON's float64.
 func whole(d restDoor, name string, value any) any {
 	if number, ok := value.(float64); ok && number == float64(int(number)) && slices.Contains(d.Integers, name) {

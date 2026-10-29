@@ -5814,6 +5814,9 @@ paths:
     get:
       tags: [admin]
       operationId: listPlans
+      x-hubtask-rest: generated
+      x-hubtask-rest-list: data
+      x-hubtask-rest-answer: planResponse
       summary: The installation's plans
       description: >
         Every plan not removed, oldest first, each with its values in the installation level's
@@ -5874,6 +5877,9 @@ paths:
     get:
       tags: [admin]
       operationId: readPlan
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: {planName: name}
+      x-hubtask-rest-answer: planResponse
       summary: One plan
       responses:
         "200":
@@ -5916,6 +5922,8 @@ paths:
     delete:
       tags: [admin]
       operationId: removePlan
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: {planName: name}
       summary: Remove a plan
       description: >
         Refused while a workspace is on it (`admin.plan_in_use`). A removed plan is listed no
@@ -6552,6 +6560,8 @@ paths:
     get:
       tags: [admin]
       operationId: listInstanceIdentityProviders
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: identityProvidersResponse
       summary: The providers this installation offers every workspace
       description: >
         Every workspace on this installation reads these and draws their buttons; none may change
@@ -6571,6 +6581,9 @@ paths:
     post:
       tags: [admin]
       operationId: createInstanceIdentityProvider
+      x-hubtask-rest: generated
+      x-hubtask-rest-use-case: ConfigureInstanceIdentityProvider
+      x-hubtask-rest-answer: identityProviderResponse
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
       summary: Offer every workspace a way in
@@ -6601,6 +6614,9 @@ paths:
     put:
       tags: [admin]
       operationId: configureInstanceIdentityProvider
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: {providerId: id}
+      x-hubtask-rest-answer: identityProviderResponse
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
       summary: Replace one of the installation's providers
@@ -7236,6 +7252,7 @@ paths:
     get:
       tags: [auth]
       operationId: countAccountsWithoutProvider
+      x-hubtask-rest: generated
       summary: How many people here no provider switched on here signs in
       description: >
         The number the password switch says before the password is switched off: the active
@@ -7291,6 +7308,8 @@ paths:
     put:
       tags: [auth]
       operationId: configureFirstIdentityProvider
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: identityProviderResponse
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
       summary: Set the workspace's first identity provider
@@ -7322,6 +7341,8 @@ paths:
     get:
       tags: [auth]
       operationId: listIdentityProviders
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: identityProvidersResponse
       summary: The providers people can sign in to this workspace through
       description: >
         The workspace's own providers and the ones its installation offers every workspace, each
@@ -7349,6 +7370,9 @@ paths:
     post:
       tags: [auth]
       operationId: createIdentityProvider
+      x-hubtask-rest: generated
+      x-hubtask-rest-use-case: ConfigureIdentityProvider
+      x-hubtask-rest-answer: identityProviderResponse
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
       summary: Add a provider this workspace signs its people in through
@@ -7390,6 +7414,9 @@ paths:
     put:
       tags: [auth]
       operationId: configureIdentityProvider
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: {providerId: id}
+      x-hubtask-rest-answer: identityProviderResponse
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
       summary: Replace one of the workspace's identity providers

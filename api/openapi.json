@@ -7334,6 +7334,9 @@
           "admin"
         ],
         "operationId": "listPlans",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-list": "data",
+        "x-hubtask-rest-answer": "planResponse",
         "summary": "The installation's plans",
         "description": "Every plan not removed, oldest first, each with its values in the installation level's shape, the features it leaves out and the number of workspaces on it. A plan holds only what it decides; the rest falls through to the installation. Plans exist in multi mode only; single mode refuses with `admin.multi_mode_required`. No price, no contract: a provider's platform sells plans and puts workspaces on them.\n",
         "responses": {
@@ -7426,6 +7429,11 @@
           "admin"
         ],
         "operationId": "readPlan",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "planName": "name"
+        },
+        "x-hubtask-rest-answer": "planResponse",
         "summary": "One plan",
         "responses": {
           "200": {
@@ -7500,6 +7508,10 @@
           "admin"
         ],
         "operationId": "removePlan",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "planName": "name"
+        },
         "summary": "Remove a plan",
         "description": "Refused while a workspace is on it (`admin.plan_in_use`). A removed plan is listed no more, and its short name stays taken.\n",
         "responses": {
@@ -8402,6 +8414,8 @@
           "admin"
         ],
         "operationId": "listInstanceIdentityProviders",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "identityProvidersResponse",
         "summary": "The providers this installation offers every workspace",
         "description": "Every workspace on this installation reads these and draws their buttons; none may change them, which is the row-level policy and not a check in a handler. Behind `admin:tenants` **and** the operator register, both.\n",
         "responses": {
@@ -8428,6 +8442,9 @@
           "admin"
         ],
         "operationId": "createInstanceIdentityProvider",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-use-case": "ConfigureInstanceIdentityProvider",
+        "x-hubtask-rest-answer": "identityProviderResponse",
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"
@@ -8473,6 +8490,11 @@
           "admin"
         ],
         "operationId": "configureInstanceIdentityProvider",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "providerId": "id"
+        },
+        "x-hubtask-rest-answer": "identityProviderResponse",
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"
@@ -9198,6 +9220,7 @@
           "auth"
         ],
         "operationId": "countAccountsWithoutProvider",
+        "x-hubtask-rest": "generated",
         "summary": "How many people here no provider switched on here signs in",
         "description": "The number the password switch says before the password is switched off: the active people of this workspace who hold no identity at any provider that is a way in here now - the workspace's own switched on, the installation's taken and not past a withdrawal. Invited accounts have not chosen a way in yet and service accounts sign in with a token, so neither is counted. Where the password goes off, each of them connects a provider through *Forgot your password?* - or, holding a password, at the provider's first arrival with it.\nA number, never a list: the screen needs how many, not who.\nNeeds the permission that manages structure, or the auditor's read-only configuration permission, as the list of providers does.\n",
         "responses": {
@@ -9248,6 +9271,8 @@
           "auth"
         ],
         "operationId": "configureFirstIdentityProvider",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "identityProviderResponse",
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"
@@ -9288,6 +9313,8 @@
           "auth"
         ],
         "operationId": "listIdentityProviders",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "identityProvidersResponse",
         "summary": "The providers people can sign in to this workspace through",
         "description": "The workspace's own providers and the ones its installation offers every workspace, each with its issuer, the mark it draws, whom it lets in and whether it is switched on. `scope` says which level a row belongs to: an `installation` row is offered to this workspace and is not its to change.\nNeeds the permission that manages structure, or the auditor's read-only configuration permission: which provider vouches for this workspace's people is configuration an auditor reads.\nThe client secret is never a member of this answer. It is sealed at configuration time and read only by the token exchange.\n",
         "responses": {
@@ -9314,6 +9341,9 @@
           "auth"
         ],
         "operationId": "createIdentityProvider",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-use-case": "ConfigureIdentityProvider",
+        "x-hubtask-rest-answer": "identityProviderResponse",
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"
@@ -9359,6 +9389,11 @@
           "auth"
         ],
         "operationId": "configureIdentityProvider",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "providerId": "id"
+        },
+        "x-hubtask-rest-answer": "identityProviderResponse",
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"
