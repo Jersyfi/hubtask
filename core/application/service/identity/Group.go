@@ -618,6 +618,10 @@ func (h UpdateGroup) Descriptor() usecase.Descriptor {
 				Name: "step_up_token", Kind: usecase.KindString,
 				Description: "The fresh proof a member change of a group holding OWNER demands.",
 			},
+			{
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
+				Description: "The version the change was made against.",
+			},
 		},
 		StepUp: "changing who is in a group that holds the OWNER role",
 		Audit: usecase.AuditDeclaration{
@@ -647,8 +651,9 @@ func (h UpdateGroup) invoke(
 		Members:     members,
 		// The list is only a replacement when the caller sent one at all. Absent leaves the
 		// membership alone; an empty list empties the group, which is a legitimate thing to want.
-		ReplaceMembers: in.Present("members"),
-		StepUpToken:    in.String("step_up_token"),
+		ReplaceMembers:  in.Present("members"),
+		ExpectedVersion: in.Int("expected_version"),
+		StepUpToken:     in.String("step_up_token"),
 	})
 	if err != nil {
 		return nil, err

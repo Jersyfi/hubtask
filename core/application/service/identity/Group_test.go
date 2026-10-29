@@ -284,6 +284,25 @@ func TestAStaleVersionIsRefused(t *testing.T) {
 	}
 }
 
+// The If-Match a door reads reaches the command: a stale one sent through the catalogue is the
+// same version conflict, not an unknown field.
+func TestAStaleVersionSentThroughTheCatalogueIsRefused(t *testing.T) {
+	groups := newGroups(settledGroup(t))
+	handler := updateHandler(groups, newAccounts(), &authorizer{}, &auditSink{})
+	registry, err := usecase.NewRegistry(nil, handler.Descriptor())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = registry.Invoke(t.Context(), UpdateGroupName, admin(), usecase.Input{
+		"group_id": groupID.String(), "name": "Platform", "expected_version": 7,
+	})
+
+	if !errors.Is(err, shared.ErrVersionConflict) {
+		t.Fatalf("error %v, want a version conflict", err)
+	}
+}
+
 func deleteHandler(groups *groupStore, auth *authorizer, sink *auditSink) DeleteGroup {
 	return DeleteGroup{
 		Groups: groups, Grants: newGrants(), Authorizer: auth, Revocations: &revoker{}, Audit: sink,
