@@ -13,7 +13,6 @@ import (
 // The discussion beside the entries: a sub-resource of the item, because a comment is not
 // a field of its row - it appends, it never merges, and it pages on its own.
 
-
 // commentResponse maps the catalogue's output onto the generated schema. The mapping lives here
 // because the generated types are the contract's shape rather than the domain's
 // (project-structure.md §3).

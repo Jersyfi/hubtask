@@ -262,6 +262,8 @@ paths:
     get:
       tags: [views]
       operationId: listSavedViews
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: savedViewResponse
       description: >
         The saved views the caller may see. Naming a container answers the caller's own views plus
         what is shared into that container's path - the collection's, its hub's and the
@@ -289,6 +291,9 @@ paths:
     post:
       tags: [views]
       operationId: createSavedView
+      x-hubtask-rest: generated
+      x-hubtask-rest-location: /views/{id}
+      x-hubtask-rest-answer: savedViewResponse
       description: >
         Saves a view: a query in the DSL of POST /items:query, the layout it is drawn in, and the
         fields the client shows. The query is validated here, against the same catalogue and the
@@ -325,6 +330,8 @@ paths:
     get:
       tags: [views]
       operationId: getSavedView
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: savedViewResponse
       description: >
         One saved view. A view the caller may not see - another account's private view, or one
         shared into a scope the caller holds nothing on - is not found, in exactly the words a
@@ -344,6 +351,8 @@ paths:
     patch:
       tags: [views]
       operationId: updateSavedView
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: savedViewResponse
       description: >
         Changes a view's own fields. A field that is not sent is left alone. The scope and the
         sharing are not among them: where a view lives is decided when it is created, and sharing
@@ -371,6 +380,7 @@ paths:
     delete:
       tags: [views]
       operationId: deleteSavedView
+      x-hubtask-rest: generated
       description: >
         Deletes the view. A calendar feed that served it keeps its token and serves nothing,
         saying why - the feed's view reference nulls rather than cascading, because a feed is the
@@ -389,6 +399,8 @@ paths:
     post:
       tags: [views]
       operationId: shareSavedView
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: savedViewResponse
       description: >
         Decides who sees the view: PRIVATE keeps it the owner's, SCOPE shares it with everyone who
         may read the view's scope. Sharing publishes workspace furniture, so it asks the STRUCTURE

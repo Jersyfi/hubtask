@@ -394,6 +394,8 @@
           "views"
         ],
         "operationId": "listSavedViews",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "savedViewResponse",
         "description": "The saved views the caller may see. Naming a container answers the caller's own views plus what is shared into that container's path - the collection's, its hub's and the workspace-wide ones, computed in the query rather than filtered after a page. Naming none answers the caller's own views alone.\n",
         "parameters": [
           {
@@ -431,6 +433,9 @@
           "views"
         ],
         "operationId": "createSavedView",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-location": "/views/{id}",
+        "x-hubtask-rest-answer": "savedViewResponse",
         "description": "Saves a view: a query in the DSL of POST /items:query, the layout it is drawn in, and the fields the client shows. The query is validated here, against the same catalogue and the same bounds as an ad-hoc one and with the same codes - a saved view that failed at read time would be a broken bookmark nobody can repair. The layout is validated against the declared set (/meta/capabilities, view_layouts), stored, echoed back, and never consulted: what a layout looks like is the client's business, which is what makes new views possible without a backend change. The creator owns the view, and it starts PRIVATE unless sharing says otherwise, under the same rules as :share.\n",
         "parameters": [
           {
@@ -482,6 +487,8 @@
           "views"
         ],
         "operationId": "getSavedView",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "savedViewResponse",
         "description": "One saved view. A view the caller may not see - another account's private view, or one shared into a scope the caller holds nothing on - is not found, in exactly the words a genuinely missing one produces.\n",
         "responses": {
           "200": {
@@ -511,6 +518,8 @@
           "views"
         ],
         "operationId": "updateSavedView",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "savedViewResponse",
         "description": "Changes a view's own fields. A field that is not sent is left alone. The scope and the sharing are not among them: where a view lives is decided when it is created, and sharing is :share - one decision with its own permission, not a field of an edit.\n",
         "parameters": [
           {
@@ -555,6 +564,7 @@
           "views"
         ],
         "operationId": "deleteSavedView",
+        "x-hubtask-rest": "generated",
         "description": "Deletes the view. A calendar feed that served it keeps its token and serves nothing, saying why - the feed's view reference nulls rather than cascading, because a feed is the subscriber's and a view is the workspace's.\n",
         "parameters": [
           {
@@ -582,6 +592,8 @@
           "views"
         ],
         "operationId": "shareSavedView",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "savedViewResponse",
         "description": "Decides who sees the view: PRIVATE keeps it the owner's, SCOPE shares it with everyone who may read the view's scope. Sharing publishes workspace furniture, so it asks the STRUCTURE permission on the scope's path - a view over a collection cannot be pushed onto people by somebody who may not shape that collection. An ACCOUNT-scoped view names no audience and cannot be shared. PUBLIC_LINK is declared and refused by name: the calendar feed is this version's only public reader and carries its own token, and a browsable public link is a product decision no task takes in passing.\n",
         "parameters": [
           {
