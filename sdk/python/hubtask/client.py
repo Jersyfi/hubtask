@@ -1579,17 +1579,17 @@ class Client:
         """POST /containers/{containerId}:reorder"""
         return self._call("POST", "/containers/{containerId}:reorder", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, body, "json", "application/json", "json")
 
-    def restore_container(self, container_id: str, *, idempotency_key: str | None = None) -> "Container":
+    def restore_container(self, container_id: str, *, idempotency_key: str | None = None, if_match: str | None = None) -> "Container":
         """POST /containers/{containerId}:restore"""
-        return self._call("POST", "/containers/{containerId}:restore", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+        return self._call("POST", "/containers/{containerId}:restore", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, None, "none", None, "json")
 
-    def archive_container(self, container_id: str, *, idempotency_key: str | None = None) -> "Container":
+    def archive_container(self, container_id: str, *, idempotency_key: str | None = None, if_match: str | None = None) -> "Container":
         """POST /containers/{containerId}:archive"""
-        return self._call("POST", "/containers/{containerId}:archive", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+        return self._call("POST", "/containers/{containerId}:archive", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, None, "none", None, "json")
 
-    def unarchive_container(self, container_id: str, *, idempotency_key: str | None = None) -> "Container":
+    def unarchive_container(self, container_id: str, *, idempotency_key: str | None = None, if_match: str | None = None) -> "Container":
         """POST /containers/{containerId}:unarchive"""
-        return self._call("POST", "/containers/{containerId}:unarchive", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+        return self._call("POST", "/containers/{containerId}:unarchive", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, None, "none", None, "json")
 
     def list_work_items(self, *, query: dict[str, Any] | None = None) -> "WorkItemPage":
         """GET /items"""

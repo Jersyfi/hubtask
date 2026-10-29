@@ -10777,6 +10777,7 @@ paths:
         archived. Needs the same right as the deletion, which is the owner's. Idempotent.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
       responses:
         "200":
           description: Restored
@@ -10803,6 +10804,7 @@ paths:
         nothing.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
       responses:
         "200":
           description: Archived
@@ -10828,6 +10830,7 @@ paths:
         merely covered by it. Idempotent.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
       responses:
         "200":
           description: Unarchived
