@@ -98,6 +98,9 @@ test('the comparisons offered are a subset of what the grammar permits for the k
   // ranges to the kinds that have an order. Nothing here may add to that, or the editor would
   // offer a row the server refuses by name.
   const SERVER = new Set(['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_NULL', 'CONTAINS']);
+  // The set and prefix operators the grammar holds to a set and to text (CustomShape.typedOperator).
+  const SETS = new Set(['MULTI_SELECT', 'USER_SET']);
+  const TEXTS = new Set(['TEXT', 'URL']);
   const RANGES = new Set(['LT', 'LTE', 'GT', 'GTE', 'BETWEEN']);
   const ORDERED = new Set(['TEXT', 'NUMBER', 'DATE', 'SELECT', 'BOOL', 'URL', 'MONEY', 'DURATION']);
   const kinds = [
@@ -106,13 +109,17 @@ test('the comparisons offered are a subset of what the grammar permits for the k
   ];
   for (const kind of kinds) {
     for (const op of operatorsFor(kind)) {
-      const permitted = SERVER.has(op) || (RANGES.has(op) && ORDERED.has(kind));
+      const permitted = SERVER.has(op) || (RANGES.has(op) && ORDERED.has(kind)) ||
+        ((op === 'CONTAINS_ANY' || op === 'CONTAINS_ALL') && SETS.has(kind)) ||
+        (op === 'STARTS_WITH' && TEXTS.has(kind));
       assert.ok(permitted, `${kind} offers ${op}, which the grammar does not permit`);
     }
   }
   assert.deepEqual(operatorsFor('BOOL'), ['EQ', 'NEQ', 'IS_NULL']);
-  assert.deepEqual(operatorsFor('MULTI_SELECT'), ['CONTAINS', 'IS_NULL']);
-  assert.deepEqual(operatorsFor('USER_SET'), ['CONTAINS', 'IS_NULL']);
+  assert.deepEqual(operatorsFor('MULTI_SELECT'), ['CONTAINS', 'CONTAINS_ANY', 'CONTAINS_ALL', 'IS_NULL']);
+  assert.deepEqual(operatorsFor('USER_SET'), ['CONTAINS', 'CONTAINS_ANY', 'CONTAINS_ALL', 'IS_NULL']);
+  assert.ok(operatorsFor('TEXT').includes('STARTS_WITH'));
+  assert.ok(!operatorsFor('RICH_TEXT').includes('STARTS_WITH'));
   assert.ok(operatorsFor('MONEY').includes('BETWEEN'));
   assert.ok(!operatorsFor('REFERENCE').includes('LT'));
   // A kind from a newer server is filterable rather than invisible, on what is true of any value.

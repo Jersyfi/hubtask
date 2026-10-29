@@ -133,9 +133,9 @@ export function valueFor(kind: string, raw: string | number | boolean | readonly
  *
  * | Kind | Offered | Left out, and why |
  * |---|---|---|
- * | `TEXT`, `URL` | the equalities, `IS_NULL`, `CONTAINS` | the ranges — an order of words is the server's to give, not a filter anybody asks for |
+ * | `TEXT`, `URL` | the equalities, `IS_NULL`, `CONTAINS`, `STARTS_WITH` | the ranges — an order of words is the server's to give, not a filter anybody asks for |
  * | `SELECT` | `EQ NEQ IN NOT_IN IS_NULL` | `CONTAINS` — a substring of a closed set is a chooser used wrongly |
- * | `MULTI_SELECT`, `USER_SET` | `CONTAINS IS_NULL` | the equalities — they compare whole arrays, which is not what "has this one" means |
+ * | `MULTI_SELECT`, `USER_SET` | `CONTAINS CONTAINS_ANY CONTAINS_ALL IS_NULL` | the equalities — they compare whole arrays, which is not what "has this one" means |
  * | `NUMBER`, `MONEY`, `DURATION`, `DATE` | the equalities, `IS_NULL` and `LT LTE GT GTE BETWEEN` | `CONTAINS` — a substring of a number |
  * | `USER`, `REFERENCE` | `EQ NEQ IN NOT_IN IS_NULL` | the ranges — a person or an entry has no order |
  * | `BOOL` | `EQ NEQ IS_NULL` | `IN`/`NOT_IN` over two values is `EQ`/`NEQ`; `CONTAINS` is meaningless |
@@ -149,7 +149,7 @@ export function operatorsFor(kind: string): readonly string[] {
   switch (kind) {
     case 'TEXT':
     case 'URL':
-      return ['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_NULL', 'CONTAINS'];
+      return ['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_NULL', 'CONTAINS', 'STARTS_WITH'];
     case 'NUMBER':
     case 'MONEY':
     case 'DURATION':
@@ -162,6 +162,7 @@ export function operatorsFor(kind: string): readonly string[] {
       return ['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_NULL'];
     case 'MULTI_SELECT':
     case 'USER_SET':
+      return ['CONTAINS', 'CONTAINS_ANY', 'CONTAINS_ALL', 'IS_NULL'];
     case 'RICH_TEXT':
       return ['CONTAINS', 'IS_NULL'];
     case 'BOOL':
