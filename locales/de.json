@@ -7266,5 +7266,6 @@
   "app.access.matrix": "Wer darf was",
   "app.access.families_note": "Eigentümer und Administratoren haben die Berechtigung jedes geschützten Felds und jedes Schritts; eine eigene Rolle hat die, die sie nennt.",
   "app.fields.restricted": "Geschützt",
-  "app.fields.restricted_hint": "Nur Rollen mit der Berechtigung dieses Felds schreiben es: Eigentümer, Administratoren und eine eigene Rolle, die es nennt."
+  "app.fields.restricted_hint": "Nur Rollen mit der Berechtigung dieses Felds schreiben es: Eigentümer, Administratoren und eine eigene Rolle, die es nennt.",
+  "app.fields.restricted_read_only": "Nur Rollen mit der Berechtigung dieses Felds ändern es."
 }

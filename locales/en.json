@@ -7269,5 +7269,6 @@
   "app.access.matrix": "Who may do what",
   "app.access.families_note": "The owner and the administrators hold every restricted field's and every step's permission; a role of the workspace's own holds those it names.",
   "app.fields.restricted": "Restricted",
-  "app.fields.restricted_hint": "Only roles that carry this field's permission write it: the owner, the administrators and a role of this workspace's own that names it."
+  "app.fields.restricted_hint": "Only roles that carry this field's permission write it: the owner, the administrators and a role of this workspace's own that names it.",
+  "app.fields.restricted_read_only": "Only roles that carry this field's permission change it."
 }

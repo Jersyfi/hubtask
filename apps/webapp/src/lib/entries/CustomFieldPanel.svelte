@@ -40,6 +40,7 @@
   import { formatDuration, parseDuration } from '../i18n/duration.ts';
   import { items } from '../data/items.svelte.ts';
   import { resolved, targetLabel } from '../data/links.svelte.ts';
+  import { mayWriteField, roles } from '../data/roles.svelte.ts';
   import EntryPicker from './EntryPicker.svelte';
   import { renderProblem } from '../problem.ts';
 
@@ -112,6 +113,29 @@
   );
 
   const values = $derived((item.custom_fields ?? {}) as Record<string, unknown>);
+
+  /**
+   * Whether the reader may write a restricted field here (UC-ID-27 check 4): what they hold at the
+   * entry's collection carries `FIELD_WRITE:<key>`. Asked only where a field is restricted, and
+   * until answered no control is drawn for one - the server would refuse it (`fields.restricted`).
+   */
+  const isAnyRestricted = $derived(applicable.some((definition) => definition.restricted === true));
+  const mine = $derived(isAnyRestricted ? roles.mineAt(item.collection_id) : undefined);
+  function isWritable(definition: CustomFieldDefinition): boolean {
+    return mayWriteField(definition, mine);
+  }
+
+  /** A value as words, for a field shown and not edited. */
+  function shown(definition: CustomFieldDefinition, held: unknown): string {
+    if (held === null || held === undefined || held === '' || (Array.isArray(held) && held.length === 0)) return t('app.fields.empty_value');
+    const one = (value: unknown): string => {
+      if (typeof value === 'number') return numbers.format(value);
+      if (typeof value === 'boolean') return value ? t('app.permissions.yes') : t('app.permissions.no');
+      if (typeof value === 'string' && (definition.kind === 'USER' || definition.kind === 'USER_SET')) return accounts.nameOf(value) ?? t('app.people.unnamed');
+      return typeof value === 'string' ? value : JSON.stringify(value);
+    };
+    return Array.isArray(held) ? held.map(one).join(', ') : one(held);
+  }
 
   /** Which key is being written, so its control shows the refusal and not the one beside it. */
   let failedKey = $state<string | undefined>(undefined);
@@ -201,6 +225,13 @@
             <span class="label">{definition.key}</span>
             <output>{typeof held === 'number' ? numbers.format(held) : t('app.fields.calculated_empty')}</output>
             <p class="quiet">{t('app.fields.calculated_hint')}</p>
+          </div>
+        {:else if !isWritable(definition)}
+          <!-- Restricted, and the reader holds no role naming its permission: shown, not edited. -->
+          <div class="calculated" data-restricted={definition.key}>
+            <span class="label">{definition.key}</span>
+            <output>{shown(definition, held)}</output>
+            <p class="quiet">{t('app.fields.restricted_read_only')}</p>
           </div>
         {:else}
         <div>

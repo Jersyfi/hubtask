@@ -29,6 +29,9 @@ export interface Place {
 
 class Roles {
   #state = $state<ResourceState<RoleCatalogue> | undefined>(undefined);
+  /** What the reader holds per collection, asked once each: which restricted fields they write. */
+  #mine = $state<Record<string, AccessExplanation | null>>({});
+  #asked = new Set<string>();
 
   get state(): ResourceState<RoleCatalogue> | undefined {
     return this.#state;
@@ -70,6 +73,20 @@ class Roles {
 
   async revoke(grantId: string): Promise<void> {
     await engine.mutate<void>('DELETE', `${GRANTS}/${grantId}`, undefined, { invalidates: TOUCHES });
+  }
+
+  /**
+   * What the reader holds at a collection, undefined until answered - and asked for on the first
+   * call. Null where the server would not say: nothing is taken as held then.
+   */
+  mineAt(collectionId: string): AccessExplanation | null | undefined {
+    if (!this.#asked.has(collectionId)) {
+      this.#asked.add(collectionId);
+      void this.explain({ scopeType: 'COLLECTION', scopeId: collectionId })
+        .then((answer) => (this.#mine = { ...this.#mine, [collectionId]: answer ?? null }))
+        .catch(() => (this.#mine = { ...this.#mine, [collectionId]: null }));
+    }
+    return this.#mine[collectionId];
   }
 
   /**

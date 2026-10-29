@@ -42,6 +42,14 @@ export function holds(explained: AccessExplanation | undefined, permission: stri
   return explained.sources.some((source) => !source.custom && FAMILY_HOLDERS.includes(source.role));
 }
 
+/**
+ * Whether the reader writes a field (UC-ID-27 check 4): any field that is not restricted, and a
+ * restricted one only with its `FIELD_WRITE:<key>` - never before the answer has arrived.
+ */
+export function mayWriteField(field: { key: string; restricted?: boolean }, explained: AccessExplanation | null | undefined): boolean {
+  return field.restricted !== true || holds(explained ?? undefined, `${FIELD_WRITE}${field.key}`);
+}
+
 /** A permission a role editor shows, and whether the reader may set or clear it. */
 export interface Offer {
   readonly permission: string;

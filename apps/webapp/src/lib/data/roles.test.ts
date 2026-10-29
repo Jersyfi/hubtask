@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { AccessExplanation, RoleCatalogue } from '@hubtask/sync-engine';
 
-import { chosen, holds, keyFrom, matrixOf, offers } from './roles.ts';
+import { chosen, holds, keyFrom, matrixOf, mayWriteField, offers } from './roles.ts';
 
 const LUKAS = '22222222-0000-4000-8000-00000000000c';
 
@@ -88,4 +88,16 @@ test('who may do what draws the catalogue against the roles', () => {
   assert.ok(row('ADMIN')?.includes('TAKE_STEP:change/approve'));
   assert.deepEqual(row('service_lead'), ['READ', 'STRUCTURE', 'TAKE_STEP:change/approve']);
   assert.deepEqual(matrixOf(CATALOGUE, ['service_lead']).rows.map((each) => each.id), ['service_lead']);
+});
+
+// UC-ID-27 check 4: the entry panel offers a restricted field only to whoever holds its permission,
+// and nobody before the answer has arrived.
+test('a restricted field is written only with its permission', () => {
+  const cost = { key: 'cost', restricted: true };
+  assert.equal(mayWriteField({ key: 'title_note' }, undefined), true);
+  assert.equal(mayWriteField(cost, undefined), false);
+  assert.equal(mayWriteField(cost, LEAD), false);
+  assert.equal(mayWriteField(cost, ADMIN), true);
+  const finance = explained(['READ', 'FIELD_WRITE:cost'], [{ role: 'finance', custom: true, scope_type: 'HUB' }]);
+  assert.equal(mayWriteField(cost, finance), true);
 });
