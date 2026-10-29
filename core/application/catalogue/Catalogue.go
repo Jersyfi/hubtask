@@ -32,6 +32,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/integration"
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
+	knowledgeservice "github.com/Jersyfi/hubtask/core/application/service/knowledge"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	mailservice "github.com/Jersyfi/hubtask/core/application/service/mail"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
@@ -79,6 +80,26 @@ func Descriptors() []usecase.Descriptor {
 		workflowservice.DeleteEntryType{}.Descriptor(),
 		workflowservice.SetEntryTypeForm{}.Descriptor(),
 		work.EvaluateEntryForm{}.Descriptor(),
+		knowledgeservice.CreatePage{}.Descriptor(),
+		knowledgeservice.ReadPage{}.Descriptor(),
+		knowledgeservice.ListPages{}.Descriptor(),
+		knowledgeservice.UpdatePage{}.Descriptor(),
+		knowledgeservice.MovePage{}.Descriptor(),
+		knowledgeservice.TrashPage{}.Descriptor(),
+		knowledgeservice.RestorePage{}.Descriptor(),
+		knowledgeservice.ListTrashedPages{}.Descriptor(),
+		knowledgeservice.VerifyPage{}.Descriptor(),
+		knowledgeservice.ListPageVersions{}.Descriptor(),
+		knowledgeservice.ReadPageVersion{}.Descriptor(),
+		knowledgeservice.NamePageVersion{}.Descriptor(),
+		knowledgeservice.RestorePageVersion{}.Descriptor(),
+		knowledgeservice.AddPageComment{}.Descriptor(),
+		knowledgeservice.ListPageComments{}.Descriptor(),
+		knowledgeservice.ChangePageComment{}.Descriptor(),
+		knowledgeservice.DeletePageComment{}.Descriptor(),
+		knowledgeservice.SearchPages{}.Descriptor(),
+		knowledgeservice.ListPageBacklinks{}.Descriptor(),
+		knowledgeservice.ExportPage{}.Descriptor(),
 		work.ListLinkTypes{}.Descriptor(),
 		work.CreateLinkType{}.Descriptor(),
 		work.ChangeLinkType{}.Descriptor(),

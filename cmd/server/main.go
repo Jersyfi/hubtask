@@ -49,6 +49,7 @@ import (
 	integrationservice "github.com/Jersyfi/hubtask/core/application/service/integration"
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
+	knowledgeservice "github.com/Jersyfi/hubtask/core/application/service/knowledge"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	mailservice "github.com/Jersyfi/hubtask/core/application/service/mail"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
@@ -70,6 +71,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	importdomain "github.com/Jersyfi/hubtask/core/domain/model/importer"
 	integrationmodel "github.com/Jersyfi/hubtask/core/domain/model/integration"
+	knowledgedomain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	realtimedomain "github.com/Jersyfi/hubtask/core/domain/model/realtime"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	providerport "github.com/Jersyfi/hubtask/core/port/ai"
@@ -1789,8 +1791,34 @@ func run() error {
 		Permits: authorizer, Events: outbox, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid, Activity: journal,
 	}
+	// The knowledge module's pages (M3): a hub's space, judged at the hub.
+	pageSpace := knowledgeservice.Space{
+		Pages: postgres.NewPageRepository(), Containers: containers, Entries: entryLinks,
+		Authorizer: authorizer, Reader: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, Text: forms,
+	}
 	useCases, err := usecase.NewRegistry(
 		settingservice.ModuleGate{Modules: modules}.Wrap(entitlementGate.Wrap(observer.Registry())),
+		knowledgeservice.CreatePage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReadPage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListPages{Space: pageSpace}.Descriptor(),
+		knowledgeservice.UpdatePage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.MovePage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.TrashPage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.RestorePage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListTrashedPages{Space: pageSpace}.Descriptor(),
+		knowledgeservice.VerifyPage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListPageVersions{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReadPageVersion{Space: pageSpace}.Descriptor(),
+		knowledgeservice.NamePageVersion{Space: pageSpace}.Descriptor(),
+		knowledgeservice.RestorePageVersion{Space: pageSpace}.Descriptor(),
+		knowledgeservice.AddPageComment{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListPageComments{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ChangePageComment{Space: pageSpace}.Descriptor(),
+		knowledgeservice.DeletePageComment{Space: pageSpace}.Descriptor(),
+		knowledgeservice.SearchPages{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListPageBacklinks{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ExportPage{Space: pageSpace}.Descriptor(),
 		work.ListLinkTypes{Registry: linkTypeRegistry}.Descriptor(),
 		work.CreateLinkType{Registry: linkTypeRegistry}.Descriptor(),
 		work.ChangeLinkType{Registry: linkTypeRegistry}.Descriptor(),
@@ -3014,13 +3042,14 @@ func run() error {
 			Wakeups:  changeListener,
 			Signals:  metrics,
 		}
-		// Live documents (F-8, offline-sync.md §13). No kind is registered yet: the step that
-		// builds pages and whiteboards names where each of their documents sits, and until then
-		// every document answers not found.
+		// Live documents (F-8, offline-sync.md §13). Each kind names where its documents sit; a
+		// kind not registered answers not found.
 		controller.Realtime = &rest.RealtimeController{
 			Handler: realtimeadapter.Handler{
 				Documents: realtimeservice.Documents{
-					Store: postgres.NewRealtimeRepository(), Kinds: map[realtimedomain.Kind]realtimeservice.Locator{},
+					Store: postgres.NewRealtimeRepository(), Kinds: map[realtimedomain.Kind]realtimeservice.Locator{
+						knowledgedomain.DocumentKind: knowledgeservice.Locator{Space: pageSpace},
+					},
 					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 				},
 				Wakeups: changeListener,
