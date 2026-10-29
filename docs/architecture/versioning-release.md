@@ -80,6 +80,15 @@ with its CVE, and the CSAF 2.0 document (and any VEX statement) under `hubtask.e
 ([security.md](./security.md) §14.2) — written by `release.yml` and the website from the
 advisory's file in `security/advisories/`, committed with the fix.
 
+**The release record.** Every release attaches `release-record.json` (`tools/releaserecord`,
+schema `hubtask-release-record/1`), signed keyless beside it: the tag, the commit, the image and
+its digest, the pipeline run that built and checked it, the Go toolchain, the gates the tag ran
+(§6), the SBOM's and the licence list's SHA-256, the advisories the release fixes, and the support
+policy (§5) it was released under. It is what a provider who is a manufacturer, an authority or a
+court asks of a release years after it shipped - the state of the art it was built to, what it
+contained, what was known about it (Directive (EU) 2024/2853 on product liability; CRA Annex VII).
+It names the evidence by hash and address and copies none of it; a GitHub release is never
+deleted, so the record stays with its artefacts.
 
 The release notes are the changelog; there is no `CHANGELOG.md`. There is no version field in the
 code: the version is burned in through `-ldflags` and reported by `/meta/health`.

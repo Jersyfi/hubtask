@@ -132,6 +132,16 @@ jobs:
             tar -czf csaf.tar.gz -C dist csaf
           fi
 
+      - name: The release record
+        # versioning-release.md §3: what this release is, named by hash and address, signed.
+        run: |
+          go run ./tools/releaserecord -version "${GITHUB_REF_NAME}" -commit "${GITHUB_SHA}" \
+            -image "ghcr.io/${{ env.IMAGE_NAME }}:${GITHUB_REF_NAME}" -digest "${{ steps.build.outputs.digest }}" \
+            -run "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            -at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" -go "$(go env GOVERSION)" \
+            sbom.cdx.json THIRD-PARTY-LICENSES.md > release-record.json
+          cosign sign-blob --yes --bundle release-record.json.sigstore.json release-record.json
+
       - name: Package the Helm chart
         run: |
           .tools/helm package k8s --version "${GITHUB_REF_NAME#v}" --app-version "${GITHUB_REF_NAME#v}" -d dist/
@@ -148,4 +158,6 @@ jobs:
             sbom.cdx.json
             dist/*.tgz
             THIRD-PARTY-LICENSES.md
+            release-record.json
+            release-record.json.sigstore.json
             csaf.tar.gz
