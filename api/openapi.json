@@ -12650,6 +12650,8 @@
           "structure"
         ],
         "operationId": "exportConfig",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-etag": "hash",
         "summary": "The configuration document in force",
         "description": "The workspace's configuration as one document - modules, roles, fields, link types, entry types with their forms, workflows and the configuration settings - each block by its stable key, never content and never a secret. `hash` is what a plan is made against and is the `ETag`; a section the reader may not read, or whose module is off, is listed in `withheld`. Needs the right to change the workspace's shape, or to read its configuration. Given `hub_id`, the hub's own document, which needs that right at the hub.\n",
         "parameters": [
@@ -12836,6 +12838,8 @@
           "structure"
         ],
         "operationId": "applyConfig",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-if-match": "base_hash",
         "summary": "Apply a planned configuration change",
         "description": "Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`.\n",
         "parameters": [
@@ -13009,6 +13013,7 @@
           "structure"
         ],
         "operationId": "decideConfigProposal",
+        "x-hubtask-rest": "generated",
         "summary": "Apply or decline a proposed change",
         "description": "Applying re-plans the proposal against the configuration in force and refuses it as `config.version_conflict` where that moved since; a plan that hides data or changes permissions needs `acknowledge`, and one that changes the sign-in rule a fresh proof in `X-Hubtask-Step-Up`. An agent cannot decide a proposal.\n",
         "parameters": [

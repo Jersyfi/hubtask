@@ -31,7 +31,11 @@ type RESTDoor struct {
 	ParamsArg                          string   // the params struct's argument, empty for none
 	BodyType                           string   // the generated request body type, empty for none
 	AnswerType                         string   // the generated answer type, empty for none
-	BodyRequired, IfMatch, ETag        bool
+	BodyRequired, IfMatch, StepUp      bool
+	// IfMatchAs is the input If-Match reaches as text; empty passes it as `expected_version`.
+	IfMatchAs string
+	// ETag is the answer's member the ETag is drawn from; empty for none.
+	ETag string
 }
 
 type pathArg struct{ Input, Value string }
@@ -39,6 +43,8 @@ type pathArg struct{ Input, Value string }
 type restOperation struct {
 	OperationID string      `yaml:"operationId"`
 	REST        string      `yaml:"x-hubtask-rest"`
+	IfMatchAs   string      `yaml:"x-hubtask-rest-if-match"`
+	ETagFrom    string      `yaml:"x-hubtask-rest-etag"`
 	Parameters  []parameter `yaml:"parameters"`
 	RequestBody *struct {
 		Required bool `yaml:"required"`
@@ -97,7 +103,7 @@ func restDoor(
 	signatures map[string][]*ast.Field, bodies map[string]bool,
 ) (RESTDoor, error) {
 	name := upperFirst(op.OperationID)
-	door := RESTDoor{OperationID: op.OperationID, UseCase: name, Method: strings.ToUpper(method), Path: path}
+	door := RESTDoor{OperationID: op.OperationID, UseCase: name, Method: strings.ToUpper(method), Path: path, IfMatchAs: op.IfMatchAs}
 	signature, ok := signatures[name]
 	if !ok {
 		return door, fmt.Errorf("the ServerInterface has no method %s; run oapi-codegen first", name)
@@ -114,9 +120,9 @@ func restDoor(
 		case p.In == "header" && p.Name == "If-Match":
 			door.IfMatch = true
 		case p.In == "header" && p.Name == "X-Hubtask-Step-Up":
-			// The proof travels in the use case's input under its own name; a mapping that guessed
-			// it would be deciding a rule of the step-up (rule 2), so it stays hand-written.
-			return door, fmt.Errorf("an operation with a step-up is mapped by hand")
+			// The proof travels as `step_up_token`, as every hand-written door passes it; the use
+			// case decides whether it holds (rule 2).
+			door.StepUp = true
 		}
 	}
 	sort.Strings(door.Query)
@@ -158,7 +164,16 @@ func restDoor(
 		}
 		fmt.Sscan(status, &door.Status)
 		if content, ok := response.Content["application/json"]; ok {
-			_, door.ETag = doc.resolve(content.Schema).Properties["version"]
+			answer := doc.resolve(content.Schema)
+			if version, versioned := answer.Properties["version"]; versioned && doc.kind(version) == "integer" {
+				door.ETag = "version"
+			}
+			if op.ETagFrom != "" {
+				if _, held := answer.Properties[op.ETagFrom]; !held {
+					return door, fmt.Errorf("x-hubtask-rest-etag names %s, which the answer does not hold", op.ETagFrom)
+				}
+				door.ETag = op.ETagFrom
+			}
 			// Typed by the contract: the answer passes through its generated type, so it holds
 			// the contract's shape whatever else the use case's output carries. An answer written
 			// inline has no type of its own and is written as the output.
@@ -249,8 +264,8 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 	b.WriteString("// restDoors is every operation answered by the generated mapping, by operationId.\n")
 	b.WriteString("var restDoors = map[string]restDoor{\n")
 	for _, d := range doors {
-		fmt.Fprintf(&b, "\t%q: {UseCase: %q, Status: %d, Query: %#v, IfMatch: %t, BodyRequired: %t, ETag: %t},\n",
-			d.OperationID, d.UseCase, d.Status, d.Query, d.IfMatch, d.BodyRequired, d.ETag)
+		fmt.Fprintf(&b, "\t%q: {UseCase: %q, Status: %d, Query: %#v, IfMatch: %t, IfMatchAs: %q, StepUp: %t, BodyRequired: %t, ETag: %q},\n",
+			d.OperationID, d.UseCase, d.Status, d.Query, d.IfMatch, d.IfMatchAs, d.StepUp, d.BodyRequired, d.ETag)
 	}
 	b.WriteString("}\n")
 	for _, d := range doors {

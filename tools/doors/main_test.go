@@ -169,14 +169,18 @@ func TestTheCommittedMappingIsTheContracts(t *testing.T) {
 	}
 }
 
-// An operation that takes a step-up proof stays hand-written: where the proof goes is a rule.
-func TestAStepUpOperationIsNotMapped(t *testing.T) {
+// An operation that takes a step-up proof passes it on; the use case decides it.
+func TestAStepUpOperationPassesTheProof(t *testing.T) {
 	marked := strings.Replace(contract, `      x-hubtask-cli: "thing set"`, `      x-hubtask-cli: "thing set"
       x-hubtask-rest: generated`, 1)
 	marked = strings.Replace(marked, `        - $ref: "#/components/parameters/IfMatch"`, `        - $ref: "#/components/parameters/IfMatch"
         - { name: X-Hubtask-Step-Up, in: header, schema: { type: string } }`, 1)
-	server := []byte("package openapi\ntype ServerInterface interface {\n\tChangeThing(w http.ResponseWriter, r *http.Request, thingId string)\n}\n")
-	if _, err := restTable([]byte(marked), server); err == nil || !strings.Contains(err.Error(), "step-up") {
-		t.Fatalf("a step-up operation was mapped: %v", err)
+	server := []byte("package openapi\ntype ChangeThingApplicationMergePatchPlusJSONRequestBody = ThingChange\ntype ServerInterface interface {\n\tChangeThing(w http.ResponseWriter, r *http.Request, thingId string)\n}\n")
+	doors, err := restTable([]byte(marked), server)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(doors) != 1 || !doors[0].StepUp || !doors[0].IfMatch {
+		t.Fatalf("the doors are %+v", doors)
 	}
 }

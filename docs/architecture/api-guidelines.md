@@ -13,10 +13,12 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    the mapping `tools/doors` writes into `presentation/rest/Doors.gen.go` - the request body
    decoded into its generated type first, its members, the path's and the query's parameters
    handed to the use case by the contract's names (the operationId is the use case's), `If-Match`
-   as `expected_version`, the output passed through the generated answer type, its `version` as
-   the ETag. The use case's input therefore uses the contract's names; a test holds each mapping's
-   query and version to the descriptor's declared input. An operation taking a step-up proof, or
-   whose answer is drawn by a shared mapper (an entry), stays hand-written. `x-hubtask-cli` names
+   as `expected_version` (or as the text `x-hubtask-rest-if-match` names), `X-Hubtask-Step-Up` as
+   `step_up_token`, the output passed through the generated answer type, its integer `version`
+   (or the member `x-hubtask-rest-etag` names) as the ETag. The use case's input therefore uses
+   the contract's names; a test holds each mapping's query, version and proof to the descriptor's
+   declared input. An operation whose answer is drawn by a shared mapper (an entry) stays
+   hand-written. `x-hubtask-cli` names
    the `hubctl` command the same tool writes into `cmd/hubctl/Doors.gen.go`; a hand-written
    command of the same name is kept.
 2. **One major path:** `/api/v1`. Additive changes (new fields, new endpoints, new enum values in *responses*) are compatible and need no new version.

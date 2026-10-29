@@ -9829,6 +9829,8 @@ paths:
     get:
       tags: [structure]
       operationId: exportConfig
+      x-hubtask-rest: generated
+      x-hubtask-rest-etag: hash
       summary: The configuration document in force
       description: >
         The workspace's configuration as one document - modules, roles, fields, link types, entry
@@ -9961,6 +9963,8 @@ paths:
     post:
       tags: [structure]
       operationId: applyConfig
+      x-hubtask-rest: generated
+      x-hubtask-rest-if-match: base_hash
       summary: Apply a planned configuration change
       description: >
         Applies a plan by its hash, all or nothing, against the configuration it was planned on: a
@@ -10066,6 +10070,7 @@ paths:
     post:
       tags: [structure]
       operationId: decideConfigProposal
+      x-hubtask-rest: generated
       summary: Apply or decline a proposed change
       description: >
         Applying re-plans the proposal against the configuration in force and refuses it as

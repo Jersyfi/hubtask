@@ -13,46 +13,56 @@ import (
 
 // restDoors is every operation answered by the generated mapping, by operationId.
 var restDoors = map[string]restDoor{
-	"changeLinkType":         {UseCase: "ChangeLinkType", Status: 200, Query: []string(nil), IfMatch: true, BodyRequired: true, ETag: true},
-	"changeRole":             {UseCase: "ChangeRole", Status: 200, Query: []string(nil), IfMatch: true, BodyRequired: true, ETag: true},
-	"createLinkType":         {UseCase: "CreateLinkType", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: true},
-	"createRole":             {UseCase: "CreateRole", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: true},
-	"createWorkflow":         {UseCase: "CreateWorkflow", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: true},
-	"deleteLinkType":         {UseCase: "DeleteLinkType", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"deleteRole":             {UseCase: "DeleteRole", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"deleteWorkflow":         {UseCase: "DeleteWorkflow", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"explainAccess":          {UseCase: "ExplainAccess", Status: 200, Query: []string{"account_id", "permission", "scope_id", "scope_type"}, IfMatch: false, BodyRequired: false, ETag: false},
-	"explainConfig":          {UseCase: "ExplainConfig", Status: 200, Query: []string{"hub_id", "key"}, IfMatch: false, BodyRequired: false, ETag: false},
-	"grantRole":              {UseCase: "GrantRole", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
-	"linkEntries":            {UseCase: "LinkEntries", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
-	"listConfigProposals":    {UseCase: "ListConfigProposals", Status: 200, Query: []string{"state"}, IfMatch: false, BodyRequired: false, ETag: false},
-	"listConfigTemplates":    {UseCase: "ListConfigTemplates", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"listConfigVersions":     {UseCase: "ListConfigVersions", Status: 200, Query: []string{"before", "hub_id"}, IfMatch: false, BodyRequired: false, ETag: false},
-	"listEntryLinks":         {UseCase: "ListEntryLinks", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"listEntrySteps":         {UseCase: "ListEntrySteps", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"listLinkTypes":          {UseCase: "ListLinkTypes", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"listLinksAmong":         {UseCase: "ListLinksAmong", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
-	"listRoles":              {UseCase: "ListRoles", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"listWorkflows":          {UseCase: "ListWorkflows", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"planConfig":             {UseCase: "PlanConfig", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
-	"planConfigTemplate":     {UseCase: "PlanConfigTemplate", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
-	"previewWorkflowPublish": {UseCase: "PreviewWorkflowPublish", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"previewWorkflowScheme":  {UseCase: "PreviewWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
-	"proposeConfig":          {UseCase: "ProposeConfig", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: true},
-	"publishConfigTemplate":  {UseCase: "PublishConfigTemplate", Status: 201, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: true},
-	"publishWorkflow":        {UseCase: "PublishWorkflow", Status: 200, Query: []string(nil), IfMatch: true, BodyRequired: false, ETag: true},
-	"readConfigSandbox":      {UseCase: "ReadConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"readConfigSchema":       {UseCase: "ReadConfigSchema", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"readConfigVersion":      {UseCase: "ReadConfigVersion", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: true},
-	"resolveReferences":      {UseCase: "ResolveReferences", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
-	"revokeRoleGrant":        {UseCase: "RevokeRoleGrant", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"saveWorkflowDraft":      {UseCase: "SaveWorkflowDraft", Status: 200, Query: []string(nil), IfMatch: true, BodyRequired: true, ETag: true},
-	"setConfigPolicy":        {UseCase: "SetConfigPolicy", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
-	"setWorkflowScheme":      {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
-	"tryWorkflowStep":        {UseCase: "TryWorkflowStep", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
-	"unlinkEntries":          {UseCase: "UnlinkEntries", Status: 204, Query: []string(nil), IfMatch: false, BodyRequired: false, ETag: false},
-	"validateConfig":         {UseCase: "ValidateConfig", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
-	"writeConfigSandbox":     {UseCase: "WriteConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, BodyRequired: true, ETag: false},
+	"applyConfig":            {UseCase: "ApplyConfig", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "base_hash", StepUp: true, BodyRequired: true, ETag: ""},
+	"changeLinkType":         {UseCase: "ChangeLinkType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version"},
+	"changeRole":             {UseCase: "ChangeRole", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version"},
+	"createLinkType":         {UseCase: "CreateLinkType", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version"},
+	"createRole":             {UseCase: "CreateRole", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version"},
+	"createWorkflow":         {UseCase: "CreateWorkflow", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version"},
+	"decideConfigProposal":   {UseCase: "DecideConfigProposal", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: ""},
+	"deleteLinkType":         {UseCase: "DeleteLinkType", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"deleteRole":             {UseCase: "DeleteRole", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"deleteWorkflow":         {UseCase: "DeleteWorkflow", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"explainAccess":          {UseCase: "ExplainAccess", Status: 200, Query: []string{"account_id", "permission", "scope_id", "scope_type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"explainConfig":          {UseCase: "ExplainConfig", Status: 200, Query: []string{"hub_id", "key"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"exportConfig":           {UseCase: "ExportConfig", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "hash"},
+	"grantRole":              {UseCase: "GrantRole", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
+	"linkEntries":            {UseCase: "LinkEntries", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
+	"listConfigProposals":    {UseCase: "ListConfigProposals", Status: 200, Query: []string{"state"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"listConfigTemplates":    {UseCase: "ListConfigTemplates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"listConfigVersions":     {UseCase: "ListConfigVersions", Status: 200, Query: []string{"before", "hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"listEntryLinks":         {UseCase: "ListEntryLinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"listEntrySteps":         {UseCase: "ListEntrySteps", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"listLinkTypes":          {UseCase: "ListLinkTypes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"listLinksAmong":         {UseCase: "ListLinksAmong", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
+	"listRoles":              {UseCase: "ListRoles", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"listWorkflows":          {UseCase: "ListWorkflows", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"planConfig":             {UseCase: "PlanConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
+	"planConfigTemplate":     {UseCase: "PlanConfigTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
+	"previewWorkflowPublish": {UseCase: "PreviewWorkflowPublish", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"previewWorkflowScheme":  {UseCase: "PreviewWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
+	"proposeConfig":          {UseCase: "ProposeConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
+	"publishConfigTemplate":  {UseCase: "PublishConfigTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version"},
+	"publishWorkflow":        {UseCase: "PublishWorkflow", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version"},
+	"readConfigSandbox":      {UseCase: "ReadConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"readConfigSchema":       {UseCase: "ReadConfigSchema", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"readConfigVersion":      {UseCase: "ReadConfigVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version"},
+	"resolveReferences":      {UseCase: "ResolveReferences", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
+	"revokeRoleGrant":        {UseCase: "RevokeRoleGrant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"saveWorkflowDraft":      {UseCase: "SaveWorkflowDraft", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version"},
+	"setConfigPolicy":        {UseCase: "SetConfigPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
+	"setWorkflowScheme":      {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
+	"tryWorkflowStep":        {UseCase: "TryWorkflowStep", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
+	"unlinkEntries":          {UseCase: "UnlinkEntries", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: ""},
+	"validateConfig":         {UseCase: "ValidateConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
+	"writeConfigSandbox":     {UseCase: "WriteConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: ""},
+}
+
+// ApplyConfig answers POST /config:apply by the generated mapping.
+func (c *RestController) ApplyConfig(w http.ResponseWriter, r *http.Request, params openapi.ApplyConfigParams) {
+	var body openapi.ApplyConfigJSONRequestBody
+	var answer openapi.ConfigApplyResult
+	c.door(w, r, restDoors["applyConfig"], usecase.Input{}, params, &body, &answer)
 }
 
 // ChangeLinkType answers PATCH /link-types/{key} by the generated mapping.
@@ -90,6 +100,13 @@ func (c *RestController) CreateWorkflow(w http.ResponseWriter, r *http.Request) 
 	c.door(w, r, restDoors["createWorkflow"], usecase.Input{}, nil, &body, &answer)
 }
 
+// DecideConfigProposal answers POST /config/proposals/{proposalId}:decide by the generated mapping.
+func (c *RestController) DecideConfigProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID, params openapi.DecideConfigProposalParams) {
+	var body openapi.DecideConfigProposalJSONRequestBody
+	var answer openapi.ConfigApplyResult
+	c.door(w, r, restDoors["decideConfigProposal"], usecase.Input{"proposal_id": proposalId.String()}, params, &body, &answer)
+}
+
 // DeleteLinkType answers DELETE /link-types/{key} by the generated mapping.
 func (c *RestController) DeleteLinkType(w http.ResponseWriter, r *http.Request, key string) {
 	c.door(w, r, restDoors["deleteLinkType"], usecase.Input{"key": key}, nil, nil, nil)
@@ -115,6 +132,12 @@ func (c *RestController) ExplainAccess(w http.ResponseWriter, r *http.Request, p
 func (c *RestController) ExplainConfig(w http.ResponseWriter, r *http.Request, params openapi.ExplainConfigParams) {
 	var answer openapi.ConfigExplanation
 	c.door(w, r, restDoors["explainConfig"], usecase.Input{}, params, nil, &answer)
+}
+
+// ExportConfig answers GET /config by the generated mapping.
+func (c *RestController) ExportConfig(w http.ResponseWriter, r *http.Request, params openapi.ExportConfigParams) {
+	var answer openapi.ConfigExport
+	c.door(w, r, restDoors["exportConfig"], usecase.Input{}, params, nil, &answer)
 }
 
 // GrantRole answers POST /role-grants by the generated mapping.

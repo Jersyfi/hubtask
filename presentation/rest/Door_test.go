@@ -136,8 +136,14 @@ func TestEveryGeneratedMappingIsADescriptors(t *testing.T) {
 				t.Errorf("%s passes %s, which %s does not declare", operation, name, door.UseCase)
 			}
 		}
-		if door.IfMatch && !fields["expected_version"] {
+		if door.IfMatch && door.IfMatchAs == "" && !fields["expected_version"] {
 			t.Errorf("%s passes expected_version, which %s does not declare", operation, door.UseCase)
+		}
+		if door.IfMatchAs != "" && !fields[door.IfMatchAs] {
+			t.Errorf("%s passes %s, which %s does not declare", operation, door.IfMatchAs, door.UseCase)
+		}
+		if door.StepUp && !fields["step_up_token"] {
+			t.Errorf("%s passes step_up_token, which %s does not declare", operation, door.UseCase)
 		}
 	}
 }
@@ -212,5 +218,34 @@ func TestTheConfigurationVerbsReachTheirUseCases(t *testing.T) {
 	document, _ := registry.in["document"].(map[string]any)
 	if registry.name != "PlanConfig" || document["modules"] == nil {
 		t.Errorf("%s %v", registry.name, registry.in)
+	}
+}
+
+// Applying a plan: the hash it was planned on arrives from If-Match, the proof from its header,
+// and the use case decides both.
+func TestApplyingAPlanPassesTheBaseAndTheProof(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"state": "APPLIED"}}
+	recorder := callDoor(t, registry, http.MethodPost, "/config:apply", `{"plan_hash":"p"}`, map[string]string{
+		"Content-Type": "application/json", "If-Match": `W/"abc"`, "X-Hubtask-Step-Up": "proof",
+	})
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if registry.in["base_hash"] != "abc" || registry.in["step_up_token"] != "proof" || registry.in["plan_hash"] != "p" {
+		t.Errorf("unexpected input: %v", registry.in)
+	}
+	if _, sent := registry.in["expected_version"]; sent {
+		t.Errorf("If-Match also arrived as a version: %v", registry.in)
+	}
+}
+
+func TestTheExportAnswersItsHashAsTheETag(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"hash": "h1", "document": map[string]any{}}}
+	recorder := callDoor(t, registry, http.MethodGet, "/config", "", nil)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if tag := recorder.Header().Get("ETag"); tag != `"h1"` {
+		t.Errorf("ETag %q", tag)
 	}
 }
