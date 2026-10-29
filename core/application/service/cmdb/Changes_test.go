@@ -37,7 +37,7 @@ func (l *changeLog) of(entity string, id shared.ID) []changelog.Change {
 	return out
 }
 
-// A hub's inventory is read offline (UC-AST-01 check 10, offline-sync.md §13): a CI made, changed
+// A hub's inventory is read offline (UC-AST-01 check 10, offline-sync.md §3): a CI made, changed
 // and given compliance fields, and a relation made and removed, each tell the change log what now
 // stands, filed under the hub; a merge tells it of the retired duplicate and of the relations it
 // handed over.
