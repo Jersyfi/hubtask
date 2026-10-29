@@ -706,6 +706,24 @@ deadline and a change's effectiveness check.
 
 ---
 
+### 3.8 Pages (context: Knowledge, M3)
+
+A hub is a space: its `Page`s form a tree under it (`parent_id`, a fractional `order_key` among
+siblings, at most twelve levels and 5,000 pages per space). A page is not an entry - no level,
+completion or status - and is judged at its hub: READ to read, WRITE_ITEMS to write and comment,
+so it inherits the hub's memberships and a private hub's pages are its owner's alone (ADR-0073).
+Its `body` is Markdown in the grammar of an entry's notes, so a `hubtask:<kind>/<id>` link is a
+mention, card or live view (P-19); `page_reference` is where a body points, kept by trigger, and is
+what backlinks read. While several people edit, the live document (kind `page`, §13 of
+`offline-sync.md`) holds the editors' CRDT; the editor saves the body beside it, and the body is
+what search (a trigger-kept `search_document` in the page's language), history and export read.
+`PageVersion` keeps one row per editing session (one author, pauses under ten minutes); a named or
+restored version is its own. `PageComment` stands on the page or inline on a block (`anchor`) with
+the words it was about (`quote`); replies are one level deep, a thread resolves on its first
+comment. A page may be a template of its space, and carries a verification (`owner_id`,
+`verified_until`) after which it is due for review. Trash takes a page with the pages under it at
+one moment and brings them back together.
+
 ## 4. Domain events
 
 Named `de.hubtask.<context>.<entity>.<action>.v1`, every event carries `tenantId`,

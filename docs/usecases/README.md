@@ -34,6 +34,7 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`importer/`](./importer/) | `UC-IMP` | Bringing work in from elsewhere | `service/importer` |
 | [`workflow/`](./workflow/) | `UC-FLW` | A workspace's own entry types and how its work moves | `service/workflow` |
 | [`planning/`](./planning/) | `UC-PLN` | Dependencies between entries and, later, the plan they make | `service/work` (links) |
+| [`knowledge/`](./knowledge/) | `UC-DOC` | A hub's pages: writing together, finding, linking, versions, comments, export | `service/knowledge` |
 
 ## What a use case looks like
 
@@ -247,6 +248,14 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-FLW-04](./workflow/UC-FLW-04-ask-for-what-a-step-needs.md) | Ask for what a step needs, and act when it is taken | workflow |
 | [UC-FLW-05](./workflow/UC-FLW-05-change-a-workflow-in-use.md) | Change a workflow that is already in use | workflow |
 | [UC-PLN-01](./planning/UC-PLN-01-say-that-one-piece-of-work-waits-for-another.md) | Say that one piece of work waits for another | planning |
+| [UC-DOC-01](./knowledge/UC-DOC-01-write-a-page-in-a-hub-and-find-it-again.md) | Write a page in a hub and find it again | knowledge |
+| [UC-DOC-02](./knowledge/UC-DOC-02-write-a-page-together-at-the-same-time.md) | Write a page together at the same time | knowledge |
+| [UC-DOC-04](./knowledge/UC-DOC-04-link-pages-and-entries-and-see-what-links-here.md) | Link pages and entries and see what links here | knowledge |
+| [UC-DOC-05](./knowledge/UC-DOC-05-start-a-page-from-a-template.md) | Start a page from a template | knowledge |
+| [UC-DOC-06](./knowledge/UC-DOC-06-see-how-a-page-changed-and-bring-an-older-version-back.md) | See how a page changed and bring an older version back | knowledge |
+| [UC-DOC-09](./knowledge/UC-DOC-09-take-a-wiki-out-again.md) | Take a wiki out again | knowledge |
+| [UC-DOC-11](./knowledge/UC-DOC-11-discuss-a-page-beside-its-words.md) | Discuss a page beside its words | knowledge |
+| [UC-DOC-12](./knowledge/UC-DOC-12-keep-a-page-known-to-be-right.md) | Keep a page known to be right | knowledge |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work |
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work |
