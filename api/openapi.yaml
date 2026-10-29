@@ -11284,6 +11284,7 @@ paths:
         restore first. Idempotent.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
       responses:
         "200":
           description: Restored
@@ -11311,6 +11312,7 @@ paths:
         succeeds and changes nothing.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
       responses:
         "200":
           description: Archived
@@ -11335,6 +11337,7 @@ paths:
         and the answer says so. Idempotent.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
       responses:
         "200":
           description: Unarchived

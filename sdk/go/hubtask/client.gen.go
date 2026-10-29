@@ -16378,6 +16378,9 @@ type UpdateReminderParams struct {
 type ArchiveWorkItemParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
 // AssignWorkItemParams defines parameters for AssignWorkItem.
@@ -16483,6 +16486,9 @@ type ReorderWorkItemParams struct {
 type RestoreWorkItemParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
 // TakeStepJSONBody defines parameters for TakeStep.
@@ -16501,6 +16507,9 @@ type TakeStepParams struct {
 type UnarchiveWorkItemParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
 // UnassignWorkItemParams defines parameters for UnassignWorkItem.
@@ -50258,6 +50267,17 @@ func NewArchiveWorkItemRequest(server string, itemId ItemId, params *ArchiveWork
 			req.Header.Set("Idempotency-Key", headerParam0)
 		}
 
+		if params.IfMatch != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam1)
+		}
+
 	}
 
 	return req, nil
@@ -50916,6 +50936,17 @@ func NewRestoreWorkItemRequest(server string, itemId ItemId, params *RestoreWork
 			req.Header.Set("Idempotency-Key", headerParam0)
 		}
 
+		if params.IfMatch != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam1)
+		}
+
 	}
 
 	return req, nil
@@ -51247,6 +51278,17 @@ func NewUnarchiveWorkItemRequest(server string, itemId ItemId, params *Unarchive
 			}
 
 			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+		if params.IfMatch != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam1)
 		}
 
 	}

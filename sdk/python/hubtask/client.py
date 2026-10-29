@@ -1651,17 +1651,17 @@ class Client:
         """POST /items/{itemId}:purge"""
         return self._call("POST", "/items/{itemId}:purge", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "void")
 
-    def restore_work_item(self, item_id: str, *, idempotency_key: str | None = None) -> "WorkItem":
+    def restore_work_item(self, item_id: str, *, idempotency_key: str | None = None, if_match: str | None = None) -> "WorkItem":
         """POST /items/{itemId}:restore"""
-        return self._call("POST", "/items/{itemId}:restore", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+        return self._call("POST", "/items/{itemId}:restore", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, None, "none", None, "json")
 
-    def archive_work_item(self, item_id: str, *, idempotency_key: str | None = None) -> "WorkItem":
+    def archive_work_item(self, item_id: str, *, idempotency_key: str | None = None, if_match: str | None = None) -> "WorkItem":
         """POST /items/{itemId}:archive"""
-        return self._call("POST", "/items/{itemId}:archive", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+        return self._call("POST", "/items/{itemId}:archive", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, None, "none", None, "json")
 
-    def unarchive_work_item(self, item_id: str, *, idempotency_key: str | None = None) -> "WorkItem":
+    def unarchive_work_item(self, item_id: str, *, idempotency_key: str | None = None, if_match: str | None = None) -> "WorkItem":
         """POST /items/{itemId}:unarchive"""
-        return self._call("POST", "/items/{itemId}:unarchive", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+        return self._call("POST", "/items/{itemId}:unarchive", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, None, "none", None, "json")
 
     def reorder_work_item(self, item_id: str, body: dict[str, Any], *, idempotency_key: str | None = None) -> "WorkItem":
         """POST /items/{itemId}:reorder"""

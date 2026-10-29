@@ -2078,18 +2078,18 @@ export class HubtaskClient {
   }
 
   /** POST /items/{itemId}:restore */
-  restoreWorkItem(itemId: string, options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["restoreWorkItem"]['responses'][200]['content']["application/json"]> {
-    return this.call("POST", "/items/{itemId}:restore", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "json", options.signal);
+  restoreWorkItem(itemId: string, options: CallOptions & { readonly idempotencyKey?: string; readonly ifMatch?: string } = {}): Promise<operations["restoreWorkItem"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}:restore", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey, "If-Match": options.ifMatch }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** POST /items/{itemId}:archive */
-  archiveWorkItem(itemId: string, options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["archiveWorkItem"]['responses'][200]['content']["application/json"]> {
-    return this.call("POST", "/items/{itemId}:archive", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "json", options.signal);
+  archiveWorkItem(itemId: string, options: CallOptions & { readonly idempotencyKey?: string; readonly ifMatch?: string } = {}): Promise<operations["archiveWorkItem"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}:archive", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey, "If-Match": options.ifMatch }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** POST /items/{itemId}:unarchive */
-  unarchiveWorkItem(itemId: string, options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["unarchiveWorkItem"]['responses'][200]['content']["application/json"]> {
-    return this.call("POST", "/items/{itemId}:unarchive", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "json", options.signal);
+  unarchiveWorkItem(itemId: string, options: CallOptions & { readonly idempotencyKey?: string; readonly ifMatch?: string } = {}): Promise<operations["unarchiveWorkItem"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}:unarchive", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey, "If-Match": options.ifMatch }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** POST /items/{itemId}:reorder */
