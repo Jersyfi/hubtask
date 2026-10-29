@@ -48,6 +48,8 @@
     onaddcondition: () => void;
     /** The inbound address, the view's to mint. Starting a rule is the head's *Start now*. */
     inbound?: { rotatedAt?: string; onmint: () => void; isWorking: boolean };
+    /** The workflows and their steps a STEP_TAKEN rule may name (UC-FLW-04 check 4). */
+    workflowChoices?: readonly (Choice & { readonly steps: readonly Choice[] })[];
   }
 
   const {
@@ -71,7 +73,10 @@
     onremovecondition,
     onaddcondition,
     inbound,
+    workflowChoices = [],
   }: Props = $props();
+
+  const stepChoices = $derived(workflowChoices.find((choice) => choice.value === draft.trigger.workflow)?.steps ?? []);
 
   const words = { t, has: (code: string) => messages.has(code) };
 
@@ -312,6 +317,28 @@
         }}
       />
       <Callout>{t('app.flow.relative_hint')}</Callout>
+    {:else if draft.trigger.kind === 'STEP_TAKEN'}
+      <Select
+        label={t('app.flow.trigger_workflow')}
+        error={errors.get('/trigger/workflow')}
+        value={draft.trigger.workflow ?? ''}
+        options={[{ value: '', label: t('app.flow.choose_workflow') }, ...workflowChoices]}
+        onchange={(event: Event) => {
+          const workflow = value(event);
+          onupdate((current) => ({ ...current, trigger: { kind: 'STEP_TAKEN', workflow } }));
+        }}
+      />
+      <Select
+        label={t('app.flow.trigger_step')}
+        error={errors.get('/trigger/step')}
+        value={draft.trigger.step ?? ''}
+        options={[{ value: '', label: t('app.flow.choose_step') }, ...stepChoices]}
+        onchange={(event: Event) => {
+          const step = value(event);
+          onupdate((current) => ({ ...current, trigger: { ...current.trigger, step } }));
+        }}
+      />
+      <Callout>{t('app.flow.step_taken_hint')}</Callout>
     {:else if draft.trigger.kind === 'INBOUND_WEBHOOK'}
       {#if inbound && ruleId}
         <Callout tone="warning">{t(inbound.rotatedAt ? 'app.rules.rotate_cost' : 'app.rules.rotate_first')}</Callout>

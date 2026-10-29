@@ -179,13 +179,14 @@ const GROUP_ICON: Readonly<Record<string, KindIconName>> = {
 };
 
 /** The trigger kinds' icons, the same table on the card and in the palette. */
-export const TRIGGER_ICONS: Readonly<Record<string, 'zap' | 'clock' | 'calendar' | 'globe' | 'hand' | 'inbox'>> = {
+export const TRIGGER_ICONS: Readonly<Record<string, 'zap' | 'clock' | 'calendar' | 'globe' | 'hand' | 'inbox' | 'skip-forward'>> = {
   EVENT: 'zap',
   SCHEDULE: 'clock',
   RELATIVE_DATE: 'calendar',
   INBOUND_WEBHOOK: 'globe',
   MANUAL: 'hand',
   JUMBLE_ENTRY: 'inbox',
+  STEP_TAKEN: 'skip-forward',
 };
 
 export function kindIcon(kind: string): KindIconName {
@@ -334,6 +335,8 @@ function triggerSentence(words: Catalogue, names: Names, trigger: TriggerDraft):
         offset: trigger.offset ?? '',
         anchor: words.t(`app.flow.anchor_${(trigger.anchor ?? 'DUE_DATE').toLowerCase()}`),
       });
+    case 'STEP_TAKEN':
+      return words.t('app.flow.sentence_trigger_step_taken', { step: trigger.step ?? '', workflow: trigger.workflow ?? '' });
     default:
       return words.t(`app.flow.sentence_trigger_${trigger.kind.toLowerCase()}`);
   }
@@ -385,6 +388,9 @@ export function generatedName(words: Catalogue, names: Names, draft: Draft): str
         offset: seed.trigger.offset ?? '',
         anchor: words.t(`app.flow.anchor_${(seed.trigger.anchor ?? 'DUE_DATE').toLowerCase()}`),
       });
+      break;
+    case 'STEP_TAKEN':
+      trigger = words.t('app.flow.name_trigger_step_taken', { step: seed.trigger.step ?? '' });
       break;
     default:
       trigger = words.t(`app.flow.name_trigger_${seed.trigger.kind.toLowerCase()}`);

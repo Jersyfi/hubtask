@@ -36,6 +36,8 @@ export interface TriggerDraft {
   timezone?: string;
   anchor?: string;
   offset?: string;
+  workflow?: string;
+  step?: string;
 }
 
 /** The rule while it is edited. `conditions` are the expressions, one string each. */
@@ -67,6 +69,19 @@ export function emptyDraft(eventType = ''): Draft {
     throttle: {},
     onError: 'STOP',
   };
+}
+
+/**
+ * A fresh rule on one step of one workflow (UC-FLW-04 check 4): what the designer's *Then* opens.
+ * It runs in the step's own change, so it is scoped to the workspace and the step decides where.
+ */
+export function stepDraft(workflow: string, step: string): Draft {
+  return { ...emptyDraft(), trigger: { kind: 'STEP_TAKEN', workflow, step } };
+}
+
+/** Whether a rule is one of a step's *then*: on this workflow's step. */
+export function onStep(rule: { readonly trigger: RuleTrigger }, workflow: string, step: string): boolean {
+  return rule.trigger.kind === 'STEP_TAKEN' && rule.trigger.workflow === workflow && rule.trigger.step === step;
 }
 
 /**
@@ -105,6 +120,8 @@ export function fromRule(rule: Rule): Draft {
       ...(rule.trigger.timezone ? { timezone: rule.trigger.timezone } : {}),
       ...(rule.trigger.anchor ? { anchor: rule.trigger.anchor } : {}),
       ...(rule.trigger.offset ? { offset: rule.trigger.offset } : {}),
+      ...(rule.trigger.workflow ? { workflow: rule.trigger.workflow } : {}),
+      ...(rule.trigger.step ? { step: rule.trigger.step } : {}),
     },
     conditions: rule.conditions.map((condition) => condition.expr),
     actions: stepsFrom(rule.actions),
@@ -208,7 +225,9 @@ export function toRuleDraft(draft: Draft, name: string): RuleDraft {
         ? { kind: t.kind, ...(t.rrule ? { rrule: t.rrule } : {}), ...(t.timezone ? { timezone: t.timezone } : {}) }
         : t.kind === 'RELATIVE_DATE'
           ? { kind: t.kind, ...(t.anchor ? { anchor: t.anchor } : {}), ...(t.offset ? { offset: t.offset } : {}) }
-          : { kind: t.kind };
+          : t.kind === 'STEP_TAKEN'
+            ? { kind: t.kind, ...(t.workflow ? { workflow: t.workflow } : {}), ...(t.step ? { step: t.step } : {}) }
+            : { kind: t.kind };
   return {
     name,
     scope: { type: draft.scope.type, ...(draft.scope.id ? { id: draft.scope.id } : {}) },

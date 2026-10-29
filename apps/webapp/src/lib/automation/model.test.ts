@@ -38,6 +38,8 @@ import {
   removeRung,
   stepAt,
   toRuleDraft,
+  stepDraft,
+  onStep,
   unreachableFrom,
   type Step,
   type Node,
@@ -412,3 +414,13 @@ test('describing a rule is offered only where asking could succeed', () => {
   }
 });
 
+
+test('a rule on a step sends its workflow and step, and is found on that step (UC-FLW-04 check 4)', () => {
+  const draft = stepDraft('purchase', 'order');
+  const sent = toRuleDraft(draft, 'n');
+  assert.deepEqual(sent.trigger, { kind: 'STEP_TAKEN', workflow: 'purchase', step: 'order' });
+  assert.deepEqual(fromRule({ ...({} as Rule), ...sent, id: 'r', enabled: false, failure_count: 0, version: 1, on_error: 'STOP' }).trigger, sent.trigger);
+  assert.equal(onStep({ trigger: sent.trigger }, 'purchase', 'order'), true);
+  assert.equal(onStep({ trigger: sent.trigger }, 'purchase', 'approve'), false);
+  assert.equal(onStep({ trigger: { kind: 'EVENT' } }, 'purchase', 'order'), false);
+});

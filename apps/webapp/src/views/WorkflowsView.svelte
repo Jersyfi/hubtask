@@ -15,7 +15,9 @@
   import { Banner, Button, Dialog, IconButton, Inline, Input, PageHeader, Spinner, Stack, Tabs } from '@hubtask/design-system/components';
   import type { Workflow, WorkflowShape } from '@hubtask/sync-engine';
 
-  import { holdsHere } from '../lib/data/capability.svelte.ts';
+  import { holdsHere, includedHere, mayHere } from '../lib/data/capability.svelte.ts';
+  import { onStep } from '../lib/automation/model.ts';
+  import { rules } from '../lib/data/rules.svelte.ts';
   import { SYSTEM_WORKFLOW, keyOf, startingDraft, workflows } from '../lib/data/workflows.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -28,6 +30,12 @@
   import WorkflowDiagram from '../lib/workflows/WorkflowDiagram.svelte';
   import WorkflowLists from '../lib/workflows/WorkflowLists.svelte';
 
+  interface Props {
+    onnavigate: (path: string) => void;
+  }
+
+  const { onnavigate }: Props = $props();
+
   $effect(() => page.entitle(t('app.workflow_designer.title')));
   $effect(() => untrack(() => workflows.open()));
 
@@ -35,6 +43,18 @@
   const reading = $derived(workflows.state);
   const readRefusal = $derived(reading?.status === 'failed' ? renderProblem(reading.error, messages) : undefined);
   const all = $derived(workflows.list?.data ?? []);
+
+  // A step's *then* is offered only to who may write rules where the plan includes them (P-05).
+  const mayAutomate = $derived(mayHere('AUTOMATION').status === 'permitted' && includedHere('AUTOMATION_RULES') === true);
+  $effect(() => {
+    if (!mayAutomate) return;
+    return untrack(() => rules.open());
+  });
+  const rulesOnStep = (step: string) => (chosen ? rules.all.filter((rule) => onStep(rule, chosen.key, step)) : []);
+  function addRule(step: string) {
+    if (!chosen) return;
+    onnavigate(`/administration/rules/new?workflow=${encodeURIComponent(chosen.key)}&step=${encodeURIComponent(step)}`);
+  }
 
   const nameOf = (workflow: Pick<Workflow, 'name'>) => workflow.name ?? t('workflows.default_name');
 
@@ -236,7 +256,12 @@
             <Tabs {tabs} selected={tab} onselect={(id) => (tab = id)} label={t('app.workflow_designer.tabs')}>
             {#if tab === 'design'}
               <WorkflowDiagram shape={draft} {selected} onselect={(next) => (selected = next)} />
-              <WorkflowLists shape={draft} {selected} onchange={edit} onselect={(next) => (selected = next)} />
+              <WorkflowLists
+                shape={draft} {selected} onchange={edit} onselect={(next) => (selected = next)}
+                stepRules={mayAutomate ? rulesOnStep : undefined}
+                onopenrule={(id) => onnavigate(`/administration/rules/${id}`)}
+                onaddrule={addRule}
+              />
             {:else if tab === 'used'}
               <SchemePanel workflow={chosen} />
             {:else}

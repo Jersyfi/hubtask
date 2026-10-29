@@ -44,6 +44,9 @@ export interface RuleTrigger {
   readonly timezone?: string;
   readonly anchor?: string;
   readonly offset?: string;
+  /** `STEP_TAKEN`'s: the workflow's key and the step's (UC-FLW-04 check 4). */
+  readonly workflow?: string;
+  readonly step?: string;
 }
 
 /** A rule, as `AutomationRule` answers it. */

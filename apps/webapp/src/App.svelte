@@ -312,7 +312,7 @@ import ContainerView from './views/ContainerView.svelte';
   {:else if route.name === 'rules'}
     <RulesView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'rule-new'}
-    <RuleEditorView id="new" onnavigate={(path) => router.navigate(path)} />
+    <RuleEditorView id="new" workflow={route.query['workflow']} step={route.query['step']} onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'rule'}
     {#key route.params.id}
       <RuleEditorView id={route.params.id ?? ''} onnavigate={(path) => router.navigate(path)} />
@@ -330,7 +330,7 @@ import ContainerView from './views/ContainerView.svelte';
   {:else if route.name === 'link-types'}
     <LinkTypesView />
   {:else if route.name === 'workflows'}
-    <WorkflowsView />
+    <WorkflowsView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'private-hubs'}
     <PrivateHubsView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'backup'}

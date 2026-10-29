@@ -175,3 +175,25 @@ export function layout(shape: WorkflowShape): ReadonlyMap<string, { readonly col
 export function removedOf(preview: { readonly removed: readonly { readonly status: string; readonly count: number }[] } | undefined) {
   return preview?.removed ?? [];
 }
+
+/**
+ * The workflows a rule on a step may name, each with its steps (UC-FLW-04 check 4): what is in
+ * force and what the draft adds, so a rule can be written for a step before it is published.
+ */
+export function workflowChoices(
+  list: readonly Workflow[],
+  t: (code: string) => string,
+): { value: string; label: string; steps: { value: string; label: string }[] }[] {
+  return list.map((workflow) => {
+    const steps = new Map<string, string>();
+    for (const shape of [workflow.published, workflow.draft ?? undefined]) {
+      if (!shape) continue;
+      for (const step of shape.steps) if (!steps.has(step.key)) steps.set(step.key, stepLabel(step, shape, t));
+    }
+    return {
+      value: workflow.key,
+      label: workflow.name ?? t('workflows.default_name'),
+      steps: [...steps].map(([value, label]) => ({ value, label })),
+    };
+  });
+}

@@ -3,7 +3,8 @@
 <script lang="ts">
   // The workflow as two lists a keyboard reaches (UC-FLW-02 check 2): its statuses and its steps,
   // with every action the diagram offers and the step's who, requires, asks and checks
-  // (UC-FLW-04 checks 1 to 3). Every edit is a function over the draft (lib/data/workflows.ts);
+  // (UC-FLW-04 checks 1 to 3), and its *then*: the rules on the step, which run in its own change
+  // (check 4) and are written in the rule editor from the same actions as every rule. Every edit is a function over the draft (lib/data/workflows.ts);
   // nothing is sent from here - the page saves the draft.
 
   import { tick } from 'svelte';
@@ -21,11 +22,15 @@
     shape: WorkflowShape;
     selected?: string;
     isReadOnly?: boolean;
+    /** The rules on each step, by step key; absent where the reader may not write rules. */
+    stepRules?: (step: string) => readonly { readonly id: string; readonly name: string; readonly enabled: boolean }[];
+    onopenrule?: (id: string) => void;
+    onaddrule?: (step: string) => void;
     onchange: (shape: WorkflowShape) => void;
     onselect: (selected: string) => void;
   }
 
-  const { shape, selected, isReadOnly = false, onchange, onselect }: Props = $props();
+  const { shape, selected, isReadOnly = false, stepRules, onopenrule, onaddrule, onchange, onselect }: Props = $props();
 
   const ROLES = ['OWNER', 'ADMIN', 'MEMBER', 'CONTRIBUTOR', 'GUEST'] as const;
 
@@ -300,6 +305,21 @@
                 <Inline gap="100"><Button tone="subtle" size="sm" icon="plus" onclick={() => addCheck(step)}>{t('app.workflow_designer.add_check')}</Button></Inline>
               {/if}
             </fieldset>
+            {#if stepRules}
+              <fieldset class="group" data-step-then={step.key}>
+                <legend>{t('app.workflow_designer.then')}</legend>
+                <p class="quiet">{t('app.workflow_designer.then_hint')}</p>
+                {#each stepRules(step.key) as rule (rule.id)}
+                  <Inline gap="100" align="center">
+                    <Button tone="subtle" size="sm" icon="zap" data-step-rule={rule.id} onclick={() => onopenrule?.(rule.id)}>{rule.name}</Button>
+                    {#if !rule.enabled}<span class="quiet">{t('app.workflow_designer.rule_off')}</span>{/if}
+                  </Inline>
+                {/each}
+                {#if onaddrule}
+                  <Inline gap="100"><Button tone="subtle" size="sm" icon="plus" data-add-step-rule={step.key} onclick={() => onaddrule(step.key)}>{t('app.workflow_designer.add_rule')}</Button></Inline>
+                {/if}
+              </fieldset>
+            {/if}
             {#if !isReadOnly}
               <Inline gap="100" justify="end">
                 <Button tone="subtle" size="sm" icon="trash" data-remove-step={step.key} onclick={() => onchange(removeStep(shape, step.key))}>

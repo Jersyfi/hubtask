@@ -33,7 +33,7 @@
   import RuleRuns from '../lib/automation/RuleRuns.svelte';
   import { framesOfRun, framesOfTest, type Frame, type Outcome, type Verdict } from '../lib/automation/probe.ts';
   import type { Choice } from '../lib/automation/ActionForm.svelte';
-  import { addRung, canPlace, emptyDraft, endsRun, fromDraft, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, offeredBlocks, offersDescribing, removeAt, removeRung, replaceAt, stepAt, toRuleDraft, walk, type Draft, type Step } from '../lib/automation/model.ts';
+  import { addRung, canPlace, emptyDraft, endsRun, stepDraft, fromDraft, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, offeredBlocks, offersDescribing, removeAt, removeRung, replaceAt, stepAt, toRuleDraft, walk, type Draft, type Step } from '../lib/automation/model.ts';
   import { DRAG_TYPE, dragHint, type Drag, type Selection } from '../lib/automation/selection.ts';
   import { REFERENCE, eventWords, generatedName, kindWord, offeredKinds, sentence, usageOf, type Names } from '../lib/automation/words.ts';
   import { findingWords, marksOf } from '../lib/automation/findings.ts';
@@ -56,6 +56,8 @@
   import { runs, type Run } from '../lib/data/runs.svelte.ts';
   import { serviceAccounts } from '../lib/data/serviceaccounts.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
+  import { workflows } from '../lib/data/workflows.svelte.ts';
+  import { workflowChoices } from '../lib/data/workflows.ts';
   import { webhooks } from '../lib/data/webhooks.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
@@ -65,10 +67,13 @@
   interface Props {
     /** The rule's identifier, or `new`. */
     id: string;
+    /** A new rule on a step: the workflow's key and the step's, from the designer's *Then*. */
+    workflow?: string;
+    step?: string;
     onnavigate: (path: string) => void;
   }
 
-  const { id, onnavigate }: Props = $props();
+  const { id, workflow: onWorkflow, step: onStepKey, onnavigate }: Props = $props();
 
   const TENANT = { scopeType: 'TENANT' } as const;
   const isNew = $derived(id === 'new');
@@ -115,7 +120,7 @@
       // every deep link into `/rules/new` that beats the boot.
       if (manifest.state.status === 'loading' || manifest.state.status === 'idle') return;
       const first = manifest.value?.event_types?.[0] ?? '';
-      draft = emptyDraft(first);
+      draft = onWorkflow && onStepKey ? stepDraft(onWorkflow, onStepKey) : emptyDraft(first);
       taken = true;
     } else if (stored) {
       draft = fromRule(stored);
@@ -263,6 +268,13 @@
   /* ---------- What the manifest and the workspace offer ---------- */
 
   const triggers = $derived(manifest.value?.automation?.triggers ?? []);
+  // The workflows a rule on a step names, read only once a rule is one.
+  const onAStep = $derived(draft.trigger.kind === 'STEP_TAKEN');
+  $effect(() => {
+    if (!onAStep) return;
+    return untrack(() => workflows.open());
+  });
+  const stepChoices = $derived(onAStep ? workflowChoices(workflows.list?.data ?? [], t) : []);
   const actionKinds = $derived(offeredKinds(offeredBlocks(manifest.value?.automation?.actions ?? []), manifest.value?.features));
   const actionFields = $derived((manifest.value?.automation?.action_fields ?? {}) as Readonly<Record<string, readonly { name: string; kind: string; required: boolean; enum?: readonly string[]; description?: string }[]>>);
   const eventTypes = $derived(manifest.value?.event_types ?? []);
@@ -398,6 +410,11 @@
         return stored?.inbound_rotated_at ? t('app.rules.inbound_minted', { moment: formatDateTime(stored.inbound_rotated_at, messages.locale) }) : t('app.flow.no_address');
       case 'MANUAL':
         return t('app.flow.manual_hint');
+      case 'STEP_TAKEN': {
+        const workflow = stepChoices.find((choice) => choice.value === trigger.workflow);
+        const step = workflow?.steps.find((choice) => choice.value === trigger.step);
+        return [workflow?.label ?? trigger.workflow, step?.label ?? trigger.step].filter(Boolean).join(' · ') || t('app.flow.choose_step');
+      }
       default:
         return t('app.flow.jumble_hint');
     }
@@ -969,6 +986,7 @@
             {runners}
             {pickers}
             {itemTypes}
+            workflowChoices={stepChoices}
             {errors}
             {marks}
             {findings}
@@ -1003,6 +1021,7 @@
             {runners}
             {pickers}
             {itemTypes}
+            workflowChoices={stepChoices}
             {errors}
             {marks}
             {findings}

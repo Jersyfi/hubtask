@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import type { WorkflowList, WorkflowShape } from '@hubtask/sync-engine';
 
 import {
-  addStatus, addStep, completes, layout, moveStatus, removeStatus, standing, stepsFrom, workflowFor,
+  addStatus, addStep, completes, layout, moveStatus, removeStatus, standing, stepsFrom, workflowChoices, workflowFor,
 } from './workflows.ts';
 
 const shape: WorkflowShape = {
@@ -53,4 +53,15 @@ test('edits a draft by list as the diagram does (UC-FLW-02 check 2)', () => {
   draft = removeStatus(draft, 'in_progress');
   assert.deepEqual(draft.steps.map((step) => step.key), []);
   assert.deepEqual(layout(draft).get('done'), { column: 3, row: 0 });
+});
+
+test('offers each workflow with its steps, a draft’s new ones too, for a rule on a step (UC-FLW-04 check 4)', () => {
+  const workflow = {
+    key: 'review', name: 'Review', system: false, published: shape, published_at: null, version: 2,
+    draft: { ...shape, steps: [...shape.steps, { key: 'reopen', name: 'Reopen', from: ['done'], to: 'todo' }] },
+  } as unknown as Parameters<typeof workflowChoices>[0][number];
+  const [choice] = workflowChoices([workflow], (code) => code);
+  assert.equal(choice?.value, 'review');
+  assert.deepEqual(choice?.steps.map((step) => step.value), ['start', 'finish', 'reopen']);
+  assert.equal(choice?.steps[2]?.label, 'Reopen');
 });
