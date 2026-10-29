@@ -723,6 +723,9 @@ func run() error {
 	// What a collection offers its entries, for every item writer and reader: the refusal of what it
 	// hides and the mark on every read are one answer (domain-model.md §2).
 	entryTypes := postgres.NewEntryTypeRepository()
+	// Links and references (F-3, UC-PLN-01): one store answers the links, the walk and the
+	// summaries a reference resolves to.
+	entryLinks := postgres.NewEntryLinkRepository()
 	entryGate := work.EntryGate{Structure: structures, Types: items, EntryTypes: entryTypes}
 	buckets := postgres.NewBucketRepository()
 	labels := postgres.NewLabelRepository()
@@ -1729,8 +1732,27 @@ func run() error {
 		Types: entryTypes, Authorizer: authorizer, Changes: changes, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 	}
+	linkTypeRegistry := work.LinkTypeRegistry{
+		Types: postgres.NewLinkTypeRepository(), Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+	}
+	linking := work.Linking{
+		Items: items, Containers: containers, Types: linkTypeRegistry.Types, Links: entryLinks,
+		References: entryLinks, Views: savedViews, Authorizer: authorizer, Reader: authorizer,
+		Permits: authorizer, Events: outbox, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids,
+	}
 	useCases, err := usecase.NewRegistry(
 		settingservice.ModuleGate{Modules: modules}.Wrap(entitlementGate.Wrap(observer.Registry())),
+		work.ListLinkTypes{Registry: linkTypeRegistry}.Descriptor(),
+		work.CreateLinkType{Registry: linkTypeRegistry}.Descriptor(),
+		work.ChangeLinkType{Registry: linkTypeRegistry}.Descriptor(),
+		work.DeleteLinkType{Registry: linkTypeRegistry}.Descriptor(),
+		work.LinkEntries{Linking: linking}.Descriptor(),
+		work.UnlinkEntries{Linking: linking}.Descriptor(),
+		work.ListEntryLinks{Linking: linking}.Descriptor(),
+		work.ListLinksAmong{Linking: linking}.Descriptor(),
+		work.ResolveReferences{Linking: linking}.Descriptor(),
 		settingservice.ListModules{Modules: modules}.Descriptor(),
 		settingservice.SetModule{Modules: modules}.Descriptor(),
 		settingservice.ReadSettingsCatalogue{}.Descriptor(),
@@ -2103,7 +2125,7 @@ func run() error {
 		automationservice.TestRule{
 			Rules:     postgres.NewAutomationRuleRepository(cursors),
 			Catalogue: ruleCatalogue, Conditions: celexpression.New(),
-			Entries: items, Containers: containers, Labels: itemLabels, Members: itemMembers,
+			Entries: items, Containers: containers, Labels: itemLabels, Members: itemMembers, Links: entryLinks,
 			Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		}.Descriptor(),
@@ -3719,6 +3741,7 @@ func run() error {
 			Containers:   containers,
 			Labels:       itemLabels,
 			Members:      itemMembers,
+			Links:        entryLinks,
 			Jumble:       postgres.NewJumbleRepository(cursors),
 			Guard:        runClaims{store: postgres.NewIdempotencyStore()},
 			Signals:      metrics,

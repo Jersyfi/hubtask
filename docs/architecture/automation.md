@@ -118,6 +118,10 @@ never learns of it (ADR-0001).
 * **The variable list is a contract**, declared to the compiler: an expression naming anything else
   fails at the write. The values are dynamic documents, so `has(item.cover)` answers for a missing
   field.
+* **`item` carries its sets beside the entry**: `item.labels` and `item.members` as identifiers,
+  and `item.links` as the entry's links from both ends - each `{type, outward, other_id}`, the
+  type's key, whether the entry is the link's source, and the far end's identifier, never a title
+  (F-3, UC-PLN-01): `item.links.exists(l, l.type == 'depends_on' && l.outward)`.
 * **Compiling is separate from evaluating**: a mistake is answered at the write, with line and
   column. A condition must produce a boolean, a template text; where CEL cannot decide the type
   statically, the value is checked.

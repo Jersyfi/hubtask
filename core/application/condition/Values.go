@@ -26,6 +26,15 @@ type Sets interface {
 	List(ctx context.Context, itemID shared.ID) ([]shared.ID, error)
 }
 
+// Links is the read `item.links` needs: an entry's links from both ends (UC-PLN-01 check 8). The
+// link store fits.
+type Links interface {
+	Of(ctx context.Context, entryID shared.ID, max int) ([]work.EntryLink, error)
+}
+
+// maxLinksInDocument bounds what one condition is handed, as the CEL adapter bounds a list.
+const maxLinksInDocument = 500
+
 // Containers is the read `collection` and `hub` need: a container by its identifier. Narrow rather
 // than a repository, so that nothing holding an activation can write through it.
 type Containers interface {
@@ -63,6 +72,8 @@ type Values struct {
 	// the entry alone.
 	Labels  Sets
 	Members Sets
+	// Links answers `item.links`, read only when `item` is; optional, and absent without it.
+	Links Links
 	// JumbleID names the entry a JUMBLE_ENTRY run is about; `payload` is rendered from it, lazily
 	// and as data. Zero everywhere else - the envelope's own subject still lets an EVENT
 	// rule on a jumble event read the same names.
@@ -145,7 +156,8 @@ func (v Values) item(ctx context.Context) (any, bool, error) {
 		return nil, false, err
 	}
 	if v.Labels == nil && v.Members == nil {
-		return ItemDocument(item), true, nil
+		document := ItemDocument(item)
+		return document, true, v.putLinks(ctx, document, id)
 	}
 	// The sets beside the entry, as identifiers: what a rule names a label by, and what the
 	// composer compiles (`item.labels.exists(l, l == '<id>')`).
@@ -157,7 +169,27 @@ func (v Values) item(ctx context.Context) (any, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	return LabelledItemDocument(item, labels, members), true, nil
+	document := LabelledItemDocument(item, labels, members)
+	return document, true, v.putLinks(ctx, document, id)
+}
+
+// putLinks adds `item.links`: each link as its type's key, whether the entry is its source
+// (`outward`) and the far end's identifier - never a title (rule 10, P-19).
+func (v Values) putLinks(ctx context.Context, document map[string]any, id shared.ID) error {
+	if v.Links == nil {
+		return nil
+	}
+	links, err := v.Links.Of(ctx, id, maxLinksInDocument)
+	if err != nil {
+		return err
+	}
+	out := make([]any, 0, len(links))
+	for _, link := range links {
+		other, outward := link.Other(id)
+		out = append(out, map[string]any{"type": link.Type, "outward": outward, "other_id": other.String()})
+	}
+	document["links"] = out
+	return nil
 }
 
 func idsOf(ctx context.Context, sets Sets, itemID shared.ID) ([]string, error) {
