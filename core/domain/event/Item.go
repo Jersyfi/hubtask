@@ -271,6 +271,38 @@ func newItemLabelChange(id shared.ID, eventType Type, item work.WorkItem, labelI
 		})
 }
 
+// NewItemLinked announces a link drawn from the source to the target (UC-PLN-01). The payload is
+// the reference, for the label events' reason: a link is a set element, not a field.
+func NewItemLinked(id shared.ID, link work.EntryLink, source work.WorkItem, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return newLinkChange(id, ItemLinked, link, source, actor, occurredAt, cause)
+}
+
+// NewItemUnlinked announces that a link was removed.
+func NewItemUnlinked(id shared.ID, link work.EntryLink, source work.WorkItem, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return newLinkChange(id, ItemUnlinked, link, source, actor, occurredAt, cause)
+}
+
+func newLinkChange(id shared.ID, eventType Type, link work.EntryLink, source work.WorkItem,
+	actor Actor, occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if link.ID.IsZero() || link.SourceID != source.ID {
+		// An event about no link, or about one the entry does not start: a defect, not input.
+		return Envelope{}, shared.ErrInternal.WithDetail("events.link_missing")
+	}
+	return NewEnvelope(id, eventType, source.TenantID,
+		ItemSubject(source.ID), actor, occurredAt, cause, map[string]any{
+			"item_id":       source.ID.String(),
+			"collection_id": source.CollectionID.String(),
+			"link_id":       link.ID.String(),
+			"link_type":     link.Type,
+			"target_id":     link.TargetID.String(),
+		})
+}
+
 // NewAttachmentAdded announces that an entry now carries a file (domain-model.md §4).
 //
 // The payload is the reference, exactly as the label events are and for the same reason: an

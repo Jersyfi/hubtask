@@ -234,6 +234,13 @@ const (
 	// ItemLabelRemoved announces that an entry no longer carries a label. Consumers: automation.
 	ItemLabelRemoved Type = "de.hubtask.work.item.label_removed.v1"
 
+	// ItemLinked announces that a link of a type now runs from one entry to another (F-3,
+	// UC-PLN-01). Consumers: automation, webhooks. The subject is the link's source; the payload
+	// names both ends, the type by key, and no title.
+	ItemLinked Type = "de.hubtask.work.item.linked.v1"
+	// ItemUnlinked announces that a link was removed.
+	ItemUnlinked Type = "de.hubtask.work.item.unlinked.v1"
+
 	// AttachmentAdded announces that an entry now carries a file. Consumers: automation, and the
 	// media garbage collection the event catalogue names beside it (domain-model.md §4).
 	//
@@ -328,7 +335,7 @@ var types = [...]Type{
 	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemPurged,
 	BucketCreated, BucketUpdated, BucketReordered, BucketDeleted,
 	LabelCreated, LabelUpdated, LabelDeleted, LabelRestored,
-	ItemLabelAdded, ItemLabelRemoved,
+	ItemLabelAdded, ItemLabelRemoved, ItemLinked, ItemUnlinked,
 	AttachmentAdded, AttachmentRemoved,
 	CommentCreated, CommentUpdated, CommentDeleted,
 	RuleRunStarted, RuleRunFinished, RuleRunFailed,

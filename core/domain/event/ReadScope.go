@@ -80,6 +80,8 @@ var readScopes = map[Type]string{
 	ItemPurged:        itemsRead,
 	ItemLabelAdded:    itemsRead,
 	ItemLabelRemoved:  itemsRead,
+	ItemLinked:        itemsRead,
+	ItemUnlinked:      itemsRead,
 	CommentCreated:    itemsRead,
 	CommentUpdated:    itemsRead,
 	CommentDeleted:    itemsRead,
