@@ -8,8 +8,10 @@ package integration
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/text"
@@ -351,4 +353,65 @@ func shortSuffix(t *testing.T) string {
 	t.Helper()
 	id := freshID(t)
 	return "k" + id.String()[len(id.String())-6:]
+}
+
+// UC-ID-27 check 3 against the real boundary: a field hidden from readers round-trips with its
+// flag, is answered by ReadRestricted with its scope, and stops being answered when the hiding is
+// lifted - and the workspace next door is answered none of it (gate SG-3).
+func TestAHiddenFieldIsAnsweredOnlyInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+
+	key := "cost_" + shortSuffix(t)
+	built, err := work.NewCustomFieldDefinition(work.NewCustomFieldInput{
+		ID: freshID(t), TenantID: tenantA, CollectionID: collection, Key: key, Kind: work.CustomFieldNumber,
+		ReadRestricted: true, AppliesTo: []work.ItemType{work.ItemTask}, Now: created,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error { return fieldRepo().Insert(ctx, built) }); err != nil {
+		t.Fatalf("defining the hidden field: %v", err)
+	}
+	stored := findField(ctx, t, tenantA, built.ID)
+	if !stored.Restricted || !stored.ReadRestricted {
+		t.Fatalf("restricted/read = %v/%v, want both", stored.Restricted, stored.ReadRestricted)
+	}
+
+	hidden := func(tenant shared.ID) []repository.FieldHiding {
+		t.Helper()
+		var answered []repository.FieldHiding
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			answered, err = fieldRepo().ReadRestricted(ctx)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return answered
+	}
+	if !slices.Contains(hidden(tenantA), repository.FieldHiding{Key: key, CollectionID: collection}) {
+		t.Fatalf("the hidden field is not answered: %v", hidden(tenantA))
+	}
+	if slices.ContainsFunc(hidden(tenantB), func(h repository.FieldHiding) bool { return h.Key == key }) {
+		t.Fatal("tenant B was answered tenant A's hidden field")
+	}
+
+	open := false
+	lifted, _, err := stored.Updated(work.CustomFieldAttributes{ReadRestricted: &open}, text.Composing{}, changedAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return fieldRepo().SetAttributes(ctx, lifted, stored.Version)
+	}); err != nil {
+		t.Fatalf("lifting the hiding: %v", err)
+	}
+	if slices.ContainsFunc(hidden(tenantA), func(h repository.FieldHiding) bool { return h.Key == key }) {
+		t.Fatal("a lifted hiding is still answered")
+	}
+	if again := findField(ctx, t, tenantA, built.ID); !again.Restricted || again.ReadRestricted {
+		t.Fatalf("restricted/read after lifting = %v/%v, want true/false", again.Restricted, again.ReadRestricted)
+	}
 }
