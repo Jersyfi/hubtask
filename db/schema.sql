@@ -1025,6 +1025,26 @@ CREATE TABLE item_capability_profile (
 CREATE UNIQUE INDEX icp_uq ON item_capability_profile
   (coalesce(tenant_id, '00000000-0000-0000-0000-000000000000'::uuid), type);
 
+-- The settings catalogue's entries of the workspace, its hubs, collections and people (migration
+-- 0208): a dotted key, its value as JSON, how the level holds it, and what it leaves the levels
+-- below. `scope_id` is the tenant, the container or the account, by `level`; no foreign key, since it
+-- points into three tables.
+CREATE TABLE setting_value (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  level      text NOT NULL CHECK (level IN ('WORKSPACE', 'HUB', 'COLLECTION', 'PERSON')),
+  scope_id   uuid NOT NULL,
+  key        text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$'),
+  value      jsonb,
+  hold       text NOT NULL DEFAULT 'SET' CHECK (hold IN ('SET', 'LOCK', 'RESTRICT')),
+  allowed    jsonb,
+  set_by     uuid,
+  updated_at timestamptz NOT NULL,
+  UNIQUE (tenant_id, level, scope_id, key),
+  CHECK (value IS NOT NULL OR hold <> 'SET'),
+  CHECK ((allowed IS NOT NULL) = (hold = 'RESTRICT'))
+);
+
 -- The type registry (migrations 0209, 0210; UC-FLW-01): a workspace's own kinds of entries, each on
 -- one level. The three system types are declared in the domain and gain a row only once changed.
 CREATE TABLE entry_type (
@@ -3125,7 +3145,7 @@ BEGIN
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'retention_rule','retention_cursor',
     'legal_hold','tombstone','sync_device','sync_op_log','set_element','field_clock',
-    'import_run','quota_reached','entry_type','entry_field_value',
+    'import_run','quota_reached','setting_value','entry_type','entry_field_value',
     'link_type','entry_link','entry_reference','workflow','workflow_scheme',
     'custom_role','custom_role_grant',
     'config_revision','config_proposal','config_template','config_template_use'
