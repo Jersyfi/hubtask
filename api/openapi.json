@@ -24987,7 +24987,8 @@
             "type": "integer"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "The template's name; for a HUBTASK template its key, which a client names in the reader's language."
           },
           "origin": {
             "type": "string",

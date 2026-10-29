@@ -8361,10 +8361,12 @@ type ConfigTemplate struct {
 	CreatedAt time.Time `json:"created_at"`
 
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
-	Document ConfigDocument       `json:"document"`
-	Key      string               `json:"key"`
-	Name     string               `json:"name"`
-	Origin   ConfigTemplateOrigin `json:"origin"`
+	Document ConfigDocument `json:"document"`
+	Key      string         `json:"key"`
+
+	// Name The template's name; for a HUBTASK template its key, which a client names in the reader's language.
+	Name   string               `json:"name"`
+	Origin ConfigTemplateOrigin `json:"origin"`
 
 	// Provenance key@version
 	Provenance      string `json:"provenance"`

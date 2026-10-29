@@ -39,9 +39,11 @@ func (d Desk) provenance(ctx context.Context, label string) (taken, error) {
 	if err != nil || version < 1 {
 		return taken{}, domain.ErrTemplateUnknown(label)
 	}
-	template, err := d.Store.FindTemplate(ctx, key, version)
-	if err != nil {
-		return taken{}, err
+	template, found := shippedTemplate(key, version)
+	if !found {
+		if template, err = d.Store.FindTemplate(ctx, key, version); err != nil {
+			return taken{}, err
+		}
 	}
 	return taken{label: template.Provenance(), template: &template}, nil
 }
@@ -105,7 +107,7 @@ func (h ListConfigTemplates) Descriptor() usecase.Descriptor {
 				}
 				newest := map[string]domain.Template{}
 				var order []string
-				for _, t := range templates {
+				for _, t := range append(shipped(), templates...) {
 					held, seen := newest[t.Key]
 					if !seen {
 						order = append(order, t.Key)
@@ -158,6 +160,9 @@ func (d Desk) publish(ctx context.Context, actor appshared.ActorContext, in usec
 	key, name := in.String("key"), strings.TrimSpace(in.String("name"))
 	if !domain.ValidKey(key) {
 		return nil, domain.ErrRefused([]shared.FieldError{{Path: "/key", Code: "config.key_invalid"}})
+	}
+	if _, held := shippedTemplate(key, 0); held {
+		return nil, domain.ErrRefused([]shared.FieldError{{Path: "/key", Code: "config.template_key_shipped"}})
 	}
 	if name == "" || len([]rune(name)) > 120 || strings.ContainsAny(name, "\n\r") {
 		return nil, domain.ErrRefused([]shared.FieldError{{Path: "/name", Code: "config.name_invalid"}})
@@ -273,6 +278,7 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, ke
 		if err != nil {
 			return err
 		}
+		templates = append(shipped(), templates...)
 		var chosen *domain.Template
 		for i, t := range templates {
 			if t.Key == key && (version == 0 && (chosen == nil || t.Version > chosen.Version) || t.Version == version) {

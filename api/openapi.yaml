@@ -17618,7 +17618,9 @@ components:
       properties:
         key: { type: string }
         version: { type: integer }
-        name: { type: string }
+        name:
+          type: string
+          description: The template's name; for a HUBTASK template its key, which a client names in the reader's language.
         origin: { type: string, enum: [HUBTASK, INSTALLATION, WORKSPACE, OWN] }
         provenance: { type: string, description: "key@version" }
         document: { $ref: "#/components/schemas/ConfigDocument" }
