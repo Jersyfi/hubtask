@@ -36,6 +36,9 @@ type restDoor struct {
 	BodyRequired bool
 	// ETag is the answer's member the ETag is drawn from: `version`, or a hash; empty for none.
 	ETag string
+	// BodyAs hands the whole body on as one input - a document the domain reads, such as a
+	// form - instead of its members.
+	BodyAs string
 }
 
 // door answers one generated operation. in holds the path's parameters; params is the generated
@@ -73,6 +76,10 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 			if err := json.Unmarshal(raw, &sent); err != nil {
 				WriteProblem(w, shared.ErrMalformedRequest.WithDetail("request.body_malformed").WithCause(err), requestID)
 				return
+			}
+			if d.BodyAs != "" {
+				in[d.BodyAs] = sent
+				sent = nil
 			}
 			for name, value := range sent {
 				// The path names the resource; a body member of the same name never moves it.
@@ -137,4 +144,16 @@ func members(params any) (map[string]any, error) {
 		return nil, shared.ErrInternal.WithCause(err)
 	}
 	return values, nil
+}
+
+// remarshal moves a use case's output into a generated type through JSON - the contract's names.
+func remarshal(from any, into any) error {
+	raw, err := json.Marshal(from)
+	if err != nil {
+		return shared.ErrInternal.WithDetail("request.response_unwritable").WithCause(err)
+	}
+	if err := json.Unmarshal(raw, into); err != nil {
+		return shared.ErrInternal.WithDetail("request.response_unwritable").WithCause(err)
+	}
+	return nil
 }

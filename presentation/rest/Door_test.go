@@ -289,3 +289,31 @@ func TestCreatingAnEntryTypeReachesItsUseCase(t *testing.T) {
 		t.Errorf("the answer is %s", recorder.Body)
 	}
 }
+
+// A type's form is the whole body, handed on as one document; evaluating it names the type by the
+// path under the input's own name.
+func TestAFormIsHandedOnWhole(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"key": "bug", "level": "TASK", "name": "Bug", "allowed_children": []string{}, "version": 2}}
+	recorder := callDoor(t, registry, http.MethodPut, "/entry-types/bug/form", `{"sections":[{"key":"triage","name":"Triage"}]}`,
+		map[string]string{"Content-Type": "application/json", "If-Match": `"1"`})
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	form, _ := registry.in["form"].(map[string]any)
+	if registry.in["key"] != "bug" || form["sections"] == nil || registry.in["expected_version"] != 1 {
+		t.Errorf("unexpected input: %v", registry.in)
+	}
+	if _, spread := registry.in["sections"]; spread {
+		t.Errorf("the form was spread into the input: %v", registry.in)
+	}
+
+	registry.out = usecase.Output{"entry_type": "bug", "channel": "API", "closed": false, "failed": []string{}, "fields": map[string]any{}}
+	recorder = callDoor(t, registry, http.MethodPost, "/entry-types/bug/form:evaluate", `{"title":"x"}`,
+		map[string]string{"Content-Type": "application/json"})
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "EvaluateEntryForm" || registry.in["entry_type"] != "bug" || registry.in["title"] != "x" {
+		t.Errorf("%s %v", registry.name, registry.in)
+	}
+}

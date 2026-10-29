@@ -15,7 +15,8 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    handed to the use case by the contract's names (the operationId is the use case's), `If-Match`
    as `expected_version` (or as the text `x-hubtask-rest-if-match` names), `X-Hubtask-Step-Up` as
    `step_up_token`, the output passed through the generated answer type, its integer `version`
-   (or the member `x-hubtask-rest-etag` names) as the ETag. The use case's input therefore uses
+   (or the member `x-hubtask-rest-etag` names) as the ETag; `x-hubtask-rest-path` renames a path
+   parameter's input, `x-hubtask-rest-body` hands the whole body on as one input (a form). The use case's input therefore uses
    the contract's names; a test holds each mapping's query, version and proof to the descriptor's
    declared input. An operation whose answer is drawn by a shared mapper (an entry) stays
    hand-written. `x-hubtask-cli` names

@@ -9126,6 +9126,8 @@ paths:
       tags: [structure]
       operationId: setEntryTypeForm
       x-hubtask-cli: "type form set"
+      x-hubtask-rest: generated
+      x-hubtask-rest-body: form
       summary: Set an entry type's form
       description: >
         Replaces the type's form: its sections, its fields in order with required, read-only and
@@ -9162,6 +9164,8 @@ paths:
       tags: [items]
       operationId: evaluateEntryForm
       x-hubtask-cli: "type form evaluate"
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: { key: entry_type }
       summary: Answer a type's form for a draft
       description: >
         Answers how the type's form stands for a draft - an entry being edited (`item_id`) or a

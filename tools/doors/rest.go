@@ -36,6 +36,8 @@ type RESTDoor struct {
 	IfMatchAs string
 	// ETag is the answer's member the ETag is drawn from; empty for none.
 	ETag string
+	// BodyAs is the input the whole body reaches the use case as; empty spreads its members.
+	BodyAs string
 }
 
 type pathArg struct{ Input, Value string }
@@ -43,7 +45,9 @@ type pathArg struct{ Input, Value string }
 type restOperation struct {
 	OperationID string      `yaml:"operationId"`
 	REST        string      `yaml:"x-hubtask-rest"`
-	IfMatchAs   string      `yaml:"x-hubtask-rest-if-match"`
+	IfMatchAs   string            `yaml:"x-hubtask-rest-if-match"`
+	PathAs      map[string]string `yaml:"x-hubtask-rest-path"`
+	BodyAs      string            `yaml:"x-hubtask-rest-body"`
 	ETagFrom    string      `yaml:"x-hubtask-rest-etag"`
 	Parameters  []parameter `yaml:"parameters"`
 	RequestBody *struct {
@@ -103,7 +107,7 @@ func restDoor(
 	signatures map[string][]*ast.Field, bodies, texts map[string]bool,
 ) (RESTDoor, error) {
 	name := upperFirst(op.OperationID)
-	door := RESTDoor{OperationID: op.OperationID, UseCase: name, Method: strings.ToUpper(method), Path: path, IfMatchAs: op.IfMatchAs}
+	door := RESTDoor{OperationID: op.OperationID, UseCase: name, Method: strings.ToUpper(method), Path: path, IfMatchAs: op.IfMatchAs, BodyAs: op.BodyAs}
 	signature, ok := signatures[name]
 	if !ok {
 		return door, fmt.Errorf("the ServerInterface has no method %s; run oapi-codegen first", name)
@@ -145,7 +149,11 @@ func restDoor(
 			default:
 				value += ".String()"
 			}
-			door.PathArgs = append(door.PathArgs, pathArg{Input: snake(ident.Name), Value: value})
+			input := snake(ident.Name)
+			if renamed, ok := op.PathAs[ident.Name]; ok {
+				input = renamed
+			}
+			door.PathArgs = append(door.PathArgs, pathArg{Input: input, Value: value})
 		}
 	}
 
@@ -273,8 +281,8 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 	b.WriteString("// restDoors is every operation answered by the generated mapping, by operationId.\n")
 	b.WriteString("var restDoors = map[string]restDoor{\n")
 	for _, d := range doors {
-		fmt.Fprintf(&b, "\t%q: {UseCase: %q, Status: %d, Query: %#v, IfMatch: %t, IfMatchAs: %q, StepUp: %t, BodyRequired: %t, ETag: %q},\n",
-			d.OperationID, d.UseCase, d.Status, d.Query, d.IfMatch, d.IfMatchAs, d.StepUp, d.BodyRequired, d.ETag)
+		fmt.Fprintf(&b, "\t%q: {UseCase: %q, Status: %d, Query: %#v, IfMatch: %t, IfMatchAs: %q, StepUp: %t, BodyRequired: %t, ETag: %q, BodyAs: %q},\n",
+			d.OperationID, d.UseCase, d.Status, d.Query, d.IfMatch, d.IfMatchAs, d.StepUp, d.BodyRequired, d.ETag, d.BodyAs)
 	}
 	b.WriteString("}\n")
 	for _, d := range doors {

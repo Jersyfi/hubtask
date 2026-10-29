@@ -11626,6 +11626,8 @@
         ],
         "operationId": "setEntryTypeForm",
         "x-hubtask-cli": "type form set",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-body": "form",
         "summary": "Set an entry type's form",
         "description": "Replaces the type's form: its sections, its fields in order with required, read-only and hidden conditions, defaults, validations and the channels that narrow it. Every door that creates or edits an entry of the type - the web app, hubctl, the API, MCP, a rule, a device's push, mail - is held to it. A condition is a CEL expression over `entry`, `actor`, `channel` and `step`; one that names a field the form does not hold is refused with `expression.unknown_name`. An empty form asks nothing. Needs STRUCTURE at the workspace.\n",
         "parameters": [
@@ -11678,6 +11680,10 @@
         ],
         "operationId": "evaluateEntryForm",
         "x-hubtask-cli": "type form evaluate",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "key": "entry_type"
+        },
         "summary": "Answer a type's form for a draft",
         "description": "Answers how the type's form stands for a draft - an entry being edited (`item_id`) or a new one in a collection - without writing anything: which fields are required, read-only or hidden, which validations do not hold, and whether this door may create the type. An editor renders it before sending; the write itself is held to the same answer. Needs READ where the entry is.\n",
         "requestBody": {

@@ -42,32 +42,3 @@ func (c *RestController) SetItemEntryType(w http.ResponseWriter, r *http.Request
 	w.Header().Set("ETag", etag(item.Version))
 	writeJSON(w, r, http.StatusOK, item)
 }
-
-func entryTypeResponse(out usecase.Output) openapi.EntryType {
-	flag := func(field string) bool {
-		value, _ := out[field].(bool)
-		return value
-	}
-	children, _ := out["allowed_children"].([]string)
-	if children == nil {
-		children = []string{}
-	}
-	t := openapi.EntryType{
-		Key: out.String("key"), Level: openapi.ItemType(out.String("level")), System: flag("system"),
-		Icon: out.String("icon"), ColorToken: out.String("color_token"),
-		Completable: flag("completable"), Workflow: flag("workflow"), Record: flag("record"),
-		Schedulable: flag("schedulable"), Estimable: flag("estimable"),
-		AllowedChildren: children, Position: out.Int("position"), Archived: flag("archived"),
-		Version: out.Int("version"),
-	}
-	if name := out.String("name"); name != "" {
-		t.Name = &name
-	}
-	if form, held := out["form"]; held {
-		var typed openapi.EntryForm
-		if remarshal(form, &typed) == nil {
-			t.Form = &typed
-		}
-	}
-	return t
-}
