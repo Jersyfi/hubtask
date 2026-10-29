@@ -204,6 +204,9 @@ func ElementsOutput(scene domain.Scene) []usecase.Output {
 			"id": e.ID, "kind": string(e.Kind), "x": e.X, "y": e.Y, "width": e.Width, "height": e.Height,
 			"text": e.Text, "color_token": nilIfEmpty(string(e.Colour)), "locked": e.Locked,
 		}
+		if e.Group != "" {
+			element["group"] = e.Group
+		}
 		switch e.Kind {
 		case domain.KindShape:
 			element["shape"] = string(e.Shape)
@@ -212,8 +215,21 @@ func ElementsOutput(scene domain.Scene) []usecase.Output {
 			element["route"], element["start"], element["end"] = string(e.Route), string(e.Start), string(e.End)
 		case domain.KindCard:
 			element["target"] = usecase.Output{"kind": string(e.Target.Kind), "id": e.Target.ID.String()}
+		case domain.KindStroke:
+			element["pen"], element["points"] = string(e.Pen), FlatPoints(e.Points)
+		case domain.KindLink:
+			element["url"] = e.URL
 		}
 		out[i] = element
+	}
+	return out
+}
+
+// FlatPoints are a stroke's points as the contract carries them: x and y after each other.
+func FlatPoints(points []domain.Point) []float64 {
+	out := make([]float64, 0, 2*len(points))
+	for _, point := range points {
+		out = append(out, point.X, point.Y)
 	}
 	return out
 }
@@ -280,8 +296,24 @@ func elementOf(raw any, path string) (domain.Element, error) {
 		Colour: shared.LabelToken(text("color_token")), Shape: domain.Shape(text("shape")),
 		From: text("from"), To: text("to"), Route: domain.Route(text("route")),
 		Start: domain.Head(text("start")), End: domain.Head(text("end")),
+		Pen: domain.Pen(text("pen")), URL: text("url"), Group: text("group"),
 	}
 	element.Locked, _ = fields["locked"].(bool)
+	if raw, present := fields["points"]; present && raw != nil {
+		list, ok := raw.([]any)
+		if !ok || len(list)%2 != 0 || len(list) > 2*domain.MaxStrokePoints {
+			return domain.Element{}, malformed(path + "/points")
+		}
+		element.Points = make([]domain.Point, 0, len(list)/2)
+		for i := 0; i < len(list); i += 2 {
+			x, okX := asNumber(list[i])
+			y, okY := asNumber(list[i+1])
+			if !okX || !okY {
+				return domain.Element{}, malformed(path + "/points")
+			}
+			element.Points = append(element.Points, domain.Point{X: x, Y: y})
+		}
+	}
 	var err error
 	for _, member := range []struct {
 		name string
@@ -304,6 +336,18 @@ func elementOf(raw any, path string) (domain.Element, error) {
 	return element, nil
 }
 
+func asNumber(raw any) (float64, bool) {
+	switch value := raw.(type) {
+	case float64:
+		return value, true
+	case int:
+		return float64(value), true
+	case int64:
+		return float64(value), true
+	}
+	return 0, false
+}
+
 func malformed(path string) error {
 	return shared.ErrValidation.WithDetail("whiteboards.elements_malformed").
 		WithFields(shared.FieldError{Path: path, Code: "whiteboards.elements_malformed"})
@@ -313,7 +357,7 @@ func malformed(path string) error {
 var elementsField = usecase.Field{
 	Name: "elements", Kind: usecase.KindList,
 	Description: "The board's objects in drawing order, the last on top: sticky notes, shapes, text, " +
-		"connectors, frames and cards of entries (schema WhiteboardElement). Sent whole; at most 5000.",
+		"connectors, frames, cards of entries, freehand strokes and web links (schema WhiteboardElement). Sent whole; at most 5000.",
 }
 
 // descriptor fills what every board use case declares the same way.

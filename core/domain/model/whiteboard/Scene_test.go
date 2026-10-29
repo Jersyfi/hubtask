@@ -24,6 +24,10 @@ func sticky(id string) whiteboard.Element {
 	return whiteboard.Element{ID: id, Kind: whiteboard.KindSticky, X: 10, Y: 10, Width: 160, Height: 160, Text: "Idea"}
 }
 
+func stroke(id string, points ...whiteboard.Point) whiteboard.Element {
+	return whiteboard.Element{ID: id, Kind: whiteboard.KindStroke, Pen: whiteboard.PenHighlighter, Width: 40, Height: 20, Points: points}
+}
+
 func detail(err error) string {
 	var e *shared.Error
 	if errors.As(err, &e) {
@@ -62,6 +66,15 @@ func TestCheckSceneJudgesEveryObject(t *testing.T) {
 		{"an unknown route", []whiteboard.Element{{ID: "l", Kind: whiteboard.KindConnector, Route: "ZIGZAG"}}, "whiteboards.connector_route_unknown"},
 		{"a card of a page", []whiteboard.Element{{ID: "c", Kind: whiteboard.KindCard, Target: reference.Reference{Kind: reference.KindPage, ID: entryID}}}, "whiteboards.card_target_unsupported"},
 		{"a card of no entry", []whiteboard.Element{{ID: "c", Kind: whiteboard.KindCard, Target: reference.Reference{Kind: reference.KindEntry}}}, "whiteboards.card_target_malformed"},
+		{"a stroke with the highlighter", []whiteboard.Element{stroke("s", whiteboard.Point{X: 0, Y: 0}, whiteboard.Point{X: 40, Y: 20})}, ""},
+		{"a stroke of no point", []whiteboard.Element{{ID: "s", Kind: whiteboard.KindStroke, Width: 10, Height: 10}}, "whiteboards.stroke_points_invalid"},
+		{"a stroke's point outside its box", []whiteboard.Element{stroke("s", whiteboard.Point{X: 41, Y: 0})}, "whiteboards.stroke_points_invalid"},
+		{"a stroke of too many points", []whiteboard.Element{stroke("s", make([]whiteboard.Point, whiteboard.MaxStrokePoints+1)...)}, "whiteboards.stroke_points_invalid"},
+		{"an unknown pen", []whiteboard.Element{{ID: "s", Kind: whiteboard.KindStroke, Pen: "CRAYON", Points: []whiteboard.Point{{}}}}, "whiteboards.stroke_pen_unknown"},
+		{"a web link", []whiteboard.Element{{ID: "w", Kind: whiteboard.KindLink, Width: 240, Height: 80, URL: "https://example.org/a?b=c"}}, ""},
+		{"a link to a script", []whiteboard.Element{{ID: "w", Kind: whiteboard.KindLink, URL: "javascript:alert(1)"}}, "whiteboards.link_url_invalid"},
+		{"a link without a host", []whiteboard.Element{{ID: "w", Kind: whiteboard.KindLink, URL: "https:///x"}}, "whiteboards.link_url_invalid"},
+		{"a group's name not shaped as an identifier", []whiteboard.Element{{ID: "a", Kind: whiteboard.KindSticky, Group: "a b"}}, "whiteboards.element_group_malformed"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -116,6 +129,23 @@ func TestCheckSceneKeepsOnlyWhatAKindDraws(t *testing.T) {
 	}
 	if l.Route != whiteboard.RouteStraight || l.Start != whiteboard.HeadNone || l.End != whiteboard.HeadArrow {
 		t.Fatalf("a connector's defaults: %+v", l)
+	}
+	drawn, err := whiteboard.CheckScene(whiteboard.Scene{Elements: []whiteboard.Element{
+		{ID: "s", Kind: whiteboard.KindStroke, Width: 10, Height: 10, Text: "x", URL: "https://example.org", Points: []whiteboard.Point{{X: 1, Y: 1}}},
+		{ID: "w", Kind: whiteboard.KindLink, URL: "https://example.org", Pen: whiteboard.PenPen, Points: []whiteboard.Point{{}}, Group: "g1"},
+	}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, w := drawn.Elements[0], drawn.Elements[1]
+	if s.Pen != whiteboard.PenPen || s.Text != "" || s.URL != "" {
+		t.Fatalf("a stroke kept another kind's members or lost its pen: %+v", s)
+	}
+	if w.Pen != "" || w.Points != nil || w.Group != "g1" {
+		t.Fatalf("a link kept a stroke's members or lost its group: %+v", w)
+	}
+	if !drawn.Equal(drawn) || drawn.Equal(whiteboard.Scene{Elements: []whiteboard.Element{s, s}}) {
+		t.Fatal("scenes compare wrongly")
 	}
 }
 

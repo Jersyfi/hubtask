@@ -343,3 +343,34 @@ func TestABoardGoesToTheTrashAndComesBack(t *testing.T) {
 		t.Fatalf("restored %+v, %v", restored, err)
 	}
 }
+
+// UC-CNV-01 check 1: a freehand stroke, a web link and a group are read back as drawn.
+func TestAStrokeALinkAndAGroupAreReadBack(t *testing.T) {
+	s, _, _ := studio(gate{})
+	out, err := CreateWhiteboard{Studio: s}.Descriptor().Handler.Invoke(context.Background(), actor(anna), usecase.Input{
+		"hub_id": hub.String(), "title": "Sketch", "elements": []any{
+			map[string]any{"id": "p1", "kind": "STROKE", "pen": "HIGHLIGHTER", "width": 40.0, "height": 20.0,
+				"points": []any{0.0, 0.0, 20.0, 10.0, 40.0, 20.0}, "group": "g1"},
+			map[string]any{"id": "w1", "kind": "LINK", "url": "https://example.org/plan", "width": 240.0, "height": 80.0, "group": "g1"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	read, err := ReadWhiteboard{Studio: s}.Descriptor().Handler.Invoke(context.Background(), actor(anna), usecase.Input{"whiteboard_id": out["id"]})
+	if err != nil {
+		t.Fatal(err)
+	}
+	elements := read["elements"].([]usecase.Output)
+	points, _ := elements[0]["points"].([]float64)
+	if elements[0]["pen"] != "HIGHLIGHTER" || len(points) != 6 || points[5] != 20 || elements[0]["group"] != "g1" ||
+		elements[1]["url"] != "https://example.org/plan" || elements[1]["group"] != "g1" {
+		t.Fatalf("read back %+v", elements)
+	}
+	_, err = UpdateWhiteboard{Studio: s}.Descriptor().Handler.Invoke(context.Background(), actor(anna), usecase.Input{
+		"whiteboard_id": out["id"], "elements": []any{map[string]any{"id": "p1", "kind": "STROKE", "points": []any{1.0}}},
+	})
+	if detail(err) != "whiteboards.elements_malformed" {
+		t.Fatalf("an odd list of numbers: %v", err)
+	}
+}

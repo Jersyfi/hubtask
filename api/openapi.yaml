@@ -26844,7 +26844,7 @@ components:
       required: [id, kind]
       properties:
         id: { type: string, pattern: "^[A-Za-z0-9_-]{1,64}$", description: "Unique on the board; a reference's anchor names a frame by it." }
-        kind: { type: string, enum: [STICKY, SHAPE, TEXT, CONNECTOR, FRAME, CARD] }
+        kind: { type: string, enum: [STICKY, SHAPE, TEXT, CONNECTOR, FRAME, CARD, STROKE, LINK] }
         x: { type: number, minimum: -1000000, maximum: 1000000 }
         y: { type: number, minimum: -1000000, maximum: 1000000 }
         width: { type: number, minimum: -100000, maximum: 100000 }
@@ -26865,6 +26865,14 @@ components:
             kind: { type: string, enum: [ENTRY] }
             id: { type: string, format: uuid }
         locked: { type: boolean, description: "Not moved or changed by a pointer until unlocked." }
+        pen: { type: string, enum: [PEN, HIGHLIGHTER], description: "What a stroke is drawn with; PEN when not sent." }
+        points:
+          type: array
+          maxItems: 2000
+          items: { type: number }
+          description: A stroke's line, x and y after each other, relative to (x, y) and within its width and height; at most 1000 points.
+        url: { type: string, maxLength: 2048, description: "A web link's address, http or https. The board draws its card and never loads the page." }
+        group: { type: string, pattern: "^[A-Za-z0-9_-]{1,64}$", description: "The group the object belongs to: chosen, moved and copied together." }
 
     WhiteboardCreate:
       type: object

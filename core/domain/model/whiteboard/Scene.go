@@ -5,6 +5,7 @@ package whiteboard
 
 import (
 	"math"
+	"net/url"
 	"regexp"
 	"slices"
 	"strconv"
@@ -29,6 +30,10 @@ const (
 	MaxCoordinate = 1_000_000
 	// MaxSize bounds an object's width and height.
 	MaxSize = 100_000
+	// MaxStrokePoints bounds one freehand stroke; a longer line is drawn as several.
+	MaxStrokePoints = 1000
+	// MaxURLLength bounds a web link's address.
+	MaxURLLength = 2048
 )
 
 // Kind is what an object on the board is.
@@ -45,9 +50,15 @@ const (
 	// KindCard draws an object of the suite - an entry - as its card; what it shows is resolved for
 	// each reader, never copied onto the board (P-19).
 	KindCard Kind = "CARD"
+	// KindStroke is a freehand line drawn with the pen or the highlighter; its points are relative
+	// to (X, Y) and lie within its width and height.
+	KindStroke Kind = "STROKE"
+	// KindLink is a web address drawn as its card; the board never loads the page (no frame of a
+	// foreign origin, security.md §9).
+	KindLink Kind = "LINK"
 )
 
-var kinds = []Kind{KindSticky, KindShape, KindText, KindConnector, KindFrame, KindCard}
+var kinds = []Kind{KindSticky, KindShape, KindText, KindConnector, KindFrame, KindCard, KindStroke, KindLink}
 
 // Kinds are every kind of object.
 func Kinds() []string { return names(kinds) }
@@ -96,6 +107,22 @@ var heads = []Head{HeadNone, HeadArrow}
 // Heads are every end.
 func Heads() []string { return names(heads) }
 
+// Pen is what a stroke is drawn with.
+type Pen string
+
+const (
+	PenPen         Pen = "PEN"
+	PenHighlighter Pen = "HIGHLIGHTER"
+)
+
+var pens = []Pen{PenPen, PenHighlighter}
+
+// Pens are every pen.
+func Pens() []string { return names(pens) }
+
+// Point is a stroke's point, relative to the stroke's position.
+type Point struct{ X, Y float64 }
+
 // Element is one object on the board.
 //
 // A connector's ends are the objects it is attached to (From, To) and stays attached to as they
@@ -120,13 +147,49 @@ type Element struct {
 	// Target is what a card draws.
 	Target reference.Reference
 	Locked bool
+	// Points are a stroke's line; Pen what it is drawn with.
+	Points []Point
+	Pen    Pen
+	// URL is a web link's address.
+	URL string
+	// Group names the group an object belongs to: chosen, moved and copied together.
+	Group string
+}
+
+// Equal reports whether two objects are the same.
+func (e Element) Equal(other Element) bool {
+	if !slices.Equal(e.Points, other.Points) {
+		return false
+	}
+	e.Points, other.Points = nil, nil
+	return e.comparable() == other.comparable()
+}
+
+// comparable is the object without its points, a value `==` can compare.
+func (e Element) comparable() any {
+	type flat struct {
+		ID, Text, From, To, URL, Group string
+		Kind                           Kind
+		X, Y, Width, Height            float64
+		Colour                         shared.LabelToken
+		Shape                          Shape
+		Route                          Route
+		Start, End                     Head
+		Target                         reference.Reference
+		Locked                         bool
+		Pen                            Pen
+	}
+	return flat{e.ID, e.Text, e.From, e.To, e.URL, e.Group, e.Kind, e.X, e.Y, e.Width, e.Height, e.Colour, e.Shape,
+		e.Route, e.Start, e.End, e.Target, e.Locked, e.Pen}
 }
 
 // Scene is the board's objects in drawing order, the last on top.
 type Scene struct{ Elements []Element }
 
 // Equal reports whether two scenes hold the same objects in the same order.
-func (s Scene) Equal(other Scene) bool { return slices.Equal(s.Elements, other.Elements) }
+func (s Scene) Equal(other Scene) bool {
+	return slices.EqualFunc(s.Elements, other.Elements, func(a, b Element) bool { return a.Equal(b) })
+}
 
 // Frame answers the frame of that identifier.
 func (s Scene) Frame(id string) (Element, bool) {
@@ -274,6 +337,9 @@ func checkElement(e Element, kindOf map[string]Kind, path string, form text.Norm
 		return Element{}, invalid(path+"/text", "whiteboards.element_text_malformed")
 	}
 	e.Text = words
+	if e.Group != "" && !elementID.MatchString(e.Group) {
+		return Element{}, invalid(path+"/group", "whiteboards.element_group_malformed")
+	}
 	if e.Colour != "" && !shared.IsLabelToken(string(e.Colour)) {
 		return Element{}, invalid(path+"/colour", "whiteboards.element_colour_unknown")
 	}
@@ -316,6 +382,34 @@ func checkElement(e Element, kindOf map[string]Kind, path string, form text.Norm
 		}
 	} else {
 		e.From, e.To, e.Route, e.Start, e.End = "", "", "", "", ""
+	}
+	if e.Kind == KindStroke {
+		if e.Pen == "" {
+			e.Pen = PenPen
+		}
+		if !slices.Contains(pens, e.Pen) {
+			return Element{}, invalid(path+"/pen", "whiteboards.stroke_pen_unknown")
+		}
+		if len(e.Points) < 1 || len(e.Points) > MaxStrokePoints {
+			return Element{}, invalid(path+"/points", "whiteboards.stroke_points_invalid").WithParams(map[string]string{"maximum": strconv.Itoa(MaxStrokePoints)})
+		}
+		for _, point := range e.Points {
+			if math.IsNaN(point.X) || math.IsNaN(point.Y) || point.X < 0 || point.Y < 0 || point.X > e.Width || point.Y > e.Height {
+				return Element{}, invalid(path+"/points", "whiteboards.stroke_points_invalid").WithParams(map[string]string{"maximum": strconv.Itoa(MaxStrokePoints)})
+			}
+		}
+		e.Text = ""
+	} else {
+		e.Points, e.Pen = nil, ""
+	}
+	if e.Kind == KindLink {
+		address, err := url.Parse(e.URL)
+		if err != nil || len(e.URL) > MaxURLLength || (address.Scheme != "https" && address.Scheme != "http") || address.Host == "" ||
+			strings.ContainsAny(e.URL, " \t\r\n") {
+			return Element{}, invalid(path+"/url", "whiteboards.link_url_invalid")
+		}
+	} else {
+		e.URL = ""
 	}
 	if e.Kind == KindCard {
 		if e.Target.Kind != reference.KindEntry {

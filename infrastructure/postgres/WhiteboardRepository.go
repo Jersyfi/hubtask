@@ -47,6 +47,10 @@ type sceneElement struct {
 	End        string       `json:"end,omitempty"`
 	Target     *sceneTarget `json:"target,omitempty"`
 	Locked     bool         `json:"locked,omitempty"`
+	Points     []float64    `json:"points,omitempty"`
+	Pen        string       `json:"pen,omitempty"`
+	URL        string       `json:"url,omitempty"`
+	Group      string       `json:"group,omitempty"`
 }
 
 type sceneTarget struct {
@@ -61,7 +65,10 @@ func EncodeScene(scene whiteboard.Scene) ([]byte, error) {
 		out[i] = sceneElement{
 			ID: e.ID, Kind: string(e.Kind), X: e.X, Y: e.Y, Width: e.Width, Height: e.Height, Text: e.Text,
 			ColorToken: string(e.Colour), Shape: string(e.Shape), From: e.From, To: e.To, Route: string(e.Route),
-			Start: string(e.Start), End: string(e.End), Locked: e.Locked,
+			Start: string(e.Start), End: string(e.End), Locked: e.Locked, Pen: string(e.Pen), URL: e.URL, Group: e.Group,
+		}
+		for _, point := range e.Points {
+			out[i].Points = append(out[i].Points, point.X, point.Y)
 		}
 		if e.Kind == whiteboard.KindCard {
 			out[i].Target = &sceneTarget{Kind: string(e.Target.Kind), ID: e.Target.ID.String()}
@@ -82,6 +89,10 @@ func DecodeScene(raw []byte) (whiteboard.Scene, error) {
 			ID: e.ID, Kind: whiteboard.Kind(e.Kind), X: e.X, Y: e.Y, Width: e.Width, Height: e.Height, Text: e.Text,
 			Colour: shared.LabelToken(e.ColorToken), Shape: whiteboard.Shape(e.Shape), From: e.From, To: e.To,
 			Route: whiteboard.Route(e.Route), Start: whiteboard.Head(e.Start), End: whiteboard.Head(e.End), Locked: e.Locked,
+			Pen: whiteboard.Pen(e.Pen), URL: e.URL, Group: e.Group,
+		}
+		for j := 0; j+1 < len(e.Points); j += 2 {
+			scene.Elements[i].Points = append(scene.Elements[i].Points, whiteboard.Point{X: e.Points[j], Y: e.Points[j+1]})
 		}
 		if e.Target != nil {
 			id, err := shared.ParseID(e.Target.ID)

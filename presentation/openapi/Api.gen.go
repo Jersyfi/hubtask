@@ -6488,8 +6488,10 @@ const (
 	WhiteboardElementKindCARD      WhiteboardElementKind = "CARD"
 	WhiteboardElementKindCONNECTOR WhiteboardElementKind = "CONNECTOR"
 	WhiteboardElementKindFRAME     WhiteboardElementKind = "FRAME"
+	WhiteboardElementKindLINK      WhiteboardElementKind = "LINK"
 	WhiteboardElementKindSHAPE     WhiteboardElementKind = "SHAPE"
 	WhiteboardElementKindSTICKY    WhiteboardElementKind = "STICKY"
+	WhiteboardElementKindSTROKE    WhiteboardElementKind = "STROKE"
 	WhiteboardElementKindTEXT      WhiteboardElementKind = "TEXT"
 )
 
@@ -6502,11 +6504,33 @@ func (e WhiteboardElementKind) Valid() bool {
 		return true
 	case WhiteboardElementKindFRAME:
 		return true
+	case WhiteboardElementKindLINK:
+		return true
 	case WhiteboardElementKindSHAPE:
 		return true
 	case WhiteboardElementKindSTICKY:
 		return true
+	case WhiteboardElementKindSTROKE:
+		return true
 	case WhiteboardElementKindTEXT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WhiteboardElementPen.
+const (
+	HIGHLIGHTER WhiteboardElementPen = "HIGHLIGHTER"
+	PEN         WhiteboardElementPen = "PEN"
+)
+
+// Valid indicates whether the value is a known member of the WhiteboardElementPen enum.
+func (e WhiteboardElementPen) Valid() bool {
+	switch e {
+	case HIGHLIGHTER:
+		return true
+	case PEN:
 		return true
 	default:
 		return false
@@ -15787,7 +15811,10 @@ type WhiteboardElement struct {
 	End *WhiteboardElementEnd `json:"end,omitempty"`
 
 	// From A connector's start: the object it is attached to.
-	From   *string  `json:"from,omitempty"`
+	From *string `json:"from,omitempty"`
+
+	// Group The group the object belongs to: chosen, moved and copied together.
+	Group  *string  `json:"group,omitempty"`
 	Height *float32 `json:"height,omitempty"`
 
 	// Id Unique on the board; a reference's anchor names a frame by it.
@@ -15795,7 +15822,13 @@ type WhiteboardElement struct {
 	Kind WhiteboardElementKind `json:"kind"`
 
 	// Locked Not moved or changed by a pointer until unlocked.
-	Locked *bool                   `json:"locked,omitempty"`
+	Locked *bool `json:"locked,omitempty"`
+
+	// Pen What a stroke is drawn with; PEN when not sent.
+	Pen *WhiteboardElementPen `json:"pen,omitempty"`
+
+	// Points A stroke's line, x and y after each other, relative to (x, y) and within its width and height; at most 1000 points.
+	Points *[]float32              `json:"points,omitempty"`
 	Route  *WhiteboardElementRoute `json:"route,omitempty"`
 
 	// Shape A shape's outline; RECTANGLE when not sent.
@@ -15814,7 +15847,10 @@ type WhiteboardElement struct {
 	Text *string `json:"text,omitempty"`
 
 	// To A connector's end: the object it is attached to.
-	To    *string  `json:"to,omitempty"`
+	To *string `json:"to,omitempty"`
+
+	// Url A web link's address, http or https. The board draws its card and never loads the page.
+	Url   *string  `json:"url,omitempty"`
 	Width *float32 `json:"width,omitempty"`
 	X     *float32 `json:"x,omitempty"`
 	Y     *float32 `json:"y,omitempty"`
@@ -15825,6 +15861,9 @@ type WhiteboardElementEnd string
 
 // WhiteboardElementKind defines model for WhiteboardElement.Kind.
 type WhiteboardElementKind string
+
+// WhiteboardElementPen What a stroke is drawn with; PEN when not sent.
+type WhiteboardElementPen string
 
 // WhiteboardElementRoute defines model for WhiteboardElement.Route.
 type WhiteboardElementRoute string

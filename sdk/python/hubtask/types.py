@@ -4229,7 +4229,7 @@ class WhiteboardList(TypedDict, total=False):
 
 WhiteboardElement = TypedDict("WhiteboardElement", {
     "id": Required[str],
-    "kind": Required[Literal["STICKY", "SHAPE", "TEXT", "CONNECTOR", "FRAME", "CARD"]],
+    "kind": Required[Literal["STICKY", "SHAPE", "TEXT", "CONNECTOR", "FRAME", "CARD", "STROKE", "LINK"]],
     "x": float,
     "y": float,
     "width": float,
@@ -4244,6 +4244,10 @@ WhiteboardElement = TypedDict("WhiteboardElement", {
     "end": Literal["NONE", "ARROW"],
     "target": dict[str, Any],
     "locked": bool,
+    "pen": Literal["PEN", "HIGHLIGHTER"],
+    "points": list[float],
+    "url": str,
+    "group": str,
 }, total=False)
 
 class WhiteboardCreate(TypedDict, total=False):
