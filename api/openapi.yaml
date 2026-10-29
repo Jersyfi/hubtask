@@ -11101,6 +11101,8 @@ paths:
     post:
       tags: [items]
       operationId: completeWorkItem
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -11132,6 +11134,8 @@ paths:
     post:
       tags: [items]
       operationId: reopenWorkItem
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
       description: >
         Marks a completed item open again. Idempotent: reopening an item that is already open
         succeeds and changes nothing. Where the collection's completion policy rolls up, reopening an
