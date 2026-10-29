@@ -20,7 +20,13 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    `x-hubtask-rest-location` fills a created resource's `Location`; an explicit `null` member
    reaches the use case as present and null, as MCP's arguments carry it, or as the empty text
    where `x-hubtask-rest-null: empty` says the use case reads that as *clear*. A path parameter
-   renamed to `""` only places the resource. The use case's input therefore uses
+   renamed to `""` only places the resource. `x-hubtask-rest-query` renames a query parameter's
+   input (`size` read as `limit`); `x-hubtask-rest-use-case` sends a door to another use case than
+   its operationId (creating and replacing an identity provider are one use case, told apart by an
+   identifier); `x-hubtask-rest-shown-once` names the member that shows a secret once - an answer
+   carrying it is marked `Cache-Control: no-store` and `X-Hubtask-Shown-Once` for the idempotency
+   record (T-18); `x-hubtask-rest-list: data` draws a list under `data` without a page row by row.
+   The use case's input therefore uses
    the contract's names; a test holds each mapping's query, version and proof to the descriptor's
    declared input. An answer drawn by one of the adapter's shared mappers (an entry, by
    `workItemResponse`) names it with `x-hubtask-rest-answer`; for a bare-array or paged answer
