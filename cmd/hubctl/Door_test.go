@@ -97,6 +97,17 @@ func TestSettingAFormSendsTheFile(t *testing.T) {
 	}
 }
 
+func TestGettingAFormPrintsItFromTheList(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{"data":[{"key":"bug","name":"Bug","level":"TASK","form":{"sections":[{"key":"triage","name":"Triage"}]}}]}`)
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "type", "form", "get", "bug")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(out, `"Triage"`) {
+		t.Errorf("the form is not printed: %q", out)
+	}
+}
+
 // S-07 gap: a workflow used in a hub, and the list drawn by its columns.
 func TestWorkflowCommandsReachTheirOperations(t *testing.T) {
 	stub := serveJSON(t, http.StatusOK, `{"data":[{"key":"triage","name":"Triage","version":1}]}`)

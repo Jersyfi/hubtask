@@ -31,6 +31,7 @@ func entryTypeGroup() group {
 			{name: "unarchive", summary: "offer an archived type again", run: entryTypeArchive(false)},
 			{name: "rm", summary: "delete a type nothing uses", run: entryTypeDelete},
 			{name: "assign", summary: "change an entry's type", run: entryTypeAssign},
+			{name: "form get", summary: "print a type's form, as `type form set --body` takes it", run: entryTypeFormGet},
 		},
 	}
 }
@@ -49,6 +50,38 @@ func entryTypeList(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	return cli.Emit(list, entryTypeTable(list.Data))
+}
+
+// entryTypeFormGet prints one type's form. The contract has no read of one type - the list carries
+// every form - so it reads the list, which is what the screen does too.
+func entryTypeFormGet(ctx context.Context, cli *CLI, args []string) error {
+	key, rest, err := takeKey(args, "type form get <key>")
+	if err != nil {
+		return err
+	}
+	if err := parseCommand(commandFlags(cli, "type", "form get", "<key>"), rest); err != nil {
+		return err
+	}
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var list openapi.EntryTypeList
+	if err := client.Get(ctx, entryTypesPath, nil, &list); err != nil {
+		return err
+	}
+	for _, entryType := range list.Data {
+		if entryType.Key != key {
+			continue
+		}
+		form := openapi.EntryForm{}
+		if entryType.Form != nil {
+			form = *entryType.Form
+		}
+		return cli.emitJSON(form)
+	}
+	message, _ := cli.Catalogue.Message("entry_types.unknown", map[string]string{"key": key})
+	return errorString(message)
 }
 
 // behaviourFlags are the five switches create and set share. Each is sent only where it was given,
