@@ -4565,6 +4565,7 @@ paths:
     post:
       tags: [auth]
       operationId: elevateSession
+      x-hubtask-rest: generated
       summary: Raise this session to the control plane for an hour
       description: >
         A registered operator raises **their own session** to `admin:tenants` by passing a fresh
@@ -5288,6 +5289,8 @@ paths:
     get:
       tags: [admin]
       operationId: listTenants
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: adminTenantResponse
       summary: The installation's workspaces
       description: >
         The one legitimate tenant enumerator: provisioning
@@ -5559,6 +5562,8 @@ paths:
     post:
       tags: [admin]
       operationId: closeTenantPassword
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: adminTenantResponse
       summary: Close an operator's opening of the password early
       description: >
         Ends the opening `:open-password` made before its time. The workspace's own
@@ -6130,6 +6135,7 @@ paths:
     post:
       tags: [admin]
       operationId: addOperator
+      x-hubtask-rest: generated
       summary: Put an account in the register
       description: >
         A service account may be an operator: a purchase platform that provisions workspaces needs a
@@ -6244,6 +6250,8 @@ paths:
     get:
       tags: [admin]
       operationId: listPlatformEvents
+      x-hubtask-rest: generated
+      x-hubtask-rest-query: {size: limit}
       summary: The installation's events, read forward
       description: >
         What a provider's purchase platform learns about the workspaces - created, moved to another
@@ -6470,6 +6478,8 @@ paths:
     get:
       tags: [admin]
       operationId: readUsage
+      x-hubtask-rest: generated
+      x-hubtask-rest-query: {size: limit}
       summary: The use per workspace, metric and day, for billing
       description: >
         Each workspace's use, a page of workspaces at a time, every day of the range: entries, stored
@@ -8217,6 +8227,8 @@ paths:
     put:
       tags: [ai]
       operationId: chooseAiSource
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: aiSourceResponse
       summary: Choose which AI answers this workspace
       description: >
         Choosing an offered model is this workspace's consent to send its content to it, and
@@ -8245,6 +8257,8 @@ paths:
     put:
       tags: [ai]
       operationId: setAiPersonOptOut
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: aiSourceResponse
       summary: Whether each person may keep their own content out of AI
       description: >
         `OFFERED`, the default, lets each person keep what they authored out of every prompt.
@@ -8275,6 +8289,8 @@ paths:
     put:
       tags: [ai]
       operationId: setAiArrivalProposals
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: aiSourceResponse
       summary: Whether AI prepares a proposal for each new jumble entry
       description: >
         `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without

@@ -16,35 +16,12 @@ import (
 // ListServiceAccounts' reason: the identity helper's closure gives the linter nothing to trace
 // the context through.
 const (
-	listTenantsUseCase           = "ListTenants"
 	provisionTenantUseCase       = "ProvisionTenant"
 	requestTenantDeletionUseCase = "RequestTenantDeletion"
 	exportTenantUseCase          = "ExportTenant"
 	openTenantPasswordUseCase    = "OpenTenantPassword"
-	closeTenantPasswordUseCase   = "CloseTenantPassword"
 	readEncryptionStatusUseCase  = "ReadEncryptionStatus"
 )
-
-// ListTenants answers GET /admin/tenants.
-func (c *RestController) ListTenants(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), listTenantsUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	rows, _ := out["data"].([]usecase.Output)
-	tenants := make([]openapi.AdminTenant, 0, len(rows))
-	for _, row := range rows {
-		tenants = append(tenants, adminTenantResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, tenants)
-}
 
 // ProvisionTenant answers POST /admin/tenants.
 func (c *RestController) ProvisionTenant(
@@ -163,27 +140,6 @@ func (c *RestController) OpenTenantPassword(
 		"requester":     body.Requester,
 		"reason":        body.Reason,
 		"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, adminTenantResponse(out))
-}
-
-// CloseTenantPassword answers POST /admin/tenants/{tenantId}:close-password. Written out longhand
-// for the same reason as its siblings above.
-func (c *RestController) CloseTenantPassword(
-	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), closeTenantPasswordUseCase, actorOf(r), usecase.Input{
-		"tenant_id": tenantID.String(),
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)

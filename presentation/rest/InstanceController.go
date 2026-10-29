@@ -5,11 +5,9 @@ package rest
 
 import (
 	"net/http"
-	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -25,10 +23,7 @@ const (
 	writeInstanceSettingsUseCase = "WriteInstanceSettings"
 	readInstanceOverviewUseCase  = "ReadInstanceOverview"
 	listInstanceJournalUseCase   = "ListInstanceJournal"
-	listPlatformEventsUseCase    = "ListPlatformEvents"
-	readUsageUseCase             = "ReadUsage"
 	listOperatorsUseCase         = "ListOperators"
-	addOperatorUseCase           = "AddOperator"
 )
 
 // The four operations below are written out rather than taken through the identity helper, for the
@@ -134,40 +129,6 @@ func (c *RestController) ListOperators(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, r, http.StatusOK, operators)
 }
 
-// AddOperator answers POST /admin/operators.
-func (c *RestController) AddOperator(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.OperatorAdd
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	// Either form, and the registry refuses a request that carries neither: the workspace and the
-	// address for a screen, the identifier for a script that already has one.
-	in := usecase.Input{}
-	if body.AccountId != nil {
-		in["account_id"] = body.AccountId.String()
-	}
-	if body.Workspace != nil {
-		in["workspace"] = *body.Workspace
-	}
-	if body.Email != nil {
-		in["email"] = string(*body.Email)
-	}
-
-	if _, err := c.UseCases.Invoke(r.Context(), addOperatorUseCase, actorOf(r), in); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
 // instanceSettingMap flattens the contract's `{value, locked}` documents into the catalogue's.
 func instanceSettingMap(sent map[string]openapi.InstanceSetting) map[string]any {
 	settings := make(map[string]any, len(sent))
@@ -262,24 +223,6 @@ func instanceSettingsOf(value any) map[string]openapi.InstanceSetting {
 	return settings
 }
 
-const elevateSessionUseCase = "ElevateSession"
-
-// ElevateSession answers POST /auth/sessions:elevate.
-func (c *RestController) ElevateSession(
-	w http.ResponseWriter, r *http.Request, params openapi.ElevateSessionParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), elevateSessionUseCase, actor, usecase.Input{
-			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-		})
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, openapi.SessionElevation{
-			ElevatedUntil:    timeValue(out["elevated_until"]),
-			RemainingSeconds: out.Int("remaining_seconds"),
-		})
-	})
-}
-
 // ReadInstanceOverview answers GET /admin/overview.
 func (c *RestController) ReadInstanceOverview(w http.ResponseWriter, r *http.Request) {
 	requestID := correlation.RequestIDFrom(r.Context())
@@ -302,63 +245,6 @@ func (c *RestController) ReadInstanceOverview(w http.ResponseWriter, r *http.Req
 		AccountsTotal:             censusCount(out["accounts_total"]),
 		WorkspacesServiceOnly:     censusCount(out["workspaces_service_only"]),
 	})
-}
-
-// ListPlatformEvents answers GET /admin/events: the installation's events, as the use case renders
-// them, passed through unchanged.
-func (c *RestController) ListPlatformEvents(
-	w http.ResponseWriter, r *http.Request, params openapi.ListPlatformEventsParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	in := usecase.Input{}
-	if params.Cursor != nil {
-		in["cursor"] = *params.Cursor
-	}
-	if params.Size != nil {
-		in["limit"] = *params.Size
-	}
-	out, err := c.UseCases.Invoke(r.Context(), listPlatformEventsUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, out)
-}
-
-// ReadUsage answers GET /admin/usage: the use per workspace, metric and day, as the use case lays it
-// out.
-func (c *RestController) ReadUsage(w http.ResponseWriter, r *http.Request, params openapi.ReadUsageParams) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	in := usecase.Input{
-		"from": params.From.Format(time.DateOnly),
-		"to":   params.To.Format(time.DateOnly),
-	}
-	if params.Metric != nil {
-		in["metric"] = *params.Metric
-	}
-	if params.Workspace != nil {
-		in["workspace"] = params.Workspace.String()
-	}
-	if params.Cursor != nil {
-		in["cursor"] = *params.Cursor
-	}
-	if params.Size != nil {
-		in["limit"] = *params.Size
-	}
-	out, err := c.UseCases.Invoke(r.Context(), readUsageUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, out)
 }
 
 // ListInstanceJournal answers GET /admin/journal.

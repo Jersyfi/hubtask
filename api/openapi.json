@@ -5935,6 +5935,7 @@
           "auth"
         ],
         "operationId": "elevateSession",
+        "x-hubtask-rest": "generated",
         "summary": "Raise this session to the control plane for an hour",
         "description": "A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.\nThis deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.\nIt does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.\nThe personal access token stays exactly as it is, for automation.\n",
         "parameters": [
@@ -6644,6 +6645,8 @@
           "admin"
         ],
         "operationId": "listTenants",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "adminTenantResponse",
         "summary": "The installation's workspaces",
         "description": "The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. \"Nothing enumerates tenants\" remains the rule for jobs; this is not a job. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "responses": {
@@ -6992,6 +6995,8 @@
           "admin"
         ],
         "operationId": "closeTenantPassword",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "adminTenantResponse",
         "summary": "Close an operator's opening of the password early",
         "description": "Ends the opening `:open-password` made before its time. The workspace's own rules decide again from the next request on. Recorded in the workspace's trail (`tenant.password_closed`) and the installation's journal, and the workspace's administrators are told. No step-up: closing narrows the way in rather than widening it. Closing where nothing is open changes nothing and records nothing.\n",
         "responses": {
@@ -7783,6 +7788,7 @@
           "admin"
         ],
         "operationId": "addOperator",
+        "x-hubtask-rest": "generated",
         "summary": "Put an account in the register",
         "description": "A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.\nAn account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).\n**Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.\n",
         "requestBody": {
@@ -7911,6 +7917,10 @@
           "admin"
         ],
         "operationId": "listPlatformEvents",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-query": {
+          "size": "limit"
+        },
         "summary": "The installation's events, read forward",
         "description": "What a provider's purchase platform learns about the workspaces - created, moved to another plan, suspended, active again, deletion requested, cancelled and done, an owner changed, a limit reached, the AI budget spent, an export finished - as CloudEvents, oldest first. The same events the installation's subscriptions are sent, so a platform that was down reads what it missed from the cursor it last kept and misses nothing.\nEach event carries the workspace's id, the platform's reference, its status, its plan and a version that only grows; a receiver keeps the newest and needs no ordering. Identifiers and states only, never anybody's content.\nThe events are numbered in the order their changes committed, so a page never skips one that commits later. Without a cursor the read starts at the oldest event kept; `next_cursor` is always set, and `has_more` says whether to read again at once. Events are kept 30 days: a cursor older than that is answered `410` with `admin.events_cursor_expired`, since what followed it is no longer all there. Single mode offers none of this (`admin.multi_mode_required`). Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "parameters": [
@@ -8262,6 +8272,10 @@
           "admin"
         ],
         "operationId": "readUsage",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-query": {
+          "size": "limit"
+        },
         "summary": "The use per workspace, metric and day, for billing",
         "description": "Each workspace's use, a page of workspaces at a time, every day of the range: entries, stored bytes and people as the day's highest count, the AI budget's tokens and the automation runs as the day's sum. Each metric says how it is counted and by which day - UTC, or the workspace's own zone for the AI budget - and `final_through` is the last day that has ended in every zone, up to which nothing will change. A day with no change carries the day before forward. A workspace purged within the last 13 months is answered by its bare id as `purged`, with no name and no reference; counts older than 13 months are gone.\nOffered only while the operator has switched metering on (`metering` on the installation level), off by default: otherwise `409 admin.metering_off`. A range is at most 366 days (`422 admin.usage_range_invalid`); an unknown metric is `422 admin.usage_metric_unknown`. Single mode offers none of this (`admin.multi_mode_required`).\n",
         "parameters": [
@@ -10302,6 +10316,8 @@
           "ai"
         ],
         "operationId": "chooseAiSource",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "aiSourceResponse",
         "summary": "Choose which AI answers this workspace",
         "description": "Choosing an offered model is this workspace's consent to send its content to it, and choosing its own model or none withdraws that consent. `NONE` is always allowed; a source the installation does not allow is refused with `403`, `ai.source_not_allowed`. A narrowing wider than the installation allows is refused with `auth.policy_loosens`, one under a lock with `auth.policy_locked` - except `NONE`, which is the workspace's own always. Auditable.\n",
         "requestBody": {
@@ -10337,6 +10353,8 @@
           "ai"
         ],
         "operationId": "setAiPersonOptOut",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "aiSourceResponse",
         "summary": "Whether each person may keep their own content out of AI",
         "description": "`OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.\n",
         "requestBody": {
@@ -10372,6 +10390,8 @@
           "ai"
         ],
         "operationId": "setAiArrivalProposals",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "aiSourceResponse",
         "summary": "Whether AI prepares a proposal for each new jumble entry",
         "description": "`true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.\n",
         "requestBody": {
