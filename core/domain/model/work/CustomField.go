@@ -167,6 +167,10 @@ type CustomFieldDefinition struct {
 	// required does not make the entries that predate it invalid, and a rule that did would make
 	// every one of them unsaveable at once.
 	IsRequired bool
+	// Restricted says only holders of the field's permission (FIELD_WRITE:<key>) write it
+	// (UC-ID-27); the shipped owner and administrators hold every one. A calculated field is
+	// written by the server and is never restricted.
+	Restricted bool
 	// AppliesTo are the item types that carry the field. Never empty - a definition no type
 	// carries is one nothing could ever hold.
 	AppliesTo []ItemType
@@ -190,6 +194,7 @@ type NewCustomFieldInput struct {
 	Currency     string
 	Formula      string
 	IsRequired   bool
+	Restricted   bool
 	AppliesTo    []ItemType
 	Now          time.Time
 
@@ -234,11 +239,14 @@ func NewCustomFieldDefinition(in NewCustomFieldInput) (CustomFieldDefinition, er
 	if in.ID.IsZero() || in.TenantID.IsZero() {
 		return CustomFieldDefinition{}, shared.ErrInternal.WithDetail("fields.identity_incomplete")
 	}
+	if in.Restricted && in.Kind == CustomFieldCalculated {
+		return CustomFieldDefinition{}, customFieldError("/restricted", "fields.calculated", nil)
+	}
 
 	return CustomFieldDefinition{
 		ID: in.ID, TenantID: in.TenantID, CollectionID: in.CollectionID,
 		Key: key, Kind: in.Kind, Options: options, Currency: currency, Formula: formula,
-		IsRequired: in.IsRequired, AppliesTo: appliesTo,
+		IsRequired: in.IsRequired, Restricted: in.Restricted, AppliesTo: appliesTo,
 		CreatedAt: in.Now, UpdatedAt: in.Now, Version: 1,
 	}, nil
 }
@@ -257,18 +265,20 @@ func (d CustomFieldDefinition) IsTenantWide() bool { return d.CollectionID.IsZer
 type CustomFieldAttributes struct {
 	Options    *[]string
 	IsRequired *bool
+	Restricted *bool
 	AppliesTo  *[]ItemType
 }
 
 // IsEmpty reports whether the update asks for nothing at all.
 func (a CustomFieldAttributes) IsEmpty() bool {
-	return a.Options == nil && a.IsRequired == nil && a.AppliesTo == nil
+	return a.Options == nil && a.IsRequired == nil && a.Restricted == nil && a.AppliesTo == nil
 }
 
 // The field names an update reports its changes under.
 const (
 	FieldOptions    = "options"
 	FieldIsRequired = "is_required"
+	FieldRestricted = "restricted"
 	FieldAppliesTo  = "applies_to"
 )
 
@@ -312,6 +322,17 @@ func (d CustomFieldDefinition) Updated(
 			From:  strconv.FormatBool(d.IsRequired), To: strconv.FormatBool(*attributes.IsRequired),
 		})
 		d.IsRequired = *attributes.IsRequired
+	}
+
+	if attributes.Restricted != nil && *attributes.Restricted && d.Kind == CustomFieldCalculated {
+		return CustomFieldDefinition{}, nil, customFieldError("/restricted", "fields.calculated", nil)
+	}
+	if attributes.Restricted != nil && *attributes.Restricted != d.Restricted {
+		changes = append(changes, FieldChange{
+			Field: FieldRestricted,
+			From:  strconv.FormatBool(d.Restricted), To: strconv.FormatBool(*attributes.Restricted),
+		})
+		d.Restricted = *attributes.Restricted
 	}
 
 	if attributes.AppliesTo != nil {

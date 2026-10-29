@@ -20569,6 +20569,13 @@ components:
             Whether the field has to hold a value. Enforced when the field is written, not
             retroactively: making a field required does not make the entries that predate it
             invalid.
+        restricted:
+          type: boolean
+          description: >
+            Whether only holders of the field's permission `FIELD_WRITE:<key>` may write it: a
+            role of the workspace's own that names it, or the owner and the administrators. A
+            write by anybody else is refused with `fields.restricted` on every door. A calculated
+            field is never restricted.
         applies_to:
           type: array
           description: >
@@ -20619,6 +20626,7 @@ components:
             refused with `validation_failed`, the detail `fields.formula_invalid` and the
             position.
         is_required: { type: boolean, default: false }
+        restricted: { type: boolean, default: false }
         applies_to:
           type: array
           description: Omitted means TASK alone, which is the column's default.
@@ -20634,6 +20642,9 @@ components:
           type: array
           items: { type: string, minLength: 1, maxLength: 200 }
         is_required: { type: boolean }
+        restricted:
+          type: boolean
+          description: Changing it takes the field's permission `FIELD_WRITE:<key>` at the workspace.
         applies_to:
           type: array
           items: { $ref: "#/components/schemas/ItemType" }

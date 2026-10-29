@@ -75,10 +75,12 @@ func (r roleOf) RoleAlong(context.Context, appshared.ActorContext, []identity.Sc
 
 func (r roleOf) HeldAlong(context.Context, appshared.ActorContext, []identity.Scope) (access.Held, error) {
 	roles := append([]string{}, r.custom...)
+	var sources []access.Source
 	if r.role != "" {
 		roles = append(roles, string(r.role))
+		sources = append(sources, access.Source{Role: string(r.role)})
 	}
-	return access.Held{Roles: roles, Permissions: r.permissions}, nil
+	return access.Held{Roles: roles, Permissions: r.permissions, Sources: sources}, nil
 }
 
 func reviewWorkflow() domain.Workflow {

@@ -8,8 +8,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/expression"
 )
 
@@ -138,5 +140,43 @@ func TestTheFormStartsANewEntry(t *testing.T) {
 	}
 	if starting["severity"] != "low" || starting["source"] != "mail" {
 		t.Fatalf("starting values: %v", starting)
+	}
+}
+
+// UC-ID-27 check 1: a restricted field is written only by whoever holds its permission - a custom
+// role naming it, or a shipped owner or administrator - on every door, with or without a form; a
+// write that leaves it as it was is no write of it.
+func TestARestrictedFieldIsWrittenOnlyWithItsPermission(t *testing.T) {
+	ctx := context.Background()
+	fields := newCustomFieldStore()
+	fields.stored[shared.MustParseID("0192f000-0000-7000-8000-0000000000f7")] = domain.CustomFieldDefinition{
+		ID: shared.MustParseID("0192f000-0000-7000-8000-0000000000f7"), TenantID: tenantID,
+		Key: "cost", Kind: domain.CustomFieldNumber, Restricted: true,
+	}
+	collection := domain.Container{ID: collectionID}
+	before := domain.WorkItem{Type: domain.ItemTask, Title: "a", CustomFields: map[string]any{"cost": 10.0}}
+	priced := before
+	priced.CustomFields = map[string]any{"cost": 12.0}
+	renamed := before
+	renamed.Title = "b"
+
+	member := FormGate{Fields: fields, Roles: roleOf{role: identity.RoleMember}}
+	refusal := formRefusal(t, member.checkEdit(ctx, itemActor(), collection, before, priced), "fields.restricted")
+	if refusal.Params["key"] != "cost" {
+		t.Fatalf("the refusal names %v", refusal.Params)
+	}
+	if err := member.checkEdit(ctx, itemActor(), collection, before, renamed); err != nil {
+		t.Fatalf("a rename that leaves the field was refused: %v", err)
+	}
+	formRefusal(t, member.checkCreate(ctx, itemActor(), collection, priced), "fields.restricted")
+
+	finance := FormGate{Fields: fields, Roles: roleOf{role: identity.RoleMember, custom: []string{"finance"},
+		permissions: []service.Permission{service.FieldWrite("cost")}}}
+	if err := finance.checkEdit(ctx, itemActor(), collection, before, priced); err != nil {
+		t.Fatalf("the field's permission was refused: %v", err)
+	}
+	admin := FormGate{Fields: fields, Roles: roleOf{role: identity.RoleAdmin}}
+	if err := admin.checkEdit(ctx, itemActor(), collection, before, priced); err != nil {
+		t.Fatalf("an administrator was refused: %v", err)
 	}
 }

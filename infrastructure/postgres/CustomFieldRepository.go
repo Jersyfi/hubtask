@@ -60,8 +60,8 @@ func (r CustomFieldRepository) Insert(
 		ID: id, CollectionID: collectionID, Key: definition.Key,
 		Kind: string(definition.Kind), Options: options, Currency: currencyOf(definition.Currency),
 		Formula:    currencyOf(definition.Formula),
-		IsRequired: definition.IsRequired,
-		AppliesTo:  typesOf(definition.AppliesTo), CreatedAt: timestampOf(definition.CreatedAt),
+		IsRequired: definition.IsRequired, Restricted: definition.Restricted,
+		AppliesTo: typesOf(definition.AppliesTo), CreatedAt: timestampOf(definition.CreatedAt),
 	})
 	if err != nil {
 		return insertCustomFieldError(err, definition)
@@ -187,7 +187,7 @@ func (r CustomFieldRepository) SetAttributes(
 	}
 
 	affected, err := queries.UpdateCustomField(ctx, sqlc.UpdateCustomFieldParams{
-		Options: options, IsRequired: definition.IsRequired,
+		Options: options, IsRequired: definition.IsRequired, Restricted: definition.Restricted,
 		AppliesTo: typesOf(definition.AppliesTo), UpdatedAt: timestampOf(definition.UpdatedAt),
 		ID: id,
 		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
@@ -286,7 +286,7 @@ func customFieldFrom(row sqlc.FindCustomFieldRow) (work.CustomFieldDefinition, e
 	return work.CustomFieldDefinition{
 		ID: id, TenantID: tenantID, CollectionID: collectionID,
 		Key: row.Key, Kind: work.CustomFieldKind(row.Kind), Options: options,
-		Currency: currencyFrom(row.Currency), Formula: currencyFrom(row.Formula), IsRequired: row.IsRequired, AppliesTo: appliesTo,
+		Currency: currencyFrom(row.Currency), Formula: currencyFrom(row.Formula), IsRequired: row.IsRequired, Restricted: row.Restricted, AppliesTo: appliesTo,
 		CreatedAt: timeFrom(row.CreatedAt), UpdatedAt: timeFrom(row.UpdatedAt),
 		DeletedAt: optionalTime(row.DeletedAt), Version: int(row.Version),
 	}, nil

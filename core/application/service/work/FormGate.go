@@ -5,6 +5,7 @@ package work
 
 import (
 	"context"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/expression"
 )
 
@@ -189,6 +191,9 @@ func (a formActivation) Resolve(_ context.Context, name string) (any, bool, erro
 func (g FormGate) checkCreate(
 	ctx context.Context, actor appshared.ActorContext, collection domain.Container, created domain.WorkItem,
 ) error {
+	if err := g.holdRestricted(ctx, actor, collection, nil, created); err != nil {
+		return err
+	}
 	check, err := g.open(ctx, actor, collection, created)
 	if err != nil || check == nil {
 		return err
@@ -208,6 +213,9 @@ func (g FormGate) checkCreate(
 func (g FormGate) checkEdit(
 	ctx context.Context, actor appshared.ActorContext, collection domain.Container, before, after domain.WorkItem,
 ) error {
+	if err := g.holdRestricted(ctx, actor, collection, &before, after); err != nil {
+		return err
+	}
 	check, err := g.open(ctx, actor, collection, after)
 	if err != nil || check == nil {
 		return err
@@ -305,4 +313,53 @@ func FormEnvironment(customKeys []string) expression.Environment {
 		{Name: "channel", Kind: expression.KindString, Description: "The door: APP, MCP, RULE, SYNC, IMPORT, MAIL."},
 		{Name: "step", Kind: expression.KindString, Description: "The workflow step the write takes, empty for none."},
 	}}
+}
+
+// holdRestricted refuses a write of a restricted field by somebody whose roles along the entry's
+// path do not carry the field's permission (UC-ID-27), whatever door the write came through and
+// whether or not the type has a form. A value left as it was is no write of it.
+func (g FormGate) holdRestricted(
+	ctx context.Context, actor appshared.ActorContext, collection domain.Container, before *domain.WorkItem, after domain.WorkItem,
+) error {
+	if g.Fields == nil {
+		return nil
+	}
+	definitions, err := g.Fields.ListInScope(ctx, collection.ID)
+	if err != nil {
+		return err
+	}
+	var held *access.Held
+	for _, definition := range definitions {
+		if !definition.Restricted {
+			continue
+		}
+		value, was := after.CustomFields[definition.Key], any(nil)
+		if before != nil {
+			was = before.CustomFields[definition.Key]
+		}
+		if reflect.DeepEqual(value, was) {
+			continue
+		}
+		if held == nil {
+			if g.Roles == nil {
+				return shared.ErrInternal.WithDetail("fields.roles_unwired")
+			}
+			found, err := g.Roles.HeldAlong(ctx, actor, containerPath(collection))
+			if err != nil {
+				return err
+			}
+			held = &found
+		}
+		permission := service.FieldWrite(definition.Key)
+		if !slices.Contains(held.Permissions, permission) &&
+			!slices.ContainsFunc(held.Sources, func(s access.Source) bool { return s.Carries(permission) }) {
+			return shared.ErrForbidden.WithDetail("fields.restricted").
+				WithParams(map[string]string{"key": definition.Key}).
+				WithFields(shared.FieldError{
+					Path: "/custom_fields/" + definition.Key, Code: "fields.restricted",
+					Params: map[string]string{"key": definition.Key},
+				})
+		}
+	}
+	return nil
 }

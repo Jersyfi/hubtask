@@ -8135,8 +8135,11 @@ type CustomFieldDefinition struct {
 	Kind CustomFieldKind `json:"kind"`
 
 	// Options The permitted values of a SELECT or a MULTI_SELECT, and empty for every other kind. Values rather than labels: what a person sees is the client's to render.
-	Options   []string   `json:"options"`
-	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+	Options []string `json:"options"`
+
+	// Restricted Whether only holders of the field's permission `FIELD_WRITE:<key>` may write it: a role of the workspace's own that names it, or the owner and the administrators. A write by anybody else is refused with `fields.restricted` on every door. A calculated field is never restricted.
+	Restricted *bool      `json:"restricted,omitempty"`
+	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
 
 	// Version The optimistic lock, returned as the ETag and sent back as If-Match.
 	Version int `json:"version"`
@@ -8159,8 +8162,9 @@ type CustomFieldDefinitionCreate struct {
 	Key        string  `json:"key"`
 
 	// Kind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`.
-	Kind    CustomFieldKind `json:"kind"`
-	Options *[]string       `json:"options,omitempty"`
+	Kind       CustomFieldKind `json:"kind"`
+	Options    *[]string       `json:"options,omitempty"`
+	Restricted *bool           `json:"restricted,omitempty"`
 }
 
 // CustomFieldDefinitionUpdate JSON Merge Patch. The key and the kind are not in it: a key that moved would orphan every value stored under it, and a kind that changed would reinterpret them.
@@ -8168,6 +8172,9 @@ type CustomFieldDefinitionUpdate struct {
 	AppliesTo  *[]ItemType `json:"applies_to,omitempty"`
 	IsRequired *bool       `json:"is_required,omitempty"`
 	Options    *[]string   `json:"options,omitempty"`
+
+	// Restricted Changing it takes the field's permission `FIELD_WRITE:<key>` at the workspace.
+	Restricted *bool `json:"restricted,omitempty"`
 }
 
 // CustomFieldKind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`.

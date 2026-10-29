@@ -83,14 +83,27 @@ type DeleteCustomFieldCommand struct {
 func (h UpdateCustomField) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd UpdateCustomFieldCommand,
 ) (domain.CustomFieldDefinition, error) {
-	if _, err := h.Writer.reachable(
-		ctx, actor, cmd.FieldID, CustomFieldUpdatedAction,
-	); err != nil {
+	reached, err := h.Writer.reachable(ctx, actor, cmd.FieldID, CustomFieldUpdatedAction)
+	if err != nil {
 		return domain.CustomFieldDefinition{}, err
+	}
+	// Whoever decides who may write a field holds its permission (UC-ID-27): otherwise STRUCTURE
+	// alone would open a restricted field to its writer.
+	if cmd.Attributes.Restricted != nil {
+		if err := h.Writer.Authorizer.Authorize(ctx, actor, access.Request{
+			Permission: service.FieldWrite(reached.Key),
+			Path:       []identity.Scope{identity.TenantScope()},
+			Action:     CustomFieldUpdatedAction,
+			TokenScope: customFieldsWrite,
+			TargetType: customFieldTarget,
+			TargetID:   cmd.FieldID,
+		}); err != nil {
+			return domain.CustomFieldDefinition{}, err
+		}
 	}
 
 	var updated domain.CustomFieldDefinition
-	err := h.Writer.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	err = h.Writer.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		stored, err := findCustomField(ctx, h.Writer.Fields, cmd.FieldID)
 		if err != nil {
 			return err
@@ -348,6 +361,11 @@ func (h UpdateCustomField) Descriptor() usecase.Descriptor {
 				Description: "Whether the field has to hold a value from now on.",
 			},
 			{
+				Name: "restricted", Kind: usecase.KindBool,
+				Description: "Whether only holders of the field's permission FIELD_WRITE:<key> may " +
+					"write it from now on. Changing it takes that permission.",
+			},
+			{
 				Name: "applies_to", Kind: usecase.KindList,
 				Description: "The item types that carry the field, replacing the list.",
 			},
@@ -388,6 +406,10 @@ func (h UpdateCustomField) invoke(
 	if in.Present("is_required") {
 		required := in.Bool("is_required")
 		attributes.IsRequired = &required
+	}
+	if in.Present("restricted") {
+		restricted := in.Bool("restricted")
+		attributes.Restricted = &restricted
 	}
 	if in.Present("applies_to") {
 		raw, err := in.StringList("applies_to")

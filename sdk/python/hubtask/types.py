@@ -2690,6 +2690,7 @@ class CustomFieldDefinition(TypedDict, total=False):
     currency: Required[str | None]
     formula: str | None
     is_required: Required[bool]
+    restricted: bool
     applies_to: Required[list["ItemType"]]
     created_at: str
     updated_at: str
@@ -2705,12 +2706,14 @@ class CustomFieldDefinitionCreate(TypedDict, total=False):
     currency: str
     formula: str
     is_required: bool
+    restricted: bool
     applies_to: list["ItemType"]
 
 class CustomFieldDefinitionUpdate(TypedDict, total=False):
     """JSON Merge Patch. The key and the kind are not in it: a key that moved would orphan every value stored under it, and a kind that changed would reinterpret them."""
     options: list[str]
     is_required: bool
+    restricted: bool
     applies_to: list["ItemType"]
 
 class CustomFieldValue(TypedDict, total=False):

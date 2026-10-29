@@ -13,7 +13,7 @@ import (
 
 const findCustomField = `-- name: FindCustomField :one
 SELECT id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
-       created_at, updated_at, deleted_at, version
+       created_at, updated_at, deleted_at, version, restricted
 FROM custom_field_definition
 WHERE id = $1
 `
@@ -33,6 +33,7 @@ type FindCustomFieldRow struct {
 	UpdatedAt    pgtype.Timestamptz
 	DeletedAt    pgtype.Timestamptz
 	Version      int32
+	Restricted   bool
 }
 
 func (q *Queries) FindCustomField(ctx context.Context, id pgtype.UUID) (FindCustomFieldRow, error) {
@@ -53,13 +54,14 @@ func (q *Queries) FindCustomField(ctx context.Context, id pgtype.UUID) (FindCust
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.Version,
+		&i.Restricted,
 	)
 	return i, err
 }
 
 const findCustomFieldInScope = `-- name: FindCustomFieldInScope :one
 SELECT id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
-       created_at, updated_at, deleted_at, version
+       created_at, updated_at, deleted_at, version, restricted
 FROM custom_field_definition
 WHERE deleted_at IS NULL
   AND key = $1
@@ -88,6 +90,7 @@ type FindCustomFieldInScopeRow struct {
 	UpdatedAt    pgtype.Timestamptz
 	DeletedAt    pgtype.Timestamptz
 	Version      int32
+	Restricted   bool
 }
 
 // The definition one entry's collection sees under a key: its collection's own, or the
@@ -112,6 +115,7 @@ func (q *Queries) FindCustomFieldInScope(ctx context.Context, arg FindCustomFiel
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.Version,
+		&i.Restricted,
 	)
 	return i, err
 }
@@ -119,12 +123,12 @@ func (q *Queries) FindCustomFieldInScope(ctx context.Context, arg FindCustomFiel
 const insertCustomField = `-- name: InsertCustomField :exec
 
 INSERT INTO custom_field_definition (
-  id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
+  id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, restricted, applies_to,
   created_at, updated_at, version
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6, $7, $8,
-  $9::item_type[], $10, $10, 1
+  $9, $10::item_type[], $11, $11, 1
 )
 `
 
@@ -137,6 +141,7 @@ type InsertCustomFieldParams struct {
 	Currency     *string
 	Formula      *string
 	IsRequired   bool
+	Restricted   bool
 	AppliesTo    []ItemType
 	CreatedAt    pgtype.Timestamptz
 }
@@ -159,6 +164,7 @@ func (q *Queries) InsertCustomField(ctx context.Context, arg InsertCustomFieldPa
 		arg.Currency,
 		arg.Formula,
 		arg.IsRequired,
+		arg.Restricted,
 		arg.AppliesTo,
 		arg.CreatedAt,
 	)
@@ -214,7 +220,7 @@ func (q *Queries) ListCustomFieldKindsByKey(ctx context.Context, arg ListCustomF
 
 const listCustomFieldsInScope = `-- name: ListCustomFieldsInScope :many
 SELECT id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
-       created_at, updated_at, deleted_at, version
+       created_at, updated_at, deleted_at, version, restricted
 FROM custom_field_definition
 WHERE deleted_at IS NULL
   AND (collection_id = $1::uuid OR collection_id IS NULL)
@@ -236,6 +242,7 @@ type ListCustomFieldsInScopeRow struct {
 	UpdatedAt    pgtype.Timestamptz
 	DeletedAt    pgtype.Timestamptz
 	Version      int32
+	Restricted   bool
 }
 
 // Every definition in force for one collection: its own and the workspace-wide ones above it. A
@@ -266,6 +273,7 @@ func (q *Queries) ListCustomFieldsInScope(ctx context.Context, collectionID pgty
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.Version,
+			&i.Restricted,
 		); err != nil {
 			return nil, err
 		}
@@ -307,15 +315,17 @@ const updateCustomField = `-- name: UpdateCustomField :execrows
 UPDATE custom_field_definition SET
   options     = $1,
   is_required = $2,
-  applies_to  = $3::item_type[],
-  updated_at  = $4,
+  restricted  = $3,
+  applies_to  = $4::item_type[],
+  updated_at  = $5,
   version     = version + 1
-WHERE id = $5::uuid AND version = $6 AND deleted_at IS NULL
+WHERE id = $6::uuid AND version = $7 AND deleted_at IS NULL
 `
 
 type UpdateCustomFieldParams struct {
 	Options         []byte
 	IsRequired      bool
+	Restricted      bool
 	AppliesTo       []ItemType
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
@@ -329,6 +339,7 @@ func (q *Queries) UpdateCustomField(ctx context.Context, arg UpdateCustomFieldPa
 	result, err := q.db.Exec(ctx, updateCustomField,
 		arg.Options,
 		arg.IsRequired,
+		arg.Restricted,
 		arg.AppliesTo,
 		arg.UpdatedAt,
 		arg.ID,

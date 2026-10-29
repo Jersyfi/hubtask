@@ -87,6 +87,9 @@ func (c *RestController) DefineCustomField(
 	if body.IsRequired != nil {
 		in["is_required"] = *body.IsRequired
 	}
+	if body.Restricted != nil {
+		in["restricted"] = *body.Restricted
+	}
 	if body.AppliesTo != nil {
 		in["applies_to"] = itemTypeNames(*body.AppliesTo)
 	}
@@ -123,6 +126,7 @@ func customFieldResponse(out usecase.Output) openapi.CustomFieldDefinition {
 		Kind:       openapi.CustomFieldKind(out.String("kind")),
 		Options:    stringsOf(out["options"]),
 		IsRequired: boolOf(out["is_required"]),
+		Restricted: optionalBool(boolOf(out["restricted"])),
 		AppliesTo:  itemTypesOf(out["applies_to"]),
 		CreatedAt:  &createdAt,
 		UpdatedAt:  &updatedAt,
@@ -194,6 +198,9 @@ func (c *RestController) UpdateCustomField(
 	}
 	if body.IsRequired != nil {
 		in["is_required"] = *body.IsRequired
+	}
+	if body.Restricted != nil {
+		in["restricted"] = *body.Restricted
 	}
 	if body.AppliesTo != nil {
 		in["applies_to"] = itemTypeNames(*body.AppliesTo)
@@ -275,3 +282,6 @@ func (c *RestController) SetCustomField(
 	w.Header().Set("ETag", etag(out.Int("version")))
 	writeJSON(w, r, http.StatusOK, workItemResponse(out))
 }
+
+// optionalBool answers a flag the contract leaves optional.
+func optionalBool(value bool) *bool { return &value }

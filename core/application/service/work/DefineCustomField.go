@@ -87,6 +87,8 @@ type DefineCustomFieldCommand struct {
 	// Formula is a CALCULATED field's expression, empty for every other kind.
 	Formula    string
 	IsRequired bool
+	// Restricted leaves the field to the holders of its permission (UC-ID-27).
+	Restricted bool
 	// AppliesTo are the item types that carry the field. Empty means the column's default, which
 	// is a task alone.
 	AppliesTo []domain.ItemType
@@ -144,7 +146,7 @@ func (h DefineCustomField) Execute(
 		definition, err := domain.NewCustomFieldDefinition(domain.NewCustomFieldInput{
 			ID: h.IDs.NewID(), TenantID: actor.TenantID, CollectionID: cmd.CollectionID,
 			Key: cmd.Key, Kind: cmd.Kind, Options: cmd.Options, Currency: cmd.Currency, Formula: cmd.Formula,
-			IsRequired: cmd.IsRequired, AppliesTo: appliesTo, Now: now, Text: h.Text,
+			IsRequired: cmd.IsRequired, Restricted: cmd.Restricted, AppliesTo: appliesTo, Now: now, Text: h.Text,
 		})
 		if err != nil {
 			return err
@@ -306,6 +308,7 @@ func customFieldOutput(definition domain.CustomFieldDefinition) usecase.Output {
 		"currency":    stringOrNil(definition.Currency),
 		"formula":     stringOrNil(definition.Formula),
 		"is_required": definition.IsRequired,
+		"restricted":  definition.Restricted,
 		"applies_to":  appliesTo,
 		"created_at":  definition.CreatedAt,
 		"updated_at":  definition.UpdatedAt,
@@ -369,6 +372,11 @@ func (h DefineCustomField) Descriptor() usecase.Descriptor {
 					"written and never retroactively: the entries that predate it stay valid.",
 			},
 			{
+				Name: "restricted", Kind: usecase.KindBool,
+				Description: "Whether only holders of the field's permission FIELD_WRITE:<key> may " +
+					"write it; the owner and the administrators hold every one.",
+			},
+			{
 				Name: "applies_to", Kind: usecase.KindList,
 				Description: "The item types that carry the field. Omitted means TASK alone.",
 			},
@@ -418,6 +426,7 @@ func (h DefineCustomField) invoke(
 		Currency:     in.String("currency"),
 		Formula:      in.String("formula"),
 		IsRequired:   in.Bool("is_required"),
+		Restricted:   in.Bool("restricted"),
 		AppliesTo:    appliesTo,
 	})
 	if err != nil {
