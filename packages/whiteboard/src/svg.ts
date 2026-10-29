@@ -65,6 +65,8 @@ export interface PictureOptions {
   card?: (entryId: string) => CardWords | undefined;
   /** What a card shows of an entry out of reach. */
   unavailable: string;
+  /** A picture's or a file's upload as the reader has it: the picture's address and the file's name. */
+  media?: (mediaId: string) => { href?: string; name?: string } | undefined;
   margin?: number;
 }
 
@@ -155,6 +157,24 @@ export function toSvg(elements: readonly Element[], options: PictureOptions): st
         parts.push(`<path d="${outlinePath(e)}" fill="${colours.surface}" stroke="${colours.line}"/>`);
         parts.push(words(linkHost(e.url ?? ''), e.x + 12, e.y + 4, e.width - 24, 14, colours.ink));
         parts.push(words(e.url ?? '', e.x + 12, e.y + 26, e.width - 24, 11, colours.line));
+        break;
+      }
+      case 'IMAGE': {
+        const shown = e.media_id ? options.media?.(e.media_id) : undefined;
+        if (shown?.href) {
+          parts.push(`<image href="${escape(shown.href)}" x="${e.x}" y="${e.y}" width="${e.width}" height="${e.height}" preserveAspectRatio="xMidYMid meet"/>`);
+        } else {
+          parts.push(`<path d="${outlinePath(e)}" fill="${colours.surface}" stroke="${colours.line}" stroke-dasharray="4 4"/>`);
+          parts.push(words(shown?.name ?? options.unavailable, e.x + 12, e.y + 8, e.width - 24, 12, colours.line));
+        }
+        if (e.text) parts.push(words(e.text, e.x, e.y + e.height + 4, e.width, 12, colours.ink));
+        break;
+      }
+      case 'FILE': {
+        const shown = e.media_id ? options.media?.(e.media_id) : undefined;
+        parts.push(`<path d="${outlinePath(e)}" fill="${colours.surface}" stroke="${colours.line}"/>`);
+        parts.push(words(shown?.name ?? options.unavailable, e.x + 12, e.y + 4, e.width - 24, 14, colours.ink));
+        if (e.text) parts.push(words(e.text, e.x + 12, e.y + 26, e.width - 24, 11, colours.line));
         break;
       }
       default:

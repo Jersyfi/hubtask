@@ -62,3 +62,19 @@ test('a board, a frame or a selection is drawn as an SVG document with its words
   assert.match(svg, /marker-end="url\(#arrow\)"/);
   assert.doesNotMatch(svg, /<chips>/);
 });
+
+test('a picture is drawn from its upload, a file as its name, and one out of reach as a placeholder (UC-CNV-08 check 1)', () => {
+  const picture: Element = { id: 'i', kind: 'IMAGE', x: 0, y: 0, width: 320, height: 200, media_id: 'm1', text: 'The site' };
+  const file: Element = { id: 'f', kind: 'FILE', x: 0, y: 300, width: 280, height: 72, media_id: 'm2' };
+  const lost: Element = { id: 'l', kind: 'IMAGE', x: 400, y: 0, width: 320, height: 200, media_id: 'm3' };
+  const svg = toSvg([picture, file, lost], {
+    title: 'Moodboard',
+    colours: { paper: 'paper', ink: 'ink', line: 'line', surface: 'surface', label: () => undefined },
+    unavailable: 'Not available',
+    media: (id) => (id === 'm1' ? { href: 'data:image/png;base64,AAAA', name: 'site.png' } : id === 'm2' ? { name: 'plan.pdf' } : undefined),
+  });
+  assert.match(svg, /<image href="data:image\/png;base64,AAAA" x="0" y="0" width="320" height="200"/);
+  assert.match(svg, /The site/);
+  assert.match(svg, /plan\.pdf/);
+  assert.match(svg, /Not available/);
+});

@@ -83,3 +83,9 @@ test('a saved scene seeds an empty document only, and the board stops at its lim
   assert.equal(full.add(sticky('one-more')), false);
   assert.equal(full.size, MAX_ELEMENTS);
 });
+
+test('a picture keeps the upload it draws through the live document (UC-CNV-08 check 1)', () => {
+  const [a, b] = pair();
+  a.add({ id: 'i', kind: 'IMAGE', x: 0, y: 0, width: 320, height: 200, media_id: 'm1' });
+  assert.equal(b.scene()[0]?.media_id, 'm1');
+});

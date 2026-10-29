@@ -36,7 +36,7 @@ export function copy(elements: readonly Element[], ids: readonly string[]): Copi
   return { format: CLIPBOARD_FORMAT, version: 1, elements: out.map((e) => structuredClone(e)) };
 }
 
-const KINDS: readonly ElementKind[] = ['STICKY', 'SHAPE', 'TEXT', 'CONNECTOR', 'FRAME', 'CARD', 'STROKE', 'LINK'];
+const KINDS: readonly ElementKind[] = ['STICKY', 'SHAPE', 'TEXT', 'CONNECTOR', 'FRAME', 'CARD', 'STROKE', 'LINK', 'IMAGE', 'FILE'];
 
 /** Reads copied objects from the clipboard's words; undefined for anything else. */
 export function readCopied(text: string): Copied | undefined {

@@ -13,7 +13,7 @@
 
 import * as Y from 'yjs';
 
-export type ElementKind = 'STICKY' | 'SHAPE' | 'TEXT' | 'CONNECTOR' | 'FRAME' | 'CARD' | 'STROKE' | 'LINK';
+export type ElementKind = 'STICKY' | 'SHAPE' | 'TEXT' | 'CONNECTOR' | 'FRAME' | 'CARD' | 'STROKE' | 'LINK' | 'IMAGE' | 'FILE';
 export type Pen = 'PEN' | 'HIGHLIGHTER';
 export type Shape = 'RECTANGLE' | 'ROUNDED' | 'ELLIPSE' | 'DIAMOND' | 'PARALLELOGRAM' | 'TRIANGLE';
 export type Route = 'STRAIGHT' | 'ELBOW' | 'CURVED';
@@ -44,6 +44,8 @@ export interface Element {
   url?: string;
   /** The group the object belongs to: chosen, moved and copied together. */
   group?: string | null;
+  /** The upload a picture or a file draws, placed on the board first. */
+  media_id?: string;
 }
 
 /** The first release's hard limit of one board (`whiteboards.too_many_elements`). */
@@ -62,9 +64,11 @@ export const DEFAULT_SIZE: Record<ElementKind, { width: number; height: number }
   CARD: { width: 260, height: 112 },
   STROKE: { width: 0, height: 0 },
   LINK: { width: 280, height: 72 },
+  IMAGE: { width: 320, height: 200 },
+  FILE: { width: 280, height: 72 },
 };
 
-const FIELDS = ['kind', 'x', 'y', 'width', 'height', 'text', 'color_token', 'shape', 'from', 'to', 'route', 'start', 'end', 'target', 'locked', 'points', 'pen', 'url', 'group'] as const;
+const FIELDS = ['kind', 'x', 'y', 'width', 'height', 'text', 'color_token', 'shape', 'from', 'to', 'route', 'start', 'end', 'target', 'locked', 'points', 'pen', 'url', 'group', 'media_id'] as const;
 
 type Stored = Y.Map<unknown>;
 
@@ -267,7 +271,7 @@ function read(id: string, stored: Stored): Element {
     width: Number(stored.get('width') ?? 0),
     height: Number(stored.get('height') ?? 0),
   };
-  for (const field of ['text', 'color_token', 'shape', 'from', 'to', 'route', 'start', 'end', 'pen', 'url', 'group'] as const) {
+  for (const field of ['text', 'color_token', 'shape', 'from', 'to', 'route', 'start', 'end', 'pen', 'url', 'group', 'media_id'] as const) {
     const value = stored.get(field);
     if (typeof value === 'string') (element as unknown as Record<string, unknown>)[field] = value;
   }
