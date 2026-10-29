@@ -16,8 +16,6 @@ import (
 
 const (
 	startBackupUseCase          = "StartBackup"
-	getBackupRunUseCase         = "GetBackupRun"
-	verifyBackupUseCase         = "VerifyBackup"
 	createBackupScheduleUseCase = "CreateBackupSchedule"
 )
 
@@ -51,28 +49,6 @@ func (c *RestController) StartBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, r, http.StatusAccepted, acceptedJob(out))
-}
-
-// VerifyBackup answers POST /backups/{backupId}:verify.
-func (c *RestController) VerifyBackup(
-	w http.ResponseWriter, r *http.Request, backupID openapi_types.UUID,
-) {
-	out, ok := c.read(w, r, verifyBackupUseCase, usecase.Input{"run_id": backupID.String()})
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusAccepted, acceptedJob(out))
-}
-
-// GetBackupRun answers GET /backups/{backupId}.
-func (c *RestController) GetBackupRun(
-	w http.ResponseWriter, r *http.Request, backupID openapi_types.UUID,
-) {
-	out, ok := c.read(w, r, getBackupRunUseCase, usecase.Input{"run_id": backupID.String()})
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, backupRunResponse(out))
 }
 
 // CreateBackupSchedule answers POST /backup-schedules.

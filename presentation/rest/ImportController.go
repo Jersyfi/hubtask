@@ -19,7 +19,6 @@ import (
 
 const (
 	importEntriesUseCase = "ImportEntries"
-	getImportUseCase     = "GetImport"
 )
 
 // ImportEntries answers POST /imports.
@@ -54,15 +53,6 @@ func (c *RestController) ImportEntries(w http.ResponseWriter, r *http.Request, _
 		Status:    openapi.JobStatusQUEUED,
 		ResultUrl: &resultURL,
 	})
-}
-
-// GetImport answers GET /imports/{importId}.
-func (c *RestController) GetImport(w http.ResponseWriter, r *http.Request, importID openapi.ImportId) {
-	out, ok := c.read(w, r, getImportUseCase, usecase.Input{"import_id": importID.String()})
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, importRunResponse(out))
 }
 
 func importRunResponse(out usecase.Output) openapi.ImportRun {

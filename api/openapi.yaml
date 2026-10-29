@@ -2682,6 +2682,10 @@ paths:
     get:
       tags: [backup]
       operationId: getBackupRun
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: backupRunResponse
+      x-hubtask-rest-path:
+        backupId: run_id
       summary: What one backup run did
       description: |
         The resource a started backup's `result_url` points at: what was written, where, how much
@@ -2703,6 +2707,10 @@ paths:
     post:
       tags: [backup]
       operationId: verifyBackup
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: acceptedJob
+      x-hubtask-rest-path:
+        backupId: run_id
       summary: Verify an archive at the target
       description: |
         Check the checksums and decryptability without restoring. The result is recorded on the
@@ -2750,6 +2758,8 @@ paths:
     get:
       tags: [backup]
       operationId: getRestoreRun
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: restoreRunResponse
       summary: What one restore did, or is about to do
       description: |
         The resource a started restore's `result_url` points at. It carries the report of the dry
@@ -2880,6 +2890,8 @@ paths:
     get:
       tags: [imports]
       operationId: getImport
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: importRunResponse
       summary: An import and its report
       description: >
         What the import did: created, skipped, refused, each by entity, in the shape a restore

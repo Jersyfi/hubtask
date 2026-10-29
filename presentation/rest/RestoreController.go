@@ -117,8 +117,7 @@ func backupArchiveResponse(out usecase.Output) openapi.BackupArchive {
 }
 
 const (
-	startRestoreUseCase  = "StartRestore"
-	getRestoreRunUseCase = "GetRestoreRun"
+	startRestoreUseCase = "StartRestore"
 )
 
 // StartRestore answers POST /restores.
@@ -187,17 +186,6 @@ func (c *RestController) StartRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, r, http.StatusAccepted, acceptedRestore(out))
-}
-
-// GetRestoreRun answers GET /restores/{restoreId}.
-func (c *RestController) GetRestoreRun(
-	w http.ResponseWriter, r *http.Request, restoreID openapi_types.UUID,
-) {
-	out, ok := c.read(w, r, getRestoreRunUseCase, usecase.Input{"restore_id": restoreID.String()})
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, restoreRunResponse(out))
 }
 
 // identifierList turns a body's identifiers into what the catalogue takes.

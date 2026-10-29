@@ -3699,6 +3699,11 @@
           "backup"
         ],
         "operationId": "getBackupRun",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "backupRunResponse",
+        "x-hubtask-rest-path": {
+          "backupId": "run_id"
+        },
         "summary": "What one backup run did",
         "description": "The resource a started backup's `result_url` points at: what was written, where, how much\nof it, and whether it has been verified since. It is read from the database rather than\nfrom the target, so it is what a caller polls while the run is still going -\n`/backup-targets/{targetId}/backups` is the reading that survives losing the database.\n",
         "parameters": [
@@ -3738,6 +3743,11 @@
           "backup"
         ],
         "operationId": "verifyBackup",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "acceptedJob",
+        "x-hubtask-rest-path": {
+          "backupId": "run_id"
+        },
         "summary": "Verify an archive at the target",
         "description": "Check the checksums and decryptability without restoring. The result is recorded on the\nrun as `verified_at` and `verify_ok`.\n",
         "parameters": [
@@ -3821,6 +3831,8 @@
           "backup"
         ],
         "operationId": "getRestoreRun",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "restoreRunResponse",
         "summary": "What one restore did, or is about to do",
         "description": "The resource a started restore's `result_url` points at. It carries the report of the dry\nrun - how many objects are new, overwritten, skipped and in conflict - which is what a\ncaller reads *before* asking for the same restore without `dry_run`. It also\nnames the safety copy taken before a destructive mode, so that the way back is a run\nidentifier rather than a search at the target.\n",
         "parameters": [
@@ -3980,6 +3992,8 @@
           "imports"
         ],
         "operationId": "getImport",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "importRunResponse",
         "summary": "An import and its report",
         "description": "What the import did: created, skipped, refused, each by entity, in the shape a restore reports, plus the rows the converter refused by number where the source had rows. Visible to whoever may read the hub it landed in, or the collection.\n",
         "responses": {

@@ -50,7 +50,10 @@ var restDoors = map[string]restDoor{
 	"explainAccess":             {UseCase: "ExplainAccess", Status: 200, Query: []string{"account_id", "permission", "scope_id", "scope_type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"explainConfig":             {UseCase: "ExplainConfig", Status: 200, Query: []string{"hub_id", "key"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"exportConfig":              {UseCase: "ExportConfig", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "hash", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getBackupRun":              {UseCase: "GetBackupRun", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getImport":                 {UseCase: "GetImport", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getJob":                    {UseCase: "GetJob", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getRestoreRun":             {UseCase: "GetRestoreRun", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getRule":                   {UseCase: "GetRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getRuleRun":                {UseCase: "GetRuleRun", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"giveKudos":                 {UseCase: "GiveKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -122,6 +125,7 @@ var restDoors = map[string]restDoor{
 	"updateCustomField":         {UseCase: "UpdateCustomField", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateLabel":               {UseCase: "UpdateLabel", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
 	"validateConfig":            {UseCase: "ValidateConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"verifyBackup":              {UseCase: "VerifyBackup", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"writeConfigSandbox":        {UseCase: "WriteConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 }
 
@@ -340,9 +344,24 @@ func (c *RestController) ExportConfig(w http.ResponseWriter, r *http.Request, pa
 	c.door(w, r, restDoors["exportConfig"], usecase.Input{}, params, nil, &answer)
 }
 
+// GetBackupRun answers GET /backups/{backupId} by the generated mapping.
+func (c *RestController) GetBackupRun(w http.ResponseWriter, r *http.Request, backupId openapi_types.UUID) {
+	c.door(w, r, restDoors["getBackupRun"], usecase.Input{"run_id": backupId.String()}, nil, nil, answerBy(backupRunResponse))
+}
+
+// GetImport answers GET /imports/{importId} by the generated mapping.
+func (c *RestController) GetImport(w http.ResponseWriter, r *http.Request, importId openapi.ImportId) {
+	c.door(w, r, restDoors["getImport"], usecase.Input{"import_id": importId.String()}, nil, nil, answerBy(importRunResponse))
+}
+
 // GetJob answers GET /jobs/{jobId} by the generated mapping.
 func (c *RestController) GetJob(w http.ResponseWriter, r *http.Request, jobId openapi.JobId) {
 	c.door(w, r, restDoors["getJob"], usecase.Input{"job_id": jobId.String()}, nil, nil, answerBy(jobResponse))
+}
+
+// GetRestoreRun answers GET /restores/{restoreId} by the generated mapping.
+func (c *RestController) GetRestoreRun(w http.ResponseWriter, r *http.Request, restoreId openapi_types.UUID) {
+	c.door(w, r, restDoors["getRestoreRun"], usecase.Input{"restore_id": restoreId.String()}, nil, nil, answerBy(restoreRunResponse))
 }
 
 // GetRule answers GET /automation/rules/{ruleId} by the generated mapping.
@@ -760,6 +779,11 @@ func (c *RestController) ValidateConfig(w http.ResponseWriter, r *http.Request) 
 	var body openapi.ValidateConfigJSONRequestBody
 	var answer openapi.ConfigValidation
 	c.door(w, r, restDoors["validateConfig"], usecase.Input{}, nil, &body, &answer)
+}
+
+// VerifyBackup answers POST /backups/{backupId}:verify by the generated mapping.
+func (c *RestController) VerifyBackup(w http.ResponseWriter, r *http.Request, backupId openapi_types.UUID) {
+	c.door(w, r, restDoors["verifyBackup"], usecase.Input{"run_id": backupId.String()}, nil, nil, answerBy(acceptedJob))
 }
 
 // WriteConfigSandbox answers POST /config/sandbox by the generated mapping.
