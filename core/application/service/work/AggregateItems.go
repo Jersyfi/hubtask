@@ -244,6 +244,7 @@ func (h AggregateItems) sharedReached(
 		Action:     ItemReadAction,
 		TokenScope: itemsRead,
 		TargetType: itemTarget,
+		On:         access.ItemSubject{Does: service.ItemRead},
 	}, paths)
 	if err != nil {
 		return nil, err
