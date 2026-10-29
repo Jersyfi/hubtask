@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	port "github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/infrastructure/expression"
 )
@@ -28,7 +27,15 @@ func (e formulaEntry) Resolve(_ context.Context, name string) (any, bool, error)
 func TestAFormulaReadsTheNumberFieldsOfItsScope(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	environment := workservice.FormulaEnvironment([]string{"hours", "rate"})
+	// The shape work.FormulaEnvironment gives a formula, written out: an adapter's test does not
+	// reach into the application layer (project-structure.md §2).
+	environment := port.Environment{Variables: []port.Variable{
+		{Name: "entry", Kind: port.KindMap, Fields: []port.Variable{
+			{Name: "custom_fields", Kind: port.KindMap, Fields: []port.Variable{
+				{Name: "hours", Kind: port.KindString}, {Name: "rate", Kind: port.KindString},
+			}},
+		}},
+	}}
 
 	program, err := expression.New().Compile("entry.custom_fields.hours * entry.custom_fields.rate", environment, port.Number)
 	if err != nil {
