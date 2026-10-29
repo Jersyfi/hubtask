@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -165,5 +166,64 @@ func TestChangingAnEntrysTypeMeetsTheNewForm(t *testing.T) {
 	h.items.stored[open.ID] = open
 	if _, err := handler.Execute(ctx, actor(), SetItemEntryTypeCommand{ItemID: open.ID, EntryType: "bug"}); err != nil {
 		t.Fatalf("an entry that meets the form was refused: %v", err)
+	}
+}
+
+// UC-FLW-01 check 4: asked again with the drop confirmed, the change clears the due date and the
+// series the new type does not carry, in its own transaction; a completion is never dropped.
+func TestAConfirmedTypeChangeDropsWhatItNamed(t *testing.T) {
+	ctx := context.Background()
+	h := newItemHarness()
+	types := workspaceTypes()
+	rules := newRecurrences()
+	at := now.Add(48 * time.Hour)
+	due, err := domain.NewDueDate(&at, false, "Europe/Berlin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ruleID := shared.MustParseID("0192f000-0000-7000-8000-0000000000f9")
+	scheduled := domain.WorkItem{
+		ID: shared.MustParseID("0192f000-0000-7000-8000-0000000000f3"), TenantID: tenantID,
+		CollectionID: collectionID, Type: domain.ItemTask, Title: "Patch the host", Version: 2,
+		Due: due, RecurrenceRuleID: ruleID,
+	}
+	rules.stored[ruleID] = domain.RecurrenceRule{ID: ruleID, TenantID: tenantID, ItemID: scheduled.ID, Version: 1}
+	done := scheduled
+	done.ID, done.Due, done.RecurrenceRuleID = shared.MustParseID("0192f000-0000-7000-8000-0000000000f4"), nil, ""
+	done.Completion = domain.Completion{IsCompleted: true, CompletedAt: &now, CompletedBy: accountID}
+	h.items.stored[scheduled.ID], h.items.stored[done.ID] = scheduled, done
+
+	handler := SetItemEntryType{
+		Items: h.items, Containers: h.containers, Profiles: h.profiles, EntryTypes: types,
+		Authorizer: h.authorizer, Changes: h.changes, Audit: h.audit, UnitOfWork: h.uow,
+		Clock: clock.Fixed(now), HLC: &hlcSource{}, Recurrences: rules,
+	}
+
+	_, err = handler.Execute(ctx, actor(), SetItemEntryTypeCommand{ItemID: scheduled.ID, EntryType: "server"})
+	var refusal *shared.Error
+	if !errors.As(err, &refusal) || refusal.DetailCode != "entry_types.values_dropped" || len(refusal.Fields) != 2 {
+		t.Fatalf("the drop was not named first: %v", err)
+	}
+
+	changed, err := handler.Execute(ctx, actor(), SetItemEntryTypeCommand{
+		ItemID: scheduled.ID, EntryType: "server", DropValues: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed.EntryType != "server" || changed.Due != nil || !changed.RecurrenceRuleID.IsZero() {
+		t.Fatalf("the confirmed change kept a value: %+v", changed)
+	}
+	if len(rules.deleted) != 1 || len(h.items.dueDates) != 1 || changed.Version != 4 {
+		t.Errorf("the series or the due date was not cleared: %d, %d, version %d",
+			len(rules.deleted), len(h.items.dueDates), changed.Version)
+	}
+
+	_, err = handler.Execute(ctx, actor(), SetItemEntryTypeCommand{
+		ItemID: done.ID, EntryType: "server", DropValues: true,
+	})
+	if !errors.As(err, &refusal) || refusal.DetailCode != "entry_types.value_not_droppable" ||
+		len(refusal.Fields) != 1 || refusal.Fields[0].Path != "/completion" {
+		t.Fatalf("a completion was dropped: %v", err)
 	}
 }

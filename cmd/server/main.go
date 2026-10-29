@@ -1838,7 +1838,7 @@ func run() error {
 			Gate:  entryGate,
 			Items: items, Containers: containers, Profiles: profiles, EntryTypes: entryTypes,
 			Authorizer: authorizer, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
-			Clock: clockadapter.System{}, HLC: hybrid, Forms: entryGate.Forms,
+			Clock: clockadapter.System{}, HLC: hybrid, Forms: entryGate.Forms, Recurrences: recurrences,
 		}.Descriptor(),
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,

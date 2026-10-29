@@ -5,7 +5,10 @@ package work
 
 import (
 	"context"
+	"errors"
+	"slices"
 	"strings"
+	"time"
 
 	metarepo "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
@@ -32,7 +35,9 @@ const (
 
 // SetItemEntryType gives an entry another type of its level (UC-FLW-01 check 4). A type that would
 // not carry a value the entry holds is refused, naming each such field, so that nothing is lost
-// before the caller has seen it.
+// before the caller has seen it; asked again with DropValues, the change clears those values in the
+// same transaction. A completion is never dropped this way: reopening has its own consequences for
+// the parent (CompleteWorkItem), so the entry is reopened first.
 type SetItemEntryType struct {
 	Items      repository.Items
 	Containers repository.Containers
@@ -49,6 +54,9 @@ type SetItemEntryType struct {
 	Forms FormGate
 	// Gate answers the types the collection offers on the entry's level (UC-FLW-01 check 3).
 	Gate EntryGate
+	// Recurrences removes the series a confirmed change drops; unwired, a recurrence is never
+	// dropped and its change stays refused.
+	Recurrences repository.Recurrences
 }
 
 // SetItemEntryTypeCommand is the input, typed.
@@ -56,6 +64,8 @@ type SetItemEntryTypeCommand struct {
 	ItemID          shared.ID
 	EntryType       string
 	ExpectedVersion int
+	// DropValues confirms the values the new type does not carry, after a refusal named them.
+	DropValues bool
 }
 
 // Execute changes the entry's type and returns the entry.
@@ -129,17 +139,17 @@ func (h SetItemEntryType) Execute(ctx context.Context, actor appshared.ActorCont
 			changed = current
 			return nil
 		}
-		if dropped := current.DroppedBy(narrowed); len(dropped) > 0 {
-			fields := make([]shared.FieldError, 0, len(dropped))
-			for _, field := range dropped {
-				fields = append(fields, shared.FieldError{Path: "/" + field, Code: "entry_types.values_dropped"})
+		now := h.Clock.Now()
+		dropped := current.DroppedBy(narrowed)
+		if err := h.refuseDrop(cmd, dropped); err != nil {
+			return err
+		}
+		if len(dropped) > 0 {
+			if current, err = h.drop(ctx, actor, current, dropped, now); err != nil {
+				return err
 			}
-			return shared.ErrConflict.WithDetail("entry_types.values_dropped").
-				WithParams(map[string]string{"fields": strings.Join(dropped, ", ")}).
-				WithFields(fields...)
 		}
 		before := current.EntryType
-		now := h.Clock.Now()
 		next := current
 		next.EntryType, next.UpdatedAt = key, now
 		if err := h.Forms.checkCreate(ctx, actor, collection, next); err != nil {
@@ -157,22 +167,110 @@ func (h SetItemEntryType) Execute(ctx context.Context, actor appshared.ActorCont
 		}); err != nil {
 			return err
 		}
+		changes := []audit.Change{{
+			Field: "entry_type", Classification: audit.Open,
+			From: entryTypeKeyOf(domain.WorkItem{Type: current.Type, EntryType: before}), To: entryTypeKeyOf(next),
+		}}
+		for _, field := range dropped {
+			// The field's name only: what it held is the entry's, and a count is not content.
+			changes = append(changes, audit.Change{
+				Field: "dropped." + field, Classification: audit.Open, From: "set", To: "",
+			})
+		}
 		return h.Audit.Append(ctx, audit.Entry{
 			TenantID: actor.TenantID, OccurredAt: now, Action: ItemEntryTypeSetAction,
 			Outcome: audit.OutcomeSuccess, Severity: audit.SeverityInfo,
 			ActorKind: actor.Kind, ActorID: actor.AccountID, ActorLabel: actor.AccountName,
 			TargetType: itemTarget, TargetID: next.ID,
 			Context: audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
-			Changes: audit.Changes(audit.Change{
-				Field: "entry_type", Classification: audit.Open,
-				From: entryTypeKeyOf(domain.WorkItem{Type: current.Type, EntryType: before}), To: entryTypeKeyOf(next),
-			}),
+			Changes: audit.Changes(changes...),
 		})
 	})
 	if err != nil {
 		return domain.WorkItem{}, err
 	}
 	return changed, nil
+}
+
+// refuseDrop names the values a change would drop, unless the caller confirmed them - and a
+// completion, or a series nothing here can remove, even then.
+func (h SetItemEntryType) refuseDrop(cmd SetItemEntryTypeCommand, dropped []string) error {
+	if len(dropped) == 0 {
+		return nil
+	}
+	if cmd.DropValues {
+		var kept []string
+		if slices.Contains(dropped, "completion") {
+			kept = append(kept, "completion")
+		}
+		if slices.Contains(dropped, "recurrence") && h.Recurrences == nil {
+			kept = append(kept, "recurrence")
+		}
+		if len(kept) == 0 {
+			return nil
+		}
+		return droppedRefusal("entry_types.value_not_droppable", kept)
+	}
+	return droppedRefusal("entry_types.values_dropped", dropped)
+}
+
+func droppedRefusal(code string, dropped []string) error {
+	fields := make([]shared.FieldError, 0, len(dropped))
+	for _, field := range dropped {
+		fields = append(fields, shared.FieldError{Path: "/" + field, Code: code})
+	}
+	return shared.ErrConflict.WithDetail(code).
+		WithParams(map[string]string{"fields": strings.Join(dropped, ", ")}).
+		WithFields(fields...)
+}
+
+// drop clears the confirmed values in the change's transaction - the series first, then the due
+// date - and answers the entry as it now stands, its version moved by each write.
+func (h SetItemEntryType) drop(
+	ctx context.Context, actor appshared.ActorContext, current domain.WorkItem, dropped []string,
+	now time.Time,
+) (domain.WorkItem, error) {
+	if slices.Contains(dropped, "recurrence") {
+		rule, err := h.Recurrences.FindForItem(ctx, current.ID)
+		switch {
+		case err == nil:
+			if err := h.Recurrences.Delete(ctx, rule, rule.Version); err != nil {
+				return domain.WorkItem{}, err
+			}
+			if err := h.Changes.Record(ctx, changelog.Change{
+				TenantID: actor.TenantID, Entity: recurrenceEntity, EntityID: rule.ID,
+				Op: changelog.Delete, ContainerID: current.CollectionID, ActorID: actor.AccountID,
+				HLC: h.HLC.Next(),
+			}); err != nil {
+				return domain.WorkItem{}, err
+			}
+		case !errors.Is(err, shared.ErrNotFound):
+			return domain.WorkItem{}, err
+		}
+		current.RecurrenceRuleID = ""
+	}
+	if slices.Contains(dropped, "due_at") {
+		// Clearing asks no capability, so the profile is no question here.
+		cleared, changes, err := current.WithDueDate(nil, domain.CapabilityProfile{}, now)
+		if err != nil {
+			return domain.WorkItem{}, err
+		}
+		if err := h.Items.SetDueDate(ctx, cleared, current.Version); err != nil {
+			return domain.WorkItem{}, err
+		}
+		for _, change := range changes {
+			if err := h.Changes.Record(ctx, changelog.Change{
+				TenantID: actor.TenantID, Entity: itemTarget, EntityID: current.ID,
+				Op: changelog.Upsert, ContainerID: current.CollectionID, ActorID: actor.AccountID,
+				HLC: h.HLC.Next(), Field: change.Field, Payload: map[string]any{change.Field: change.To},
+			}); err != nil {
+				return domain.WorkItem{}, err
+			}
+		}
+		cleared.Version = current.Version + 1
+		current = cleared
+	}
+	return current, nil
 }
 
 // entryTypeKeyOf is the key every door answers for an entry's type: its own, or its level's.
@@ -191,7 +289,8 @@ func (h SetItemEntryType) Descriptor() usecase.Descriptor {
 		Summary: "Gives an entry another type of its level; the level's own key (task, work_package, " +
 			"activity) gives it back its level's type. An archived type, another level's, or one the " +
 			"parent's type does not allow underneath is refused. A type that would not carry a value " +
-			"the entry holds is refused with entry_types.values_dropped, naming each field; one whose form " +
+			"the entry holds is refused with entry_types.values_dropped, naming each field, unless " +
+			"drop_values confirms them; one whose form " +
 			"the entry does not meet is refused with forms.refused, naming each field.",
 		SideEffects: "Writes the entry's type, records a change for offline clients, and writes an audit entry.",
 		TokenScope:  itemsWrite,
@@ -200,6 +299,12 @@ func (h SetItemEntryType) Descriptor() usecase.Descriptor {
 			{Name: "item_id", Kind: usecase.KindID, Required: true, Description: "The entry."},
 			{Name: "entry_type", Kind: usecase.KindString, Required: true, Description: "The key of the type to give it."},
 			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true, Description: "The version last read, for optimistic locking."},
+			{
+				Name: "drop_values", Kind: usecase.KindBool,
+				Description: "Confirms the values the new type does not carry - a due date, a " +
+					"series - after a refusal named them; they are cleared with the change. A " +
+					"completion is never dropped: reopen the entry first.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ItemEntryTypeSetAction, TargetType: itemTarget, Severity: audit.SeverityInfo, Required: true,
@@ -214,6 +319,7 @@ func (h SetItemEntryType) Descriptor() usecase.Descriptor {
 			}
 			item, err := h.Execute(ctx, actor, SetItemEntryTypeCommand{
 				ItemID: itemID, EntryType: in.String("entry_type"), ExpectedVersion: in.Int("expected_version"),
+				DropValues: in.Bool("drop_values"),
 			})
 			if err != nil {
 				return nil, err

@@ -49,5 +49,5 @@ works in every view. An agent creating an entry through MCP names the type the s
 
 ## Today
 
-* Check 4: not met — a change of type that would drop a value, or that the new type's form does not meet, is refused naming each field; confirming the drop and its screen come with the field sets (the suite plan, S-06).
+* Check 4: not met — the API names each value a change of type drops and confirms it with `drop_values` (a completion is reopened first); the web app's confirming screen comes with the field sets (the suite plan, S-06).
 * Check 6: not met — rows mark their type and the query language filters and groups by `entry_type`; the web app's filter, grouping and column are the suite plan's S-11.
