@@ -227,8 +227,8 @@ jobs:
           .tools/helm push dist/*.tgz "oci://ghcr.io/${{ env.OWNER }}/charts"
 
       # The apps beside the image (UC-SYN-07 check 1): signed with the project's two keys, which
-      # live as secrets of this environment only (F7 Decision 10, versioning-release.md §8), and
-      # checked against what §8 records before anything is published.
+      # live as secrets of this environment only (F7 Decision 10, versioning-release.md §9), and
+      # checked against what §9 records before anything is published.
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: app-*
@@ -245,12 +245,12 @@ jobs:
 
       - name: Sign the APK with the project's key
         # Android installs an update only when it is signed with the key of the installed app, so
-        # the certificate is compared with the one §8 records, not merely checked for a signature.
+        # the certificate is compared with the one §9 records, not merely checked for a signature.
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
-          tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          tools=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
           keystore="$RUNNER_TEMP/release.p12"
           trap 'rm -f "$keystore"' EXIT
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$keystore"
@@ -262,13 +262,13 @@ jobs:
           signed=$("$tools/apksigner" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
           recorded=$(node apps/webapp/build/release-apps.js key apk docs/architecture/versioning-release.md)
           if [ "$signed" != "$recorded" ]; then
-            echo "::error::the APK's certificate is $signed; versioning-release.md §8 records $recorded"
+            echo "::error::the APK's certificate is $signed; versioning-release.md §9 records $recorded"
             exit 1
           fi
 
       - name: Sign the apps and the update manifest with the update key
         # The signature binds the version (`--app-version`), so a manifest cannot pair a new number
-        # with an older package. Checked against the public key §8 records, which the shell's
+        # with an older package. Checked against the public key §9 records, which the shell's
         # updater must name too; `update.json` hands the updater the manifest with its signature.
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

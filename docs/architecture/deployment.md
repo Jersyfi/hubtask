@@ -355,7 +355,7 @@ The restore drill's variables (`HUBTASK_DRILL_*`) are set by the chart
 6. `THIRD-PARTY-LICENSES.md` is regenerated from what this build links.
 7. The Helm chart is packaged with `version` and `appVersion` from the tag and pushed.
 8. The APK is signed with the project's key, every app and the update manifest `latest.json` with
-   the update key, each checked against what [versioning-release.md](./versioning-release.md) §8
+   the update key, each checked against what [versioning-release.md](./versioning-release.md) §9
    records; one `SHA256SUMS` covers every file the release publishes.
 9. The GitHub release is created with generated notes, the SBOM, the chart, the licence list, the
    apps with their signatures, `latest.json` and `SHA256SUMS`; a tag with a hyphen is marked as a

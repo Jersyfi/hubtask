@@ -49,7 +49,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "PENDING: versioning-release.md §8 records no update key yet, and a release refuses this value",
+      "pubkey": "PENDING: versioning-release.md §9 records no update key yet, and a release refuses this value",
       "endpoints": [
         "https://github.com/Jersyfi/hubtask/releases/latest/download/update.json"
       ],

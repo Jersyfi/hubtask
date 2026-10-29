@@ -1027,7 +1027,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.shell == 'true' || needs.changes.outputs.ci == 'true'
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    timeout-minutes: 70
     strategy:
       fail-fast: false
       matrix:
@@ -1150,7 +1150,9 @@ jobs:
         run: |
           walk="$RUNNER_TEMP/walk" && mkdir -p "$walk"
           if [ "$RUNNER_OS" = Windows ]; then
-            pwsh -NoProfile -Command 'Get-Service -Name postgresql* | Start-Service'
+            # The image ships the service disabled; its documented start sets the start type first.
+            pwsh -NoProfile -Command 'Get-Service -Name postgresql* | Set-Service -StartupType Manual -PassThru | Start-Service'
+            "$(cygpath -u "$PGBIN")/pg_isready.exe" -h 127.0.0.1 -t 60
             "$(cygpath -u "$PGBIN")/createdb.exe" hubtask
             echo "WALK_DB=postgres://$PGUSER:$PGPASSWORD@127.0.0.1:5432/hubtask?sslmode=disable" >> "$GITHUB_ENV"
             exe=.exe
@@ -1168,20 +1170,32 @@ jobs:
       # Android's system WebView on an emulator of the runner's SDK, with the KVM the runner offers.
       - name: The emulator
         if: matrix.system == 'Android'
-        timeout-minutes: 15
+        timeout-minutes: 25
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules >/dev/null
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
           tools="$ANDROID_HOME/cmdline-tools/latest/bin"
           image='system-images;android-35;google_apis;x86_64'
-          "$tools/sdkmanager" --install emulator "$image" < /dev/null > /dev/null
+          "$tools/sdkmanager" --install emulator platform-tools "$image" < /dev/null > /dev/null
           echo no | "$tools/avdmanager" create avd --force -n walk -k "$image" -d pixel_7
-          nohup "$ANDROID_HOME/emulator/emulator" -avd walk -no-window -no-audio -no-snapshot -no-boot-anim \
-            -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          emulator="$ANDROID_HOME/emulator/emulator"
+          "$emulator" -accel-check
+          log="$RUNNER_TEMP/emulator.log"
+          nohup "$emulator" -avd walk -no-window -no-audio -no-snapshot -no-boot-anim \
+            -accel on -gpu swiftshader_indirect -memory 4096 -cores 4 -camera-back none > "$log" 2>&1 &
+          pid=$!
           adb="$ANDROID_HOME/platform-tools/adb"
-          "$adb" wait-for-device
-          until [ "$("$adb" shell getprop sys.boot_completed | tr -d '\r')" = 1 ]; do sleep 3; done
+          # Bounded: a dead emulator or a boot that never completes fails here with its log, rather
+          # than hanging in an unbounded `adb wait-for-device` until the step's timeout.
+          deadline=$((SECONDS + 1200))
+          until [ "$(timeout 10 "$adb" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; do
+            if ! kill -0 "$pid" 2>/dev/null || [ "$SECONDS" -ge "$deadline" ]; then
+              echo "::error::the emulator did not boot"; tail -n 80 "$log"; exit 1
+            fi
+            sleep 5
+          done
+          "$adb" shell input keyevent 82
           echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
       - name: The smoke walk
         timeout-minutes: 15

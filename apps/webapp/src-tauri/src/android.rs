@@ -100,7 +100,7 @@ pub fn paint_bars(
 }
 
 /// Where every release's update manifest is published; `latest` is the newest that is no
-/// pre-release (versioning-release.md §8).
+/// pre-release (versioning-release.md §9).
 const MANIFEST: &str = "https://github.com/Jersyfi/hubtask/releases/latest/download/latest.json";
 
 /// The release's update manifest, fetched by the Kotlin half (the page's request would be refused

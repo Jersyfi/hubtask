@@ -66,7 +66,7 @@ function comparePre(a: string | undefined, b: string | undefined): number {
 }
 
 /**
- * The Android app's notice from the release's manifest (`latest.json`, versioning-release.md §8):
+ * The Android app's notice from the release's manifest (`latest.json`, versioning-release.md §9):
  * a newer version when the manifest names one with an APK, nothing otherwise - a manifest that
  * cannot be read says nothing rather than something wrong. The download opens the release's page,
  * never an address the manifest gives, so the manifest can at most name a version.

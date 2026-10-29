@@ -115,8 +115,8 @@ test('the keys come from versioning-release.md, and a key not yet recorded stops
   assert.throws(() => recordedKeys(DOCUMENT('abc', SIGNER_KEY)), /not a SHA-256/);
   // The real document holds the table the release reads, whatever it records today.
   const document = fs.readFileSync(path.join(repository, 'docs', 'architecture', 'versioning-release.md'), 'utf8');
-  assert.ok(/^\| APK signing certificate, SHA-256 \| `[^`]+` \|$/m.test(document), 'versioning-release.md §8 has no APK certificate row');
-  assert.ok(/^\| Update public key \| `[^`]+` \|$/m.test(document), 'versioning-release.md §8 has no update key row');
+  assert.ok(/^\| APK signing certificate, SHA-256 \| `[^`]+` \|$/m.test(document), 'versioning-release.md §9 has no APK certificate row');
+  assert.ok(/^\| Update public key \| `[^`]+` \|$/m.test(document), 'versioning-release.md §9 has no update key row');
 });
 
 /** A release directory as the job assembles it: the apps signed, the manifest written and signed. */
@@ -175,8 +175,8 @@ test('the pointer hands the updater the manifest with its signature, and one tha
 
 test('the shell trusts the recorded update key, and its placeholder stops a release', () => {
   const shell = JSON.parse(fs.readFileSync(path.join(repository, 'apps', 'webapp', 'src-tauri', 'tauri.conf.json'), 'utf8'));
-  // Until the owner creates the key (§8 reads `pending`), the shell names a placeholder.
-  assert.deepEqual(shellKeyProblems(shell, SIGNER_KEY), ["tauri.conf.json's updater does not name the update key versioning-release.md §8 records"]);
+  // Until the owner creates the key (§9 reads `pending`), the shell names a placeholder.
+  assert.deepEqual(shellKeyProblems(shell, SIGNER_KEY), ["tauri.conf.json's updater does not name the update key versioning-release.md §9 records"]);
   const file = Buffer.from(`untrusted comment: minisign public key: 2A3CA2CCEC3EE143\n${SIGNER_KEY}\n`).toString('base64');
   const trusting = { plugins: { updater: { ...shell.plugins.updater, pubkey: file } } };
   assert.deepEqual(shellKeyProblems(trusting, SIGNER_KEY), []);

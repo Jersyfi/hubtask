@@ -27,7 +27,7 @@ GitHub-specific; the pipeline may.
 | `after-ci.yml` | A `ci.yml` run ends; every 15 minutes; manual dispatch | A failed run is re-run once; a red `main` opens the issue "CI: main is red" and holds the green pull requests; a green `main` closes it and re-runs the pull requests that waited (§3.5) |
 | `pr-description-rerun.yml` | A pull request's description or title is edited | If the head commit's latest `ci.yml` run failed, re-runs its description job and `CI required` (§3.1) |
 | `nightly.yml` | Schedule (overnight) | Long runs (§9): `deep` (fuzzing, load, resilience), the `matrix-*` cells, the PITR drill (`make gate-pitr`), the image scan, the action pins; the arm64 cell also runs `make gate-privacy-full` and `make gate-selftest`. A failure files an issue |
-| `release.yml` | Tag `v*` | The installed apps built without a secret (`apps`: Windows, Linux, Android); after the `production` environment's approval: the gates again, image, SBOM, signature, provenance, chart, the apps signed with the project's keys, one checksum file, GitHub release ([deployment.md](./deployment.md) §7, [versioning-release.md](./versioning-release.md) §8) |
+| `release.yml` | Tag `v*` | The installed apps built without a secret (`apps`: Windows, Linux, Android); after the `production` environment's approval: the gates again, image, SBOM, signature, provenance, chart, the apps signed with the project's keys, one checksum file, GitHub release ([deployment.md](./deployment.md) §7, [versioning-release.md](./versioning-release.md) §9) |
 | `deploy.yml` | Push to `main`, manual dispatch | Builds, signs and verifies the per-commit image and runs `helm upgrade` into `integration` ([deployment.md](./deployment.md) §3) |
 | `website.yml` | Push to `main` touching `apps/website/`, `packages/design-system/` or the lockfile; manual dispatch | Builds `apps/website/dist` and mirrors it to the webspace (§10). A failure files an issue |
 | `workbench.yml` | Push to `main` touching `packages/design-system/`; manual dispatch | Publishes the component workbench to `workbench.hubtask.eu` (§10) |
@@ -352,8 +352,8 @@ fixing pull request. Only the govulncheck half of the job is actionable from a b
 | Name | Kind | Used by | Purpose |
 |---|---|---|---|
 | `GITHUB_TOKEN` | Provided | Every workflow | GHCR pushes, the release, issues |
-| `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD` | Secret, environment `production` | `release.yml` | The APK signing key, a PKCS #12 store with the alias `hubtask`, and its password ([versioning-release.md](./versioning-release.md) §8) |
-| `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Secret, environment `production` | `release.yml` | The update key that signs the apps and `latest.json`, and its password ([versioning-release.md](./versioning-release.md) §8) |
+| `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD` | Secret, environment `production` | `release.yml` | The APK signing key, a PKCS #12 store with the alias `hubtask`, and its password ([versioning-release.md](./versioning-release.md) §9) |
+| `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Secret, environment `production` | `release.yml` | The update key that signs the apps and `latest.json`, and its password ([versioning-release.md](./versioning-release.md) §9) |
 | `KUBE_CONFIG` | Secret, environment `integration` | `deploy.yml` | The deploy identity for the integration cluster, limited to its namespace |
 | `WEBSITE_SFTP_USER`, `WEBSITE_SFTP_PASSWORD` | Secret | `website.yml` | The website's SFTP account |
 | `WORKBENCH_SFTP_USER`, `WORKBENCH_SFTP_PASSWORD` | Secret | `workbench.yml` | The workbench's own, scoped SFTP account |

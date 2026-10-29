@@ -13,7 +13,7 @@ server and every first-party client ([ADR-0035](../adr/ADR-0035-one-product-vers
 | Container image | `ghcr.io/jersyfi/hubtask:vX.Y.Z`, plus `:latest` for a stable version or `:rc` for a pre-release | Signed by digest. `latest` never points at a release candidate; the per-commit `:main-<sha>` images are not releases |
 | Helm chart | `version` = `appVersion` = product version | Set from the tag; a chart change is released with a product version. `oci://ghcr.io/jersyfi/charts/hubtask` |
 | Web app bundle | none of its own | Built from the same commit and embedded in the binary ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
-| Tauri shells | `appVersion` = product version, plus a platform build counter per build: `X.Y.Z+N`, and Android's `versionCode` = `N` | `N` is `release.yml`'s run number, which only grows; build metadata orders nothing, so an app never takes its own release for a newer one. The stores require a monotonic counter (`CFBundleVersion`, `versionCode`); a store-only fix bumps the counter, never the product version ([support-matrix.md](./support-matrix.md) §7). Published as `hubtask-X.Y.Z-windows-x64-setup.exe`, `-linux-x86_64.AppImage`, `-linux-amd64.deb` and `-android-universal.apk`, each with its update signature (`.sig`), beside `latest.json` and one `SHA256SUMS` over every file of the release (§8) |
+| Tauri shells | `appVersion` = product version, plus a platform build counter per build: `X.Y.Z+N`, and Android's `versionCode` = `N` | `N` is `release.yml`'s run number, which only grows; build metadata orders nothing, so an app never takes its own release for a newer one. The stores require a monotonic counter (`CFBundleVersion`, `versionCode`); a store-only fix bumps the counter, never the product version ([support-matrix.md](./support-matrix.md) §7). Published as `hubtask-X.Y.Z-windows-x64-setup.exe`, `-linux-x86_64.AppImage`, `-linux-amd64.deb` and `-android-universal.apk`, each with its update signature (`.sig`), beside `latest.json` and one `SHA256SUMS` over every file of the release (§9) |
 | Website (`hubtask.eu`) | unversioned | Continuously deployed; no compatibility surface |
 | Workspace packages (`apps/*`, `packages/*`, `sdk/typescript`) and the Python SDK | `private: true` | Nothing is published to a registry; the `version` field is not a product statement |
 | REST API | Path major `/api/v1`; `info.version` = product version | A breaking change ⇒ a new path major *and* a new product major |
@@ -74,7 +74,7 @@ pass the gates, and an optional surface is announced under `features` in `/meta/
 **Release:** `make release-tag VERSION_TO_TAG=X.Y.Z` runs `make verify` on a clean tree, creates
 the signed tag `vX.Y.Z` and pushes it; `release.yml` builds the installed apps, and does the rest
 after the `production` environment's approval ([deployment.md](./deployment.md) §7): the apps are
-signed with the project's two keys there (§8).
+signed with the project's two keys there (§9).
 
 The release notes are the changelog; there is no `CHANGELOG.md`. There is no version field in the
 code: the version is burned in through `-ldflags` and reported by `/meta/health`.
@@ -171,7 +171,9 @@ The milestones of the current major are in [roadmap.md](../roadmap.md).
 
 ---
 
-## 8. The installed apps' keys
+There is no §8: ADR-0025 cites one for what §2 says ([Errata](../adr/README.md#errata)).
+
+## 9. The installed apps' keys
 
 Two keys sign what a release offers of the installed apps (F7 Decision 10,
 [ADR-0084](../adr/ADR-0084-the-first-majors-shells-cost-nothing-to-ship.md)): the **APK signing

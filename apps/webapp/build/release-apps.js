@@ -5,7 +5,7 @@
 // decides about them, kept here so a test can hold it rather than a run on a tag. The version each
 // build is stamped with (the product version plus ADR-0035's platform build counter), the names
 // the files are published under, the update manifest, the check of every update signature and of
-// the APK's certificate against the keys versioning-release.md §8 records, and the one checksum
+// the APK's certificate against the keys versioning-release.md §9 records, and the one checksum
 // file over everything the release publishes. Node's own modules only: the release job runs it
 // before anything is installed.
 
@@ -128,25 +128,25 @@ export function updatePointer({ dir, tag, counter, base }) {
 
 /**
  * What in the shell's configuration (`tauri.conf.json`) does not trust the release: the updater
- * must name the key §8 records - the public key file the signer writes, base64 as Tauri reads it -
+ * must name the key §9 records - the public key file the signer writes, base64 as Tauri reads it -
  * and ask the pointer. A placeholder never reaches a release.
  */
 export function shellKeyProblems(config, updateKey) {
   const updater = config?.plugins?.updater ?? {};
   const problems = [];
   const file = Buffer.from(String(updater.pubkey ?? ''), 'base64').toString('utf8').split('\n');
-  if (file[1]?.trim() !== updateKey) problems.push("tauri.conf.json's updater does not name the update key versioning-release.md §8 records");
+  if (file[1]?.trim() !== updateKey) problems.push("tauri.conf.json's updater does not name the update key versioning-release.md §9 records");
   if (JSON.stringify(updater.endpoints) !== JSON.stringify([POINTER_ENDPOINT])) problems.push(`tauri.conf.json's updater does not ask ${POINTER_ENDPOINT}`);
   if (updater.requireSignedVersion !== true) problems.push("tauri.conf.json's updater does not require the signed version");
   return problems;
 }
 
-/** The keys versioning-release.md §8 records, read from its table; `pending` until the owner fills it. */
+/** The keys versioning-release.md §9 records, read from its table; `pending` until the owner fills it. */
 export function recordedKeys(document) {
   const cell = (label) => {
     const row = document.split('\n').find((line) => line.startsWith(`| ${label} |`));
     const value = row?.match(/`([^`]+)`/)?.[1];
-    if (!value || value === 'pending') throw new Error(`versioning-release.md §8 records no ${label} yet - the owner creates the key first`);
+    if (!value || value === 'pending') throw new Error(`versioning-release.md §9 records no ${label} yet - the owner creates the key first`);
     return value;
   };
   const apk = cell('APK signing certificate, SHA-256').replaceAll(':', '').toLowerCase();
@@ -258,7 +258,7 @@ const usage = `usage: release-apps.js
   version <tag> <counter>                                     the version every build carries
   config <linux|windows|android> <tag> <counter> [libcrypto]  the --config of one build
   collect <from-dir> <to-dir> <tag>                           the built apps under their published names
-  key <apk|update> <versioning-release.md>                    a key §8 records
+  key <apk|update> <versioning-release.md>                    a key §9 records
   manifest <dir> <tag> <counter> <download-base> <date>       write ${MANIFEST}
   pointer <dir> <tag> <counter> <download-base>               write ${POINTER}, once ${MANIFEST} is signed
   verify-signatures <dir> <tag> <versioning-release.md> <tauri.conf.json>

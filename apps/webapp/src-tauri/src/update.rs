@@ -6,7 +6,7 @@
 //!
 //! The updater checks a package's signature, not the manifest's. So the endpoint is `update.json`,
 //! a pointer in the updater's own single-download format whose "package" is `latest.json` and
-//! whose signature is `latest.json.sig` (versioning-release.md §8): fetching it through the
+//! whose signature is `latest.json.sig` (versioning-release.md §9): fetching it through the
 //! updater checks the manifest under the update key, and the version the key signed into it,
 //! before the manifest names a package at all. The package is then downloaded and checked
 //! before the person is offered it, and installed only once they agree.
@@ -187,7 +187,7 @@ mod tests {
     use tauri_plugin_updater::Updater;
 
     // Signed with a throwaway key made for these tests (`fixtures/update/`); the release's own key
-    // is versioning-release.md §8's.
+    // is versioning-release.md §9's.
     const TRUSTED: &str = include_str!("../fixtures/update/trusted.pub");
     const MANIFEST: &[u8] = include_bytes!("../fixtures/update/latest.json");
     const MANIFEST_SIGNED: &str = include_str!("../fixtures/update/latest.json.sig");
