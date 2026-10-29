@@ -1,0 +1,103 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+/**
+ * A hub's configuration items: the reads the *Assets* screen asks once and the writes, so every
+ * write invalidates the same set (UC-AST-01 … UC-AST-06). The lists are subscriptions at the call
+ * sites. A CI is written with its version; a run, a hold or a duplicate has none to keep.
+ */
+
+import type {
+  CiCompliance, CiDuplicateResolved, CiFileImport, CiImpact, CiRelation, CiRun, ConfigurationItem, ConfigurationItemCreate,
+  ConfigurationItemList, ConfigurationItemUpdate,
+} from '@hubtask/sync-engine';
+
+import { ciPath, cisPath, duplicatesPath, healthPath, holdsPath, impactPath, runPath, runsPath } from './cmdb.ts';
+import { engine } from './engine.ts';
+
+export * from './cmdb.ts';
+
+const inventory = (hubId: string) => [cisPath(hubId), healthPath(hubId)];
+const reconciled = (hubId: string) => [...inventory(hubId), runsPath(hubId), holdsPath(hubId), duplicatesPath(hubId)];
+
+class Cmdb {
+  /** The page after `after`, for the inventory's *Load more*: the list answers `next`, not a page cursor. */
+  async page(hubId: string, after: string, ofClass?: string): Promise<ConfigurationItemList> {
+    const state = await engine.refresh<ConfigurationItemList>({ path: cisPath(hubId, { after, ...(ofClass ? { class: ofClass } : {}) }) });
+    if (state.status === 'failed') throw state.error;
+    return state.status === 'ready' ? state.data : { data: [] };
+  }
+
+  async impact(ciId: string, direction: 'DOWNSTREAM' | 'UPSTREAM'): Promise<CiImpact> {
+    const state = await engine.refresh<CiImpact>({ path: impactPath(ciId, direction) });
+    if (state.status !== 'ready') throw state.status === 'failed' ? state.error : new Error('impact');
+    return state.data;
+  }
+
+  async run(runId: string): Promise<CiRun> {
+    const state = await engine.refresh<CiRun>({ path: runPath(runId) });
+    if (state.status !== 'ready') throw state.status === 'failed' ? state.error : new Error('run');
+    return state.data;
+  }
+
+  /** One CI read for a side-by-side view; failures are left out, the duplicate still shown. */
+  async read(ciId: string): Promise<ConfigurationItem | undefined> {
+    const state = await engine.refresh<ConfigurationItem>({ path: ciPath(ciId) });
+    return state.status === 'ready' ? state.data : undefined;
+  }
+
+  create(hubId: string, body: ConfigurationItemCreate): Promise<ConfigurationItem> {
+    return engine.mutate<ConfigurationItem>('POST', cisPath(hubId), body, {
+      idempotencyKey: crypto.randomUUID(),
+      invalidates: reconciled(hubId),
+    });
+  }
+
+  update(ci: ConfigurationItem, body: ConfigurationItemUpdate): Promise<ConfigurationItem> {
+    return engine.mutate<ConfigurationItem>('PATCH', ciPath(ci.id), body, {
+      ifMatch: `"${ci.version}"`,
+      invalidates: [ciPath(ci.id), ...inventory(ci.hub_id)],
+    });
+  }
+
+  setCompliance(ci: ConfigurationItem, body: CiCompliance): Promise<ConfigurationItem> {
+    return engine.mutate<ConfigurationItem>('PUT', `${ciPath(ci.id)}/compliance`, body, {
+      ifMatch: `"${ci.version}"`,
+      invalidates: [ciPath(ci.id), ...inventory(ci.hub_id)],
+    });
+  }
+
+  relate(hubId: string, sourceId: string, targetId: string, type: string): Promise<CiRelation> {
+    return engine.mutate<CiRelation>('POST', '/ci-relations', { source_ci_id: sourceId, target_ci_id: targetId, type }, {
+      idempotencyKey: crypto.randomUUID(),
+      invalidates: [ciPath(sourceId), ciPath(targetId), healthPath(hubId)],
+    });
+  }
+
+  unrelate(hubId: string, relation: CiRelation): Promise<{ id: string; removed: boolean }> {
+    return engine.mutate('DELETE', `/ci-relations/${relation.id}`, undefined, {
+      invalidates: [ciPath(relation.source_ci_id), ciPath(relation.target_ci_id), healthPath(hubId)],
+    });
+  }
+
+  /** A file through the reconciliation; a dry run invalidates nothing, because it wrote nothing. */
+  importFile(hubId: string, body: CiFileImport): Promise<CiRun> {
+    return engine.mutate<CiRun>('POST', `/hubs/${hubId}/cis:import`, body, {
+      ...(body.dry_run ? {} : { idempotencyKey: crypto.randomUUID() }),
+      invalidates: body.dry_run ? [] : reconciled(hubId),
+    });
+  }
+
+  dismissHold(hubId: string, holdId: string): Promise<{ id: string; dismissed: boolean }> {
+    return engine.mutate('POST', `/ci-holds/${holdId}:dismiss`, undefined, { invalidates: [holdsPath(hubId)] });
+  }
+
+  /** With a survivor the others merge into it; without one they are recorded as distinct. */
+  resolveDuplicate(hubId: string, duplicateId: string, survivorId?: string): Promise<CiDuplicateResolved> {
+    return engine.mutate<CiDuplicateResolved>('POST', `/ci-duplicates/${duplicateId}:resolve`, survivorId ? { survivor_id: survivorId } : {}, {
+      invalidates: reconciled(hubId),
+    });
+  }
+}
+
+export const cmdb = new Cmdb();
