@@ -12604,6 +12604,8 @@ paths:
     get:
       tags: [recurrence]
       operationId: getRecurrence
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: recurrenceResponse
       description: >
         The entry's series, or 404 when it has none. A rule a client can set and never read back
         is one it cannot show, so the series is read here as well as written.
@@ -12622,6 +12624,8 @@ paths:
     put:
       tags: [recurrence]
       operationId: setRecurrence
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: recurrenceResponse
       description: >
         Puts a series on the entry, or changes the one it has - the same call for both, because a
         rule is one thing an entry either carries or does not. Only a TASK may carry one: a series
@@ -12659,6 +12663,7 @@ paths:
     delete:
       tags: [recurrence]
       operationId: removeRecurrence
+      x-hubtask-rest: generated
       description: >
         Takes the series off the entry. Occurrences that were already materialised stay exactly
         where they are: they are ordinary entries the moment they exist, and deleting somebody's
@@ -12678,6 +12683,8 @@ paths:
     post:
       tags: [recurrence]
       operationId: skipOccurrence
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: recurrenceResponse
       description: >
         Skips the next occurrence the series has not produced yet: the one after the last one
         materialised, or - for a series that has produced none - the first one after the entry's
@@ -12708,6 +12715,8 @@ paths:
     get:
       tags: [reminders]
       operationId: listReminders
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: reminderResponse
       description: >
         The entry's reminders, oldest first. Readable by whoever may read the entry, and unpaged:
         an entry carries at most max_reminders_per_item of them, which is the bound that makes a
@@ -12726,6 +12735,8 @@ paths:
     post:
       tags: [reminders]
       operationId: createReminder
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: reminderResponse
       description: >
         Puts a reminder on the entry. offset_spec has two forms and no third: REL:<duration> is an
         ISO-8601 duration counted from the due date, so the entry needs one - without it there is
@@ -12759,6 +12770,8 @@ paths:
     patch:
       tags: [reminders]
       operationId: updateReminder
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: reminderResponse
       description: >
         Changes a reminder. A merge patch: a field that is not sent is not touched, and each field
         that moves is its own change log entry, so two devices editing the offset and the channels
@@ -12787,6 +12800,7 @@ paths:
     delete:
       tags: [reminders]
       operationId: deleteReminder
+      x-hubtask-rest: generated
       description: >
         Removes the reminder. A hard delete of one row: a reminder is created and deleted whole,
         and what a person deleted is gone rather than kept as a tombstone with a state - so a

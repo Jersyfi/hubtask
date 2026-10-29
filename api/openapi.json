@@ -16706,6 +16706,8 @@
           "recurrence"
         ],
         "operationId": "getRecurrence",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "recurrenceResponse",
         "description": "The entry's series, or 404 when it has none. A rule a client can set and never read back is one it cannot show, so the series is read here as well as written.\n",
         "responses": {
           "200": {
@@ -16735,6 +16737,8 @@
           "recurrence"
         ],
         "operationId": "setRecurrence",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "recurrenceResponse",
         "description": "Puts a series on the entry, or changes the one it has - the same call for both, because a rule is one thing an entry either carries or does not. Only a TASK may carry one: a series applies to the whole subtree, so a work package or an activity is refused with capability_not_supported.\nThe rule is RFC 5545 and needs its IANA zone: daylight saving is resolved through the zone and never through an offset, which is what keeps 09:00 at 09:00 across a transition. A rule the library cannot parse, a rule without a zone, and a rule whose expansion inside its own horizon exceeds the bound in /meta/capabilities are each refused with a field error rather than stored and discovered by the scheduler.\nNothing is materialised here: this call stores the rule, and the occurrences are created as the series comes due.\n",
         "parameters": [
           {
@@ -16779,6 +16783,7 @@
           "recurrence"
         ],
         "operationId": "removeRecurrence",
+        "x-hubtask-rest": "generated",
         "description": "Takes the series off the entry. Occurrences that were already materialised stay exactly where they are: they are ordinary entries the moment they exist, and deleting somebody's next three weeks because they stopped a series would be a deletion nobody asked for. Idempotent - an entry with no series succeeds and announces nothing.\n",
         "parameters": [
           {
@@ -16806,6 +16811,8 @@
           "recurrence"
         ],
         "operationId": "skipOccurrence",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "recurrenceResponse",
         "description": "Skips the next occurrence the series has not produced yet: the one after the last one materialised, or - for a series that has produced none - the first one after the entry's own due date. Nothing that already exists is touched, because a materialised occurrence is an ordinary entry and skipping it would be deleting somebody's work.\nIdempotent under its Idempotency-Key, and repeatable without one: calling it twice skips two occurrences, which is what \"skip the next one\" means said twice. The answer is the rule with its bookkeeping moved on.\n",
         "parameters": [
           {
@@ -16847,6 +16854,8 @@
           "reminders"
         ],
         "operationId": "listReminders",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "reminderResponse",
         "description": "The entry's reminders, oldest first. Readable by whoever may read the entry, and unpaged: an entry carries at most max_reminders_per_item of them, which is the bound that makes a page unnecessary rather than an omission.\n",
         "responses": {
           "200": {
@@ -16872,6 +16881,8 @@
           "reminders"
         ],
         "operationId": "createReminder",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "reminderResponse",
         "description": "Puts a reminder on the entry. offset_spec has two forms and no third: REL:<duration> is an ISO-8601 duration counted from the due date, so the entry needs one - without it there is no moment to fire at - and ABS:<instant> is a fixed moment no due date moves. A preset is a client's vocabulary for a common offset; what travels is the offset itself.\n",
         "parameters": [
           {
@@ -16926,6 +16937,8 @@
           "reminders"
         ],
         "operationId": "updateReminder",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "reminderResponse",
         "description": "Changes a reminder. A merge patch: a field that is not sent is not touched, and each field that moves is its own change log entry, so two devices editing the offset and the channels converge to both. Recipients and channels are chosen whole - the list sent replaces the list stored.\n",
         "parameters": [
           {
@@ -16970,6 +16983,7 @@
           "reminders"
         ],
         "operationId": "deleteReminder",
+        "x-hubtask-rest": "generated",
         "description": "Removes the reminder. A hard delete of one row: a reminder is created and deleted whole, and what a person deleted is gone rather than kept as a tombstone with a state - so a second deletion answers 404, the same answer any other missing sub-resource gives, rather than pretending to have removed something twice.\n",
         "parameters": [
           {
