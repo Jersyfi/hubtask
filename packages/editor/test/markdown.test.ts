@@ -10,7 +10,7 @@ import { fromMarkdown, parseAddress, toMarkdown } from '../src/markdown.ts';
 const ENTRY = '00000000-0000-0000-0000-0000000000e1';
 const VIEW = '00000000-0000-0000-0000-0000000000e2';
 
-test('a body survives the editor: what is read back is written the same (UC-DOC-02 check 2)', () => {
+test('a body survives the editor: what is read back is written the same (UC-DOC-02 check 4)', () => {
   const body = [
     '# Onboarding',
     '',
@@ -40,7 +40,7 @@ test('a body survives the editor: what is read back is written the same (UC-DOC-
   assert.equal(toMarkdown(fromMarkdown(body)), body);
 });
 
-test('a mention, a card and a live view are references in the notes grammar (UC-DOC-02 check 3)', () => {
+test('a mention, a card and a live view are references in the notes grammar (UC-DOC-04 check 1)', () => {
   const doc = fromMarkdown(`See [the task](hubtask:entry/${ENTRY})\n\n![](hubtask:entry/${ENTRY})\n\n![board](hubtask:view/${VIEW}#top)`);
   const [paragraph, card, view] = doc.content ?? [];
   assert.equal(paragraph?.content?.[1]?.type, 'reference');
@@ -67,7 +67,7 @@ test('an empty body is one empty paragraph', () => {
   assert.deepEqual(fromMarkdown(''), { type: 'doc', content: [{ type: 'paragraph' }] });
 });
 
-test('two versions compare line by line (UC-DOC-04 check 2)', () => {
+test('two versions compare line by line (UC-DOC-06 check 3)', () => {
   const lines = compareBodies('a\nb\nc\nd', 'a\nB\nc\nd\ne');
   assert.deepEqual(lines.map((each) => `${each.kind[0]}${each.text}`), ['sa', 'rb', 'aB', 'sc', 'sd', 'ae']);
 });

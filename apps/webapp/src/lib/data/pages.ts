@@ -98,7 +98,7 @@ export function caretOf(personId: string): number {
 // --- Hubtask's own templates ----------------------------------------------------------------------
 
 /**
- * The templates Hubtask brings, in the reader's words (UC-DOC-05 check 3). Not stored: a space's
+ * The templates Hubtask brings, in the reader's words (UC-DOC-05 check 4). Not stored: a space's
  * own templates are its pages marked as one, and these are written when chosen, in the language of
  * the person who chose them - a German team's meeting notes start in German.
  */
@@ -123,7 +123,7 @@ export function shippedTemplate(key: ShippedTemplate, t: Translate): { title: st
   return { title: t(`app.pages.template.${key}.title`), body: lines.join('\n').trimEnd() + '\n' };
 }
 
-/** How long a verification runs from today, the choices the screen offers (UC-DOC-09). */
+/** How long a verification runs from today, the choices the screen offers (UC-DOC-12). */
 export const VERIFY_DAYS = [30, 90, 180, 365] as const;
 
 /** The instant a verification of so many days from `now` runs until. */

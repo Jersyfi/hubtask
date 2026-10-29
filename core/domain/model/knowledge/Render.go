@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-// Format is what a page is exported as (UC-DOC-12): Markdown with front matter, a standalone HTML
+// Format is what a page is exported as (UC-DOC-09): Markdown with front matter, a standalone HTML
 // document, or an Office Open XML text document (ISO/IEC 29500, DOCX).
 type Format string
 

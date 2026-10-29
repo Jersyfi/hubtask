@@ -196,7 +196,7 @@
     if (done) isMoving = false;
   }
 
-  // Verification (UC-DOC-09): until a date, by the reader, or taken away.
+  // Verification (UC-DOC-12): until a date, by the reader, or taken away.
   let verifyDays = $state(String(VERIFY_DAYS[1]));
   async function verify(isTakenAway: boolean) {
     if (!current) return;
@@ -211,7 +211,7 @@
     await act(() => pages.change(current, { template }));
   }
 
-  // Export (UC-DOC-12): the page, or it and its pages, as Markdown files saved by the browser.
+  // Export (UC-DOC-09): the page, or it and its pages, as files of the format chosen, saved by the browser.
   let exportsSubtree = $state(false);
   let exportFormat = $state<'MARKDOWN' | 'HTML' | 'DOCX'>('MARKDOWN');
   async function exportPage() {
@@ -315,7 +315,7 @@
   const nameOf = (id: string | null) => (id ? accounts.nameOf(id) : undefined) ?? t('app.people.unnamed');
   const when = (iso: string) => formatDateTime(iso, messages.locale);
 
-  // History (UC-DOC-04): a version opened is compared with the page as it stands.
+  // History (UC-DOC-06): a version opened is compared with the page as it stands.
   let comparing = $state<PageVersionRead | undefined>(undefined);
   async function openVersion(seq: number) {
     if (!current) return;

@@ -77,7 +77,7 @@ class Pages {
     });
   }
 
-  /** Verifies the page until a moment ahead, or takes the verification away (UC-DOC-09). */
+  /** Verifies the page until a moment ahead, or takes the verification away (UC-DOC-12). */
   verify(page: Page, until: string | undefined, ownerId?: string): Promise<Page> {
     return engine.mutate<Page>('POST', `${pagePath(page.id)}:verify`, {
       ...(until ? { verified_until: until } : {}),

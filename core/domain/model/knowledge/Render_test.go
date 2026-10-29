@@ -15,7 +15,7 @@ import (
 const renderBody = "# Start\n\nRead **this** and *that*, see [the site](https://example.org) and [](hubtask:entry/00000000-0000-0000-0000-0000000000e1).\n\n" +
 	"- one\n- [x] done\n\n1. first\n\n> quoted <b>\n\n```\na < b\n```\n\n---\n\n![](hubtask:view/00000000-0000-0000-0000-0000000000e2)\n"
 
-// UC-DOC-12 check 3: a page exports as a standalone HTML document, every word escaped, no script.
+// UC-DOC-09 check 4: a page exports as a standalone HTML document, every word escaped, no script.
 func TestAPageExportsAsHTML(t *testing.T) {
 	page := newPage(t, "Plan <1>", renderBody)
 	out := HTMLFile(page)
@@ -34,7 +34,7 @@ func TestAPageExportsAsHTML(t *testing.T) {
 	}
 }
 
-// UC-DOC-12 check 3: a page exports as a DOCX document whose text is the page's.
+// UC-DOC-09 check 4: a page exports as a DOCX document whose text is the page's.
 func TestAPageExportsAsADOCXDocument(t *testing.T) {
 	page := newPage(t, "Plan & more", renderBody)
 	encoded, err := DOCXFile(page)

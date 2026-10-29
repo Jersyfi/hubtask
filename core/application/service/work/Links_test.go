@@ -560,7 +560,7 @@ func TestAPageReferenceResolvesForAReaderOfItsHub(t *testing.T) {
 }
 
 // An entry's backlinks name the pages pointing at it, the strongest drawing winning, and only the
-// pages of a hub the reader may read (UC-DOC-11 check 2; P-05).
+// pages of a hub the reader may read (UC-DOC-04 check 4; P-05).
 func TestAnEntrysBacklinksNameThePagesTheReaderMayRead(t *testing.T) {
 	ctx := context.Background()
 	h := newLinkHarness()
