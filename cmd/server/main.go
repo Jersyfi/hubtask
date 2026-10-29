@@ -1770,6 +1770,7 @@ func run() error {
 			Items: items, Containers: containers, Gate: entryGate, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		work.SetItemEntryType{
+			Gate:  entryGate,
 			Items: items, Containers: containers, Profiles: profiles, EntryTypes: entryTypes,
 			Authorizer: authorizer, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, HLC: hybrid, Forms: entryGate.Forms,

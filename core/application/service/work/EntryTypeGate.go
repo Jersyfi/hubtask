@@ -11,11 +11,12 @@ import (
 )
 
 // chooseEntryType answers the type key a new entry of the level is written with, and the level's
-// profile narrowed by that type's behaviours (UC-FLW-01 check 3, D-07). Without a registry every
-// entry is its level's system type and the profile is unchanged.
+// profile narrowed by that type's behaviours (UC-FLW-01 check 3, D-07), among the types the
+// collection offers on the level (nil: every one). Without a registry every entry is its
+// level's system type and the profile is unchanged.
 func chooseEntryType(
 	ctx context.Context, types repository.EntryTypes, level domain.ItemType, key string,
-	parent *domain.WorkItem, profile domain.CapabilityProfile,
+	parent *domain.WorkItem, profile domain.CapabilityProfile, offered []string,
 ) (string, domain.CapabilityProfile, error) {
 	if types == nil {
 		return "", profile, nil
@@ -30,7 +31,7 @@ func chooseEntryType(
 		of := registry.Of(parent.Type, parent.EntryType)
 		parentType = &of
 	}
-	chosen, err := registry.Choose(level, key, parentType)
+	chosen, err := registry.ChooseAmong(level, key, parentType, offered)
 	if err != nil {
 		return "", profile, err
 	}

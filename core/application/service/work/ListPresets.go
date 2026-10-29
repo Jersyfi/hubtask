@@ -101,8 +101,8 @@ func (h ListPresets) Descriptor() usecase.Descriptor {
 		Name: ListPresetsName,
 		Summary: "The presets a hub or collection can start from - Hubtask's List, Tasks, Project " +
 			"and Flow, the installation's, the workspace's and the caller's own, each with its origin and " +
-			"the values of its eight settings (levels and their names, fields, views, " +
-			"what counts, completion, capture, celebration, automation) as this installation " +
+			"the values of its nine settings (levels and their names, fields, views, " +
+			"what counts, completion, capture, celebration, automation, entry types) as this installation " +
 			"offers them. Choosing one copies its values; nothing follows a preset afterwards.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  containersRead,

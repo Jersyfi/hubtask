@@ -59,18 +59,24 @@ func TestANewEntryTakesATypeOfItsLevel(t *testing.T) {
 	types := workspaceTypes()
 	profile := systemProfiles()[0]
 
-	key, narrowed, err := chooseEntryType(ctx, types, domain.ItemTask, "", nil, profile)
+	key, narrowed, err := chooseEntryType(ctx, types, domain.ItemTask, "", nil, profile, nil)
 	if err != nil || key != "" || !narrowed.Allows(domain.CapabilityCompletion) {
 		t.Fatalf("the default is not the level's own: %q, %v", key, err)
 	}
-	key, narrowed, err = chooseEntryType(ctx, types, domain.ItemTask, "server", nil, profile)
+	key, narrowed, err = chooseEntryType(ctx, types, domain.ItemTask, "server", nil, profile, nil)
 	if err != nil || key != "server" || narrowed.Allows(domain.CapabilityCompletion) {
 		t.Fatalf("a record kept its completion: %q, %v", key, err)
 	}
-	if _, _, err := chooseEntryType(ctx, types, domain.ItemWorkPackage, "bug", nil, profile); err == nil {
+	if _, _, err := chooseEntryType(ctx, types, domain.ItemWorkPackage, "bug", nil, profile, nil); err == nil {
 		t.Fatal("a task's type was given to a work package")
 	}
-	if key, _, err := chooseEntryType(ctx, nil, domain.ItemTask, "bug", nil, profile); err != nil || key != "" {
+	if _, _, err := chooseEntryType(ctx, types, domain.ItemTask, "server", nil, profile, []string{"bug"}); err == nil {
+		t.Fatal("a type the collection does not offer was taken")
+	}
+	if key, _, err := chooseEntryType(ctx, types, domain.ItemTask, "", nil, profile, []string{"bug"}); err != nil || key != "bug" {
+		t.Fatalf("without a key the collection's first type was not taken: %q, %v", key, err)
+	}
+	if key, _, err := chooseEntryType(ctx, nil, domain.ItemTask, "bug", nil, profile, nil); err != nil || key != "" {
 		t.Fatalf("a build without a registry did not fall back: %q, %v", key, err)
 	}
 

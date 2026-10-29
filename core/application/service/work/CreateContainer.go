@@ -638,7 +638,7 @@ func (h CreateContainer) Descriptor() usecase.Descriptor {
 					string(domain.PresetList), string(domain.PresetTasks),
 					string(domain.PresetProject), string(domain.PresetFlow),
 				},
-				Description: "The preset the container starts from; its eight settings are copied. " +
+				Description: "The preset the container starts from; its settings are copied. " +
 					"A collection given its hub's preset, or none, follows its hub instead. A hub " +
 					"given none starts from the workspace's default preset where one is set.",
 			},

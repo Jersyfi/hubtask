@@ -31,6 +31,14 @@ func (o entryOffer) requireLevel(itemType domain.ItemType, path string) error {
 	return o.offered.RequireLevel(itemType, o.ancestors, path)
 }
 
+// entryTypesOn is the type keys the collection offers on a level, nil where it offers every one.
+func (o entryOffer) entryTypesOn(level domain.ItemType) []string {
+	if !o.wired {
+		return nil
+	}
+	return o.offered.EntryTypesOn(level)
+}
+
 // narrow is the profile the writer gates its values with.
 func (o entryOffer) narrow(profile domain.CapabilityProfile) domain.CapabilityProfile {
 	if !o.wired {

@@ -47,6 +47,8 @@ type SetItemEntryType struct {
 	// Forms holds the entry to its new type's form as a creation of the type would be: a required
 	// field it lacks or a validation it fails refuses the change, by field.
 	Forms FormGate
+	// Gate answers the types the collection offers on the entry's level (UC-FLW-01 check 3).
+	Gate EntryGate
 }
 
 // SetItemEntryTypeCommand is the input, typed.
@@ -110,7 +112,16 @@ func (h SetItemEntryType) Execute(ctx context.Context, actor appshared.ActorCont
 		if err != nil {
 			return err
 		}
-		key, narrowed, err := chooseEntryType(ctx, h.EntryTypes, current.Type, cmd.EntryType, parent, profile)
+		offer, err := h.Gate.placing(ctx, collection, parent)
+		if err != nil {
+			return err
+		}
+		offered := offer.entryTypesOn(current.Type)
+		if cmd.EntryType != "" && cmd.EntryType == current.EntryType {
+			// Keeping the type an entry has is no choice: a narrowed offer never takes it away.
+			offered = nil
+		}
+		key, narrowed, err := chooseEntryType(ctx, h.EntryTypes, current.Type, cmd.EntryType, parent, profile, offered)
 		if err != nil {
 			return err
 		}
