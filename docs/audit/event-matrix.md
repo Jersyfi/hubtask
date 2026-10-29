@@ -194,6 +194,11 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `cmdb.configuration_read` | ListCiClasses | `cmdb_class` | INFO | When refused |
 | `cmdb.configuration_read` | ListCiRelationTypes | `cmdb_relation_type` | INFO | When refused |
 | `cmdb.configuration_read` | ListCiSources | `cmdb_source` | INFO | When refused |
+| `cmdb.connector_credential_set` | SetCiConnectorCredential | `cmdb_connector` | NOTICE | Every time |
+| `cmdb.connector_defined` | DefineCiConnector | `cmdb_connector` | NOTICE | Every time |
+| `cmdb.connector_ran` | RunCiConnector | `cmdb_connector` | INFO | Every time |
+| `cmdb.connector_read` | ListCiAlerts | `cmdb_alert` | INFO | When refused |
+| `cmdb.connector_read` | ListCiConnectors | `cmdb_connector` | INFO | When refused |
 | `cmdb.duplicate_resolved` | ResolveCiDuplicate | `cmdb_ci` | INFO | Every time |
 | `cmdb.hold_dismissed` | DismissCiHold | `cmdb_run` | INFO | Every time |
 | `cmdb.reconciled` | ImportCiFile | `cmdb_run` | INFO | Every time |
