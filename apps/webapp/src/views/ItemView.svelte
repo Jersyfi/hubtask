@@ -91,6 +91,7 @@
   import EntryList from '../lib/entries/EntryList.svelte';
   import LabelsPanel from '../lib/entries/LabelsPanel.svelte';
   import LinksSection from '../lib/entries/LinksSection.svelte';
+  import StepControl from '../lib/entries/StepControl.svelte';
   import MentionDialog from '../lib/entries/MentionDialog.svelte';
   import { inserted } from '../lib/data/links.ts';
   import ReplicaMark from '../lib/frame/ReplicaMark.svelte';
@@ -1298,6 +1299,8 @@
           </Stack></div>
         {/if}
 
+        <!-- The entry's status and the steps the reader may take (UC-FLW-03). -->
+        {#key item.id}<StepControl {item} />{/key}
         <!-- Links from both sides, backlinks and what the notes mention (UC-PLN-01). Keyed, so
              each entry reads its own. -->
         {#key item.id}<LinksSection {item} mayChange={isWritable} />{/key}
