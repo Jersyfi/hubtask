@@ -53,3 +53,33 @@ LIMIT sqlc.arg('batch');
 SELECT id, hub_id, title, jsonb_array_length(scene)::int AS elements
 FROM whiteboard
 WHERE tenant_id = current_tenant_id() AND id = ANY(sqlc.arg('ids')::uuid[]) AND deleted_at IS NULL;
+
+-- name: LastWhiteboardVersion :one
+SELECT seq, title, scene, author_id, name, created_at FROM whiteboard_version
+WHERE tenant_id = current_tenant_id() AND whiteboard_id = sqlc.arg('whiteboard_id')
+ORDER BY seq DESC LIMIT 1;
+
+-- name: InsertWhiteboardVersion :exec
+INSERT INTO whiteboard_version (tenant_id, whiteboard_id, seq, title, scene, author_id, name, created_at)
+VALUES (current_tenant_id(), sqlc.arg('whiteboard_id'), sqlc.arg('seq'), sqlc.arg('title'), sqlc.arg('scene'),
+  sqlc.narg('author_id'), '', sqlc.arg('at'));
+
+-- name: FoldWhiteboardVersion :exec
+UPDATE whiteboard_version SET title = sqlc.arg('title'), scene = sqlc.arg('scene'),
+  author_id = sqlc.narg('author_id'), created_at = sqlc.arg('at')
+WHERE tenant_id = current_tenant_id() AND whiteboard_id = sqlc.arg('whiteboard_id') AND seq = sqlc.arg('seq');
+
+-- name: NameWhiteboardVersion :execrows
+UPDATE whiteboard_version SET name = sqlc.arg('name')
+WHERE tenant_id = current_tenant_id() AND whiteboard_id = sqlc.arg('whiteboard_id') AND seq = sqlc.arg('seq');
+
+-- name: ListWhiteboardVersions :many
+-- A board's history newest first, without the scenes.
+SELECT seq, title, author_id, name, created_at, jsonb_array_length(scene)::int AS elements FROM whiteboard_version
+WHERE tenant_id = current_tenant_id() AND whiteboard_id = sqlc.arg('whiteboard_id')
+  AND (sqlc.arg('before')::int = 0 OR seq < sqlc.arg('before')::int)
+ORDER BY seq DESC LIMIT sqlc.arg('batch');
+
+-- name: FindWhiteboardVersion :one
+SELECT seq, title, scene, author_id, name, created_at FROM whiteboard_version
+WHERE tenant_id = current_tenant_id() AND whiteboard_id = sqlc.arg('whiteboard_id') AND seq = sqlc.arg('seq');

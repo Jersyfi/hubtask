@@ -115,3 +115,58 @@ func TestABoardIsInvisibleToTheWorkspaceNextDoor(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A board's history keeps its versions, folds a session's into one, names one, and another
+// workspace reads, folds, names and adds none (migration 0234).
+func TestABoardsHistoryStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	_, board, _ := seedBoard(ctx, t)
+	repo := postgres.NewWhiteboardRepository()
+	at := time.Date(2026, 10, 29, 10, 0, 0, 0, time.UTC)
+	scene := whiteboard.Scene{Elements: []whiteboard.Element{
+		{ID: "p1", Kind: whiteboard.KindStroke, Pen: whiteboard.PenPen, Width: 10, Height: 10, Points: []whiteboard.Point{{X: 1, Y: 2}, {X: 9, Y: 9}}},
+		{ID: "w1", Kind: whiteboard.KindLink, Width: 240, Height: 72, URL: "https://example.org", Group: "g1"},
+	}}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := repo.InsertVersion(ctx, whiteboard.Version{BoardID: board, Seq: 1, Title: "Retro", Scene: scene, AuthorID: authorA, CreatedAt: at}); err != nil {
+			return err
+		}
+		if err := repo.FoldVersion(ctx, whiteboard.Version{BoardID: board, Seq: 1, Title: "Retro 2", Scene: scene, AuthorID: authorA, CreatedAt: at.Add(time.Minute)}); err != nil {
+			return err
+		}
+		if err := repo.NameVersion(ctx, board, 1, "Before"); err != nil {
+			return err
+		}
+		last, found, err := repo.LastVersion(ctx, board)
+		if err != nil || !found || last.Title != "Retro 2" || last.Name != "Before" || !last.Scene.Equal(scene) {
+			t.Errorf("last %+v, %v, %v", last, found, err)
+		}
+		rows, err := repo.Versions(ctx, board, 0, 10)
+		if err != nil || len(rows) != 1 || rows[0].Elements != 2 || rows[0].AuthorID != authorA {
+			t.Errorf("versions %+v, %v", rows, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if _, found, _ := repo.LastVersion(ctx, board); found {
+			t.Error("the workspace next door read the board's last version")
+		}
+		if _, err := repo.Version(ctx, board, 1); err == nil {
+			t.Error("the workspace next door read a version")
+		}
+		if rows, _ := repo.Versions(ctx, board, 0, 10); len(rows) != 0 {
+			t.Error("the workspace next door listed the history")
+		}
+		if err := repo.NameVersion(ctx, board, 1, "x"); err == nil {
+			t.Error("the workspace next door named a version")
+		}
+		if err := repo.InsertVersion(ctx, whiteboard.Version{BoardID: board, Seq: 2, Title: "x", CreatedAt: at}); err == nil {
+			t.Error("the workspace next door added a version")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

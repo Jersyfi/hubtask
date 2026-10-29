@@ -2224,3 +2224,27 @@ SELECT EXISTS (SELECT 1 FROM whiteboard WHERE id = (sqlc.arg('payload')::jsonb->
 
 -- name: ClearWhiteboard :execrows
 DELETE FROM whiteboard;
+
+-- name: ImportWhiteboardVersion :execrows
+INSERT INTO whiteboard_version (tenant_id, whiteboard_id, seq, title, scene, author_id, name, created_at)
+SELECT r.tenant_id, r.whiteboard_id, r.seq, r.title, r.scene, r.author_id, r.name, r.created_at
+FROM jsonb_populate_record(
+  NULL::whiteboard_version,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, whiteboard_id, seq) DO UPDATE SET
+  title = EXCLUDED.title,
+  scene = EXCLUDED.scene,
+  name = EXCLUDED.name,
+  created_at = EXCLUDED.created_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsWhiteboardVersion :one
+SELECT EXISTS (
+  SELECT 1 FROM whiteboard_version
+  WHERE whiteboard_id = (sqlc.arg('payload')::jsonb->>'whiteboard_id')::uuid
+    AND seq = (sqlc.arg('payload')::jsonb->>'seq')::int
+) AS held;
+
+-- name: ClearWhiteboardVersion :execrows
+DELETE FROM whiteboard_version;

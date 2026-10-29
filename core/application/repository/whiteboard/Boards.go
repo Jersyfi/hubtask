@@ -8,6 +8,7 @@ package whiteboard
 
 import (
 	"context"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
@@ -27,6 +28,16 @@ type Pointing struct {
 	Strength string
 }
 
+// VersionRow is a version as a history lists it: without its scene.
+type VersionRow struct {
+	Seq       int
+	Title     string
+	AuthorID  shared.ID
+	Name      string
+	CreatedAt time.Time
+	Elements  int
+}
+
 // Boards stores boards.
 type Boards interface {
 	Insert(ctx context.Context, board whiteboard.Board) error
@@ -42,4 +53,13 @@ type Boards interface {
 	Referencing(ctx context.Context, targetKind string, targetID shared.ID, limit int) ([]Pointing, error)
 	// Summaries answers the boards of these identifiers that are not trashed.
 	Summaries(ctx context.Context, ids []shared.ID) ([]Summary, error)
+	// LastVersion answers a board's newest version; found false when it has none.
+	LastVersion(ctx context.Context, boardID shared.ID) (whiteboard.Version, bool, error)
+	InsertVersion(ctx context.Context, version whiteboard.Version) error
+	// FoldVersion rewrites a version's state in place: a save of the same drawing session.
+	FoldVersion(ctx context.Context, version whiteboard.Version) error
+	NameVersion(ctx context.Context, boardID shared.ID, seq int, name string) error
+	// Versions answers a board's history newest first, before a place (0 for the newest).
+	Versions(ctx context.Context, boardID shared.ID, before, limit int) ([]VersionRow, error)
+	Version(ctx context.Context, boardID shared.ID, seq int) (whiteboard.Version, error)
 }

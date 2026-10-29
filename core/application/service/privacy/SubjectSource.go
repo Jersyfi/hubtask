@@ -69,10 +69,11 @@ var subjectColumns = map[string][]string{
 	"page_version": {"author_id"},
 	"page_comment": {"author_id", "resolved_by"},
 	// The whiteboards they made or last drew on (M4).
-	"whiteboard":      {"created_by", "updated_by"},
-	"config_revision": {"actor_id", "proposed_by"},
-	"config_proposal": {"proposed_by", "decided_by"},
-	"config_template": {"created_by"},
+	"whiteboard":         {"created_by", "updated_by"},
+	"whiteboard_version": {"author_id"},
+	"config_revision":    {"actor_id", "proposed_by"},
+	"config_proposal":    {"proposed_by", "decided_by"},
+	"config_template":    {"created_by"},
 	// The trail's own entries about them. An access request that left these out would be
 	// incomplete: they are personal data, and they are the record of what was done with the
 	// person's data.

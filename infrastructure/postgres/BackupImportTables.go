@@ -238,6 +238,17 @@ var importers = map[string]importer{
 			return queries.ClearPage(ctx)
 		},
 	},
+	"whiteboard_version": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportWhiteboardVersion(ctx, sqlc.ImportWhiteboardVersionParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsWhiteboardVersion(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearWhiteboardVersion(ctx)
+		},
+	},
 	"page_version": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportPageVersion(ctx, sqlc.ImportPageVersionParams{Payload: payload, Overwrite: overwrite})

@@ -2126,6 +2126,17 @@ type WhiteboardReference struct {
 	Strength     string
 }
 
+type WhiteboardVersion struct {
+	TenantID     pgtype.UUID
+	WhiteboardID pgtype.UUID
+	Seq          int32
+	Title        string
+	Scene        []byte
+	AuthorID     pgtype.UUID
+	Name         string
+	CreatedAt    pgtype.Timestamptz
+}
+
 type WorkItem struct {
 	ID                    pgtype.UUID
 	TenantID              pgtype.UUID

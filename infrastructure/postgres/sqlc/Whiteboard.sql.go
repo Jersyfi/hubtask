@@ -98,6 +98,66 @@ func (q *Queries) FindWhiteboardForUpdate(ctx context.Context, id pgtype.UUID) (
 	return i, err
 }
 
+const findWhiteboardVersion = `-- name: FindWhiteboardVersion :one
+SELECT seq, title, scene, author_id, name, created_at FROM whiteboard_version
+WHERE tenant_id = current_tenant_id() AND whiteboard_id = $1 AND seq = $2
+`
+
+type FindWhiteboardVersionParams struct {
+	WhiteboardID pgtype.UUID
+	Seq          int32
+}
+
+type FindWhiteboardVersionRow struct {
+	Seq       int32
+	Title     string
+	Scene     []byte
+	AuthorID  pgtype.UUID
+	Name      string
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) FindWhiteboardVersion(ctx context.Context, arg FindWhiteboardVersionParams) (FindWhiteboardVersionRow, error) {
+	row := q.db.QueryRow(ctx, findWhiteboardVersion, arg.WhiteboardID, arg.Seq)
+	var i FindWhiteboardVersionRow
+	err := row.Scan(
+		&i.Seq,
+		&i.Title,
+		&i.Scene,
+		&i.AuthorID,
+		&i.Name,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const foldWhiteboardVersion = `-- name: FoldWhiteboardVersion :exec
+UPDATE whiteboard_version SET title = $1, scene = $2,
+  author_id = $3, created_at = $4
+WHERE tenant_id = current_tenant_id() AND whiteboard_id = $5 AND seq = $6
+`
+
+type FoldWhiteboardVersionParams struct {
+	Title        string
+	Scene        []byte
+	AuthorID     pgtype.UUID
+	At           pgtype.Timestamptz
+	WhiteboardID pgtype.UUID
+	Seq          int32
+}
+
+func (q *Queries) FoldWhiteboardVersion(ctx context.Context, arg FoldWhiteboardVersionParams) error {
+	_, err := q.db.Exec(ctx, foldWhiteboardVersion,
+		arg.Title,
+		arg.Scene,
+		arg.AuthorID,
+		arg.At,
+		arg.WhiteboardID,
+		arg.Seq,
+	)
+	return err
+}
+
 const insertWhiteboard = `-- name: InsertWhiteboard :exec
 
 INSERT INTO whiteboard (id, tenant_id, hub_id, title, scene, created_by, created_at, updated_by, updated_at, version)
@@ -126,6 +186,62 @@ func (q *Queries) InsertWhiteboard(ctx context.Context, arg InsertWhiteboardPara
 		arg.At,
 	)
 	return err
+}
+
+const insertWhiteboardVersion = `-- name: InsertWhiteboardVersion :exec
+INSERT INTO whiteboard_version (tenant_id, whiteboard_id, seq, title, scene, author_id, name, created_at)
+VALUES (current_tenant_id(), $1, $2, $3, $4,
+  $5, '', $6)
+`
+
+type InsertWhiteboardVersionParams struct {
+	WhiteboardID pgtype.UUID
+	Seq          int32
+	Title        string
+	Scene        []byte
+	AuthorID     pgtype.UUID
+	At           pgtype.Timestamptz
+}
+
+func (q *Queries) InsertWhiteboardVersion(ctx context.Context, arg InsertWhiteboardVersionParams) error {
+	_, err := q.db.Exec(ctx, insertWhiteboardVersion,
+		arg.WhiteboardID,
+		arg.Seq,
+		arg.Title,
+		arg.Scene,
+		arg.AuthorID,
+		arg.At,
+	)
+	return err
+}
+
+const lastWhiteboardVersion = `-- name: LastWhiteboardVersion :one
+SELECT seq, title, scene, author_id, name, created_at FROM whiteboard_version
+WHERE tenant_id = current_tenant_id() AND whiteboard_id = $1
+ORDER BY seq DESC LIMIT 1
+`
+
+type LastWhiteboardVersionRow struct {
+	Seq       int32
+	Title     string
+	Scene     []byte
+	AuthorID  pgtype.UUID
+	Name      string
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) LastWhiteboardVersion(ctx context.Context, whiteboardID pgtype.UUID) (LastWhiteboardVersionRow, error) {
+	row := q.db.QueryRow(ctx, lastWhiteboardVersion, whiteboardID)
+	var i LastWhiteboardVersionRow
+	err := row.Scan(
+		&i.Seq,
+		&i.Title,
+		&i.Scene,
+		&i.AuthorID,
+		&i.Name,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const listHubWhiteboards = `-- name: ListHubWhiteboards :many
@@ -187,6 +303,75 @@ func (q *Queries) ListHubWhiteboards(ctx context.Context, arg ListHubWhiteboards
 		return nil, err
 	}
 	return items, nil
+}
+
+const listWhiteboardVersions = `-- name: ListWhiteboardVersions :many
+SELECT seq, title, author_id, name, created_at, jsonb_array_length(scene)::int AS elements FROM whiteboard_version
+WHERE tenant_id = current_tenant_id() AND whiteboard_id = $1
+  AND ($2::int = 0 OR seq < $2::int)
+ORDER BY seq DESC LIMIT $3
+`
+
+type ListWhiteboardVersionsParams struct {
+	WhiteboardID pgtype.UUID
+	Before       int32
+	Batch        int32
+}
+
+type ListWhiteboardVersionsRow struct {
+	Seq       int32
+	Title     string
+	AuthorID  pgtype.UUID
+	Name      string
+	CreatedAt pgtype.Timestamptz
+	Elements  int32
+}
+
+// A board's history newest first, without the scenes.
+func (q *Queries) ListWhiteboardVersions(ctx context.Context, arg ListWhiteboardVersionsParams) ([]ListWhiteboardVersionsRow, error) {
+	rows, err := q.db.Query(ctx, listWhiteboardVersions, arg.WhiteboardID, arg.Before, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWhiteboardVersionsRow{}
+	for rows.Next() {
+		var i ListWhiteboardVersionsRow
+		if err := rows.Scan(
+			&i.Seq,
+			&i.Title,
+			&i.AuthorID,
+			&i.Name,
+			&i.CreatedAt,
+			&i.Elements,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const nameWhiteboardVersion = `-- name: NameWhiteboardVersion :execrows
+UPDATE whiteboard_version SET name = $1
+WHERE tenant_id = current_tenant_id() AND whiteboard_id = $2 AND seq = $3
+`
+
+type NameWhiteboardVersionParams struct {
+	Name         string
+	WhiteboardID pgtype.UUID
+	Seq          int32
+}
+
+func (q *Queries) NameWhiteboardVersion(ctx context.Context, arg NameWhiteboardVersionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, nameWhiteboardVersion, arg.Name, arg.WhiteboardID, arg.Seq)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const updateWhiteboard = `-- name: UpdateWhiteboard :execrows

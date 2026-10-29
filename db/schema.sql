@@ -1749,6 +1749,29 @@ DROP TRIGGER IF EXISTS whiteboard_references_update ON whiteboard;
 CREATE TRIGGER whiteboard_references_update AFTER UPDATE OF scene, deleted_at ON whiteboard
   FOR EACH ROW EXECUTE FUNCTION whiteboard_reference_of_scene();
 
+-- A whiteboard's history (migration 0234, UC-CNV-06): one row per drawing session, a named
+-- version its own row.
+CREATE TABLE whiteboard_version (
+  tenant_id     uuid NOT NULL,
+  whiteboard_id uuid NOT NULL,
+  seq           integer NOT NULL CHECK (seq > 0),
+  title         text NOT NULL,
+  scene         jsonb NOT NULL CHECK (jsonb_typeof(scene) = 'array' AND jsonb_array_length(scene) <= 5000),
+  author_id     uuid,
+  name          text NOT NULL DEFAULT '' CHECK (char_length(name) <= 120),
+  created_at    timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, whiteboard_id, seq),
+  CONSTRAINT whiteboard_version_board_fkey FOREIGN KEY (tenant_id, whiteboard_id)
+    REFERENCES whiteboard (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT whiteboard_version_author_fkey FOREIGN KEY (tenant_id, author_id)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (author_id)
+);
+ALTER TABLE whiteboard_version ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whiteboard_version FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON whiteboard_version
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON whiteboard_version TO hubtask_app;
+
 -- Links and references (migration 0213, F-3). The six shipped link types have no row.
 CREATE TABLE link_type (
   id           uuid PRIMARY KEY,

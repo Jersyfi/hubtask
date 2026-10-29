@@ -603,6 +603,18 @@ func (q *Queries) ClearWhiteboard(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearWhiteboardVersion = `-- name: ClearWhiteboardVersion :execrows
+DELETE FROM whiteboard_version
+`
+
+func (q *Queries) ClearWhiteboardVersion(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearWhiteboardVersion)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearWorkItem = `-- name: ClearWorkItem :execrows
 DELETE FROM work_item
 `
@@ -1206,6 +1218,21 @@ SELECT EXISTS (SELECT 1 FROM whiteboard WHERE id = ($1::jsonb->>'id')::uuid) AS 
 
 func (q *Queries) HoldsWhiteboard(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsWhiteboard, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsWhiteboardVersion = `-- name: HoldsWhiteboardVersion :one
+SELECT EXISTS (
+  SELECT 1 FROM whiteboard_version
+  WHERE whiteboard_id = ($1::jsonb->>'whiteboard_id')::uuid
+    AND seq = ($1::jsonb->>'seq')::int
+) AS held
+`
+
+func (q *Queries) HoldsWhiteboardVersion(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsWhiteboardVersion, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -3607,6 +3634,34 @@ type ImportWhiteboardParams struct {
 // Where the board points is the trigger's to build.
 func (q *Queries) ImportWhiteboard(ctx context.Context, arg ImportWhiteboardParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importWhiteboard, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importWhiteboardVersion = `-- name: ImportWhiteboardVersion :execrows
+INSERT INTO whiteboard_version (tenant_id, whiteboard_id, seq, title, scene, author_id, name, created_at)
+SELECT r.tenant_id, r.whiteboard_id, r.seq, r.title, r.scene, r.author_id, r.name, r.created_at
+FROM jsonb_populate_record(
+  NULL::whiteboard_version,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, whiteboard_id, seq) DO UPDATE SET
+  title = EXCLUDED.title,
+  scene = EXCLUDED.scene,
+  name = EXCLUDED.name,
+  created_at = EXCLUDED.created_at
+WHERE $2::boolean
+`
+
+type ImportWhiteboardVersionParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportWhiteboardVersion(ctx context.Context, arg ImportWhiteboardVersionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importWhiteboardVersion, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

@@ -789,3 +789,17 @@ FROM (
   WHERE s.key_1 > sqlc.arg('after_id')::uuid
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportWhiteboardVersions :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (v.whiteboard_id::text || '/' || v.seq::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(v) - 'tenant_id')::jsonb AS payload,
+         v.whiteboard_id AS key_1,
+         v.seq::bigint AS key_2
+  FROM whiteboard_version v
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::bigint)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;

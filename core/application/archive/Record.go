@@ -627,6 +627,13 @@ var entities = []Entity{
 		Name: "whiteboards", Table: "whiteboard", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
 		References: []Reference{{Field: "hub_id", Table: "container"}},
 	},
+	{
+		Name: "whiteboard_versions", Table: "whiteboard_version", Whole: true, Later: true, Keys: []string{"whiteboard_id", "seq"},
+		References: []Reference{
+			{Field: "whiteboard_id", Table: "whiteboard"},
+			{Field: "author_id", Table: "account", Clearable: true},
+		},
+	},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a
