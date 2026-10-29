@@ -43,7 +43,7 @@ deep. The scope is the workspace (`TENANT`), a `HUB` or a `COLLECTION`.
 
 ### 1.1 Triggers
 
-**All six kinds feed one engine.** A trigger decides *when* a run starts and what makes it one
+**All seven kinds feed one engine.** A trigger decides *when* a run starts and what makes it one
 occasion; everything else is §2's. The run records the kind that started it on its own row, as a
 rule can be edited into another kind.
 
@@ -55,6 +55,14 @@ rule can be edited into another kind.
 | `MANUAL` | A button, an API call or an MCP tool | `POST /automation/rules/{id}:trigger` | The run, so two presses are two runs |
 | `INBOUND_WEBHOOK` | A token-protected URL per rule; the body is `payload` in CEL | `POST /automation/inbound/{token}` | The delivery, so two posts are two runs |
 | `JUMBLE_ENTRY` | A new arrival in the jumble, the basis for automatic conversion | An arrival in the jumble | The entry |
+| `STEP_TAKEN` | One step of one workflow, by the workflow's key and the step's (UC-FLW-04) | The step itself, inside its transaction | The step's `item.updated` |
+
+`STEP_TAKEN` is the one kind that runs **synchronously**: the step hands its announcement to the
+engine inside its own transaction, so what the actions change on the entry commits with the step
+or not at all. The engine is otherwise the same - the run log, the throttle, `run_as` and the depth
+bound; a rule on a step that takes another step nests one deeper each time. A failing action ends
+the run as its `on_error` says and the run is recorded with the step; only an error of the engine
+itself refuses the step. A `RETRY` rule is not retried, since no job carries the run.
 
 The idempotency key (§2.0) names the occasion as the table gives it, never an absent event — else a
 second manual press would find the first's answer and do nothing.
@@ -398,7 +406,7 @@ A rule that cannot run is not stored: stored and ignored is worse than refused.
 | An action kind the catalogue does not serve | `automation.action_unknown`, or `automation.action_not_available_yet` for a planned kind (§1.3) |
 | A parameter the action's use case does not declare | Refused, as the call itself would refuse it |
 | A **required** parameter the rule does not carry | Accepted: the run supplies the rest and the registry validates the whole input then. The check names one the run cannot supply either (§2.3) |
-| A **trigger** of any of the six kinds | Accepted with the fields its kind needs and no others (`automation.trigger_field_not_for_kind`) |
+| A **trigger** of any of the seven kinds | Accepted with the fields its kind needs and no others (`automation.trigger_field_not_for_kind`) |
 | A `SCHEDULE` whose **recurrence** this installation cannot expand | Refused, the field named. An *exhausted* recurrence is stored with no next moment |
 | An **address** on a rule whose trigger is not `INBOUND_WEBHOOK` | Refused by name |
 
