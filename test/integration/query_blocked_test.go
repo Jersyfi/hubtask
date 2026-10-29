@@ -19,6 +19,7 @@ import (
 // and an entry whose only blocker is completed is free again.
 func TestTheQueryFindsTheEntriesAnOpenOneBlocks(t *testing.T) {
 	ctx := context.Background()
+	seedContainerTenants(ctx, t)
 	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
 	blocker := seedTask(ctx, t, tenantA, authorA, collection)
 	waiting := seedTask(ctx, t, tenantA, authorA, collection)
