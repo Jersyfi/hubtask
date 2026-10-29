@@ -255,6 +255,15 @@ func (p PushChanges) applyWinners(
 			if _, err := p.Catalogue.Invoke(ctx, name, actor, usecase.Input{"item_id": itemID}); err != nil {
 				return err
 			}
+		case field == work.FieldStatus:
+			// A device asks for a move; the server takes the step there or refuses it with the
+			// reason, and the device adopts the server's status (UC-FLW-03 check 5).
+			status, _ := value.(string)
+			if _, err := p.Catalogue.Invoke(ctx, "TakeStep", actor, usecase.Input{
+				"item_id": itemID, "to_status": status,
+			}); err != nil {
+				return err
+			}
 		case field == work.FieldOrderKey:
 			key, _ := value.(string)
 			if _, err := p.Catalogue.Invoke(ctx, "ReorderWorkItem", actor, usecase.Input{
@@ -358,7 +367,7 @@ func (p PushChanges) clocksOf(
 func patchable(field string) error {
 	switch {
 	case updateFields[field], field == work.FieldAssigneeID, field == work.FieldCover,
-		field == work.FieldOrderKey, field == work.FieldCompletion,
+		field == work.FieldOrderKey, field == work.FieldCompletion, field == work.FieldStatus,
 		strings.HasPrefix(field, work.FieldCustomFields+"."):
 		return nil
 	case laterFields[field]:
