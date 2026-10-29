@@ -26,11 +26,26 @@ export function typesShown(manifest: Capabilities | undefined): boolean {
 /** The key of a level's own type: the level in lower case. */
 export const systemKeyOf = (level: string): string => level.toLowerCase();
 
-/** The types a new entry of the level may take - not archived, the level's own first. */
-export function offeredTypes(types: readonly EntryType[], level: string): readonly EntryType[] {
-  return types
+/**
+ * The types a new entry of the level may take - not archived, the level's own first. `offered` is
+ * the collection's `entry_types` for the level: only those, in its order, the level's own still
+ * first where it is among them. A key that names no type in use is passed over, and a list of which
+ * none is left offers every type - the server's rule (`EntryTypes.ChooseAmong`), so the first one
+ * here is the one an entry sent without a type gets.
+ */
+export function offeredTypes(types: readonly EntryType[], level: string, offered?: readonly string[]): readonly EntryType[] {
+  const inUse = types
     .filter((type) => type.level === level && !type.archived)
     .sort((a, b) => Number(b.system) - Number(a.system) || a.position - b.position || a.key.localeCompare(b.key));
+  if (!offered || offered.length === 0) return inUse;
+  const narrowed = offered.flatMap((key) => inUse.filter((type) => type.key === key));
+  if (narrowed.length === 0) return inUse;
+  return [...narrowed].sort((a, b) => Number(b.system) - Number(a.system));
+}
+
+/** The type keys a collection's settings offer on a level, or none where it offers every type. */
+export function entryTypesOffered(settings: { entry_types?: Record<string, readonly string[]> } | undefined, level: string): readonly string[] | undefined {
+  return settings?.entry_types?.[level];
 }
 
 /** An entry's type: its own key, or its level's own where it names none or one not read yet. */

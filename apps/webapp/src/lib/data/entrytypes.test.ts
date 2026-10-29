@@ -12,7 +12,7 @@ import type { Capabilities, EntryType } from '@hubtask/sync-engine';
 
 import { ICON_NAMES } from '@hubtask/design-system/icons';
 
-import { TYPE_ICONS, iconOf, keyFrom, levelTypes, offeredTypes, reorder, rowMarkOf, typesShown } from './entrytypes.ts';
+import { TYPE_ICONS, entryTypesOffered, iconOf, keyFrom, levelTypes, offeredTypes, reorder, rowMarkOf, typesShown } from './entrytypes.ts';
 
 const base = {
   completable: true, workflow: false, record: false, schedulable: true, estimable: false,
@@ -30,6 +30,14 @@ const types: EntryType[] = [
 test('a new task is offered the task types in use, the level own first', () => {
   assert.deepEqual(offeredTypes(types, 'TASK').map((type) => type.key), ['task', 'bug', 'feature']);
   assert.deepEqual(offeredTypes(types, 'WORK_PACKAGE').map((type) => type.key), ['subtask']);
+});
+
+test('a collection offers only its own types, the level own still first and an unknown key passed over', () => {
+  assert.deepEqual(offeredTypes(types, 'TASK', ['feature', 'bug']).map((type) => type.key), ['feature', 'bug']);
+  assert.deepEqual(offeredTypes(types, 'TASK', ['feature', 'task']).map((type) => type.key), ['task', 'feature']);
+  assert.deepEqual(offeredTypes(types, 'TASK', ['story', 'old']).map((type) => type.key), ['task', 'bug', 'feature']);
+  assert.deepEqual(entryTypesOffered({ entry_types: { TASK: ['bug'] } }, 'TASK'), ['bug']);
+  assert.equal(entryTypesOffered({ entry_types: {} }, 'TASK'), undefined);
 });
 
 test('a row marks a type of the workspace own, an archived one too, and never the level own', () => {

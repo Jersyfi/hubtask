@@ -16,6 +16,7 @@ import { etagFor } from './etag.ts';
 export {
   TYPE_ICONS,
   TYPE_LEVELS,
+  entryTypesOffered,
   iconOf,
   keyFrom,
   levelTypes,
