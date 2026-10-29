@@ -12,7 +12,6 @@ import (
 // to the catalogue, and maps the result - what a layout means, who sees a shared view and whether
 // a stored query parses are all decided inwards of here.
 
-
 // savedViewResponse maps the catalogue's output onto the generated schema.
 func savedViewResponse(out usecase.Output) openapi.SavedView {
 	saved := openapi.SavedView{

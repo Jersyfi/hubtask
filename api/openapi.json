@@ -2459,6 +2459,8 @@
           "webhooks"
         ],
         "operationId": "listWebhookSubscriptions",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "webhookResponse",
         "summary": "The workspace's webhook subscriptions",
         "description": "Every subscription in the workspace, newest first, with its state and how many consecutive failures it has seen. The secret is not among the fields: it is answered once, at creation and at each rotation, and stored sealed - there is no read that can produce it again.\n",
         "responses": {
@@ -2485,6 +2487,9 @@
           "webhooks"
         ],
         "operationId": "createWebhookSubscription",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-location": "/integrations/webhooks/{id}",
+        "x-hubtask-rest-answer": "webhookSecretResponse",
         "summary": "Subscribe an external system to the event stream",
         "description": "The `subscribe` half of the REST hooks pattern: an integration platform creates its own subscription through this route and deletes it again when the user turns the automation off.\nWhat arrives at the target is the CloudEvent, identical to the one this system uses internally - there is no feature available only internally or only externally - signed with a secret generated here, answered once in this response, and never readable afterwards.\nThe target is an egress channel and is treated as one: it goes through the guarded client, so a private range or the cloud metadata address is refused unless the installation has deliberately released private networks.\n",
         "parameters": [
@@ -2530,6 +2535,8 @@
           "webhooks"
         ],
         "operationId": "getWebhookSubscription",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "webhookResponse",
         "summary": "One webhook subscription",
         "responses": {
           "200": {
@@ -2552,6 +2559,8 @@
           "webhooks"
         ],
         "operationId": "updateWebhookSubscription",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "webhookResponse",
         "summary": "Change a subscription",
         "description": "The target, the event types, the filter and the state. Re-enabling a subscription that was disabled for sustained unreachability is a write like any other and is audited as one - somebody decided the target is reachable again, and the trail says who.\nAn omitted field is left alone. The secret is not changeable here; rotation has its own route, because handing a new secret to a subscriber is a different act from editing one.\n",
         "parameters": [
@@ -2590,6 +2599,7 @@
           "webhooks"
         ],
         "operationId": "deleteWebhookSubscription",
+        "x-hubtask-rest": "generated",
         "summary": "Unsubscribe",
         "description": "The `unsubscribe` half of the REST hooks pattern. The deliveries go with the subscription: a delivery log for a subscription nobody can reach any more is a record of attempts against an address the workspace no longer knows.\n",
         "responses": {
@@ -2613,6 +2623,8 @@
           "webhooks"
         ],
         "operationId": "listWebhookDeliveries",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "deliveryResponse",
         "summary": "What was delivered, and what happened to it",
         "description": "Every attempt with its status, the response the target gave and when the next attempt is due. A run of eight failures ends in `DEAD_LETTER`, which is where an operator looks and what a replay acts on.\n",
         "parameters": [
@@ -2670,6 +2682,8 @@
           "webhooks"
         ],
         "operationId": "replayWebhookDelivery",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "deliveryResponse",
         "summary": "Send a dead-lettered delivery again",
         "description": "The same event, sent again by hand after whatever made it fail has been fixed. The event identifier is the one it always had, so a subscriber that deduplicates on `X-Hubtask-Event-Id` sees the repeat for what it is; the attempt counter carries on rather than resetting, so the delivery log stays a true account of how many times this event was sent.\n",
         "responses": {
@@ -2700,6 +2714,11 @@
           "webhooks"
         ],
         "operationId": "sendWebhook",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "webhookId": "subscription_id"
+        },
+        "x-hubtask-rest-answer": "deliveryResponse",
         "summary": "Deliver one event to this subscription",
         "description": "One event, delivered to one named subscription through the same pipeline every delivery takes: the same delivery table, the same signature, the same retry ladder and the same dead letter. The subscription's own event-type filter is deliberately not consulted - naming the subscription is the point of the call - but a paused or disabled subscription is refused, and an event a restore replayed is never delivered.\nThis is also what a rule's `SEND_WEBHOOK` action performs: the rule names the subscription, and the run supplies the event it is about.\n",
         "requestBody": {
@@ -2740,6 +2759,8 @@
           "webhooks"
         ],
         "operationId": "rotateWebhookSecret",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "webhookSecretResponse",
         "summary": "Issue a new signing secret",
         "description": "Answers the new secret once, and keeps the old one verifying for a grace period. That overlap is the whole point of the route: a subscriber cannot deploy atomically, and a rotation that took effect instantly would drop every event arriving between the call and the deployment.\nSignatures are computed with the current secret from this moment on. What the grace period buys is the subscriber's side of the check, not ours.\n",
         "parameters": [

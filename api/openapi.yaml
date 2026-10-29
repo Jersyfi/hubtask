@@ -1809,6 +1809,8 @@ paths:
     get:
       tags: [webhooks]
       operationId: listWebhookSubscriptions
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: webhookResponse
       summary: The workspace's webhook subscriptions
       description: >
         Every subscription in the workspace, newest first, with its state and how many consecutive
@@ -1828,6 +1830,9 @@ paths:
     post:
       tags: [webhooks]
       operationId: createWebhookSubscription
+      x-hubtask-rest: generated
+      x-hubtask-rest-location: /integrations/webhooks/{id}
+      x-hubtask-rest-answer: webhookSecretResponse
       summary: Subscribe an external system to the event stream
       description: >
         The `subscribe` half of the REST hooks pattern: an integration platform creates its own
@@ -1866,6 +1871,8 @@ paths:
     get:
       tags: [webhooks]
       operationId: getWebhookSubscription
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: webhookResponse
       summary: One webhook subscription
       responses:
         "200":
@@ -1879,6 +1886,8 @@ paths:
     patch:
       tags: [webhooks]
       operationId: updateWebhookSubscription
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: webhookResponse
       summary: Change a subscription
       description: >
         The target, the event types, the filter and the state. Re-enabling a subscription that was
@@ -1907,6 +1916,7 @@ paths:
     delete:
       tags: [webhooks]
       operationId: deleteWebhookSubscription
+      x-hubtask-rest: generated
       summary: Unsubscribe
       description: >
         The `unsubscribe` half of the REST hooks pattern. The deliveries go with the subscription:
@@ -1924,6 +1934,8 @@ paths:
     get:
       tags: [webhooks]
       operationId: listWebhookDeliveries
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: deliveryResponse
       summary: What was delivered, and what happened to it
       description: >
         Every attempt with its status, the response the target gave and when the next attempt is
@@ -1956,6 +1968,8 @@ paths:
     post:
       tags: [webhooks]
       operationId: replayWebhookDelivery
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: deliveryResponse
       summary: Send a dead-lettered delivery again
       description: >
         The same event, sent again by hand after whatever made it fail has been fixed. The event
@@ -1979,6 +1993,9 @@ paths:
     post:
       tags: [webhooks]
       operationId: sendWebhook
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: { webhookId: subscription_id }
+      x-hubtask-rest-answer: deliveryResponse
       summary: Deliver one event to this subscription
       description: >
         One event, delivered to one named subscription through the same pipeline every delivery
@@ -2011,6 +2028,8 @@ paths:
     post:
       tags: [webhooks]
       operationId: rotateWebhookSecret
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: webhookSecretResponse
       summary: Issue a new signing secret
       description: >
         Answers the new secret once, and keeps the old one verifying for a grace period. That
