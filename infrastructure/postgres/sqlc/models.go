@@ -729,6 +729,17 @@ type Bucket struct {
 	Version      int32
 }
 
+type BusinessCalendar struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	Key       string
+	Name      string
+	Spec      []byte
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
 type CalendarFeed struct {
 	ID        pgtype.UUID
 	TenantID  pgtype.UUID
@@ -1210,6 +1221,23 @@ type EntryReference struct {
 	TargetID   pgtype.UUID
 	Anchor     string
 	Strength   string
+}
+
+type EntrySla struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	ItemID        pgtype.UUID
+	Goal          string
+	PolicyKey     string
+	TargetSeconds int64
+	Standing      string
+	ArmedAt       pgtype.Timestamptz
+	DueAt         pgtype.Timestamptz
+	AtRiskAt      pgtype.Timestamptz
+	MetAt         pgtype.Timestamptz
+	BreachedAt    pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
 }
 
 type EntryType struct {
@@ -2097,6 +2125,22 @@ type SettingValue struct {
 	Allowed   []byte
 	SetBy     pgtype.UUID
 	UpdatedAt pgtype.Timestamptz
+}
+
+type SlaPolicy struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	Key           string
+	Name          string
+	CalendarKey   *string
+	EntryTypes    []string
+	PriorityField string
+	Goals         []byte
+	Position      int32
+	Enabled       bool
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
 }
 
 type StructurePreset struct {

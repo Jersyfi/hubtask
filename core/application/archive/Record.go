@@ -709,6 +709,24 @@ var entities = []Entity{
 			{Field: "connector_id", Table: "cmdb_connector"},
 		},
 	},
+	// The service desk's business calendars, SLA policies and what became of each goal on an entry
+	// (migration 0240). Whole: each is deleted without a marker. A calendar precedes the policies
+	// that name it by key; a duplicate skips a key the workspace holds, and its policies then name
+	// that calendar. The clocks are timers, which a restore does not carry (§8.4).
+	{
+		Name: "business_calendars", Table: "business_calendar", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true, Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
+	},
+	{
+		Name: "sla_policies", Table: "sla_policy", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true, Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
+	},
+	{
+		Name: "entry_slas", Table: "entry_sla", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		Duplicable: true,
+		Unique:     []UniqueField{{Field: "goal", Rule: UniqueSkip, Within: []string{"item_id"}}},
+		References: []Reference{{Field: "item_id", Table: "work_item"}},
+	},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a

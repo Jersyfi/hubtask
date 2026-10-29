@@ -408,6 +408,51 @@ func (q *Queries) ExportBuckets(ctx context.Context, arg ExportBucketsParams) ([
 	return items, nil
 }
 
+const exportBusinessCalendars = `-- name: ExportBusinessCalendars :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM business_calendar x
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportBusinessCalendarsParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportBusinessCalendarsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportBusinessCalendars(ctx context.Context, arg ExportBusinessCalendarsParams) ([]ExportBusinessCalendarsRow, error) {
+	rows, err := q.db.Query(ctx, exportBusinessCalendars, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportBusinessCalendarsRow{}
+	for rows.Next() {
+		var i ExportBusinessCalendarsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportCalendarFeeds = `-- name: ExportCalendarFeeds :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (
@@ -1505,6 +1550,51 @@ func (q *Queries) ExportEntryLinks(ctx context.Context, arg ExportEntryLinksPara
 	items := []ExportEntryLinksRow{}
 	for rows.Next() {
 		var i ExportEntryLinksRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportEntrySlas = `-- name: ExportEntrySlas :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM entry_sla x
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportEntrySlasParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportEntrySlasRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportEntrySlas(ctx context.Context, arg ExportEntrySlasParams) ([]ExportEntrySlasRow, error) {
+	rows, err := q.db.Query(ctx, exportEntrySlas, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportEntrySlasRow{}
+	for rows.Next() {
+		var i ExportEntrySlasRow
 		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
 			return nil, err
 		}
@@ -2726,6 +2816,51 @@ func (q *Queries) ExportSettingValues(ctx context.Context, arg ExportSettingValu
 	items := []ExportSettingValuesRow{}
 	for rows.Next() {
 		var i ExportSettingValuesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportSlaPolicies = `-- name: ExportSlaPolicies :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM sla_policy x
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportSlaPoliciesParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportSlaPoliciesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportSlaPolicies(ctx context.Context, arg ExportSlaPoliciesParams) ([]ExportSlaPoliciesRow, error) {
+	rows, err := q.db.Query(ctx, exportSlaPolicies, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportSlaPoliciesRow{}
+	for rows.Next() {
+		var i ExportSlaPoliciesRow
 		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
 			return nil, err
 		}

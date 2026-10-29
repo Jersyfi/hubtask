@@ -205,6 +205,39 @@ var importers = map[string]importer{
 			return queries.ClearWorkflowScheme(ctx)
 		},
 	},
+	"business_calendar": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportBusinessCalendar(ctx, sqlc.ImportBusinessCalendarParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsBusinessCalendar(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearBusinessCalendar(ctx)
+		},
+	},
+	"sla_policy": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportSlaPolicy(ctx, sqlc.ImportSlaPolicyParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsSlaPolicy(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearSlaPolicy(ctx)
+		},
+	},
+	"entry_sla": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportEntrySla(ctx, sqlc.ImportEntrySlaParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsEntrySla(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearEntrySla(ctx)
+		},
+	},
 	"link_type": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportLinkType(ctx, sqlc.ImportLinkTypeParams{Payload: payload, Overwrite: overwrite})

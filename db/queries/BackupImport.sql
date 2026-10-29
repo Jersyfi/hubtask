@@ -2530,3 +2530,59 @@ SELECT EXISTS (SELECT 1 FROM cmdb_alert WHERE id = (sqlc.arg('payload')::jsonb->
 
 -- name: ClearCmdbAlert :execrows
 DELETE FROM cmdb_alert;
+
+-- name: ImportBusinessCalendar :execrows
+INSERT INTO business_calendar (id, tenant_id, key, name, spec, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.name, r.spec, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::business_calendar,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, spec = EXCLUDED.spec, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsBusinessCalendar :one
+SELECT EXISTS (SELECT 1 FROM business_calendar WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearBusinessCalendar :execrows
+DELETE FROM business_calendar;
+
+-- name: ImportSlaPolicy :execrows
+INSERT INTO sla_policy (id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.name, r.calendar_key, r.entry_types, r.priority_field, r.goals, r.position, r.enabled, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::sla_policy,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, calendar_key = EXCLUDED.calendar_key, entry_types = EXCLUDED.entry_types,
+  priority_field = EXCLUDED.priority_field, goals = EXCLUDED.goals, position = EXCLUDED.position,
+  enabled = EXCLUDED.enabled, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsSlaPolicy :one
+SELECT EXISTS (SELECT 1 FROM sla_policy WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearSlaPolicy :execrows
+DELETE FROM sla_policy;
+
+-- name: ImportEntrySla :execrows
+INSERT INTO entry_sla (id, tenant_id, item_id, goal, policy_key, target_seconds, standing, armed_at, due_at, at_risk_at, met_at, breached_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.item_id, r.goal, r.policy_key, r.target_seconds, r.standing, r.armed_at, r.due_at, r.at_risk_at, r.met_at, r.breached_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::entry_sla,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  policy_key = EXCLUDED.policy_key, target_seconds = EXCLUDED.target_seconds, standing = EXCLUDED.standing,
+  armed_at = EXCLUDED.armed_at, due_at = EXCLUDED.due_at, at_risk_at = EXCLUDED.at_risk_at,
+  met_at = EXCLUDED.met_at, breached_at = EXCLUDED.breached_at, updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsEntrySla :one
+SELECT EXISTS (SELECT 1 FROM entry_sla WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearEntrySla :execrows
+DELETE FROM entry_sla;

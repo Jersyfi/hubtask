@@ -5364,4 +5364,80 @@ CREATE POLICY tenant_isolation ON cmdb_intake_seen
 GRANT SELECT, INSERT, UPDATE, DELETE ON cmdb_connector, cmdb_alert, cmdb_intake_seen TO hubtask_app;
 
 
+-- Business calendars, SLA policies and what became of each goal on an entry (migration 0240, M5).
+CREATE TABLE business_calendar (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key         text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  name        text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  spec        jsonb NOT NULL,
+  created_at  timestamptz NOT NULL,
+  updated_at  timestamptz NOT NULL,
+  version     integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT business_calendar_key_uq UNIQUE (tenant_id, key)
+);
+ALTER TABLE business_calendar ENABLE ROW LEVEL SECURITY;
+ALTER TABLE business_calendar FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON business_calendar
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON business_calendar TO hubtask_app;
+
+CREATE TABLE sla_policy (
+  id             uuid PRIMARY KEY,
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key            text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  name           text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  calendar_key   text CHECK (calendar_key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  entry_types    text[] NOT NULL,
+  priority_field text NOT NULL DEFAULT '',
+  goals          jsonb NOT NULL,
+  position       integer NOT NULL DEFAULT 0,
+  enabled        boolean NOT NULL DEFAULT true,
+  created_at     timestamptz NOT NULL,
+  updated_at     timestamptz NOT NULL,
+  version        integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT sla_policy_key_uq UNIQUE (tenant_id, key),
+  CONSTRAINT sla_policy_calendar_fkey
+    FOREIGN KEY (tenant_id, calendar_key) REFERENCES business_calendar (tenant_id, key)
+);
+ALTER TABLE sla_policy ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sla_policy FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON sla_policy
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON sla_policy TO hubtask_app;
+
+CREATE TABLE entry_sla (
+  id             uuid PRIMARY KEY,
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id        uuid NOT NULL,
+  goal           text NOT NULL CHECK (goal IN ('FIRST_RESPONSE', 'RESOLUTION')),
+  policy_key     text NOT NULL,
+  target_seconds bigint NOT NULL CHECK (target_seconds > 0),
+  standing       text NOT NULL CHECK (standing IN ('RUNNING', 'PAUSED', 'MET', 'BREACHED')),
+  armed_at       timestamptz NOT NULL,
+  due_at         timestamptz,
+  at_risk_at     timestamptz,
+  met_at         timestamptz,
+  breached_at    timestamptz,
+  updated_at     timestamptz NOT NULL,
+  version        integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT entry_sla_goal_uq UNIQUE (tenant_id, item_id, goal),
+  CONSTRAINT entry_sla_item_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
+  CHECK ((standing = 'MET') = (met_at IS NOT NULL)),
+  CHECK (standing <> 'BREACHED' OR breached_at IS NOT NULL)
+);
+-- A queue sorted by the next breach, and a report by standing.
+CREATE INDEX entry_sla_due_idx ON entry_sla (tenant_id, due_at) WHERE standing = 'RUNNING';
+CREATE INDEX entry_sla_standing_idx ON entry_sla (tenant_id, policy_key, standing);
+ALTER TABLE entry_sla ENABLE ROW LEVEL SECURITY;
+ALTER TABLE entry_sla FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON entry_sla
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON entry_sla TO hubtask_app;
+
+
 COMMIT;

@@ -250,6 +250,45 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"business_calendar": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportBusinessCalendars(ctx, sqlc.ExportBusinessCalendarsParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportBusinessCalendarsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"sla_policy": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportSlaPolicies(ctx, sqlc.ExportSlaPoliciesParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportSlaPoliciesRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"entry_sla": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportEntrySlas(ctx, sqlc.ExportEntrySlasParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportEntrySlasRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"link_type": {
 		delta: false,
 		keys:  1,

@@ -180,6 +180,9 @@ re-mints identities must rewrite exactly these).
 | 62 | `cmdb_duplicates` | `cmdb_duplicate` | `id` | `hub_id`→containers (duplicates opened to merge, with their survivor once resolved) |
 | 63 | `cmdb_connectors` | `cmdb_connector` | `id` | `hub_id`→containers, `collection_id`→containers (cleared when absent), `run_as`→accounts (a hub's connectors with their settings, schedule, cursor and last run, migration 0238; the sealed credential is a backup's only) |
 | 64 | `cmdb_alerts` | `cmdb_alert` | `id` | `connector_id`→cmdb_connectors (the alerts an intake took in, bound to a CI and an entry by identifier, without a foreign key) |
+| 65 | `business_calendars` | `business_calendar` | `id` | — (the workspace's business calendars: weekly working spans, holidays and a zone under a key, migration 0240) |
+| 66 | `sla_policies` | `sla_policy` | `id` | — (the workspace's SLA policies: goals with targets per priority, pause statuses and a warning share; the calendar named by key) |
+| 67 | `entry_slas` | `entry_sla` | `id` | `item_id`→work_items (what became of each goal on an entry: target, at risk, met, breached; the clock is a timer, not archived) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

@@ -99,6 +99,18 @@ func (q *Queries) ClearBucket(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearBusinessCalendar = `-- name: ClearBusinessCalendar :execrows
+DELETE FROM business_calendar
+`
+
+func (q *Queries) ClearBusinessCalendar(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearBusinessCalendar)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearCalendarFeed = `-- name: ClearCalendarFeed :execrows
 DELETE FROM calendar_feed
 `
@@ -381,6 +393,18 @@ DELETE FROM entry_link
 
 func (q *Queries) ClearEntryLink(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, clearEntryLink)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearEntrySla = `-- name: ClearEntrySla :execrows
+DELETE FROM entry_sla
+`
+
+func (q *Queries) ClearEntrySla(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearEntrySla)
 	if err != nil {
 		return 0, err
 	}
@@ -687,6 +711,18 @@ func (q *Queries) ClearSettingValue(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearSlaPolicy = `-- name: ClearSlaPolicy :execrows
+DELETE FROM sla_policy
+`
+
+func (q *Queries) ClearSlaPolicy(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearSlaPolicy)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearStructurePreset = `-- name: ClearStructurePreset :execrows
 DELETE FROM structure_preset
 `
@@ -867,6 +903,17 @@ SELECT EXISTS (SELECT 1 FROM bucket WHERE id = ($1::jsonb->>'id')::uuid) AS held
 
 func (q *Queries) HoldsBucket(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsBucket, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsBusinessCalendar = `-- name: HoldsBusinessCalendar :one
+SELECT EXISTS (SELECT 1 FROM business_calendar WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsBusinessCalendar(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsBusinessCalendar, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -1135,6 +1182,17 @@ SELECT EXISTS (SELECT 1 FROM entry_link WHERE id = ($1::jsonb->>'id')::uuid) AS 
 
 func (q *Queries) HoldsEntryLink(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsEntryLink, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsEntrySla = `-- name: HoldsEntrySla :one
+SELECT EXISTS (SELECT 1 FROM entry_sla WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsEntrySla(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsEntrySla, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -1428,6 +1486,17 @@ SELECT EXISTS (SELECT 1 FROM setting_value WHERE id = ($1::jsonb->>'id')::uuid) 
 
 func (q *Queries) HoldsSettingValue(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsSettingValue, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsSlaPolicy = `-- name: HoldsSlaPolicy :one
+SELECT EXISTS (SELECT 1 FROM sla_policy WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsSlaPolicy(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsSlaPolicy, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -1966,6 +2035,31 @@ type ImportBucketParams struct {
 
 func (q *Queries) ImportBucket(ctx context.Context, arg ImportBucketParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importBucket, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importBusinessCalendar = `-- name: ImportBusinessCalendar :execrows
+INSERT INTO business_calendar (id, tenant_id, key, name, spec, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.name, r.spec, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::business_calendar,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, spec = EXCLUDED.spec, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportBusinessCalendarParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportBusinessCalendar(ctx context.Context, arg ImportBusinessCalendarParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importBusinessCalendar, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}
@@ -2846,6 +2940,34 @@ type ImportEntryLinkParams struct {
 // A link is drawn and removed, never changed: an overwrite has nothing to replace but its moment.
 func (q *Queries) ImportEntryLink(ctx context.Context, arg ImportEntryLinkParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importEntryLink, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importEntrySla = `-- name: ImportEntrySla :execrows
+INSERT INTO entry_sla (id, tenant_id, item_id, goal, policy_key, target_seconds, standing, armed_at, due_at, at_risk_at, met_at, breached_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.item_id, r.goal, r.policy_key, r.target_seconds, r.standing, r.armed_at, r.due_at, r.at_risk_at, r.met_at, r.breached_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::entry_sla,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  policy_key = EXCLUDED.policy_key, target_seconds = EXCLUDED.target_seconds, standing = EXCLUDED.standing,
+  armed_at = EXCLUDED.armed_at, due_at = EXCLUDED.due_at, at_risk_at = EXCLUDED.at_risk_at,
+  met_at = EXCLUDED.met_at, breached_at = EXCLUDED.breached_at, updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportEntrySlaParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportEntrySla(ctx context.Context, arg ImportEntrySlaParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importEntrySla, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}
@@ -3980,6 +4102,33 @@ type ImportSettingValueParams struct {
 // workspace is: the scope follows the tenant written into.
 func (q *Queries) ImportSettingValue(ctx context.Context, arg ImportSettingValueParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importSettingValue, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importSlaPolicy = `-- name: ImportSlaPolicy :execrows
+INSERT INTO sla_policy (id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.name, r.calendar_key, r.entry_types, r.priority_field, r.goals, r.position, r.enabled, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::sla_policy,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, calendar_key = EXCLUDED.calendar_key, entry_types = EXCLUDED.entry_types,
+  priority_field = EXCLUDED.priority_field, goals = EXCLUDED.goals, position = EXCLUDED.position,
+  enabled = EXCLUDED.enabled, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportSlaPolicyParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportSlaPolicy(ctx context.Context, arg ImportSlaPolicyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importSlaPolicy, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}
