@@ -42,15 +42,16 @@ func TestAConnectorIsCheckedAgainstItsKind(t *testing.T) {
 }
 
 func TestAConnectorReachesOnlyItsOwnHosts(t *testing.T) {
-	c, err := NewConnector(ConnectorInput{Key: "intune", Kind: ConnectorIntune, Source: connectorSource(),
-		Settings: map[string]string{"tenant": "t", "client_id": "c"}, AllowedHosts: []string{"Extra.Example.org"}, Now: now}, nil)
+	c, err := NewConnector(ConnectorInput{Key: "intune", Kind: ConnectorIntune, Source: connectorSource(), BaseURL: "https://graph.example",
+		Settings:     map[string]string{"tenant": "t", "client_id": "c", "authority": "https://login.example/"},
+		AllowedHosts: []string{"Extra.Example.org"}, Now: now}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.BaseURL != "https://graph.microsoft.com" {
-		t.Fatalf("the kind's default address, got %q", c.BaseURL)
+	if c.Settings["authority"] != "https://login.example" {
+		t.Fatalf("the authority is kept without its trailing slash, got %q", c.Settings["authority"])
 	}
-	want := []string{"extra.example.org", "graph.microsoft.com", "login.microsoftonline.com"}
+	want := []string{"extra.example.org", "graph.example", "login.example"}
 	if got := c.Hosts(); len(got) != 3 || got[0] != want[0] || got[1] != want[1] || got[2] != want[2] {
 		t.Fatalf("hosts %v, want %v", got, want)
 	}
@@ -69,7 +70,8 @@ func TestAnAlertIntakeIsNeverScheduledAndNeedsNoAddress(t *testing.T) {
 }
 
 func TestAScheduledConnectorRunsEveryPeriodAndStopsAfterFailures(t *testing.T) {
-	c, err := NewConnector(ConnectorInput{Key: "hz", Kind: ConnectorHetzner, Source: connectorSource(), Every: 60, Enabled: true, Now: now}, nil)
+	c, err := NewConnector(ConnectorInput{Key: "hz", Kind: ConnectorHetzner, Source: connectorSource(), BaseURL: "https://hz.example",
+		Every: 60, Enabled: true, Now: now}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

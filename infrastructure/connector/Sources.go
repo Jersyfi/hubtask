@@ -101,10 +101,7 @@ func netbox(ctx context.Context, s session) (port.Page, error) {
 
 // microsoft answers a Graph token for the directory the connector names.
 func (s session) microsoft(ctx context.Context) (string, error) {
-	login := strings.TrimRight(s.p.MicrosoftLogin, "/")
-	if login == "" {
-		login = "https://login.microsoftonline.com"
-	}
+	login := strings.TrimRight(s.setting("authority"), "/")
 	return s.token(ctx, login+"/"+url.PathEscape(s.setting("tenant"))+"/oauth2/v2.0/token", map[string]string{
 		"client_id": s.setting("client_id"), "client_secret": s.secret(), "scope": strings.TrimRight(s.pull.BaseURL, "/") + "/.default",
 	})

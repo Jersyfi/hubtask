@@ -70,9 +70,6 @@ func (p *BreakerPool) of(id shared.ID) Breaker {
 type Pullers struct {
 	Client   httpport.Port
 	Breakers *BreakerPool
-	// MicrosoftLogin is the identity platform's address; empty is Microsoft's own. A test points
-	// it at a fake.
-	MicrosoftLogin string
 	// PageSize is how many records one call asks for; zero is 100.
 	PageSize int
 }

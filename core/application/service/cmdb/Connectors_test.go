@@ -269,7 +269,8 @@ func TestAPullRunsEveryPageThroughTheReconciliationAndKeepsTheCursor(t *testing.
 
 func TestAScheduledPullRunsAsItsDefinerWhenDue(t *testing.T) {
 	f := newConnectorFixture()
-	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "hz", "kind": "HETZNER", "source": "netbox", "every_minutes": 30}))
+	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "hz", "kind": "HETZNER", "source": "netbox",
+		"base_url": "https://api.hetzner.example", "every_minutes": 30}))
 	_, _ = call(t, SetCiConnectorCredential{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String(), "credential": "tok"})
 	f.src.pages = []connectorport.Page{{Payload: domain.Payload{Items: []domain.Item{{Class: "virtual_machine", Name: "vm", NativeKey: "1"}}}}}
 	next, err := f.c.RunScheduled(context.Background(), tenant, id)

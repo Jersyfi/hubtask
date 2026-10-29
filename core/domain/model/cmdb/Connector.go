@@ -40,18 +40,18 @@ const (
 	MaxConnectorFailures = 10
 )
 
-// ConnectorSpec is what a kind needs: whether it pulls or is pushed to, the address it is reached
-// at, the settings it cannot do without and the hosts it always reaches.
+// ConnectorSpec is what a kind needs: whether it pulls or is pushed to and the settings it cannot
+// do without. Every address a connector calls arrives as its configuration - the base address and
+// an identity provider's authority - never from the source code (PG-6).
 type ConnectorSpec struct {
 	Kind ConnectorKind
 	// Push is an intake a monitoring program posts alerts to; otherwise Hubtask pulls.
 	Push bool
-	// DefaultBaseURL is used when the connector names none; empty means it must name one.
-	DefaultBaseURL string
 	// Settings are the non-secret settings the kind needs, by key.
 	Settings []string
-	// FixedHosts are reached besides the base address (an identity provider's token endpoint).
-	FixedHosts []string
+	// Authority names the setting holding the https address of the identity provider the kind
+	// takes its token from, a host it may reach besides its base address's.
+	Authority string
 }
 
 // ConnectorSpecs are the kinds Hubtask ships.
@@ -59,11 +59,9 @@ func ConnectorSpecs() []ConnectorSpec {
 	return []ConnectorSpec{
 		{Kind: ConnectorGLPI, Settings: []string{"client_id"}},
 		{Kind: ConnectorNetBox},
-		{Kind: ConnectorIntune, DefaultBaseURL: "https://graph.microsoft.com", Settings: []string{"tenant", "client_id"},
-			FixedHosts: []string{"login.microsoftonline.com"}},
-		{Kind: ConnectorEntra, DefaultBaseURL: "https://graph.microsoft.com", Settings: []string{"tenant", "client_id"},
-			FixedHosts: []string{"login.microsoftonline.com"}},
-		{Kind: ConnectorHetzner, DefaultBaseURL: "https://api.hetzner.cloud"},
+		{Kind: ConnectorIntune, Settings: []string{"tenant", "client_id", "authority"}, Authority: "authority"},
+		{Kind: ConnectorEntra, Settings: []string{"tenant", "client_id", "authority"}, Authority: "authority"},
+		{Kind: ConnectorHetzner},
 		{Kind: ConnectorOpenStack, Settings: []string{"application_credential_id"}},
 		{Kind: ConnectorAlertmanager, Push: true},
 		{Kind: ConnectorZabbix, Push: true},
@@ -167,9 +165,6 @@ func NewConnector(in ConnectorInput, existing *Connector) (Connector, error) {
 		return Connector{}, invalid("/source", "cmdb.connector_source_not_connector", "key", in.Source.Key)
 	}
 	base := strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
-	if base == "" {
-		base = spec.DefaultBaseURL
-	}
 	if !spec.Push {
 		if base == "" {
 			return Connector{}, invalid("/base_url", "cmdb.connector_base_url_required")
@@ -194,6 +189,13 @@ func NewConnector(in ConnectorInput, existing *Connector) (Connector, error) {
 		if settings[k] == "" {
 			return Connector{}, invalid("/settings/"+k, "cmdb.connector_setting_required", "key", k)
 		}
+	}
+	if spec.Authority != "" {
+		authority := strings.TrimRight(settings[spec.Authority], "/")
+		if _, err := hostOf(authority); err != nil {
+			return Connector{}, invalid("/settings/"+spec.Authority, "cmdb.connector_base_url_invalid")
+		}
+		settings[spec.Authority] = authority
 	}
 	if len(in.AllowedHosts) > MaxConnectorHosts {
 		return Connector{}, invalid("/allowed_hosts", "cmdb.connector_hosts_too_many", "maximum", "10")
@@ -264,12 +266,17 @@ func (c Connector) Spec() ConnectorSpec {
 	return s
 }
 
-// Hosts are every host the connector may reach: its base address's, the kind's own and those it
-// allows (research itsm-cmdb-ai C6).
+// Hosts are every host the connector may reach: its base address's, its identity provider's and
+// those it allows (research itsm-cmdb-ai C6).
 func (c Connector) Hosts() []string {
-	out := append([]string{}, c.Spec().FixedHosts...)
+	var out []string
 	if h, err := hostOf(c.BaseURL); err == nil {
 		out = append(out, h)
+	}
+	if a := c.Spec().Authority; a != "" {
+		if h, err := hostOf(c.Settings[a]); err == nil {
+			out = append(out, h)
+		}
 	}
 	out = append(out, c.AllowedHosts...)
 	slices.Sort(out)

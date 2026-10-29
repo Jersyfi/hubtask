@@ -32,7 +32,7 @@ func guarded(t *testing.T) *httpclient.GuardedClient {
 }
 
 func pullers(t *testing.T, server *httptest.Server) connector.Pullers {
-	return connector.Pullers{Client: guarded(t), MicrosoftLogin: server.URL, PageSize: 2}
+	return connector.Pullers{Client: guarded(t), PageSize: 2}
 }
 
 func pullOf(server *httptest.Server, kind cmdb.ConnectorKind, settings map[string]string, cursor string) port.Pull {
@@ -145,7 +145,7 @@ func TestIntuneDevicesArePulledPageByPage(t *testing.T) {
 			"@odata.nextLink":"` + server.URL + `/v1.0/deviceManagement/managedDevices?page=2"}`))
 	})
 	defer server.Close()
-	settings := map[string]string{"tenant": "dir-1", "client_id": "app"}
+	settings := map[string]string{"tenant": "dir-1", "client_id": "app", "authority": server.URL}
 	page, err := pullers(t, server).Pull(context.Background(), pullOf(server, cmdb.ConnectorIntune, settings, ""))
 	if err != nil {
 		t.Fatal(err)
@@ -166,7 +166,7 @@ func TestEntraDevicesEndAtADeltaLinkAndSkipRemovedOnes(t *testing.T) {
 			"@odata.deltaLink":"` + server.URL + `/v1.0/devices/delta?$deltatoken=abc"}`))
 	})
 	defer server.Close()
-	page, err := pullers(t, server).Pull(context.Background(), pullOf(server, cmdb.ConnectorEntra, map[string]string{"tenant": "dir-1", "client_id": "app"}, ""))
+	page, err := pullers(t, server).Pull(context.Background(), pullOf(server, cmdb.ConnectorEntra, map[string]string{"tenant": "dir-1", "client_id": "app", "authority": server.URL}, ""))
 	if err != nil {
 		t.Fatal(err)
 	}
