@@ -828,6 +828,7 @@ otherwise.
 | `item.label_added` / `.label_removed` | `labelId` | Automation |
 | `item.due_changed` | `oldDueAt`, `newDueAt`, `timeZone` | Scheduler, calendar feed |
 | `item.due_soon` / `item.overdue` | `dueAt`, `thresholdSpec` | Reminders, automation |
+| `item.sla_at_risk` / `item.sla_breached` | `policyKey`, `goal`, `targetSeconds`, `dueAt` | Service desk (an SLA goal's timer), automation, webhooks |
 | `item.archived` / `.unarchived` / `.trashed` / `.restored` / `.purged` | Lifecycle | Cleanup, media reconciliation |
 | `bucket.created` / `.updated` / `.reordered` / `.deleted` | A bucket snapshot; `.updated` and `.reordered` add a `changeSet`, `.deleted` says where its items went | Kanban clients, automation, search |
 | `label.created` / `.updated` / `.deleted` / `.restored` | A label snapshot; `.updated` adds a `changeSet` | Automation, search |

@@ -707,3 +707,40 @@ func lifecyclePayload(item work.WorkItem) map[string]any {
 	}
 	return payload
 }
+
+// SlaMoment is what an SLA announcement says: which goal of which policy, its target in working
+// seconds, and when it falls due.
+type SlaMoment struct {
+	ItemID       shared.ID
+	CollectionID shared.ID
+	PolicyKey    string
+	Goal         string
+	TargetSecs   int64
+	DueAt        *time.Time
+}
+
+// NewItemSlaAtRisk announces that a goal passed its warning share unmet.
+func NewItemSlaAtRisk(id, tenant shared.ID, moment SlaMoment, occurredAt time.Time, cause Cause) (Envelope, error) {
+	return newSlaMoment(id, ItemSlaAtRisk, tenant, moment, occurredAt, cause)
+}
+
+// NewItemSlaBreached announces that a goal ran out of working time unmet.
+func NewItemSlaBreached(id, tenant shared.ID, moment SlaMoment, occurredAt time.Time, cause Cause) (Envelope, error) {
+	return newSlaMoment(id, ItemSlaBreached, tenant, moment, occurredAt, cause)
+}
+
+func newSlaMoment(id shared.ID, eventType Type, tenant shared.ID, moment SlaMoment, occurredAt time.Time, cause Cause) (Envelope, error) {
+	payload := map[string]any{
+		"item_id":        moment.ItemID.String(),
+		"collection_id":  moment.CollectionID.String(),
+		"policy_key":     moment.PolicyKey,
+		"goal":           moment.Goal,
+		"target_seconds": moment.TargetSecs,
+		"due_at":         nil,
+	}
+	if moment.DueAt != nil {
+		payload["due_at"] = moment.DueAt.UTC()
+	}
+	return NewEnvelope(id, eventType, tenant, ItemSubject(moment.ItemID), Actor{Kind: shared.ActorSystem},
+		occurredAt, cause, payload)
+}
