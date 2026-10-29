@@ -71,6 +71,8 @@ func FuzzCompile(f *testing.F) {
 		`{"field":"custom_fields.review","op":"BETWEEN","value":["2026-01-01","2026-12-31"]}`,
 		`{"field":"custom_fields.code","op":"LTE","value":"'; DROP TABLE work_item; --"}`,
 		`{"field":"custom_fields.x","op":"LT","value":"$1"}`,
+		// An aggregation over a key that tries to close the statement (S-11).
+		`{"field":"custom_fields.hours) FROM work_item; --","op":"GT","value":0}`,
 		`not json at all`,
 		`{}`,
 		`[]`,
@@ -122,6 +124,23 @@ func FuzzCompile(f *testing.F) {
 		assertShapeOnly(t, node, sort, statement)
 		assertAlphabet(t, statement, document)
 
+		// The same filter under an aggregation (S-11): a count per status and week.
+		counted, err := view.ParseAggregation(map[string]any{
+			"function": "COUNT", "group_by": "status",
+			"bucket": map[string]any{"field": "created_at", "period": "week"},
+		}, "/aggregate")
+		if err != nil {
+			t.Fatalf("the aggregation does not parse: %v", err)
+		}
+		summary, err := Aggregate(search, counted, document, 5001)
+		if err != nil && !hasPlaceholder(node) {
+			t.Fatalf("an aggregation did not compile: %v", err)
+		}
+		if err == nil {
+			assertParameters(t, summary)
+			assertAlphabet(t, summary, document)
+		}
+
 		// The same keys as a sort and a grouping, which write the typed value in two more places.
 		for _, key := range (view.Spec{Filter: node}).CustomKeys() {
 			raw := map[string]any{"field": view.CustomFieldPrefix + key, "dir": "DESC"}
@@ -156,6 +175,29 @@ func FuzzCompile(f *testing.F) {
 			}
 			assertParameters(t, counted)
 			assertAlphabet(t, counted, document)
+
+			// The key as an aggregation's measure, grouping and bucket, each where its shape allows.
+			for _, raw := range []map[string]any{
+				{"function": "SUM", "field": view.CustomFieldPrefix + key},
+				{"function": "COUNT", "group_by": view.CustomFieldPrefix + key},
+				{"function": "COUNT", "bucket": map[string]any{"field": view.CustomFieldPrefix + key, "period": "day"}},
+			} {
+				aggregation, err := view.ParseAggregation(raw, "/aggregate")
+				if err != nil {
+					t.Fatalf("a custom aggregation does not parse: %v", err)
+				}
+				aggregation, err = aggregation.Shaped(fuzzShapes(node))
+				if err != nil {
+					continue
+				}
+				summary, err := Aggregate(repository.ItemSearch{Anchor: search.Anchor, Spec: spec},
+					aggregation, document, 5001)
+				if err != nil {
+					t.Fatalf("a custom aggregation did not compile: %v", err)
+				}
+				assertParameters(t, summary)
+				assertAlphabet(t, summary, document)
+			}
 		}
 	})
 }
