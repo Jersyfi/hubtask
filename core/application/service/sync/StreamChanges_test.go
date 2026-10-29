@@ -341,6 +341,23 @@ func TestAWorkspaceWideRecordIsReadAtTheTenantScope(t *testing.T) {
 	}
 }
 
+// An entry type is the workspace's vocabulary: its record reaches a member whose roles are all on
+// hubs, who may not read the workspace itself, as ListEntryTypes answers them.
+func TestAnEntryTypeRecordReachesAMemberWithoutTheWorkspace(t *testing.T) {
+	first := entry(1, "")
+	first.Entity = entityEntryType
+	f := streaming(t, first)
+	f.auth.workspace = false
+
+	batch, err := f.stream.Next(t.Context(), actor(), Position{IssuedAt: now})
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if len(batch.Records) != 1 {
+		t.Errorf("the entry type's record was withheld: %+v", batch.Records)
+	}
+}
+
 // A change naming no container of a kind the reader cannot place is one whose visibility nothing
 // here can decide, and the safe answer is the one that does not leak it.
 func TestARecordOfAnUnknownKindWithNoContainerIsWithheld(t *testing.T) {

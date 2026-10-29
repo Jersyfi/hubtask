@@ -384,12 +384,18 @@ func (s StreamChanges) mayRead(
 // from. Only an entity the reader knows is read that way: a record of a kind the walk does not
 // name is withheld, because nothing here can say what it describes, and the safe answer to a
 // change nobody can place is the one that does not leak it.
+//
+// An entry type is the workspace's vocabulary, which ListEntryTypes answers every member: a
+// member whose roles are all on hubs needs it as much to write an entry there.
 func (s StreamChanges) mayReadWorkspaceWide(
 	ctx context.Context, actor appshared.ActorContext, entity string,
 	resolved map[shared.ID]visibility,
 ) (visibility, error) {
 	if !knownEntity(entity) {
 		return visibility{}, nil
+	}
+	if entity == entityEntryType {
+		return visibility{allowed: true}, nil
 	}
 	if seen, decided := resolved[shared.ID("")]; decided {
 		return seen, nil
