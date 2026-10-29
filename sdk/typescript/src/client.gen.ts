@@ -2093,8 +2093,8 @@ export class HubtaskClient {
   }
 
   /** POST /items/{itemId}:reorder */
-  reorderWorkItem(itemId: string, body: NonNullable<operations["reorderWorkItem"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["reorderWorkItem"]['responses'][200]['content']["application/json"]> {
-    return this.call("POST", "/items/{itemId}:reorder", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  reorderWorkItem(itemId: string, body: NonNullable<operations["reorderWorkItem"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string; readonly ifMatch?: string } = {}): Promise<operations["reorderWorkItem"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}:reorder", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey, "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
   /** POST /items/{itemId}:move */

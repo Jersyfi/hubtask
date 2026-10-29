@@ -11399,6 +11399,7 @@ paths:
         either one's order being discarded.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
       requestBody:
         required: false
         content:

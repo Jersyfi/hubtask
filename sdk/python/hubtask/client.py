@@ -1663,9 +1663,9 @@ class Client:
         """POST /items/{itemId}:unarchive"""
         return self._call("POST", "/items/{itemId}:unarchive", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, None, "none", None, "json")
 
-    def reorder_work_item(self, item_id: str, body: dict[str, Any], *, idempotency_key: str | None = None) -> "WorkItem":
+    def reorder_work_item(self, item_id: str, body: dict[str, Any], *, idempotency_key: str | None = None, if_match: str | None = None) -> "WorkItem":
         """POST /items/{itemId}:reorder"""
-        return self._call("POST", "/items/{itemId}:reorder", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+        return self._call("POST", "/items/{itemId}:reorder", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, body, "json", "application/json", "json")
 
     def move_work_item(self, item_id: str, body: dict[str, Any], *, idempotency_key: str | None = None) -> "MoveResult":
         """POST /items/{itemId}:move"""
