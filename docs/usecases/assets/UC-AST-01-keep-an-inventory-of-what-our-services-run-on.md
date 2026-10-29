@@ -32,6 +32,7 @@ Dana runs IT for a practice of forty people. She records the booking application
 8. The *Assets* screen of a hub lists its CIs by class and shows one with its attributes, relations and compliance fields, editable by a member who may write.
 9. An entry's notes or comments, a page or a whiteboard point at a CI with `hubtask:ci/<id>`; the reference shows the CI's name, class and stage to a reader of its hub and only its address to anyone else, and the CI's screen lists what points at it that the reader may see.
 10. A device that holds a copy of the workspace reads a hub's inventory while the server is away: the CIs by class, a CI with its relations, the protection need it inherits and its impact, and the classes and relation types; only a hub the reader may read reaches the device, every write of a CI or a relation reaches it, and nothing is written offline.
+11. Writing a comment or a page, a member mentions a CI of a hub they may read, found by its name, inline or as a card; a CI of a hub out of their reach, or one merged away, is not offered.
 
 ## Where it ends
 
