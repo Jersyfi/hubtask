@@ -26,6 +26,8 @@ var restDoors = map[string]restDoor{
 	"changeEntryType":           {UseCase: "ChangeEntryType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"changeLinkType":            {UseCase: "ChangeLinkType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"changeRole":                {UseCase: "ChangeRole", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"clearCover":                {UseCase: "ClearCover", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"clearDueDate":              {UseCase: "ClearDueDate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"completeWorkItem":          {UseCase: "CompleteWorkItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createBucket":              {UseCase: "CreateBucket", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/containers/{collection_id}/buckets/{id}", NullClears: false, Integers: []string{"wip_limit"}},
 	"createEntryType":           {UseCase: "CreateEntryType", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
@@ -106,7 +108,9 @@ var restDoors = map[string]restDoor{
 	"revokeRoleGrant":           {UseCase: "RevokeRoleGrant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"saveWorkflowDraft":         {UseCase: "SaveWorkflowDraft", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setConfigPolicy":           {UseCase: "SetConfigPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setCover":                  {UseCase: "SetCover", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setCustomField":            {UseCase: "SetCustomField", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setDueDate":                {UseCase: "SetDueDate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setEntryTypeForm":          {UseCase: "SetEntryTypeForm", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "form", Location: "", NullClears: false, Integers: []string(nil)},
 	"setHubPrivacy":             {UseCase: "SetHubPrivacy", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setItemEntryType":          {UseCase: "SetItemEntryType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -202,6 +206,16 @@ func (c *RestController) ChangeRole(w http.ResponseWriter, r *http.Request, key 
 	var body openapi.ChangeRoleApplicationMergePatchPlusJSONRequestBody
 	var answer openapi.CustomRole
 	c.door(w, r, restDoors["changeRole"], usecase.Input{"key": key}, params, &body, &answer)
+}
+
+// ClearCover answers DELETE /items/{itemId}/cover by the generated mapping.
+func (c *RestController) ClearCover(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.ClearCoverParams) {
+	c.door(w, r, restDoors["clearCover"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
+}
+
+// ClearDueDate answers DELETE /items/{itemId}/due by the generated mapping.
+func (c *RestController) ClearDueDate(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.ClearDueDateParams) {
+	c.door(w, r, restDoors["clearDueDate"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
 }
 
 // CompleteWorkItem answers POST /items/{itemId}:complete by the generated mapping.
@@ -670,10 +684,22 @@ func (c *RestController) SetConfigPolicy(w http.ResponseWriter, r *http.Request)
 	c.door(w, r, restDoors["setConfigPolicy"], usecase.Input{}, nil, &body, &answer)
 }
 
+// SetCover answers PUT /items/{itemId}/cover by the generated mapping.
+func (c *RestController) SetCover(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.SetCoverParams) {
+	var body openapi.SetCoverJSONRequestBody
+	c.door(w, r, restDoors["setCover"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(workItemResponse))
+}
+
 // SetCustomField answers PUT /items/{itemId}/custom-fields/{key} by the generated mapping.
 func (c *RestController) SetCustomField(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, key openapi.CustomFieldKey, params openapi.SetCustomFieldParams) {
 	var body openapi.SetCustomFieldJSONRequestBody
 	c.door(w, r, restDoors["setCustomField"], usecase.Input{"item_id": itemId.String(), "key": string(key)}, params, &body, answerBy(workItemResponse))
+}
+
+// SetDueDate answers PUT /items/{itemId}/due by the generated mapping.
+func (c *RestController) SetDueDate(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.SetDueDateParams) {
+	var body openapi.SetDueDateJSONRequestBody
+	c.door(w, r, restDoors["setDueDate"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(workItemResponse))
 }
 
 // SetEntryTypeForm answers PUT /entry-types/{key}/form by the generated mapping.

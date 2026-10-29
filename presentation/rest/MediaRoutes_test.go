@@ -128,7 +128,7 @@ func TestSettingACoverAnswersWithTheEntryAndItsNewVersion(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status %d, body %s", response.Code, response.Body.String())
 	}
-	if cat.name != setCoverUseCase {
+	if cat.name != "SetCover" {
 		t.Errorf("the controller invoked %q", cat.name)
 	}
 	// The If-Match reaches the catalogue as the version the caller read.
@@ -179,7 +179,7 @@ func TestAnEntryWithoutACoverCarriesNoCoverKey(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status %d, body %s", response.Code, response.Body.String())
 	}
-	if cat.name != clearCoverUseCase {
+	if cat.name != "ClearCover" {
 		t.Errorf("the controller invoked %q", cat.name)
 	}
 	if strings.Contains(response.Body.String(), `"cover"`) {

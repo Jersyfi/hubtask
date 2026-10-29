@@ -12488,6 +12488,8 @@ paths:
     put:
       tags: [items]
       operationId: setCover
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
       description: >
         Puts a cover on the entry: a colour token, or an image by its media identifier. Only a
         type whose profile carries the COVER capability has one - by default a task, and neither
@@ -12517,6 +12519,8 @@ paths:
     delete:
       tags: [items]
       operationId: clearCover
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
       description: >
         Takes the cover off the entry. Idempotent: an entry with no cover succeeds and announces
         nothing.
@@ -12541,6 +12545,8 @@ paths:
     put:
       tags: [items]
       operationId: setDueDate
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
       description: >
         Puts a due date on the entry: the instant, the all-day flag, and the IANA zone, written
         together because the three describe one date. An all-day due date is a
@@ -12571,6 +12577,8 @@ paths:
     delete:
       tags: [items]
       operationId: clearDueDate
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
       description: >
         Takes the due date off the entry - the instant, the all-day flag and the zone together,
         because none of them means anything alone. Idempotent: an entry with no due date succeeds

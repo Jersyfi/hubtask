@@ -16528,6 +16528,8 @@
           "items"
         ],
         "operationId": "setCover",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "workItemResponse",
         "description": "Puts a cover on the entry: a colour token, or an image by its media identifier. Only a type whose profile carries the COVER capability has one - by default a task, and neither a work package nor an activity. An image has to be a READY media object of usage COVER in this workspace. Replacing a cover is this call again; the displaced image loses a reference and is cleaned up by the reconciliation job once nothing points at it.\n",
         "parameters": [
           {
@@ -16572,6 +16574,8 @@
           "items"
         ],
         "operationId": "clearCover",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "workItemResponse",
         "description": "Takes the cover off the entry. Idempotent: an entry with no cover succeeds and announces nothing.\n",
         "parameters": [
           {
@@ -16613,6 +16617,8 @@
           "items"
         ],
         "operationId": "setDueDate",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "workItemResponse",
         "description": "Puts a due date on the entry: the instant, the all-day flag, and the IANA zone, written together because the three describe one date. An all-day due date is a date in the given zone, never a midnight that shifts with the viewer. A zone that is not an IANA name is refused. Moving a due date is this call again. The same three fields on the create and update paths dispatch into this writer, so a due date means the same thing whichever door it came through.\n",
         "parameters": [
           {
@@ -16657,6 +16663,8 @@
           "items"
         ],
         "operationId": "clearDueDate",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "workItemResponse",
         "description": "Takes the due date off the entry - the instant, the all-day flag and the zone together, because none of them means anything alone. Idempotent: an entry with no due date succeeds and announces nothing.\n",
         "parameters": [
           {
