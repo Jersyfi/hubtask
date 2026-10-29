@@ -83,12 +83,28 @@ func (w StepWho) IsOpen() bool {
 }
 
 // StepCheck is a condition that must hold before a step is taken, with the team's own words for
-// the refusal (UC-FLW-04 check 2).
+// the refusal (UC-FLW-04 check 2): one text, the same per language (`Messages`, a language tag to
+// its words), or a message picked from the shipped list (`MessageCode`), which a client renders in
+// the reader's language. A reader's language with no words of its own falls back to Message, then
+// to the picked message, then to the check's key.
 type StepCheck struct {
-	Key     string
-	Holds   string
-	Message string
+	Key         string
+	Holds       string
+	Message     string
+	Messages    map[string]string
+	MessageCode string
 }
+
+// StepCheckMessageCodes are the shipped messages a check may pick, each a catalogue entry
+// `workflows.check_message.<code>` in every language.
+var StepCheckMessageCodes = []string{
+	"fill_required", "attach_evidence", "needs_approval", "amount_positive", "dates_in_order", "needs_assignee",
+}
+
+// MaxStepCheckLanguages bounds the languages one check's words are written in.
+const MaxStepCheckLanguages = 20
+
+var languageTagPattern = regexp.MustCompile(`^[a-z]{2,3}(-[A-Z]{2})?$`)
 
 // WorkflowStep is a transition: from one or more statuses - or from any - to one (UC-FLW-02 check
 // 1), with who may take it, what must hold, what it asks for, and the fields it requires.
@@ -490,6 +506,14 @@ func newWorkflowStep(step WorkflowStep, shape WorkflowShape, form text.Normalize
 			return WorkflowStep{}, err
 		}
 		check.Message = message
+		if check.Messages, err = stepCheckMessages(check.Messages, form, checkAt+"/messages"); err != nil {
+			return WorkflowStep{}, err
+		}
+		check.MessageCode = strings.TrimSpace(check.MessageCode)
+		if check.MessageCode != "" && !slices.Contains(StepCheckMessageCodes, check.MessageCode) {
+			return WorkflowStep{}, workflowInvalid(checkAt+"/message_code", "workflows.message_code_unknown",
+				map[string]string{"code": check.MessageCode})
+		}
 		checks = append(checks, check)
 	}
 	step.Checks = checks
@@ -613,6 +637,33 @@ func StepRequirementsMissing(step WorkflowStep, item WorkItem) []string {
 	return missing
 }
 
+// stepCheckMessages holds a check's words per language: a language tag (`de`, `pt-BR`) to text no
+// longer than a form's help; an empty text drops its language.
+func stepCheckMessages(raw map[string]string, form text.Normalizer, at string) (map[string]string, error) {
+	if len(raw) > MaxStepCheckLanguages {
+		return nil, workflowInvalid(at, "workflows.too_many_languages",
+			map[string]string{"maximum": strconv.Itoa(MaxStepCheckLanguages)})
+	}
+	var out map[string]string
+	for language, words := range raw {
+		if !languageTagPattern.MatchString(language) {
+			return nil, workflowInvalid(at+"/"+language, "workflows.language_malformed", map[string]string{"language": language})
+		}
+		message, err := formHelp(words, form, at+"/"+language)
+		if err != nil {
+			return nil, err
+		}
+		if message == "" {
+			continue
+		}
+		if out == nil {
+			out = map[string]string{}
+		}
+		out[language] = message
+	}
+	return out, nil
+}
+
 // StepRefused is the refusal of a step whose requirements or checks do not hold (UC-FLW-03 check
 // 3): one field error per missing field or failing check, the check's own words as its message.
 func StepRefused(step WorkflowStep, missing []string, failed []StepCheck) error {
@@ -627,6 +678,12 @@ func StepRefused(step WorkflowStep, missing []string, failed []StepCheck) error 
 		params := map[string]string{"check": check.Key}
 		if check.Message != "" {
 			params["message"] = check.Message
+		}
+		if check.MessageCode != "" {
+			params["message_code"] = check.MessageCode
+		}
+		for language, words := range check.Messages {
+			params["message."+language] = words
 		}
 		problems = append(problems, shared.FieldError{Path: "", Code: "workflows.check_failed", Params: params})
 	}

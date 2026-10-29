@@ -197,3 +197,29 @@ export function workflowChoices(
     };
   });
 }
+
+/** The shipped messages a check may pick (work.StepCheckMessageCodes). */
+export const CHECK_MESSAGE_CODES = [
+  'fill_required', 'attach_evidence', 'needs_approval', 'amount_positive', 'dates_in_order', 'needs_assignee',
+] as const;
+
+interface CheckWords {
+  readonly key: string;
+  readonly message?: string | null;
+  readonly messages?: Readonly<Record<string, string>>;
+  readonly message_code?: string | null;
+}
+
+/**
+ * A check's message in the reader's language (UC-FLW-04 check 2): the team's words for the locale,
+ * then for its language alone (`pt` for `pt-BR`), then its one text, then the picked shipped
+ * message, then the check's key.
+ */
+export function checkMessage(check: CheckWords, locale: string, t: (code: string) => string): string {
+  const words = check.messages ?? {};
+  const own = words[locale] ?? words[locale.split('-')[0] ?? locale];
+  if (own) return own;
+  if (check.message) return check.message;
+  if (check.message_code) return t(`workflows.check_message.${check.message_code}`);
+  return check.key;
+}

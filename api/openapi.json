@@ -23862,6 +23862,34 @@
                   ],
                   "maxLength": 500,
                   "description": "The workspace's own words for the refusal."
+                },
+                "messages": {
+                  "type": "object",
+                  "maxProperties": 20,
+                  "description": "The workspace's own words per language, a language tag (`de`, `pt-BR`) to its text; a reader's language without words of its own reads `message`, then `message_code`. A malformed tag is refused with `workflows.language_malformed`.\n",
+                  "propertyNames": {
+                    "pattern": "^[a-z]{2,3}(-[A-Z]{2})?$"
+                  },
+                  "additionalProperties": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "message_code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "A shipped message picked instead of writing one, rendered in the reader's language; another is refused with `workflows.message_code_unknown`.\n",
+                  "enum": [
+                    "fill_required",
+                    "attach_evidence",
+                    "needs_approval",
+                    "amount_positive",
+                    "dates_in_order",
+                    "needs_assignee",
+                    null
+                  ]
                 }
               }
             }
@@ -24269,6 +24297,20 @@
                     "string",
                     "null"
                   ]
+                },
+                "messages": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "description": "The words per language."
+                },
+                "message_code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The shipped message picked."
                 }
               }
             }

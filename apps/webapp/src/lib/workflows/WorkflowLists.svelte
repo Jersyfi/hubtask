@@ -13,11 +13,11 @@
   import type { WorkflowShape, WorkflowStep } from '@hubtask/sync-engine';
 
   import {
-    CATEGORIES, addStatus, addStep, changeStatus, changeStep, moveStatus, removeStatus, removeStep, statusLabel,
+    CATEGORIES, CHECK_MESSAGE_CODES, addStatus, addStep, changeStatus, changeStep, moveStatus, removeStatus, removeStep, statusLabel,
     stepLabel, type Category,
   } from '../data/workflows.ts';
   import { groups } from '../data/groups.svelte.ts';
-  import { t } from '../i18n/i18n.svelte.ts';
+  import { messages, t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
     shape: WorkflowShape;
@@ -104,7 +104,32 @@
     onchange(changeStep(shape, step.key, { who: { ...step.who, groups: [...chosen] } }));
   }
 
-  function changeCheck(step: WorkflowStep, index: number, change: { holds?: string; message?: string | null }) {
+  /** The app's own languages, each a field of a check's words beside the one text. */
+  const LANGUAGES = ['en', 'de'] as const;
+
+  const messageCodeOptions = $derived([
+    { value: '', label: t('app.workflow_designer.check_message_code_none') },
+    ...CHECK_MESSAGE_CODES.map((code) => ({ value: code, label: t(`workflows.check_message.${code}`) })),
+  ]);
+
+  function changeWords(step: WorkflowStep, index: number, language: string, words: string) {
+    const check = step.checks?.[index];
+    const next: Record<string, string> = { ...(check?.messages ?? {}) };
+    if (words.trim()) next[language] = words.trim();
+    else delete next[language];
+    changeCheck(step, index, { messages: next });
+  }
+
+  function changeCheck(
+    step: WorkflowStep,
+    index: number,
+    change: {
+      holds?: string;
+      message?: string | null;
+      messages?: Record<string, string>;
+      message_code?: (typeof CHECK_MESSAGE_CODES)[number] | null;
+    },
+  ) {
     const checks = (step.checks ?? []).map((check, at) => (at === index ? { ...check, ...change } : check));
     onchange(changeStep(shape, step.key, { checks }));
   }
@@ -118,6 +143,15 @@
 
   function removeCheck(step: WorkflowStep, index: number) {
     onchange(changeStep(shape, step.key, { checks: (step.checks ?? []).filter((_, at) => at !== index) }));
+  }
+
+  /** A language's own name in the reader's language. */
+  function languageName(language: string): string {
+    try {
+      return new Intl.DisplayNames([messages.locale], { type: 'language' }).of(language) ?? language;
+    } catch {
+      return language;
+    }
   }
 
   const checked = (event: Event) => (event.currentTarget as HTMLInputElement).checked;
@@ -320,6 +354,22 @@
                     value={check.message ?? ''}
                     readonly={isReadOnly}
                     onchange={(event: Event) => changeCheck(step, index, { message: valueOf(event).trim() || null })}
+                  />
+                  {#each LANGUAGES as language (language)}
+                    <Input
+                      label={t('app.workflow_designer.check_message_in', { language: languageName(language) })}
+                      value={check.messages?.[language] ?? ''}
+                      readonly={isReadOnly}
+                      onchange={(event: Event) => changeWords(step, index, language, valueOf(event))}
+                    />
+                  {/each}
+                  <Select
+                    label={t('app.workflow_designer.check_message_code')}
+                    options={messageCodeOptions}
+                    value={check.message_code ?? ''}
+                    disabledReason={isReadOnly ? t('app.workflow_designer.read_only') : undefined}
+                    onchange={(event: Event) =>
+                      changeCheck(step, index, { message_code: (valueOf(event) || null) as (typeof CHECK_MESSAGE_CODES)[number] | null })}
                   />
                   {#if !isReadOnly}
                     <IconButton icon="trash" size="sm" tone="subtle" label={t('app.workflow_designer.remove_check')} onclick={() => removeCheck(step, index)} />

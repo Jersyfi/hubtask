@@ -333,7 +333,10 @@ func ShapeOutput(shape domain.WorkflowShape) usecase.Output {
 	for _, step := range shape.Steps {
 		checks := make([]any, 0, len(step.Checks))
 		for _, check := range step.Checks {
-			checks = append(checks, map[string]any{"key": check.Key, "holds": check.Holds, "message": check.Message})
+			checks = append(checks, map[string]any{
+				"key": check.Key, "holds": check.Holds, "message": check.Message,
+				"messages": CheckMessagesOutput(check.Messages), "message_code": stringOrNil(check.MessageCode),
+			})
 		}
 		steps = append(steps, map[string]any{
 			"key": step.Key, "name": stringOrNil(step.Name), "from": nonNil(step.From), "to": step.To,
@@ -402,11 +405,36 @@ func ShapeFromInput(raw any) (domain.WorkflowShape, error) {
 			}
 			step.Checks = append(step.Checks, domain.StepCheck{
 				Key: textOf(check["key"]), Holds: textOf(check["holds"]), Message: textOf(check["message"]),
+				Messages: checkMessagesOf(check["messages"]), MessageCode: textOf(check["message_code"]),
 			})
 		}
 		shape.Steps = append(shape.Steps, step)
 	}
 	return shape, nil
+}
+
+// CheckMessagesOutput is a check's words per language as the contract spells them: an object, never
+// null.
+func CheckMessagesOutput(messages map[string]string) map[string]any {
+	out := make(map[string]any, len(messages))
+	for language, words := range messages {
+		out[language] = words
+	}
+	return out
+}
+
+// checkMessagesOf reads a check's words per language; a value that is not text is dropped, and the
+// domain refuses what is malformed.
+func checkMessagesOf(raw any) map[string]string {
+	object, _ := raw.(map[string]any)
+	if len(object) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(object))
+	for language, words := range object {
+		out[language] = textOf(words)
+	}
+	return out
 }
 
 func textsOf(raw any) []string {

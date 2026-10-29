@@ -9,7 +9,7 @@
   import type { StepVerdict, Workflow, WorkflowShape, WorkItem } from '@hubtask/sync-engine';
 
   import EntryPicker from '../entries/EntryPicker.svelte';
-  import { statusLabel, stepLabel, workflows } from '../data/workflows.svelte.ts';
+  import { checkMessage, statusLabel, stepLabel, workflows } from '../data/workflows.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -75,8 +75,8 @@
         {/each}
         {#each verdict.checks as check (check.key)}
           <li>{check.holds
-            ? t('app.workflow_designer.try_check_holds', { check: check.message ?? check.key })
-            : t('app.workflow_designer.try_check_fails', { check: check.message ?? check.key })}</li>
+            ? t('app.workflow_designer.try_check_holds', { check: checkMessage(check, messages.locale, t) })
+            : t('app.workflow_designer.try_check_fails', { check: checkMessage(check, messages.locale, t) })}</li>
         {/each}
       </ul>
     {/if}

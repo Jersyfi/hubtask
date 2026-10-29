@@ -236,3 +236,40 @@ func TestStepRefusedNamesWhatIsMissing(t *testing.T) {
 		t.Fatal("a step leaves from its statuses, and never from its target")
 	}
 }
+
+// UC-FLW-04 check 2: a check's message is the team's words per language or a message picked from
+// the shipped list; a malformed language or an unknown pick is refused, an empty text drops its
+// language, and the refusal carries every language's words for the reader's client to choose.
+func TestACheckSpeaksEachLanguage(t *testing.T) {
+	withCheck := func(check work.StepCheck) (work.WorkflowShape, error) {
+		shape := serviceShape()
+		check.Key, check.Holds = "amount", "entry.custom_fields.amount > 0"
+		shape.Steps[0].Checks = []work.StepCheck{check}
+		return work.NewWorkflowShape(shape, false, text.Composing{})
+	}
+	shape, err := withCheck(work.StepCheck{
+		Message: "Above zero", MessageCode: "amount_positive",
+		Messages: map[string]string{"de": " Über null ", "fr": ""},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := shape.Steps[0].Checks[0]
+	if len(check.Messages) != 1 || check.Messages["de"] != "Über null" || check.MessageCode != "amount_positive" {
+		t.Fatalf("the check is %+v", check)
+	}
+	var coded *shared.Error
+	if !errors.As(work.StepRefused(shape.Steps[0], nil, []work.StepCheck{check}), &coded) ||
+		coded.Fields[0].Params["message.de"] != "Über null" || coded.Fields[0].Params["message_code"] != "amount_positive" ||
+		coded.Fields[0].Params["message"] != "Above zero" {
+		t.Fatalf("the refusal: %+v", coded)
+	}
+	for code, check := range map[string]work.StepCheck{
+		"workflows.language_malformed":   {Messages: map[string]string{"German": "x"}},
+		"workflows.message_code_unknown": {MessageCode: "be_nice"},
+	} {
+		if _, err := withCheck(check); !errors.As(err, &coded) || coded.DetailCode != code {
+			t.Errorf("%+v answered %v, want %s", check, err, code)
+		}
+	}
+}

@@ -64,9 +64,11 @@ type workflowWhoDocument struct {
 }
 
 type workflowCheckDocument struct {
-	Key     string `json:"key"`
-	Holds   string `json:"holds"`
-	Message string `json:"message,omitempty"`
+	Key         string            `json:"key"`
+	Holds       string            `json:"holds"`
+	Message     string            `json:"message,omitempty"`
+	Messages    map[string]string `json:"messages,omitempty"`
+	MessageCode string            `json:"message_code,omitempty"`
 }
 
 func shapeColumn(shape work.WorkflowShape) ([]byte, error) {

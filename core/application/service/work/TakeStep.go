@@ -380,7 +380,14 @@ func StepOutput(verdict StepVerdict) usecase.Output {
 	step := verdict.Step
 	checks := make([]usecase.Output, 0, len(step.Checks))
 	for _, check := range step.Checks {
-		checks = append(checks, usecase.Output{"key": check.Key, "holds": verdict.Checks[check.Key], "message": stringOrNil(check.Message)})
+		messages := make(map[string]any, len(check.Messages))
+		for language, words := range check.Messages {
+			messages[language] = words
+		}
+		checks = append(checks, usecase.Output{
+			"key": check.Key, "holds": verdict.Checks[check.Key], "message": stringOrNil(check.Message),
+			"messages": messages, "message_code": stringOrNil(check.MessageCode),
+		})
 	}
 	return usecase.Output{
 		"key": step.Key, "name": stringOrNil(step.Name), "to": step.To,

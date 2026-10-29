@@ -115,7 +115,9 @@ name, a label colour token and one of four **categories** - `BACKLOG`, `TODO`, `
 any but its own target - to one, with *who* may take it (built-in roles, a person field of the
 entry - `assignee`, `created_by`, `custom_fields.<key>` -, a CEL condition), the fields it
 *requires*, the fields it *asks* for when taken, and *checks* - a condition with the workspace's
-own words for the refusal. Conditions are CEL in the form's environment with `entry.status`
+own words for the refusal: one text, words per language (`messages`, a language tag to its text)
+or a message picked from the shipped list (`message_code`, `work.StepCheckMessageCodes`); the
+reader's client reads its language's words, then the one text, then the picked message. Conditions are CEL in the form's environment with `entry.status`
 (`WorkflowEnvironment`). The shipped workflow `default` - To do, In progress, Done - is declared in
 the domain (`work.SystemWorkflow`) and gains its row when a workspace first uses or changes it. A
 change is a **draft** beside the shape in force, which stays in force until the draft is

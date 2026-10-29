@@ -6387,6 +6387,39 @@ func (e WorkflowStatusCategory) Valid() bool {
 	}
 }
 
+// Defines values for WorkflowStepChecksMessageCode.
+const (
+	WorkflowStepChecksMessageCodeAmountPositive WorkflowStepChecksMessageCode = "amount_positive"
+	WorkflowStepChecksMessageCodeAttachEvidence WorkflowStepChecksMessageCode = "attach_evidence"
+	WorkflowStepChecksMessageCodeDatesInOrder   WorkflowStepChecksMessageCode = "dates_in_order"
+	WorkflowStepChecksMessageCodeFillRequired   WorkflowStepChecksMessageCode = "fill_required"
+	WorkflowStepChecksMessageCodeLessThannil    WorkflowStepChecksMessageCode = "<nil>"
+	WorkflowStepChecksMessageCodeNeedsApproval  WorkflowStepChecksMessageCode = "needs_approval"
+	WorkflowStepChecksMessageCodeNeedsAssignee  WorkflowStepChecksMessageCode = "needs_assignee"
+)
+
+// Valid indicates whether the value is a known member of the WorkflowStepChecksMessageCode enum.
+func (e WorkflowStepChecksMessageCode) Valid() bool {
+	switch e {
+	case WorkflowStepChecksMessageCodeAmountPositive:
+		return true
+	case WorkflowStepChecksMessageCodeAttachEvidence:
+		return true
+	case WorkflowStepChecksMessageCodeDatesInOrder:
+		return true
+	case WorkflowStepChecksMessageCodeFillRequired:
+		return true
+	case WorkflowStepChecksMessageCodeLessThannil:
+		return true
+	case WorkflowStepChecksMessageCodeNeedsApproval:
+		return true
+	case WorkflowStepChecksMessageCodeNeedsAssignee:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for WorkspaceDefaultWeekStart.
 const (
 	WorkspaceDefaultWeekStartLessThannil WorkspaceDefaultWeekStart = "<nil>"
@@ -13960,6 +13993,12 @@ type StepVerdict struct {
 		Holds   bool    `json:"holds"`
 		Key     string  `json:"key"`
 		Message *string `json:"message,omitempty"`
+
+		// MessageCode The shipped message picked.
+		MessageCode *string `json:"message_code,omitempty"`
+
+		// Messages The words per language.
+		Messages *map[string]string `json:"messages,omitempty"`
 	} `json:"checks"`
 
 	// From On a try: the status it was judged from.
@@ -15335,6 +15374,12 @@ type WorkflowStep struct {
 
 		// Message The workspace's own words for the refusal.
 		Message *string `json:"message,omitempty"`
+
+		// MessageCode A shipped message picked instead of writing one, rendered in the reader's language; another is refused with `workflows.message_code_unknown`.
+		MessageCode *WorkflowStepChecksMessageCode `json:"message_code,omitempty"`
+
+		// Messages The workspace's own words per language, a language tag (`de`, `pt-BR`) to its text; a reader's language without words of its own reads `message`, then `message_code`. A malformed tag is refused with `workflows.language_malformed`.
+		Messages *map[string]string `json:"messages,omitempty"`
 	} `json:"checks,omitempty"`
 
 	// From The statuses it leaves from; empty is any status but its target.
@@ -15359,6 +15404,9 @@ type WorkflowStep struct {
 		Roles *[]string `json:"roles,omitempty"`
 	} `json:"who,omitempty"`
 }
+
+// WorkflowStepChecksMessageCode A shipped message picked instead of writing one, rendered in the reader's language; another is refused with `workflows.message_code_unknown`.
+type WorkflowStepChecksMessageCode string
 
 // Workspace A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on.
 type Workspace struct {

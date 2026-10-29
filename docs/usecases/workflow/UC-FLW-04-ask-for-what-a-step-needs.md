@@ -5,7 +5,7 @@ context: workflow
 actors: [PE-admin, PE-member, PE-agent]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-11, P-12]
-state: partial
+state: built
 tasks: []
 checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/TakeStep_test.go, core/application/service/workflow/Workflows_test.go, core/application/service/sync/Patch_test.go, test/integration/workflow_test.go, apps/webapp/src/lib/data/workflows.test.ts, core/domain/model/work/Form_test.go, core/domain/model/automation/Rule_test.go, core/application/service/automation/StepTaken_test.go, test/integration/automation_step_taken_test.go, apps/webapp/src/lib/automation/model.test.ts]
 ---
@@ -42,6 +42,3 @@ against a sample entry, and sees which condition would fail and why.
 * No scripts or code in steps.
 * An approval by several people is APR-01.
 
-## Today
-
-* Check 2: not met — a check's message is one text, not one per language; the suite plan's gaps table.

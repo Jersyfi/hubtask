@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import type { WorkflowList, WorkflowShape } from '@hubtask/sync-engine';
 
 import {
-  addStatus, addStep, completes, layout, moveStatus, removeStatus, standing, stepsFrom, workflowChoices, workflowFor,
+  addStatus, addStep, checkMessage, completes, layout, moveStatus, removeStatus, standing, stepsFrom, workflowChoices, workflowFor,
 } from './workflows.ts';
 
 const shape: WorkflowShape = {
@@ -64,4 +64,16 @@ test('offers each workflow with its steps, a draft’s new ones too, for a rule 
   assert.equal(choice?.value, 'review');
   assert.deepEqual(choice?.steps.map((step) => step.value), ['start', 'finish', 'reopen']);
   assert.equal(choice?.steps[2]?.label, 'Reopen');
+});
+
+// UC-FLW-04 check 2: a check speaks the reader's language where the team wrote it, else its one
+// text, else the picked shipped message, else its key.
+test('a check message is read in the reader\'s language', () => {
+  const t = (code: string) => `<${code}>`;
+  const check = { key: 'amount', message: 'Above zero', messages: { de: 'Über null', pt: 'Acima de zero' }, message_code: 'amount_positive' };
+  assert.equal(checkMessage(check, 'de', t), 'Über null');
+  assert.equal(checkMessage(check, 'pt-BR', t), 'Acima de zero');
+  assert.equal(checkMessage(check, 'fr', t), 'Above zero');
+  assert.equal(checkMessage({ key: 'amount', message: null, message_code: 'amount_positive' }, 'fr', t), '<workflows.check_message.amount_positive>');
+  assert.equal(checkMessage({ key: 'amount' }, 'fr', t), 'amount');
 });
