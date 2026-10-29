@@ -250,6 +250,8 @@ async function views() {
     ['item', await load('ItemView'), { id: ITEM }],
     ['collection', await load('ContainerView'), { id: COLLECTION, onnavigate: noop }],
     ['collection-settings-section', await load('ContainerView'), { id: COLLECTION, section: 'structure', onnavigate: noop }],
+    ['hub-pages', await load('PagesView'), { hubId: COLLECTION, onnavigate: noop }],
+    ['page', await load('PagesView'), { pageId: ITEM, onnavigate: noop }],
     ['administration', await load('AdministrationOverviewView'), {}],
     ['sign-in-settings', await load('SignInSettingsView'), {}],
     ['legal', await load('SignInSettingsView'), { part: 'legal' }],

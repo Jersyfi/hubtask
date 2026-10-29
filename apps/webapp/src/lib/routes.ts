@@ -120,6 +120,10 @@ export const ROUTES: readonly Route[] = [
   // a thing with its own history, so it is a screen rather than a row somewhere.
   { name: 'item', pattern: '/items/:id' },
   { name: 'hub', pattern: '/hubs/:id' },
+  // A hub's space and one of its pages (M3). A page's own address names only the page: it is linked
+  // from a mention, a search hit or a backlink, which know the page and not its hub.
+  { name: 'hub-pages', pattern: '/hubs/:id/pages' },
+  { name: 'page', pattern: '/pages/:id' },
   { name: 'collection', pattern: '/collections/:id' },
   // A place's settings, a section each (design-system.md §11.8): an address, so a section is
   // linked, reloaded and gone back to like any page. The bare path opens the first section.

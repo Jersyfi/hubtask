@@ -72,6 +72,7 @@
     ModulesView: () => import('./views/ModulesView.svelte'),
     EntryTypesView: () => import('./views/EntryTypesView.svelte'),
     LinkTypesView: () => import('./views/LinkTypesView.svelte'),
+    PagesView: () => import('./views/PagesView.svelte'),
     ChangesView: () => import('./views/ChangesView.svelte'),
     WorkflowsView: () => import('./views/WorkflowsView.svelte'),
     BackupView: () => import('./views/BackupView.svelte'),
@@ -375,6 +376,17 @@
   {:else if route.name === 'item'}
     {#key route.params.id}
       <ItemView id={route.params.id ?? ''} onnavigate={(path) => router.navigate(path)} />
+    {/key}
+  {:else if route.name === 'hub-pages' || route.name === 'page'}
+    {#key route.path}
+      <LazyView
+        load={views.PagesView}
+        props={{
+          hubId: route.name === 'hub-pages' ? route.params.id : undefined,
+          pageId: route.name === 'page' ? route.params.id : undefined,
+          onnavigate: (path: string) => router.navigate(path),
+        }}
+      />
     {/key}
   {:else if PLACE_ROUTES.includes(route.name ?? '')}
     <!-- One view for both: they differ in what they hold, not in what they are. Keyed on the id so
