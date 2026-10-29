@@ -1787,7 +1787,7 @@ class ContainerPolicies(TypedDict, total=False):
 CompletionPolicy = Literal["MANUAL", "ROLLUP"]
 
 class StructureSettings(TypedDict, total=False):
-    """How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them."""
+    """How much structure a hub or collection has: nine settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `entry_types` the server holds every write to and a client offers; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them."""
     levels: list["StructureLevel"]
     fields: dict[str, Any]
     views: "StructureViews"
@@ -1796,6 +1796,7 @@ class StructureSettings(TypedDict, total=False):
     capture: list[Literal["LINES", "AMOUNT", "DATE", "PERSON", "LABEL"]]
     celebration: Literal["ALL", "SUBTLE"]
     automation: list[Literal["REQUIRED_BEYOND_FIRST_COLUMN"]]
+    entry_types: dict[str, Any]
 
 class StructureLevel(TypedDict, total=False):
     type: Required["ItemType"]
@@ -1844,7 +1845,7 @@ class WorkspaceStructureChange(TypedDict, total=False):
     default_preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None
     default_preset_id: str | None
 
-StructureSettingName = Literal["levels", "fields", "views", "counts", "completion", "capture", "celebration", "automation"]
+StructureSettingName = Literal["levels", "fields", "views", "counts", "completion", "capture", "celebration", "automation", "entry_types"]
 
 class EffectiveStructure(TypedDict, total=False):
     """The structure in force: every setting's value, where it came from (Hubtask's default, the installation, the workspace, the hub, this collection), and which settings are locked, by whom. A locked setting is answered with its value, not withheld; writing it is refused with `structure.setting_locked`. `preset` is where the nearest layer's values were copied from - provenance only."""

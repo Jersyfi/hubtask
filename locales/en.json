@@ -607,6 +607,7 @@
   "entry_types.other_level": "That type sits on another level.",
   "entry_types.archived": "That type is archived and is not offered for new entries.",
   "entry_types.not_allowed_here": "That type is not allowed underneath this entry.",
+  "entry_types.not_offered": "This collection does not offer that type.",
   "entry_types.form_unwritable": "The form could not be saved. Try again in a moment.",
   "entry_types.form_unreadable": "The form of this type could not be read. Ask an administrator to save it again.",
   "request.response_unwritable": "The answer could not be written. Try again in a moment.",

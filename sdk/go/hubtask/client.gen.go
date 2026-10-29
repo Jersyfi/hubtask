@@ -5227,6 +5227,7 @@ const (
 	StructureSettingNameCelebration StructureSettingName = "celebration"
 	StructureSettingNameCompletion  StructureSettingName = "completion"
 	StructureSettingNameCounts      StructureSettingName = "counts"
+	StructureSettingNameEntryTypes  StructureSettingName = "entry_types"
 	StructureSettingNameFields      StructureSettingName = "fields"
 	StructureSettingNameLevels      StructureSettingName = "levels"
 	StructureSettingNameViews       StructureSettingName = "views"
@@ -5244,6 +5245,8 @@ func (e StructureSettingName) Valid() bool {
 	case StructureSettingNameCompletion:
 		return true
 	case StructureSettingNameCounts:
+		return true
+	case StructureSettingNameEntryTypes:
 		return true
 	case StructureSettingNameFields:
 		return true
@@ -8228,10 +8231,10 @@ type EffectiveStructure struct {
 	// PresetId The saved preset the nearest layer's values were copied from, where it was one; `preset` is then null. Provenance only: the preset may have been changed or withdrawn since.
 	PresetId *openapi_types.UUID `json:"preset_id,omitempty"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: nine settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `entry_types` the server holds every write to and a client offers; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings `json:"settings"`
 
-	// Sources For each of the eight settings, the level its value comes from.
+	// Sources For each setting, the level its value comes from.
 	Sources map[string]PolicySource `json:"sources"`
 }
 
@@ -9048,7 +9051,7 @@ type InstallationPreset struct {
 	// Name The operator's name for it, as every workspace sees it.
 	Name string `json:"name"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: nine settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `entry_types` the server holds every write to and a client offers; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings `json:"settings"`
 
 	// Version The optimistic lock, the same value as the `ETag`.
@@ -9067,7 +9070,7 @@ type InstallationPresetCreate struct {
 	// Preset One of Hubtask's presets the settings start from; Hubtask's default without one.
 	Preset *InstallationPresetCreatePreset `json:"preset,omitempty"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: nine settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `entry_types` the server holds every write to and a client offers; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
 }
 
@@ -9086,7 +9089,7 @@ type InstallationPresetUpdate struct {
 	// Preset One of Hubtask's presets whose settings replace this one's.
 	Preset *InstallationPresetUpdatePreset `json:"preset,omitempty"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: nine settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `entry_types` the server holds every write to and a client offers; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
 }
 
@@ -11367,7 +11370,7 @@ type Preset struct {
 	// Origin Where the preset comes from: Hubtask's, the installation's (offered in every workspace), the workspace's (offered to everyone in it), or the caller's own (offered to them alone).
 	Origin PresetOrigin `json:"origin"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: nine settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `entry_types` the server holds every write to and a client offers; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings `json:"settings"`
 
 	// Version A saved preset's optimistic lock. Absent on one of Hubtask's.
@@ -11399,7 +11402,7 @@ type PresetUpdate struct {
 	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
 	Name        *string             `json:"name,omitempty"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: nine settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `entry_types` the server holds every write to and a client offers; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
 }
 
@@ -12776,7 +12779,7 @@ type StructureChange struct {
 	PresetId *openapi_types.UUID     `json:"preset_id,omitempty"`
 	Reset    *[]StructureSettingName `json:"reset,omitempty"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: nine settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `entry_types` the server holds every write to and a client offers; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
 }
 
@@ -12883,7 +12886,7 @@ type StructurePreviewViews string
 // StructureSettingName defines model for StructureSettingName.
 type StructureSettingName string
 
-// StructureSettings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+// StructureSettings How much structure a hub or collection has: nine settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `entry_types` the server holds every write to and a client offers; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 type StructureSettings struct {
 	// Automation What the collection applies by itself, a closed set. REQUIRED_BEYOND_FIRST_COLUMN: an entry enters a column of the board after the first only with every required custom field of its type set; a move, a creation or an edit that would place it there without one is refused with `validation_failed` and the detail `items.required_fields_missing`, naming the fields. The first column, no column and moves within a column are never refused, and a value is never cleared by it.
 	Automation *[]StructureSettingsAutomation `json:"automation,omitempty"`
@@ -12899,6 +12902,9 @@ type StructureSettings struct {
 
 	// Counts What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why.
 	Counts *StructureCounts `json:"counts,omitempty"`
+
+	// EntryTypes The entry types offered on each level, keyed by item type: type keys, in the order a client offers them. A level left out offers every type of its level. An entry written without a type gets its level's system type where the list names it, and the first listed type of the workspace's otherwise; creating an entry with a type not offered, or changing one to it, is refused with `validation_failed` and the detail `entry_types.not_offered`. A key the workspace does not have on that level, or has archived, is passed over, and a list of which none is left offers every type. Entries that already have a type keep it when the list narrows.
+	EntryTypes *map[string][]string `json:"entry_types,omitempty"`
 
 	// Fields What each item type carries, keyed by type. A type left out carries everything this installation offers it. Completion cannot be left out.
 	Fields *map[string]StructureLevelFields `json:"fields,omitempty"`
@@ -14072,7 +14078,7 @@ type WorkspaceStructure struct {
 	// PresetId The saved preset the nearest layer's values were copied from, where it was one; `preset` is then null. Provenance only: the preset may have been changed or withdrawn since.
 	PresetId *openapi_types.UUID `json:"preset_id,omitempty"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: nine settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `entry_types` the server holds every write to and a client offers; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings       `json:"settings"`
 	Sources  map[string]PolicySource `json:"sources"`
 }
@@ -14099,7 +14105,7 @@ type WorkspaceStructureChange struct {
 	PresetId *openapi_types.UUID     `json:"preset_id,omitempty"`
 	Reset    *[]StructureSettingName `json:"reset,omitempty"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: nine settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `entry_types` the server holds every write to and a client offers; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
 }
 

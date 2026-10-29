@@ -1233,6 +1233,7 @@
   "entry_types.other_level": "Dieser Typ liegt auf einer anderen Ebene.",
   "entry_types.archived": "Dieser Typ ist archiviert und wird für neue Einträge nicht angeboten.",
   "entry_types.not_allowed_here": "Dieser Typ ist unter diesem Eintrag nicht erlaubt.",
+  "entry_types.not_offered": "Diese Sammlung bietet diesen Typ nicht an.",
   "entry_types.form_unwritable": "Das Formular konnte nicht gespeichert werden. Versuche es gleich noch einmal.",
   "entry_types.form_unreadable": "Das Formular dieses Typs konnte nicht gelesen werden. Bitte eine Administratorin, es neu zu speichern.",
   "request.response_unwritable": "Die Antwort konnte nicht geschrieben werden. Versuche es gleich noch einmal.",
