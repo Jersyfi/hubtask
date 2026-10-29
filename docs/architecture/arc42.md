@@ -540,6 +540,9 @@ Where a scenario has been walked, its evidence file is linked; QS-24 to QS-27 ar
 | QS-25 | A device offline for 90 days knows items deleted since | `sync.cursor_too_old` forces a full sync; deleted objects stay gone (SY-5, RE-6) |
 | QS-26 | Access to a collection lost while offline | `ACCESS_REVOKED` in the pull stream, local deletion, mutations refused (SY-6) |
 | QS-27 | A device clock three hours out | The HLC bound stops it outvoting everyone else (SY-2) |
+| QS-28 | 10⁶ and 10⁷ entries in a long tail of workspaces | Each read path that grows with a workspace holds without a server error; requests per vCPU and P95 per path and workspace from `make capacity` (F-10; *not measured* until it has run) |
+| QS-29 | One workspace's job storm beside another's single job, several workers claiming | The quiet workspace's job is claimed first: a tenant's turn starts after the jobs it already runs (`ClaimJobs`, multi-tenancy.md §4) |
+| QS-30 | A four-hour SLA armed on Friday at 15:00, office hours, a holiday ahead | Due on Monday at 11:00 working time, through a restart: the timer is a row fired by `timer.fire` (domain-model.md §3.7) |
 
 ---
 
