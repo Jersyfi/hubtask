@@ -364,6 +364,19 @@ var entities = []Entity{
 			{Field: "group_id", Table: "account_group"},
 		},
 	},
+	// The workspace's own roles and where they are held (migration 0219, D-05). Whole: a role and a
+	// grant are removed without a marker. The roles precede their grants.
+	{
+		Name: "custom_roles", Table: "custom_role", Whole: true, Keys: []string{"id"},
+	},
+	{
+		Name: "custom_role_grants", Table: "custom_role_grant", Whole: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "group_id", Table: "account_group"},
+			{Field: "role_id", Table: "custom_role"},
+		},
+	},
 	{
 		Name: "containers", Table: "container", Keys: []string{"id"}, Duplicable: true,
 		// A copy's handle is cleared, and the store gives it one of its own (ADR-0094): the

@@ -854,6 +854,29 @@ type CustomFieldDefinition struct {
 	Version      int32
 	Currency     *string
 	Formula      *string
+	Restricted   bool
+}
+
+type CustomRole struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	Key         string
+	Name        string
+	Permissions []string
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	Version     int32
+}
+
+type CustomRoleGrant struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	GroupID   pgtype.UUID
+	ScopeType MembershipScope
+	ScopeID   pgtype.UUID
+	RoleID    pgtype.UUID
+	CreatedAt pgtype.Timestamptz
 }
 
 type DataSubjectRequest struct {

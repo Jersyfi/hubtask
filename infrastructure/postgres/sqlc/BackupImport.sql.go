@@ -171,6 +171,30 @@ func (q *Queries) ClearCustomFieldDefinition(ctx context.Context) (int64, error)
 	return result.RowsAffected(), nil
 }
 
+const clearCustomRole = `-- name: ClearCustomRole :execrows
+DELETE FROM custom_role
+`
+
+func (q *Queries) ClearCustomRole(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCustomRole)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearCustomRoleGrant = `-- name: ClearCustomRoleGrant :execrows
+DELETE FROM custom_role_grant
+`
+
+func (q *Queries) ClearCustomRoleGrant(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCustomRoleGrant)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearEntryLink = `-- name: ClearEntryLink :execrows
 DELETE FROM entry_link
 `
@@ -621,6 +645,28 @@ SELECT EXISTS (SELECT 1 FROM custom_field_definition WHERE id = ($1::jsonb->>'id
 
 func (q *Queries) HoldsCustomFieldDefinition(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsCustomFieldDefinition, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsCustomRole = `-- name: HoldsCustomRole :one
+SELECT EXISTS (SELECT 1 FROM custom_role WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsCustomRole(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCustomRole, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsCustomRoleGrant = `-- name: HoldsCustomRoleGrant :one
+SELECT EXISTS (SELECT 1 FROM custom_role_grant WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsCustomRoleGrant(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCustomRoleGrant, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -1641,6 +1687,7 @@ INSERT INTO custom_field_definition (
   currency,
   formula,
   is_required,
+  restricted,
   applies_to,
   deleted_at,
   created_at,
@@ -1657,6 +1704,7 @@ SELECT
   r.currency,
   r.formula,
   r.is_required,
+  coalesce(r.restricted, false),
   r.applies_to,
   r.deleted_at,
   r.created_at,
@@ -1674,6 +1722,7 @@ ON CONFLICT (id) DO UPDATE SET
   options = EXCLUDED.options,
   currency = EXCLUDED.currency,
   formula = EXCLUDED.formula,
+  restricted = EXCLUDED.restricted,
   is_required = EXCLUDED.is_required,
   applies_to = EXCLUDED.applies_to,
   deleted_at = EXCLUDED.deleted_at,
@@ -1690,6 +1739,53 @@ type ImportCustomFieldDefinitionParams struct {
 
 func (q *Queries) ImportCustomFieldDefinition(ctx context.Context, arg ImportCustomFieldDefinitionParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importCustomFieldDefinition, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importCustomRole = `-- name: ImportCustomRole :execrows
+INSERT INTO custom_role (id, tenant_id, key, name, permissions, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.name, r.permissions, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::custom_role,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  permissions = EXCLUDED.permissions,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportCustomRoleParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportCustomRole(ctx context.Context, arg ImportCustomRoleParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importCustomRole, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importCustomRoleGrant = `-- name: ImportCustomRoleGrant :execrows
+INSERT INTO custom_role_grant (id, tenant_id, account_id, group_id, scope_type, scope_id, role_id, created_at)
+SELECT r.id, r.tenant_id, r.account_id, r.group_id, r.scope_type, r.scope_id, r.role_id, r.created_at
+FROM jsonb_populate_record(
+  NULL::custom_role_grant,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT DO NOTHING
+`
+
+// A grant is given and taken back, never changed.
+func (q *Queries) ImportCustomRoleGrant(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importCustomRoleGrant, payload)
 	if err != nil {
 		return 0, err
 	}

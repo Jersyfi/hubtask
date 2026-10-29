@@ -703,6 +703,96 @@ func (q *Queries) ExportCustomFieldDefinitions(ctx context.Context, arg ExportCu
 	return items, nil
 }
 
+const exportCustomRoleGrants = `-- name: ExportCustomRoleGrants :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (g.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(g) - 'tenant_id')::jsonb AS payload,
+         g.id AS key_1
+  FROM custom_role_grant g
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportCustomRoleGrantsParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportCustomRoleGrantsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportCustomRoleGrants(ctx context.Context, arg ExportCustomRoleGrantsParams) ([]ExportCustomRoleGrantsRow, error) {
+	rows, err := q.db.Query(ctx, exportCustomRoleGrants, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportCustomRoleGrantsRow{}
+	for rows.Next() {
+		var i ExportCustomRoleGrantsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportCustomRoles = `-- name: ExportCustomRoles :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.id AS key_1
+  FROM custom_role r
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportCustomRolesParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportCustomRolesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportCustomRoles(ctx context.Context, arg ExportCustomRolesParams) ([]ExportCustomRolesRow, error) {
+	rows, err := q.db.Query(ctx, exportCustomRoles, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportCustomRolesRow{}
+	for rows.Next() {
+		var i ExportCustomRolesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportEntryLinks = `-- name: ExportEntryLinks :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

@@ -455,6 +455,7 @@ INSERT INTO custom_field_definition (
   currency,
   formula,
   is_required,
+  restricted,
   applies_to,
   deleted_at,
   created_at,
@@ -471,6 +472,7 @@ SELECT
   r.currency,
   r.formula,
   r.is_required,
+  coalesce(r.restricted, false),
   r.applies_to,
   r.deleted_at,
   r.created_at,
@@ -488,6 +490,7 @@ ON CONFLICT (id) DO UPDATE SET
   options = EXCLUDED.options,
   currency = EXCLUDED.currency,
   formula = EXCLUDED.formula,
+  restricted = EXCLUDED.restricted,
   is_required = EXCLUDED.is_required,
   applies_to = EXCLUDED.applies_to,
   deleted_at = EXCLUDED.deleted_at,
@@ -1823,6 +1826,42 @@ SELECT EXISTS (SELECT 1 FROM entry_type WHERE id = (sqlc.arg('payload')::jsonb->
 
 -- name: ClearEntryType :execrows
 DELETE FROM entry_type;
+
+-- name: ImportCustomRole :execrows
+INSERT INTO custom_role (id, tenant_id, key, name, permissions, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.name, r.permissions, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::custom_role,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  permissions = EXCLUDED.permissions,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCustomRole :one
+SELECT EXISTS (SELECT 1 FROM custom_role WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCustomRole :execrows
+DELETE FROM custom_role;
+
+-- name: ImportCustomRoleGrant :execrows
+-- A grant is given and taken back, never changed.
+INSERT INTO custom_role_grant (id, tenant_id, account_id, group_id, scope_type, scope_id, role_id, created_at)
+SELECT r.id, r.tenant_id, r.account_id, r.group_id, r.scope_type, r.scope_id, r.role_id, r.created_at
+FROM jsonb_populate_record(
+  NULL::custom_role_grant,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT DO NOTHING;
+
+-- name: HoldsCustomRoleGrant :one
+SELECT EXISTS (SELECT 1 FROM custom_role_grant WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCustomRoleGrant :execrows
+DELETE FROM custom_role_grant;
 
 -- name: ImportLinkType :execrows
 INSERT INTO link_type (

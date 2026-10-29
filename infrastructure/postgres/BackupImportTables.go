@@ -73,6 +73,28 @@ var importers = map[string]importer{
 			return queries.ClearMembership(ctx)
 		},
 	},
+	"custom_role": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportCustomRole(ctx, sqlc.ImportCustomRoleParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsCustomRole(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearCustomRole(ctx)
+		},
+	},
+	"custom_role_grant": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, _ bool) (int64, error) {
+			return queries.ImportCustomRoleGrant(ctx, payload)
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsCustomRoleGrant(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearCustomRoleGrant(ctx)
+		},
+	},
 	"container": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportContainer(ctx, sqlc.ImportContainerParams{Payload: payload, Overwrite: overwrite})

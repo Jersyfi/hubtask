@@ -75,7 +75,11 @@ func (r MembershipRepository) Along(
 			Role:      identity.Role(row.Role),
 		})
 	}
-	return memberships, nil
+	custom, err := customRolesAlong(ctx, queries, accountID, account, scopeIDs)
+	if err != nil {
+		return nil, err
+	}
+	return append(memberships, custom...), nil
 }
 
 // SharedItemsIn returns the entries of one collection the account holds a membership on, directly

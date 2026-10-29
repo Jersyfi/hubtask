@@ -279,6 +279,47 @@ CREATE INDEX membership_scope_idx  ON membership (tenant_id, scope_type, scope_i
 CREATE UNIQUE INDEX membership_grant_uq
   ON membership (tenant_id, account_id, group_id, scope_type, scope_id, role) NULLS NOT DISTINCT;
 
+-- Custom roles from the permission catalogue and where they are held (migration 0219, D-05). The
+-- seven built-in roles are the enum above and have no row.
+CREATE TABLE custom_role (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key         text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{1,62}$'),
+  name        text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  permissions text[] NOT NULL CHECK (cardinality(permissions) BETWEEN 1 AND 256),
+  created_at  timestamptz NOT NULL,
+  updated_at  timestamptz NOT NULL,
+  version     integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT custom_role_key_uq UNIQUE (tenant_id, key)
+);
+CREATE TABLE custom_role_grant (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id  uuid,
+  group_id    uuid,
+  scope_type  membership_scope NOT NULL CHECK (scope_type <> 'ITEM'),
+  scope_id    uuid,
+  role_id     uuid NOT NULL,
+  created_at  timestamptz NOT NULL,
+  UNIQUE (tenant_id, id),
+  CHECK ((account_id IS NULL) <> (group_id IS NULL)),
+  CHECK ((scope_type = 'TENANT') = (scope_id IS NULL)),
+  CONSTRAINT custom_role_grant_account_fkey
+    FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT custom_role_grant_group_fkey
+    FOREIGN KEY (tenant_id, group_id) REFERENCES account_group (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT custom_role_grant_role_fkey
+    FOREIGN KEY (tenant_id, role_id) REFERENCES custom_role (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX custom_role_grant_uq
+  ON custom_role_grant (tenant_id, account_id, group_id, scope_type, scope_id, role_id) NULLS NOT DISTINCT;
+CREATE INDEX custom_role_grant_lookup_idx ON custom_role_grant (tenant_id, account_id, scope_type, scope_id);
+CREATE INDEX custom_role_grant_group_idx ON custom_role_grant (tenant_id, group_id) WHERE group_id IS NOT NULL;
+CREATE INDEX custom_role_grant_role_idx ON custom_role_grant (tenant_id, role_id);
+GRANT SELECT, INSERT, UPDATE, DELETE ON custom_role TO hubtask_app;
+GRANT SELECT, INSERT, DELETE ON custom_role_grant TO hubtask_app;
+
 CREATE TABLE access_token (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1222,6 +1263,8 @@ CREATE TABLE custom_field_definition (
   -- The ISO 4217 code of a MONEY field's amounts, null for every other kind (migration 0211).
   currency      text,
   is_required   boolean NOT NULL DEFAULT false,
+  -- Written only by holders of FIELD_WRITE:<key> (migration 0219, UC-ID-27).
+  restricted    boolean NOT NULL DEFAULT false,
   applies_to    item_type[] NOT NULL DEFAULT '{TASK}',
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now(),
@@ -3016,7 +3059,8 @@ BEGIN
     'retention_rule','retention_cursor',
     'legal_hold','tombstone','sync_device','sync_op_log','set_element','field_clock',
     'import_run','quota_reached','entry_type','entry_field_value',
-    'link_type','entry_link','entry_reference','workflow','workflow_scheme'
+    'link_type','entry_link','entry_reference','workflow','workflow_scheme',
+    'custom_role','custom_role_grant'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
