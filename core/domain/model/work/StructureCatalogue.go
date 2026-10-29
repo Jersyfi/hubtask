@@ -5,7 +5,7 @@ package work
 
 import "github.com/Jersyfi/hubtask/core/domain/model/setting"
 
-// The eight structure settings as entries of the settings catalogue (domain-model.md §2, "The settings catalogue"). The
+// The nine structure settings as entries of the settings catalogue (domain-model.md §2, "The settings catalogue"). The
 // value a layer stores for one setting is a StructureValues deciding that setting alone: the
 // shapes stay this package's, and the catalogue's resolver says which layer's value is in force
 // and which lock binds it. A lock on one capability of one type (`fields.TASK.DUE_DATE`) is a

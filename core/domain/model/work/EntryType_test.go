@@ -203,6 +203,46 @@ func TestChoosingAnEntrysType(t *testing.T) {
 	}
 }
 
+// UC-FLW-01 check 3: a collection offers some of a level's types; an entry is created with one of
+// them, the system type by default only where it is offered, and a key that names nothing in use is
+// passed over rather than shutting every creation.
+func TestChoosingAmongWhatACollectionOffers(t *testing.T) {
+	feature := bugType
+	feature.ID, feature.Key, feature.Name = shared.MustParseID("0192f000-0000-7000-8000-0000000000e2"), "feature", "Feature"
+	registry := work.NewEntryTypes([]work.EntryType{newEntryType(t, bugType), newEntryType(t, feature)})
+
+	cases := []struct {
+		name    string
+		key     string
+		offered []string
+		want    string
+		code    string
+	}{
+		{"every type where nothing narrows", "feature", nil, "feature", ""},
+		{"an offered type", "bug", []string{"feature", "bug"}, "bug", ""},
+		{"a type not offered", "bug", []string{"feature"}, "", "entry_types.not_offered"},
+		{"the system type not offered", "task", []string{"feature"}, "", "entry_types.not_offered"},
+		{"no key takes the system type where offered", "", []string{"feature", "task"}, "", ""},
+		{"no key takes the first offered otherwise", "", []string{"feature", "bug"}, "feature", ""},
+		{"an unknown key is passed over", "", []string{"story", "bug"}, "bug", ""},
+		{"nothing left offers every type", "feature", []string{"story"}, "feature", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := registry.ChooseAmong(work.ItemTask, tc.key, nil, tc.offered)
+			if tc.code != "" {
+				if detailOf(err) != tc.code {
+					t.Fatalf("want %s, got %v", tc.code, err)
+				}
+				return
+			}
+			if err != nil || got != tc.want {
+				t.Fatalf("want %q, got %q, %v", tc.want, got, err)
+			}
+		})
+	}
+}
+
 func detailOf(err error) string {
 	if e := shared.AsError(err); e != nil {
 		return e.DetailCode

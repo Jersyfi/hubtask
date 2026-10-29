@@ -74,7 +74,8 @@ const (
 	PresetFlow    PresetKey = "FLOW"
 )
 
-// Preset is a starting point: values for all eight settings (domain-model.md §2). Choosing one
+// Preset is a starting point: values for the eight settings beside entry_types, which a built-in
+// preset leaves to the layer above because the types are a workspace's own (domain-model.md §2). Choosing one
 // copies its values into a layer; it is never consulted again.
 //
 // Hubtask's presets carry their key alone. A saved one - the workspace's or a person's own - is
@@ -191,7 +192,7 @@ type NewSavedPresetInput struct {
 	Origin  PresetOrigin
 	OwnerID shared.ID
 	Name    string
-	// Values are the eight settings it copies - a collection's structure in force, as a rule.
+	// Values are the settings it copies - a collection's structure in force, as a rule.
 	Values StructureValues
 	Text   text.Normalizer
 }
@@ -217,8 +218,18 @@ func NewSavedPreset(in NewSavedPresetInput) (Preset, error) {
 	}
 	return Preset{
 		Key: SavedPresetKey(in.ID), Origin: in.Origin, ID: in.ID, Name: name, OwnerID: owner,
-		Values: WithoutCategories(in.Values), Version: 1,
+		Values: savedValues(in.Origin, in.Values), Version: 1,
 	}, nil
+}
+
+// savedValues are what a saved preset keeps: never categories, and no entry types where it is the
+// installation's - those name types of one workspace, which a preset offered to all cannot name.
+func savedValues(origin PresetOrigin, values StructureValues) StructureValues {
+	values = WithoutCategories(values)
+	if origin == PresetOriginInstallation {
+		values.EntryTypes = nil
+	}
+	return values
 }
 
 // PresetName normalises, trims and checks a saved preset's name: one line, like a container's.

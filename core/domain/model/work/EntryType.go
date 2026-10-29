@@ -400,6 +400,18 @@ func (r EntryTypes) Of(level ItemType, key string) EntryType {
 	return SystemEntryType(level)
 }
 
+// InUse keeps of the listed keys those that name a type of the level that is not archived, in
+// order; nil where none is left, or where the list is nil.
+func (r EntryTypes) InUse(level ItemType, keys []string) []string {
+	var kept []string
+	for _, key := range keys {
+		if t, found := r.Find(key); found && t.Level == level && !t.IsArchived() {
+			kept = append(kept, key)
+		}
+	}
+	return kept
+}
+
 // Offered are the types of a level a new entry may take: not archived, the system type first.
 func (r EntryTypes) Offered(level ItemType) []EntryType {
 	var offered []EntryType
@@ -416,9 +428,27 @@ func (r EntryTypes) Offered(level ItemType) []EntryType {
 // The answer is empty for the level's system type, which an entry names by having none. A parent
 // whose type names its allowed children narrows the choice further.
 func (r EntryTypes) Choose(level ItemType, key string, parent *EntryType) (string, error) {
+	return r.ChooseAmong(level, key, parent, nil)
+}
+
+// ChooseAmong is Choose within what a collection offers on the level (SettingEntryTypes): nil is
+// every type. Without a key the entry gets the system type where it is offered, and the first
+// offered type otherwise; a type not offered is refused as entry_types.not_offered. A listed key
+// that names no type of the level in use is passed over, and a list of which none is left offers
+// every type: a layer above the workspace may name keys this workspace never had, and that must
+// not shut every creation.
+func (r EntryTypes) ChooseAmong(level ItemType, key string, parent *EntryType, offered []string) (string, error) {
+	offered = r.InUse(level, offered)
 	key = strings.TrimSpace(key)
 	if key == "" {
 		key = SystemEntryTypeKey(level)
+		if offered != nil && !slices.Contains(offered, key) {
+			key = offered[0]
+		}
+	}
+	if offered != nil && !slices.Contains(offered, key) {
+		return "", shared.ErrValidation.WithDetail("entry_types.not_offered").
+			WithFields(shared.FieldError{Path: "/entry_type", Code: "entry_types.not_offered"})
 	}
 	t, found := r.Find(key)
 	if !found {

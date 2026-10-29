@@ -80,17 +80,21 @@ func TestHubtasksDefaultIsTodaysBehaviour(t *testing.T) {
 		values.Celebration != CelebrationAll || values.Automation == nil || len(values.Automation) != 0 {
 		t.Errorf("values %+v", values)
 	}
-	if got := len(values.Decided()); got != 8 {
-		t.Errorf("the default decides %d settings, want 8", got)
+	if values.EntryTypes == nil || len(values.EntryTypes) != 0 {
+		t.Errorf("the default does not offer every type: %v", values.EntryTypes)
+	}
+	if got := len(values.Decided()); got != 9 {
+		t.Errorf("the default decides %d settings, want 9", got)
 	}
 }
 
-// UC-WRK-23 check 2: every preset is values for all eight settings.
+// UC-WRK-23 check 2: every preset is values for all eight settings beside the entry types, which
+// name a workspace's own types and so stay the layer above's.
 func TestEveryPresetDecidesAllEightSettings(t *testing.T) {
 	bound := NewStructureBound(withTaskHoldingActivities(), withTaskHoldingActivities())
 	for _, preset := range BuiltInPresets() {
 		offered := preset.Offered(bound)
-		if got := len(offered.Values.Decided()); got != 8 {
+		if got := len(offered.Values.Decided()); got != 8 || offered.Values.Has(SettingEntryTypes) {
 			t.Errorf("%s decides %d settings", preset.Key, got)
 		}
 		if _, err := bound.Validate(offered.Values, nil); err != nil {
@@ -393,5 +397,53 @@ func TestMovedNamesTheSettingsThatDiffer(t *testing.T) {
 	}
 	if got := list.Values.Moved(list.Values); len(got) != 0 {
 		t.Errorf("moved %v against itself", got)
+	}
+}
+
+// UC-FLW-01 check 3: the types a level offers are held to their shape, never beyond the bound's
+// levels, inherited on their own and clipped where the installation dropped a level.
+func TestTheEntryTypesALevelOffers(t *testing.T) {
+	bound := seededBound()
+
+	valid, err := bound.Validate(StructureValues{EntryTypes: map[ItemType][]string{ItemTask: {"bug", "task"}}}, nil)
+	if err != nil || !slices.Equal(valid.EntryTypes[ItemTask], []string{"bug", "task"}) {
+		t.Fatalf("a valid offer was not kept in its order: %v, %v", valid.EntryTypes, err)
+	}
+	refused := []struct {
+		name    string
+		offered map[ItemType][]string
+		code    string
+	}{
+		{"an empty list", map[ItemType][]string{ItemTask: {}}, "structure.setting_invalid"},
+		{"a key twice", map[ItemType][]string{ItemTask: {"bug", "bug"}}, "structure.setting_invalid"},
+		{"not a key", map[ItemType][]string{ItemTask: {"Bug Report"}}, "structure.setting_invalid"},
+		{"a level the installation lacks", map[ItemType][]string{ItemType("EPIC"): {"bug"}}, "structure.widens"},
+	}
+	for _, tc := range refused {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := bound.Validate(StructureValues{EntryTypes: tc.offered}, nil)
+			if err == nil || detailOf(t, err) != tc.code {
+				t.Fatalf("want %s, got %v", tc.code, err)
+			}
+		})
+	}
+
+	hub := StructureValues{EntryTypes: map[ItemType][]string{ItemTask: {"bug"}}}
+	collection := StructureValues{Celebration: CelebrationSubtle}
+	inForce := bound.Default().Overlay(hub).Overlay(collection)
+	if !slices.Equal(inForce.EntryTypes[ItemTask], []string{"bug"}) {
+		t.Errorf("the hub's offer did not reach the collection: %v", inForce.EntryTypes)
+	}
+	if hub.SameSetting(SettingEntryTypes, StructureValues{EntryTypes: map[ItemType][]string{ItemTask: {"task", "bug"}}}) {
+		t.Error("an offer in another order reads as the same")
+	}
+	if got := hub.Without(SettingEntryTypes); got.Has(SettingEntryTypes) {
+		t.Error("the offer was not left to the layer above")
+	}
+
+	narrowed := NewStructureBound(seededMatrix()[:2], seededMatrix())
+	clipped := narrowed.Clip(StructureValues{EntryTypes: map[ItemType][]string{ItemActivity: {"call"}, ItemTask: {"bug"}}})
+	if _, kept := clipped.EntryTypes[ItemActivity]; kept || len(clipped.EntryTypes[ItemTask]) != 1 {
+		t.Errorf("a level the installation dropped kept its offer: %v", clipped.EntryTypes)
 	}
 }

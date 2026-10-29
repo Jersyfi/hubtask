@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
-// StructureSetting is one of the eight things a preset decides for a collection (domain-model.md
+// StructureSetting is one of the nine things a preset decides for a collection (domain-model.md
 // §2, "Levels and presets"). The spelling is the contract's key.
 type StructureSetting string
 
@@ -33,14 +33,16 @@ const (
 	SettingCelebration StructureSetting = "celebration"
 	// SettingAutomation is what the collection applies by itself.
 	SettingAutomation StructureSetting = "automation"
+	// SettingEntryTypes is which entry types each level offers (UC-FLW-01 check 3).
+	SettingEntryTypes StructureSetting = "entry_types"
 )
 
 var structureSettings = [...]StructureSetting{
 	SettingLevels, SettingFields, SettingViews, SettingCounts,
-	SettingCompletion, SettingCapture, SettingCelebration, SettingAutomation,
+	SettingCompletion, SettingCapture, SettingCelebration, SettingAutomation, SettingEntryTypes,
 }
 
-// StructureSettingNames is the eight, in the order the contract lists them.
+// StructureSettingNames is the nine, in the order the contract lists them.
 func StructureSettingNames() []StructureSetting { return structureSettings[:] }
 
 // ParseStructureSetting reads a setting's name.
@@ -180,7 +182,7 @@ type Counts struct {
 	FieldKey string
 }
 
-// StructureValues is a layer's say about the eight settings: a nil or empty value is a setting
+// StructureValues is a layer's say about the nine settings: a nil or empty value is a setting
 // this layer leaves to the one above. Resolved, every one of them is set.
 type StructureValues struct {
 	Levels      []Level
@@ -192,7 +194,13 @@ type StructureValues struct {
 	Celebration CelebrationStyle
 	// Automation is set when not nil; an empty, non-nil list is "nothing runs by itself".
 	Automation []AutomationBehaviour
+	// EntryTypes is set when not nil: per level, the type keys offered, in order. A level absent
+	// from a set map offers every type of its level, so the empty map is "every type".
+	EntryTypes map[ItemType][]string
 }
+
+// MaxOfferedEntryTypes bounds how many types one level of a collection offers.
+const MaxOfferedEntryTypes = 50
 
 // Has reports whether this layer decides the setting.
 func (v StructureValues) Has(setting StructureSetting) bool {
@@ -213,6 +221,8 @@ func (v StructureValues) Has(setting StructureSetting) bool {
 		return v.Celebration != ""
 	case SettingAutomation:
 		return v.Automation != nil
+	case SettingEntryTypes:
+		return v.EntryTypes != nil
 	}
 	return false
 }
@@ -247,6 +257,8 @@ func (v StructureValues) Without(setting StructureSetting) StructureValues {
 		v.Celebration = ""
 	case SettingAutomation:
 		v.Automation = nil
+	case SettingEntryTypes:
+		v.EntryTypes = nil
 	}
 	return v
 }
@@ -275,6 +287,8 @@ func (v StructureValues) Take(setting StructureSetting, from StructureValues) St
 		v.Celebration = from.Celebration
 	case SettingAutomation:
 		v.Automation = slices.Clone(from.Automation)
+	case SettingEntryTypes:
+		v.EntryTypes = cloneEntryTypes(from.EntryTypes)
 	}
 	return v
 }
@@ -322,6 +336,17 @@ func (v StructureValues) SameSetting(setting StructureSetting, other StructureVa
 		return v.Celebration == other.Celebration
 	case SettingAutomation:
 		return (v.Automation == nil) == (other.Automation == nil) && slices.Equal(v.Automation, other.Automation)
+	case SettingEntryTypes:
+		if (v.EntryTypes == nil) != (other.EntryTypes == nil) || len(v.EntryTypes) != len(other.EntryTypes) {
+			return false
+		}
+		for level, keys := range v.EntryTypes {
+			theirs, held := other.EntryTypes[level]
+			if !held || !slices.Equal(keys, theirs) {
+				return false
+			}
+		}
+		return true
 	}
 	return false
 }
@@ -376,6 +401,17 @@ func cloneFields(fields map[ItemType]LevelFields) map[ItemType]LevelFields {
 		clone[itemType] = LevelFields{
 			Capabilities: slices.Clone(level.Capabilities), Categories: slices.Clone(level.Categories),
 		}
+	}
+	return clone
+}
+
+func cloneEntryTypes(offered map[ItemType][]string) map[ItemType][]string {
+	if offered == nil {
+		return nil
+	}
+	clone := make(map[ItemType][]string, len(offered))
+	for level, keys := range offered {
+		clone[level] = slices.Clone(keys)
 	}
 	return clone
 }
@@ -523,6 +559,7 @@ func (b StructureBound) Default() StructureValues {
 		Capture:     []CaptureToken{CaptureDate, CapturePerson, CaptureLabel},
 		Celebration: CelebrationAll,
 		Automation:  []AutomationBehaviour{},
+		EntryTypes:  map[ItemType][]string{},
 	}
 }
 
@@ -561,6 +598,15 @@ func (b StructureBound) Clip(values StructureValues) StructureValues {
 			}
 		}
 		values.Automation = kept
+	}
+	if values.EntryTypes != nil {
+		kept := make(map[ItemType][]string, len(values.EntryTypes))
+		for level, keys := range values.EntryTypes {
+			if _, held := b.profiles[level]; held && len(keys) > 0 {
+				kept[level] = slices.Clone(keys)
+			}
+		}
+		values.EntryTypes = kept
 	}
 	return values
 }
@@ -667,7 +713,38 @@ func (b StructureBound) Validate(values StructureValues, form text.Normalizer) (
 			seen[behaviour] = true
 		}
 	}
+	if values.EntryTypes != nil {
+		offered, err := b.validateEntryTypes(values.EntryTypes)
+		if err != nil {
+			return StructureValues{}, err
+		}
+		values.EntryTypes = offered
+	}
 	return values, nil
+}
+
+// validateEntryTypes holds the offered types to their shape: a level the bound holds, one to
+// MaxOfferedEntryTypes keys, each a type key, none twice. Whether each names a type of the
+// workspace is answered when an entry chooses one: a key that names nothing offers nothing.
+func (b StructureBound) validateEntryTypes(offered map[ItemType][]string) (map[ItemType][]string, error) {
+	validated := make(map[ItemType][]string, len(offered))
+	for level, keys := range offered {
+		if _, held := b.profiles[level]; !held {
+			return nil, widens(SettingEntryTypes, level, "")
+		}
+		if len(keys) == 0 || len(keys) > MaxOfferedEntryTypes {
+			return nil, settingInvalid(string(SettingEntryTypes), level)
+		}
+		seen := map[string]bool{}
+		for _, key := range keys {
+			if !entryTypeKeyPattern.MatchString(key) || seen[key] {
+				return nil, settingInvalid(string(SettingEntryTypes), level)
+			}
+			seen[key] = true
+		}
+		validated[level] = slices.Clone(keys)
+	}
+	return validated, nil
 }
 
 func (b StructureBound) validateLevels(levels []Level, form text.Normalizer) ([]Level, error) {
