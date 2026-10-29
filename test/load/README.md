@@ -34,6 +34,24 @@ wired together inside a test is a different process from the one that is deploye
 | `HUBTASK_LOAD_HARDWARE` | `unnamed-<os>-<arch>` | The machine's name. The guard compares only against a baseline recorded under the same one |
 | `HUBTASK_LOAD_EVIDENCE_DIR` | a temporary directory | Where each run leaves its JSON |
 
+## The capacity run (F-10)
+
+```bash
+make capacity                                   # 10⁶ entries over 200 workspaces
+make capacity ITEMS=10000000 TENANTS=2000       # 10⁷, on named hardware only
+```
+
+`capacity_test.go` seeds the dataset into its own container (through files, so 10⁷ rows never sit
+in memory), starts the real binary and holds each read path that grows with a workspace - a
+collection's page, an open-entries query sorted by due date, the board grouped by completion, a
+count over the hub, the hub's level - for the largest, a middle and the smallest credentialled
+workspace: 30 s each after a 5 s warm-up, eight callers, paced at 400 requests a second. It writes
+`capacity-<items>.json` with requests per second per vCPU and P50 / P95 / P99 per path and
+workspace, which is how the decay with entries per workspace is read. It asserts only that every
+path answered without a server error; what the figures mean is the release tier's to judge, and a
+cell no run filled stays *not measured*. It skips unless `HUBTASK_LOAD_CAPACITY` is set, so
+`make gate-load` does not run it.
+
 ## The release tier, step by step
 
 ```bash
@@ -61,6 +79,7 @@ user count appears anywhere, the model appears beside it.
 | `rt6_test.go` | RT-6 — overload, shedding, the interactive target, memory |
 | `storm_test.go` | The automation storm, and the fairness of multi-tenancy §4 asserted rather than eyeballed |
 | `guard_test.go` | The relative regression guard |
+| `capacity_test.go` | The capacity run at 10⁶ / 10⁷ entries (`make capacity`) |
 
 ## Refreshing a baseline
 

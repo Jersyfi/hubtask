@@ -353,6 +353,9 @@ per-size presets; its defaults agree with everything measured.
 
 **How a cell gets filled.** The release tier of [`test/load/README.md`](../../test/load/README.md),
 once per release on the integration server, written up under `docs/evidence/` with its JSON.
+The decay with entries per workspace is the capacity run's (`make capacity`, F-10): 10⁶ and 10⁷
+entries in a long tail, each read path that grows with a workspace held for the largest, a middle
+and the smallest workspace. Neither size has run yet; both are *not measured*.
 
 ---
 

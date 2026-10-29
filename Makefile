@@ -988,6 +988,19 @@ fuzz-targets:
 gate-load:
 	$(call go_test,load,./test/load/...,-timeout=60m)
 
+## capacity: the capacity run at ITEMS entries over TENANTS workspaces (default 10^6 over 200)
+#
+# F-10's run, not a nightly: it seeds ITEMS entries into its own container, starts the real binary
+# and holds each read path that grows with a workspace for the largest, a middle and the smallest
+# credentialled tenant, writing capacity-<ITEMS>.json into HUBTASK_LOAD_EVIDENCE_DIR. The 10^7 run
+# is `make capacity ITEMS=10000000 TENANTS=2000` on named hardware (test/load/README.md).
+ITEMS ?= 1000000
+TENANTS ?= 200
+.PHONY: capacity
+capacity:
+	HUBTASK_LOAD_CAPACITY=1 HUBTASK_LOAD_ITEMS=$(ITEMS) HUBTASK_LOAD_TENANTS=$(TENANTS) \
+		$(GO) test -tags=load -run '^TestCapacityAtScale$$' -timeout=6h -v ./test/load/
+
 ## release-tag: Create and push a signed release tag
 .PHONY: release-tag
 release-tag:

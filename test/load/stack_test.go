@@ -136,7 +136,10 @@ func runningStack(t *testing.T) *stack {
 }
 
 func startStack(tenants, items int) (*stack, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+	// Twenty minutes for the nightly's dataset, and ten more per million entries: the COPY and the
+	// index builds grow with the capacity run's 10⁶ and 10⁷.
+	budget := 20*time.Minute + time.Duration(items/1_000_000)*10*time.Minute
+	ctx, cancel := context.WithTimeout(context.Background(), budget)
 	defer cancel()
 
 	container, appDSN, err := startDatabase(ctx)
@@ -255,6 +258,8 @@ func seed(ctx context.Context, container *tcpostgres.PostgresContainer, tenants,
 	}
 
 	for _, table := range tables {
+		// Through a file rather than memory: at the capacity run's 10⁷ entries the work_item
+		// stream is gigabytes, which a byte slice would hold twice.
 		rows, err := generate(ctx, table.name, tenants, items)
 		if err != nil {
 			return err
@@ -262,7 +267,9 @@ func seed(ctx context.Context, container *tcpostgres.PostgresContainer, tenants,
 		target := "/tmp/" + table.name + ".tsv"
 		// Readable by everyone inside the container on purpose: COPY FROM is read by the server
 		// process, which runs as postgres, while the file arrives owned by root.
-		if err := container.CopyToContainer(ctx, rows, target, 0o644); err != nil {
+		err = container.CopyFileToContainer(ctx, rows, target, 0o644)
+		_ = os.Remove(rows)
+		if err != nil {
 			return fmt.Errorf("copying %s: %w", table.name, err)
 		}
 		if err := psql(ctx, container,
@@ -275,18 +282,25 @@ func seed(ctx context.Context, container *tcpostgres.PostgresContainer, tenants,
 	return psql(ctx, container, "ANALYZE tenant, account, membership, container, work_item")
 }
 
-func generate(ctx context.Context, table string, tenants, items int) ([]byte, error) {
+// generate writes one table's COPY text into a temporary file and answers its path.
+func generate(ctx context.Context, table string, tenants, items int) (string, error) {
+	file, err := os.CreateTemp("", "hubtask-load-"+table+"-*.tsv")
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = file.Close() }()
 	cmd := exec.CommandContext(ctx, "go", "run", "./test/load/seed",
 		"--table", table,
 		"--tenants", strconv.Itoa(tenants),
 		"--items", strconv.Itoa(items),
 		"--seed", seedName)
 	cmd.Dir = repositoryRoot()
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("generating %s: %w", table, err)
+	cmd.Stdout = file
+	if err := cmd.Run(); err != nil {
+		_ = os.Remove(file.Name())
+		return "", fmt.Errorf("generating %s: %w", table, err)
 	}
-	return out, nil
+	return file.Name(), nil
 }
 
 // mintTokens gives the first few tenants a credential each. Several, because the load is spread
