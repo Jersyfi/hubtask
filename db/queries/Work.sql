@@ -369,6 +369,18 @@ SELECT
 FROM work_item wi
 WHERE wi.id = ANY(sqlc.arg('ids')::uuid[]);
 
+-- name: EntryIDsAfter :many
+-- One page of the live entries of a collection - of the whole workspace for no collection - in
+-- identifier order after a cursor: the walk that fills a new CALCULATED field on the entries
+-- defined before it (domain-model.md §3.5). Another tenant's rows are absent (row level security).
+SELECT wi.id
+FROM work_item wi
+WHERE wi.deleted_at IS NULL
+  AND (sqlc.narg('collection_id')::uuid IS NULL OR wi.collection_id = sqlc.narg('collection_id')::uuid)
+  AND wi.id > sqlc.arg('after')::uuid
+ORDER BY wi.id
+LIMIT sqlc.arg('page_size')::int;
+
 -- name: WorkItemTypes :many
 -- The type of each entry among ids, and nothing else: what a collection hides of an entry depends on
 -- the levels above it (domain-model.md §2), and a page of entries asks for every ancestor on it in

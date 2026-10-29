@@ -7,7 +7,7 @@ deployments: [D1, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11, P-12]
 state: built
 tasks: [C-07, F3-10, K-03]
-checked_by: [core/application/service/work/Calculated_test.go, infrastructure/expression/Formula_test.go, test/integration/custom_field_test.go, test/integration/custom_field_acceptance_test.go, test/integration/typed_field_test.go, core/domain/model/work/CustomField_test.go, core/domain/model/work/CustomFieldKinds_test.go, core/application/service/work/SetCustomField_test.go, core/application/service/work/SetCustomFieldKinds_test.go, apps/webapp/src/lib/data/customfields.test.ts, apps/webapp/src/lib/i18n/duration.test.ts]
+checked_by: [core/application/service/work/Calculated_test.go, core/application/service/work/FillCalculatedFields_test.go, infrastructure/expression/Formula_test.go, test/integration/custom_field_test.go, test/integration/custom_field_acceptance_test.go, test/integration/typed_field_test.go, core/domain/model/work/CustomField_test.go, core/domain/model/work/CustomFieldKinds_test.go, core/application/service/work/SetCustomField_test.go, core/application/service/work/SetCustomFieldKinds_test.go, apps/webapp/src/lib/data/customfields.test.ts, apps/webapp/src/lib/i18n/duration.test.ts]
 ---
 
 # Record the facts a team tracks, with custom fields

@@ -136,6 +136,11 @@ const (
 	// timer, rescheduling itself to the tenant's next due moment and completing when none runs.
 	KindTimerFire Kind = "timer.fire"
 
+	// KindFieldFill writes a new CALCULATED field on the entries defined before it, one page per
+	// job: each pass enqueues the next page's job with its cursor (FieldFill), because a repeated
+	// job keeps its payload.
+	KindFieldFill Kind = "fields.fill"
+
 	// KindMailboxPoll reads one connected mailbox into the workspace's mail intake (ADR-0094).
 	//
 	// The reminder's shape: one job per mailbox, seeded by the write that connected it, and the
@@ -472,6 +477,19 @@ type Request struct {
 	// MaxAttempts is how often the job is tried before it goes to the dead letter. Zero leaves
 	// the database default in place.
 	MaxAttempts int
+}
+
+// FieldFill is the request for one page of a CALCULATED field's fill: the definition, its scope
+// (zero for the workspace) and the cursor to continue after (empty for the first page).
+func FieldFill(tenant, definition, collection shared.ID, after string) Request {
+	payload := map[string]any{"definition_id": definition.String(), "after": after}
+	if !collection.IsZero() {
+		payload["collection_id"] = collection.String()
+	}
+	return Request{
+		Kind: KindFieldFill, TenantID: tenant, Payload: payload,
+		DedupeKey: definition.String() + "/" + after,
+	}
 }
 
 // RetentionSweep is the request every write that seeds a tenant's sweep makes: a deletion that

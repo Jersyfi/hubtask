@@ -445,6 +445,45 @@ func (q *Queries) EntriesHiddenBelow(ctx context.Context, ids []pgtype.UUID) ([]
 	return items, nil
 }
 
+const entryIDsAfter = `-- name: EntryIDsAfter :many
+SELECT wi.id
+FROM work_item wi
+WHERE wi.deleted_at IS NULL
+  AND ($1::uuid IS NULL OR wi.collection_id = $1::uuid)
+  AND wi.id > $2::uuid
+ORDER BY wi.id
+LIMIT $3::int
+`
+
+type EntryIDsAfterParams struct {
+	CollectionID pgtype.UUID
+	After        pgtype.UUID
+	PageSize     int32
+}
+
+// One page of the live entries of a collection - of the whole workspace for no collection - in
+// identifier order after a cursor: the walk that fills a new CALCULATED field on the entries
+// defined before it (domain-model.md §3.5). Another tenant's rows are absent (row level security).
+func (q *Queries) EntryIDsAfter(ctx context.Context, arg EntryIDsAfterParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, entryIDsAfter, arg.CollectionID, arg.After, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findContainer = `-- name: FindContainer :one
 
 SELECT

@@ -2673,7 +2673,7 @@ func run() error {
 		work.DefineCustomField{
 			Fields: customFields, Containers: containers, Profiles: profiles,
 			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-			Clock: clockadapter.System{}, IDs: ids, Text: forms, Compiler: celexpression.New(),
+			Clock: clockadapter.System{}, IDs: ids, Text: forms, Compiler: celexpression.New(), Jobs: jobs,
 		}.Descriptor(),
 		work.ListCustomFields{
 			Fields: customFields, Containers: containers, Authorizer: authorizer,
@@ -3924,6 +3924,10 @@ func run() error {
 	handlers := map[queueport.Kind]queueport.Handler{
 		queueport.KindReminderFire: reminderFiring,
 		queueport.KindTimerFire:    timerFiring,
+		// A new CALCULATED field written on the entries defined before it, a page per job.
+		queueport.KindFieldFill: worker.FieldFilling{Filling: work.FillCalculatedFields{
+			Walk: items, Setter: setCustomField, Jobs: jobs,
+		}},
 		// A connected mailbox read into the intake, a minute at a time (ADR-0094).
 		queueport.KindMailboxPoll: mailservice.PollMailbox{
 			Boxes: mailBoxes, Receive: receiveMail,

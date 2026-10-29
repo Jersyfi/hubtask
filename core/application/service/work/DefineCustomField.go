@@ -21,6 +21,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
@@ -73,6 +74,9 @@ type DefineCustomField struct {
 	// Compiler holds a CALCULATED field's formula to the fields it may read; without it such a
 	// field is refused.
 	Compiler expression.Compiler
+	// Jobs seeds the fill of a new CALCULATED field on the entries defined before it
+	// (FillCalculatedFields); without it they fill on their next write of an input.
+	Jobs queue.Queue
 }
 
 // DefineCustomFieldCommand is the input, typed.
@@ -166,6 +170,9 @@ func (h DefineCustomField) Execute(
 			}
 		}
 		if err := h.Fields.Insert(ctx, definition); err != nil {
+			return err
+		}
+		if err := h.seedFill(ctx, definition); err != nil {
 			return err
 		}
 
@@ -578,4 +585,14 @@ func (h ListCustomFields) invoke(
 	// A bare list rather than a page: the contract answers an array here, because a workspace's
 	// vocabulary is not something a client walks.
 	return usecase.Output{"data": rows}, nil
+}
+
+// seedFill enqueues the fill of a new CALCULATED field inside the definition's transaction, so a
+// definition that rolls back seeds nothing.
+func (h DefineCustomField) seedFill(ctx context.Context, definition domain.CustomFieldDefinition) error {
+	if h.Jobs == nil || definition.Kind != domain.CustomFieldCalculated {
+		return nil
+	}
+	_, err := h.Jobs.Enqueue(ctx, queue.FieldFill(definition.TenantID, definition.ID, definition.CollectionID, ""))
+	return err
 }

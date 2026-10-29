@@ -469,6 +469,15 @@ type ItemBatch interface {
 	FindMany(ctx context.Context, ids []shared.ID) ([]work.WorkItem, error)
 }
 
+// EntryWalk walks the live entries of a collection, or of the whole workspace, in identifier order:
+// filling a new CALCULATED field on the entries defined before it. Its own interface for
+// ItemBatch's reason.
+type EntryWalk interface {
+	// IDsAfter answers up to limit live entries after the cursor (zero for the first), of the
+	// collection or, for a zero collection, of every collection.
+	IDsAfter(ctx context.Context, collectionID, after shared.ID, limit int) ([]shared.ID, error)
+}
+
 // ItemTypes answers the type of each entry among ids: the levels above an entry, which decide
 // whether its collection hides it (domain-model.md §2). An identifier this tenant does not hold,
 // another tenant's included, is absent from the answer rather than an error.

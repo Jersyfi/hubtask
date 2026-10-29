@@ -76,6 +76,43 @@ func (r ItemRepository) Find(ctx context.Context, id shared.ID) (work.WorkItem, 
 
 var _ repository.ItemBatch = ItemRepository{}
 
+var _ repository.EntryWalk = ItemRepository{}
+
+// IDsAfter answers one page of the live entries of a collection, or of the workspace, after a cursor.
+func (r ItemRepository) IDsAfter(ctx context.Context, collectionID, after shared.ID, limit int) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	params := sqlc.EntryIDsAfterParams{PageSize: int32(min(max(limit, 1), 1000))}
+	if after.IsZero() {
+		after = shared.ID("00000000-0000-0000-0000-000000000000")
+	}
+	if params.After, err = uuidOf(after); err != nil {
+		return nil, err
+	}
+	if !collectionID.IsZero() {
+		if params.CollectionID, err = uuidOf(collectionID); err != nil {
+			return nil, err
+		}
+	}
+	rows, err := queries.EntryIDsAfter(ctx, params)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("walking the work items: %w", err))
+	}
+	ids := make([]shared.ID, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
 // FindMany returns the entries among ids as Find returns each; an identifier this tenant does not
 // hold is absent from the answer, for the reason Find answers not found for it.
 func (r ItemRepository) FindMany(ctx context.Context, ids []shared.ID) ([]work.WorkItem, error) {
