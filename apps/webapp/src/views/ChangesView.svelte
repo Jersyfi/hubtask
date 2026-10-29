@@ -305,6 +305,21 @@
             <li><code>{change.op}</code> {change.path}</li>
           {/each}
         </ul>
+        {#if plan.reach && plan.reach.length > 0}
+          <ul class="changes" data-reach>
+            {#each plan.reach as reached (reached.path)}
+              {#if reached.entries !== undefined}
+                <li>{t('app.changes.reach_entries', { path: reached.path, count: reached.entries })}</li>
+              {/if}
+              {#if reached.accounts !== undefined}
+                <li>{t('app.changes.reach_people', {
+                  path: reached.path, accounts: reached.accounts, groups: reached.groups ?? 0,
+                  gained: reached.gained?.length ?? 0, lost: reached.lost?.length ?? 0,
+                })}</li>
+              {/if}
+            {/each}
+          </ul>
+        {/if}
         {#if needsAcknowledge(plan.flags)}
           <Checkbox label={t('app.changes.acknowledge')} checked={acknowledgeRollback}
             onchange={(event: Event) => (acknowledgeRollback = (event.currentTarget as HTMLInputElement).checked)} />

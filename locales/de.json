@@ -1875,6 +1875,8 @@
   "app.changes.rollback_refused": "Diese Version lässt sich so nicht wiederherstellen: Ein Teil davon wird heute abgelehnt.",
   "app.changes.rolled_back": "Die Konfiguration ist wieder auf Version {version}.",
   "app.changes.cancel": "Abbrechen",
+  "app.changes.reach_entries": "{path}: {count, plural, one {# Eintrag wechselt} other {# Einträge wechseln}} den Status",
+  "app.changes.reach_people": "{path}: {accounts, plural, one {# Person} other {# Personen}} und {groups, plural, one {# Gruppe} other {# Gruppen}} erhalten {gained, plural, one {# Berechtigung} other {# Berechtigungen}} und verlieren {lost}",
   "app.changes.compare": "Zwei Versionen vergleichen",
   "app.changes.compare_from": "Von",
   "app.changes.compare_to": "Bis",
