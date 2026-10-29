@@ -214,7 +214,7 @@ Dependencies point inwards: presentation and infrastructure depend on the core, 
 | `core/domain` | The business model, invariants, state transitions, domain events, pure domain services |
 | `core/application` | Use cases, orchestration, transaction boundaries, permission checks, event publication |
 | `core/port` | Interfaces to the outside (clock, IDs, storage, mail, bus, AI, environment, …) |
-| `presentation/*` | Inbound adapters — REST incl. admin, MCP, the change stream, ICS/CalDAV, jumble intake, worker, web UI: protocol ↔ use case, serialisation, localisation of messages; the web UI serves bytes only |
+| `presentation/*` | Inbound adapters — REST incl. admin, MCP, the change stream, live documents over a WebSocket ([offline-sync.md](./offline-sync.md) §13), ICS/CalDAV, jumble intake, worker, web UI: protocol ↔ use case, serialisation, localisation of messages; the web UI serves bytes only |
 | `infrastructure/*` | Outbound adapters — PostgreSQL (repositories, outbox, queue), object storage, SMTP, HTTP client, AI provider, OIDC, OpenTelemetry, NATS — without business rules |
 
 What each may import, and where each package lives: [project-structure.md](./project-structure.md) §1, §2.
@@ -543,6 +543,7 @@ Where a scenario has been walked, its evidence file is linked; QS-24 to QS-27 ar
 | QS-28 | 10⁶ and 10⁷ entries in a long tail of workspaces | Each read path that grows with a workspace holds without a server error; requests per vCPU and P95 per path and workspace from `make capacity` (F-10; *not measured* until it has run) |
 | QS-29 | One workspace's job storm beside another's single job, several workers claiming | The quiet workspace's job is claimed first: a tenant's turn starts after the jobs it already runs (`ClaimJobs`, multi-tenancy.md §4) |
 | QS-30 | A four-hour SLA armed on Friday at 15:00, office hours, a holiday ahead | Due on Monday at 11:00 working time, through a restart: the timer is a row fired by `timer.fire` (domain-model.md §3.7) |
+| QS-31 | Two people type into one page at once, one of them on a second API replica, a third loses access mid-session | Both see each other's updates within a second of the commit (the change stream's doorbell); the third's connection closes with `4403` on the next update; the snapshot and the updates after it open the page whatever retention removed ([offline-sync.md](./offline-sync.md) §13; `presentation/realtime`'s and the realtime service's tests) |
 
 ---
 

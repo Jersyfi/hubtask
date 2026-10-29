@@ -59,11 +59,11 @@ search index are optional roles of the same binary; NATS stays optional.
 
 | Dependency | For | Where (rule 1: never in `core/domain`, `core/port`) |
 |---|---|---|
-| A Yjs-compatible CRDT implementation for the browser (Yjs) and its update format on the server (stored and relayed; merged in a worker) | F-8 pages, whiteboards | `apps/`, `packages/`, `infrastructure/realtime` |
+| A Yjs-compatible CRDT implementation for the browser (Yjs) and its update format on the server (stored and relayed; S-13 stores and relays it without a Go CRDT, a writer's snapshot compacting the log) | F-8 pages, whiteboards | `apps/`, `packages/` (the server side is `presentation/realtime`, `core/application/service/realtime`) |
 | A block editor on ProseMirror (TipTap or BlockNote core, MIT parts only — no GPL/AGPL export packages) | pages | `packages/` |
 | A canvas engine for whiteboards (tldraw SDK licence checked against Apache-2.0 distribution; else Excalidraw, MIT) | whiteboards | `packages/` |
 | A CEL evaluator for the browser (cel-js or the Go CEL compiled to WebAssembly) | F-4 offline forms | `packages/` |
-| A websocket library for Go | F-8 | `infrastructure/realtime` |
+| A websocket library for Go (`github.com/coder/websocket`, ISC, landed with S-13) | F-8 | `presentation/realtime` - an inbound adapter, which `infrastructure/` is not |
 
 Each is checked by the existing licence gate (no copyleft) when it lands; a failing one is replaced,
 not excepted.

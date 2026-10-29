@@ -344,3 +344,44 @@ to QS-27 of [arc42.md](./arc42.md) §10) is filed under `docs/evidence/SY-<date>
 | SY-A | Character-level merging for long notes (CRDT text) — assess the need after user feedback | After `1.0.0` |
 | SY-B | The default sync scope on a mobile shell (everything vs. subscribed containers). The browser asks for everything (§1): 66,867 entries measured 60 MB (4.1 MB gzipped), 6–11 s, once | The shells |
 | SY-D | The local cache encryption of a third-party client. First-party clients use SQLite encrypted at rest with the key in the platform keystore ([ADR-0033](../adr/ADR-0033-shared-client-architecture.md)) | Each third-party client |
+
+## 13. Live documents
+
+A page or a whiteboard is edited by several people at once (F-8). It is not an entry and does not
+travel through §3: its content is a CRDT, merged by the editors, and the server's part is to keep
+it, order it and decide who may touch it.
+
+* **The store** (migration 0230): per document a head (`realtime_document`: the last place given,
+  the place the newest snapshot covers), an append-only log of updates (`realtime_update`, each at
+  most 1 MiB, with its author) and snapshots (`realtime_snapshot`, at most 16 MiB). The server never
+  reads an update. Two writers are ordered by the head's row lock; every insert rings the change
+  stream's doorbell (migration 0022), so a connection on another process catches up.
+* **The connection** is `GET /api/v1/realtime/documents/{kind}/{documentId}`, a WebSocket in the
+  editors' sync and awareness framing. The server sends the newest snapshot as sync step two, every
+  update after it, and - to a writer - an empty state vector, so the writer answers with everything
+  it holds, its offline edits included. Without a CRDT of its own the server cannot compute the
+  difference, so a reconnect re-sends a writer's state; duplicates are harmless to the editors and
+  compaction bounds the log. Two messages are the server's own: `100` a writer's snapshot (the place
+  it covers, then the state) and `101` the server asking for one, after 500 updates past the last.
+* **Authorisation** is the realtime service's (`core/application/service/realtime`): a document's
+  kind names the place it sits at (a `Locator`), and reading needs READ there, writing WRITE_ITEMS,
+  with the token scopes `items:read` and `items:write`. Asked when the connection opens and again,
+  without a record, before every catch-up: access ended while connected closes it with `4403`. A
+  kind no step registered answers not found. A browser's bearer may arrive as the subprotocol
+  `hubtask.bearer.<token>` on the upgrade and nowhere else.
+* **Bounds** (rule 7): a write that takes ten seconds, or ninety seconds without a message, ends the
+  connection; a ping every thirty seconds keeps a live one; the connections count against the
+  change stream's caps.
+* **Awareness** - a cursor, a selection, a name - is relayed to the document's other connections in
+  the same process and never stored.
+* **Retention and erasure.** A snapshot marks the updates it covers and the snapshot it replaces;
+  `DOCUMENT_HISTORY` removes them after thirty days ([data-retention.md](./data-retention.md) §3),
+  held by a workspace hold. The document itself - the newest snapshot and the updates after it - is
+  never aged out. An erased author leaves the update without a name (`ON DELETE SET NULL`); the
+  owning kind erases its documents with itself (`Documents.Erase`). The archive carries all three
+  tables ([tenant-export.md](./tenant-export.md) §6).
+
+| # | Open point | Needed by |
+|---|---|---|
+| SY-E | Awareness across processes: a reader on another replica sees no cursor until the document's connections share one (sticky routing per document, or a bus) | the first installation with more than one API replica and pages |
+| SY-F | A server-side merge of updates (a CRDT library in Go) would answer a writer's state vector with the difference and compact without a writer; none passes review yet | when the log or reconnect traffic is measured to need it |
