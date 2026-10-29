@@ -7235,7 +7235,7 @@
   "config.refused": "Das Konfigurationsdokument hat Fehler. Jeder ist an seinem Schlüssel genannt.",
   "config.section_unknown": "Das Konfigurationsdokument hat keinen solchen Abschnitt.",
   "config.section_withheld": "Diesen Abschnitt kannst du hier nicht ändern: Er ist ausgeschaltet, oder du darfst ihn nicht lesen.",
-  "config.template_key_shipped": "Unter diesem Schlüssel liefert Hubtask eine Vorlage mit. Wähle einen anderen Schlüssel.",
+  "config.template_key_shipped": "Dieser Schlüssel benennt eine Voreinstellung, die als Vorlage angeboten wird. Wähle einen anderen Schlüssel.",
   "config.template_not_taken": "Dieser Arbeitsbereich hat diese Vorlage nicht übernommen, es gibt nichts zu aktualisieren.",
   "config.template_unknown": "Diese Vorlage oder Version gibt es nicht.",
   "config.template_version_taken": "Jemand hat diese Version der Vorlage inzwischen veröffentlicht. Veröffentliche erneut.",

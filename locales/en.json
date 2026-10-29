@@ -7238,7 +7238,7 @@
   "config.refused": "The configuration document has problems. Each is named at its key.",
   "config.section_unknown": "The configuration document has no such section.",
   "config.section_withheld": "You cannot change this section here: it is switched off, or you may not read it.",
-  "config.template_key_shipped": "Hubtask ships a template under this key. Choose another key.",
+  "config.template_key_shipped": "This key names a preset offered as a template. Choose another key.",
   "config.template_not_taken": "This workspace has not taken this template, so there is nothing to upgrade.",
   "config.template_unknown": "There is no such template or version.",
   "config.template_version_taken": "Someone published this template version in the meantime. Publish again.",
