@@ -1653,6 +1653,24 @@ func (e ConfigProposalState) Valid() bool {
 	}
 }
 
+// Defines values for ConfigSandboxRequestMode.
+const (
+	ConfigSandboxRequestModeMERGE   ConfigSandboxRequestMode = "MERGE"
+	ConfigSandboxRequestModeREPLACE ConfigSandboxRequestMode = "REPLACE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigSandboxRequestMode enum.
+func (e ConfigSandboxRequestMode) Valid() bool {
+	switch e {
+	case ConfigSandboxRequestModeMERGE:
+		return true
+	case ConfigSandboxRequestModeREPLACE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConfigTemplateOrigin.
 const (
 	ConfigTemplateOriginHUBTASK      ConfigTemplateOrigin = "HUBTASK"
@@ -8191,6 +8209,9 @@ type ConfigApplyRequest struct {
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document *ConfigDocument `json:"document,omitempty"`
 
+	// FromSandbox Promotes the sandbox - what it changed since its copy - instead of a document.
+	FromSandbox *bool `json:"from_sandbox,omitempty"`
+
 	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
 	HubId    *openapi_types.UUID     `json:"hub_id,omitempty"`
 	Mode     *ConfigApplyRequestMode `json:"mode,omitempty"`
@@ -8316,6 +8337,9 @@ type ConfigPlanRequest struct {
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document *ConfigDocument `json:"document,omitempty"`
 
+	// FromSandbox Promotes the sandbox - what it changed since its copy - instead of a document.
+	FromSandbox *bool `json:"from_sandbox,omitempty"`
+
 	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
 	HubId     *openapi_types.UUID    `json:"hub_id,omitempty"`
 	Mode      *ConfigPlanRequestMode `json:"mode,omitempty"`
@@ -8399,6 +8423,36 @@ type ConfigRefusal struct {
 	// Path The key path as a JSON Pointer.
 	Path string `json:"path"`
 }
+
+// ConfigSandbox defines model for ConfigSandbox.
+type ConfigSandbox struct {
+	// BaseHash The hash of the configuration in force the sandbox was copied from.
+	BaseHash    *string `json:"base_hash,omitempty"`
+	BaseVersion *int    `json:"base_version,omitempty"`
+
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document  *ConfigDocument `json:"document,omitempty"`
+	Exists    bool            `json:"exists"`
+	Hash      *string         `json:"hash,omitempty"`
+	Promotion *ConfigPlan     `json:"promotion,omitempty"`
+	UpdatedAt *time.Time      `json:"updated_at,omitempty"`
+
+	// Writes Blocks changed in the sandbox since it was copied.
+	Writes *int `json:"writes,omitempty"`
+}
+
+// ConfigSandboxRequest defines model for ConfigSandboxRequest.
+type ConfigSandboxRequest struct {
+	Discard *bool `json:"discard,omitempty"`
+
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document *ConfigDocument           `json:"document,omitempty"`
+	Mode     *ConfigSandboxRequestMode `json:"mode,omitempty"`
+	Reset    *bool                     `json:"reset,omitempty"`
+}
+
+// ConfigSandboxRequestMode defines model for ConfigSandboxRequest.Mode.
+type ConfigSandboxRequestMode string
 
 // ConfigSchema defines model for ConfigSchema.
 type ConfigSchema struct {
@@ -17151,6 +17205,9 @@ type SetConfigPolicyJSONRequestBody = ConfigPolicy
 // DecideConfigProposalJSONRequestBody defines body for DecideConfigProposal for application/json ContentType.
 type DecideConfigProposalJSONRequestBody = ConfigDecision
 
+// WriteConfigSandboxJSONRequestBody defines body for WriteConfigSandbox for application/json ContentType.
+type WriteConfigSandboxJSONRequestBody = ConfigSandboxRequest
+
 // PublishConfigTemplateJSONRequestBody defines body for PublishConfigTemplate for application/json ContentType.
 type PublishConfigTemplateJSONRequestBody = ConfigTemplatePublish
 
@@ -20342,6 +20399,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /config/proposals/{proposalId}:decide (the `DecideConfigProposal` operationId).
 	DecideConfigProposal(ctx context.Context, proposalId openapi_types.UUID, params *DecideConfigProposalParams, body DecideConfigProposalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadConfigSandbox The configuration sandbox and what promoting it would do
+	//
+	// The sandbox is a copy of the configuration without content where changes run nothing. Answers its document, the configuration it was copied from, and `promotion` - the plan of what it changed since, against the configuration in force. `exists` is false where the workspace has none.
+	//
+	// Corresponds with GET /config/sandbox (the `ReadConfigSandbox` operationId).
+	ReadConfigSandbox(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// WriteConfigSandboxWithBody Change, copy afresh or discard the sandbox
+	//
+	// Changes the sandbox by a document read against it, as a plan would read it; nothing runs, so the plan scope is enough and no approval holds it back. `reset` copies the configuration in force afresh first; `discard` throws the sandbox away. A document the workspace would refuse is refused with the same refusals. Promoting is `POST /config:plan` and `/config:apply` with `from_sandbox`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /config/sandbox (the `WriteConfigSandbox` operationId).
+	WriteConfigSandboxWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// WriteConfigSandbox Change, copy afresh or discard the sandbox
+	//
+	// Changes the sandbox by a document read against it, as a plan would read it; nothing runs, so the plan scope is enough and no approval holds it back. `reset` copies the configuration in force afresh first; `discard` throws the sandbox away. A document the workspace would refuse is refused with the same refusals. Promoting is `POST /config:plan` and `/config:apply` with `from_sandbox`.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /config/sandbox (the `WriteConfigSandbox` operationId).
+	WriteConfigSandbox(ctx context.Context, body WriteConfigSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListConfigTemplates The workspace's templates
 	//
@@ -29112,6 +29194,61 @@ func (c *Client) DecideConfigProposalWithBody(ctx context.Context, proposalId op
 // Corresponds with POST /config/proposals/{proposalId}:decide (the `DecideConfigProposal` operationId).
 func (c *Client) DecideConfigProposal(ctx context.Context, proposalId openapi_types.UUID, params *DecideConfigProposalParams, body DecideConfigProposalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDecideConfigProposalRequest(c.Server, proposalId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadConfigSandbox The configuration sandbox and what promoting it would do
+//
+// The sandbox is a copy of the configuration without content where changes run nothing. Answers its document, the configuration it was copied from, and `promotion` - the plan of what it changed since, against the configuration in force. `exists` is false where the workspace has none.
+//
+// Corresponds with GET /config/sandbox (the `ReadConfigSandbox` operationId).
+func (c *Client) ReadConfigSandbox(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadConfigSandboxRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// WriteConfigSandboxWithBody Change, copy afresh or discard the sandbox
+//
+// Changes the sandbox by a document read against it, as a plan would read it; nothing runs, so the plan scope is enough and no approval holds it back. `reset` copies the configuration in force afresh first; `discard` throws the sandbox away. A document the workspace would refuse is refused with the same refusals. Promoting is `POST /config:plan` and `/config:apply` with `from_sandbox`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /config/sandbox (the `WriteConfigSandbox` operationId).
+func (c *Client) WriteConfigSandboxWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewWriteConfigSandboxRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// WriteConfigSandbox Change, copy afresh or discard the sandbox
+//
+// Changes the sandbox by a document read against it, as a plan would read it; nothing runs, so the plan scope is enough and no approval holds it back. `reset` copies the configuration in force afresh first; `discard` throws the sandbox away. A document the workspace would refuse is refused with the same refusals. Promoting is `POST /config:plan` and `/config:apply` with `from_sandbox`.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /config/sandbox (the `WriteConfigSandbox` operationId).
+func (c *Client) WriteConfigSandbox(ctx context.Context, body WriteConfigSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewWriteConfigSandboxRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -44235,6 +44372,73 @@ func NewDecideConfigProposalRequestWithBody(server string, proposalId openapi_ty
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewReadConfigSandboxRequest constructs an http.Request for the ReadConfigSandbox method
+func NewReadConfigSandboxRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/sandbox")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewWriteConfigSandboxRequest calls the generic WriteConfigSandbox builder with application/json body
+func NewWriteConfigSandboxRequest(server string, body WriteConfigSandboxJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewWriteConfigSandboxRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewWriteConfigSandboxRequestWithBody constructs an http.Request for the WriteConfigSandbox method, with any body, and a specified content type
+func NewWriteConfigSandboxRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/sandbox")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -60387,6 +60591,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /config/proposals/{proposalId}:decide (the `DecideConfigProposal` operationId).
 	DecideConfigProposalWithResponse(ctx context.Context, proposalId openapi_types.UUID, params *DecideConfigProposalParams, body DecideConfigProposalJSONRequestBody, reqEditors ...RequestEditorFn) (*DecideConfigProposalResult, error)
 
+	// ReadConfigSandboxWithResponse The configuration sandbox and what promoting it would do
+	//
+	// The sandbox is a copy of the configuration without content where changes run nothing. Answers its document, the configuration it was copied from, and `promotion` - the plan of what it changed since, against the configuration in force. `exists` is false where the workspace has none.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /config/sandbox (the `ReadConfigSandbox` operationId).
+	ReadConfigSandboxWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadConfigSandboxResult, error)
+
+	// WriteConfigSandboxWithBodyWithResponse Change, copy afresh or discard the sandbox
+	//
+	// Changes the sandbox by a document read against it, as a plan would read it; nothing runs, so the plan scope is enough and no approval holds it back. `reset` copies the configuration in force afresh first; `discard` throws the sandbox away. A document the workspace would refuse is refused with the same refusals. Promoting is `POST /config:plan` and `/config:apply` with `from_sandbox`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /config/sandbox (the `WriteConfigSandbox` operationId).
+	WriteConfigSandboxWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*WriteConfigSandboxResult, error)
+
+	// WriteConfigSandboxWithResponse Change, copy afresh or discard the sandbox
+	//
+	// Changes the sandbox by a document read against it, as a plan would read it; nothing runs, so the plan scope is enough and no approval holds it back. `reset` copies the configuration in force afresh first; `discard` throws the sandbox away. A document the workspace would refuse is refused with the same refusals. Promoting is `POST /config:plan` and `/config:apply` with `from_sandbox`.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /config/sandbox (the `WriteConfigSandbox` operationId).
+	WriteConfigSandboxWithResponse(ctx context.Context, body WriteConfigSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*WriteConfigSandboxResult, error)
+
 	// ListConfigTemplatesWithResponse The workspace's templates
 	//
 	// Each template's newest version, the version the workspace took and whether an update is available.
@@ -72582,6 +72813,102 @@ func (r DecideConfigProposalResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r DecideConfigProposalResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadConfigSandboxResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigSandbox
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadConfigSandboxResult) GetJSON200() *ConfigSandbox {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadConfigSandboxResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadConfigSandboxResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadConfigSandboxResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadConfigSandboxResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadConfigSandboxResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type WriteConfigSandboxResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigSandbox
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r WriteConfigSandboxResult) GetJSON200() *ConfigSandbox {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r WriteConfigSandboxResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r WriteConfigSandboxResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r WriteConfigSandboxResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r WriteConfigSandboxResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r WriteConfigSandboxResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -90360,6 +90687,51 @@ func (c *ClientWithResponses) DecideConfigProposalWithResponse(ctx context.Conte
 	return ParseDecideConfigProposalResult(rsp)
 }
 
+// ReadConfigSandboxWithResponse The configuration sandbox and what promoting it would do
+//
+// The sandbox is a copy of the configuration without content where changes run nothing. Answers its document, the configuration it was copied from, and `promotion` - the plan of what it changed since, against the configuration in force. `exists` is false where the workspace has none.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /config/sandbox (the `ReadConfigSandbox` operationId).
+func (c *ClientWithResponses) ReadConfigSandboxWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadConfigSandboxResult, error) {
+	rsp, err := c.ReadConfigSandbox(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadConfigSandboxResult(rsp)
+}
+
+// WriteConfigSandboxWithBodyWithResponse Change, copy afresh or discard the sandbox
+//
+// Changes the sandbox by a document read against it, as a plan would read it; nothing runs, so the plan scope is enough and no approval holds it back. `reset` copies the configuration in force afresh first; `discard` throws the sandbox away. A document the workspace would refuse is refused with the same refusals. Promoting is `POST /config:plan` and `/config:apply` with `from_sandbox`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /config/sandbox (the `WriteConfigSandbox` operationId).
+func (c *ClientWithResponses) WriteConfigSandboxWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*WriteConfigSandboxResult, error) {
+	rsp, err := c.WriteConfigSandboxWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseWriteConfigSandboxResult(rsp)
+}
+
+// WriteConfigSandboxWithResponse Change, copy afresh or discard the sandbox
+//
+// Changes the sandbox by a document read against it, as a plan would read it; nothing runs, so the plan scope is enough and no approval holds it back. `reset` copies the configuration in force afresh first; `discard` throws the sandbox away. A document the workspace would refuse is refused with the same refusals. Promoting is `POST /config:plan` and `/config:apply` with `from_sandbox`.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /config/sandbox (the `WriteConfigSandbox` operationId).
+func (c *ClientWithResponses) WriteConfigSandboxWithResponse(ctx context.Context, body WriteConfigSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*WriteConfigSandboxResult, error) {
+	rsp, err := c.WriteConfigSandbox(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseWriteConfigSandboxResult(rsp)
+}
+
 // ListConfigTemplatesWithResponse The workspace's templates
 //
 // Each template's newest version, the version the workspace took and whether an update is available.
@@ -102430,6 +102802,72 @@ func ParseDecideConfigProposalResult(rsp *http.Response) (*DecideConfigProposalR
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest ConfigApplyResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadConfigSandboxResult parses an HTTP response from a ReadConfigSandboxWithResponse call
+func ParseReadConfigSandboxResult(rsp *http.Response) (*ReadConfigSandboxResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadConfigSandboxResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigSandbox
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseWriteConfigSandboxResult parses an HTTP response from a WriteConfigSandboxWithResponse call
+func ParseWriteConfigSandboxResult(rsp *http.Response) (*WriteConfigSandboxResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &WriteConfigSandboxResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigSandbox
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

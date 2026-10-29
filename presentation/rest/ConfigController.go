@@ -149,3 +149,15 @@ func (c *RestController) PublishConfigTemplate(w http.ResponseWriter, r *http.Re
 func (c *RestController) PlanConfigTemplate(w http.ResponseWriter, r *http.Request, key string) {
 	c.configCall(w, r, "PlanConfigTemplate", usecase.Input{"key": key}, http.StatusOK)
 }
+
+// ReadConfigSandbox answers GET /config/sandbox.
+func (c *RestController) ReadConfigSandbox(w http.ResponseWriter, r *http.Request) {
+	if out, ok := c.read(w, r, "ReadConfigSandbox", usecase.Input{}); ok {
+		writeJSON(w, r, http.StatusOK, out)
+	}
+}
+
+// WriteConfigSandbox answers POST /config/sandbox.
+func (c *RestController) WriteConfigSandbox(w http.ResponseWriter, r *http.Request) {
+	c.configCall(w, r, "WriteConfigSandbox", nil, http.StatusOK)
+}

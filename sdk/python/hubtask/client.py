@@ -1503,6 +1503,14 @@ class Client:
         """Plan taking or upgrading a template"""
         return self._call("POST", "/config/templates/{key}:plan", {"key": key}, None, {}, body, "json", "application/json", "json")
 
+    def read_config_sandbox(self) -> "ConfigSandbox":
+        """The configuration sandbox and what promoting it would do"""
+        return self._call("GET", "/config/sandbox", {}, None, {}, None, "none", None, "json")
+
+    def write_config_sandbox(self, body: "ConfigSandboxRequest") -> "ConfigSandbox":
+        """Change, copy afresh or discard the sandbox"""
+        return self._call("POST", "/config/sandbox", {}, None, {}, body, "json", "application/json", "json")
+
     def list_modules(self, *, query: dict[str, Any] | None = None) -> "ModuleList":
         """The modules of the suite at the workspace or one hub"""
         return self._call("GET", "/tenant/modules", {}, query, {}, None, "none", None, "json")

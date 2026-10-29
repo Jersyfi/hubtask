@@ -1647,6 +1647,24 @@ func (e ConfigProposalState) Valid() bool {
 	}
 }
 
+// Defines values for ConfigSandboxRequestMode.
+const (
+	ConfigSandboxRequestModeMERGE   ConfigSandboxRequestMode = "MERGE"
+	ConfigSandboxRequestModeREPLACE ConfigSandboxRequestMode = "REPLACE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigSandboxRequestMode enum.
+func (e ConfigSandboxRequestMode) Valid() bool {
+	switch e {
+	case ConfigSandboxRequestModeMERGE:
+		return true
+	case ConfigSandboxRequestModeREPLACE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConfigTemplateOrigin.
 const (
 	ConfigTemplateOriginHUBTASK      ConfigTemplateOrigin = "HUBTASK"
@@ -8185,6 +8203,9 @@ type ConfigApplyRequest struct {
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document *ConfigDocument `json:"document,omitempty"`
 
+	// FromSandbox Promotes the sandbox - what it changed since its copy - instead of a document.
+	FromSandbox *bool `json:"from_sandbox,omitempty"`
+
 	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
 	HubId    *openapi_types.UUID     `json:"hub_id,omitempty"`
 	Mode     *ConfigApplyRequestMode `json:"mode,omitempty"`
@@ -8310,6 +8331,9 @@ type ConfigPlanRequest struct {
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document *ConfigDocument `json:"document,omitempty"`
 
+	// FromSandbox Promotes the sandbox - what it changed since its copy - instead of a document.
+	FromSandbox *bool `json:"from_sandbox,omitempty"`
+
 	// HubId A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
 	HubId     *openapi_types.UUID    `json:"hub_id,omitempty"`
 	Mode      *ConfigPlanRequestMode `json:"mode,omitempty"`
@@ -8393,6 +8417,36 @@ type ConfigRefusal struct {
 	// Path The key path as a JSON Pointer.
 	Path string `json:"path"`
 }
+
+// ConfigSandbox defines model for ConfigSandbox.
+type ConfigSandbox struct {
+	// BaseHash The hash of the configuration in force the sandbox was copied from.
+	BaseHash    *string `json:"base_hash,omitempty"`
+	BaseVersion *int    `json:"base_version,omitempty"`
+
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document  *ConfigDocument `json:"document,omitempty"`
+	Exists    bool            `json:"exists"`
+	Hash      *string         `json:"hash,omitempty"`
+	Promotion *ConfigPlan     `json:"promotion,omitempty"`
+	UpdatedAt *time.Time      `json:"updated_at,omitempty"`
+
+	// Writes Blocks changed in the sandbox since it was copied.
+	Writes *int `json:"writes,omitempty"`
+}
+
+// ConfigSandboxRequest defines model for ConfigSandboxRequest.
+type ConfigSandboxRequest struct {
+	Discard *bool `json:"discard,omitempty"`
+
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document *ConfigDocument           `json:"document,omitempty"`
+	Mode     *ConfigSandboxRequestMode `json:"mode,omitempty"`
+	Reset    *bool                     `json:"reset,omitempty"`
+}
+
+// ConfigSandboxRequestMode defines model for ConfigSandboxRequest.Mode.
+type ConfigSandboxRequestMode string
 
 // ConfigSchema defines model for ConfigSchema.
 type ConfigSchema struct {
@@ -17145,6 +17199,9 @@ type SetConfigPolicyJSONRequestBody = ConfigPolicy
 // DecideConfigProposalJSONRequestBody defines body for DecideConfigProposal for application/json ContentType.
 type DecideConfigProposalJSONRequestBody = ConfigDecision
 
+// WriteConfigSandboxJSONRequestBody defines body for WriteConfigSandbox for application/json ContentType.
+type WriteConfigSandboxJSONRequestBody = ConfigSandboxRequest
+
 // PublishConfigTemplateJSONRequestBody defines body for PublishConfigTemplate for application/json ContentType.
 type PublishConfigTemplateJSONRequestBody = ConfigTemplatePublish
 
@@ -18047,6 +18104,12 @@ type ServerInterface interface {
 	// DecideConfigProposal Apply or decline a proposed change
 	// (POST /config/proposals/{proposalId}:decide)
 	DecideConfigProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID, params DecideConfigProposalParams)
+	// ReadConfigSandbox The configuration sandbox and what promoting it would do
+	// (GET /config/sandbox)
+	ReadConfigSandbox(w http.ResponseWriter, r *http.Request)
+	// WriteConfigSandbox Change, copy afresh or discard the sandbox
+	// (POST /config/sandbox)
+	WriteConfigSandbox(w http.ResponseWriter, r *http.Request)
 	// ListConfigTemplates The workspace's templates
 	// (GET /config/templates)
 	ListConfigTemplates(w http.ResponseWriter, r *http.Request)
@@ -23986,6 +24049,34 @@ func (siw *ServerInterfaceWrapper) DecideConfigProposal(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DecideConfigProposal(w, r, proposalId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadConfigSandbox operation middleware
+func (siw *ServerInterfaceWrapper) ReadConfigSandbox(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadConfigSandbox(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// WriteConfigSandbox operation middleware
+func (siw *ServerInterfaceWrapper) WriteConfigSandbox(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.WriteConfigSandbox(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -34351,6 +34442,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/config/templates", wrapper.ListConfigTemplates)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/config/templates", wrapper.PublishConfigTemplate)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/config/templates/{key}:plan", wrapper.PlanConfigTemplate)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/config/sandbox", wrapper.ReadConfigSandbox)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/config/sandbox", wrapper.WriteConfigSandbox)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/modules", wrapper.ListModules)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tenant/modules/{module}", wrapper.SetModule)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/presets", wrapper.ListPresets)

@@ -10113,6 +10113,51 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /config/sandbox:
+    get:
+      tags: [structure]
+      operationId: readConfigSandbox
+      summary: The configuration sandbox and what promoting it would do
+      description: >
+        The sandbox is a copy of the configuration without content where changes run nothing.
+        Answers its document, the configuration it was copied from, and `promotion` - the plan of
+        what it changed since, against the configuration in force. `exists` is false where the
+        workspace has none.
+      responses:
+        "200":
+          description: The sandbox
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigSandbox"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [structure]
+      operationId: writeConfigSandbox
+      summary: Change, copy afresh or discard the sandbox
+      description: >
+        Changes the sandbox by a document read against it, as a plan would read it; nothing runs,
+        so the plan scope is enough and no approval holds it back. `reset` copies the
+        configuration in force afresh first; `discard` throws the sandbox away. A document the
+        workspace would refuse is refused with the same refusals. Promoting is
+        `POST /config:plan` and `/config:apply` with `from_sandbox`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfigSandboxRequest"
+      responses:
+        "200":
+          description: The sandbox after the write
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigSandbox"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /tenant/modules:
     get:
       tags: [meta]
@@ -17506,6 +17551,9 @@ components:
           type: string
           format: uuid
           description: A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+        from_sandbox:
+          type: boolean
+          description: Promotes the sandbox - what it changed since its copy - instead of a document.
 
     ConfigChange:
       type: object
@@ -17622,6 +17670,34 @@ components:
           type: string
           format: uuid
           description: A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the workspace's.
+        from_sandbox:
+          type: boolean
+          description: Promotes the sandbox - what it changed since its copy - instead of a document.
+
+    ConfigSandbox:
+      type: object
+      required: [exists]
+      properties:
+        exists: { type: boolean }
+        document: { $ref: "#/components/schemas/ConfigDocument" }
+        hash: { type: string }
+        base_hash:
+          type: string
+          description: The hash of the configuration in force the sandbox was copied from.
+        base_version: { type: integer }
+        writes:
+          type: integer
+          description: Blocks changed in the sandbox since it was copied.
+        updated_at: { type: string, format: date-time }
+        promotion: { $ref: "#/components/schemas/ConfigPlan" }
+
+    ConfigSandboxRequest:
+      type: object
+      properties:
+        document: { $ref: "#/components/schemas/ConfigDocument" }
+        mode: { type: string, enum: [MERGE, REPLACE] }
+        reset: { type: boolean }
+        discard: { type: boolean }
 
     ConfigVersion:
       type: object

@@ -1892,6 +1892,16 @@ export class HubtaskClient {
     return this.call("POST", "/config/templates/{key}:plan", { "key": key }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The configuration sandbox and what promoting it would do */
+  readConfigSandbox(options: CallOptions = {}): Promise<operations["readConfigSandbox"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/config/sandbox", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Change, copy afresh or discard the sandbox */
+  writeConfigSandbox(body: NonNullable<operations["writeConfigSandbox"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["writeConfigSandbox"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/config/sandbox", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The modules of the suite at the workspace or one hub */
   listModules(options: CallOptions & { readonly query?: NonNullable<operations["listModules"]['parameters']['query']> } = {}): Promise<operations["listModules"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/tenant/modules", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

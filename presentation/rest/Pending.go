@@ -1799,7 +1799,9 @@ func (pending) ExplainAccess(w http.ResponseWriter, r *http.Request, _ openapi.E
 }
 
 // The configuration document (F-6).
-func (pending) ReadConfigSchema(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) ReadConfigSchema(w http.ResponseWriter, r *http.Request)   { notAvailable(w, r) }
+func (pending) ReadConfigSandbox(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
+func (pending) WriteConfigSandbox(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 func (pending) ExportConfig(w http.ResponseWriter, r *http.Request, _ openapi.ExportConfigParams) {
 	notAvailable(w, r)
 }

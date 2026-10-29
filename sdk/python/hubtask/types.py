@@ -1529,6 +1529,7 @@ class ConfigPlanRequest(TypedDict, total=False):
     mode: Literal["MERGE", "REPLACE"]
     to_version: int
     hub_id: str
+    from_sandbox: bool
 
 class ConfigChange(TypedDict, total=False):
     path: Required[str]
@@ -1573,6 +1574,23 @@ class ConfigApplyRequest(TypedDict, total=False):
     acknowledge: bool
     template: str
     hub_id: str
+    from_sandbox: bool
+
+class ConfigSandbox(TypedDict, total=False):
+    exists: Required[bool]
+    document: "ConfigDocument"
+    hash: str
+    base_hash: str
+    base_version: int
+    writes: int
+    updated_at: str
+    promotion: "ConfigPlan"
+
+class ConfigSandboxRequest(TypedDict, total=False):
+    document: "ConfigDocument"
+    mode: Literal["MERGE", "REPLACE"]
+    reset: bool
+    discard: bool
 
 class ConfigVersion(TypedDict, total=False):
     version: Required[int]
