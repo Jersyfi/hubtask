@@ -259,6 +259,8 @@ type plan struct {
 	Policy   *domain.AgentApply
 	// StepUp is whether the plan changes the sign-in rule, which its apply proves afresh.
 	StepUp bool
+	// Reach is what the changes touch beyond the configuration, where a plan is read for a person.
+	Reach []reach
 }
 
 // planOf compares a desired document, in its mode, with the one in force and checks every change

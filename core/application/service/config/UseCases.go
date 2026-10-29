@@ -86,7 +86,10 @@ func (d Desk) planned(ctx context.Context, actor appshared.ActorContext, in usec
 			return err
 		}
 		p = d.planOf(now, document, mode)
-		return nil
+		if len(p.Refusals) > 0 {
+			return nil
+		}
+		return d.reachOf(ctx, actor, &p)
 	})
 	return p, now, mode, version, err
 }
@@ -112,6 +115,7 @@ func PlanOutput(p plan) usecase.Output {
 		"refusals": RefusalsOutput(p.Refusals),
 		"flags":    usecase.Output{"hides_data": p.Flags.HidesData, "changes_permissions": p.Flags.ChangesPermissions},
 		"step_up":  p.StepUp,
+		"reach":    ReachOutput(p.Reach),
 		"counts":   usecase.Output{"added": counts.Added, "changed": counts.Changed, "removed": counts.Removed},
 	}
 	if p.Hash != "" {

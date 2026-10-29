@@ -8292,7 +8292,10 @@ type ConfigPlan struct {
 	} `json:"operations"`
 
 	// PlanHash Null where the plan refuses.
-	PlanHash *string         `json:"plan_hash"`
+	PlanHash *string `json:"plan_hash"`
+
+	// Reach What the changes touch beyond the configuration, by key path: the entries a workflow's new shape moves, the people a role's change gives or takes a permission. Counts only.
+	Reach    *[]ConfigReach  `json:"reach,omitempty"`
 	Refusals []ConfigRefusal `json:"refusals"`
 
 	// StepUp True where the plan changes the sign-in rule, so its apply needs a fresh proof.
@@ -8349,6 +8352,28 @@ type ConfigProposalState string
 // ConfigProposalList defines model for ConfigProposalList.
 type ConfigProposalList struct {
 	Data []ConfigProposal `json:"data"`
+}
+
+// ConfigReach defines model for ConfigReach.
+type ConfigReach struct {
+	// Accounts People who hold the role directly.
+	Accounts *int `json:"accounts,omitempty"`
+
+	// Entries Entries the workflow's new shape moves to another status.
+	Entries *int      `json:"entries,omitempty"`
+	Gained  *[]string `json:"gained,omitempty"`
+
+	// Groups Groups that hold the role.
+	Groups *int      `json:"groups,omitempty"`
+	Lost   *[]string `json:"lost,omitempty"`
+
+	// Moves Per collection and entry type, the status entries move from and to, and how many (as WorkflowPreview).
+	Moves   *[]map[string]interface{} `json:"moves,omitempty"`
+	Path    string                    `json:"path"`
+	Removed *[]struct {
+		Count  int    `json:"count"`
+		Status string `json:"status"`
+	} `json:"removed,omitempty"`
 }
 
 // ConfigRefusal defines model for ConfigRefusal.
@@ -8412,7 +8437,10 @@ type ConfigTemplatePlan struct {
 	} `json:"operations"`
 
 	// PlanHash Null where the plan refuses.
-	PlanHash *string         `json:"plan_hash"`
+	PlanHash *string `json:"plan_hash"`
+
+	// Reach What the changes touch beyond the configuration, by key path: the entries a workflow's new shape moves, the people a role's change gives or takes a permission. Counts only.
+	Reach    *[]ConfigReach  `json:"reach,omitempty"`
 	Refusals []ConfigRefusal `json:"refusals"`
 
 	// StepUp True where the plan changes the sign-in rule, so its apply needs a fresh proof.

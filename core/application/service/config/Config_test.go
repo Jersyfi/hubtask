@@ -41,11 +41,16 @@ type world struct {
 	// failOn makes one use case refuse, as a block its own checks reject would.
 	failOn string
 	calls  []string
+	// workflows, nil withholding the section, preview what PreviewWorkflowPublish answers and
+	// grants the role grants ListRoles answers.
+	workflows map[string]map[string]any
+	preview   usecase.Output
+	grants    []any
 }
 
 func (w *world) clone() *world {
 	out := &world{types: map[string]map[string]any{}, roles: map[string]map[string]any{}, failOn: w.failOn,
-		workspace: w.workspace, ai: w.ai, inputs: maps.Clone(w.inputs)}
+		workspace: w.workspace, ai: w.ai, inputs: maps.Clone(w.inputs), workflows: w.workflows, preview: w.preview, grants: w.grants}
 	if w.structure != nil {
 		out.structure = maps.Clone(w.structure)
 	}
@@ -82,7 +87,18 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 	case "ListEntryTypes":
 		return usecase.Output{"data": rowsOf(w.types)}, nil
 	case "ListRoles":
-		return usecase.Output{"custom": rowsOf(w.roles)}, nil
+		return usecase.Output{"custom": rowsOf(w.roles), "grants": w.grants}, nil
+	case "ListWorkflows":
+		if w.workflows == nil {
+			return nil, shared.ErrValidation.WithDetail("module.off")
+		}
+		return usecase.Output{"data": rowsOf(w.workflows)}, nil
+	case "PreviewWorkflowPublish":
+		if w.inputs == nil {
+			w.inputs = map[string][]usecase.Input{}
+		}
+		w.inputs[name] = append(w.inputs[name], in)
+		return w.preview, nil
 	case "ListModules":
 		return usecase.Output{"modules": []any{map[string]any{"module": "WORKFLOWS", "on": true, "source": "WORKSPACE"}}}, nil
 	case "CreateEntryType":

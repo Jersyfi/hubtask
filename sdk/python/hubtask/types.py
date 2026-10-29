@@ -1544,7 +1544,18 @@ class ConfigPlan(TypedDict, total=False):
     refusals: Required[list["ConfigRefusal"]]
     flags: Required[dict[str, Any]]
     step_up: bool
+    reach: list["ConfigReach"]
     counts: Required["ConfigCounts"]
+
+class ConfigReach(TypedDict, total=False):
+    path: Required[str]
+    entries: int
+    moves: list[dict[str, Any]]
+    removed: list[dict[str, Any]]
+    accounts: int
+    groups: int
+    gained: list[str]
+    lost: list[str]
 
 class ConfigCounts(TypedDict, total=False):
     added: Required[int]
@@ -1649,6 +1660,7 @@ class ConfigTemplatePlan(TypedDict, total=False):
     refusals: Required[list["ConfigRefusal"]]
     flags: Required[dict[str, Any]]
     step_up: bool
+    reach: list["ConfigReach"]
     counts: Required["ConfigCounts"]
     template: Required[str]
     from_version: int | None
