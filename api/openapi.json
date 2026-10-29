@@ -13613,6 +13613,9 @@
           "containers"
         ],
         "operationId": "renameContainer",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "containerResponse",
+        "x-hubtask-rest-null": "empty",
         "description": "Changes a container's own descriptive fields. A field that is not sent is left alone; sending description, icon or color_token as null clears it. The name stays unique among the containers at the same level. The policies are not here - they are their own sub-resource, so that a rename and a change of the way a collection works are two operations with two audit entries.\n",
         "parameters": [
           {
@@ -13657,6 +13660,7 @@
           "containers"
         ],
         "operationId": "trashContainer",
+        "x-hubtask-rest": "generated",
         "description": "A soft delete: the hub or collection and everything under it move to the trash under one deletion - a hub takes its collections, and every collection takes its entries. It all stays for the tenant's trash retention period, 30 days by default, and comes back as one act through :restore until the retention job removes it for good. Anything already in the trash from an earlier deletion keeps that deletion rather than joining this one. Needs the owner's right to delete a container. Idempotent.\n",
         "parameters": [
           {
@@ -13826,6 +13830,8 @@
           "containers"
         ],
         "operationId": "setHubPrivacy",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "containerResponse",
         "description": "Makes a hub private - reached only by people holding a role on it, on a collection in it or on an entry in one, and no longer by the workspace's own roles, its owners and administrators included - or shared again. Making it private needs the right to create hubs and the role OWNER on the hub itself; sharing it again needs OWNER on the hub. A hub nobody may see answers not found. Refused with `containers.private_hub_has_groups` while a group holds a role in the hub, and with `containers.private_only_hubs` on a collection. Every device that loses the hub is told. Writing what is already stored changes nothing.\n",
         "parameters": [
           {
@@ -14013,6 +14019,8 @@
           "containers"
         ],
         "operationId": "restoreContainer",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "containerResponse",
         "description": "Takes one container deletion back out of the trash, whole: the hub, its collections, and every entry that went in with them. Exactly what went in together comes back - a separate, younger deletion inside the same subtree stays where it is, because a restore is keyed on the deletion rather than on the subtree. A container archived when it was deleted comes back archived. Needs the same right as the deletion, which is the owner's. Idempotent.\n",
         "parameters": [
           {
@@ -14057,6 +14065,8 @@
           "containers"
         ],
         "operationId": "archiveContainer",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "containerResponse",
         "description": "Archives the container. An archived container is read-only, and everything below it inherits that: a collection in an archived hub refuses writes without being archived itself, which is what effective_archived reports. Idempotent - archiving an archived container changes nothing.\n",
         "parameters": [
           {
@@ -14101,6 +14111,8 @@
           "containers"
         ],
         "operationId": "unarchiveContainer",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "containerResponse",
         "description": "Makes the container writable again. A collection that was archived in its own right stays archived when its hub is unarchived - unarchiving restores what was archived, not what was merely covered by it. Idempotent.\n",
         "parameters": [
           {

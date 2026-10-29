@@ -10484,6 +10484,9 @@ paths:
     patch:
       tags: [containers]
       operationId: renameContainer
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: containerResponse
+      x-hubtask-rest-null: empty
       description: >
         Changes a container's own descriptive fields. A field that is not sent is left alone;
         sending description, icon or color_token as null clears it. The name stays unique among the
@@ -10513,6 +10516,7 @@ paths:
     delete:
       tags: [containers]
       operationId: trashContainer
+      x-hubtask-rest: generated
       description: >
         A soft delete: the hub or collection and everything under it move to the trash under one
         deletion - a hub takes its collections, and every collection takes its entries. It all stays
@@ -10638,6 +10642,8 @@ paths:
     put:
       tags: [containers]
       operationId: setHubPrivacy
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: containerResponse
       description: >
         Makes a hub private - reached only by people holding a role on it, on a collection in it or
         on an entry in one, and no longer by the workspace's own roles, its owners and
@@ -10769,6 +10775,8 @@ paths:
     post:
       tags: [containers]
       operationId: restoreContainer
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: containerResponse
       description: >
         Takes one container deletion back out of the trash, whole: the hub, its collections, and
         every entry that went in with them. Exactly what went in together comes back - a separate,
@@ -10797,6 +10805,8 @@ paths:
     post:
       tags: [containers]
       operationId: archiveContainer
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: containerResponse
       description: >
         Archives the container. An archived container is read-only, and everything below it inherits
         that: a collection in an archived hub refuses writes without being archived itself, which is
@@ -10824,6 +10834,8 @@ paths:
     post:
       tags: [containers]
       operationId: unarchiveContainer
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: containerResponse
       description: >
         Makes the container writable again. A collection that was archived in its own right stays
         archived when its hub is unarchived - unarchiving restores what was archived, not what was
