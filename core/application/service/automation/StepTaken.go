@@ -11,7 +11,6 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
-	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
@@ -41,7 +40,7 @@ type stepDepthKey struct{}
 // StepTaken runs every enabled rule on this workflow's step whose scope reaches the entry.
 func (s StepTaken) StepTaken(
 	ctx context.Context, actor appshared.ActorContext, item work.WorkItem,
-	workflow shared.ID, step string, announced event.Envelope,
+	workflow, step string, announced event.Envelope,
 ) error {
 	if s.Engine == nil || s.Rules == nil {
 		return nil
@@ -52,7 +51,7 @@ func (s StepTaken) StepTaken(
 	}
 	var wanted []domain.Rule
 	for _, rule := range rules {
-		if rule.Enabled && rule.Trigger.WorkflowID == workflow && rule.Trigger.Step == step {
+		if rule.Enabled && rule.Trigger.Workflow == workflow && rule.Trigger.Step == step {
 			wanted = append(wanted, rule)
 		}
 	}

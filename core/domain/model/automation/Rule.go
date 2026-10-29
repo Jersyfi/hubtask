@@ -179,10 +179,10 @@ type Trigger struct {
 	// Anchor and Offset are RELATIVE_DATE's, and both required there.
 	Anchor DateAnchor
 	Offset string
-	// WorkflowID and Step are STEP_TAKEN's, and both required there: the step is one key of one
-	// workflow, and a key alone would fire in every workflow that happens to use it.
-	WorkflowID shared.ID
-	Step       string
+	// Workflow and Step are STEP_TAKEN's, and both required there: the workflow's key and the
+	// step's, since a step key alone would fire in every workflow that happens to use it.
+	Workflow string
+	Step     string
 }
 
 // Action is one step of a run: a use case name in SCREAMING_SNAKE_CASE, and its parameters.
@@ -461,14 +461,15 @@ func ValidTrigger(trigger Trigger) (Trigger, error) {
 		kept := Trigger{Kind: TriggerRelativeDate, Anchor: trigger.Anchor, Offset: offset}
 		return kept, foreign(trigger, kept)
 	case TriggerStepTaken:
-		if trigger.WorkflowID.IsZero() {
-			return Trigger{}, fieldError("/trigger/workflow_id", "automation.workflow_required")
+		workflow := strings.TrimSpace(trigger.Workflow)
+		if workflow == "" {
+			return Trigger{}, fieldError("/trigger/workflow", "automation.workflow_required")
 		}
 		step := strings.TrimSpace(trigger.Step)
 		if step == "" {
 			return Trigger{}, fieldError("/trigger/step", "automation.step_required")
 		}
-		kept := Trigger{Kind: TriggerStepTaken, WorkflowID: trigger.WorkflowID, Step: step}
+		kept := Trigger{Kind: TriggerStepTaken, Workflow: workflow, Step: step}
 		return kept, foreign(trigger, kept)
 	case TriggerInboundWebhook, TriggerManual, TriggerJumbleEntry:
 		// Three kinds that configure nothing on the rule. The address an INBOUND_WEBHOOK answers
@@ -619,8 +620,8 @@ func foreign(sent, kept Trigger) error {
 	if strings.TrimSpace(sent.Offset) != kept.Offset {
 		findings = append(findings, foreignField("offset"))
 	}
-	if sent.WorkflowID != kept.WorkflowID {
-		findings = append(findings, foreignField("workflow_id"))
+	if strings.TrimSpace(sent.Workflow) != kept.Workflow {
+		findings = append(findings, foreignField("workflow"))
 	}
 	if strings.TrimSpace(sent.Step) != kept.Step {
 		findings = append(findings, foreignField("step"))

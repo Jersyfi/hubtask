@@ -2202,7 +2202,7 @@ class RuleTrigger(TypedDict, total=False):
     timezone: str
     anchor: Literal["DUE_DATE", "CREATED_AT"]
     offset: str
-    workflow_id: str
+    workflow: str
     step: str
 
 class AutomationActionField(TypedDict, total=False):

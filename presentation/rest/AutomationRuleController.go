@@ -249,6 +249,7 @@ func triggerInput(trigger openapi.RuleTrigger) map[string]any {
 		"timezone":   trigger.Timezone,
 		"offset":     trigger.Offset,
 		"step":       trigger.Step,
+		"workflow":   trigger.Workflow,
 	} {
 		if value != nil {
 			// Present when the client sent it, empty string and all: a field belonging to another
@@ -259,9 +260,6 @@ func triggerInput(trigger openapi.RuleTrigger) map[string]any {
 	}
 	if trigger.Anchor != nil {
 		document["anchor"] = string(*trigger.Anchor)
-	}
-	if trigger.WorkflowId != nil {
-		document["workflow_id"] = trigger.WorkflowId.String()
 	}
 	if trigger.ChangedFields != nil {
 		fields := make([]any, 0, len(*trigger.ChangedFields))
@@ -392,6 +390,7 @@ func triggerResponse(value any) openapi.RuleTrigger {
 		"timezone":   &trigger.Timezone,
 		"offset":     &trigger.Offset,
 		"step":       &trigger.Step,
+		"workflow":   &trigger.Workflow,
 	} {
 		if text := textField(document, name); text != "" {
 			value := text
@@ -402,7 +401,6 @@ func triggerResponse(value any) openapi.RuleTrigger {
 		value := openapi.RuleTriggerAnchor(anchor)
 		trigger.Anchor = &value
 	}
-	trigger.WorkflowId = optionalUUID(textField(document, "workflow_id"))
 	if raw, present := document["changed_fields"].([]any); present {
 		fields := make([]string, 0, len(raw))
 		for _, field := range raw {

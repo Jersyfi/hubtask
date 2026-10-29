@@ -34,18 +34,18 @@ func (e *engineProbe) Execute(ctx context.Context, _ appshared.ActorContext, cmd
 // UC-FLW-04 check 4: a step runs the enabled STEP_TAKEN rules of its workflow and key whose scope
 // reaches the entry, synchronously, about the entry and the step's announcement.
 func TestAStepRunsTheRulesOnItInItsChange(t *testing.T) {
-	workflow := shared.ID("01936f2a-7c1e-7000-8000-0000000000d1")
-	onStep := func(id shared.ID, scope domain.Scope, wf shared.ID, step string, enabled bool) domain.Rule {
+	const workflow = "purchase"
+	onStep := func(id shared.ID, scope domain.Scope, wf, step string, enabled bool) domain.Rule {
 		rule := ruleAt(scope, id)
 		rule.Enabled = enabled
-		rule.Trigger = domain.Trigger{Kind: domain.TriggerStepTaken, WorkflowID: wf, Step: step}
+		rule.Trigger = domain.Trigger{Kind: domain.TriggerStepTaken, Workflow: wf, Step: step}
 		return rule
 	}
 	wanted := onStep("01936f2a-7c1e-7000-8000-000000000201", domain.Scope{Type: domain.ScopeHub, ID: hubID}, workflow, "approve", true)
 	rules := []domain.Rule{
 		wanted,
 		onStep("01936f2a-7c1e-7000-8000-000000000202", domain.Scope{Type: domain.ScopeTenant}, workflow, "reject", true),
-		onStep("01936f2a-7c1e-7000-8000-000000000203", domain.Scope{Type: domain.ScopeTenant}, otherHubID, "approve", true),
+		onStep("01936f2a-7c1e-7000-8000-000000000203", domain.Scope{Type: domain.ScopeTenant}, "other", "approve", true),
 		onStep("01936f2a-7c1e-7000-8000-000000000204", domain.Scope{Type: domain.ScopeHub, ID: otherHubID}, workflow, "approve", true),
 		onStep("01936f2a-7c1e-7000-8000-000000000205", domain.Scope{Type: domain.ScopeTenant}, workflow, "approve", false),
 		ruleAt(domain.Scope{Type: domain.ScopeTenant}, "01936f2a-7c1e-7000-8000-000000000206"),
@@ -72,9 +72,9 @@ func TestAStepRunsTheRulesOnItInItsChange(t *testing.T) {
 // A rule on a step that takes another step nests, one deeper each time, so the engine's depth bound
 // ends a chain inside one request.
 func TestANestedStepRunsOneDeeper(t *testing.T) {
-	workflow := shared.ID("01936f2a-7c1e-7000-8000-0000000000d1")
+	const workflow = "purchase"
 	rule := ruleAt(domain.Scope{Type: domain.ScopeTenant}, "01936f2a-7c1e-7000-8000-000000000201")
-	rule.Trigger = domain.Trigger{Kind: domain.TriggerStepTaken, WorkflowID: workflow, Step: "approve"}
+	rule.Trigger = domain.Trigger{Kind: domain.TriggerStepTaken, Workflow: workflow, Step: "approve"}
 	_, _, places := newMatcher(nil)
 	engine := &engineProbe{}
 	steps := StepTaken{Rules: matching{rules: []domain.Rule{rule}}, Containers: places, Engine: engine}

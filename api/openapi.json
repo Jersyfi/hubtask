@@ -27295,10 +27295,10 @@
             "type": "string",
             "description": "`RELATIVE_DATE` only, and required there: a signed ISO 8601 duration, `-PT24H` for \"24 hours before\".\n"
           },
-          "workflow_id": {
+          "workflow": {
             "type": "string",
-            "format": "uuid",
-            "description": "`STEP_TAKEN` only, and required there: the workflow whose step starts the rule. A `STEP_TAKEN` rule runs inside the step's own change, so what its actions change on the entry is written together with the step.\n"
+            "pattern": "^[a-z][a-z0-9_]{0,49}$",
+            "description": "`STEP_TAKEN` only, and required there: the key of the workflow whose step starts the rule. A `STEP_TAKEN` rule runs inside the step's own change, so what its actions change on the entry is written together with the step.\n"
           },
           "step": {
             "type": "string",

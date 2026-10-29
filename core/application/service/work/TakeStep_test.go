@@ -296,14 +296,14 @@ func TestAMovedEntrySettlesInTheDestinationsWorkflow(t *testing.T) {
 type stepRulesProbe struct {
 	items    *items
 	refuse   error
-	workflow shared.ID
+	workflow string
 	step     string
 	event    event.Envelope
 }
 
 func (p *stepRulesProbe) StepTaken(
 	_ context.Context, _ appshared.ActorContext, item domain.WorkItem,
-	workflow shared.ID, step string, announced event.Envelope,
+	workflow, step string, announced event.Envelope,
 ) error {
 	p.workflow, p.step, p.event = workflow, step, announced
 	if p.refuse != nil {
@@ -325,7 +325,7 @@ func TestAStepRunsItsRulesInItsOwnChange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the step was refused: %v", err)
 	}
-	if probe.workflow != reviewWorkflow().ID || probe.step != "back" || probe.event.Type != event.ItemUpdated {
+	if probe.workflow != "review" || probe.step != "back" || probe.event.Type != event.ItemUpdated {
 		t.Fatalf("the rules were asked about %s %q on %s", probe.workflow, probe.step, probe.event.Type)
 	}
 	if item.Title != "changed by the step's rule" || item.Status != "todo" {

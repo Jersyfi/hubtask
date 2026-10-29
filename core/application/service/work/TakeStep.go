@@ -43,7 +43,7 @@ type TakeStep struct {
 type StepRules interface {
 	StepTaken(
 		ctx context.Context, actor appshared.ActorContext, item domain.WorkItem,
-		workflow shared.ID, step string, announced event.Envelope,
+		workflow, step string, announced event.Envelope,
 	) error
 }
 
@@ -174,10 +174,10 @@ func (h TakeStep) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 		if err != nil {
 			return err
 		}
-		if h.Rules == nil || workflow.ID.IsZero() {
+		if h.Rules == nil {
 			return nil
 		}
-		if err := h.Rules.StepTaken(ctx, actor, changed, workflow.ID, step.Key, announced); err != nil {
+		if err := h.Rules.StepTaken(ctx, actor, changed, workflow.Key, step.Key, announced); err != nil {
 			return err
 		}
 		// An action may have changed the entry: answered as it now stands.

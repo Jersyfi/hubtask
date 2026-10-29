@@ -484,7 +484,7 @@ type triggerDocument struct {
 	Timezone      string   `json:"timezone,omitempty"`
 	Anchor        string   `json:"anchor,omitempty"`
 	Offset        string   `json:"offset,omitempty"`
-	WorkflowID    string   `json:"workflow_id,omitempty"`
+	Workflow      string   `json:"workflow,omitempty"`
 	Step          string   `json:"step,omitempty"`
 }
 
@@ -516,7 +516,7 @@ func documentsOf(rule domain.Rule) (ruleDocuments, error) {
 		ChangedFields: rule.Trigger.ChangedFields,
 		RRule:         rule.Trigger.RRule, Timezone: rule.Trigger.Timezone,
 		Anchor: string(rule.Trigger.Anchor), Offset: rule.Trigger.Offset,
-		WorkflowID: rule.Trigger.WorkflowID.String(), Step: rule.Trigger.Step,
+		Workflow: rule.Trigger.Workflow, Step: rule.Trigger.Step,
 	}
 
 	// Empty slices rather than nil, so that a column holds `[]` and not `null`: what is read back
@@ -719,7 +719,7 @@ func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 			ChangedFields: trigger.ChangedFields,
 			RRule:         trigger.RRule, Timezone: trigger.Timezone,
 			Anchor: domain.DateAnchor(trigger.Anchor), Offset: trigger.Offset,
-			WorkflowID: shared.ID(trigger.WorkflowID), Step: trigger.Step,
+			Workflow: trigger.Workflow, Step: trigger.Step,
 		},
 		Conditions: make([]domain.Condition, 0, len(conditions)),
 		Actions:    make([]domain.Action, 0, len(actions)),

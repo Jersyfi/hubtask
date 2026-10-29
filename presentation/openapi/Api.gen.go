@@ -12356,8 +12356,8 @@ type RuleTrigger struct {
 	// Timezone `SCHEDULE` only, and required there: an IANA zone. A schedule without one is a schedule that means something different in summer.
 	Timezone *string `json:"timezone,omitempty"`
 
-	// WorkflowId `STEP_TAKEN` only, and required there: the workflow whose step starts the rule. A `STEP_TAKEN` rule runs inside the step's own change, so what its actions change on the entry is written together with the step.
-	WorkflowId *openapi_types.UUID `json:"workflow_id,omitempty"`
+	// Workflow `STEP_TAKEN` only, and required there: the key of the workflow whose step starts the rule. A `STEP_TAKEN` rule runs inside the step's own change, so what its actions change on the entry is written together with the step.
+	Workflow *string `json:"workflow,omitempty"`
 }
 
 // RuleTriggerAnchor `RELATIVE_DATE` only, and required there: which instant the offset is from.

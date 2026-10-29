@@ -1018,7 +1018,6 @@
   "automation.trigger_field_not_for_kind": "That field does not belong to a {kind} trigger.",
   "automation.event_type_required": "Say which event this rule reacts to.",
   "automation.event_type_unknown": "{event_type} is not an event type this installation publishes.",
-  "automation.workflow_id_invalid": "That is not a workflow this workspace could name.",
   "automation.workflow_required": "A rule on a step needs the workflow the step belongs to.",
   "automation.step_required": "A rule on a step needs the step.",
   "automation.rrule_required": "A scheduled rule needs a recurrence rule.",
