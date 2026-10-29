@@ -169,6 +169,9 @@ func (h SetCustomField) Execute(
 		if err := ensureFieldCount(wanted); err != nil {
 			return err
 		}
+		if err := h.Gate.Forms.checkEdit(ctx, actor, collection, item, wanted); err != nil {
+			return err
+		}
 
 		stored, err := h.write(ctx, actor, item, wanted, cmd, definition, profile, now)
 		written = stored

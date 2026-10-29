@@ -22,6 +22,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
 	mail "github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	work "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
@@ -345,6 +346,8 @@ func actorOf(scope persistence.Scope, account identity.Account) appshared.ActorC
 		Scopes:   []string{itemsWriteScope, commentsWrite},
 		Locale:   account.Locale,
 		TimeZone: account.TimeZone,
+		// A type's form narrows what arrives by mail (domain-model.md §2.4).
+		Channel: string(work.ChannelMail),
 	}
 }
 

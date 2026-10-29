@@ -726,13 +726,16 @@ func run() error {
 	// Links and references (F-3, UC-PLN-01): one store answers the links, the walk and the
 	// summaries a reference resolves to.
 	entryLinks := postgres.NewEntryLinkRepository()
-	entryGate := work.EntryGate{Structure: structures, Types: items, EntryTypes: entryTypes}
 	buckets := postgres.NewBucketRepository()
 	labels := postgres.NewLabelRepository()
 	// The vocabulary a workspace adds to its entries. Its own repository beside the items rather
 	// than a method on them: this is what the keys mean, and `work_item.custom_fields` is what an
 	// entry says in it.
 	customFields := postgres.NewCustomFieldRepository()
+	// A type's form holds every writer of its entries (P-18, D-13), through the one gate.
+	entryGate := work.EntryGate{Structure: structures, Types: items, EntryTypes: entryTypes, Forms: work.FormGate{
+		Types: entryTypes, Fields: customFields, Compiler: celexpression.New(), Roles: authorizer,
+	}}
 	// The bookmark shelf: stored queries, interpreted by nobody on this side of a client.
 	savedViews := postgres.NewSavedViewRepository()
 	// The subscriptions over those bookmarks. Its own hasher, derived from the

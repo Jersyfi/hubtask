@@ -14,6 +14,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	work "github.com/Jersyfi/hubtask/core/domain/model/work"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 	"github.com/Jersyfi/hubtask/presentation/stream"
 )
@@ -196,6 +197,8 @@ func actorOf(r *http.Request) (appshared.ActorContext, bool) {
 		return appshared.ActorContext{}, false
 	}
 	actor.Kind = appshared.ActorAIAgent
+	// The door a type's form narrows (domain-model.md §2.4).
+	actor.Channel = string(work.ChannelMCP)
 	return actor, true
 }
 
@@ -515,6 +518,8 @@ func agentFromContext(ctx context.Context) (appshared.ActorContext, bool) {
 		return appshared.ActorContext{}, false
 	}
 	actor.Kind = appshared.ActorAIAgent
+	// The door a type's form narrows (domain-model.md §2.4).
+	actor.Channel = string(work.ChannelMCP)
 	return actor, true
 }
 

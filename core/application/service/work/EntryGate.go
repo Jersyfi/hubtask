@@ -29,6 +29,9 @@ type EntryGate struct {
 	// is not schedulable no due date, reminder or recurrence (UC-FLW-01). Optional, and apart from
 	// Wired, because a workspace without a type of its own narrows nothing.
 	EntryTypes repository.EntryTypes
+	// Forms holds every write to the entry's type's form (FormGate). Optional, for the reason
+	// EntryTypes is.
+	Forms FormGate
 }
 
 // Wired reports whether the gate has what it needs.

@@ -160,6 +160,9 @@ func (p PushChanges) Push(
 	if err := actor.RequireScope(pushScope); err != nil {
 		return PushResponse{}, err
 	}
+	// Every mutation is the use case a person would call, through the door a form narrows as a
+	// device's push (domain-model.md §2.4).
+	actor.Channel = string(work.ChannelSync)
 	if len(request.Mutations) > PushLimit {
 		return PushResponse{}, shared.ErrValidation.
 			WithDetail("sync.push_too_large").

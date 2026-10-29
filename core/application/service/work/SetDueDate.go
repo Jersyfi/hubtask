@@ -200,6 +200,10 @@ func (w DueDateWriter) change(
 			return nil
 		}
 
+		// Held to the type's form: a due date it makes read-only, or clearing one it requires.
+		if err := w.Gate.Forms.checkEdit(ctx, actor, collection, item, wanted); err != nil {
+			return err
+		}
 		written, err := w.write(ctx, actor, item, wanted, changes, cmd.ExpectedVersion, profile, now)
 		changed = written
 		return err

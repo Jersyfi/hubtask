@@ -76,6 +76,10 @@ type ActorContext struct {
 	// a caller holding that account's token would be too - only this tells an act whose answer
 	// nobody reads from one whose caller reads it.
 	RunsForRule shared.ID
+	// Channel is the door the act arrived through, as a type's form narrows it (work.FormChannel):
+	// set by the adapter - MCP, the sync service, mail intake, import - and empty for the REST
+	// door, which the web app and hubctl share.
+	Channel string
 	// Present is true for a request a person is waiting on now: a call through the REST API - the
 	// web app's door and hubctl's - set by that adapter and nowhere else. It decides one thing:
 	// whether the workspace owner's running emergency access to a private hub counts (ADR-0073 §4,

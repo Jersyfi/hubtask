@@ -196,6 +196,15 @@ func (h UpdateWorkItem) Execute(
 			return nil
 		}
 
+		// Held to the type's form with the whole patch applied, the due date included.
+		formed := wanted
+		if dueTouched {
+			formed.Due = targetDue
+		}
+		if err := h.Gate.Forms.checkEdit(ctx, actor, collection, item, formed); err != nil {
+			return err
+		}
+
 		current, expected := item, cmd.ExpectedVersion
 		if len(changes) > 0 {
 			if updated, err = h.write(ctx, actor, wanted, changes, profile, expected, item.Version, now); err != nil {

@@ -354,6 +354,22 @@ func (h CreateWorkItem) Execute(
 		// Sorted, so that a document with several keys writes its changes in one order whatever
 		// order the request's map was read in - two runs of one request would otherwise announce
 		// the same facts in different sequences.
+		// What the type's form starts a new entry with - its channel's presets, its defaults - for
+		// every field the request left out, written as if the request had carried it.
+		starting, err := h.Gate.Forms.starting(ctx, actor, collection, created, cmd.CustomFields)
+		if err != nil {
+			return err
+		}
+		if len(starting) > 0 {
+			merged := make(map[string]any, len(cmd.CustomFields)+len(starting))
+			for key, value := range cmd.CustomFields {
+				merged[key] = value
+			}
+			for key, value := range starting {
+				merged[key] = value
+			}
+			cmd.CustomFields = merged
+		}
 		if len(cmd.CustomFields) > 0 {
 			profile, err := h.Gate.gatedProfile(ctx, h.Profiles, collection, created)
 			if err != nil {
@@ -387,8 +403,12 @@ func (h CreateWorkItem) Execute(
 				return err
 			}
 		}
-		// Last, with every value the request carried already on the entry: a creation into a
-		// column past the first passes with its required fields and is refused whole without them.
+		// Last, with every value the request carried already on the entry: the type's form - a
+		// channel it closes, a required field, a validation - refuses the creation whole, and so
+		// does a column past the first without its required fields.
+		if err := h.Gate.Forms.checkCreate(ctx, actor, collection, created); err != nil {
+			return err
+		}
 		return h.Flow.ensureMayEnter(ctx, h.Gate.Structure, collection, created, created.BucketID)
 	})
 	if err != nil {
