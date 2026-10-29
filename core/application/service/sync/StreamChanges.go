@@ -285,6 +285,13 @@ func (s StreamChanges) page(
 		if keep != nil && !keep(seen.container) {
 			continue
 		}
+		other, err := s.mayReadOtherEnd(ctx, actor, entry.Entity, entry.Payload, resolved)
+		if err != nil {
+			return Batch{}, err
+		}
+		if !other {
+			continue
+		}
 		if entry.Payload, err = s.narrowed(ctx, actor, &lens, entry.Entity, seen, entry.Payload); err != nil {
 			return Batch{}, err
 		}
@@ -394,7 +401,9 @@ func (s StreamChanges) mayReadWorkspaceWide(
 	if !knownEntity(entity) {
 		return visibility{}, nil
 	}
-	if entity == entityEntryType {
+	switch entity {
+	case entityEntryType, entityLinkType, entityWorkflow:
+		// What ListEntryTypes, ListLinkTypes and ListWorkflows answer every member.
 		return visibility{allowed: true}, nil
 	}
 	if seen, decided := resolved[shared.ID("")]; decided {
@@ -410,6 +419,29 @@ func (s StreamChanges) mayReadWorkspaceWide(
 	seen := visibility{allowed: allowed}
 	resolved[shared.ID("")] = seen
 	return seen, nil
+}
+
+// mayReadOtherEnd decides the second collection a record names: a link's target. A record of
+// any other entity, and a link's removal - which carries no payload and names only an identifier -
+// have none to decide.
+func (s StreamChanges) mayReadOtherEnd(
+	ctx context.Context, actor appshared.ActorContext, entity string, payload map[string]any,
+	resolved map[shared.ID]visibility,
+) (bool, error) {
+	if entity != entityEntryLink || payload == nil {
+		return true, nil
+	}
+	target, _ := payload[workservice.LinkTargetCollectionKey].(string)
+	if target == "" {
+		// A link record without its target's collection cannot be placed; withheld, as a record
+		// of a kind nobody can place is.
+		return false, nil
+	}
+	seen, err := s.mayRead(ctx, actor, entity, shared.ID(target), resolved)
+	if err != nil {
+		return false, err
+	}
+	return seen.allowed, nil
 }
 
 // knownEntity reports whether the reader can place a change of this kind: the entities the walk

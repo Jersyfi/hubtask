@@ -13,6 +13,7 @@ import (
 	"context"
 	"time"
 
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	syncdomain "github.com/Jersyfi/hubtask/core/domain/model/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -148,6 +149,22 @@ type Snapshot interface {
 	Templates(ctx context.Context, after shared.ID, batch int) ([]work.Template, error)
 	// EntryTypes pages the workspace's type rows (UC-FLW-01).
 	EntryTypes(ctx context.Context, after shared.ID, batch int) ([]work.EntryType, error)
+	// Workflows pages the workspace's workflow rows (UC-FLW-02).
+	Workflows(ctx context.Context, after shared.ID, batch int) ([]work.Workflow, error)
+	// LinkTypes pages the workspace's own link type rows (UC-PLN-01).
+	LinkTypes(ctx context.Context, after shared.ID, batch int) ([]work.LinkType, error)
+	// EntryLinks pages every link between two live entries, with the collection of each end.
+	EntryLinks(ctx context.Context, after shared.ID, batch int) ([]LinkBetween, error)
+	// CustomRoles pages the workspace's own roles (UC-ID-26).
+	CustomRoles(ctx context.Context, after shared.ID, batch int) ([]identityrepo.CustomRoleRow, error)
+}
+
+// LinkBetween is a link with the collection each of its ends is in: a reader is told of it only
+// when they may read both.
+type LinkBetween struct {
+	Link               work.EntryLink
+	SourceCollectionID shared.ID
+	TargetCollectionID shared.ID
 }
 
 // SetElementKey is where a page of set elements resumes: the primary key of the row.

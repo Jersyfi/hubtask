@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
+	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	workflowservice "github.com/Jersyfi/hubtask/core/application/service/workflow"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -28,6 +29,7 @@ import (
 var walkKinds = []string{
 	entityContainer, entityBucket, entityLabel, entityItem, kindSet,
 	entityComment, entityReminder, entityRecurrence, entityTemplate, entityEntryType,
+	entityLinkType, entityWorkflow, entityCustomRole, entityEntryLink,
 }
 
 const (
@@ -41,6 +43,14 @@ const (
 	entityTemplate   = "template"
 	// entityEntryType is workspace-wide: its records name no container (UC-FLW-01).
 	entityEntryType = "entry_type"
+	// entityLinkType, entityWorkflow and entityCustomRole are workspace-wide too: the vocabulary a
+	// device draws links, boards and a form's `actor.roles` with.
+	entityLinkType   = "link_type"
+	entityWorkflow   = "workflow"
+	entityCustomRole = "custom_role"
+	// entityEntryLink is filed under its source's collection and reaches a reader only when they
+	// may read the target's as well: a link never tells of an entry its reader cannot see.
+	entityEntryLink = "entry_link"
 	// kindSet is the walk's own name for the set element pass. Not an entity: its records are the
 	// entry's.
 	kindSet = "set"
@@ -92,6 +102,12 @@ func (p PullChanges) walk(
 				return Batch{}, err
 			}
 			if !seen.allowed || (keep != nil && !keep(seen.container)) {
+				continue
+			}
+			if other, err := p.Stream.mayReadOtherEnd(ctx, actor, row.entity, row.payload, resolved); err != nil || !other {
+				if err != nil {
+					return Batch{}, err
+				}
 				continue
 			}
 			if row.payload, err = p.Stream.narrowed(ctx, actor, &lens, row.entity, seen, row.payload); err != nil {
@@ -282,6 +298,59 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 			rows = append(rows, walkRow{
 				entity: entityEntryType, entityID: entryType.ID,
 				payload: workflowservice.EntryTypeOutput(entryType), key: entryType.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityLinkType:
+		types, err := p.Snapshot.LinkTypes(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(types))
+		for _, linkType := range types {
+			rows = append(rows, walkRow{
+				entity: entityLinkType, entityID: linkType.ID,
+				payload: workservice.LinkTypeOutput(linkType), key: linkType.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityWorkflow:
+		workflows, err := p.Snapshot.Workflows(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(workflows))
+		for _, workflow := range workflows {
+			rows = append(rows, walkRow{
+				entity: entityWorkflow, entityID: workflow.ID,
+				payload: workflowservice.WorkflowOutput(workflow), key: workflow.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityCustomRole:
+		roles, err := p.Snapshot.CustomRoles(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(roles))
+		for _, role := range roles {
+			rows = append(rows, walkRow{
+				entity: entityCustomRole, entityID: role.Role.ID,
+				payload: identityservice.CustomRoleOutput(role), key: role.Role.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityEntryLink:
+		links, err := p.Snapshot.EntryLinks(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(links))
+		for _, between := range links {
+			rows = append(rows, walkRow{
+				entity: entityEntryLink, entityID: between.Link.ID, containerID: between.SourceCollectionID,
+				payload: workservice.LinkRecord(between.Link, between.SourceCollectionID, between.TargetCollectionID),
+				key:     between.Link.ID.String(),
 			})
 		}
 		return rows, nil

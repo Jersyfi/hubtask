@@ -10,6 +10,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -55,6 +56,25 @@ type Roles struct {
 	UnitOfWork  persistence.UnitOfWork
 	Clock       clock.Clock
 	IDs         clock.IDGenerator
+	// Changes and HLC tell offline devices of a role defined, changed or removed. A nil Changes
+	// records nothing, a test's convenience.
+	Changes changelog.ChangeLog
+	HLC     clock.HLCSource
+}
+
+// announce files a role for offline devices: workspace-wide, as the walk hands it out.
+func (r Roles) announce(ctx context.Context, actor appshared.ActorContext, row repository.CustomRoleRow, op changelog.Operation) error {
+	if r.Changes == nil {
+		return nil
+	}
+	var payload map[string]any
+	if op != changelog.Delete {
+		payload = CustomRoleOutput(row)
+	}
+	return r.Changes.Record(ctx, changelog.Change{
+		TenantID: actor.TenantID, Entity: roleTarget, EntityID: row.Role.ID, Op: op,
+		ActorID: actor.AccountID, HLC: r.HLC.Next(), Payload: payload,
+	})
 }
 
 // HeldReader answers what an account holds along a path: the authorisation service's HeldBy.
@@ -249,6 +269,10 @@ func (h CreateRole) Execute(ctx context.Context, actor appshared.ActorContext, c
 		if err := h.Roles.Store.Insert(ctx, role, now); err != nil {
 			return err
 		}
+		row := repository.CustomRoleRow{Role: role, CreatedAt: now, UpdatedAt: now, Version: 1}
+		if err := h.Roles.announce(ctx, actor, row, changelog.Upsert); err != nil {
+			return err
+		}
 		return h.Roles.recordRole(ctx, actor, RoleCreatedAction, role, nil, now)
 	})
 	if err != nil {
@@ -314,6 +338,10 @@ func (h ChangeRole) Execute(ctx context.Context, actor appshared.ActorContext, c
 		if !written {
 			return shared.ErrVersionConflict.WithDetail("roles.version_conflict").
 				WithParams(map[string]string{"key": role.Key})
+		}
+		row := repository.CustomRoleRow{Role: role, CreatedAt: current.CreatedAt, UpdatedAt: now, Version: version + 1}
+		if err := h.Roles.announce(ctx, actor, row, changelog.Upsert); err != nil {
+			return err
 		}
 		return h.Roles.recordRole(ctx, actor, RoleChangedAction, role, current.Role.Permissions, now)
 	})
@@ -390,6 +418,9 @@ func (h DeleteRole) Execute(ctx context.Context, actor appshared.ActorContext, k
 			if err := h.Roles.Revocations.Announce(ctx, actor.TenantID, losses...); err != nil {
 				return err
 			}
+		}
+		if err := h.Roles.announce(ctx, actor, current, changelog.Delete); err != nil {
+			return err
 		}
 		return h.Roles.recordRole(ctx, actor, RoleDeletedAction, current.Role, current.Role.Permissions, now)
 	})

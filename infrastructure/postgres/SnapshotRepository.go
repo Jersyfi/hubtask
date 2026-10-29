@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -321,6 +322,96 @@ func (SnapshotRepository) EntryTypes(ctx context.Context, after shared.ID, batch
 			return nil, err
 		}
 		out = append(out, entryType)
+	}
+	return out, nil
+}
+
+// Workflows pages the workspace's workflow rows.
+func (SnapshotRepository) Workflows(ctx context.Context, after shared.ID, batch int) ([]work.Workflow, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotWorkflows(ctx, sqlc.SnapshotWorkflowsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("workflows", err)
+	}
+	return mapRows(rows, workflowFrom)
+}
+
+// LinkTypes pages the workspace's own link type rows.
+func (SnapshotRepository) LinkTypes(ctx context.Context, after shared.ID, batch int) ([]work.LinkType, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotLinkTypes(ctx, sqlc.SnapshotLinkTypesParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("link types", err)
+	}
+	return mapRows(rows, linkTypeFrom)
+}
+
+// EntryLinks pages every link between two live entries, with the collection of each end.
+func (SnapshotRepository) EntryLinks(ctx context.Context, after shared.ID, batch int) ([]repository.LinkBetween, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotEntryLinks(ctx, sqlc.SnapshotEntryLinksParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("entry links", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotEntryLinksRow) (repository.LinkBetween, error) {
+		link, err := entryLinkFrom(sqlc.FindEntryLinkRow{
+			ID: row.ID, TenantID: row.TenantID, LinkType: row.LinkType, SourceID: row.SourceID,
+			TargetID: row.TargetID, CreatedBy: row.CreatedBy, CreatedAt: row.CreatedAt,
+		})
+		if err != nil {
+			return repository.LinkBetween{}, err
+		}
+		source, err := idFrom(row.SourceCollectionID)
+		if err != nil {
+			return repository.LinkBetween{}, err
+		}
+		target, err := idFrom(row.TargetCollectionID)
+		if err != nil {
+			return repository.LinkBetween{}, err
+		}
+		return repository.LinkBetween{Link: link, SourceCollectionID: source, TargetCollectionID: target}, nil
+	})
+}
+
+// CustomRoles pages the workspace's own roles.
+func (SnapshotRepository) CustomRoles(ctx context.Context, after shared.ID, batch int) ([]identityrepo.CustomRoleRow, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotCustomRoles(ctx, sqlc.SnapshotCustomRolesParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("custom roles", err)
+	}
+	return mapRows(rows, customRoleFrom)
+}
+
+// mapRows turns a page of rows into the port's values, failing on the first that does not read.
+func mapRows[R, T any](rows []R, from func(R) (T, error)) ([]T, error) {
+	out := make([]T, 0, len(rows))
+	for _, row := range rows {
+		value, err := from(row)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, value)
 	}
 	return out, nil
 }

@@ -7,6 +7,7 @@ import (
 	"context"
 	"time"
 
+	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -49,6 +50,10 @@ type LinkTypeRegistry struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	Text       text.Normalizer
+	// Changes and HLC tell offline devices of a type defined, changed or removed. A nil Changes
+	// records nothing, a test's convenience.
+	Changes changelog.ChangeLog
+	HLC     clock.HLCSource
 }
 
 // Read answers the workspace's registry: the six shipped types and its own.
@@ -72,6 +77,18 @@ func (r LinkTypeRegistry) record(
 	ctx context.Context, actor appshared.ActorContext, linkType domain.LinkType, action audit.Action,
 	changes []domain.FieldChange, now time.Time,
 ) error {
+	if r.Changes != nil {
+		op, payload := changelog.Upsert, map[string]any(LinkTypeOutput(linkType))
+		if action == LinkTypeDeletedAction {
+			op, payload = changelog.Delete, nil
+		}
+		if err := r.Changes.Record(ctx, changelog.Change{
+			TenantID: actor.TenantID, Entity: linkTypeTarget, EntityID: linkType.ID, Op: op,
+			ActorID: actor.AccountID, HLC: r.HLC.Next(), Payload: payload,
+		}); err != nil {
+			return err
+		}
+	}
 	trail := []audit.Change{{Field: "key", Classification: audit.Open, To: linkType.Key}}
 	for _, change := range changes {
 		classification := audit.Open

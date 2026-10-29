@@ -853,7 +853,7 @@ func run() error {
 	customRoles := identity.Roles{
 		Store: postgres.NewCustomRoleRepository(), Authorizer: authorizer, Reach: authorizer, Held: authorizer,
 		Revocations: revocations, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids,
+		Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid,
 	}
 
 	// What every writer of an entry needs in order to leave a step in its history. Held as one
@@ -1778,12 +1778,13 @@ func run() error {
 	linkTypeRegistry := work.LinkTypeRegistry{
 		Types: postgres.NewLinkTypeRepository(), Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		Changes: changes, HLC: hybrid,
 	}
 	linking := work.Linking{
 		Items: items, Containers: containers, Types: linkTypeRegistry.Types, Links: entryLinks,
 		References: entryLinks, Views: savedViews, Authorizer: authorizer, Reader: authorizer,
 		Permits: authorizer, Events: outbox, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids,
+		Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid,
 	}
 	useCases, err := usecase.NewRegistry(
 		settingservice.ModuleGate{Modules: modules}.Wrap(entitlementGate.Wrap(observer.Registry())),

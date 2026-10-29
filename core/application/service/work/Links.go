@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/repository/outbox"
+	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	viewrepo "github.com/Jersyfi/hubtask/core/application/repository/view"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -69,6 +70,10 @@ type Linking struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Changes and HLC tell offline devices of a drawn or removed link. A nil Changes records
+	// nothing, a test's convenience.
+	Changes changelog.ChangeLog
+	HLC     clock.HLCSource
 }
 
 // summaryPath is the scope chain an entry's summary is judged against, ending on the entry so
@@ -161,6 +166,19 @@ func LinkOutput(link domain.EntryLink) usecase.Output {
 		"id": link.ID.String(), "type": link.Type, "source_id": link.SourceID.String(),
 		"target_id": link.TargetID.String(), "created_at": link.CreatedAt,
 	}
+}
+
+// LinkTargetCollectionKey names, in a link's change record, the collection of its target: the
+// second place a reader must reach to be told of the link.
+const LinkTargetCollectionKey = "target_collection_id"
+
+// LinkRecord is a link as the change log and the replica carry it: the link and the collection of
+// each end.
+func LinkRecord(link domain.EntryLink, sourceCollection, targetCollection shared.ID) map[string]any {
+	out := map[string]any(LinkOutput(link))
+	out["source_collection_id"] = sourceCollection.String()
+	out[LinkTargetCollectionKey] = targetCollection.String()
+	return out
 }
 
 // LinkEntriesCommand is the input, typed.
@@ -295,6 +313,9 @@ func (l Linking) announce(
 	if err := l.Events.Append(ctx, announcement); err != nil {
 		return err
 	}
+	if err := l.recordChange(ctx, actor, link, source, action); err != nil {
+		return err
+	}
 	return l.Audit.Append(ctx, audit.Entry{
 		TenantID: actor.TenantID, OccurredAt: now, Action: action,
 		Outcome: audit.OutcomeSuccess, Severity: audit.SeverityInfo,
@@ -306,6 +327,28 @@ func (l Linking) announce(
 			audit.Change{Field: "source_id", Classification: audit.Open, To: link.SourceID.String()},
 			audit.Change{Field: "target_id", Classification: audit.Open, To: link.TargetID.String()},
 		),
+	})
+}
+
+// recordChange files the link for offline devices under its source's collection; a drawn link
+// names its target's as well, which a reader must reach too (sync's mayReadOtherEnd).
+func (l Linking) recordChange(
+	ctx context.Context, actor appshared.ActorContext, link domain.EntryLink, source domain.WorkItem, action audit.Action,
+) error {
+	if l.Changes == nil {
+		return nil
+	}
+	op, payload := changelog.Delete, map[string]any(nil)
+	if action != ItemUnlinkedAction {
+		target, err := l.Items.Find(ctx, link.TargetID)
+		if err != nil {
+			return err
+		}
+		op, payload = changelog.Upsert, LinkRecord(link, source.CollectionID, target.CollectionID)
+	}
+	return l.Changes.Record(ctx, changelog.Change{
+		TenantID: actor.TenantID, Entity: linkTarget, EntityID: link.ID, Op: op,
+		ContainerID: source.CollectionID, ActorID: actor.AccountID, HLC: l.HLC.Next(), Payload: payload,
 	})
 }
 

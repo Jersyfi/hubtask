@@ -339,3 +339,41 @@ SELECT sync_epoch FROM tenant WHERE id = current_tenant_id();
 -- and the device holding one resynchronises from scratch.
 UPDATE tenant SET sync_epoch = sync_epoch + 1 WHERE id = current_tenant_id()
 RETURNING sync_epoch;
+
+-- name: SnapshotWorkflows :many
+-- The workspace's workflow rows (migration 0215); the shipped one it never used is the domain's.
+SELECT id, tenant_id, key, system, name, published, draft, published_at, published_by,
+  created_at, updated_at, version
+FROM workflow
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotLinkTypes :many
+-- The workspace's link type rows (migration 0213); the six shipped ones are the domain's.
+SELECT id, tenant_id, key, name, inverse_name, direction, cardinality, cycles, waits, position,
+  archived_at, created_at, updated_at, version
+FROM link_type
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotEntryLinks :many
+-- Every link between two living entries, with the collection of each end: a reader is told of a
+-- link only when they may read both.
+SELECT l.id, l.tenant_id, l.link_type, l.source_id, l.target_id, l.created_by, l.created_at,
+  s.collection_id AS source_collection_id, t.collection_id AS target_collection_id
+FROM entry_link l
+JOIN work_item s ON s.tenant_id = l.tenant_id AND s.id = l.source_id AND s.deleted_at IS NULL
+JOIN work_item t ON t.tenant_id = l.tenant_id AND t.id = l.target_id AND t.deleted_at IS NULL
+WHERE l.tenant_id = current_tenant_id() AND l.id > sqlc.arg('after')
+ORDER BY l.id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotCustomRoles :many
+-- The workspace's own roles (migration 0219).
+SELECT id, tenant_id, key, name, permissions, created_at, updated_at, version
+FROM custom_role
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');

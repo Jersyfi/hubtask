@@ -61,6 +61,14 @@ export function collectionOf(entity: string): string {
       return 'comments';
     case 'entry_type':
       return 'entry_types';
+    case 'link_type':
+      return 'link_types';
+    case 'entry_link':
+      return 'entry_links';
+    case 'workflow':
+      return 'workflows';
+    case 'custom_role':
+      return 'custom_roles';
     default:
       return entity;
   }

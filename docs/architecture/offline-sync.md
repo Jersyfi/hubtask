@@ -85,8 +85,13 @@ moment it was minted (against the window, §7) and the workspace's synchronisati
 
 A **null cursor is the initial synchronisation**: the current state, one kind at a time
 (containers, buckets, labels, entries, set elements, comments, reminders, recurrence rules,
-templates), paged by identifier, each row judged by the same permission as a delta record, with the
-log position taken *before* the first page so a change landing mid-walk is the first delta's. A
+templates, entry types, link types, workflows, custom roles, links), paged by identifier, each row
+judged by the same permission as a delta record, with the log position taken *before* the first
+page so a change landing mid-walk is the first delta's. Entry types, link types and workflows are
+the workspace's vocabulary and reach every member; a custom role reaches whoever may read at the
+workspace; a link is filed under its source's collection and reaches a reader only when they may
+read its target's as well (`target_collection_id`), so that a link never tells of an entry out of
+reach. A device learns which custom roles it holds from the server's answers, not from the replica. A
 mid-walk page cursor names the kind and key it resumes after; the pull continues it, the stream
 refuses it.
 

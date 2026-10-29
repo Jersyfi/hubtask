@@ -6,6 +6,7 @@ package sync
 import (
 	"context"
 	"errors"
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"slices"
 	"strconv"
 	"strings"
@@ -29,6 +30,10 @@ type snapshotStore struct {
 	reminders   []repository.InCollection[work.Reminder]
 	recurrences []repository.InCollection[work.RecurrenceRule]
 	templates   []work.Template
+	workflows   []work.Workflow
+	linkTypes   []work.LinkType
+	links       []repository.LinkBetween
+	roles       []identityrepo.CustomRoleRow
 	// reads counts the pages asked for, so a test can say how much of the store a walk touched.
 	reads int
 }

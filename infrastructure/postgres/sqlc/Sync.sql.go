@@ -811,6 +811,109 @@ func (q *Queries) SnapshotContainers(ctx context.Context, arg SnapshotContainers
 	return items, nil
 }
 
+const snapshotCustomRoles = `-- name: SnapshotCustomRoles :many
+SELECT id, tenant_id, key, name, permissions, created_at, updated_at, version
+FROM custom_role
+WHERE tenant_id = current_tenant_id() AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotCustomRolesParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+// The workspace's own roles (migration 0219).
+func (q *Queries) SnapshotCustomRoles(ctx context.Context, arg SnapshotCustomRolesParams) ([]CustomRole, error) {
+	rows, err := q.db.Query(ctx, snapshotCustomRoles, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CustomRole{}
+	for rows.Next() {
+		var i CustomRole
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Key,
+			&i.Name,
+			&i.Permissions,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotEntryLinks = `-- name: SnapshotEntryLinks :many
+SELECT l.id, l.tenant_id, l.link_type, l.source_id, l.target_id, l.created_by, l.created_at,
+  s.collection_id AS source_collection_id, t.collection_id AS target_collection_id
+FROM entry_link l
+JOIN work_item s ON s.tenant_id = l.tenant_id AND s.id = l.source_id AND s.deleted_at IS NULL
+JOIN work_item t ON t.tenant_id = l.tenant_id AND t.id = l.target_id AND t.deleted_at IS NULL
+WHERE l.tenant_id = current_tenant_id() AND l.id > $1
+ORDER BY l.id
+LIMIT $2
+`
+
+type SnapshotEntryLinksParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotEntryLinksRow struct {
+	ID                 pgtype.UUID
+	TenantID           pgtype.UUID
+	LinkType           string
+	SourceID           pgtype.UUID
+	TargetID           pgtype.UUID
+	CreatedBy          pgtype.UUID
+	CreatedAt          pgtype.Timestamptz
+	SourceCollectionID pgtype.UUID
+	TargetCollectionID pgtype.UUID
+}
+
+// Every link between two living entries, with the collection of each end: a reader is told of a
+// link only when they may read both.
+func (q *Queries) SnapshotEntryLinks(ctx context.Context, arg SnapshotEntryLinksParams) ([]SnapshotEntryLinksRow, error) {
+	rows, err := q.db.Query(ctx, snapshotEntryLinks, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotEntryLinksRow{}
+	for rows.Next() {
+		var i SnapshotEntryLinksRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.LinkType,
+			&i.SourceID,
+			&i.TargetID,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.SourceCollectionID,
+			&i.TargetCollectionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotEntryTypes = `-- name: SnapshotEntryTypes :many
 SELECT id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
   schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version, form
@@ -898,6 +1001,56 @@ func (q *Queries) SnapshotLabels(ctx context.Context, arg SnapshotLabelsParams) 
 			&i.ColorToken,
 			&i.Description,
 			&i.DeletedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotLinkTypes = `-- name: SnapshotLinkTypes :many
+SELECT id, tenant_id, key, name, inverse_name, direction, cardinality, cycles, waits, position,
+  archived_at, created_at, updated_at, version
+FROM link_type
+WHERE tenant_id = current_tenant_id() AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotLinkTypesParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+// The workspace's link type rows (migration 0213); the six shipped ones are the domain's.
+func (q *Queries) SnapshotLinkTypes(ctx context.Context, arg SnapshotLinkTypesParams) ([]LinkType, error) {
+	rows, err := q.db.Query(ctx, snapshotLinkTypes, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LinkType{}
+	for rows.Next() {
+		var i LinkType
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Key,
+			&i.Name,
+			&i.InverseName,
+			&i.Direction,
+			&i.Cardinality,
+			&i.Cycles,
+			&i.Waits,
+			&i.Position,
+			&i.ArchivedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 			&i.Version,
 		); err != nil {
 			return nil, err
@@ -1298,6 +1451,54 @@ func (q *Queries) SnapshotWorkItems(ctx context.Context, arg SnapshotWorkItemsPa
 			&i.Number,
 			&i.EntryType,
 			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotWorkflows = `-- name: SnapshotWorkflows :many
+SELECT id, tenant_id, key, system, name, published, draft, published_at, published_by,
+  created_at, updated_at, version
+FROM workflow
+WHERE tenant_id = current_tenant_id() AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotWorkflowsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+// The workspace's workflow rows (migration 0215); the shipped one it never used is the domain's.
+func (q *Queries) SnapshotWorkflows(ctx context.Context, arg SnapshotWorkflowsParams) ([]Workflow, error) {
+	rows, err := q.db.Query(ctx, snapshotWorkflows, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Workflow{}
+	for rows.Next() {
+		var i Workflow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Key,
+			&i.System,
+			&i.Name,
+			&i.Published,
+			&i.Draft,
+			&i.PublishedAt,
+			&i.PublishedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
 		); err != nil {
 			return nil, err
 		}
