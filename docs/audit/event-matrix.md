@@ -179,7 +179,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `cmdb.ci_changed` | SetCiCompliance | `cmdb_ci` | INFO | Every time |
-| `cmdb.ci_changed` | UpdateCi | `cmdb_ci` | INFO | When refused |
+| `cmdb.ci_changed` | UpdateCi | `cmdb_ci` | INFO | Every time |
 | `cmdb.ci_created` | CreateCi | `cmdb_ci` | INFO | Every time |
 | `cmdb.ci_read` | ListCiBacklinks | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ListCiDuplicates | `cmdb_ci` | INFO | When refused |
@@ -196,8 +196,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `cmdb.configuration_read` | ListCiSources | `cmdb_source` | INFO | When refused |
 | `cmdb.duplicate_resolved` | ResolveCiDuplicate | `cmdb_ci` | INFO | Every time |
 | `cmdb.hold_dismissed` | DismissCiHold | `cmdb_run` | INFO | Every time |
-| `cmdb.reconciled` | ImportCiFile | `cmdb_run` | INFO | When refused |
-| `cmdb.reconciled` | ReconcileCis | `cmdb_run` | INFO | When refused |
+| `cmdb.reconciled` | ImportCiFile | `cmdb_run` | INFO | Every time |
+| `cmdb.reconciled` | ReconcileCis | `cmdb_run` | INFO | Every time |
 | `cmdb.related` | RelateCis | `cmdb_relation` | INFO | Every time |
 | `cmdb.relation_type_defined` | DefineCiRelationType | `cmdb_relation_type` | INFO | Every time |
 | `cmdb.source_defined` | DefineCiSource | `cmdb_source` | INFO | Every time |

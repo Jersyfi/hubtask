@@ -98,6 +98,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/automation"
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
+	connectoradapter "github.com/Jersyfi/hubtask/infrastructure/connector"
 	"github.com/Jersyfi/hubtask/infrastructure/crypto"
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
 	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
@@ -1820,6 +1821,24 @@ func run() error {
 		Store: postgres.NewCmdbRepository(), Containers: containers, Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid,
 	}
+	// Its connectors (research itsm-cmdb-ai §6.3): every pull through the guarded client and the
+	// inventory's reconciliation, a breaker per connector; an alert's entry through the registry.
+	alertEntries := &deferredCatalogue{}
+	connectors := cmdbservice.Connectors{
+		Inventory: inventory, Store: postgres.NewCmdbConnectorRepository(),
+		Pullers: connectoradapter.Pullers{
+			Client: outboundClient.WithTracer(tracing.Tracer("connector")),
+			Breakers: &connectoradapter.BreakerPool{New: func(string) connectoradapter.Breaker {
+				return resilience.NewBreaker(resilience.BreakerConfig{
+					Dependency: "connector",
+					OnStateChange: func(dependency string, state resilience.BreakerState) {
+						metrics.CircuitBreakerState(context.Background(), dependency, state.Level())
+					},
+				})
+			}},
+		},
+		Encryptor: encryptor, Entropy: clockadapter.CryptoRandom{}, Jobs: jobs, Entries: alertEntries,
+	}
 	useCases, err := usecase.NewRegistry(
 		settingservice.ModuleGate{Modules: modules}.Wrap(entitlementGate.Wrap(observer.Registry())),
 		knowledgeservice.CreatePage{Space: pageSpace}.Descriptor(),
@@ -1877,6 +1896,11 @@ func run() error {
 		cmdbservice.ResolveCiDuplicate{Inventory: inventory}.Descriptor(),
 		cmdbservice.ReadCmdbHealth{Inventory: inventory}.Descriptor(),
 		cmdbservice.ReadCiImpact{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiConnectors{Connectors: connectors}.Descriptor(),
+		cmdbservice.DefineCiConnector{Connectors: connectors}.Descriptor(),
+		cmdbservice.SetCiConnectorCredential{Connectors: connectors}.Descriptor(),
+		cmdbservice.RunCiConnector{Connectors: connectors}.Descriptor(),
+		cmdbservice.ListCiAlerts{Connectors: connectors}.Descriptor(),
 		cmdbservice.ListCiBacklinks{Inventory: inventory, Pointers: cmdbservice.Pointers{
 			Texts: pageSpace.Pages, Boards: boardStudio.Boards, Entries: entryLinks, Reader: authorizer,
 		}}.Descriptor(),
@@ -3003,6 +3027,7 @@ func run() error {
 	bulkCatalogue.catalogue = useCases
 	configCatalogue.catalogue = useCases
 	ruleCatalogue.catalogue = useCases
+	alertEntries.catalogue = useCases
 	suggestionCatalogue.catalogue = useCases
 
 	var api *http.Server
@@ -3060,6 +3085,7 @@ func run() error {
 		}
 		// The mail door beside it: the message is parsed here, its files go through the
 		// media pipeline's server-side end, and what lands is an EMAIL entry.
+		controller.CmdbAlerts = intake.AlertIntake{Deliveries: connectors}
 		controller.MailIntake = intake.MailIntake{
 			Deliveries: jumbleservice.IntakeMail{
 				Intake: jumbleIntake, Entries: postgres.NewJumbleRepository(cursors),
@@ -4122,6 +4148,7 @@ func run() error {
 			},
 			Fallback: cfg.Retention.Interval,
 		},
+		queueport.KindCmdbConnectorPull:    worker.CmdbConnectorPull{Connectors: connectors},
 		queueport.KindAutomationCheck:      worker.AutomationCheck{Check: ruleCheck},
 		queueport.KindAuditExport:          worker.AuditExport{Archivist: auditArchivist},
 		queueport.KindImport:               importJob,
@@ -4182,6 +4209,7 @@ func run() error {
 					automationservice.CallResealer{
 						Calls: postgres.NewCallSealingRepository(), Encryptor: encryptor,
 					},
+					cmdbservice.ConnectorResealer{Connectors: postgres.NewCmdbConnectorRepository(), Encryptor: encryptor},
 				},
 				Encryptor: encryptor, Audit: auditSink, Clock: clockadapter.System{}, Signals: metrics,
 			},
