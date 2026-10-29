@@ -291,36 +291,40 @@ func quotaStandingsResponse(out usecase.Output) []openapi.QuotaStanding {
 	rows, _ := out["data"].([]usecase.Output)
 	standings := make([]openapi.QuotaStanding, 0, len(rows))
 	for _, row := range rows {
-		standing := openapi.QuotaStanding{
-			Quota: openapi.QuotaStandingQuota(row.String("quota")),
-		}
-		if limit, held := row["limit"].(int64); held {
-			standing.Limit = limit
-		}
-		if configured, _ := row["configured"].(bool); configured {
-			standing.Configured = &configured
-		}
-		if locked, _ := row["locked"].(bool); locked {
-			standing.Locked = &locked
-		}
-		if source := row.String("source"); source != "" {
-			answered := openapi.QuotaSource(source)
-			standing.Source = &answered
-		}
-		if lock := row.String("lock"); lock != "" {
-			answered := openapi.PolicyLock(lock)
-			standing.Lock = &answered
-		}
-		if used, held := row["used"].(int64); held {
-			standing.Used = &used
-		}
-		if ratio, held := row["ratio"].(float64); held {
-			float := float32(ratio)
-			standing.Ratio = &float
-		}
-		standings = append(standings, standing)
+		standings = append(standings, quotaStandingResponse(row))
 	}
 	return standings
+}
+
+func quotaStandingResponse(row usecase.Output) openapi.QuotaStanding {
+	standing := openapi.QuotaStanding{
+		Quota: openapi.QuotaStandingQuota(row.String("quota")),
+	}
+	if limit, held := row["limit"].(int64); held {
+		standing.Limit = limit
+	}
+	if configured, _ := row["configured"].(bool); configured {
+		standing.Configured = &configured
+	}
+	if locked, _ := row["locked"].(bool); locked {
+		standing.Locked = &locked
+	}
+	if source := row.String("source"); source != "" {
+		answered := openapi.QuotaSource(source)
+		standing.Source = &answered
+	}
+	if lock := row.String("lock"); lock != "" {
+		answered := openapi.PolicyLock(lock)
+		standing.Lock = &answered
+	}
+	if used, held := row["used"].(int64); held {
+		standing.Used = &used
+	}
+	if ratio, held := row["ratio"].(float64); held {
+		float := float32(ratio)
+		standing.Ratio = &float
+	}
+	return standing
 }
 
 // ReadEncryptionStatus answers GET /admin/encryption: the keyring and the census over it

@@ -17,7 +17,6 @@ import (
 // twice, carry a signing secret from the use case to the response without letting it touch
 // anything else on the way.
 
-
 // webhookSecretResponse is a subscription with its signing secret: the creation's and a
 // rotation's answer, and no projection's - which is what makes "shown once" a property of the code.
 func webhookSecretResponse(out usecase.Output) openapi.WebhookSubscriptionSecret {
@@ -75,9 +74,6 @@ func webhookScopeResponse(value any) *openapi.WebhookScope {
 
 // The deliveries and the rotation. Two of the three carry a secret or a log rather than a
 // subscription, so their responses are shaped here beside the ones above.
-const (
-	rotateWebhookSecretUseCase   = "RotateWebhookSecret" //nolint:gosec // G101: a use case name, not a credential.
-)
 
 func deliveryResponse(out usecase.Output) openapi.WebhookDelivery {
 	delivery := openapi.WebhookDelivery{
