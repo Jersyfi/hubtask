@@ -573,3 +573,35 @@ func sameFormValue(a, b any) bool {
 	}
 	return reflect.DeepEqual(a, b)
 }
+
+// CheckFormStep holds an entry taking a workflow step to what its form asks of that step: a field
+// required only while the step is taken must hold a value, and a validation that fails only for the
+// step refuses it. What the form asks regardless of the step is the edit's to hold, not the step's,
+// so an entry already short of a field still moves on (UC-FLW-04 check 2).
+func CheckFormStep(f Form, item WorkItem, without, with FormState) error {
+	var problems []shared.FieldError
+	for _, field := range f.Fields {
+		if !with.Fields[field.Key].Required || without.Fields[field.Key].Required || hasValue(FormValue(item, field.Key)) {
+			continue
+		}
+		problems = append(problems, formProblem("/"+strings.ReplaceAll(field.Key, ".", "/"), "fields.value_required", field.Key))
+	}
+	for _, key := range with.Failed {
+		if slices.Contains(without.Failed, key) {
+			continue
+		}
+		path := ""
+		if validation := f.validation(key); validation.Field != "" {
+			path = "/" + strings.ReplaceAll(validation.Field, ".", "/")
+		}
+		problems = append(problems, shared.FieldError{
+			Path: path, Code: "forms.validation_failed", Params: map[string]string{"validation": key},
+		})
+	}
+	if len(problems) == 0 {
+		return nil
+	}
+	return shared.ErrValidation.WithDetail("forms.refused").
+		WithParams(map[string]string{"count": strconv.Itoa(len(problems))}).
+		WithFields(problems...)
+}

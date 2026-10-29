@@ -163,3 +163,51 @@ func TestCheckFormWrite(t *testing.T) {
 		})
 	}
 }
+
+// A form's `step` makes a field required or a validation fail only while a step is taken; the step
+// is refused for that, and not for what the form asks regardless of it (UC-FLW-04 check 2).
+func TestAStepIsHeldToWhatTheFormAsksOfIt(t *testing.T) {
+	form := work.Form{
+		Fields:      []work.FormField{{Key: "custom_fields.resolution"}, {Key: "custom_fields.owner"}},
+		Validations: []work.FormValidation{{Key: "amount_positive"}},
+	}
+	always := work.FormState{Fields: map[string]work.FormFieldState{"custom_fields.owner": {Required: true}}}
+	stepping := func(failed ...string) work.FormState {
+		return work.FormState{Fields: map[string]work.FormFieldState{
+			"custom_fields.owner": {Required: true}, "custom_fields.resolution": {Required: true},
+		}, Failed: failed}
+	}
+	empty := work.WorkItem{Title: "a"}
+	resolved := work.WorkItem{Title: "a", CustomFields: map[string]any{"resolution": "fixed"}}
+
+	tests := []struct {
+		name    string
+		item    work.WorkItem
+		with    work.FormState
+		refused []string
+	}{
+		{"a field the step requires is empty", empty, stepping(), []string{"/custom_fields/resolution"}},
+		{"the field is given", resolved, stepping(), nil},
+		{"a validation fails only for the step", resolved, stepping("amount_positive"), []string{""}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := work.CheckFormStep(form, test.item, always, test.with)
+			if test.refused == nil {
+				if err != nil {
+					t.Fatalf("refused: %v", err)
+				}
+				return
+			}
+			var refusal *shared.Error
+			if !errors.As(err, &refusal) || len(refusal.Fields) != len(test.refused) {
+				t.Fatalf("err = %v, want the fields %v", err, test.refused)
+			}
+			for i, path := range test.refused {
+				if refusal.Fields[i].Path != path {
+					t.Errorf("field %d = %q, want %q", i, refusal.Fields[i].Path, path)
+				}
+			}
+		})
+	}
+}

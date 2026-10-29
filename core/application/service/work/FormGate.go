@@ -68,6 +68,8 @@ type formCheck struct {
 	channel    domain.FormChannel
 	role       *string
 	programs   map[string]expression.Program
+	// step is the workflow step the write takes, empty for none: what a form's `step` reads.
+	step string
 }
 
 func (g FormGate) open(
@@ -144,8 +146,7 @@ func (c *formCheck) activation(ctx context.Context, item domain.WorkItem) (formA
 		"entry":   entry,
 		"actor":   map[string]any{"role": role, "kind": string(c.actor.Kind)},
 		"channel": string(c.channel),
-		// The step an entry is taking arrives with workflows (FLW-03); until then no write takes one.
-		"step": "",
+		"step":    c.step,
 	}}, nil
 }
 
@@ -216,6 +217,27 @@ func (g FormGate) checkEdit(
 		return err
 	}
 	return domain.CheckFormWrite(check.entryType.Form, &before, was, after, now)
+}
+
+// checkStep holds an entry taking a step to what its form asks of that step (domain.CheckFormStep):
+// the form answered once without the step and once with it.
+func (g FormGate) checkStep(
+	ctx context.Context, actor appshared.ActorContext, collection domain.Container, item domain.WorkItem, step string,
+) error {
+	check, err := g.open(ctx, actor, collection, item)
+	if err != nil || check == nil {
+		return err
+	}
+	without, err := check.state(ctx, item)
+	if err != nil {
+		return err
+	}
+	check.step = step
+	with, err := check.state(ctx, item)
+	if err != nil {
+		return err
+	}
+	return domain.CheckFormStep(check.entryType.Form, item, without, with)
 }
 
 // starting answers the presets and defaults a new entry takes for the custom fields the caller

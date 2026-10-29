@@ -102,6 +102,10 @@ func (h TakeStep) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 			return err
 		}
 
+		if err := w.Gate.Forms.checkStep(ctx, actor, collection, item, step.Key); err != nil {
+			return err
+		}
+
 		wanted := item
 		completes := shape.Completes(step.To)
 		switch {
