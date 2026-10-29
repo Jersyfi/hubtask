@@ -18325,7 +18325,7 @@ components:
         id: { type: string, format: uuid }
         anchor: { type: [string, "null"] }
         available: { type: boolean }
-        title: { type: string, description: "The entry's title, the container's or view's name." }
+        title: { type: string, description: "The entry's or page's title, the container's or view's name." }
         key: { type: [string, "null"], description: "The entry's key (`sup-128`) or the container's handle, where it has one." }
         number: { type: [integer, "null"], format: int64 }
         level: { $ref: "#/components/schemas/ItemType" }
@@ -18336,6 +18336,9 @@ components:
         start_at: { type: [string, "null"], format: date-time }
         due_at: { type: [string, "null"], format: date-time }
         layout: { type: string, description: "A view's layout." }
+        hub_id: { type: string, format: uuid, description: "The hub whose space a page is in." }
+        icon: { type: [string, "null"], description: "A page's icon." }
+        due_for_review: { type: boolean, description: "A page whose verification has run out." }
 
     WorkflowStatus:
       type: object

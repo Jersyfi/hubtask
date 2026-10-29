@@ -24991,7 +24991,7 @@
           },
           "title": {
             "type": "string",
-            "description": "The entry's title, the container's or view's name."
+            "description": "The entry's or page's title, the container's or view's name."
           },
           "key": {
             "type": [
@@ -25040,6 +25040,22 @@
           "layout": {
             "type": "string",
             "description": "A view's layout."
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The hub whose space a page is in."
+          },
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A page's icon."
+          },
+          "due_for_review": {
+            "type": "boolean",
+            "description": "A page whose verification has run out."
           }
         }
       },

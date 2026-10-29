@@ -1293,6 +1293,9 @@ class ReferenceTarget(TypedDict, total=False):
     start_at: str | None
     due_at: str | None
     layout: str
+    hub_id: str
+    icon: str | None
+    due_for_review: bool
 
 class WorkflowStatus(TypedDict, total=False):
     key: Required[str]

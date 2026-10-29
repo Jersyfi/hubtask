@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	knowledgerepo "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
 	"github.com/Jersyfi/hubtask/core/application/repository/outbox"
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	viewrepo "github.com/Jersyfi/hubtask/core/application/repository/view"
@@ -61,6 +62,8 @@ type Linking struct {
 	Links      repository.EntryLinks
 	References repository.References
 	Views      viewrepo.SavedViews
+	// Pages resolves a reference to a page (M3); nil resolves none, until the module is wired.
+	Pages      PageSummaries
 	Authorizer Authorizer
 	// Reader filters a page by what the reader may see, and Permits answers one question, both
 	// without writing a refusal: a reference out of reach is not somebody trying anything.
@@ -77,6 +80,11 @@ type Linking struct {
 	HLC     clock.HLCSource
 	// Activity writes the link into the history of both its ends.
 	Activity ActivityJournal
+}
+
+// PageSummaries answers the pages among identifiers that are not trashed.
+type PageSummaries interface {
+	Summaries(ctx context.Context, ids []shared.ID) ([]knowledgerepo.Summary, error)
 }
 
 // summaryPath is the scope chain an entry's summary is judged against, ending on the entry so
@@ -785,14 +793,20 @@ func (h ResolveReferences) Execute(ctx context.Context, actor appshared.ActorCon
 		return nil, shared.ErrValidation.WithDetail("references.too_many").
 			WithParams(map[string]string{"maximum": strconv.Itoa(maxReferencesAsked)})
 	}
-	var entries, containers []shared.ID
+	var entries, containers, pages []shared.ID
 	for _, ref := range refs {
 		switch ref.Kind {
 		case reference.KindEntry:
 			entries = append(entries, ref.ID)
 		case reference.KindHub, reference.KindCollection:
 			containers = append(containers, ref.ID)
+		case reference.KindPage:
+			pages = append(pages, ref.ID)
 		}
+	}
+	visiblePages, err := h.visiblePages(ctx, actor, pages)
+	if err != nil {
+		return nil, err
 	}
 	visibleEntries, err := h.Linking.visibleEntries(ctx, actor, entries)
 	if err != nil {
@@ -820,6 +834,20 @@ func (h ResolveReferences) Execute(ctx context.Context, actor appshared.ActorCon
 					resolved["key"] = summary.Handle
 				}
 				out = append(out, resolved)
+				continue
+			}
+		case reference.KindPage:
+			if summary, ok := visiblePages[ref.ID]; ok {
+				icon := any(nil)
+				if summary.Icon != "" {
+					icon = summary.Icon
+				}
+				out = append(out, usecase.Output{
+					"kind": string(ref.Kind), "id": ref.ID.String(), "anchor": anchorOrNil(ref.Anchor),
+					"available": true, "title": summary.Title, "archived": summary.Archived,
+					"hub_id": summary.HubID.String(), "icon": icon,
+					"due_for_review": summary.VerifiedUntil != nil && !h.Linking.Clock.Now().Before(*summary.VerifiedUntil),
+				})
 				continue
 			}
 		case reference.KindView:
@@ -878,6 +906,42 @@ func (h ResolveReferences) visibleContainers(
 	return visible, nil
 }
 
+// visiblePages answers the pages among ids the reader may read: READ at the page's hub, the
+// knowledge module's rule.
+func (h ResolveReferences) visiblePages(
+	ctx context.Context, actor appshared.ActorContext, ids []shared.ID,
+) (map[shared.ID]knowledgerepo.Summary, error) {
+	visible := map[shared.ID]knowledgerepo.Summary{}
+	if len(ids) == 0 || h.Linking.Pages == nil {
+		return visible, nil
+	}
+	var summaries []knowledgerepo.Summary
+	err := h.Linking.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		read, err := h.Linking.Pages.Summaries(ctx, ids)
+		summaries = read
+		return err
+	})
+	if err != nil || len(summaries) == 0 {
+		return visible, err
+	}
+	paths := make([][]identity.Scope, 0, len(summaries))
+	for _, s := range summaries {
+		paths = append(paths, []identity.Scope{identity.TenantScope(), identity.HubScope(s.HubID)})
+	}
+	allowed, err := h.Linking.Reader.Permitted(ctx, actor, access.Request{
+		Permission: service.PermissionRead, Action: ReferencesResolveAction, TokenScope: itemsRead, TargetType: "page",
+	}, paths)
+	if err != nil {
+		return nil, err
+	}
+	for i, s := range summaries {
+		if i < len(allowed) && allowed[i] {
+			visible[s.ID] = s
+		}
+	}
+	return visible, nil
+}
+
 // view resolves a saved view: its name and layout where the reader sees it - what a live view
 // draws in place with the reader's own query answers.
 func (h ResolveReferences) view(ctx context.Context, actor appshared.ActorContext, ref reference.Reference) (usecase.Output, bool, error) {
@@ -911,8 +975,8 @@ func (h ResolveReferences) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name:       ResolveReferencesName,
 		Permission: service.PermissionRead,
-		Summary: "Resolves up to 100 references - each a kind (ENTRY, HUB, COLLECTION, VIEW, and the " +
-			"later modules' PAGE, WHITEBOARD, DASHBOARD, GOAL, SPRINT), an id and an optional anchor - " +
+		Summary: "Resolves up to 100 references - each a kind (ENTRY, HUB, COLLECTION, VIEW, PAGE, and the " +
+			"later modules' WHITEBOARD, DASHBOARD, GOAL, SPRINT), an id and an optional anchor - " +
 			"to what a mention, a card or a live view shows: the title, key and state the caller may " +
 			"see. One the caller may not see, or that is not there, answers only its address and " +
 			"available: false, never its title. Text writes a reference as a Markdown link to " +

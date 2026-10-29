@@ -9,6 +9,7 @@ import (
 	"slices"
 	"testing"
 
+	knowledgerepo "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -497,5 +498,46 @@ func TestALinkKeepsTheIdentifierItsDeviceMinted(t *testing.T) {
 	})
 	if shared.AsError(err).DetailCode != "sync.id_not_uuidv7" {
 		t.Errorf("a version 4 identifier answered %v", err)
+	}
+}
+
+type pageSummaries []knowledgerepo.Summary
+
+func (p pageSummaries) Summaries(_ context.Context, ids []shared.ID) ([]knowledgerepo.Summary, error) {
+	var out []knowledgerepo.Summary
+	for _, s := range p {
+		if slices.Contains(ids, s.ID) {
+			out = append(out, s)
+		}
+	}
+	return out, nil
+}
+
+// P-19: a page resolves to its title for a reader of its hub; a page in a hub the reader may not
+// read answers its address alone, as a missing one does.
+func TestAPageReferenceResolvesForAReaderOfItsHub(t *testing.T) {
+	ctx := context.Background()
+	h := newLinkHarness()
+	shared1 := shared.MustParseID("0192f000-0000-7000-8000-0000000005a1")
+	closed := shared.MustParseID("0192f000-0000-7000-8000-0000000005a2")
+	page := shared.MustParseID("0192f000-0000-7000-8000-0000000005b1")
+	secret := shared.MustParseID("0192f000-0000-7000-8000-0000000005b2")
+	h.reader.hidden[closed] = true
+	linking := h.linking()
+	linking.Pages = pageSummaries{
+		{ID: page, HubID: shared1, Title: "Handbook", Icon: "📘"},
+		{ID: secret, HubID: closed, Title: "Salaries"},
+	}
+	resolved, err := ResolveReferences{Linking: linking}.Execute(ctx, linkActor(), []reference.Reference{
+		{Kind: reference.KindPage, ID: page}, {Kind: reference.KindPage, ID: secret},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved[0]["available"] != true || resolved[0]["title"] != "Handbook" || resolved[0]["hub_id"] != shared1.String() {
+		t.Errorf("a readable page resolves to %+v", resolved[0])
+	}
+	if resolved[1]["available"] != false || len(resolved[1]) != 4 {
+		t.Errorf("a page out of reach resolves to %+v", resolved[1])
 	}
 }

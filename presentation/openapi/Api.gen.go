@@ -13344,8 +13344,17 @@ type ReferenceTarget struct {
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 	Completed    *bool               `json:"completed,omitempty"`
 	DueAt        *time.Time          `json:"due_at,omitempty"`
-	EntryType    *string             `json:"entry_type,omitempty"`
-	Id           openapi_types.UUID  `json:"id"`
+
+	// DueForReview A page whose verification has run out.
+	DueForReview *bool   `json:"due_for_review,omitempty"`
+	EntryType    *string `json:"entry_type,omitempty"`
+
+	// HubId The hub whose space a page is in.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+
+	// Icon A page's icon.
+	Icon *string            `json:"icon,omitempty"`
+	Id   openapi_types.UUID `json:"id"`
 
 	// Key The entry's key (`sup-128`) or the container's handle, where it has one.
 	Key *string `json:"key,omitempty"`
@@ -13361,7 +13370,7 @@ type ReferenceTarget struct {
 	Number  *int64     `json:"number,omitempty"`
 	StartAt *time.Time `json:"start_at,omitempty"`
 
-	// Title The entry's title, the container's or view's name.
+	// Title The entry's or page's title, the container's or view's name.
 	Title *string `json:"title,omitempty"`
 }
 

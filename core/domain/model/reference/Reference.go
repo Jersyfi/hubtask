@@ -23,9 +23,10 @@ const (
 	KindHub        Kind = "HUB"
 	KindCollection Kind = "COLLECTION"
 	KindView       Kind = "VIEW"
+	// KindPage is a knowledge page (M3).
+	KindPage Kind = "PAGE"
 	// The kinds of the suite's later modules. A reference to one is valid today and resolves as
 	// not available until the module that holds it exists.
-	KindPage       Kind = "PAGE"
 	KindWhiteboard Kind = "WHITEBOARD"
 	KindDashboard  Kind = "DASHBOARD"
 	KindGoal       Kind = "GOAL"
