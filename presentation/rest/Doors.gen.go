@@ -60,11 +60,13 @@ var restDoors = map[string]restDoor{
 	"listLinkTypes":          {UseCase: "ListLinkTypes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listLinksAmong":         {UseCase: "ListLinksAmong", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listModules":            {UseCase: "ListModules", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listRetentionPolicies":  {UseCase: "ListRetentionPolicies", Status: 200, Query: []string{"container_id", "effective"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listRoles":              {UseCase: "ListRoles", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listTrash":              {UseCase: "ListTrash", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listWorkflows":          {UseCase: "ListWorkflows", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"planConfig":             {UseCase: "PlanConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
 	"planConfigTemplate":     {UseCase: "PlanConfigTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"version"}},
+	"previewRetentionPolicy": {UseCase: "PreviewRetentionPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"previewWorkflowPublish": {UseCase: "PreviewWorkflowPublish", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"previewWorkflowScheme":  {UseCase: "PreviewWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"proposeConfig":          {UseCase: "ProposeConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
@@ -385,6 +387,11 @@ func (c *RestController) ListModules(w http.ResponseWriter, r *http.Request, par
 	c.door(w, r, restDoors["listModules"], usecase.Input{}, params, nil, &answer)
 }
 
+// ListRetentionPolicies answers GET /retention-policies by the generated mapping.
+func (c *RestController) ListRetentionPolicies(w http.ResponseWriter, r *http.Request, params openapi.ListRetentionPoliciesParams) {
+	c.door(w, r, restDoors["listRetentionPolicies"], usecase.Input{}, params, nil, answerRows(retentionPolicyResponse))
+}
+
 // ListRoles answers GET /roles by the generated mapping.
 func (c *RestController) ListRoles(w http.ResponseWriter, r *http.Request) {
 	var answer openapi.RoleCatalogue
@@ -414,6 +421,11 @@ func (c *RestController) PlanConfigTemplate(w http.ResponseWriter, r *http.Reque
 	var body openapi.PlanConfigTemplateJSONRequestBody
 	var answer openapi.ConfigTemplatePlan
 	c.door(w, r, restDoors["planConfigTemplate"], usecase.Input{"key": key}, nil, &body, &answer)
+}
+
+// PreviewRetentionPolicy answers POST /retention-policies/{policyId}:preview by the generated mapping.
+func (c *RestController) PreviewRetentionPolicy(w http.ResponseWriter, r *http.Request, policyId openapi_types.UUID) {
+	c.door(w, r, restDoors["previewRetentionPolicy"], usecase.Input{"policy_id": policyId.String()}, nil, nil, answerBy(retentionPreviewResponse))
 }
 
 // PreviewWorkflowPublish answers POST /workflows/{key}:preview-publish by the generated mapping.

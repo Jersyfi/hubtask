@@ -15,38 +15,9 @@ import (
 )
 
 const (
-	createRetentionPolicyUseCase  = "CreateRetentionPolicy"
-	listRetentionPoliciesUseCase  = "ListRetentionPolicies"
-	previewRetentionPolicyUseCase = "PreviewRetentionPolicy"
-	retainItemUseCase             = "RetainItem"
+	createRetentionPolicyUseCase = "CreateRetentionPolicy"
+	retainItemUseCase            = "RetainItem"
 )
-
-// ListRetentionPolicies answers GET /retention-policies.
-//
-// An array rather than a page: a workspace has a rule per kind per level, and the catalogue has
-// fifteen kinds. A cursor over that would be ceremony.
-func (c *RestController) ListRetentionPolicies(
-	w http.ResponseWriter, r *http.Request, params openapi.ListRetentionPoliciesParams,
-) {
-	in := usecase.Input{}
-	if params.ContainerId != nil {
-		in["container_id"] = params.ContainerId.String()
-	}
-	if params.Effective != nil {
-		in["effective"] = *params.Effective
-	}
-
-	out, ok := c.read(w, r, listRetentionPoliciesUseCase, in)
-	if !ok {
-		return
-	}
-
-	policies := []openapi.RetentionPolicy{}
-	for _, row := range rowsOf(out) {
-		policies = append(policies, retentionPolicyResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, policies)
-}
 
 // CreateRetentionPolicy answers POST /retention-policies.
 func (c *RestController) CreateRetentionPolicy(w http.ResponseWriter, r *http.Request) {
@@ -106,18 +77,6 @@ func (c *RestController) CreateRetentionPolicy(w http.ResponseWriter, r *http.Re
 		return
 	}
 	writeJSON(w, r, http.StatusCreated, retentionPolicyResponse(out))
-}
-
-// PreviewRetentionPolicy answers POST /retention-policies/{policyId}:preview.
-func (c *RestController) PreviewRetentionPolicy(
-	w http.ResponseWriter, r *http.Request, policyID openapi_types.UUID,
-) {
-	out, ok := c.read(w, r, previewRetentionPolicyUseCase,
-		usecase.Input{"policy_id": policyID.String()})
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, retentionPreviewResponse(out))
 }
 
 // retentionPolicyResponse maps one rule.

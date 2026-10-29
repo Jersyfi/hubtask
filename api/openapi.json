@@ -4162,6 +4162,8 @@
           "retention"
         ],
         "operationId": "listRetentionPolicies",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "retentionPolicyResponse",
         "summary": "List the retention rules",
         "parameters": [
           {
@@ -4305,6 +4307,8 @@
           "retention"
         ],
         "operationId": "previewRetentionPolicy",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "retentionPreviewResponse",
         "summary": "Determine the effect of a rule without executing it",
         "parameters": [
           {

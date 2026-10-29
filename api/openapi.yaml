@@ -2987,6 +2987,8 @@ paths:
     get:
       tags: [retention]
       operationId: listRetentionPolicies
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: retentionPolicyResponse
       summary: List the retention rules
       parameters:
         - { name: container_id, in: query, schema: { type: string, format: uuid } }
@@ -3075,6 +3077,8 @@ paths:
     post:
       tags: [retention]
       operationId: previewRetentionPolicy
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: retentionPreviewResponse
       summary: Determine the effect of a rule without executing it
       parameters:
         - { name: policyId, in: path, required: true, schema: { type: string, format: uuid } }
