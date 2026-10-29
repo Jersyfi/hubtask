@@ -49,6 +49,19 @@ type restDoor struct {
 	// Integers are the body's integer members, handed on as Go integers rather than JSON's
 	// float64, as a typed body hands them.
 	Integers []string
+	// ShownOnce is the member that shows a secret once: an answer carrying it is marked no-store
+	// for a cache and shown once for the idempotency record, so neither keeps it (T-18).
+	ShownOnce string
+	// QueryAs renames a query parameter to the input the use case reads.
+	QueryAs map[string]string
+}
+
+// input is the name the use case reads a query parameter by.
+func (d restDoor) input(query string) string {
+	if renamed, ok := d.QueryAs[query]; ok {
+		return renamed
+	}
+	return query
 }
 
 // door answers one generated operation. in holds the path's parameters; params is the generated
@@ -67,7 +80,7 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 		}
 		for _, name := range d.Query {
 			if value, ok := values[name]; ok && value != nil {
-				in[name] = whole(d, name, value)
+				in[d.input(name)] = whole(d, name, value)
 			}
 		}
 	}
@@ -123,6 +136,10 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 	out, ok := c.read(w, r, d.UseCase, in)
 	if !ok {
 		return
+	}
+	if d.ShownOnce != "" && out.String(d.ShownOnce) != "" {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set(ShownOnceHeader, d.ShownOnce)
 	}
 	if d.Status == http.StatusNoContent {
 		w.WriteHeader(http.StatusNoContent)
@@ -221,3 +238,7 @@ func whole(d restDoor, name string, value any) any {
 	}
 	return value
 }
+
+// asWritten draws a row as the use case wrote it: a bare-array answer whose rows already carry the
+// contract's names.
+func asWritten(out usecase.Output) usecase.Output { return out }

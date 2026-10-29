@@ -4722,6 +4722,10 @@
           "identity"
         ],
         "operationId": "inviteAccount",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-location": "/accounts/{id}",
+        "x-hubtask-rest-shown-once": "invitation_link",
+        "x-hubtask-rest-answer": "invitedAccountResponse",
         "summary": "Invite a person into this workspace",
         "description": "Creates an account in `INVITED` status. Permissions can be granted to it immediately;\nit cannot act until the invitation is accepted. An open invitation holds a place under the\nworkspace's people limit: at the limit the answer is `422 capacity.accounts`.\n\n**Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the\ninvitation mail is queued as a job - this call does not wait for it - and the answer\ncarries no link.\n\n**Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the\nsame link the mail would have carried, **shown here and never again**, to be handed over by\nany other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a\nrepeat with the same `Idempotency-Key` answers the status without the body. A lost link is\nreplaced with `POST /accounts/{accountId}:renew-invitation`.\n\nAn address that already has an account here is `409 accounts.email_taken`; one whose\ninvitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or\nsent for either. Without mail, an act an automation rule runs is refused with\n`accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.\n",
         "parameters": [
@@ -4767,6 +4771,9 @@
           "identity"
         ],
         "operationId": "renewInvitation",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-shown-once": "invitation_link",
+        "x-hubtask-rest-answer": "invitedAccountResponse",
         "summary": "Give an invitation not yet accepted a new link",
         "description": "For an invitation whose link was lost, or ran out. The account must still be `INVITED`;\nany other is `409 accounts.not_invited`. A link that ran out had freed its place under the\npeople limit; renewing it at the limit is `422 capacity.accounts`.\n\n**Where this installation sends mail**, the invitation mail is queued again and the answer\ncarries no link; the earlier link stops working when the new mail goes out. **Where it sends\nno mail**, the answer carries a new `invitation_link`, shown here and never again, and the\nearlier link stops working at once. Without mail, an act an automation rule runs is refused\nwith `accounts.invitation_needs_a_person`.\n\nAsks `MANAGE_MEMBERS` at the workspace, as the invitation does. Without mail the new link is\na way into the account, so it is also held to the role ceiling: an owner renews any\ninvitation, an administrator only one whose roles are all at or below their own - otherwise\n`403 access.role_above_own` with the `role`. Auditable.\n",
         "parameters": [
@@ -4998,6 +5005,9 @@
           "identity"
         ],
         "operationId": "issueStartPassword",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-shown-once": "start_password",
+        "x-hubtask-rest-answer": "startPasswordIssuedResponse",
         "summary": "Give a managed account a new start password",
         "description": "For a person without a mail address who forgot their password: there is no mailbox a reset\ncould reach, so an owner or administrator helps them back in. **The one exception to \"an\nadministrator does not recover an account\"**, and it exists only for managed accounts - an\naccount with an address is refused with `409 accounts.not_managed`, and recovers through\nits mailbox.\n\nHubtask draws a new start password and answers it once, as at creation; nobody chooses it\nand nothing can read it again. Every session of the account ends and every unfinished\nsign-in step is spent. The next sign-in leads into choosing a new password, after the\nsecond factor where the account has one - the factor and the recovery codes stay. Personal\naccess tokens stay, as a password change leaves them.\n\nAsks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`\notherwise). An act an automation rule runs is refused with\n`accounts.managed_needs_a_person`: a run reads no answer. Whoever issues it can sign in as\nthe account, so it is held to the role ceiling: an owner issues one for anybody, an\nadministrator only for an account whose roles are all at or below their own - otherwise\n`403 access.role_above_own` with the `role`, before the proof is spent.\n\nThere is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:\nno-store`: an answer kept for a replay would keep the start password with it.\n",
         "parameters": [
@@ -7889,6 +7899,8 @@
           "admin"
         ],
         "operationId": "listPlatformSubscriptions",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "asWritten",
         "summary": "The installation's subscriptions for a purchase platform",
         "description": "The addresses the installation's events are pushed to, oldest first, each with its state, the dead letters waiting to be redelivered and the last delivery. The secret is not among the fields. Single mode offers none of this (`admin.multi_mode_required`). Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "responses": {
@@ -7915,6 +7927,7 @@
           "admin"
         ],
         "operationId": "createPlatformSubscription",
+        "x-hubtask-rest": "generated",
         "summary": "Subscribe a purchase platform to the installation's events",
         "description": "Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.\nThe signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. A person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "parameters": [
@@ -7969,6 +7982,7 @@
           "admin"
         ],
         "operationId": "readPlatformSubscription",
+        "x-hubtask-rest": "generated",
         "summary": "One subscription of the installation",
         "description": "Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.",
         "responses": {
@@ -7992,6 +8006,7 @@
           "admin"
         ],
         "operationId": "updatePlatformSubscription",
+        "x-hubtask-rest": "generated",
         "summary": "Change a subscription's target, or pause and resume it",
         "description": "An omitted field is left alone. A new target demands a fresh step-up; a person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "parameters": [
@@ -8033,6 +8048,7 @@
           "admin"
         ],
         "operationId": "deletePlatformSubscription",
+        "x-hubtask-rest": "generated",
         "summary": "Unsubscribe",
         "description": "The subscription goes with its deliveries; the events stay readable. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "responses": {
@@ -8062,6 +8078,7 @@
           "admin"
         ],
         "operationId": "rotatePlatformSubscriptionSecret",
+        "x-hubtask-rest": "generated",
         "summary": "Issue a new signing secret",
         "description": "Answers the new secret once; deliveries are signed with it from this moment, and the old one stays valid on the platform's side for the grace it chooses. Demands a fresh step-up. A person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "parameters": [
@@ -8106,6 +8123,10 @@
           "admin"
         ],
         "operationId": "listPlatformDeliveries",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-query": {
+          "size": "limit"
+        },
         "summary": "What was sent to the subscription, and what became of it",
         "description": "One row per event and subscription, newest first: its attempts, its status, the answer the target gave and when the next attempt is due. `DEAD_LETTER` is what a redelivery acts on. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "parameters": [
@@ -8164,6 +8185,7 @@
           "admin"
         ],
         "operationId": "redeliverPlatformSubscription",
+        "x-hubtask-rest": "generated",
         "summary": "Send the subscription's dead letters again",
         "description": "Every dead letter of the subscription is queued again, with the event identifier it always had and its attempts counting on. Refused with `admin.subscription_paused` while the subscription is paused. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "responses": {

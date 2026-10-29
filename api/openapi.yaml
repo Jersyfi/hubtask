@@ -3398,6 +3398,10 @@ paths:
     post:
       tags: [identity]
       operationId: inviteAccount
+      x-hubtask-rest: generated
+      x-hubtask-rest-location: /accounts/{id}
+      x-hubtask-rest-shown-once: invitation_link
+      x-hubtask-rest-answer: invitedAccountResponse
       summary: Invite a person into this workspace
       description: |
         Creates an account in `INVITED` status. Permissions can be granted to it immediately;
@@ -3442,6 +3446,9 @@ paths:
     post:
       tags: [identity]
       operationId: renewInvitation
+      x-hubtask-rest: generated
+      x-hubtask-rest-shown-once: invitation_link
+      x-hubtask-rest-answer: invitedAccountResponse
       summary: Give an invitation not yet accepted a new link
       description: |
         For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
@@ -3672,6 +3679,9 @@ paths:
     post:
       tags: [identity]
       operationId: issueStartPassword
+      x-hubtask-rest: generated
+      x-hubtask-rest-shown-once: start_password
+      x-hubtask-rest-answer: startPasswordIssuedResponse
       summary: Give a managed account a new start password
       description: |
         For a person without a mail address who forgot their password: there is no mailbox a reset
@@ -6229,6 +6239,8 @@ paths:
     get:
       tags: [admin]
       operationId: listPlatformSubscriptions
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: asWritten
       summary: The installation's subscriptions for a purchase platform
       description: >
         The addresses the installation's events are pushed to, oldest first, each with its state,
@@ -6247,6 +6259,7 @@ paths:
     post:
       tags: [admin]
       operationId: createPlatformSubscription
+      x-hubtask-rest: generated
       summary: Subscribe a purchase platform to the installation's events
       description: >
         Every installation event is sent to the target as the CloudEvent `GET /admin/events`
@@ -6284,6 +6297,7 @@ paths:
     get:
       tags: [admin]
       operationId: readPlatformSubscription
+      x-hubtask-rest: generated
       summary: One subscription of the installation
       description: Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       responses:
@@ -6297,6 +6311,7 @@ paths:
     patch:
       tags: [admin]
       operationId: updatePlatformSubscription
+      x-hubtask-rest: generated
       summary: Change a subscription's target, or pause and resume it
       description: >
         An omitted field is left alone. A new target demands a fresh step-up; a person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. A paused
@@ -6321,6 +6336,7 @@ paths:
     delete:
       tags: [admin]
       operationId: deletePlatformSubscription
+      x-hubtask-rest: generated
       summary: Unsubscribe
       description: >
         The subscription goes with its deliveries; the events stay readable. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
@@ -6336,6 +6352,7 @@ paths:
     post:
       tags: [admin]
       operationId: rotatePlatformSubscriptionSecret
+      x-hubtask-rest: generated
       summary: Issue a new signing secret
       description: >
         Answers the new secret once; deliveries are signed with it from this moment, and the old
@@ -6359,6 +6376,8 @@ paths:
     get:
       tags: [admin]
       operationId: listPlatformDeliveries
+      x-hubtask-rest: generated
+      x-hubtask-rest-query: {size: limit}
       summary: What was sent to the subscription, and what became of it
       description: >
         One row per event and subscription, newest first: its attempts, its status, the answer the
@@ -6388,6 +6407,7 @@ paths:
     post:
       tags: [admin]
       operationId: redeliverPlatformSubscription
+      x-hubtask-rest: generated
       summary: Send the subscription's dead letters again
       description: >
         Every dead letter of the subscription is queued again, with the event identifier it always

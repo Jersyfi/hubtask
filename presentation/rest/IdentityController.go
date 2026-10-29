@@ -22,7 +22,6 @@ import (
 const (
 	inviteAccountUseCase               = "InviteAccount"
 	createManagedAccountUseCase        = "CreateManagedAccount"
-	issueStartPasswordUseCase          = "IssueStartPassword"
 	renewInvitationUseCase             = "RenewInvitation"
 	getOwnAccountUseCase               = "GetOwnAccount"
 	getAccountUseCase                  = "GetAccount"
@@ -39,41 +38,6 @@ const (
 	deleteGroupUseCase                 = "DeleteGroup"
 )
 
-// InviteAccount answers POST /accounts:invite.
-func (c *RestController) InviteAccount(w http.ResponseWriter, r *http.Request, _ openapi.InviteAccountParams) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.AccountInvite
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-		return c.UseCases.Invoke(r.Context(), inviteAccountUseCase, actor, usecase.Input{
-			"email":        string(body.Email),
-			"display_name": optionalStringField(body.DisplayName),
-		})
-	}, func(out usecase.Output) {
-		invited := invitedAccountResponse(out)
-		markShownOnce(w, invited)
-		w.Header().Set("Location", APIBasePath+"/accounts/"+invited.Id.String())
-		writeJSON(w, r, http.StatusCreated, invited)
-	})
-}
-
-// RenewInvitation answers POST /accounts/{accountId}:renew-invitation, with the invitation's answer
-// and its marks.
-func (c *RestController) RenewInvitation(
-	w http.ResponseWriter, r *http.Request, accountID openapi.AccountId, _ openapi.RenewInvitationParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), renewInvitationUseCase, actor, usecase.Input{
-			"account_id": accountID.String(),
-		})
-	}, func(out usecase.Output) {
-		invited := invitedAccountResponse(out)
-		markShownOnce(w, invited)
-		writeJSON(w, r, http.StatusOK, invited)
-	})
-}
-
 // invitedAccount is the InvitedAccount schema written as the account plus the link, so that the
 // account's own fields are mapped in one place (accountResponse) rather than twice.
 type invitedAccount struct {
@@ -88,17 +52,6 @@ func invitedAccountResponse(out usecase.Output) invitedAccount {
 		invited.InvitationLink = &link
 	}
 	return invited
-}
-
-// markShownOnce marks an answer carrying the link - an installation that sends no mail - as the one
-// appearance of a credential: no-store for a cache, shown once for the idempotency record, so
-// neither keeps a copy (T-18).
-func markShownOnce(w http.ResponseWriter, invited invitedAccount) {
-	if invited.InvitationLink == nil {
-		return
-	}
-	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set(ShownOnceHeader, "invitation_link")
 }
 
 // CreateManagedAccount answers POST /accounts:create-managed.
@@ -133,30 +86,6 @@ func (c *RestController) CreateManagedAccount(
 		w.Header().Set(ShownOnceHeader, "start_password")
 		w.Header().Set("Location", APIBasePath+"/accounts/"+created.Account.Id.String())
 		writeJSON(w, r, http.StatusCreated, created)
-	})
-}
-
-// IssueStartPassword answers POST /accounts/{accountId}:issue-start-password.
-//
-// The answer carries the new start password once, marked as the creation's is, so neither a cache
-// nor an idempotency record keeps it.
-func (c *RestController) IssueStartPassword(
-	w http.ResponseWriter, r *http.Request, accountID openapi.AccountId, params openapi.IssueStartPasswordParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), issueStartPasswordUseCase, actor, usecase.Input{
-			"account_id":    accountID.String(),
-			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-		})
-	}, func(out usecase.Output) {
-		account, _ := out["account"].(usecase.Output)
-		issued := openapi.StartPasswordIssued{
-			Account:       accountResponse(account),
-			StartPassword: out.String("start_password"),
-		}
-		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set(ShownOnceHeader, "start_password")
-		writeJSON(w, r, http.StatusOK, issued)
 	})
 }
 
@@ -473,4 +402,10 @@ func notificationPreferenceListResponse(out usecase.Output) openapi.Notification
 func addressRequestedResponse(out usecase.Output) openapi.AddressRequested {
 	expires, _ := out["expires_at"].(time.Time)
 	return openapi.AddressRequested{ExpiresAt: expires}
+}
+
+// startPasswordIssuedResponse maps a start password issued: the account and the password, once.
+func startPasswordIssuedResponse(out usecase.Output) openapi.StartPasswordIssued {
+	account, _ := out["account"].(usecase.Output)
+	return openapi.StartPasswordIssued{Account: accountResponse(account), StartPassword: out.String("start_password")}
 }

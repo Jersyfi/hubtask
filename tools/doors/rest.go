@@ -53,6 +53,11 @@ type RESTDoor struct {
 	// Integers are the query's parameters and the body's members the contract types as integers,
 	// handed on as Go integers as a hand-written handler's typed values were.
 	Integers []string
+	// ShownOnce is the member that shows a secret once (`x-hubtask-rest-shown-once`): an answer
+	// carrying it is marked `no-store` for a cache and shown once for the idempotency record.
+	ShownOnce string
+	// QueryAs renames a query parameter to the input the use case reads (`x-hubtask-rest-query`).
+	QueryAs map[string]string
 }
 
 type pathArg struct{ Input, Value string }
@@ -67,6 +72,8 @@ type restOperation struct {
 	Location    string            `yaml:"x-hubtask-rest-location"`
 	Null        string            `yaml:"x-hubtask-rest-null"`
 	ETagFrom    string            `yaml:"x-hubtask-rest-etag"`
+	ShownOnce   string            `yaml:"x-hubtask-rest-shown-once"`
+	QueryAs     map[string]string `yaml:"x-hubtask-rest-query"`
 	Parameters  []parameter       `yaml:"parameters"`
 	RequestBody *struct {
 		Required bool                 `yaml:"required"`
@@ -126,7 +133,10 @@ func restDoor(
 	signatures map[string][]*ast.Field, bodies, texts map[string]bool,
 ) (RESTDoor, error) {
 	name := upperFirst(op.OperationID)
-	door := RESTDoor{OperationID: op.OperationID, UseCase: name, Method: strings.ToUpper(method), Path: path, IfMatchAs: op.IfMatchAs, BodyAs: op.BodyAs, AnswerBy: op.AnswerBy, Location: op.Location}
+	door := RESTDoor{
+		OperationID: op.OperationID, UseCase: name, Method: strings.ToUpper(method), Path: path, IfMatchAs: op.IfMatchAs,
+		BodyAs: op.BodyAs, AnswerBy: op.AnswerBy, Location: op.Location, ShownOnce: op.ShownOnce, QueryAs: op.QueryAs,
+	}
 	switch op.Null {
 	case "":
 	case "empty":
@@ -159,6 +169,11 @@ func restDoor(
 		}
 	}
 	sort.Strings(door.Query)
+	for name := range op.QueryAs {
+		if !slicesContains(door.Query, name) {
+			return door, fmt.Errorf("x-hubtask-rest-query renames %s, which is not a query parameter", name)
+		}
+	}
 
 	for _, field := range signature[2:] {
 		typ := qualified(field.Type)
@@ -298,6 +313,15 @@ func qualified(expr ast.Expr) string {
 	return text
 }
 
+func slicesContains(list []string, s string) bool {
+	for _, each := range list {
+		if each == s {
+			return true
+		}
+	}
+	return false
+}
+
 func upperFirst(s string) string {
 	if s == "" {
 		return s
@@ -331,8 +355,24 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 	b.WriteString("// restDoors is every operation answered by the generated mapping, by operationId.\n")
 	b.WriteString("var restDoors = map[string]restDoor{\n")
 	for _, d := range doors {
-		fmt.Fprintf(&b, "\t%q: {UseCase: %q, Status: %d, Query: %#v, IfMatch: %t, IfMatchAs: %q, StepUp: %t, BodyRequired: %t, ETag: %q, BodyAs: %q, Location: %q, NullClears: %t, Integers: %#v},\n",
-			d.OperationID, d.UseCase, d.Status, d.Query, d.IfMatch, d.IfMatchAs, d.StepUp, d.BodyRequired, d.ETag, d.BodyAs, d.Location, d.NullClears, d.Integers)
+		extra := ""
+		if d.ShownOnce != "" {
+			extra += fmt.Sprintf(", ShownOnce: %q", d.ShownOnce)
+		}
+		if len(d.QueryAs) > 0 {
+			keys := make([]string, 0, len(d.QueryAs))
+			for key := range d.QueryAs {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+			pairs := make([]string, 0, len(keys))
+			for _, key := range keys {
+				pairs = append(pairs, fmt.Sprintf("%q: %q", key, d.QueryAs[key]))
+			}
+			extra += ", QueryAs: map[string]string{" + strings.Join(pairs, ", ") + "}"
+		}
+		fmt.Fprintf(&b, "\t%q: {UseCase: %q, Status: %d, Query: %#v, IfMatch: %t, IfMatchAs: %q, StepUp: %t, BodyRequired: %t, ETag: %q, BodyAs: %q, Location: %q, NullClears: %t, Integers: %#v%s},\n",
+			d.OperationID, d.UseCase, d.Status, d.Query, d.IfMatch, d.IfMatchAs, d.StepUp, d.BodyRequired, d.ETag, d.BodyAs, d.Location, d.NullClears, d.Integers, extra)
 	}
 	b.WriteString("}\n")
 	for _, d := range doors {

@@ -132,8 +132,8 @@ func TestEveryGeneratedMappingIsADescriptors(t *testing.T) {
 			continue
 		}
 		for _, name := range door.Query {
-			if !fields[name] {
-				t.Errorf("%s passes %s, which %s does not declare", operation, name, door.UseCase)
+			if !fields[door.input(name)] {
+				t.Errorf("%s passes %s, which %s does not declare", operation, door.input(name), door.UseCase)
 			}
 		}
 		if door.IfMatch && door.IfMatchAs == "" && !fields["expected_version"] {
@@ -335,5 +335,42 @@ func TestTakingAStepAnswersTheEntry(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), `"title":"Buy milk"`) {
 		t.Errorf("the answer is %s", recorder.Body)
+	}
+}
+
+// A secret shown once is marked so for a cache and the idempotency record (T-18) - only when the
+// answer carries it: an invitation sent by mail shows no link and is not marked.
+func TestAGeneratedAnswerShowingASecretOnceIsMarkedSo(t *testing.T) {
+	const path = "/accounts/018f0000-0000-7000-8000-000000000001:issue-start-password"
+	registry := &catalogue{out: usecase.Output{"start_password": "once", "account": usecase.Output{}}}
+	recorder := callDoor(t, registry, http.MethodPost, path, "", nil)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if recorder.Header().Get("Cache-Control") != "no-store" || recorder.Header().Get(ShownOnceHeader) != "start_password" {
+		t.Errorf("headers %v", recorder.Header())
+	}
+
+	registry = &catalogue{out: usecase.Output{"id": "018f0000-0000-7000-8000-000000000001"}}
+	recorder = callDoor(t, registry, http.MethodPost, "/accounts:invite", `{"email":"ana@example.org"}`,
+		map[string]string{"Content-Type": "application/json"})
+	if recorder.Code != http.StatusCreated || recorder.Header().Get(ShownOnceHeader) != "" {
+		t.Errorf("an invitation without a link: %d %v", recorder.Code, recorder.Header())
+	}
+	if registry.in["email"] != "ana@example.org" {
+		t.Errorf("the invitation reached the use case as %v", registry.in)
+	}
+}
+
+// A query parameter the contract names otherwise reaches the use case by the input's name.
+func TestAGeneratedQueryParameterIsRenamedToItsInput(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"data": []usecase.Output{}, "page": map[string]any{}}}
+	recorder := callDoor(t, registry, http.MethodGet,
+		"/admin/subscriptions/018f0000-0000-7000-8000-000000000001/deliveries?size=5", "", nil)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if registry.in["limit"] != 5 || registry.in["size"] != nil {
+		t.Errorf("the page size reached the use case as %v", registry.in)
 	}
 }
