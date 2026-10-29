@@ -21,7 +21,6 @@ import (
 // what a sentence does are decided inwards of here.
 
 const (
-	showVoiceSettingsUseCase = "ShowVoiceSettings"
 	saveVoiceSettingsUseCase = "SaveVoiceSettings"
 	tryVoiceSentenceUseCase  = "TryVoiceSentence"
 	showAlexaModelUseCase    = "ShowAlexaModel"
@@ -31,23 +30,6 @@ const (
 // signature and the linked account's token, not with this API's credentials.
 type AlexaAnswerer interface {
 	Handle(ctx context.Context, header http.Header, body []byte) (voice.Response, error)
-}
-
-// ShowVoiceSettings answers GET /voice/settings. Written out rather than through the identity
-// helper, for ListServiceAccounts' reason: with no parameters, the helper's closure gives the
-// linter nothing to trace the request's context through.
-func (c *RestController) ShowVoiceSettings(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), showVoiceSettingsUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, voiceSettingsResponse(out))
 }
 
 // SaveVoiceSettings answers PUT /voice/settings.

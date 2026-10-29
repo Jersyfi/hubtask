@@ -8,7 +8,6 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -20,7 +19,6 @@ const (
 	signInUseCase            = "SignIn"
 	refreshSessionUseCase    = "RefreshSession"
 	listSessionsUseCase      = "ListSessions"
-	revokeSessionUseCase     = "RevokeSession"
 	revokeAllSessionsUseCase = "RevokeAllSessions"
 	// revokeOtherSessionsUseCase is *Sign out everywhere else* (UC-ID-06 check 4).
 	revokeOtherSessionsUseCase = "RevokeOtherSessions"
@@ -146,17 +144,6 @@ func (c *RestController) ListSessions(w http.ResponseWriter, r *http.Request) {
 		sessions = append(sessions, sessionResponse(row))
 	}
 	writeJSON(w, r, http.StatusOK, sessions)
-}
-
-// RevokeSession answers DELETE /auth/sessions/{sessionId}.
-func (c *RestController) RevokeSession(w http.ResponseWriter, r *http.Request, sessionID openapi.SessionId) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), revokeSessionUseCase, actor, usecase.Input{
-			"session_id": sessionID.String(),
-		})
-	}, func(usecase.Output) {
-		w.WriteHeader(http.StatusNoContent)
-	})
 }
 
 // RevokeAllSessions answers DELETE /auth/sessions.

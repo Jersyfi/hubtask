@@ -132,24 +132,6 @@ func (c *RestController) GetMedia(w http.ResponseWriter, r *http.Request, mediaI
 	writeJSON(w, r, http.StatusOK, mediaResponse(out))
 }
 
-// DeleteMedia answers DELETE /media/{mediaId}.
-func (c *RestController) DeleteMedia(w http.ResponseWriter, r *http.Request, mediaID openapi.MediaId) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	actor, _ := appshared.ActorFrom(r.Context())
-
-	if _, err := c.UseCases.Invoke(r.Context(), deleteMediaUseCase, actor,
-		usecase.Input{"media_id": mediaID.String()}); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
 // UploadMediaContent answers PUT /media/{mediaId}:content.
 //
 // No bearer credential and no actor: the URL is the capability, exactly as a presigned bucket URL

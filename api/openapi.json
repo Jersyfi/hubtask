@@ -1550,6 +1550,8 @@
           "voice"
         ],
         "operationId": "showVoiceSettings",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "voiceSettingsResponse",
         "summary": "The workspace's voice settings",
         "description": "Whether the workspace takes spoken entries, the list a thing said without a place goes to, the workspace's own Alexa skill, and the names people may say for a place. For the workspace's administrators.\n",
         "responses": {
@@ -4264,6 +4266,8 @@
           "retention"
         ],
         "operationId": "releaseLegalHold",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "legalHoldResponse",
         "summary": "Lift a legal hold",
         "description": "Records who lifted it, when, and why. Lifting is the moment the data under it becomes\ndeletable again, so the reason is required rather than optional - \"released\" with no reason\nis the entry an auditor cannot act on. Auditable.\n",
         "parameters": [
@@ -4534,6 +4538,8 @@
           "retention"
         ],
         "operationId": "retainItem",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "workItemResponse",
         "summary": "Take an object out of the running retention period",
         "parameters": [
           {
@@ -4708,6 +4714,7 @@
           "sync"
         ],
         "operationId": "forgetSyncDevice",
+        "x-hubtask-rest": "generated",
         "summary": "Forget one of your devices",
         "description": "Ends what the device holds: the session it last synchronised under is revoked, and every\npush or pull from the identifier is refused with `sync.device_revoked` until the client\nmints a new one. The row stays, marked `blocked`, until the retention\nsweep removes it. Somebody else's device is not found rather than forbidden; forgetting\ntwice is not an error.\n",
         "responses": {
@@ -5361,6 +5368,7 @@
           "auth"
         ],
         "operationId": "revokeSession",
+        "x-hubtask-rest": "generated",
         "summary": "End one session",
         "description": "Ends one of the caller's own sessions: its refresh family dies and its access token refuses on its next request, immediately rather than at the end of the token's fifteen minutes. Somebody else's session is not found rather than forbidden - whether a session identifier exists is nobody's business but its holder's. Revoking twice is not an error.\n",
         "responses": {
@@ -6334,6 +6342,8 @@
           "auth"
         ],
         "operationId": "listAccessTokens",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "accessTokenResponse",
         "summary": "The caller's own personal access tokens",
         "description": "One's own tokens, newest first, with the scopes each carries, when it expires, when it was last used and whether it was revoked. Never anybody else's: a token is a credential its holder holds, and an administrator who could list one could not use it but could learn exactly which of somebody's automations to attack.\nThe token itself is not among the fields. It is answered once, at creation, and stored only as a hash keyed on the installation secret; a token that was lost is revoked and minted again.\nA service account's tokens are listed here too, by naming it - which is the one exception, and needs the permission that manages members, because a service account is nothing but access and somebody has to answer for it.\n",
         "parameters": [
@@ -6420,6 +6430,7 @@
           "auth"
         ],
         "operationId": "revokeAccessToken",
+        "x-hubtask-rest": "generated",
         "summary": "Revoke a personal access token",
         "description": "Takes effect on the next call: the hash is checked against the row on every request, so a revoked token refuses immediately rather than at the end of some cache's life.\nThe row stays, stamped with the moment it was withdrawn, and that stamp is separate from the expiry - \"it ran out\" and \"somebody pulled it\" are different answers to \"why did this stop working\", and a reader of the trail is owed both.\nRevoking twice is not an error; somebody else's token is not found rather than forbidden.\n",
         "responses": {
@@ -7794,6 +7805,7 @@
           "admin"
         ],
         "operationId": "removeOperator",
+        "x-hubtask-rest": "generated",
         "summary": "Take an account out of the register",
         "description": "The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read \"there are two\".\nThe account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).\n",
         "responses": {
@@ -10204,6 +10216,7 @@
           "ai"
         ],
         "operationId": "removeAiProvider",
+        "x-hubtask-rest": "generated",
         "summary": "Remove the workspace's AI provider",
         "description": "The configuration and its sealed key go, and the workspace is back to the installation's default, which calls nothing. Nothing else is affected: no suggestion already accepted is undone, because accepting one was a person's own write. Auditable.\n",
         "responses": {
@@ -10414,6 +10427,8 @@
           "oauth"
         ],
         "operationId": "listOauthClients",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "oauthClientResponse",
         "summary": "The workspace's registered third-party apps",
         "description": "The client registry an administrator manages: every app that may ask people here for bounded access. The secret of a confidential client is not among the fields - it was answered once, at registration.\n",
         "responses": {
@@ -10510,6 +10525,7 @@
           "oauth"
         ],
         "operationId": "deleteOauthClient",
+        "x-hubtask-rest": "generated",
         "summary": "Remove a third-party app",
         "description": "Removes the client and revokes every grant that pointed at it: the sessions those grants leashed refuse on their next request. What people allowed the app is withdrawn with the app, because a grant to a client nobody can name is a door with no label.\n",
         "responses": {
@@ -10614,6 +10630,8 @@
           "oauth"
         ],
         "operationId": "listOauthGrants",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "oauthGrantResponse",
         "summary": "The apps the caller has allowed, and what",
         "description": "One's own grants, newest first: which client, which scopes, when it was allowed and when it last acted. Never anybody else's - what a person allowed is theirs to see and to withdraw, the session listing's reasoning.\n",
         "responses": {
@@ -10647,6 +10665,7 @@
           "oauth"
         ],
         "operationId": "revokeOauthGrant",
+        "x-hubtask-rest": "generated",
         "summary": "Withdraw what an app was allowed",
         "description": "Immediate: every session the grant leashed refuses on its next request, the way a revoked session's pair does. Somebody else's grant is not found rather than forbidden; revoking twice is not an error.\n",
         "responses": {
@@ -11742,6 +11761,7 @@
           "meta"
         ],
         "operationId": "closeStarter",
+        "x-hubtask-rest": "generated",
         "summary": "Answers the first start's question for good",
         "description": "Records that the workspace's first start was answered or skipped, so `starter_offered` is false from now on for everyone. A client closes it before it creates the starter set, so an interruption never makes the set twice. Needs the right to change the workspace's shape. Closing it again changes nothing.\n",
         "responses": {
@@ -14937,6 +14957,7 @@
           "items"
         ],
         "operationId": "reindexSearch",
+        "x-hubtask-rest": "generated",
         "summary": "Bring the workspace's search documents current",
         "description": "Counts the entries whose search document was built under a text search configuration this\ninstallation has since replaced or gained — an installation that upgraded its PostgreSQL,\nor an operator who installed a configuration, after the entries were written — queues the\njob that rewrites exactly those in batches, and answers the count. Until\nit runs, such entries are searched word by word rather than by stem; nothing is lost and\nnothing is wrong, only shorter.\n\nRequires `STRUCTURE` at the workspace and the `workspace:manage` scope: the index is the\nworkspace's, and an administrator decides when it is rebuilt. One job per workspace at a\ntime — asking again while it runs answers the same job. The job's `progress` is the rows\nrewritten over the rows that were stale when asked; a second call after it finishes\nanswers `stale: 0`, which is the report. Auditable, with the count and never a title.\n",
         "responses": {
@@ -17430,6 +17451,7 @@
           "media"
         ],
         "operationId": "deleteMedia",
+        "x-hubtask-rest": "generated",
         "description": "Removes an unreferenced media object: the record now, the bytes through the reconciliation job. Refused while anything references it - detach it or clear the cover first. Only the uploader or an administrator may.\n",
         "responses": {
           "204": {

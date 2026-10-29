@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	openapi_types "github.com/oapi-codegen/runtime/types"
-
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -16,7 +14,6 @@ import (
 
 const (
 	createRetentionPolicyUseCase = "CreateRetentionPolicy"
-	retainItemUseCase            = "RetainItem"
 )
 
 // CreateRetentionPolicy answers POST /retention-policies.
@@ -179,21 +176,9 @@ func retentionPreviewResponse(out usecase.Output) map[string]any {
 	return preview
 }
 
-// RetainItem answers POST /items/{itemId}:retain.
-func (c *RestController) RetainItem(
-	w http.ResponseWriter, r *http.Request, itemID openapi_types.UUID,
-) {
-	out, ok := c.read(w, r, retainItemUseCase, usecase.Input{"item_id": itemID.String()})
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, workItemResponse(out))
-}
-
 const (
-	placeLegalHoldUseCase   = "PlaceLegalHold"
-	releaseLegalHoldUseCase = "ReleaseLegalHold"
-	listLegalHoldsUseCase   = "ListLegalHolds"
+	placeLegalHoldUseCase = "PlaceLegalHold"
+	listLegalHoldsUseCase = "ListLegalHolds"
 )
 
 // ListLegalHolds answers GET /legal-holds.
@@ -238,24 +223,6 @@ func (c *RestController) PlaceLegalHold(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, r, http.StatusCreated, legalHoldResponse(out))
-}
-
-// ReleaseLegalHold answers POST /legal-holds/{holdId}:release.
-func (c *RestController) ReleaseLegalHold(
-	w http.ResponseWriter, r *http.Request, holdID openapi_types.UUID,
-) {
-	var body openapi.LegalHoldRelease
-	if err := decodeFrom(r.Body, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-
-	out, ok := c.read(w, r, releaseLegalHoldUseCase,
-		usecase.Input{"hold_id": holdID.String(), "reason": body.Reason})
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, legalHoldResponse(out))
 }
 
 // legalHoldResponse maps one hold.

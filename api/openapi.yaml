@@ -1085,6 +1085,8 @@ paths:
     get:
       tags: [voice]
       operationId: showVoiceSettings
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: voiceSettingsResponse
       summary: The workspace's voice settings
       description: >
         Whether the workspace takes spoken entries, the list a thing said without a place goes to,
@@ -3104,6 +3106,8 @@ paths:
     post:
       tags: [retention]
       operationId: releaseLegalHold
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: legalHoldResponse
       summary: Lift a legal hold
       description: |
         Records who lifted it, when, and why. Lifting is the moment the data under it becomes
@@ -3254,6 +3258,8 @@ paths:
     post:
       tags: [retention]
       operationId: retainItem
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
       summary: Take an object out of the running retention period
       parameters:
         - { name: itemId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -3385,6 +3391,7 @@ paths:
     delete:
       tags: [sync]
       operationId: forgetSyncDevice
+      x-hubtask-rest: generated
       summary: Forget one of your devices
       description: |
         Ends what the device holds: the session it last synchronised under is revoked, and every
@@ -4012,6 +4019,7 @@ paths:
     delete:
       tags: [auth]
       operationId: revokeSession
+      x-hubtask-rest: generated
       summary: End one session
       description: >
         Ends one of the caller's own sessions: its refresh family dies and its access token
@@ -4949,6 +4957,8 @@ paths:
     get:
       tags: [auth]
       operationId: listAccessTokens
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: accessTokenResponse
       summary: The caller's own personal access tokens
       description: >
         One's own tokens, newest first, with the scopes each carries, when it expires, when it was
@@ -5033,6 +5043,7 @@ paths:
     delete:
       tags: [auth]
       operationId: revokeAccessToken
+      x-hubtask-rest: generated
       summary: Revoke a personal access token
       description: >
         Takes effect on the next call: the hash is checked against the row on every request, so a
@@ -6138,6 +6149,7 @@ paths:
     delete:
       tags: [admin]
       operationId: removeOperator
+      x-hubtask-rest: generated
       summary: Take an account out of the register
       description: >
         The last operator cannot be removed: an installation with no operators is an installation
@@ -8130,6 +8142,7 @@ paths:
     delete:
       tags: [ai]
       operationId: removeAiProvider
+      x-hubtask-rest: generated
       summary: Remove the workspace's AI provider
       description: >
         The configuration and its sealed key go, and the workspace is back to the installation's
@@ -8305,6 +8318,8 @@ paths:
     get:
       tags: [oauth]
       operationId: listOauthClients
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: oauthClientResponse
       summary: The workspace's registered third-party apps
       description: >
         The client registry an administrator manages: every app that may ask people here
@@ -8384,6 +8399,7 @@ paths:
     delete:
       tags: [oauth]
       operationId: deleteOauthClient
+      x-hubtask-rest: generated
       summary: Remove a third-party app
       description: >
         Removes the client and revokes every grant that pointed at it: the sessions those grants
@@ -8474,6 +8490,8 @@ paths:
     get:
       tags: [oauth]
       operationId: listOauthGrants
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: oauthGrantResponse
       summary: The apps the caller has allowed, and what
       description: >
         One's own grants, newest first: which client, which scopes, when it was allowed and when
@@ -8497,6 +8515,7 @@ paths:
     delete:
       tags: [oauth]
       operationId: revokeOauthGrant
+      x-hubtask-rest: generated
       summary: Withdraw what an app was allowed
       description: >
         Immediate: every session the grant leashed refuses on its next request, the way a revoked
@@ -9263,6 +9282,7 @@ paths:
     post:
       tags: [meta]
       operationId: closeStarter
+      x-hubtask-rest: generated
       summary: Answers the first start's question for good
       description: >
         Records that the workspace's first start was answered or skipped, so `starter_offered` is
@@ -11492,6 +11512,7 @@ paths:
     post:
       tags: [items]
       operationId: reindexSearch
+      x-hubtask-rest: generated
       summary: Bring the workspace's search documents current
       description: |
         Counts the entries whose search document was built under a text search configuration this
@@ -13170,6 +13191,7 @@ paths:
     delete:
       tags: [media]
       operationId: deleteMedia
+      x-hubtask-rest: generated
       description: >
         Removes an unreferenced media object: the record now, the bytes through the
         reconciliation job. Refused while anything references it - detach it or clear the cover

@@ -19,31 +19,11 @@ import (
 // from the mint to the response without letting it touch anything else on the way.
 
 const (
-	listAccessTokensUseCase  = "ListAccessTokens"
 	createAccessTokenUseCase = "CreateAccessToken"
-	revokeAccessTokenUseCase = "RevokeAccessToken"
 
 	listServiceAccountsUseCase  = "ListServiceAccounts"
 	createServiceAccountUseCase = "CreateServiceAccount"
 )
-
-// ListAccessTokens answers GET /auth/tokens.
-func (c *RestController) ListAccessTokens(
-	w http.ResponseWriter, r *http.Request, params openapi.ListAccessTokensParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), listAccessTokensUseCase, actor, usecase.Input{
-			"account_id": optionalUUIDField(params.AccountId),
-		})
-	}, func(out usecase.Output) {
-		rows, _ := out["data"].([]usecase.Output)
-		tokens := make([]openapi.AccessToken, 0, len(rows))
-		for _, row := range rows {
-			tokens = append(tokens, accessTokenResponse(row))
-		}
-		writeJSON(w, r, http.StatusOK, tokens)
-	})
-}
 
 // CreateAccessToken answers POST /auth/tokens.
 func (c *RestController) CreateAccessToken(
@@ -86,17 +66,6 @@ func (c *RestController) CreateAccessToken(
 		}
 		w.Header().Set("Location", APIBasePath+"/auth/tokens/"+minted.Id.String())
 		writeJSON(w, r, http.StatusCreated, minted)
-	})
-}
-
-// RevokeAccessToken answers DELETE /auth/tokens/{tokenId}.
-func (c *RestController) RevokeAccessToken(w http.ResponseWriter, r *http.Request, tokenID openapi.TokenId) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), revokeAccessTokenUseCase, actor, usecase.Input{
-			"token_id": tokenID.String(),
-		})
-	}, func(usecase.Output) {
-		w.WriteHeader(http.StatusNoContent)
 	})
 }
 

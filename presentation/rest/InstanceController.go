@@ -29,7 +29,6 @@ const (
 	readUsageUseCase             = "ReadUsage"
 	listOperatorsUseCase         = "ListOperators"
 	addOperatorUseCase           = "AddOperator"
-	removeOperatorUseCase        = "RemoveOperator"
 )
 
 // The four operations below are written out rather than taken through the identity helper, for the
@@ -167,19 +166,6 @@ func (c *RestController) AddOperator(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// RemoveOperator answers DELETE /admin/operators/{accountId}.
-func (c *RestController) RemoveOperator(
-	w http.ResponseWriter, r *http.Request, accountID openapi.AccountId,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), removeOperatorUseCase, actor, usecase.Input{
-			"account_id": accountID.String(),
-		})
-	}, func(usecase.Output) {
-		w.WriteHeader(http.StatusNoContent)
-	})
 }
 
 // instanceSettingMap flattens the contract's `{value, locked}` documents into the catalogue's.

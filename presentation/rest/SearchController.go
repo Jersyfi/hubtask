@@ -17,8 +17,7 @@ import (
 )
 
 const (
-	searchItemsUseCase   = "SearchItems"
-	reindexSearchUseCase = "ReindexSearch"
+	searchItemsUseCase = "SearchItems"
 )
 
 // SearchItems answers POST /search.
@@ -118,20 +117,4 @@ func searchModeField(mode *openapi.SearchMode) any {
 		return nil
 	}
 	return string(*mode)
-}
-
-// ReindexSearch answers POST /search:reindex: the job to watch, and how many rows it
-// will rewrite.
-func (c *RestController) ReindexSearch(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), reindexSearchUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusAccepted, out)
 }

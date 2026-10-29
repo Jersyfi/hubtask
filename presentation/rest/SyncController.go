@@ -166,8 +166,7 @@ func uuidPointer(id shared.ID) *openapi_types.UUID {
 }
 
 const (
-	listSyncDevicesUseCase  = "ListSyncDevices"
-	forgetSyncDeviceUseCase = "ForgetSyncDevice"
+	listSyncDevicesUseCase = "ListSyncDevices"
 )
 
 // ListSyncDevices answers GET /sync/devices. Written out rather than through the identity
@@ -191,17 +190,6 @@ func (c *RestController) ListSyncDevices(w http.ResponseWriter, r *http.Request)
 		devices = append(devices, deviceResponse(row))
 	}
 	writeJSON(w, r, http.StatusOK, devices)
-}
-
-// ForgetSyncDevice answers DELETE /sync/devices/{deviceId}.
-func (c *RestController) ForgetSyncDevice(w http.ResponseWriter, r *http.Request, deviceID openapi.DeviceId) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), forgetSyncDeviceUseCase, actor, usecase.Input{
-			"device_id": deviceID.String(),
-		})
-	}, func(usecase.Output) {
-		w.WriteHeader(http.StatusNoContent)
-	})
 }
 
 func deviceResponse(row usecase.Output) openapi.SyncDevice {

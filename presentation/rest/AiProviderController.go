@@ -15,7 +15,6 @@ import (
 // The AI provider's configuration use cases.
 const (
 	configureAiProviderUseCase = "ConfigureAiProvider"
-	removeAiProviderUseCase    = "RemoveAiProvider"
 )
 
 // ConfigureAiProvider answers PUT /ai-provider.
@@ -61,23 +60,6 @@ func (c *RestController) ConfigureAiProvider(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	writeJSON(w, r, http.StatusOK, aiProviderResponse(out))
-}
-
-// RemoveAiProvider answers DELETE /ai-provider.
-func (c *RestController) RemoveAiProvider(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	if _, err := c.UseCases.Invoke(
-		r.Context(), removeAiProviderUseCase, actorOf(r), usecase.Input{},
-	); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 // aiProviderResponse maps the use case's answer. The API key is not among the fields, because it
