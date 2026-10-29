@@ -15646,6 +15646,11 @@
           "structure"
         ],
         "operationId": "listLabels",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "containerId": "collection_id"
+        },
+        "x-hubtask-rest-answer": "labelResponse",
         "parameters": [
           {
             "name": "include_deleted",
@@ -15681,6 +15686,12 @@
           "structure"
         ],
         "operationId": "createLabel",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "containerId": "collection_id"
+        },
+        "x-hubtask-rest-answer": "labelResponse",
+        "x-hubtask-rest-location": "/containers/{collection_id}/labels/{id}",
         "description": "Adds a label to a collection's vocabulary. The name has to be free in the collection, compared without regard to case or accents. The colour is required: a label is rendered as a chip and nothing else, so with none a client would have to invent one.\n",
         "requestBody": {
           "required": true,
@@ -15730,6 +15741,12 @@
           "structure"
         ],
         "operationId": "updateLabel",
+        "x-hubtask-rest-null": "empty",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "containerId": ""
+        },
+        "x-hubtask-rest-answer": "labelResponse",
         "description": "Changes a label's own fields. A field that is not sent is left alone; sending description as null clears it. The colour cannot be cleared - a label is rendered as a chip and nothing else. The name stays unique in the collection.\n",
         "parameters": [
           {
@@ -15774,6 +15791,10 @@
           "structure"
         ],
         "operationId": "deleteLabel",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "containerId": ""
+        },
         "description": "Takes the label out of the collection's vocabulary. The entries that carried it are not rewritten: they stop showing it because it is gone, which is what makes the deletion undoable without having to remember who wore it.\n",
         "parameters": [
           {
@@ -15804,6 +15825,11 @@
           "structure"
         ],
         "operationId": "restoreLabel",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "containerId": ""
+        },
+        "x-hubtask-rest-answer": "labelResponse",
         "description": "Brings a deleted label back into the collection's vocabulary, with every entry that carried it: the deletion never rewrote them. Refused when another label has taken the name in the meantime. Idempotent: restoring a label that is not deleted succeeds and changes nothing.\n",
         "parameters": [
           {

@@ -46,6 +46,9 @@ type RESTDoor struct {
 	// Location is the created resource's path below the API, its `{member}`s filled from the
 	// answer.
 	Location string
+	// NullClears passes a member sent as null as the empty text, which is how the use case reads
+	// "clear it" (`x-hubtask-rest-null: empty`).
+	NullClears bool
 }
 
 type pathArg struct{ Input, Value string }
@@ -58,6 +61,7 @@ type restOperation struct {
 	BodyAs      string            `yaml:"x-hubtask-rest-body"`
 	AnswerBy    string            `yaml:"x-hubtask-rest-answer"`
 	Location    string            `yaml:"x-hubtask-rest-location"`
+	Null        string            `yaml:"x-hubtask-rest-null"`
 	ETagFrom    string      `yaml:"x-hubtask-rest-etag"`
 	Parameters  []parameter `yaml:"parameters"`
 	RequestBody *struct {
@@ -118,6 +122,13 @@ func restDoor(
 ) (RESTDoor, error) {
 	name := upperFirst(op.OperationID)
 	door := RESTDoor{OperationID: op.OperationID, UseCase: name, Method: strings.ToUpper(method), Path: path, IfMatchAs: op.IfMatchAs, BodyAs: op.BodyAs, AnswerBy: op.AnswerBy, Location: op.Location}
+	switch op.Null {
+	case "":
+	case "empty":
+		door.NullClears = true
+	default:
+		return door, fmt.Errorf("x-hubtask-rest-null %q is not \"empty\"", op.Null)
+	}
 	signature, ok := signatures[name]
 	if !ok {
 		return door, fmt.Errorf("the ServerInterface has no method %s; run oapi-codegen first", name)
@@ -161,6 +172,11 @@ func restDoor(
 			}
 			input := snake(ident.Name)
 			if renamed, ok := op.PathAs[ident.Name]; ok {
+				// Renamed to nothing: the path places the resource, and its own identifier names
+				// it to the use case (a label is named by its id, under its collection).
+				if renamed == "" {
+					continue
+				}
 				input = renamed
 			}
 			door.PathArgs = append(door.PathArgs, pathArg{Input: input, Value: value})
@@ -295,8 +311,8 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 	b.WriteString("// restDoors is every operation answered by the generated mapping, by operationId.\n")
 	b.WriteString("var restDoors = map[string]restDoor{\n")
 	for _, d := range doors {
-		fmt.Fprintf(&b, "\t%q: {UseCase: %q, Status: %d, Query: %#v, IfMatch: %t, IfMatchAs: %q, StepUp: %t, BodyRequired: %t, ETag: %q, BodyAs: %q, Location: %q},\n",
-			d.OperationID, d.UseCase, d.Status, d.Query, d.IfMatch, d.IfMatchAs, d.StepUp, d.BodyRequired, d.ETag, d.BodyAs, d.Location)
+		fmt.Fprintf(&b, "\t%q: {UseCase: %q, Status: %d, Query: %#v, IfMatch: %t, IfMatchAs: %q, StepUp: %t, BodyRequired: %t, ETag: %q, BodyAs: %q, Location: %q, NullClears: %t},\n",
+			d.OperationID, d.UseCase, d.Status, d.Query, d.IfMatch, d.IfMatchAs, d.StepUp, d.BodyRequired, d.ETag, d.BodyAs, d.Location, d.NullClears)
 	}
 	b.WriteString("}\n")
 	for _, d := range doors {

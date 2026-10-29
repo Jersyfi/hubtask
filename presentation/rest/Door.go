@@ -42,6 +42,9 @@ type restDoor struct {
 	// Location is the created resource's path below the API, its `{member}`s filled from the
 	// output; empty for none.
 	Location string
+	// NullClears passes a member sent as null as the empty text: the use cases that read
+	// OptionalString take "" as "clear it" and an absent or null member as "leave it".
+	NullClears bool
 }
 
 // door answers one generated operation. in holds the path's parameters; params is the generated
@@ -88,6 +91,9 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 				// The path names the resource; a body member of the same name never moves it. An
 				// explicit null stays: in a merge patch it clears, as MCP's arguments carry it.
 				if _, taken := in[name]; !taken {
+					if value == nil && d.NullClears {
+						value = ""
+					}
 					in[name] = value
 				}
 			}
