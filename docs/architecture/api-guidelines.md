@@ -16,7 +16,9 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    as `expected_version` (or as the text `x-hubtask-rest-if-match` names), `X-Hubtask-Step-Up` as
    `step_up_token`, the output passed through the generated answer type, its integer `version`
    (or the member `x-hubtask-rest-etag` names) as the ETag; `x-hubtask-rest-path` renames a path
-   parameter's input, `x-hubtask-rest-body` hands the whole body on as one input (a form). The use case's input therefore uses
+   parameter's input, `x-hubtask-rest-body` hands the whole body on as one input (a form),
+   `x-hubtask-rest-location` fills a created resource's `Location`; an explicit `null` member
+   reaches the use case as present and null, as MCP's arguments carry it. The use case's input therefore uses
    the contract's names; a test holds each mapping's query, version and proof to the descriptor's
    declared input. An answer drawn by one of the adapter's shared mappers (an entry, by
    `workItemResponse`) names it with `x-hubtask-rest-answer`. `x-hubtask-cli` names

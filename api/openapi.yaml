@@ -12057,6 +12057,8 @@ paths:
     get:
       tags: [structure]
       operationId: listCustomFields
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: customFieldResponse
       description: >
         The custom field definitions in force, by key. Naming a collection answers the ones that
         apply inside it: its own, and the workspace-wide ones above it. Naming none answers the
@@ -12084,6 +12086,9 @@ paths:
     post:
       tags: [structure]
       operationId: defineCustomField
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: customFieldResponse
+      x-hubtask-rest-location: "/custom-fields/{id}"
       description: >
         Defines a custom field. The key has to be free in its scope - a collection's keys are free
         of each other's and of the workspace-wide ones - and it is an identifier rather than a
@@ -12117,6 +12122,8 @@ paths:
     patch:
       tags: [structure]
       operationId: updateCustomField
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: customFieldResponse
       description: >
         Changes what a definition permits. A field that is not sent is left alone. The key and the
         kind are not among them: a key that moved would orphan every value stored under it, and a
@@ -12146,6 +12153,7 @@ paths:
     delete:
       tags: [structure]
       operationId: deleteCustomField
+      x-hubtask-rest: generated
       description: >
         Takes the definition out of use. A soft delete: the values stay in the entries and stop
         being visible, because rewriting `custom_fields` across every entry in a collection would
@@ -12166,6 +12174,8 @@ paths:
     put:
       tags: [items]
       operationId: setCustomField
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: workItemResponse
       description: >
         Writes one custom field on an entry. The value is validated against the definition in force
         - a SELECT value outside its options, a NUMBER arriving as a string, a USER pointing at an

@@ -41,6 +41,11 @@ type RESTDoor struct {
 	// AnswerBy is the adapter's shared mapper that draws the answer (an entry is drawn by one
 	// mapper wherever it is answered); empty passes the output through the answer's type.
 	AnswerBy string
+	// AnswerRows says the answer is a bare array, each of the output's rows drawn by AnswerBy.
+	AnswerRows bool
+	// Location is the created resource's path below the API, its `{member}`s filled from the
+	// answer.
+	Location string
 }
 
 type pathArg struct{ Input, Value string }
@@ -52,6 +57,7 @@ type restOperation struct {
 	PathAs      map[string]string `yaml:"x-hubtask-rest-path"`
 	BodyAs      string            `yaml:"x-hubtask-rest-body"`
 	AnswerBy    string            `yaml:"x-hubtask-rest-answer"`
+	Location    string            `yaml:"x-hubtask-rest-location"`
 	ETagFrom    string      `yaml:"x-hubtask-rest-etag"`
 	Parameters  []parameter `yaml:"parameters"`
 	RequestBody *struct {
@@ -111,7 +117,7 @@ func restDoor(
 	signatures map[string][]*ast.Field, bodies, texts map[string]bool,
 ) (RESTDoor, error) {
 	name := upperFirst(op.OperationID)
-	door := RESTDoor{OperationID: op.OperationID, UseCase: name, Method: strings.ToUpper(method), Path: path, IfMatchAs: op.IfMatchAs, BodyAs: op.BodyAs, AnswerBy: op.AnswerBy}
+	door := RESTDoor{OperationID: op.OperationID, UseCase: name, Method: strings.ToUpper(method), Path: path, IfMatchAs: op.IfMatchAs, BodyAs: op.BodyAs, AnswerBy: op.AnswerBy, Location: op.Location}
 	signature, ok := signatures[name]
 	if !ok {
 		return door, fmt.Errorf("the ServerInterface has no method %s; run oapi-codegen first", name)
@@ -181,6 +187,10 @@ func restDoor(
 		fmt.Sscan(status, &door.Status)
 		if content, ok := response.Content["application/json"]; ok {
 			answer := doc.resolve(content.Schema)
+			door.AnswerRows = answer.Type == "array"
+			if door.AnswerRows && door.AnswerBy == "" {
+				return door, fmt.Errorf("an answer that is a bare array needs x-hubtask-rest-answer")
+			}
 			if version, versioned := answer.Properties["version"]; versioned && doc.kind(version) == "integer" {
 				door.ETag = "version"
 			}
@@ -285,8 +295,8 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 	b.WriteString("// restDoors is every operation answered by the generated mapping, by operationId.\n")
 	b.WriteString("var restDoors = map[string]restDoor{\n")
 	for _, d := range doors {
-		fmt.Fprintf(&b, "\t%q: {UseCase: %q, Status: %d, Query: %#v, IfMatch: %t, IfMatchAs: %q, StepUp: %t, BodyRequired: %t, ETag: %q, BodyAs: %q},\n",
-			d.OperationID, d.UseCase, d.Status, d.Query, d.IfMatch, d.IfMatchAs, d.StepUp, d.BodyRequired, d.ETag, d.BodyAs)
+		fmt.Fprintf(&b, "\t%q: {UseCase: %q, Status: %d, Query: %#v, IfMatch: %t, IfMatchAs: %q, StepUp: %t, BodyRequired: %t, ETag: %q, BodyAs: %q, Location: %q},\n",
+			d.OperationID, d.UseCase, d.Status, d.Query, d.IfMatch, d.IfMatchAs, d.StepUp, d.BodyRequired, d.ETag, d.BodyAs, d.Location)
 	}
 	b.WriteString("}\n")
 	for _, d := range doors {
@@ -307,6 +317,8 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 			body = "&body"
 		}
 		switch {
+		case d.AnswerBy != "" && d.AnswerRows:
+			answer = "answerRows(" + d.AnswerBy + ")"
 		case d.AnswerBy != "":
 			answer = "answerBy(" + d.AnswerBy + ")"
 		case d.AnswerType != "":

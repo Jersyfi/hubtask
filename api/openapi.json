@@ -15948,6 +15948,8 @@
           "structure"
         ],
         "operationId": "listCustomFields",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "customFieldResponse",
         "description": "The custom field definitions in force, by key. Naming a collection answers the ones that apply inside it: its own, and the workspace-wide ones above it. Naming none answers the workspace-wide ones alone. Deleted definitions are not in the answer - their values stay in the entries and stop being visible, which is what makes the deletion undoable.\n",
         "parameters": [
           {
@@ -15985,6 +15987,9 @@
           "structure"
         ],
         "operationId": "defineCustomField",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "customFieldResponse",
+        "x-hubtask-rest-location": "/custom-fields/{id}",
         "description": "Defines a custom field. The key has to be free in its scope - a collection's keys are free of each other's and of the workspace-wide ones - and it is an identifier rather than a label: lower case, digits and underscores, and it never changes afterwards. Which types carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has no custom fields, so naming one is refused.\n",
         "parameters": [
           {
@@ -16036,6 +16041,8 @@
           "structure"
         ],
         "operationId": "updateCustomField",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "customFieldResponse",
         "description": "Changes what a definition permits. A field that is not sent is left alone. The key and the kind are not among them: a key that moved would orphan every value stored under it, and a kind that changed would reinterpret them - both are a new definition rather than an edit. Narrowing the options of a SELECT does not rewrite the entries that hold a value which is no longer offered; they keep it until somebody sets the field again.\n",
         "parameters": [
           {
@@ -16080,6 +16087,7 @@
           "structure"
         ],
         "operationId": "deleteCustomField",
+        "x-hubtask-rest": "generated",
         "description": "Takes the definition out of use. A soft delete: the values stay in the entries and stop being visible, because rewriting `custom_fields` across every entry in a collection would be an unbounded write from one request. A definition recreated under the same key is a new definition and shows none of what the old one held.\n",
         "parameters": [
           {
@@ -16110,6 +16118,8 @@
           "items"
         ],
         "operationId": "setCustomField",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "workItemResponse",
         "description": "Writes one custom field on an entry. The value is validated against the definition in force - a SELECT value outside its options, a NUMBER arriving as a string, a USER pointing at an account of another workspace are each `validation_failed` with the field path, never a stored value. Sending null clears the key. One key per call, because the merge rule is per key: two devices setting two different keys converge to both.\n",
         "parameters": [
           {

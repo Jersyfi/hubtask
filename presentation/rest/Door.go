@@ -39,6 +39,9 @@ type restDoor struct {
 	// BodyAs hands the whole body on as one input - a document the domain reads, such as a
 	// form - instead of its members.
 	BodyAs string
+	// Location is the created resource's path below the API, its `{member}`s filled from the
+	// output; empty for none.
+	Location string
 }
 
 // door answers one generated operation. in holds the path's parameters; params is the generated
@@ -82,8 +85,9 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 				sent = nil
 			}
 			for name, value := range sent {
-				// The path names the resource; a body member of the same name never moves it.
-				if _, taken := in[name]; !taken && value != nil {
+				// The path names the resource; a body member of the same name never moves it. An
+				// explicit null stays: in a merge patch it clears, as MCP's arguments carry it.
+				if _, taken := in[name]; !taken {
 					in[name] = value
 				}
 			}
@@ -123,6 +127,15 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 			return
 		}
 		written = answer
+	}
+	if d.Location != "" {
+		location := d.Location
+		for name, value := range out {
+			if text, ok := value.(string); ok {
+				location = strings.ReplaceAll(location, "{"+name+"}", text)
+			}
+		}
+		w.Header().Set("Location", APIBasePath+location)
 	}
 	switch value := out[d.ETag].(type) {
 	case string:
@@ -165,4 +178,16 @@ type answerer func(usecase.Output) any
 
 func answerBy[T any](draw func(usecase.Output) T) answerer {
 	return func(out usecase.Output) any { return draw(out) }
+}
+
+// answerRows draws a bare-array answer, each of the output's rows by the shared mapper.
+func answerRows[T any](draw func(usecase.Output) T) answerer {
+	return func(out usecase.Output) any {
+		rows := rowsOf(out)
+		answer := make([]T, 0, len(rows))
+		for _, row := range rows {
+			answer = append(answer, draw(row))
+		}
+		return answer
+	}
 }
