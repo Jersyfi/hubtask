@@ -98,11 +98,20 @@ func (h EvaluateEntryForm) Execute(
 			WithParams(map[string]string{"value": string(draft.Type)}).
 			WithFields(shared.FieldError{Path: "/type", Code: "items.type_unknown"})
 	}
-	// Outside the transaction, so that a refusal's audit entry is not rolled back with it (audit.md §7).
-	if err := h.Authorizer.Authorize(ctx, actor, access.Request{
+	// A new draft is a question about the collection it would be created in; an existing entry's
+	// is about the entry, so that the matrix's per-entry qualifiers apply (SG-5).
+	request := access.Request{
 		Permission: service.PermissionRead, Path: containerPath(collection), Action: ItemReadAction,
-		TokenScope: itemsRead, TargetType: itemTarget, TargetID: collection.ID,
-	}); err != nil {
+		TokenScope: itemsRead, TargetType: containerTarget, TargetID: collection.ID,
+	}
+	if !cmd.ItemID.IsZero() {
+		request = access.Request{
+			Permission: service.PermissionRead, Path: containerPath(collection), Action: ItemReadAction,
+			TokenScope: itemsRead, TargetType: itemTarget, TargetID: draft.ID, On: reading(draft),
+		}
+	}
+	// Outside the transaction, so that a refusal's audit entry is not rolled back with it (audit.md §7).
+	if err := h.Authorizer.Authorize(ctx, actor, request); err != nil {
 		return EntryFormAnswer{}, err
 	}
 	if cmd.Title != nil {
@@ -140,6 +149,7 @@ func (h EvaluateEntryForm) Descriptor() usecase.Descriptor {
 			"the type. Nothing is written. A type without a form answers no fields.",
 		SideEffects: "None.",
 		TokenScope:  itemsRead,
+		ReadOnly:    true,
 		Input: []usecase.Field{
 			{Name: "item_id", Kind: usecase.KindID, Description: "The entry being edited; empty for a new one."},
 			{Name: "collection_id", Kind: usecase.KindID, Description: "Where a new entry would be created."},
@@ -152,7 +162,7 @@ func (h EvaluateEntryForm) Descriptor() usecase.Descriptor {
 		Audit: usecase.AuditDeclaration{
 			Action: ItemReadAction, TargetType: itemTarget, Severity: audit.SeverityInfo, Required: false,
 		},
-		Activity: usecase.ActivityDeclaration{Exempt: "nothing is written."},
+		Activity: usecase.ActivityDeclaration{Exempt: "a read changes nothing."},
 		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }

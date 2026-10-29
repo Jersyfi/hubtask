@@ -103,8 +103,10 @@ func (l Linking) visibleEntries(
 	for _, s := range summaries {
 		paths = append(paths, summaryPath(s))
 	}
+	// Each path ends at its entry (summaryPath), so a share at the entry counts.
 	allowed, err := l.Reader.Permitted(ctx, actor, access.Request{
 		Permission: service.PermissionRead, Action: ItemReadAction, TokenScope: itemsRead, TargetType: itemTarget,
+		On: access.ItemSubject{Does: service.ItemRead},
 	}, paths)
 	if err != nil {
 		return nil, err

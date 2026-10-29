@@ -41,7 +41,8 @@ var exemptUseCases = []string{
 	"MoveContainer",
 	"OpenPrivateHub",
 	"PurgeWorkItem", "RenameContainer", "ReorderBucket", "ReorderContainer", "RestoreContainer", "RestoreLabel",
-	"RetainItem", "SetCollectionHandle", "SetContainerStructure", "SetHubPrivacy", "TakeBackKudos", "TrashContainer",
+	"RetainItem", "SetCollectionHandle", "SetContainerStructure", "SetHubPrivacy", "SetItemEntryType", "TakeBackKudos",
+	"TrashContainer",
 	"UnarchiveContainer", "UpdateBucket", "UpdateContainerPolicies", "UpdateLabel",
 }
 
