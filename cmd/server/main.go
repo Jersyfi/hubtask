@@ -241,7 +241,8 @@ func run() error {
 	// gets seconds, background work gets a minute. A process in several roles opens a second pool
 	// below for the background ones, so that a runaway job cannot take the connections the
 	// interactive path needs (bulkheads, observability-reliability.md §6).
-	pool, err := postgres.NewPool(ctx, cfg, primaryRole(cfg))
+	pool, err := postgres.NewPool(ctx, cfg, primaryRole(cfg),
+		postgres.WithQueryObserver(metrics, string(primaryRole(cfg))))
 	if err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
@@ -253,7 +254,8 @@ func run() error {
 	// outage.
 	backgroundPool := pool
 	if cfg.HasRole(envport.RoleAPI) && runsBackgroundWork(cfg) {
-		backgroundPool, err = postgres.NewPool(ctx, cfg, envport.RoleWorker)
+		backgroundPool, err = postgres.NewPool(ctx, cfg, envport.RoleWorker,
+			postgres.WithQueryObserver(metrics, "background"))
 		if err != nil {
 			return fmt.Errorf("database (background): %w", err)
 		}

@@ -24,7 +24,7 @@ import (
 // (engineering-guidelines.md §4). It is applied as a connection parameter rather than per query,
 // so a statement that runs away is cut off by PostgreSQL even when the calling code forgot its
 // own deadline.
-func NewPool(ctx context.Context, cfg env.Config, role env.Role) (*pgxpool.Pool, error) {
+func NewPool(ctx context.Context, cfg env.Config, role env.Role, opts ...PoolOption) (*pgxpool.Pool, error) {
 	poolCfg, err := pgxpool.ParseConfig(cfg.Database.DSN.Reveal())
 	if err != nil {
 		// The DSN is a secret: it carries the password. Whatever the driver says about it
@@ -62,6 +62,10 @@ func NewPool(ctx context.Context, cfg env.Config, role env.Role) (*pgxpool.Pool,
 	// types cannot be read fails at startup, like every other unmet dependency (ADR-0015).
 	poolCfg.AfterConnect = RegisterSchemaTypes
 
+	for _, opt := range opts {
+		opt(poolCfg)
+	}
+
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
 		return nil, shared.ErrUnavailable.
@@ -82,6 +86,19 @@ func NewPool(ctx context.Context, cfg env.Config, role env.Role) (*pgxpool.Pool,
 	}
 
 	return pool, nil
+}
+
+// PoolOption adjusts a pool before it opens.
+type PoolOption func(cfg *pgxpool.Config)
+
+// WithQueryObserver measures every statement the pool runs, filed under the pool's name - the
+// same name its connection gauge carries.
+func WithQueryObserver(observer QueryObserver, pool string) PoolOption {
+	return func(cfg *pgxpool.Config) {
+		if observer != nil {
+			cfg.ConnConfig.Tracer = queryTracer{pool: pool, observer: observer}
+		}
+	}
 }
 
 // boundedPoolSize narrows a configured pool size to int32 within provable bounds.

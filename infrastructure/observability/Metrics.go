@@ -81,6 +81,8 @@ type Metrics struct {
 	resetRequests     metric.Int64Counter
 	rehashes          metric.Int64Counter
 	poolConnections   metric.Int64Gauge
+	dbQueryDuration   metric.Float64Histogram
+	dbSlowQueries     metric.Int64Counter
 	migrationVersion  metric.Int64Gauge
 	ruleRuns          metric.Int64Counter
 	ruleDisabled      metric.Int64Counter
@@ -248,6 +250,21 @@ func (m *Metrics) instruments(meter metric.Meter) error {
 			"max, which is what turns the first two into a utilisation."),
 	); err != nil {
 		return fmt.Errorf("pool gauge: %w", err)
+	}
+	if m.dbQueryDuration, err = meter.Float64Histogram(
+		namespace+"_db_query_duration_seconds",
+		metric.WithDescription("How long a statement took, by pool and outcome (ok, error, canceled)."),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 5, 30),
+	); err != nil {
+		return fmt.Errorf("query duration histogram: %w", err)
+	}
+	if m.dbSlowQueries, err = meter.Int64Counter(
+		namespace+"_db_slow_queries_total",
+		metric.WithDescription("Statements slower than "+slowQueryText+", by pool and sqlc query name "+
+			"(dynamic for the query compiler's own SQL)."),
+	); err != nil {
+		return fmt.Errorf("slow query counter: %w", err)
 	}
 	if m.migrationVersion, err = meter.Int64Gauge(
 		namespace+"_migration_version",
@@ -1136,6 +1153,25 @@ func (m *Metrics) PoolConnections(ctx context.Context, pool string, inUse, idle,
 	for state, value := range map[string]int64{"in_use": inUse, "idle": idle, "max": maxConns} {
 		m.poolConnections.Record(ctx, value, metric.WithAttributes(
 			attribute.String("pool", pool), attribute.String("state", state)))
+	}
+}
+
+// slowQuerySeconds is where a statement starts to count by name. Only the slow ones carry the
+// name: a histogram per query name would be thousands of series, a counter of the slow ones is a
+// handful, and the handful is what an operator asks about (observability-reliability.md §4.2).
+const (
+	slowQuerySeconds = 0.25
+	slowQueryText    = "250 ms"
+)
+
+// DBQuery records one statement. name is the sqlc query name - a closed set compiled into the
+// binary - and is a label only on the slow counter.
+func (m *Metrics) DBQuery(ctx context.Context, pool, name, outcome string, seconds float64) {
+	m.dbQueryDuration.Record(ctx, seconds, metric.WithAttributes(
+		attribute.String("pool", pool), attribute.String("outcome", outcome)))
+	if seconds >= slowQuerySeconds {
+		m.dbSlowQueries.Add(ctx, 1, metric.WithAttributes(
+			attribute.String("pool", pool), attribute.String("query", name)))
 	}
 }
 
