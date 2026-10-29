@@ -146,3 +146,19 @@ export function typeNameOf(types: readonly EntryType[], key: string, levelName: 
   if (!type) return key;
   return type.name ?? levelName(type.level);
 }
+
+/** The values a change of type clears once confirmed; a completion is never among them. */
+export const DROPPABLE = ['due_at', 'recurrence'] as const;
+
+/**
+ * The values a change of type would drop, by field, from the server's refusal
+ * (`entry_types.values_dropped`, UC-FLW-01 check 4); none for any other answer. `isConfirmable` is
+ * false where one of them is a completion, which is never dropped: the entry is reopened first.
+ */
+export function droppedBy(error: unknown): { readonly fields: readonly string[]; readonly isConfirmable: boolean } | undefined {
+  const refusal = error as { detailCode?: string; fieldErrors?: readonly { path?: string }[] } | undefined;
+  if (refusal?.detailCode !== 'entry_types.values_dropped') return undefined;
+  const fields = (refusal.fieldErrors ?? []).flatMap((each) => (each.path ? [each.path.replace(/^\//, '')] : []));
+  if (fields.length === 0) return undefined;
+  return { fields, isConfirmable: fields.every((field) => (DROPPABLE as readonly string[]).includes(field)) };
+}

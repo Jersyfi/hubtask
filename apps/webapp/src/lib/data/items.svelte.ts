@@ -307,8 +307,9 @@ class Items {
    * Gives the entry another type of its level (UC-FLW-01 check 4). A type that would drop a value
    * the entry holds is refused by the server, naming the fields, so nothing is written unseen.
    */
-  async setEntryType(id: string, entryType: string, version: number): Promise<WorkItem> {
-    return engine.mutate<WorkItem>('PUT', `/items/${id}/entry-type`, { entry_type: entryType }, {
+  async setEntryType(id: string, entryType: string, version: number, dropValues = false): Promise<WorkItem> {
+    const body = dropValues ? { entry_type: entryType, drop_values: true } : { entry_type: entryType };
+    return engine.mutate<WorkItem>('PUT', `/items/${id}/entry-type`, body, {
       ifMatch: etagFor(version),
       invalidates: touchesOf(id),
     });

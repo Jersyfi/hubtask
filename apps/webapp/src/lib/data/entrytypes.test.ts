@@ -12,7 +12,7 @@ import type { Capabilities, EntryType } from '@hubtask/sync-engine';
 
 import { ICON_NAMES } from '@hubtask/design-system/icons';
 
-import { TYPE_ICONS, entryTypesOffered, iconOf, keyFrom, levelTypes, offeredTypes, reorder, rowMarkOf, typeNameOf, typeOrder, typesShown } from './entrytypes.ts';
+import { TYPE_ICONS, droppedBy, entryTypesOffered, iconOf, keyFrom, levelTypes, offeredTypes, reorder, rowMarkOf, typeNameOf, typeOrder, typesShown } from './entrytypes.ts';
 
 const base = {
   completable: true, workflow: false, record: false, schedulable: true, estimable: false,
@@ -89,4 +89,17 @@ test('a group is headed by the type name, a level own type by its level, an unre
   assert.equal(typeNameOf(types, 'feature', levelName), 'Feature');
   assert.equal(typeNameOf(types, 'task', levelName), 'level TASK');
   assert.equal(typeNameOf(types, 'gone', levelName), 'gone');
+});
+
+test('a change of type that would drop values names them, and a completion is never confirmed away', () => {
+  // UC-FLW-01 check 4: the refusal names each field, and the screen asks before anything is lost.
+  const refusal = (paths: string[]) => ({
+    detailCode: 'entry_types.values_dropped',
+    fieldErrors: paths.map((path) => ({ path, code: 'entry_types.values_dropped' })),
+  });
+  assert.deepEqual(droppedBy(refusal(['/due_at', '/recurrence'])), { fields: ['due_at', 'recurrence'], isConfirmable: true });
+  assert.deepEqual(droppedBy(refusal(['/completion', '/due_at'])), { fields: ['completion', 'due_at'], isConfirmable: false });
+  assert.equal(droppedBy({ detailCode: 'entry_types.not_offered', fieldErrors: [] }), undefined);
+  assert.equal(droppedBy(refusal([])), undefined);
+  assert.equal(droppedBy(undefined), undefined);
 });

@@ -70,7 +70,8 @@
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { definitionsFor, valueText } from '../lib/data/customfields.ts';
   import { hasForm, panelRows } from '../lib/data/entryforms.ts';
-  import { entryTypes, offeredTypes, typeOf, typesShown } from '../lib/data/entrytypes.svelte.ts';
+  import { droppedBy, entryTypes, offeredTypes, typeOf, typesShown } from '../lib/data/entrytypes.svelte.ts';
+  import TypeDropsDialog from '../lib/entries/TypeDropsDialog.svelte';
   import type { EntryFormState } from '@hubtask/sync-engine';
   import { formatDecimal } from '../lib/i18n/number.ts';
   import { formatDuration } from '../lib/i18n/duration.ts';
@@ -379,13 +380,28 @@
   $effect(() => {
     typeDraft = itemType?.key ?? '';
   });
-  async function saveType() {
+  // What a change of type would drop, as the server named it; asked before anything is cleared.
+  let typeDrops = $state<{ readonly fields: readonly string[]; readonly isConfirmable: boolean } | undefined>(undefined);
+  let isTypeDropsOpen = $state(false);
+  const typeDraftName = $derived.by(() => {
+    const chosen = typeChoices.find((each) => each.key === typeDraft);
+    return chosen ? entryTypeName(chosen) : typeDraft;
+  });
+  async function saveType(dropValues = false) {
     if (!item || !itemType || typeDraft === '' || typeDraft === itemType.key) return;
     writeFailure = undefined;
+    isTypeDropsOpen = false;
     try {
-      await items.setEntryType(item.id, typeDraft, item.version);
+      await items.setEntryType(item.id, typeDraft, item.version, dropValues);
+      typeDrops = undefined;
       announcer.say(t('app.entries.saved_announced'));
     } catch (error) {
+      const drops = dropValues ? undefined : droppedBy(error);
+      if (drops) {
+        typeDrops = drops;
+        isTypeDropsOpen = true;
+        return;
+      }
       writeFailure = renderProblem(error as never, messages);
     }
   }
@@ -1455,6 +1471,9 @@
                     <Button size="sm" onclick={() => void saveType()}>{t('app.workspace.save')}</Button>
                   </div>
                 </Stack>
+                {#if typeDrops}
+                  <TypeDropsDialog bind:isOpen={isTypeDropsOpen} typeName={typeDraftName} fields={typeDrops.fields} isConfirmable={typeDrops.isConfirmable} onconfirm={() => void saveType(true)} />
+                {/if}
               </DetailRow>
             {/if}
             <DetailRow id="language" label={t('app.entries.language')} value={item.content_language ? languageName(item.content_language, messages.locale) : undefined} isReadOnly={!isWritable}>
