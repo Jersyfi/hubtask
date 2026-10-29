@@ -30,9 +30,21 @@ test('the German catalogue is a chunk of its own, outside the initial bundle', {
   const german = assets.find((file) => /^de-[^.]*\.js$/.test(file));
   assert.ok(german, 'no chunk for locales/de.json was emitted; the glob found nothing');
 
-  // Reachable from the entry, and only as a dynamic import: the source is what renders until
-  // the reader's locale asks for it.
-  const entry = fs.readFileSync(path.join(DIST, scripts[0]), 'utf8');
-  assert.ok(entry.includes(`import(\`./${german}\`)`) || entry.includes(`import("./${german}")`), 'the entry does not load the German chunk on demand');
-  assert.ok(!entry.includes(`from"./${german}"`) && !entry.includes(`from "./${german}"`), 'the entry imports the German chunk statically');
+  // Reachable from the initial bundle, and only as a dynamic import: the source is what renders
+  // until the reader's locale asks for it. The initial bundle is the entry and every chunk it
+  // imports statically - the bundler may put the catalogue's loader in a chunk the entry shares
+  // with a lazy screen, which is still loaded up front.
+  const initialChunks = new Set();
+  const pending = [scripts[0]];
+  while (pending.length > 0) {
+    const file = pending.pop();
+    if (initialChunks.has(file)) continue;
+    initialChunks.add(file);
+    const source = fs.readFileSync(path.join(DIST, file), 'utf8');
+    for (const m of source.matchAll(/(?:from|import)\s*"\.\/([^"]+\.js)"/g)) pending.push(path.posix.join(path.posix.dirname(file), m[1]));
+  }
+  const sources = [...initialChunks].map((file) => fs.readFileSync(path.join(DIST, file), 'utf8'));
+  assert.ok(!initialChunks.has(`assets/${german}`), `the German chunk is in the initial bundle: ${[...initialChunks].join(', ')}`);
+  assert.ok(sources.some((source) => source.includes(`import(\`./${german}\`)`) || source.includes(`import("./${german}")`)), 'the initial bundle does not load the German chunk on demand');
+  assert.ok(sources.every((source) => !source.includes(`from"./${german}"`) && !source.includes(`from "./${german}"`)), 'the initial bundle imports the German chunk statically');
 });

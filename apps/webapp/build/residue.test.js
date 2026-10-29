@@ -159,7 +159,7 @@ globalThis.history = { pushState() {}, replaceState() {}, state: null };
 Object.defineProperty(globalThis, 'navigator', { value: { languages: ['en'], language: 'en', onLine: true }, configurable: true });
 globalThis.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
 globalThis.document = {
-  documentElement: { setAttribute() {}, removeAttribute() {}, getAttribute() { return null; } },
+  documentElement: { setAttribute() {}, removeAttribute() {}, getAttribute() { return null; }, style: {} },
   addEventListener() {},
   removeEventListener() {},
   createElement() { return { setAttribute() {}, style: {} }; },
@@ -235,6 +235,7 @@ async function views() {
     ['modules', await load('ModulesView'), {}],
     ['entry-types', await load('EntryTypesView'), {}],
     ['link-types', await load('LinkTypesView'), {}],
+    ['cmdb', await load('CmdbView'), {}],
     ['changes', await load('ChangesView'), {}],
     ['workflows', await load('WorkflowsView'), { onnavigate: noop }],
     ['backup', await load('BackupView'), {}],
@@ -254,6 +255,9 @@ async function views() {
     ['page', await load('PagesView'), { pageId: ITEM, onnavigate: noop }],
     ['hub-whiteboards', await load('WhiteboardsView'), { hubId: COLLECTION, onnavigate: noop }],
     ['whiteboard', await load('WhiteboardsView'), { boardId: ITEM, onnavigate: noop }],
+    ['hub-assets', await load('AssetsView'), { hubId: COLLECTION, onnavigate: noop }],
+    ['hub-assets-section', await load('AssetsView'), { hubId: COLLECTION, section: 'health', onnavigate: noop }],
+    ['ci', await load('AssetsView'), { ciId: ITEM, onnavigate: noop }],
     ['administration', await load('AdministrationOverviewView'), {}],
     ['sign-in-settings', await load('SignInSettingsView'), {}],
     ['legal', await load('SignInSettingsView'), { part: 'legal' }],
