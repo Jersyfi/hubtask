@@ -129,3 +129,51 @@ func TestAnAlertsHostsAreLookedUpByNameAddressAndShortName(t *testing.T) {
 		t.Fatalf("a signal without a key: %v", err)
 	}
 }
+
+func TestAFailedOrEmptyRunFiresTheRunAlertAndAFetchingOneResolvesIt(t *testing.T) {
+	cases := []struct {
+		outcome  ConnectorOutcome
+		code     string
+		status   AlertStatus
+		severity string
+		title    string
+		ok       bool
+	}{
+		{ConnectorFailed, "connector.unauthorised", AlertFiring, "FAILED", "connector.unauthorised", true},
+		{ConnectorEmpty, "", AlertFiring, "EMPTY", RunEmptyCode, true},
+		{ConnectorOK, "", AlertResolved, "", "", true},
+		{ConnectorNeverRan, "", "", "", "", false},
+	}
+	for _, c := range cases {
+		t.Run(string(c.outcome), func(t *testing.T) {
+			sig, ok := RunAlert(c.outcome, c.code)
+			if ok != c.ok || sig.Status != c.status || sig.Severity != c.severity || sig.Title != c.title {
+				t.Fatalf("%+v %v", sig, ok)
+			}
+			if ok && sig.Key != RunAlertKey {
+				t.Fatalf("one run alert per connector: %q", sig.Key)
+			}
+		})
+	}
+	opened, change := Receive(Alert{}, mustRunAlert(t, ConnectorFailed, "connector.unreachable"), now)
+	if change != AlertOpened {
+		t.Fatal(change)
+	}
+	opened.ID = id("09")
+	again, change := Receive(opened, mustRunAlert(t, ConnectorEmpty, ""), now.Add(time.Hour))
+	if change != AlertRepeated || again.Count != 2 || again.Title != RunEmptyCode {
+		t.Fatalf("a second bad run counts the same alert: %+v %v", again, change)
+	}
+	if done, change := Receive(again, mustRunAlert(t, ConnectorOK, ""), now.Add(2*time.Hour)); change != AlertClosed || done.Status != AlertResolved {
+		t.Fatalf("a run that fetched resolves it: %v", change)
+	}
+}
+
+func mustRunAlert(t *testing.T, o ConnectorOutcome, code string) AlertSignal {
+	t.Helper()
+	s, ok := RunAlert(o, code)
+	if !ok {
+		t.Fatal(o)
+	}
+	return s
+}

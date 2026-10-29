@@ -29,6 +29,7 @@ Dana connects the hub *Data centre* to NetBox with a token, ranks NetBox above t
 5. A source that refuses the credential fails the run with `connector.unauthorised`; one that answers 429 fails it with `connector.rate_limited` and the next run waits as long as it asked; a failure keeps the cursor, so nothing is skipped, and the run's outcome, error code and figures stay on the connector.
 6. A scheduled connector is pulled when due as the person who last defined it, again every period, and switches itself off after ten failed runs in a row.
 7. The *Assets* screen lists a hub's connectors, defines one, sets its credential, runs it and shows how its last run ended.
+8. A run that fails or fetches nothing fires the hub's alert about that connector's runs - one alert, counted again by every further bad run - and the next run that fetches resolves it; a dry run changes nothing. The *Alerts* section shows it with the failure's words.
 
 ## Where it ends
 

@@ -493,5 +493,8 @@ export function connectorTone(outcome: CiConnector['last_outcome']): 'success' |
   return 'neutral';
 }
 
+/** The key of a pull's alert about its own runs (the domain's `RunAlertKey`); its title is a message code. */
+export const RUN_ALERT_KEY = 'hubtask.connector_run';
+
 /** A firing alert is a problem; a resolved one is history. */
 export const alertTone = (alert: CiAlert): 'danger' | 'neutral' => (alert.status === 'FIRING' ? 'danger' : 'neutral');

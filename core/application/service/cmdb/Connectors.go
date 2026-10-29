@@ -505,6 +505,9 @@ func (s Connectors) pull(ctx context.Context, actor appshared.ActorContext, c do
 		if err := s.Store.RecordRun(ctx, next); err != nil {
 			return err
 		}
+		if err := s.runAlert(ctx, actor.TenantID, next); err != nil {
+			return err
+		}
 		if err := s.schedule(ctx, actor.TenantID, next); err != nil {
 			return err
 		}
@@ -518,6 +521,28 @@ func (s Connectors) pull(ctx context.Context, actor appshared.ActorContext, c do
 		return nil, err
 	}
 	return pullOutput(next, did, false), nil
+}
+
+// runAlert keeps the hub's alert about a pull's own runs, inside the run's transaction, so the
+// outcome and the alert never disagree (research itsm-cmdb-ai C8). It is bound to no CI and opens
+// no entry: a pull has no collection, and its fix is the connector's.
+func (s Connectors) runAlert(ctx context.Context, tenantID shared.ID, c domain.Connector) error {
+	sig, ok := domain.RunAlert(c.LastOutcome, c.LastError)
+	if !ok {
+		return nil
+	}
+	existing, err := s.Store.FindAlert(ctx, c.ID, sig.Key)
+	if err != nil && !errors.Is(err, shared.ErrNotFound) {
+		return err
+	}
+	alert, change := domain.Receive(existing, sig, s.Inventory.Clock.Now())
+	if change == domain.AlertUnchanged {
+		return nil
+	}
+	if alert.ID.IsZero() {
+		alert.ID, alert.TenantID, alert.HubID, alert.Connector = s.Inventory.IDs.NewID(), tenantID, c.HubID, c.ID
+	}
+	return s.Store.PutAlert(ctx, alert)
 }
 
 // failureCode is a pull's refusal by its message code; anything else is the source unreachable.
@@ -628,7 +653,10 @@ func (s Connectors) RunScheduled(ctx context.Context, tenantID, id shared.ID) (t
 		// that refuses does, and stops after its failures.
 		next := c.Ran(now, "", domain.ConnectorFailed, "cmdb.connector_run_as_refused", c.Cursor, nil)
 		return nextOf(next), s.Inventory.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
-			return s.Store.RecordRun(ctx, next)
+			if err := s.Store.RecordRun(ctx, next); err != nil {
+				return err
+			}
+			return s.runAlert(ctx, tenantID, next)
 		})
 	}
 	out, err := s.pull(ctx, actor, c, false, false)

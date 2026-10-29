@@ -287,6 +287,43 @@ func TestAScheduledPullRunsAsItsDefinerWhenDue(t *testing.T) {
 	}
 }
 
+func TestAFailedOrEmptyPullRaisesTheHubsRunAlertAndAFetchingOneResolvesIt(t *testing.T) {
+	f := newConnectorFixture()
+	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "nb", "kind": "NETBOX", "source": "netbox",
+		"base_url": "https://netbox.example.org"}))
+	_, _ = call(t, SetCiConnectorCredential{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String(), "credential": "tok"})
+	run := func(in usecase.Input) {
+		t.Helper()
+		in["connector_id"] = id.String()
+		if _, err := call(t, RunCiConnector{f.c}.Descriptor(), as(anna), in); err != nil {
+			t.Fatal(err)
+		}
+	}
+	alert := func() domain.Alert { return f.store.alerts[id.String()+domain.RunAlertKey] }
+
+	f.src.fail = shared.ErrUnavailable.WithDetail(connectorport.CodeUnauthorised)
+	run(usecase.Input{})
+	if a := alert(); a.Status != domain.AlertFiring || a.Title != connectorport.CodeUnauthorised || a.HubID != hub || a.Count != 1 {
+		t.Fatalf("a failed run fires the run alert by its code: %+v", a)
+	}
+	f.src.fail = nil
+	f.src.pages = []connectorport.Page{{Payload: domain.Payload{}}}
+	run(usecase.Input{})
+	if a := alert(); a.Status != domain.AlertFiring || a.Title != domain.RunEmptyCode || a.Count != 2 {
+		t.Fatalf("an empty run is the same alert again: %+v", a)
+	}
+	f.src.pages = []connectorport.Page{{Payload: domain.Payload{Items: []domain.Item{{Class: "server", Name: "s", NativeKey: "1"}}}}}
+	run(usecase.Input{"dry_run": true})
+	if a := alert(); a.Status != domain.AlertFiring || a.Count != 2 {
+		t.Fatalf("a dry run tells nothing: %+v", a)
+	}
+	f.src.pages = []connectorport.Page{{Payload: domain.Payload{Items: []domain.Item{{Class: "server", Name: "s", NativeKey: "1"}}}}}
+	run(usecase.Input{})
+	if a := alert(); a.Status != domain.AlertResolved || len(f.entries.calls) != 0 {
+		t.Fatalf("a run that fetched resolves it, and no entry is opened: %+v %v", a, f.entries.calls)
+	}
+}
+
 func intake(t *testing.T, f connectorFixture) (shared.ID, string) {
 	t.Helper()
 	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "am", "kind": "ALERTMANAGER", "source": "alerts",

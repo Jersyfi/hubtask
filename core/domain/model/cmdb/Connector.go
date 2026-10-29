@@ -461,3 +461,25 @@ func Receive(a Alert, s AlertSignal, now time.Time) (Alert, AlertChange) {
 	next.Count = a.Count + 1
 	return next, AlertRepeated
 }
+
+// RunAlertKey is the key of the one alert a pull keeps about its own runs. A pull is never posted
+// to, so no monitoring program's key shares its connector.
+const RunAlertKey = "hubtask.connector_run"
+
+// RunEmptyCode is the run alert's title for a run that fetched nothing.
+const RunEmptyCode = "connector.run_empty"
+
+// RunAlert is what a pull's outcome tells the hub (research itsm-cmdb-ai C8: alert on failure or
+// zero results): a failed or empty run fires the run alert - its title the failure's message
+// code, never words (rule 8) - and a run that fetched something resolves it. A dry run is none.
+func RunAlert(outcome ConnectorOutcome, errorCode string) (AlertSignal, bool) {
+	switch outcome {
+	case ConnectorFailed:
+		return AlertSignal{Key: RunAlertKey, Status: AlertFiring, Severity: string(ConnectorFailed), Title: errorCode}, true
+	case ConnectorEmpty:
+		return AlertSignal{Key: RunAlertKey, Status: AlertFiring, Severity: string(ConnectorEmpty), Title: RunEmptyCode}, true
+	case ConnectorOK:
+		return AlertSignal{Key: RunAlertKey, Status: AlertResolved}, true
+	}
+	return AlertSignal{}, false
+}
