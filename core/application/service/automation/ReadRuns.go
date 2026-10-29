@@ -181,7 +181,8 @@ func readRunRequest(scope domain.Scope, action audit.Action, target shared.ID) a
 // Descriptor is the catalogue entry.
 func (h ListRuleRuns) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListRuleRunsName,
+		Permission: service.PermissionAutomation,
+		Name:       ListRuleRunsName,
 		Summary: "What the rules have done, newest first: which rule, what started it, how its " +
 			"conditions answered and what each action did. Only the runs of rules the caller may " +
 			"manage. A run outlives the rule that produced it, which is why deleting a rule is " +
@@ -223,6 +224,7 @@ func (h ListRuleRuns) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h GetRuleRun) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        GetRuleRunName,
 		Summary:     "One automation run, with every condition's answer and every action's outcome.",
 		SideEffects: "None. Reads only.",

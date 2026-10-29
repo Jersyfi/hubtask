@@ -248,6 +248,7 @@ func boolWord(value bool) string {
 // Descriptor is the catalogue entry.
 func (h ShowVoiceSettings) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        ShowVoiceSettingsName,
 		Summary:     "The workspace's voice settings: whether it takes spoken entries, the default list, its own skill and the names people may say for a place.",
 		SideEffects: "None. Reads only.",
@@ -261,6 +262,7 @@ func (h ShowVoiceSettings) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h SaveVoiceSettings) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        SaveVoiceSettingsName,
 		Summary:     "Replaces the workspace's voice settings and spoken names in one write.",
 		SideEffects: "Stores the settings and writes an audit entry.",
@@ -283,6 +285,7 @@ func (h SaveVoiceSettings) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h TryVoiceSentence) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        TryVoiceSentenceName,
 		Summary:     "Reads a sentence as a voice assistant would hand it over and answers what it would add where - without adding anything.",
 		SideEffects: "None. Reads only.",
@@ -300,6 +303,7 @@ func (h TryVoiceSentence) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h ShowAlexaModel) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        ShowAlexaModelName,
 		Summary:     "The Alexa interaction model to paste into the Alexa developer console. The same for every workspace: its lists reach Alexa with every answer, so new ones need no new model.",
 		SideEffects: "None. Reads only.",

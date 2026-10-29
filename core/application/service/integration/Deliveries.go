@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -327,7 +328,8 @@ func deliveryOutput(delivery domain.WebhookDelivery) usecase.Output {
 // Descriptor is the catalogue entry.
 func (h ListWebhookDeliveries) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListWebhookDeliveriesName,
+		Permission: service.PermissionAutomation,
+		Name:       ListWebhookDeliveriesName,
 		Summary: "One subscription's delivery attempts, newest first, with the status, the " +
 			"response the target gave and when the next attempt is due. A run of eight failures " +
 			"ends in DEAD_LETTER, which is where an operator looks and what a replay acts on.",
@@ -388,6 +390,7 @@ func (h ListWebhookDeliveries) invoke(
 // Descriptor is the catalogue entry.
 func (h ReplayWebhookDelivery) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        ReplayWebhookDeliveryName,
 		Entitlement: entitlement.Webhooks,
 		Summary: "Sends a dead-lettered delivery again, after whatever made it fail has been " +
@@ -434,7 +437,8 @@ func (h ReplayWebhookDelivery) invoke(
 // Descriptor is the catalogue entry.
 func (h RotateWebhookSecret) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RotateWebhookSecretName,
+		Permission: service.PermissionAutomation,
+		Name:       RotateWebhookSecretName,
 		Summary: "Issues a new signing secret and answers it once, keeping the old one verifying " +
 			"for a grace period. That overlap is the point: a subscriber cannot deploy " +
 			"atomically, and a rotation taking effect instantly would drop every event arriving " +

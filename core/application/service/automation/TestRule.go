@@ -14,6 +14,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	expression "github.com/Jersyfi/hubtask/core/port/expression"
@@ -308,6 +309,7 @@ func (p *planner) answer(ctx context.Context, expr string) (bool, string) {
 // Descriptor is the catalogue entry.
 func (h TestRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        TestRuleName,
 		Entitlement: entitlement.AutomationRules,
 		Summary: "Dry-runs a rule against a sample event: which conditions matched, and which " +

@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
@@ -150,6 +151,7 @@ func (w Writer) recordSend(
 // every action is (automation.md §1.3).
 func (h SendWebhook) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        SendWebhookName,
 		Entitlement: entitlement.Webhooks,
 		Summary: "Delivers one event to one named subscription, through the same pipeline every " +

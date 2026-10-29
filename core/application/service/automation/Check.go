@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/expression"
@@ -417,7 +418,8 @@ func conditionFinding(path string, err error) domain.Finding {
 // Descriptor is the catalogue entry.
 func (h CheckRules) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CheckRulesName,
+		Permission: service.PermissionAutomation,
+		Name:       CheckRulesName,
 		Summary: "Checks every rule of the workspace the caller may read against what exists " +
 			"now - the trigger's event type, each action's kind and parameters, each condition, " +
 			"the account it runs as, and every identifier a parameter names - and writes what it " +

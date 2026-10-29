@@ -81,6 +81,7 @@ func (h CreateRule) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h GetRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        GetRuleName,
 		Summary:     "One automation rule, as it stands.",
 		SideEffects: "None. Reads only.",
@@ -100,7 +101,8 @@ func (h GetRule) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h ListRules) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListRulesName,
+		Permission: service.PermissionAutomation,
+		Name:       ListRulesName,
 		Summary: "The workspace's automation rules, newest first - and only the ones the caller " +
 			"may see at their own scope. Deleted rules are not among them.",
 		SideEffects: "None. Reads only.",

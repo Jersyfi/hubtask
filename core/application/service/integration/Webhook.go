@@ -27,6 +27,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/crypto"
@@ -586,6 +587,7 @@ func encodeSecret(material []byte) string {
 // Descriptor is the catalogue entry.
 func (h CreateWebhookSubscription) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        CreateWebhookSubscriptionName,
 		Entitlement: entitlement.Webhooks,
 		Summary: "Subscribes an external system to this workspace's event stream and answers " +
@@ -660,6 +662,7 @@ func (h CreateWebhookSubscription) invoke(
 // Descriptor is the catalogue entry.
 func (h GetWebhookSubscription) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        GetWebhookSubscriptionName,
 		Summary:     "One webhook subscription, with its state and its failure run. Not its secret.",
 		SideEffects: "None. Reads only.",
@@ -693,7 +696,8 @@ func (h GetWebhookSubscription) invoke(
 // Descriptor is the catalogue entry.
 func (h ListWebhookSubscriptions) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListWebhookSubscriptionsName,
+		Permission: service.PermissionAutomation,
+		Name:       ListWebhookSubscriptionsName,
 		Summary: "The workspace's webhook subscriptions, newest first, with each one's state " +
 			"and how many consecutive failures it has seen. The secrets are not among the " +
 			"fields: each is answered once, at creation and at each rotation.",
@@ -726,7 +730,8 @@ func (h ListWebhookSubscriptions) invoke(
 // Descriptor is the catalogue entry.
 func (h UpdateWebhookSubscription) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateWebhookSubscriptionName,
+		Permission: service.PermissionAutomation,
+		Name:       UpdateWebhookSubscriptionName,
 		Summary: "Changes a subscription's target, event types, filter or state. An omitted " +
 			"field is left alone. DISABLED cannot be set by hand - it is what a run of failures " +
 			"produces, and a subscription somebody wants stopped is paused instead. Re-enabling " +
@@ -797,7 +802,8 @@ func (h UpdateWebhookSubscription) invoke(
 // Descriptor is the catalogue entry.
 func (h DeleteWebhookSubscription) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteWebhookSubscriptionName,
+		Permission: service.PermissionAutomation,
+		Name:       DeleteWebhookSubscriptionName,
 		Summary: "Unsubscribes. The deliveries go with the subscription: a delivery log for a " +
 			"subscription nobody can reach any more is a record of attempts against an address " +
 			"the workspace no longer knows.",

@@ -12,6 +12,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -161,6 +162,7 @@ func (h TriggerRuleManually) record(
 // Descriptor is the catalogue entry.
 func (h TriggerRuleManually) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        TriggerRuleManuallyName,
 		Entitlement: entitlement.AutomationRules,
 		Summary: "Runs a rule now, because somebody asked. Only a rule whose trigger is MANUAL " +
