@@ -461,3 +461,30 @@ func TestAWorkspacesOwnLinkTypes(t *testing.T) {
 		t.Errorf("a shipped type was deleted: %v", err)
 	}
 }
+
+// An offline device draws a link under the identifier it minted, so that its later removal of
+// that link names the same one; an identifier that is not a UUIDv7 is refused.
+func TestALinkKeepsTheIdentifierItsDeviceMinted(t *testing.T) {
+	ctx := context.Background()
+	h := newLinkHarness()
+	draw := LinkEntries{Linking: h.linking()}
+	minted := shared.ID("01936f2a-7c1e-7000-8000-0000000011a1")
+
+	link, err := draw.Execute(ctx, linkActor(), LinkEntriesCommand{
+		ID: minted, SourceID: h.one.ID, TargetID: h.two.ID, Type: domain.LinkTypeDependsOn,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if link.ID != minted {
+		t.Errorf("the link is %s, want the device's %s", link.ID, minted)
+	}
+
+	_, err = draw.Execute(ctx, linkActor(), LinkEntriesCommand{
+		ID: shared.ID("6f1c2a52-1b7e-4c47-9a0e-3a0f2f6c9d11"), SourceID: h.two.ID, TargetID: h.one.ID,
+		Type: domain.LinkTypeDependsOn,
+	})
+	if shared.AsError(err).DetailCode != "sync.id_not_uuidv7" {
+		t.Errorf("a version 4 identifier answered %v", err)
+	}
+}

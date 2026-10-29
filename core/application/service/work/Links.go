@@ -183,6 +183,8 @@ func LinkRecord(link domain.EntryLink, sourceCollection, targetCollection shared
 
 // LinkEntriesCommand is the input, typed.
 type LinkEntriesCommand struct {
+	// ID is the identifier the caller minted (an offline device's, a UUIDv7); zero mints one.
+	ID       shared.ID
 	SourceID shared.ID
 	TargetID shared.ID
 	Type     string
@@ -200,6 +202,11 @@ func (h LinkEntries) Execute(ctx context.Context, actor appshared.ActorContext, 
 	}
 	if cmd.TargetID.IsZero() {
 		return domain.EntryLink{}, linkFieldInvalid("/target_id", "links.target_required")
+	}
+	if !cmd.ID.IsZero() && !cmd.ID.IsUUIDv7() {
+		return domain.EntryLink{}, shared.ErrValidation.
+			WithDetail("sync.id_not_uuidv7").
+			WithFields(shared.FieldError{Path: "/id", Code: "sync.id_not_uuidv7"})
 	}
 	source, sourceCollection, err := readItemScope(ctx, h.Linking.UnitOfWork, h.Linking.Items, h.Linking.Containers, actor, cmd.SourceID)
 	if err != nil {
@@ -250,8 +257,12 @@ func (h LinkEntries) Execute(ctx context.Context, actor appshared.ActorContext, 
 			return linkFieldInvalid("/type", "links.type_unknown")
 		}
 		now := h.Linking.Clock.Now()
+		id := cmd.ID
+		if id.IsZero() {
+			id = h.Linking.IDs.NewID()
+		}
 		link, err := domain.NewEntryLink(domain.NewEntryLinkInput{
-			ID: h.Linking.IDs.NewID(), TenantID: actor.TenantID, Type: linkType,
+			ID: id, TenantID: actor.TenantID, Type: linkType,
 			SourceID: current.ID, TargetID: target.ID, CreatedBy: actor.AccountID, Now: now,
 		})
 		if err != nil {
@@ -366,6 +377,11 @@ func (h LinkEntries) Descriptor() usecase.Descriptor {
 		SideEffects: "Writes the link, publishes " + string(event.ItemLinked) + " and writes an audit entry.",
 		TokenScope:  itemsWrite,
 		Input: []usecase.Field{
+			{
+				Name: "id", Kind: usecase.KindID, CallerOnly: true,
+				Description: "The identifier the caller minted, a UUIDv7; offline clients assign " +
+					"their own. Leave it out and the server mints one.",
+			},
 			{Name: "item_id", Kind: usecase.KindID, Required: true, Description: "The source entry."},
 			{Name: "target_id", Kind: usecase.KindID, Required: true, Description: "The target entry."},
 			{Name: "type", Kind: usecase.KindString, Required: true, Description: "The link type's key."},
@@ -385,7 +401,11 @@ func (h LinkEntries) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			link, err := h.Execute(ctx, actor, LinkEntriesCommand{SourceID: source, TargetID: target, Type: in.String("type")})
+			id, err := in.ID("id")
+			if err != nil {
+				return nil, err
+			}
+			link, err := h.Execute(ctx, actor, LinkEntriesCommand{ID: id, SourceID: source, TargetID: target, Type: in.String("type")})
 			if err != nil {
 				return nil, err
 			}
