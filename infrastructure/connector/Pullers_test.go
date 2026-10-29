@@ -223,8 +223,74 @@ func TestIntuneDevicesArePulledPageByPage(t *testing.T) {
 		t.Fatalf("first page %+v", page)
 	}
 	page, err = pullers(t, server).Pull(context.Background(), pullOf(server, cmdb.ConnectorIntune, settings, page.Cursor))
-	if err != nil || page.More || page.Payload.Items[0].Class != "laptop" || page.Payload.Items[0].Attributes["mac_address"] != "AA:BB" {
+	if err != nil || !strings.HasPrefix(page.Cursor, "apps") || page.Payload.Items[0].Class != "laptop" || page.Payload.Items[0].Attributes["mac_address"] != "AA:BB" {
 		t.Fatalf("second page %+v %v", page, err)
+	}
+}
+
+func TestIntunesDetectedAppsAreSoftwareInstalledOnTheirDevices(t *testing.T) {
+	var server *httptest.Server
+	server = microsoftServer(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/v1.0/deviceManagement/managedDevices":
+			_, _ = w.Write([]byte(`{"value":[{"id":"d1","deviceName":"pc-1"}]}`))
+		case r.URL.Path == "/v1.0/deviceManagement/detectedApps" && r.URL.Query().Get("page") == "2":
+			_, _ = w.Write([]byte(`{"value":[{"id":"a3","displayName":"Git","version":"2.47"}]}`))
+		case r.URL.Path == "/v1.0/deviceManagement/detectedApps":
+			_, _ = w.Write([]byte(`{"value":[{"id":"a1","displayName":"7-Zip","version":"24.08","publisher":"Igor Pavlov"},{"id":"a2","displayName":"Firefox","version":"131.0"}],
+				"@odata.nextLink":"` + server.URL + `/v1.0/deviceManagement/detectedApps?page=2"}`))
+		case r.URL.Path == "/v1.0/deviceManagement/detectedApps/a1/managedDevices":
+			_, _ = w.Write([]byte(`{"value":[{"id":"d1","deviceName":"pc-1"},{"id":"d2","deviceName":"lap-2"}]}`))
+		case r.URL.Path == "/v1.0/deviceManagement/detectedApps/a2/managedDevices" && r.URL.Query().Get("page") == "2":
+			_, _ = w.Write([]byte(`{"value":[{"id":"d2","deviceName":"lap-2"}]}`))
+		case r.URL.Path == "/v1.0/deviceManagement/detectedApps/a2/managedDevices":
+			_, _ = w.Write([]byte(`{"value":[{"id":"d1","deviceName":"pc-1"}],
+				"@odata.nextLink":"` + server.URL + `/v1.0/deviceManagement/detectedApps/a2/managedDevices?page=2"}`))
+		case r.URL.Path == "/v1.0/deviceManagement/detectedApps/a3/managedDevices":
+			_, _ = w.Write([]byte(`{"value":[{"id":"d1","deviceName":"pc-1"}]}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
+	defer server.Close()
+	settings := map[string]string{"tenant": "dir-1", "client_id": "app", "authority": server.URL}
+	pull := func(cursor string) port.Page {
+		t.Helper()
+		page, err := pullers(t, server).Pull(context.Background(), pullOf(server, cmdb.ConnectorIntune, settings, cursor))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return page
+	}
+	page := pull("")
+	if !page.More || len(page.Payload.Items) != 1 {
+		t.Fatalf("the devices' walk goes on to the apps: %+v", page)
+	}
+	page = pull(page.Cursor)
+	items, rels := page.Payload.Items, page.Payload.Relations
+	if len(items) != 4 || items[0].Class != "software" || items[0].NativeKey != "app:a1" || items[0].Attributes["version"] != "24.08" ||
+		items[0].Attributes["publisher"] != "Igor Pavlov" || items[1].NativeKey != "d1" || items[3].Name != "Firefox" {
+		t.Fatalf("items %+v", items)
+	}
+	want := []cmdb.RelationItem{
+		{Type: cmdb.RelInstalled, From: "intune-app-a1", To: "intune-d1"},
+		{Type: cmdb.RelInstalled, From: "intune-app-a1", To: "intune-d2"},
+		{Type: cmdb.RelInstalled, From: "intune-app-a2", To: "intune-d1"},
+	}
+	if len(rels) != len(want) || rels[0] != want[0] || rels[1] != want[1] || rels[2] != want[2] || !page.More {
+		t.Fatalf("relations %+v", rels)
+	}
+	page = pull(page.Cursor)
+	if len(page.Payload.Relations) != 1 || page.Payload.Relations[0] != (cmdb.RelationItem{Type: cmdb.RelInstalled, From: "intune-app-a2", To: "intune-d2"}) || !page.More {
+		t.Fatalf("an app's further devices continue where it stopped: %+v", page.Payload)
+	}
+	page = pull(page.Cursor)
+	if len(page.Payload.Items) != 2 || page.Payload.Items[0].Name != "Git" || page.More || page.Cursor != "" {
+		t.Fatalf("the last page of apps ends the walk: %+v", page)
+	}
+	settings["detected_apps"] = "off"
+	if page = pull(""); page.More {
+		t.Fatalf("with the apps off the devices end the walk: %+v", page)
 	}
 }
 

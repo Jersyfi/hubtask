@@ -212,12 +212,17 @@ type graphPage struct {
 	DeltaLink string           `json:"@odata.deltaLink"`
 }
 
-// intune pulls Intune's managed devices: every device on every walk, since Graph offers no
-// delta for them; the cursor is the next page's link while a walk is under way.
+// intune pulls Intune's managed devices, then the apps Intune detected on them: every device and
+// app on every walk, since Graph offers no delta for them; the cursor is the next page's link
+// while the devices' walk is under way, then where the apps' walk stands. The setting
+// `detected_apps` set to `off` leaves the apps out.
 func intune(ctx context.Context, s session) (port.Page, error) {
 	token, err := s.microsoft(ctx)
 	if err != nil {
 		return port.Page{}, err
+	}
+	if c, ok := readApps(s.pull.Cursor); ok {
+		return detectedApps(ctx, s, token, c)
 	}
 	next := s.pull.Cursor
 	if next == "" {
@@ -250,7 +255,100 @@ func intune(ctx context.Context, s session) (port.Page, error) {
 		})
 	}
 	page.Cursor, page.More = answer.NextLink, answer.NextLink != ""
+	if !page.More && !strings.EqualFold(s.setting("detected_apps"), "off") {
+		page.Cursor, page.More = appsCursor{}.String(), true
+	}
 	return page, nil
+}
+
+// appsPerPull bounds one pull of detected apps, so that a page with each app's devices stays
+// within the reconciliation's bounds (MaxPayloadItems).
+const appsPerPull = 10
+
+// appsCursor is where the walk through Intune's detected apps stands: the page of apps, the app
+// within it and the next page of that app's devices.
+type appsCursor struct {
+	apps    string
+	index   int
+	devices string
+}
+
+const appsPrefix = "apps\n"
+
+func readApps(raw string) (appsCursor, bool) {
+	rest, ok := strings.CutPrefix(raw, appsPrefix)
+	if !ok {
+		return appsCursor{}, false
+	}
+	parts := strings.Split(rest, "\n")
+	c := appsCursor{apps: parts[0]}
+	if len(parts) > 1 {
+		c.index, _ = strconv.Atoi(parts[1])
+	}
+	if len(parts) > 2 {
+		c.devices = parts[2]
+	}
+	return c, true
+}
+
+func (c appsCursor) String() string {
+	return appsPrefix + c.apps + "\n" + strconv.Itoa(c.index) + "\n" + c.devices
+}
+
+// detectedApps pulls a page of Intune's detected apps, each as software - one CI per app and
+// version, Graph's identifier its native key - installed on every managed device it was
+// detected on. An app with more devices than one page ends the pull at that app.
+func detectedApps(ctx context.Context, s session, token string, c appsCursor) (port.Page, error) {
+	if c.apps == "" {
+		c.apps = s.base("/v1.0/deviceManagement/detectedApps?$top=" + strconv.Itoa(appsPerPull) + "&$select=id,displayName,version,publisher")
+	}
+	var apps graphPage
+	if _, err := s.getJSON(ctx, c.apps, bearer(token), &apps); err != nil {
+		return port.Page{}, err
+	}
+	b := payloadBuilder{refs: map[string]bool{}}
+	end := min(len(apps.Value), c.index+appsPerPull)
+	for i := c.index; i < end; i++ {
+		r := apps.Value[i]
+		id, name := text(r["id"]), strings.TrimSpace(text(r["displayName"]))
+		if id == "" || name == "" {
+			continue
+		}
+		link := s.base("/v1.0/deviceManagement/detectedApps/" + url.PathEscape(id) + "/managedDevices?$select=id,deviceName&$top=" + strconv.Itoa(s.size))
+		if i == c.index && c.devices != "" {
+			link = c.devices
+		}
+		var devices graphPage
+		if _, err := s.getJSON(ctx, link, bearer(token), &devices); err != nil {
+			return port.Page{}, err
+		}
+		app := "intune-app-" + id
+		b.add(cmdb.Item{Ref: app, Class: "software", Name: name, NativeKey: "app:" + id,
+			Attributes: attrs("version", text(r["version"]), "publisher", text(r["publisher"]))})
+		for _, d := range devices.Value {
+			device, deviceName := text(d["id"]), text(d["deviceName"])
+			if device == "" || deviceName == "" {
+				continue
+			}
+			if b.add(cmdb.Item{Ref: "intune-" + device, Class: "workstation", Name: deviceName, NativeKey: device}) {
+				b.relate(cmdb.RelInstalled, app, "intune-"+device)
+			}
+		}
+		if devices.NextLink != "" {
+			c.index, c.devices = i, devices.NextLink
+			return port.Page{Payload: b.payload, Cursor: c.String(), More: true}, nil
+		}
+	}
+	switch {
+	case end < len(apps.Value):
+		c.index, c.devices = end, ""
+	case apps.NextLink != "":
+		c = appsCursor{apps: apps.NextLink}
+	default:
+		// The walk is done; the next starts at the devices again.
+		return port.Page{Payload: b.payload}, nil
+	}
+	return port.Page{Payload: b.payload, Cursor: c.String(), More: true}, nil
 }
 
 // entra pulls Entra ID's devices by delta query: the cursor is the next page's link during a
