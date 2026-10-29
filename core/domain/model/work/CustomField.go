@@ -42,13 +42,16 @@ const (
 	// CustomFieldRichText is formatted text in the notes' Markdown. Never compared, sorted or
 	// grouped: what a person formats is prose, not a value.
 	CustomFieldRichText CustomFieldKind = "RICH_TEXT"
+	// CustomFieldCalculated is a number the server computes with the definition's formula from the
+	// entry's own fields, whenever they are written. Nobody writes one.
+	CustomFieldCalculated CustomFieldKind = "CALCULATED"
 )
 
 var customFieldKinds = [...]CustomFieldKind{
 	CustomFieldText, CustomFieldNumber, CustomFieldDate, CustomFieldSelect,
 	CustomFieldMultiSelect, CustomFieldBool, CustomFieldUser, CustomFieldURL,
 	CustomFieldMoney, CustomFieldDuration, CustomFieldReference, CustomFieldUserSet,
-	CustomFieldRichText,
+	CustomFieldRichText, CustomFieldCalculated,
 }
 
 // CustomFieldKinds returns every kind, in the order the contract's enum lists them.
@@ -69,6 +72,16 @@ func ParseCustomFieldKind(value string) (CustomFieldKind, error) {
 // TakesOptions reports whether the kind's values are drawn from a list.
 func (k CustomFieldKind) TakesOptions() bool {
 	return k == CustomFieldSelect || k == CustomFieldMultiSelect
+}
+
+// TakesFormula reports whether the kind's definition carries a formula.
+func (k CustomFieldKind) TakesFormula() bool { return k == CustomFieldCalculated }
+
+// IsFormulaInput reports whether a formula may read a field of the kind: the numbers, and a
+// boolean as one. Never another CALCULATED field, so no formula waits on another and none can
+// wait on itself.
+func (k CustomFieldKind) IsFormulaInput() bool {
+	return k == CustomFieldNumber || k == CustomFieldMoney || k == CustomFieldDuration || k == CustomFieldBool
 }
 
 // TakesCurrency reports whether the kind's definition names a currency.
@@ -112,6 +125,8 @@ const (
 	// MaxCustomFieldPeople bounds one USER_SET value, as MaxCustomFieldSelections bounds a
 	// MULTI_SELECT.
 	MaxCustomFieldPeople = 50
+	// MaxCustomFieldFormulaLength bounds a CALCULATED field's formula, as the column's CHECK does.
+	MaxCustomFieldFormulaLength = 2000
 	// MaxCustomFieldsPerItem bounds how many keys one entry may carry. The column is one jsonb
 	// document that every read of the entry carries, so its size is the entry's size.
 	MaxCustomFieldsPerItem = 100
@@ -144,6 +159,10 @@ type CustomFieldDefinition struct {
 	// Currency is the ISO 4217 code of a MONEY field's amounts, empty for every other kind. Fixed
 	// once defined, like the kind: a changed currency would reinterpret every stored amount.
 	Currency string
+	// Formula is a CALCULATED field's expression over `entry.custom_fields`, empty for every other
+	// kind. Fixed once defined, like the currency: a changed formula would rewrite every entry's
+	// value at once. Whether it compiles is the use case's question, which holds the compiler.
+	Formula string
 	// IsRequired is enforced when the field is written and never retroactively: making a field
 	// required does not make the entries that predate it invalid, and a rule that did would make
 	// every one of them unsaveable at once.
@@ -169,6 +188,7 @@ type NewCustomFieldInput struct {
 	Kind         CustomFieldKind
 	Options      []string
 	Currency     string
+	Formula      string
 	IsRequired   bool
 	AppliesTo    []ItemType
 	Now          time.Time
@@ -203,6 +223,10 @@ func NewCustomFieldDefinition(in NewCustomFieldInput) (CustomFieldDefinition, er
 	if err != nil {
 		return CustomFieldDefinition{}, err
 	}
+	formula, err := customFieldFormula(in.Kind, in.Formula, in.IsRequired)
+	if err != nil {
+		return CustomFieldDefinition{}, err
+	}
 	appliesTo, err := customFieldTypes(in.AppliesTo)
 	if err != nil {
 		return CustomFieldDefinition{}, err
@@ -213,7 +237,7 @@ func NewCustomFieldDefinition(in NewCustomFieldInput) (CustomFieldDefinition, er
 
 	return CustomFieldDefinition{
 		ID: in.ID, TenantID: in.TenantID, CollectionID: in.CollectionID,
-		Key: key, Kind: in.Kind, Options: options, Currency: currency,
+		Key: key, Kind: in.Kind, Options: options, Currency: currency, Formula: formula,
 		IsRequired: in.IsRequired, AppliesTo: appliesTo,
 		CreatedAt: in.Now, UpdatedAt: in.Now, Version: 1,
 	}, nil
@@ -279,6 +303,9 @@ func (d CustomFieldDefinition) Updated(
 		}
 	}
 
+	if attributes.IsRequired != nil && *attributes.IsRequired && d.Kind == CustomFieldCalculated {
+		return CustomFieldDefinition{}, nil, customFieldError("/is_required", "fields.calculated", nil)
+	}
 	if attributes.IsRequired != nil && *attributes.IsRequired != d.IsRequired {
 		changes = append(changes, FieldChange{
 			Field: FieldIsRequired,
@@ -437,6 +464,28 @@ func customFieldCurrency(kind CustomFieldKind, raw string) (string, error) {
 	return code, nil
 }
 
+// customFieldFormula holds a formula to its kind and its length. A CALCULATED field is never
+// required: a person cannot fill it in, so a required one would refuse every write.
+func customFieldFormula(kind CustomFieldKind, raw string, required bool) (string, error) {
+	formula := strings.TrimSpace(raw)
+	if !kind.TakesFormula() {
+		if formula != "" {
+			return "", customFieldError("/formula", "fields.formula_not_applicable", map[string]string{"kind": string(kind)})
+		}
+		return "", nil
+	}
+	if formula == "" {
+		return "", customFieldError("/formula", "fields.formula_required", nil)
+	}
+	if utf8.RuneCountInString(formula) > MaxCustomFieldFormulaLength {
+		return "", customFieldError("/formula", "fields.formula_invalid", nil)
+	}
+	if required {
+		return "", customFieldError("/is_required", "fields.calculated", nil)
+	}
+	return formula, nil
+}
+
 // customFieldTypes validates which types carry the field. Whether a type carries custom fields at
 // all is the capability matrix's answer and the application's to ask - this only refuses a list
 // that is empty or says the same type twice.
@@ -496,6 +545,10 @@ func customFieldError(path, code string, params map[string]string) error {
 // stored in normal form C like a note, and a choice is brought to the form the options were stored
 // in before it is looked for among them.
 func (d CustomFieldDefinition) ValidateValue(value any, form text.Normalizer) (any, error) {
+	if d.Kind == CustomFieldCalculated {
+		// The server's value alone: a person or a client neither sets nor clears it.
+		return nil, d.valueError("fields.calculated", nil)
+	}
 	if value == nil {
 		if d.IsRequired {
 			return nil, d.valueError("fields.value_required", nil)
@@ -845,4 +898,13 @@ func (d CustomFieldDefinition) valueError(code string, params map[string]string)
 
 	return shared.ErrValidation.WithDetail(code).WithParams(params).
 		WithFields(shared.FieldError{Path: "/value", Code: code, Params: params})
+}
+
+// CalculatedValue is what a CALCULATED field holds for a formula's result: a finite number rounded
+// to four decimal places, as a MONEY amount is, or nothing where the formula could not answer.
+func CalculatedValue(number float64, answered bool) any {
+	if !answered || math.IsNaN(number) || math.IsInf(number, 0) || math.Abs(number) >= MaxCustomFieldMoneyMagnitude {
+		return nil
+	}
+	return math.Round(number*1e4) / 1e4
 }

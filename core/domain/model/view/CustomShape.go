@@ -60,7 +60,8 @@ func ShapeOf(kinds []work.CustomFieldKind) CustomShape {
 func shapeOfKind(kind work.CustomFieldKind) CustomShape {
 	shape := CustomShape{Resolved: true, Defined: true, Set: kind.IsSet()}
 	switch kind {
-	case work.CustomFieldNumber, work.CustomFieldMoney, work.CustomFieldDuration, work.CustomFieldBool:
+	case work.CustomFieldNumber, work.CustomFieldMoney, work.CustomFieldDuration, work.CustomFieldBool,
+		work.CustomFieldCalculated:
 		shape.Column = CustomNumber
 	case work.CustomFieldDate:
 		shape.Column = CustomInstant

@@ -22,6 +22,8 @@ func TestTheKindsDecideTheColumn(t *testing.T) {
 			view.CustomShape{Resolved: true, Defined: true, Column: view.CustomNumber}},
 		{"money and a duration agree", []work.CustomFieldKind{work.CustomFieldMoney, work.CustomFieldDuration},
 			view.CustomShape{Resolved: true, Defined: true, Column: view.CustomNumber}},
+		{"a calculated number", []work.CustomFieldKind{work.CustomFieldCalculated},
+			view.CustomShape{Resolved: true, Defined: true, Column: view.CustomNumber}},
 		{"a date", []work.CustomFieldKind{work.CustomFieldDate},
 			view.CustomShape{Resolved: true, Defined: true, Column: view.CustomInstant}},
 		{"several choices", []work.CustomFieldKind{work.CustomFieldMultiSelect},

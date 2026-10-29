@@ -4,6 +4,7 @@
 package work_test
 
 import (
+	"math"
 	"strings"
 	"testing"
 
@@ -131,5 +132,50 @@ func TestAPersonFieldNamesItsAccounts(t *testing.T) {
 	reference, _ := typedDefinition(t, work.CustomFieldReference, "")
 	if got := reference.Accounts(account); len(got) != 0 {
 		t.Errorf("a reference names accounts %v", got)
+	}
+}
+
+// UC-WRK-12: a CALCULATED field carries a formula and nothing else does; nobody fills it in, clears
+// it or requires it, and its value is a finite number to four places, or none.
+func TestACalculatedFieldIsTheServersAlone(t *testing.T) {
+	build := func(kind work.CustomFieldKind, formula string, required bool) (work.CustomFieldDefinition, error) {
+		return work.NewCustomFieldDefinition(work.NewCustomFieldInput{
+			ID: fieldID, TenantID: fieldTenant, Key: "cost", Kind: kind, Formula: formula, IsRequired: required,
+			AppliesTo: []work.ItemType{work.ItemTask}, Now: fieldNow, Text: text.Composing{},
+		})
+	}
+	calculated, err := build(work.CustomFieldCalculated, "  entry.custom_fields.hours * 2.0 ", false)
+	if err != nil || calculated.Formula != "entry.custom_fields.hours * 2.0" {
+		t.Fatalf("a calculated field was refused: %+v, %v", calculated, err)
+	}
+	refusals := map[string]struct {
+		kind     work.CustomFieldKind
+		formula  string
+		required bool
+	}{
+		"fields.formula_required":       {work.CustomFieldCalculated, " ", false},
+		"fields.formula_not_applicable": {work.CustomFieldNumber, "1.0", false},
+		"fields.formula_invalid":        {work.CustomFieldCalculated, strings.Repeat("1", work.MaxCustomFieldFormulaLength+1), false},
+		"fields.calculated":             {work.CustomFieldCalculated, "1.0", true},
+	}
+	for code, in := range refusals {
+		if _, err := build(in.kind, in.formula, in.required); shared.AsError(err) == nil || shared.AsError(err).DetailCode != code {
+			t.Errorf("%s: answered %v", code, err)
+		}
+	}
+	for _, value := range []any{12.0, nil} {
+		if _, err := calculated.ValidateValue(value, text.Composing{}); shared.AsError(err) == nil || shared.AsError(err).DetailCode != "fields.calculated" {
+			t.Errorf("writing %v to a calculated field answered %v", value, err)
+		}
+	}
+	required := true
+	if _, _, err := calculated.Updated(work.CustomFieldAttributes{IsRequired: &required}, text.Composing{}, fieldNow); err == nil {
+		t.Error("a calculated field was made required")
+	}
+	if got := work.CalculatedValue(10.0/3.0, true); got != 3.3333 {
+		t.Errorf("10/3 is stored as %v", got)
+	}
+	if work.CalculatedValue(1, false) != nil || work.CalculatedValue(math.Inf(1), true) != nil {
+		t.Error("an unanswered or infinite result was stored")
 	}
 }
