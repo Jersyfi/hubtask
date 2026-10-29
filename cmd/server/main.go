@@ -56,6 +56,7 @@ import (
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
+	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
 	settingservice "github.com/Jersyfi/hubtask/core/application/service/setting"
 	suggestionservice "github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
@@ -1751,6 +1752,13 @@ func run() error {
 		Settings: postgres.SettingRepository{}, Containers: containers, Authorizer: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
+	// The configuration document (F-6): read and written through the registry it is part of, so
+	// every block it changes goes through the use case every other door reaches.
+	configCatalogue := &deferredCatalogue{}
+	configDesk := configservice.Desk{
+		Catalogue: configCatalogue, Store: postgres.NewConfigRepository(), Settings: postgres.SettingRepository{},
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
 	// The workspace's type registry (UC-FLW-01), shared by its four use cases.
 	entryTypeRegistry := workflowservice.Registry{
 		Types: entryTypes, Authorizer: authorizer, Changes: changes, Audit: auditSink,
@@ -1788,6 +1796,21 @@ func run() error {
 		settingservice.ListModules{Modules: modules}.Descriptor(),
 		settingservice.SetModule{Modules: modules}.Descriptor(),
 		settingservice.ReadSettingsCatalogue{}.Descriptor(),
+		configservice.ReadConfigSchema{Desk: configDesk}.Descriptor(),
+		configservice.ExportConfig{Desk: configDesk}.Descriptor(),
+		configservice.ExplainConfig{Desk: configDesk}.Descriptor(),
+		configservice.ValidateConfig{Desk: configDesk}.Descriptor(),
+		configservice.PlanConfig{Desk: configDesk}.Descriptor(),
+		configservice.ProposeConfig{Desk: configDesk}.Descriptor(),
+		configservice.ApplyConfig{Desk: configDesk}.Descriptor(),
+		configservice.ListConfigVersions{Desk: configDesk}.Descriptor(),
+		configservice.ReadConfigVersion{Desk: configDesk}.Descriptor(),
+		configservice.ListConfigProposals{Desk: configDesk}.Descriptor(),
+		configservice.DecideConfigProposal{Desk: configDesk}.Descriptor(),
+		configservice.SetConfigPolicy{Desk: configDesk}.Descriptor(),
+		configservice.ListConfigTemplates{Desk: configDesk}.Descriptor(),
+		configservice.PublishConfigTemplate{Desk: configDesk}.Descriptor(),
+		configservice.PlanConfigTemplate{Desk: configDesk}.Descriptor(),
 		workflowservice.ListEntryTypes{Registry: entryTypeRegistry}.Descriptor(),
 		workflowservice.CreateEntryType{Registry: entryTypeRegistry}.Descriptor(),
 		workflowservice.ChangeEntryType{Registry: entryTypeRegistry}.Descriptor(),
@@ -2847,6 +2870,7 @@ func run() error {
 	// goes through the same registry a REST call or an MCP tool call goes through, with the same
 	// input check, the same permission check and the same metric.
 	bulkCatalogue.catalogue = useCases
+	configCatalogue.catalogue = useCases
 	ruleCatalogue.catalogue = useCases
 	suggestionCatalogue.catalogue = useCases
 

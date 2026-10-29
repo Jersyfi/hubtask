@@ -26,6 +26,7 @@ import (
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
+	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	importservice "github.com/Jersyfi/hubtask/core/application/service/importer"
 	"github.com/Jersyfi/hubtask/core/application/service/integration"
@@ -54,6 +55,21 @@ func Descriptors() []usecase.Descriptor {
 		settingservice.ListModules{}.Descriptor(),
 		settingservice.SetModule{}.Descriptor(),
 		settingservice.ReadSettingsCatalogue{}.Descriptor(),
+		configservice.ReadConfigSchema{}.Descriptor(),
+		configservice.ExportConfig{}.Descriptor(),
+		configservice.ExplainConfig{}.Descriptor(),
+		configservice.ValidateConfig{}.Descriptor(),
+		configservice.PlanConfig{}.Descriptor(),
+		configservice.ProposeConfig{}.Descriptor(),
+		configservice.ApplyConfig{}.Descriptor(),
+		configservice.ListConfigVersions{}.Descriptor(),
+		configservice.ReadConfigVersion{}.Descriptor(),
+		configservice.ListConfigProposals{}.Descriptor(),
+		configservice.DecideConfigProposal{}.Descriptor(),
+		configservice.SetConfigPolicy{}.Descriptor(),
+		configservice.ListConfigTemplates{}.Descriptor(),
+		configservice.PublishConfigTemplate{}.Descriptor(),
+		configservice.PlanConfigTemplate{}.Descriptor(),
 		workflowservice.ListEntryTypes{}.Descriptor(),
 		workflowservice.CreateEntryType{}.Descriptor(),
 		workflowservice.ChangeEntryType{}.Descriptor(),
