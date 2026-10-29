@@ -377,13 +377,15 @@
         {#if plan.reach && plan.reach.length > 0}
           <ul class="changes" data-reach>
             {#each plan.reach as reached (reached.path)}
-              {#if reached.entries !== undefined}
+              {#if reached.withheld}
+                <li>{t('app.changes.reach_withheld', { path: reached.path })}</li>
+              {:else if reached.entries !== undefined}
                 <li>{t('app.changes.reach_entries', { path: reached.path, count: reached.entries })}</li>
               {/if}
-              {#if reached.hidden_entries !== undefined}
+              {#if !reached.withheld && reached.hidden_entries !== undefined}
                 <li>{t('app.changes.reach_hidden', { path: reached.path, entries: reached.hidden_entries, values: reached.hidden_values ?? 0 })}</li>
               {/if}
-              {#if reached.accounts !== undefined}
+              {#if !reached.withheld && reached.accounts !== undefined}
                 <li>{t('app.changes.reach_people', {
                   path: reached.path, accounts: reached.accounts, groups: reached.groups ?? 0,
                   gained: reached.gained?.length ?? 0, lost: reached.lost?.length ?? 0,

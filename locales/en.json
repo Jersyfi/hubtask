@@ -1894,6 +1894,7 @@
   "app.changes.reach_hidden": "{path}: {entries, plural, one {# entry is} other {# entries are}} hidden by level and {values, plural, one {# entry shows} other {# entries show}} fewer values - nothing is deleted",
   "app.changes.reach_entries": "{path}: {count, plural, one {# entry moves} other {# entries move}} to another status",
   "app.changes.reach_people": "{path}: {accounts, plural, one {# person} other {# people}} and {groups, plural, one {# group} other {# groups}} gain {gained, plural, one {# permission} other {# permissions}} and lose {lost}",
+  "app.changes.reach_withheld": "{path}: what this change reaches is not counted - you may not see it",
   "app.changes.compare": "Compare two versions",
   "app.changes.compare_from": "From",
   "app.changes.compare_to": "To",
