@@ -55,3 +55,33 @@ func TestAFormulaReadsTheNumberFieldsOfItsScope(t *testing.T) {
 		t.Error("a formula producing text compiled")
 	}
 }
+
+// A whole number meets a number field in a formula's arithmetic and comparison: `hours * 2` and
+// `hours > 1` answer as `hours * 2.0` would, on the left as on the right.
+func TestAFormulaMixesWholeNumbersWithNumberFields(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	environment := port.Environment{Variables: []port.Variable{
+		{Name: "entry", Kind: port.KindMap, Fields: []port.Variable{
+			{Name: "custom_fields", Kind: port.KindMap, Fields: []port.Variable{{Name: "hours", Kind: port.KindString}}},
+		}},
+	}}
+	for text, want := range map[string]float64{
+		"entry.custom_fields.hours * 2":           5,
+		"2 * entry.custom_fields.hours":           5,
+		"entry.custom_fields.hours + 1":           3.5,
+		"10 - entry.custom_fields.hours":          7.5,
+		"entry.custom_fields.hours / 2":           1.25,
+		"entry.custom_fields.hours > 1 ? 1 : 0":   1,
+		"(entry.custom_fields.hours * 2 + 1) / 3": 2,
+	} {
+		program, err := expression.New().Compile(text, environment, port.Number)
+		if err != nil {
+			t.Fatalf("%q was refused: %v", text, err)
+		}
+		value, err := program.Evaluate(ctx, formulaEntry{"hours": 2.5})
+		if err != nil || value.Number != want {
+			t.Fatalf("%q answered %v, %v; want %v", text, value.Number, err, want)
+		}
+	}
+}

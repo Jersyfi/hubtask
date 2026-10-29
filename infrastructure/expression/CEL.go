@@ -96,6 +96,11 @@ func compileNow(text string, environment port.Environment, want port.Result) (po
 	if issues != nil && issues.Err() != nil {
 		return nil, refusalOf(issues.Err()).Error()
 	}
+	if want == port.Number {
+		if ast, err = asFormula(env, ast); err != nil {
+			return nil, refusalOf(err).Error()
+		}
+	}
 
 	// The output type, checked here rather than at evaluation. A condition that produces a string
 	// filters nothing and a template that produces a boolean renders "true", and both are silently
@@ -267,6 +272,8 @@ func environmentOf(environment port.Environment) (*cel.Env, error) {
 		// Depth, not length, is what makes a compile slow (port.MaxDepth).
 		cel.ParserRecursionLimit(port.MaxDepth),
 	}
+	// `hours > 1` compares a double with an int, as a person writes it.
+	options = append(options, cel.CrossTypeNumericComparisons(true))
 	for _, variable := range environment.Variables {
 		celType, err := typeOf(variable.Kind)
 		if err != nil {
