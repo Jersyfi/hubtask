@@ -107,11 +107,12 @@ linter can be reconfigured in a pull request and a red test is visible in review
 The JavaScript half points inwards too, towards what is shared:
 
 ```
-apps/webapp  → packages/design-system, packages/sync-engine, packages/expression
+apps/webapp  → packages/design-system, packages/sync-engine, packages/expression, packages/editor
 apps/website → packages/design-system, packages/api-client (the document, at build time)
 packages/*   → other packages/* only, acyclically (ADR-0033)
              sync-engine → api-client, and nothing else new
              expression → api-client (its types) and the accepted CEL evaluator for the browser
+             editor → the accepted block editor (TipTap's MIT core on ProseMirror) and CRDT (Yjs)
              n8n-nodes-hubtask, zapier-app → api-client (the document, at build time)
 sdk/*        → nothing in the workspace, and nothing in the workspace → sdk/*
 ```
@@ -137,6 +138,10 @@ it generates its own types and has no edge to any first-party member.
 * `packages/expression` evaluates a type's form and a calculated field in the browser while the
   server cannot be reached, over the names the server's environments declare; online the server's
   answer is the one drawn, and every write is judged by the server again (foundation.md F-4).
+* `packages/editor` is a page's block editor: TipTap's MIT core over a Yjs live document, its
+  connection in the server's framing ([offline-sync.md](./offline-sync.md) §13) and the Markdown
+  projection a page saves beside it. The socket is opened by the sync engine (`liveSocket`), which
+  holds the bearer; the editor knows no address, no token and no screen (foundation.md §3).
 * **The engine is product-agnostic.** Which paths a record makes stale, which reads the local copy
   answers and which writes are which mutation kind come from `apps/webapp/src/lib/data/`
   (`pathsFor`, `storeFor`, `mutationFor`); the engine never learns what a hub is.

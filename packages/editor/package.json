@@ -1,0 +1,37 @@
+{
+  "name": "@hubtask/editor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A page's block editor: the accepted ProseMirror core (TipTap, MIT parts only) over a Yjs live document, its connection in the server's framing, and the Markdown projection a page saves beside it.",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "build": "node -e \"process.stdout.write('editor: sources only, nothing to build\\n')\"",
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
+    "lint": "node ../design-system/build/lint-no-literals.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@tiptap/core": "3.32.0",
+    "@tiptap/extension-collaboration": "3.32.0",
+    "@tiptap/extension-collaboration-caret": "3.32.0",
+    "@tiptap/extension-list": "3.32.0",
+    "@tiptap/pm": "3.32.0",
+    "@tiptap/starter-kit": "3.32.0",
+    "@tiptap/y-tiptap": "3.0.10",
+    "lib0": "^0.2.119",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.33"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^6.0.3"
+  }
+}

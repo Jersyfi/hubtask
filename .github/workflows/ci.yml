@@ -55,6 +55,7 @@ jobs:
       api_client: ${{ github.event_name != 'pull_request' || steps.filter.outputs.api_client == 'true' }}
       sync_engine: ${{ github.event_name != 'pull_request' || steps.filter.outputs.sync_engine == 'true' }}
       expression: ${{ github.event_name != 'pull_request' || steps.filter.outputs.expression == 'true' }}
+      editor: ${{ github.event_name != 'pull_request' || steps.filter.outputs.editor == 'true' }}
       n8n_node: ${{ github.event_name != 'pull_request' || steps.filter.outputs.n8n_node == 'true' }}
       zapier_app: ${{ github.event_name != 'pull_request' || steps.filter.outputs.zapier_app == 'true' }}
       sdk_typescript: ${{ github.event_name != 'pull_request' || steps.filter.outputs.sdk_typescript == 'true' }}
@@ -181,6 +182,10 @@ jobs:
               - 'packages/expression/**'
               - 'packages/api-client/**'
               - 'api/openapi.yaml'
+              - *workspace-manifests
+            # A page's block editor, its live document's connection and its Markdown projection.
+            editor:
+              - 'packages/editor/**'
               - *workspace-manifests
             docs:
               - '**/*.md'
@@ -830,7 +835,7 @@ jobs:
     # confined to `packages/sync-engine/**` skipped the whole lane, so the package's own
     # tests never ran. It went unnoticed because that package had never changed alone -
     # every previous change to it came with `api/openapi.yaml`, which set `openapi`.
-    if: needs.changes.outputs.webapp == 'true' || needs.changes.outputs.website == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.expression == 'true' || needs.changes.outputs.n8n_node == 'true' || needs.changes.outputs.zapier_app == 'true' || needs.changes.outputs.sdk_typescript == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true'
+    if: needs.changes.outputs.webapp == 'true' || needs.changes.outputs.website == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.expression == 'true' || needs.changes.outputs.editor == 'true' || needs.changes.outputs.n8n_node == 'true' || needs.changes.outputs.zapier_app == 'true' || needs.changes.outputs.sdk_typescript == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -856,6 +861,8 @@ jobs:
             run: ${{ needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true' }}
           - package: expression
             run: ${{ needs.changes.outputs.expression == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true' }}
+          - package: editor
+            run: ${{ needs.changes.outputs.editor == 'true' || needs.changes.outputs.ci == 'true' }}
           # The connector packages are generated from the api-client's copy of the document
           # (ADR-0058), so a contract change is a change to each of them.
           # They are best effort on a pull request (ADR-0089): only a change to the connector
@@ -870,7 +877,7 @@ jobs:
           - package: sdk-typescript
             run: ${{ needs.changes.outputs.sdk_typescript == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true' }}
           - package: webapp
-            run: ${{ needs.changes.outputs.webapp == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.expression == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true' }}
+            run: ${{ needs.changes.outputs.webapp == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.expression == 'true' || needs.changes.outputs.editor == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true' }}
           # The website renders the API reference from the api-client's copy of the document
           # (api-client's dist/), so a contract change is a website change.
           - package: website
@@ -945,7 +952,7 @@ jobs:
   engines:
     name: The client runs in Chromium
     needs: changes
-    if: needs.changes.outputs.webapp == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.expression == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true'
+    if: needs.changes.outputs.webapp == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.expression == 'true' || needs.changes.outputs.editor == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true'
     runs-on: ubuntu-latest
     # The suite alone takes about sixteen minutes since the screen walks came in, and the apt
     # steps up to fifteen on a slow mirror: twenty minutes cancelled green runs.
