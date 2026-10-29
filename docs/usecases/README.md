@@ -265,6 +265,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-CNV-05](./whiteboard/UC-CNV-05-run-a-session-on-a-whiteboard.md) | Run a session on a whiteboard | whiteboard |
 | [UC-CNV-06](./whiteboard/UC-CNV-06-go-back-to-an-earlier-state-of-a-whiteboard.md) | Go back to an earlier state of a whiteboard | whiteboard |
 | [UC-CNV-07](./whiteboard/UC-CNV-07-see-what-points-at-a-whiteboard.md) | See what points at a whiteboard | whiteboard |
+| [UC-CNV-08](./whiteboard/UC-CNV-08-put-pictures-and-files-on-a-whiteboard.md) | Put pictures and files on a whiteboard | whiteboard |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work |
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work |

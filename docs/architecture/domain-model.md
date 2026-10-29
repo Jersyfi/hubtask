@@ -732,8 +732,11 @@ A hub holds `Board`s (at most 1,000 outside the trash), judged at the hub as its
 read, WRITE_ITEMS to draw. A board's `Scene` is its objects in drawing order, at most 5,000:
 `STICKY` notes, `SHAPE`s (rectangle, rounded, ellipse, diamond, parallelogram, triangle - the basic
 and the flowchart set), `TEXT`, `CONNECTOR`s, `FRAME`s, `CARD`s, freehand `STROKE`s (pen or highlighter, at most 1,000
-points relative to the stroke's box) and web `LINK`s (an http or https address drawn as its card,
-never loaded). Any object may carry a `group`, chosen, moved and copied with the others of it. Each object has an identifier
+points relative to the stroke's box), web `LINK`s (an http or https address drawn as its card,
+never loaded), `IMAGE`s and `FILE`s (an upload, drawn as itself or as its card). An upload is
+placed on a board before an object draws it (`whiteboard_media`): placing is what lets the board's
+readers read it, so it is judged at the board - the writer's own upload, or one a board they may
+read holds - and kept as long as the board, whatever the scene does with it. Any object may carry a `group`, chosen, moved and copied with the others of it. Each object has an identifier
 unique on the board and shaped as a reference's anchor, so `hubtask:whiteboard/<id>#<frame>` names
 a frame. A connector is attached to the objects at its ends (`from`, `to`) and follows them; an end
 attached to nothing is a point. A colour is a label token's name, never a value (rule 15). A card
