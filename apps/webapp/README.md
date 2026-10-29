@@ -26,6 +26,8 @@ against a real server, is in [`docs/evidence/README.md`](../../docs/evidence/REA
   Route-level code splitting (F-10): only the work's own screens (today, a place, an entry) and the
   doors before the frame are in the first bundle; every other screen is a chunk `LazyView` loads
   when its route is first reached, and says so with a way back when the chunk cannot be fetched.
+  A place's settings (the structure panel and its tabs) are chunks of their own inside the eager
+  place screen, fetched on the first visit to them.
 * **`src/lib/frame/`** is the shell every signed-in view sits inside: the app bar, the navigation,
   the page head, `SyncLine` (the copy and the server, on every route) and the tour guide.
 * **`src/lib/platform/`** is the seam between the bundle and where it runs. Today it has one

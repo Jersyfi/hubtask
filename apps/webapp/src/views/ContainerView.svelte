@@ -35,23 +35,19 @@
   import Board from '../lib/entries/Board.svelte';
   import CollectionSummary from '../lib/entries/CollectionSummary.svelte';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
-  import StructurePanel from '../lib/workspace/StructurePanel.svelte';
-  import ModuleSwitches from '../lib/workspace/ModuleSwitches.svelte';
   import ContainerMilestone from '../lib/entries/ContainerMilestone.svelte';
   import { showsMilestone } from '../lib/data/kudos.ts';
   import { celebration } from '../lib/celebration.svelte.ts';
   import BulkBar from '../lib/entries/BulkBar.svelte';
+  import LazyView from '../lib/frame/LazyView.svelte';
   import TemplatesDialog from '../lib/entries/TemplatesDialog.svelte';
   import ViewsPanel from '../lib/entries/ViewsPanel.svelte';
   import ExportDialog from '../lib/entries/ExportDialog.svelte';
   import FeedsDialog from '../lib/entries/FeedsDialog.svelte';
   import TimelineView from '../lib/entries/TimelineView.svelte';
-  import CustomFieldsDialog from '../lib/entries/CustomFieldsDialog.svelte';
-  import LabelsDialog from '../lib/entries/LabelsDialog.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
   import LayoutSwitch from '../lib/entries/LayoutSwitch.svelte';
   import MoveDialog from '../lib/entries/MoveDialog.svelte';
-  import PoliciesDialog from '../lib/workspace/PoliciesDialog.svelte';
   import QueryPanel from '../lib/entries/QueryPanel.svelte';
   import MembersDialog from '../lib/people/MembersDialog.svelte';
   import EmergencyNotice from '../lib/workspace/EmergencyNotice.svelte';
@@ -76,7 +72,6 @@
   import { changeRefusalCode, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { typesShown } from '../lib/data/entrytypes.ts';
-  import HandleField from '../lib/mail/HandleField.svelte';
   import { offeredByProfile, sortableFields } from '../lib/data/query.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
@@ -91,7 +86,6 @@
   import { isPending } from '../lib/data/suggestions.ts';
   import { byItem } from '../lib/data/bulk.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
-  import ContainerEditDialog from '../lib/workspace/ContainerEditDialog.svelte';
   import PositionDialog from '../lib/workspace/PositionDialog.svelte';
   import { offerUndo } from '../lib/entries/undo.svelte.ts';
   import { placeMenu } from '../lib/workspace/placeMenu.ts';
@@ -128,6 +122,18 @@
 
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+
+  // The place's settings are chunks of their own (F-10): the work of a place draws none of them,
+  // and the first visit to its settings fetches them.
+  const settingsParts = {
+    StructurePanel: () => import('../lib/workspace/StructurePanel.svelte'),
+    ModuleSwitches: () => import('../lib/workspace/ModuleSwitches.svelte'),
+    CustomFieldsDialog: () => import('../lib/entries/CustomFieldsDialog.svelte'),
+    LabelsDialog: () => import('../lib/entries/LabelsDialog.svelte'),
+    PoliciesDialog: () => import('../lib/workspace/PoliciesDialog.svelte'),
+    HandleField: () => import('../lib/mail/HandleField.svelte'),
+    ContainerEditDialog: () => import('../lib/workspace/ContainerEditDialog.svelte'),
+  };
 
   interface Props {
     id: string;
@@ -1145,21 +1151,24 @@
         <ReadOnlyNotice text={readOnlyReason} textId={readOnlyNoticeId} />
       {:else}
         {#snippet generalTab()}
-          <ContainerEditDialog isEmbedded isOpen {container} />
+          <LazyView load={settingsParts.ContainerEditDialog} props={{ isEmbedded: true, isOpen: true, container }} />
           <!-- The collection's mail handle: the subject word, the address and its ticket keys (ADR-0094). -->
           {#if container.type === 'COLLECTION'}
             <section class="mail-settings" aria-labelledby="mail-settings-head" data-mail-settings>
               <h2 class="mail-head" id="mail-settings-head">{t('app.mail.section')}</h2>
               <p class="mail-hint">{t('app.mail.section_hint')}</p>
-              <HandleField {container} {mayShape} />
+              <LazyView load={settingsParts.HandleField} props={{ container, mayShape }} />
             </section>
           {/if}
         {/snippet}
         {#snippet labelsTab()}
-          <LabelsDialog isEmbedded isOpen collectionId={container.id} />
+          <LazyView load={settingsParts.LabelsDialog} props={{ isEmbedded: true, isOpen: true, collectionId: container.id }} />
         {/snippet}
         {#snippet fieldsTab()}
-          <CustomFieldsDialog isEmbedded isOpen collectionId={container.id} role={structureRole} />
+          <LazyView
+            load={settingsParts.CustomFieldsDialog}
+            props={{ isEmbedded: true, isOpen: true, collectionId: container.id, role: structureRole }}
+          />
         {/snippet}
         {#snippet templatesTab()}
           <TemplatesDialog
@@ -1172,34 +1181,40 @@
           />
         {/snippet}
         {#snippet automationTab()}
-          <PoliciesDialog isEmbedded isOpen {container} path={containerPath} role={structureRole} />
+          <LazyView
+            load={settingsParts.PoliciesDialog}
+            props={{ isEmbedded: true, isOpen: true, container, path: containerPath, role: structureRole }}
+          />
         {/snippet}
         {#snippet modulesTab()}
-          <ModuleSwitches hubId={container.id} />
+          <LazyView load={settingsParts.ModuleSwitches} props={{ hubId: container.id }} />
         {/snippet}
         {#snippet peopleTab()}
           <MembersDialog isEmbedded isOpen title={t('app.people.title')} scope={memberScope} path={memberPath} />
         {/snippet}
-        <StructurePanel
-          isOpen
-          tab={section || 'general'}
-          {container}
-          {mayShapeWorkspace}
-          hrefOf={(each) => `${settingsPath}/${each}`}
-          onsection={(each) => onnavigate(`${settingsPath}/${each}`)}
-          before={[{ id: 'general', label: t('app.settings.section_general'), body: generalTab }]}
-          tabs={container.type === 'COLLECTION'
-            ? [
-                { id: 'labels', label: t('app.structure.tab_labels'), body: labelsTab },
-                { id: 'fields', label: t('app.structure.tab_fields'), body: fieldsTab },
-                { id: 'templates', label: t('app.structure.tab_templates'), body: templatesTab },
-                { id: 'automation', label: t('app.structure.tab_automation'), body: automationTab },
-                { id: 'people', label: t('app.structure.tab_people'), body: peopleTab },
-              ]
-            : [
-                { id: 'modules', label: t('app.modules.title'), body: modulesTab },
-                { id: 'people', label: t('app.structure.tab_people'), body: peopleTab },
-              ]}
+        <LazyView
+          load={settingsParts.StructurePanel}
+          props={{
+            isOpen: true,
+            tab: section || 'general',
+            container,
+            mayShapeWorkspace,
+            hrefOf: (each: string) => `${settingsPath}/${each}`,
+            onsection: (each: string) => onnavigate(`${settingsPath}/${each}`),
+            before: [{ id: 'general', label: t('app.settings.section_general'), body: generalTab }],
+            tabs: container.type === 'COLLECTION'
+              ? [
+                  { id: 'labels', label: t('app.structure.tab_labels'), body: labelsTab },
+                  { id: 'fields', label: t('app.structure.tab_fields'), body: fieldsTab },
+                  { id: 'templates', label: t('app.structure.tab_templates'), body: templatesTab },
+                  { id: 'automation', label: t('app.structure.tab_automation'), body: automationTab },
+                  { id: 'people', label: t('app.structure.tab_people'), body: peopleTab },
+                ]
+              : [
+                  { id: 'modules', label: t('app.modules.title'), body: modulesTab },
+                  { id: 'people', label: t('app.structure.tab_people'), body: peopleTab },
+                ],
+          }}
         />
       {/if}
     </Stack>
