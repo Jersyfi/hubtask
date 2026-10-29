@@ -7,6 +7,7 @@ import (
 	"context"
 	"slices"
 	"strconv"
+	"strings"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -15,7 +16,7 @@ import (
 
 // reach is what one change touches beyond the configuration (config-document.md §2): the
 // entries a workflow's new shape moves, the people a role's change gains or loses a permission
-// for. Counts and identifiers only - never an entry's content (rule 10).
+// for, the people a module switched off leaves without it. Counts and identifiers only - never an entry's content (rule 10).
 type reach struct {
 	Path string
 	// Entries, Moves and Removed are a workflow's publish preview for the shape the plan sets.
@@ -30,6 +31,10 @@ type reach struct {
 	// stop showing, and the entries whose field values would be hidden. Hidden, never deleted.
 	HiddenEntries, HiddenValues int
 	Hides                       bool
+	// People is how many people a module switched off leaves without it; Switches says the row
+	// is one.
+	People   int
+	Switches bool
 	// Withheld says the reach was not counted: the preview it comes from refused this reader (a
 	// token without the preview's scope, a module off). The plan holds; what it touches is
 	// unknown to this reader, and the plan says so rather than nothing.
@@ -43,11 +48,12 @@ const (
 	// The structure previews: a hub's, and the workspace's over every hub that follows it.
 	previewContainerStructure = "PreviewContainerStructure"
 	previewWorkspaceStructure = "PreviewWorkspaceStructure"
+	previewModuleReach        = "PreviewModuleReach"
 )
 
 // reachOf asks the use cases that know what a change touches, in the plan's read: a workflow's
 // publish preview for the shape the plan sets, a hub scheme's preview, a structure preview, the
-// role grants for a changed role. A shape that removes a status entries are in is refused here,
+// people a module switched off leaves, the role grants for a changed role. A shape that removes a status entries are in is refused here,
 // as its publish would refuse the apply.
 func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan) error {
 	var grants []any
@@ -56,6 +62,26 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 	reset := []any{}
 	for _, change := range p.Changes {
 		switch {
+		case change.Section == sectionModules && text(change.After[switchAttribute]) == "OFF":
+			in := usecase.Input{"module": strings.ToUpper(change.Key)}
+			if !p.Hub.IsZero() {
+				in["hub_id"] = p.Hub.String()
+			}
+			answer, err := d.Catalogue.Invoke(ctx, previewModuleReach, actor, in)
+			if err != nil {
+				if withheld(err) {
+					p.Reach = append(p.Reach, reach{Path: change.Path(), Withheld: true})
+					continue
+				}
+				p.Refusals = append(p.Refusals, fieldsOf(err, change.Path())...)
+				continue
+			}
+			normal, err := normalise(map[string]any(answer))
+			if err != nil {
+				return err
+			}
+			counted, _ := normal.(map[string]any)
+			p.Reach = append(p.Reach, reach{Path: change.Path(), Switches: true, People: whole(counted["people"])})
 		case change.Section == sectionStructure:
 			if change.Op == domain.OpRemove {
 				reset = append(reset, change.Key)
@@ -282,6 +308,9 @@ func ReachOutput(rows []reach) []usecase.Output {
 		if r.Hides {
 			row["hidden_entries"] = r.HiddenEntries
 			row["hidden_values"] = r.HiddenValues
+		}
+		if r.Switches {
+			row["people"] = r.People
 		}
 		if r.Withheld {
 			row["withheld"] = true

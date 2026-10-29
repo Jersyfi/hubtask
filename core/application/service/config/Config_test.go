@@ -112,6 +112,15 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 			return nil, shared.ErrForbidden.WithDetail("access.not_permitted")
 		}
 		return usecase.Output{"field_id": in["field_id"], "entries": w.fieldReach}, nil
+	case "PreviewModuleReach":
+		if w.inputs == nil {
+			w.inputs = map[string][]usecase.Input{}
+		}
+		w.inputs[name] = append(w.inputs[name], in)
+		if w.previewWithheld {
+			return nil, shared.ErrForbidden.WithDetail("auth.scope_insufficient")
+		}
+		return usecase.Output{"module": in["module"], "on": true, "people": 7}, nil
 	case "ListRoles":
 		return usecase.Output{"custom": rowsOf(w.roles), "grants": w.grants}, nil
 	case "ListWorkflows":

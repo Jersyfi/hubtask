@@ -159,3 +159,29 @@ func TestAPlanCountsWhatTheWorkspacesStructureWouldStopShowing(t *testing.T) {
 		t.Errorf("a hub's preview was asked for the workspace: %v", f.world.inputs["PreviewContainerStructure"])
 	}
 }
+
+// S-09's gap: a plan that switches a module off says how many people it leaves without it, asked
+// at the plan's place; a switch on is not counted.
+func TestAPlanCountsThePeopleAModuleSwitchedOffLeaves(t *testing.T) {
+	f := newFixture()
+	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{
+		"document": map[string]any{"modules": map[string]any{"workflows": map[string]any{"switch": "OFF"}}},
+	})
+
+	reached, _ := plan["reach"].([]usecase.Output)
+	if len(reached) != 1 || reached[0]["path"] != "modules.workflows" || reached[0]["people"] != 7 {
+		t.Fatalf("reach %v", reached)
+	}
+	asked := f.world.inputs["PreviewModuleReach"]
+	if len(asked) != 1 || asked[0]["module"] != "WORKFLOWS" || asked[0]["hub_id"] != nil {
+		t.Fatalf("the count was asked %v", asked)
+	}
+
+	f.world.previewWithheld = true
+	plan = invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{
+		"document": map[string]any{"modules": map[string]any{"workflows": map[string]any{"switch": "OFF"}}},
+	})
+	if reached, _ := plan["reach"].([]usecase.Output); len(reached) != 1 || reached[0]["withheld"] != true {
+		t.Errorf("a withheld count was answered %v", reached)
+	}
+}
