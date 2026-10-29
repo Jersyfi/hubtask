@@ -10394,7 +10394,7 @@ type ItemAggregateQuery struct {
 	IncludeArchived *bool       `json:"include_archived,omitempty"`
 	IncludeTrashed  *bool       `json:"include_trashed,omitempty"`
 
-	// Scope Where to look, exactly as `POST /items:query` takes it - or `workspace`, instead of either identifier, for every collection the caller may read (at most 2000). An entry shared with the caller alone counts only where its collection is readable.
+	// Scope Where to look, exactly as `POST /items:query` takes it - or `workspace`, instead of either identifier, for every collection the caller may read (at most 2000; archived ones with `include_archived`), and every entry shared with the caller alone in a collection they do not read (at most 5000).
 	Scope struct {
 		ContainerId        *openapi_types.UUID `json:"container_id,omitempty"`
 		IncludeDescendants *bool               `json:"include_descendants,omitempty"`

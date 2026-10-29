@@ -32724,7 +32724,7 @@
         "properties": {
           "scope": {
             "type": "object",
-            "description": "Where to look, exactly as `POST /items:query` takes it - or `workspace`, instead of either identifier, for every collection the caller may read (at most 2000). An entry shared with the caller alone counts only where its collection is readable.\n",
+            "description": "Where to look, exactly as `POST /items:query` takes it - or `workspace`, instead of either identifier, for every collection the caller may read (at most 2000; archived ones with `include_archived`), and every entry shared with the caller alone in a collection they do not read (at most 5000).\n",
             "properties": {
               "container_id": {
                 "type": "string",

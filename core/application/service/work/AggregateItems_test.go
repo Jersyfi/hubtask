@@ -9,6 +9,7 @@ import (
 	"slices"
 	"testing"
 
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -108,5 +109,52 @@ func TestASummaryWithoutAScopeIsRefused(t *testing.T) {
 	}
 	if adapter.asked.Anchor.Kind != "" {
 		t.Error("an unscoped summary reached the adapter")
+	}
+}
+
+// sharedEntries answers what was shared with the actor alone.
+type sharedEntries struct{ entries []identityrepo.SharedEntry }
+
+func (s sharedEntries) SharedAcross(
+	_ context.Context, _ shared.ID, _ int,
+) ([]identityrepo.SharedEntry, error) {
+	return s.entries, nil
+}
+
+// An entry shared with the actor alone, in a collection they do not read, is counted as a second
+// bound list; one in a readable collection is counted already, and one the authoriser refuses at
+// its own path is not (S-11).
+func TestAWorkspaceSummaryCountsAnEntrySharedAlone(t *testing.T) {
+	store, open, closed := destinationsFixture()
+	sharedHere := shared.MustParseID("0192f000-0000-7000-8000-000000000401")
+	sharedThere := shared.MustParseID("0192f000-0000-7000-8000-000000000402")
+	refused := shared.MustParseID("0192f000-0000-7000-8000-000000000403")
+	permits := &reader{permit: map[shared.ID]bool{open: true, sharedThere: true}}
+	adapter := &aggregates{}
+	h := AggregateItems{
+		Query:      QueryItems{Authorizer: &authorizer{}, UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now)},
+		Aggregates: adapter, Collections: store, Reader: permits,
+		Shared: sharedEntries{entries: []identityrepo.SharedEntry{
+			{ItemID: sharedHere, CollectionID: open},
+			{ItemID: sharedThere, CollectionID: closed},
+			{ItemID: refused, CollectionID: closed},
+		}},
+	}
+	_, err := h.Execute(t.Context(), summaryActor(),
+		view.Spec{Scope: view.Scope{Workspace: true}, IncludeArchived: true},
+		view.Aggregation{Function: view.AggregateCount})
+	if err != nil {
+		t.Fatal(err)
+	}
+	anchor := adapter.asked.Anchor
+	if !slices.Equal(anchor.CollectionIDs, []shared.ID{open}) ||
+		!slices.Equal(anchor.ItemIDs, []shared.ID{sharedThere}) {
+		t.Errorf("the statement reads %+v", anchor)
+	}
+	if permits.request.TargetType != itemTarget {
+		t.Errorf("the shared entries were asked %+v", permits.request)
+	}
+	if !store.asked.IncludeArchived {
+		t.Error("a summary over archived entries left the archived collections out")
 	}
 }

@@ -143,10 +143,11 @@ built-in quantity in whole minutes - `lead_time`, `created_at` to `completed_at`
 `query.field_not_aggregatable` for anything else), `group_by` (a field a query may group by) and
 `bucket` (`field`, a timestamp or a custom date, `period`: `day`, `week`, `month`, cut in the
 actor's time zone, and for a week `week_start`: `monday`, the default, or `sunday`). Its scope may
-instead be `workspace: true`: the use case asks a read of every live collection at its own path, at
-most 2000 (`query.workspace_too_large`), and binds the readable ones as one array, so the
-narrowing is inside the statement; an entry shared with the actor alone counts only where its
-collection is readable. A saved view may store `aggregate` (and then `scope_workspace: true`
+instead be `workspace: true`: the use case asks a read of every live collection (archived ones too
+with `include_archived`) at its own path, at most 2000 (`query.workspace_too_large`), and binds the
+readable ones as one array, so the narrowing is inside the statement; an entry shared with the
+actor alone in a collection they do not read is asked at its own path and bound as a second array,
+at most 5000. A saved view may store `aggregate` (and then `scope_workspace: true`
 instead of an anchor); `POST /views/{viewId}:aggregate` runs it under the caller's authorisation,
 and a view without one is refused (`views.aggregate_missing`); a workspace-scoped summary view has
 no rows, and its `:export` is refused (`views.summary_not_exportable`). It answers at most 5000 rows of

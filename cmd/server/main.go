@@ -2472,6 +2472,7 @@ func run() error {
 				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			},
 			Aggregates: items, Collections: containers, Reader: authorizer,
+			Shared: postgres.NewMembershipRepository(),
 		}.Descriptor(),
 		work.AggregateView{
 			Views: savedViews, Containers: containers, Permits: authorizer, UnitOfWork: unitOfWork,
@@ -2482,6 +2483,7 @@ func run() error {
 					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 				},
 				Aggregates: items, Collections: containers, Reader: authorizer,
+				Shared: postgres.NewMembershipRepository(),
 			},
 		}.Descriptor(),
 		// The authorisation service under three names, because a search asks the question in three

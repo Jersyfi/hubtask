@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -31,18 +32,25 @@ const AggregateItemsName = "AggregateItems"
 // The whole workspace is the one scope a query does not take: the collections the actor reads are
 // decided here, each by its own path, and handed to the statement as one bound list - the
 // narrowing inside the statement that a page of rows cannot have. An entry shared with the actor
-// alone, in a collection they hold no role on, is not counted there: its collection is not read.
+// alone, in a collection they hold no role on, is counted as a level list shows it: each such
+// entry judged at its own path, and bound as a second list.
 type AggregateItems struct {
 	Query      QueryItems
 	Aggregates repository.ItemAggregates
 	// Collections and Reader decide a workspace summary's collections; unwired, it is refused.
 	Collections repository.Collections
 	Reader      Reader
+	// Shared answers the entries shared with the actor alone; unwired, none is counted.
+	Shared identityrepo.SharedEntries
 }
 
 // MaxSummaryCollections bounds the collections a workspace summary reads: the bound list is one
-// parameter, and past this size a summary belongs to a hub.
-const MaxSummaryCollections = 2000
+// parameter, and past this size a summary belongs to a hub. MaxSummaryShared bounds the entries
+// shared with the actor alone the same way.
+const (
+	MaxSummaryCollections = 2000
+	MaxSummaryShared      = 5000
+)
 
 // Execute answers the summary.
 func (h AggregateItems) Execute(
@@ -60,7 +68,7 @@ func (h AggregateItems) Execute(
 		scope  shared.ID
 	)
 	if resolved.Scope.Workspace {
-		if anchor, err = h.workspace(ctx, actor); err != nil {
+		if anchor, err = h.workspace(ctx, actor, resolved.IncludeArchived); err != nil {
 			return repository.ItemAggregateResult{}, err
 		}
 	} else {
@@ -125,12 +133,12 @@ func (h AggregateItems) Execute(
 	return result, err
 }
 
-// workspace decides the collections a workspace summary reads: every live collection, private
-// hubs the actor is in included, kept where reading its entries is permitted at its own path - the
+// workspace decides the collections a workspace summary reads: every live collection - archived
+// ones too when the query keeps archived entries -, private hubs the actor is in included, kept where reading its entries is permitted at its own path - the
 // question QueryItems asks of one collection, asked of each. A collection left out is nobody's
 // refusal, so nothing is recorded per row (audit.md §4).
 func (h AggregateItems) workspace(
-	ctx context.Context, actor appshared.ActorContext,
+	ctx context.Context, actor appshared.ActorContext, includeArchived bool,
 ) (repository.Anchor, error) {
 	if err := actor.RequireScope(itemsRead); err != nil {
 		return repository.Anchor{}, err
@@ -139,11 +147,28 @@ func (h AggregateItems) workspace(
 		return repository.Anchor{}, shared.ErrInternal.WithDetail("query.workspace_unwired")
 	}
 
-	var rows []repository.CollectionInHub
+	var (
+		rows   []repository.CollectionInHub
+		shares []identityrepo.SharedEntry
+	)
 	err := h.Query.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if h.Shared != nil {
+			read, err := h.Shared.SharedAcross(ctx, actor.AccountID, MaxSummaryShared+1)
+			if err != nil {
+				return err
+			}
+			if len(read) > MaxSummaryShared {
+				return shared.ErrValidation.WithDetail("query.workspace_too_large").
+					WithParams(map[string]string{"maximum": strconv.Itoa(MaxSummaryShared)}).
+					WithFields(shared.FieldError{Path: "/scope/workspace", Code: "query.workspace_too_large"})
+			}
+			shares = read
+		}
 		page := repository.Page{Size: 200}
 		for {
-			read, err := h.Collections.InOrder(ctx, repository.CollectionQuery{IncludePrivate: true, Page: page})
+			read, err := h.Collections.InOrder(ctx, repository.CollectionQuery{
+				IncludePrivate: true, IncludeArchived: includeArchived, Page: page,
+			})
 			if err != nil {
 				return err
 			}
@@ -180,12 +205,56 @@ func (h AggregateItems) workspace(
 	if err != nil {
 		return repository.Anchor{}, err
 	}
+	unread := make(map[shared.ID]domain.Container, len(rows))
 	for i, row := range rows {
 		if i < len(allowed) && allowed[i] {
 			anchor.CollectionIDs = append(anchor.CollectionIDs, row.Collection.ID)
+			continue
+		}
+		unread[row.Collection.ID] = row.Collection
+	}
+	anchor.ItemIDs, err = h.sharedReached(ctx, actor, shares, unread)
+	return anchor, err
+}
+
+// sharedReached keeps the entries shared with the actor alone that lie in a live collection the
+// actor does not read, each judged at its own path - an entry in a readable collection is
+// counted already, and one in a collection the summary does not read is not counted at all.
+func (h AggregateItems) sharedReached(
+	ctx context.Context, actor appshared.ActorContext, shares []identityrepo.SharedEntry,
+	unread map[shared.ID]domain.Container,
+) ([]shared.ID, error) {
+	var (
+		candidates []shared.ID
+		paths      [][]identity.Scope
+	)
+	for _, entry := range shares {
+		collection, found := unread[entry.CollectionID]
+		if !found {
+			continue
+		}
+		candidates = append(candidates, entry.ItemID)
+		paths = append(paths, append(containerPath(collection), identity.ItemScope(entry.ItemID)))
+	}
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+	allowed, err := h.Reader.Permitted(ctx, actor, access.Request{
+		Permission: service.PermissionRead,
+		Action:     ItemReadAction,
+		TokenScope: itemsRead,
+		TargetType: itemTarget,
+	}, paths)
+	if err != nil {
+		return nil, err
+	}
+	var kept []shared.ID
+	for i, id := range candidates {
+		if i < len(allowed) && allowed[i] {
+			kept = append(kept, id)
 		}
 	}
-	return anchor, nil
+	return kept, nil
 }
 
 // shapeAggregation puts the definitions' shapes on the custom fields the aggregation names, as
@@ -224,8 +293,9 @@ func (h AggregateItems) Descriptor() usecase.Descriptor {
 	input = append(input, usecase.Field{
 		Name: "scope_workspace", Kind: usecase.KindBool,
 		Description: "The whole workspace instead of one hub, collection or entry: every " +
-			"collection the caller may read, at most 2000. An entry shared with the caller alone " +
-			"is counted only where its collection is readable.",
+			"collection the caller may read, at most 2000, archived ones with include_archived; " +
+			"an entry shared with the caller alone in a collection they do not read is counted " +
+			"too, at most 5000 of them.",
 	})
 	input = append(input, usecase.Field{
 		Name: "aggregate", Kind: usecase.KindObject, Required: true,
