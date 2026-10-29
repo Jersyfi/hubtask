@@ -12,7 +12,7 @@ import (
 )
 
 const findCustomField = `-- name: FindCustomField :one
-SELECT id, tenant_id, collection_id, key, kind, options, currency, is_required, applies_to,
+SELECT id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
        created_at, updated_at, deleted_at, version
 FROM custom_field_definition
 WHERE id = $1
@@ -26,6 +26,7 @@ type FindCustomFieldRow struct {
 	Kind         string
 	Options      []byte
 	Currency     *string
+	Formula      *string
 	IsRequired   bool
 	AppliesTo    []ItemType
 	CreatedAt    pgtype.Timestamptz
@@ -45,6 +46,7 @@ func (q *Queries) FindCustomField(ctx context.Context, id pgtype.UUID) (FindCust
 		&i.Kind,
 		&i.Options,
 		&i.Currency,
+		&i.Formula,
 		&i.IsRequired,
 		&i.AppliesTo,
 		&i.CreatedAt,
@@ -56,7 +58,7 @@ func (q *Queries) FindCustomField(ctx context.Context, id pgtype.UUID) (FindCust
 }
 
 const findCustomFieldInScope = `-- name: FindCustomFieldInScope :one
-SELECT id, tenant_id, collection_id, key, kind, options, currency, is_required, applies_to,
+SELECT id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
        created_at, updated_at, deleted_at, version
 FROM custom_field_definition
 WHERE deleted_at IS NULL
@@ -79,6 +81,7 @@ type FindCustomFieldInScopeRow struct {
 	Kind         string
 	Options      []byte
 	Currency     *string
+	Formula      *string
 	IsRequired   bool
 	AppliesTo    []ItemType
 	CreatedAt    pgtype.Timestamptz
@@ -102,6 +105,7 @@ func (q *Queries) FindCustomFieldInScope(ctx context.Context, arg FindCustomFiel
 		&i.Kind,
 		&i.Options,
 		&i.Currency,
+		&i.Formula,
 		&i.IsRequired,
 		&i.AppliesTo,
 		&i.CreatedAt,
@@ -115,12 +119,12 @@ func (q *Queries) FindCustomFieldInScope(ctx context.Context, arg FindCustomFiel
 const insertCustomField = `-- name: InsertCustomField :exec
 
 INSERT INTO custom_field_definition (
-  id, tenant_id, collection_id, key, kind, options, currency, is_required, applies_to,
+  id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
   created_at, updated_at, version
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
-  $4, $5, $6, $7,
-  $8::item_type[], $9, $9, 1
+  $4, $5, $6, $7, $8,
+  $9::item_type[], $10, $10, 1
 )
 `
 
@@ -131,6 +135,7 @@ type InsertCustomFieldParams struct {
 	Kind         string
 	Options      []byte
 	Currency     *string
+	Formula      *string
 	IsRequired   bool
 	AppliesTo    []ItemType
 	CreatedAt    pgtype.Timestamptz
@@ -152,6 +157,7 @@ func (q *Queries) InsertCustomField(ctx context.Context, arg InsertCustomFieldPa
 		arg.Kind,
 		arg.Options,
 		arg.Currency,
+		arg.Formula,
 		arg.IsRequired,
 		arg.AppliesTo,
 		arg.CreatedAt,
@@ -207,7 +213,7 @@ func (q *Queries) ListCustomFieldKindsByKey(ctx context.Context, arg ListCustomF
 }
 
 const listCustomFieldsInScope = `-- name: ListCustomFieldsInScope :many
-SELECT id, tenant_id, collection_id, key, kind, options, currency, is_required, applies_to,
+SELECT id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
        created_at, updated_at, deleted_at, version
 FROM custom_field_definition
 WHERE deleted_at IS NULL
@@ -223,6 +229,7 @@ type ListCustomFieldsInScopeRow struct {
 	Kind         string
 	Options      []byte
 	Currency     *string
+	Formula      *string
 	IsRequired   bool
 	AppliesTo    []ItemType
 	CreatedAt    pgtype.Timestamptz
@@ -252,6 +259,7 @@ func (q *Queries) ListCustomFieldsInScope(ctx context.Context, collectionID pgty
 			&i.Kind,
 			&i.Options,
 			&i.Currency,
+			&i.Formula,
 			&i.IsRequired,
 			&i.AppliesTo,
 			&i.CreatedAt,

@@ -853,6 +853,7 @@ type CustomFieldDefinition struct {
 	UpdatedAt    pgtype.Timestamptz
 	Version      int32
 	Currency     *string
+	Formula      *string
 }
 
 type DataSubjectRequest struct {
