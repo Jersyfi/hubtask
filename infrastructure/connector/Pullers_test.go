@@ -98,7 +98,7 @@ func TestNetBoxDevicesBecomeServersAndNetworkDevices(t *testing.T) {
 			w.WriteHeader(http.StatusForbidden)
 			return
 		}
-		_, _ = w.Write([]byte(`{"count":1,"results":[{"id":3,"name":"sw-1","serial":"X","role":{"slug":"access-switch"},
+		_, _ = w.Write([]byte(`{"count":1,"results":[{"id":3,"name":"sw-1","serial":"X","role":{"slug":"access-switch"},"site":{"id":1,"name":"Frankfurt"},
 			"device_type":{"manufacturer":{"name":"Cisco"},"model":"C9200"},"primary_ip":{"address":"10.0.0.2/24"},"last_updated":"2026-10-29T10:00:00Z"}]}`))
 	}))
 	defer server.Close()
@@ -110,8 +110,77 @@ func TestNetBoxDevicesBecomeServersAndNetworkDevices(t *testing.T) {
 	if it.Class != "network_device" || it.Attributes["ip_address"] != "10.0.0.2" || it.Attributes["model"] != "C9200" {
 		t.Fatalf("item %+v", it)
 	}
-	if page.More || page.Cursor != "2026-10-29T10:00:00Z" {
-		t.Fatalf("a short page ends the walk at the newest change: %q %v", page.Cursor, page.More)
+	if len(page.Payload.Items) != 2 || page.Payload.Items[1].Class != "site" || page.Payload.Items[1].NativeKey != "site:1" ||
+		len(page.Payload.Relations) != 1 || page.Payload.Relations[0] != (cmdb.RelationItem{Type: cmdb.RelContains, From: "netbox-site-1", To: "netbox-3"}) {
+		t.Fatalf("the device's site contains it: %+v", page.Payload)
+	}
+	if !page.More || page.Cursor != "vm#2026-10-29T10:00:00Z#" {
+		t.Fatalf("a short page ends the devices' walk at the newest change and starts the machines': %q %v", page.Cursor, page.More)
+	}
+}
+
+func TestNetBoxVirtualMachinesAreHostedOnTheirClusterAndDevice(t *testing.T) {
+	var asked string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/virtualization/virtual-machines/" || r.Header.Get("Authorization") != "Token s3cret" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		asked = r.URL.RawQuery
+		_, _ = w.Write([]byte(`{"count":2,"results":[
+			{"id":3,"name":"app-1","cluster":{"id":5,"name":"vsphere-a"},"device":{"id":3,"name":"esx-1"},"site":{"id":1,"name":"Frankfurt"},
+			 "platform":{"name":"Ubuntu 24.04"},"primary_ip":{"address":"10.2.0.7/24"},"last_updated":"2026-10-29T12:00:00Z"},
+			{"id":4,"name":"app-2","cluster":{"id":5,"name":"vsphere-a"},"last_updated":"2026-10-29T13:00:00Z"}]}`))
+	}))
+	defer server.Close()
+	page, err := pullers(t, server).Pull(context.Background(), pullOf(server, cmdb.ConnectorNetBox, nil, "vm#2026-10-29T10:00:00Z#2026-10-28T00:00:00Z"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(asked, "last_updated__gte=2026-10-28T00%3A00%3A00Z") {
+		t.Fatalf("the machines' walk asks since its own newest change: %q", asked)
+	}
+	byRef := map[string]cmdb.Item{}
+	for _, it := range page.Payload.Items {
+		byRef[it.Ref] = it
+	}
+	vm := byRef["netbox-vm-3"]
+	if len(page.Payload.Items) != 5 || vm.Class != "virtual_machine" || vm.NativeKey != "vm:3" || vm.Attributes["instance_id"] != "netbox:3" ||
+		vm.Attributes["ip_address"] != "10.2.0.7" || vm.Attributes["operating_system"] != "Ubuntu 24.04" ||
+		byRef["netbox-cluster-5"].Class != "virtualization_cluster" || byRef["netbox-3"].NativeKey != "3" || byRef["netbox-site-1"].Class != "site" {
+		t.Fatalf("items %+v", page.Payload.Items)
+	}
+	want := []cmdb.RelationItem{
+		{Type: cmdb.RelHostedOn, From: "netbox-vm-3", To: "netbox-cluster-5"},
+		{Type: cmdb.RelHostedOn, From: "netbox-vm-3", To: "netbox-3"},
+		{Type: cmdb.RelContains, From: "netbox-site-1", To: "netbox-vm-3"},
+		{Type: cmdb.RelHostedOn, From: "netbox-vm-4", To: "netbox-cluster-5"},
+	}
+	if len(page.Payload.Relations) != len(want) {
+		t.Fatalf("relations %+v", page.Payload.Relations)
+	}
+	for i := range want {
+		if page.Payload.Relations[i] != want[i] {
+			t.Fatalf("relation %d: %+v", i, page.Payload.Relations[i])
+		}
+	}
+	if !page.More || page.Cursor != "vm#2026-10-29T10:00:00Z#2026-10-28T00:00:00Z|2|2026-10-29T13:00:00Z" {
+		t.Fatalf("a full page asks for the next: %q %v", page.Cursor, page.More)
+	}
+}
+
+func TestNetBoxWalksEndAfterTheMachinesAndStartAgainAtTheDevices(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"count":0,"results":[]}`))
+	}))
+	defer server.Close()
+	page, err := pullers(t, server).Pull(context.Background(), pullOf(server, cmdb.ConnectorNetBox, nil, "vm#2026-10-29T10:00:00Z#2026-10-28T00:00:00Z"))
+	if err != nil || page.More || page.Cursor != "dev#2026-10-29T10:00:00Z#2026-10-28T00:00:00Z" {
+		t.Fatalf("the walk ends: %q %v %v", page.Cursor, page.More, err)
+	}
+	page, err = pullers(t, server).Pull(context.Background(), pullOf(server, cmdb.ConnectorNetBox, nil, "2026-10-27T00:00:00Z"))
+	if err != nil || !page.More || page.Cursor != "vm#2026-10-27T00:00:00Z#" {
+		t.Fatalf("a devices' cursor of before goes on to the machines: %q %v %v", page.Cursor, page.More, err)
 	}
 }
 

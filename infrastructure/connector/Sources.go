@@ -54,49 +54,148 @@ func glpi(ctx context.Context, s session) (port.Page, error) {
 	return page, nil
 }
 
-// netbox pulls NetBox's devices with a token, changed since the newest the last walk saw. A
-// device whose role names a server is a server, any other a network device; its primary
-// address, without the prefix length, is its address.
+// netbox pulls NetBox's devices, then its virtual machines, each with a token and changed since
+// the newest the last walk of it saw. A device whose role names a server is a server, any other a
+// network device; its primary address, without the prefix length, is its address. A device and a
+// virtual machine are contained in their site, and a virtual machine is hosted on its cluster and
+// on the device it runs on. Sites and clusters come along as the records name them; their keys,
+// like a virtual machine's, carry their kind, since NetBox numbers each kind on its own.
 func netbox(ctx context.Context, s session) (port.Page, error) {
-	c := readOffset(s.pull.Cursor)
-	q := url.Values{"limit": {strconv.Itoa(s.size)}, "offset": {strconv.Itoa(c.offset)}, "ordering": {"last_updated"}}
-	if c.since != "" {
-		q.Set("last_updated__gte", c.since)
+	c := readNetBox(s.pull.Cursor)
+	walk, path := c.devices, "/api/dcim/devices/"
+	if c.machines {
+		walk, path = c.vms, "/api/virtualization/virtual-machines/"
+	}
+	o := readOffset(walk)
+	q := url.Values{"limit": {strconv.Itoa(s.size)}, "offset": {strconv.Itoa(o.offset)}, "ordering": {"last_updated"}}
+	if o.since != "" {
+		q.Set("last_updated__gte", o.since)
 	}
 	header := map[string][]string{"Authorization": {"Token " + s.secret()}, "Accept": {"application/json"}}
 	var answer struct {
 		Results []map[string]any `json:"results"`
 	}
-	if _, err := s.getJSON(ctx, s.base("/api/dcim/devices/?"+q.Encode()), header, &answer); err != nil {
+	if _, err := s.getJSON(ctx, s.base(path+"?"+q.Encode()), header, &answer); err != nil {
 		return port.Page{}, err
 	}
-	var page port.Page
+	b := payloadBuilder{refs: map[string]bool{}}
 	for _, r := range answer.Results {
 		id, name := text(r["id"]), text(r["name"])
 		if id == "" || name == "" {
 			continue
 		}
-		class := "network_device"
-		if role, _ := r["role"].(map[string]any); strings.Contains(strings.ToLower(text(role["slug"])), "server") {
-			class = "server"
+		o.saw(text(r["last_updated"]))
+		ref := "netbox-" + id
+		if c.machines {
+			ref = "netbox-vm-" + id
+			b.add(cmdb.Item{Ref: ref, Class: "virtual_machine", Name: name, NativeKey: "vm:" + id,
+				Attributes: attrs("instance_id", "netbox:"+id, "hostname", name, "ip_address", primaryAddress(r),
+					"operating_system", text(r["platform"]))})
+			if cl, ok := r["cluster"].(map[string]any); ok && text(cl["id"]) != "" && text(cl["name"]) != "" {
+				to := "netbox-cluster-" + text(cl["id"])
+				b.add(cmdb.Item{Ref: to, Class: "virtualization_cluster", Name: text(cl["name"]), NativeKey: "cluster:" + text(cl["id"]),
+					Attributes: attrs("cluster_id", "netbox:"+text(cl["id"]))})
+				b.relate(cmdb.RelHostedOn, ref, to)
+			}
+			if dev, ok := r["device"].(map[string]any); ok && text(dev["id"]) != "" && text(dev["name"]) != "" {
+				to := "netbox-" + text(dev["id"])
+				b.add(cmdb.Item{Ref: to, Class: "server", Name: text(dev["name"]), NativeKey: text(dev["id"])})
+				b.relate(cmdb.RelHostedOn, ref, to)
+			}
+		} else {
+			class := "network_device"
+			if role, _ := r["role"].(map[string]any); strings.Contains(strings.ToLower(text(role["slug"])), "server") {
+				class = "server"
+			}
+			var manufacturer, model string
+			if dt, ok := r["device_type"].(map[string]any); ok {
+				manufacturer, model = text(dt["manufacturer"]), text(dt["model"])
+			}
+			b.add(cmdb.Item{Ref: ref, Class: class, Name: name, NativeKey: id,
+				Attributes: attrs("hostname", name, "serial_number", text(r["serial"]), "asset_tag", text(r["asset_tag"]),
+					"manufacturer", manufacturer, "model", model, "ip_address", primaryAddress(r))})
 		}
-		var manufacturer, model string
-		if dt, ok := r["device_type"].(map[string]any); ok {
-			manufacturer, model = text(dt["manufacturer"]), text(dt["model"])
+		if site, ok := r["site"].(map[string]any); ok && text(site["id"]) != "" && text(site["name"]) != "" {
+			from := "netbox-site-" + text(site["id"])
+			b.add(cmdb.Item{Ref: from, Class: "site", Name: text(site["name"]), NativeKey: "site:" + text(site["id"])})
+			b.relate(cmdb.RelContains, from, ref)
 		}
-		var address string
-		if ip, ok := r["primary_ip"].(map[string]any); ok {
-			address, _, _ = strings.Cut(text(ip["address"]), "/")
-		}
-		c.saw(text(r["last_updated"]))
-		page.Payload.Items = append(page.Payload.Items, cmdb.Item{
-			Ref: "netbox-" + id, Class: class, Name: name, NativeKey: id,
-			Attributes: attrs("hostname", name, "serial_number", text(r["serial"]), "asset_tag", text(r["asset_tag"]),
-				"manufacturer", manufacturer, "model", model, "ip_address", address),
-		})
 	}
-	page.Cursor, page.More = c.next(len(answer.Results), s.size)
+	next, more := o.next(len(answer.Results), s.size)
+	page := port.Page{Payload: b.payload}
+	switch {
+	case more && c.machines:
+		c.vms = next
+	case more:
+		c.devices = next
+	case c.machines:
+		// Both walks are done: the next pull starts the devices' walk since their newest change.
+		c.vms, c.machines = next, false
+	default:
+		c.devices, c.machines = next, true
+		more = true
+	}
+	page.Cursor, page.More = c.String(), more
 	return page, nil
+}
+
+// primaryAddress answers a NetBox record's primary address without its prefix length.
+func primaryAddress(r map[string]any) string {
+	ip, ok := r["primary_ip"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	address, _, _ := strings.Cut(text(ip["address"]), "/")
+	return address
+}
+
+// netboxCursor is where the devices' and the virtual machines' walks stand and which is under
+// way. A cursor without the separator is a devices' walk's alone, as pulls before the virtual
+// machines wrote it.
+type netboxCursor struct {
+	machines     bool
+	devices, vms string
+}
+
+func readNetBox(raw string) netboxCursor {
+	parts := strings.Split(raw, "#")
+	if len(parts) != 3 {
+		return netboxCursor{devices: raw}
+	}
+	return netboxCursor{machines: parts[0] == "vm", devices: parts[1], vms: parts[2]}
+}
+
+func (c netboxCursor) String() string {
+	phase := "dev"
+	if c.machines {
+		phase = "vm"
+	}
+	return phase + "#" + c.devices + "#" + c.vms
+}
+
+// payloadBuilder gathers a page's items once each by their reference, and the relations between
+// them, within the reconciliation's bounds.
+type payloadBuilder struct {
+	payload cmdb.Payload
+	refs    map[string]bool
+}
+
+func (b *payloadBuilder) add(item cmdb.Item) bool {
+	if b.refs[item.Ref] {
+		return true
+	}
+	if len(b.payload.Items) >= cmdb.MaxPayloadItems {
+		return false
+	}
+	b.refs[item.Ref] = true
+	b.payload.Items = append(b.payload.Items, item)
+	return true
+}
+
+func (b *payloadBuilder) relate(kind, from, to string) {
+	if b.refs[from] && b.refs[to] && len(b.payload.Relations) < cmdb.MaxPayloadRelations {
+		b.payload.Relations = append(b.payload.Relations, cmdb.RelationItem{Type: kind, From: from, To: to})
+	}
 }
 
 // microsoft answers a Graph token for the directory the connector names.

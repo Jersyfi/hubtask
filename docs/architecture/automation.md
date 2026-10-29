@@ -613,7 +613,7 @@ and through the one reconciliation, so nothing a connector fetches reaches a CI 
 | Kind | Calls | Pages and cursor |
 |---|---|---|
 | `GLPI` | the high-level API (v2): `POST /api.php/token` with an OAuth client (`client_id` setting, the secret as credential), `GET /api.php/v2/Assets/Computer` | by offset, changed since the newest `date_mod` the last walk saw |
-| `NETBOX` | `GET /api/dcim/devices/` with `Authorization: Token` | by offset, changed since the newest `last_updated` |
+| `NETBOX` | `GET /api/dcim/devices/`, then `GET /api/virtualization/virtual-machines/`, with `Authorization: Token`; a record's site `contains` it, a virtual machine is `hosted_on` its cluster (a `virtualization_cluster`) and on its device | by offset, each walk changed since its own newest `last_updated`; the devices' walk, then the machines' |
 | `INTUNE` | a token from the `authority` setting's `/{tenant}/oauth2/v2.0/token` (client credentials), `GET /v1.0/deviceManagement/managedDevices` | the next page's link; every device on every walk |
 | `ENTRA` | the same token, `GET /v1.0/devices/delta` | the next page's link, then the delta link: a later walk fetches only what changed; a removed device is left alone |
 | `HETZNER` | `GET /v1/servers` with the project's token as bearer | by page; every server on every walk |
