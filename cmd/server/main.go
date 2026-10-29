@@ -853,7 +853,7 @@ func run() error {
 	completion := work.CompletionWriter{
 		Workflow: workflowGate,
 		Gate:     entryGate,
-		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
+		Items:    items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal, Jobs: jobs,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 		Structure: structures, Milestones: milestones, EntryTypes: entryTypes,

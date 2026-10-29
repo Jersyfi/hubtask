@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	TakeStepName        = "TakeStep"
-	ListEntryStepsName  = "ListEntrySteps"
+	TakeStepName                     = "TakeStep"
+	ListEntryStepsName               = "ListEntrySteps"
 	ItemStepTakenAction audit.Action = "item.step_taken"
 	ItemStepsReadAction audit.Action = "item.steps_read"
 )
