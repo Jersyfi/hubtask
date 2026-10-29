@@ -43,7 +43,7 @@ func (d Desk) Schema() map[string]any {
 			for _, key := range work.StructureSettingNames() {
 				keys = append(keys, string(key))
 			}
-			names = map[string]any{"enum": keys}
+			names = map[string]any{"enum": append(keys, structureLocks, structureDefaultPreset)}
 		}
 		properties[s.name] = map[string]any{
 			"type": "object", "propertyNames": names,
@@ -66,8 +66,14 @@ func (d Desk) attributeSchema(s section, attribute string) map[string]any {
 			"description": "ON or OFF here, or INHERIT to leave the module to the level above."}
 	}
 	if s.name == sectionStructure {
+		if attribute == presetIDAttribute {
+			return map[string]any{"type": "string", "format": "uuid", "description": "default_preset only: a " +
+				"preset of the workspace's own as the one a new hub starts from, instead of a Hubtask preset's key in value."}
+		}
 		return map[string]any{"description": "The workspace's own value of the setting, in the shape of " +
-			"StructureSettings; a removed block leaves it to the installation's or Hubtask's default."}
+			"StructureSettings; a removed block leaves it to the installation's or Hubtask's default. " +
+			"locks: the whole list of the workspace's locks (a setting, or fields.<TYPE>.<CAPABILITY>). " +
+			"default_preset: the Hubtask preset a new hub starts from (list, tasks, project, flow)."}
 	}
 	candidates := []string{s.create, s.change, s.separate[attribute]}
 	if s.ops != nil {

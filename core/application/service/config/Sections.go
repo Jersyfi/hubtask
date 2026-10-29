@@ -4,6 +4,7 @@
 package config
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -147,13 +148,19 @@ func sections() []section {
 		{
 			// The workspace's own structure, one block per setting it decides itself; a setting
 			// left to the installation's or Hubtask's default has no block (configuration/model.md).
-			name: sectionStructure, list: ReadWorkspaceName, key: "setting", attributes: []string{settingValueField},
+			name: sectionStructure, list: ReadWorkspaceName, key: "setting", attributes: []string{settingValueField, presetIDAttribute},
 			rowsOf: structureRows,
 			block: func(row map[string]any) (string, domain.Block) {
 				if text(row["source"]) != "WORKSPACE" {
 					return "", nil
 				}
-				return text(row["setting"]), domain.Block{settingValueField: row[settingValueField]}
+				block := domain.Block{}
+				for _, attribute := range []string{settingValueField, presetIDAttribute} {
+					if value := row[attribute]; value != nil {
+						block[attribute] = value
+					}
+				}
+				return text(row["setting"]), block
 			},
 			ops: structureOps,
 		},
@@ -198,25 +205,85 @@ func workflowOps(change domain.Change, _ map[string]any) ([]operation, error) {
 	}
 }
 
+// The structure section's two blocks beside the settings: the workspace's own locks on every hub
+// and collection, and the preset a new hub starts from - Hubtask's by its key, or the workspace's
+// own by its identifier, which is the one place a preset has no stable key.
+const (
+	structureLocks         = "locks"
+	structureDefaultPreset = "default_preset"
+	presetIDAttribute      = "preset_id"
+)
+
 // structureRows is the workspace's answer as one row per structure setting: its value in force
-// and the level it comes from.
+// and the level it comes from; then its locks and its default preset where it set them.
 func structureRows(answer map[string]any) []any {
 	structure, _ := answer["structure"].(map[string]any)
 	values, _ := structure["settings"].(map[string]any)
 	sources, _ := structure["sources"].(map[string]any)
-	rows := make([]any, 0, len(sources))
+	rows := make([]any, 0, len(sources)+2)
 	for _, name := range work.StructureSettingNames() {
 		rows = append(rows, map[string]any{
 			"setting": string(name), "source": sources[string(name)], settingValueField: values[string(name)],
 		})
 	}
+	locks, _ := structure["locks"].(map[string]any)
+	var own []any
+	for _, key := range sortedKeysOf(locks) {
+		if lock, _ := locks[key].(map[string]any); text(lock["origin"]) == "WORKSPACE" {
+			own = append(own, key)
+		}
+	}
+	if len(own) > 0 {
+		rows = append(rows, map[string]any{"setting": structureLocks, "source": "WORKSPACE", settingValueField: own})
+	}
+	if preset := text(structure["default_preset"]); preset != "" {
+		rows = append(rows, map[string]any{"setting": structureDefaultPreset, "source": "WORKSPACE", settingValueField: preset})
+	} else if id := text(structure["default_preset_id"]); id != "" {
+		rows = append(rows, map[string]any{"setting": structureDefaultPreset, "source": "WORKSPACE", presetIDAttribute: id})
+	}
 	return rows
+}
+
+func sortedKeysOf(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // structureOps sets or resets one structure setting of the workspace through the use case its
 // settings screen calls, so the bound and the installation's locks refuse an apply as they refuse
 // the screen.
 func structureOps(change domain.Change, _ map[string]any) ([]operation, error) {
+	path := change.Path()
+	switch change.Key {
+	case structureLocks:
+		// The use case takes the whole set; a removed block lifts every lock of the workspace's.
+		locks := []any{}
+		if change.Op != domain.OpRemove {
+			list, isList := change.After[settingValueField].([]any)
+			if !isList {
+				return nil, refused("config.document_invalid", path, nil)
+			}
+			locks = list
+		}
+		return []operation{{UseCase: "SetWorkspaceStructure", Path: path, Input: usecase.Input{"locks": locks}}}, nil
+	case structureDefaultPreset:
+		in := usecase.Input{"clear_default_preset": true}
+		if change.Op != domain.OpRemove {
+			if id := text(change.After[presetIDAttribute]); id != "" {
+				in = usecase.Input{"default_preset_id": id}
+			} else {
+				in = usecase.Input{"default_preset": strings.ToUpper(text(change.After[settingValueField]))}
+			}
+		}
+		return []operation{{UseCase: "SetWorkspaceStructure", Path: path, Input: in}}, nil
+	}
+	if _, has := change.After[presetIDAttribute]; has {
+		return nil, refused("config.attribute_unknown", path+"."+presetIDAttribute, nil)
+	}
 	if _, err := work.ParseStructureSetting(change.Key); err != nil {
 		return nil, refused("config.key_unknown", change.Path(), nil)
 	}

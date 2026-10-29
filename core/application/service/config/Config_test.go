@@ -34,6 +34,9 @@ type world struct {
 	// nil withholding it. inputs records what each writing use case was given.
 	workspace map[string]any
 	ai        map[string]any
+	// locks and defaultPreset are the workspace structure's locks and the preset a new hub starts from.
+	locks         map[string]any
+	defaultPreset string
 	inputs    map[string][]usecase.Input
 	// failOn makes one use case refuse, as a block its own checks reject would.
 	failOn string
@@ -103,7 +106,9 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 			sources[name] = "WORKSPACE"
 		}
 		sources["views"] = "DEFAULT"
-		out := usecase.Output{"structure": map[string]any{"settings": maps.Clone(w.structure), "sources": sources}}
+		out := usecase.Output{"structure": map[string]any{
+			"settings": maps.Clone(w.structure), "sources": sources, "locks": w.locks, "default_preset": w.defaultPreset,
+		}}
 		maps.Copy(out, w.workspace)
 		return out, nil
 	case "ReadAiSource":
@@ -117,6 +122,10 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 		}
 		w.inputs[name] = append(w.inputs[name], in)
 	case "SetWorkspaceStructure":
+		if w.inputs == nil {
+			w.inputs = map[string][]usecase.Input{}
+		}
+		w.inputs[name] = append(w.inputs[name], in)
 		if values, held := in["settings"].(map[string]any); held {
 			maps.Copy(w.structure, values)
 		}
