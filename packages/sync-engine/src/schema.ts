@@ -236,6 +236,27 @@ export type LinkType = components['schemas']['LinkType'];
 export type LinkTypeList = components['schemas']['LinkTypeList'];
 export type LinkTypeCreate = components['schemas']['LinkTypeCreate'];
 export type LinkTypeChange = components['schemas']['LinkTypeChange'];
+/** A hub's pages, their versions and comments, and what search and backlinks answer of them (M3). */
+export type Page = components['schemas']['Page'];
+export type PageRead = components['schemas']['PageRead'];
+export type PageList = components['schemas']['PageList'];
+export type PageCreate = components['schemas']['PageCreate'];
+export type PageChange = components['schemas']['PageChange'];
+export type PageMove = components['schemas']['PageMove'];
+export type PageVerify = components['schemas']['PageVerify'];
+export type PageTrashed = components['schemas']['PageTrashed'];
+export type PageVersion = components['schemas']['PageVersion'];
+export type PageVersionRead = components['schemas']['PageVersionRead'];
+export type PageVersionList = components['schemas']['PageVersionList'];
+export type PageVersionName = components['schemas']['PageVersionName'];
+export type PageComment = components['schemas']['PageComment'];
+export type PageCommentList = components['schemas']['PageCommentList'];
+export type PageCommentCreate = components['schemas']['PageCommentCreate'];
+export type PageCommentChange = components['schemas']['PageCommentChange'];
+export type PageBacklinkList = components['schemas']['PageBacklinkList'];
+export type PageExport = components['schemas']['PageExport'];
+export type PageSearch = components['schemas']['PageSearch'];
+export type PageHitList = components['schemas']['PageHitList'];
 /** A link between two entries, an entry's links from both sides with its backlinks, and a view's links. */
 export type EntryLink = components['schemas']['EntryLink'];
 export type EntryLinkCreate = components['schemas']['EntryLinkCreate'];

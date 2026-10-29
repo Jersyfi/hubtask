@@ -295,7 +295,17 @@ export interface SyncEngineOptions {
    * what the single-flight below is for.
    */
   readonly onRefresh?: () => Promise<boolean>;
+  /**
+   * Opens a live document's WebSocket (offline-sync.md §13) at a path under the API, with the
+   * protocols given. The application's, because the address is the page's origin; the bearer is
+   * added here, as the subprotocol a browser can carry it in, and nowhere else.
+   */
+  readonly socket?: (path: string, protocols: string[]) => unknown;
 }
+
+/** The subprotocol the server answers a live document with, and the prefix that carries a bearer. */
+export const LIVE_SUBPROTOCOL = 'hubtask.v1';
+export const LIVE_BEARER_PREFIX = 'hubtask.bearer.';
 
 /**
  * SyncEngine is the client's only door to a server.
@@ -315,6 +325,7 @@ export class SyncEngine {
   readonly #onRefresh: () => Promise<boolean>;
   readonly #storeFor: ((request: ResourceRequest, storage: Storage) => Promise<unknown>) | undefined;
   readonly #mutationFor: SyncEngineOptions['mutationFor'];
+  readonly #socket: SyncEngineOptions['socket'];
   /** The queue, once a store is attached. */
   #queue: Queue | undefined;
   /** Whether the last call reached the server: the other half of offline-sync.md §1's write rule. */
@@ -344,6 +355,20 @@ export class SyncEngine {
     this.#onRefresh = options.onRefresh ?? (async () => false);
     this.#storeFor = options.storeFor;
     this.#mutationFor = options.mutationFor;
+    this.#socket = options.socket;
+  }
+
+  /**
+   * A live document's socket, its bearer asked for now and carried as the subprotocol - never in
+   * the address (security.md §9). A refreshed token reaches the next connection, since the editor
+   * asks for a new socket on every reconnect. Refused with `sync.needs_connection` where the
+   * application gave no way to open one.
+   */
+  liveSocket<T>(path: string): T {
+    if (!this.#socket) throw new TransportError('offline', { code: 'sync.needs_connection' });
+    const token = this.#token();
+    const protocols = [LIVE_SUBPROTOCOL, ...(token ? [LIVE_BEARER_PREFIX + token] : [])];
+    return this.#socket(path, protocols) as T;
   }
 
   /**
