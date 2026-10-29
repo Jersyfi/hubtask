@@ -29,6 +29,7 @@
   import { permissionLabel, roleLabel } from '../lib/people/rolewords.ts';
   import { renderProblem } from '../lib/problem.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
 
   const TENANT = { scopeType: 'TENANT' } as const;
   const WORKSPACE_PLACE = '';
@@ -195,6 +196,7 @@
 
 <Stack gap="300">
   <p class="quiet">{t('app.roles.intro')}</p>
+  <div class="file"><ViewSectionsAsFile sections={['roles']} /></div>
 
   {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
 
@@ -378,4 +380,5 @@
     background: var(--bg-surface);
     box-shadow: var(--shadow-raised);
   }
+  .file { display: flex; justify-content: flex-end; }
 </style>

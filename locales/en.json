@@ -6458,6 +6458,7 @@
   "app.settings.view_as_file": "View as file",
   "app.settings.file_title": "This page as a file",
   "app.settings.file_explain": "This page's part of the configuration document, as hubctl and agents read and write it. A value marked set is decided here; the others come from a level above.",
+  "app.settings.sections_file_explain": "This page's part of the configuration document in force, each block by its key, as hubctl config export and agents read it.",
   "app.settings.file_close": "Close",
   "app.settings.reach_nothing": "Nothing stops being shown",
   "app.settings.reach_entries": "{count, plural, one {# entry no longer shown} other {# entries no longer shown}}",

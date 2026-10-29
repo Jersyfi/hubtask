@@ -25,6 +25,7 @@
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import { renderProblem } from '../lib/problem.ts';
 
   $effect(() => page.entitle(t('app.link_types.title')));
@@ -199,6 +200,7 @@
   />
 
   <p class="quiet">{t('app.link_types.intro')}</p>
+  <div class="file"><ViewSectionsAsFile sections={['link_types']} /></div>
 
   {#if !reading || reading.status === 'loading' || reading.status === 'idle'}
     <p class="waiting">
@@ -376,4 +378,5 @@
   .key { color: var(--text-subtle); font-size: var(--fs-075); }
   .note { color: var(--text-subtle); font-size: var(--fs-075); }
   .refusal { margin: 0; flex-basis: 100%; color: var(--text-danger); }
+  .file { display: flex; justify-content: flex-end; }
 </style>

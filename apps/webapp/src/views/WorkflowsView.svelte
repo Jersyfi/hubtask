@@ -28,6 +28,7 @@
   import SchemePanel from '../lib/workflows/SchemePanel.svelte';
   import TryStep from '../lib/workflows/TryStep.svelte';
   import WorkflowDiagram from '../lib/workflows/WorkflowDiagram.svelte';
+  import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import WorkflowLists from '../lib/workflows/WorkflowLists.svelte';
 
   interface Props {
@@ -195,6 +196,7 @@
   />
 
   <p class="quiet">{t('app.workflow_designer.intro')}</p>
+  <div class="file"><ViewSectionsAsFile sections={['workflows']} /></div>
 
   {#if !mayShape}
     <Banner tone="info" title={t('app.workflow_designer.not_yours')} />
@@ -343,4 +345,5 @@
   .note { color: var(--text-subtle); font-size: var(--fs-075); font-weight: normal; }
   .name { margin: 0; font-size: var(--fs-200); }
   .designer { min-inline-size: 0; }
+  .file { display: flex; justify-content: flex-end; }
 </style>

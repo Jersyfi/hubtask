@@ -6455,6 +6455,7 @@
   "app.settings.view_as_file": "Als Datei ansehen",
   "app.settings.file_title": "Diese Seite als Datei",
   "app.settings.file_explain": "Der Teil des Konfigurationsdokuments, den diese Seite zeigt – so, wie hubctl und Agenten ihn lesen und schreiben. Ein als gesetzt markierter Wert wird hier entschieden, die übrigen kommen von einer Ebene darüber.",
+  "app.settings.sections_file_explain": "Der Teil dieser Seite am geltenden Konfigurationsdokument, jeder Baustein unter seinem Schlüssel, so wie hubctl config export und Agenten ihn lesen.",
   "app.settings.file_close": "Schließen",
   "app.settings.reach_nothing": "Nichts wird ausgeblendet",
   "app.settings.reach_entries": "{count, plural, one {# Eintrag nicht mehr angezeigt} other {# Einträge nicht mehr angezeigt}}",

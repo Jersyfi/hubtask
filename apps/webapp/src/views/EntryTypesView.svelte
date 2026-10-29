@@ -30,6 +30,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
 
   $effect(() => page.entitle(t('app.entry_types.title')));
   $effect(() => untrack(() => entryTypes.open()));
@@ -193,6 +194,7 @@
   />
 
   <p class="quiet">{t('app.entry_types.intro')}</p>
+  <div class="file"><ViewSectionsAsFile sections={['types']} /></div>
 
   {#if !reading || reading.status === 'loading' || reading.status === 'idle'}
     <p class="waiting">
@@ -392,4 +394,5 @@
   .note { color: var(--text-subtle); font-size: var(--fs-075); }
   .preview { display: inline-flex; align-items: center; gap: var(--sp-050); align-self: end; padding-block-end: var(--sp-100); }
   .refusal { margin: 0; flex-basis: 100%; color: var(--text-danger); }
+  .file { display: flex; justify-content: flex-end; }
 </style>
