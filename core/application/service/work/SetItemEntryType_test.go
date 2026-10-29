@@ -126,3 +126,38 @@ func TestChangingAnEntrysTypeNamesWhatItWouldDrop(t *testing.T) {
 		t.Error("the refused change was written")
 	}
 }
+
+// UC-FLW-01 check 2: changing an entry's type holds it to the new type's form as creating one
+// would - a required field it lacks refuses the change, by field, and nothing is written.
+func TestChangingAnEntrysTypeMeetsTheNewForm(t *testing.T) {
+	ctx := context.Background()
+	h := newItemHarness()
+	types := workspaceTypes()
+	types.rows[0].Form = domain.Form{Fields: []domain.FormField{{Key: "title"}, {Key: "notes", Required: true}}}
+	open := domain.WorkItem{
+		ID: shared.MustParseID("0192f000-0000-7000-8000-0000000000f3"), TenantID: tenantID,
+		CollectionID: collectionID, Type: domain.ItemTask, Title: "Login fails", Version: 1,
+	}
+	h.items.stored[open.ID] = open
+	handler := SetItemEntryType{
+		Items: h.items, Containers: h.containers, Profiles: h.profiles, EntryTypes: types,
+		Authorizer: h.authorizer, Changes: h.changes, Audit: h.audit, UnitOfWork: h.uow,
+		Clock: clock.Fixed(now), HLC: &hlcSource{},
+		Forms: FormGate{Types: types, Compiler: &answers{of: map[string]bool{}}},
+	}
+
+	_, err := handler.Execute(ctx, actor(), SetItemEntryTypeCommand{ItemID: open.ID, EntryType: "bug"})
+	refusal := formRefusal(t, err, "forms.refused")
+	if len(refusal.Fields) != 1 || refusal.Fields[0].Path != "/notes" {
+		t.Fatalf("the refusal does not name the field: %+v", refusal.Fields)
+	}
+	if len(types.set) != 0 {
+		t.Fatal("the refused change was written")
+	}
+
+	open.Notes = "Since the update"
+	h.items.stored[open.ID] = open
+	if _, err := handler.Execute(ctx, actor(), SetItemEntryTypeCommand{ItemID: open.ID, EntryType: "bug"}); err != nil {
+		t.Fatalf("an entry that meets the form was refused: %v", err)
+	}
+}

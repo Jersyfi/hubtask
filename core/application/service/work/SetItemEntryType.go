@@ -44,6 +44,9 @@ type SetItemEntryType struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	HLC        clock.HLCSource
+	// Forms holds the entry to its new type's form as a creation of the type would be: a required
+	// field it lacks or a validation it fails refuses the change, by field.
+	Forms FormGate
 }
 
 // SetItemEntryTypeCommand is the input, typed.
@@ -128,6 +131,9 @@ func (h SetItemEntryType) Execute(ctx context.Context, actor appshared.ActorCont
 		now := h.Clock.Now()
 		next := current
 		next.EntryType, next.UpdatedAt = key, now
+		if err := h.Forms.checkCreate(ctx, actor, collection, next); err != nil {
+			return err
+		}
 		if err := h.EntryTypes.SetOf(ctx, next, current.Version); err != nil {
 			return err
 		}
@@ -173,7 +179,8 @@ func (h SetItemEntryType) Descriptor() usecase.Descriptor {
 		Summary: "Gives an entry another type of its level; the level's own key (task, work_package, " +
 			"activity) gives it back its level's type. An archived type, another level's, or one the " +
 			"parent's type does not allow underneath is refused. A type that would not carry a value " +
-			"the entry holds is refused with entry_types.values_dropped, naming each field.",
+			"the entry holds is refused with entry_types.values_dropped, naming each field; one whose form " +
+			"the entry does not meet is refused with forms.refused, naming each field.",
 		SideEffects: "Writes the entry's type, records a change for offline clients, and writes an audit entry.",
 		TokenScope:  itemsWrite,
 		Module:      module.Workflows,
