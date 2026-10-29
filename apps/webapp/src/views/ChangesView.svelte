@@ -10,11 +10,12 @@
   // not drawn** (P-05): without STRUCTURE the page lists and offers no control.
 
   import { untrack } from 'svelte';
-  import { Banner, Button, Checkbox, CodeBlock, Dialog, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
-  import type { ConfigExport, ConfigPlan, ConfigProposalList, ConfigVersionList, ResourceState } from '@hubtask/sync-engine';
+  import { Banner, Button, Checkbox, CodeBlock, Dialog, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import type { ConfigExport, ConfigPlan, ConfigProposalList, ConfigVersion, ConfigVersionList, ResourceState } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { config, needsAcknowledge } from '../lib/data/config.svelte.ts';
+  import { compareDocuments, type BlockDifference } from '../lib/data/configdiff.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -79,6 +80,49 @@
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
     }
   }
+
+  // Two versions side by side: the older on the left, the newer on the right, each changed
+  // block once. The choice starts at the last two versions.
+  let left = $state<string>('');
+  let right = $state<string>('');
+  let compared = $state<BlockDifference[]>();
+  let comparing = $state(false);
+  let compareError = $state<string>();
+  const versionOptions = $derived(
+    versions?.status === 'ready'
+      ? versions.data.data.map((each) => ({ value: String(each.version), label: t('app.changes.version', { version: each.version }) }))
+      : [],
+  );
+  $effect(() => {
+    if (versions?.status !== 'ready' || left !== '' || right !== '') return;
+    const [newest, previous] = versions.data.data;
+    if (newest && previous) {
+      untrack(() => {
+        left = String(previous.version);
+        right = String(newest.version);
+      });
+    }
+  });
+
+  async function compare() {
+    if (left === '' || right === '') return;
+    comparing = true;
+    compareError = undefined;
+    try {
+      const [a, b] = await Promise.all([config.version(Number(left)), config.version(Number(right))]);
+      const documentOf = (state: ResourceState<ConfigVersion>) => (state.status === 'ready' ? state.data.document : undefined);
+      const failed = a.status === 'failed' ? a : b.status === 'failed' ? b : undefined;
+      if (failed) {
+        compareError = renderProblem(failed.error, messages).message;
+        compared = undefined;
+        return;
+      }
+      compared = compareDocuments(documentOf(a) as never, documentOf(b) as never);
+    } finally {
+      comparing = false;
+    }
+  }
+  const blockText = (block: Record<string, unknown> | undefined) => (block ? JSON.stringify(block, null, 2) : '');
 
   const file = $derived(current?.status === 'ready' ? JSON.stringify(current.data.document, null, 2) : '');
 </script>
@@ -171,6 +215,37 @@
     {/if}
   </section>
 
+  {#if versions?.status === 'ready' && versions.data.data.length > 1}
+    <section class="panel" data-compare>
+      <h2>{t('app.changes.compare')}</h2>
+      <div class="pick">
+        <Select label={t('app.changes.compare_from')} bind:value={left} options={versionOptions} />
+        <Select label={t('app.changes.compare_to')} bind:value={right} options={versionOptions} />
+        <Button tone="secondary" size="sm" isBusy={comparing} data-compare-run onclick={compare}>{t('app.changes.compare_run')}</Button>
+      </div>
+      {#if compareError}
+        <Banner tone="danger" title={compareError} />
+      {:else if compared && compared.length === 0}
+        <p class="quiet">{t('app.changes.compare_same')}</p>
+      {:else if compared}
+        <ul class="rows">
+          {#each compared as difference (difference.path)}
+            <li class="difference" data-difference={difference.path}>
+              <div class="identity">
+                <code class="name">{difference.path}</code>
+                <span class="note">{t(`app.changes.difference_${difference.kind.toLowerCase()}`)}</span>
+              </div>
+              <div class="sides">
+                <pre class="side" aria-label={t('app.changes.compare_version', { version: left })}>{blockText(difference.before)}</pre>
+                <pre class="side" aria-label={t('app.changes.compare_version', { version: right })}>{blockText(difference.after)}</pre>
+              </div>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </section>
+  {/if}
+
   <section class="panel" data-file>
     <h2>{t('app.changes.file')}</h2>
     <p class="quiet">{t('app.changes.file_explain')}</p>
@@ -242,4 +317,24 @@
   .name { font-weight: var(--fw-medium); }
   .note { color: var(--text-subtle); font-size: var(--fs-075); }
   .flag { color: var(--text-danger); font-size: var(--fs-075); }
+
+  .pick { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-150); margin-block-end: var(--sp-150); }
+  .difference {
+    display: grid;
+    gap: var(--sp-100);
+    padding-block: var(--sp-100);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+  }
+  .difference:first-child { border-block-start: none; }
+  .sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: var(--sp-100); }
+  .side {
+    margin: 0;
+    padding: var(--sp-100);
+    min-block-size: var(--sp-300);
+    overflow-x: auto;
+    border-radius: var(--r-md);
+    background: var(--bg-surface-sunken);
+    font-family: var(--font-mono);
+    font-size: var(--fs-075);
+  }
 </style>

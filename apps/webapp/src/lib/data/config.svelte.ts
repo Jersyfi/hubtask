@@ -9,7 +9,7 @@
  */
 
 import type {
-  ConfigApplyResult, ConfigExport, ConfigPlan, ConfigProposalList, ConfigVersionList, ResourceState,
+  ConfigApplyResult, ConfigExport, ConfigPlan, ConfigProposalList, ConfigVersion, ConfigVersionList, ResourceState,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
@@ -18,7 +18,7 @@ const VERSIONS = '/config/versions';
 const PROPOSALS = '/config/proposals';
 const DOCUMENT = '/config';
 // What an apply can change: every block of the document, and what the capabilities answer of it.
-const TOUCHED = ['/config', '/tenant/modules', '/entry-types', '/link-types', '/workflows', '/custom-fields', '/roles', '/meta/capabilities'];
+const TOUCHED = ['/config', '/tenant', '/tenant/modules', '/entry-types', '/link-types', '/workflows', '/custom-fields', '/roles', '/meta/capabilities'];
 
 class Config {
   /** Reads the versions, newest first. **From `untrack`**. */
@@ -34,6 +34,11 @@ class Config {
   /** Reads the document in force. **From `untrack`**. */
   document(onNext: (state: ResourceState<ConfigExport>) => void): () => void {
     return engine.subscribe<ConfigExport>({ path: DOCUMENT }, onNext);
+  }
+
+  /** Reads one version with its document, to compare two. */
+  async version(version: number): Promise<ResourceState<ConfigVersion>> {
+    return engine.refresh<ConfigVersion>({ path: `${VERSIONS}/${version}` });
   }
 
   /** Plans going back to a version; writes nothing. */
