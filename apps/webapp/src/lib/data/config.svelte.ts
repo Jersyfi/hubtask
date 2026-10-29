@@ -9,7 +9,7 @@
  */
 
 import type {
-  ConfigApplyResult, ConfigExport, ConfigPlan, ConfigProposalList, ConfigTemplateList, ConfigTemplatePlan, ConfigVersion,
+  ConfigApplyResult, ConfigExport, ConfigPlan, ConfigProposalList, ConfigSandbox, ConfigTemplateList, ConfigTemplatePlan, ConfigVersion,
   ConfigVersionList, ResourceState,
 } from '@hubtask/sync-engine';
 
@@ -19,6 +19,7 @@ const VERSIONS = '/config/versions';
 const PROPOSALS = '/config/proposals';
 const DOCUMENT = '/config';
 const TEMPLATES = '/config/templates';
+const SANDBOX = '/config/sandbox';
 // What an apply can change: every block of the document, and what the capabilities answer of it.
 const TOUCHED = ['/config', TEMPLATES, '/tenant', '/tenant/modules', '/entry-types', '/link-types', '/workflows', '/custom-fields', '/roles', '/meta/capabilities'];
 
@@ -74,6 +75,27 @@ class Config {
     return engine.mutate<ConfigApplyResult>('POST', '/config:apply', {
       document: plan.document, mode: plan.mode, plan_hash: plan.plan_hash ?? '', template: plan.template, acknowledge,
     }, { idempotencyKey: crypto.randomUUID(), invalidates: TOUCHED });
+  }
+
+  /** Reads the sandbox and the plan of promoting it. **From `untrack`**. */
+  sandbox(onNext: (state: ResourceState<ConfigSandbox>) => void): () => void {
+    return engine.subscribe<ConfigSandbox>({ path: SANDBOX }, onNext);
+  }
+
+  /** Copies the configuration in force into the sandbox afresh, or throws the sandbox away. */
+  async resetSandbox(discard: boolean): Promise<ConfigSandbox> {
+    return engine.mutate<ConfigSandbox>('POST', SANDBOX, discard ? { discard: true } : { reset: true }, {
+      idempotencyKey: crypto.randomUUID(),
+      invalidates: [SANDBOX],
+    });
+  }
+
+  /** Promotes the sandbox by its promotion's plan hash: what it changed since its copy. */
+  async promote(planHash: string, acknowledge: boolean): Promise<ConfigApplyResult> {
+    return engine.mutate<ConfigApplyResult>('POST', '/config:apply', { from_sandbox: true, plan_hash: planHash, acknowledge }, {
+      idempotencyKey: crypto.randomUUID(),
+      invalidates: [...TOUCHED, SANDBOX],
+    });
   }
 
   /** Applies or declines a proposal. */

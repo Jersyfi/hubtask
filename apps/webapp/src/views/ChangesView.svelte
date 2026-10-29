@@ -12,7 +12,7 @@
 
   import { untrack } from 'svelte';
   import { Banner, Button, Checkbox, CodeBlock, Dialog, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
-  import type { ConfigExport, ConfigPlan, ConfigProposalList, ConfigVersion, ConfigVersionList, ResourceState } from '@hubtask/sync-engine';
+  import type { ConfigExport, ConfigPlan, ConfigProposalList, ConfigSandbox, ConfigVersion, ConfigVersionList, ResourceState } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { config, needsAcknowledge } from '../lib/data/config.svelte.ts';
@@ -137,6 +137,26 @@
   const blockText = (block: Record<string, unknown> | undefined) => (block ? JSON.stringify(block, null, 2) : '');
 
   const file = $derived(current?.status === 'ready' ? JSON.stringify(current.data.document, null, 2) : '');
+
+  // *Sandbox* (config-document.md §3): a copy where an agent changes freely and nothing runs;
+  // promoting it applies what it changed since its copy, by the plan shown here.
+  let sandbox = $state<ResourceState<ConfigSandbox>>();
+  $effect(() => untrack(() => config.sandbox((next) => (sandbox = next))));
+  const promotion = $derived(sandbox?.status === 'ready' && sandbox.data.exists ? sandbox.data.promotion : undefined);
+  let acknowledgePromotion = $state(false);
+  let sandboxBusy = $state(false);
+
+  async function sandboxStep(step: () => Promise<unknown>, done: string) {
+    sandboxBusy = true;
+    try {
+      await step();
+      toast.show({ text: t(done), tone: 'success' });
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    } finally {
+      sandboxBusy = false;
+    }
+  }
 </script>
 
 <Stack gap="300">
@@ -279,6 +299,55 @@
       {/if}
     </section>
   {/if}
+
+  <section class="panel" data-sandbox>
+    <h2>{t('app.changes.sandbox')}</h2>
+    <p class="quiet">{t('app.changes.sandbox_explain')}</p>
+    {#if refusalOf(sandbox)}
+      <Banner tone="danger" title={refusalOf(sandbox)?.message ?? ''} />
+    {:else if sandbox?.status !== 'ready'}
+      <Spinner label={t('app.changes.reading')} />
+    {:else if !sandbox.data.exists}
+      <p class="quiet">{t('app.changes.sandbox_none')}</p>
+      {#if mayChange}
+        <div class="actions">
+          <Button tone="secondary" size="sm" isBusy={sandboxBusy} data-sandbox-copy
+            onclick={() => sandboxStep(() => config.resetSandbox(false), 'app.changes.sandbox_copied')}>{t('app.changes.sandbox_copy')}</Button>
+        </div>
+      {/if}
+    {:else}
+      <p class="note">{t('app.changes.sandbox_state', { writes: sandbox.data.writes ?? 0, at: at(sandbox.data.updated_at ?? '') })}</p>
+      {#if promotion && promotion.refusals.length > 0}
+        <Banner tone="danger" title={t('app.changes.sandbox_refused')} />
+      {:else if promotion && promotion.changes.length === 0}
+        <p class="quiet">{t('app.changes.sandbox_same')}</p>
+      {:else if promotion}
+        <p class="quiet">{counts(promotion.counts)}</p>
+        <ul class="changes">
+          {#each promotion.changes as change (change.path)}
+            <li><code>{change.op}</code> {change.path}</li>
+          {/each}
+        </ul>
+        {#if mayChange && needsAcknowledge(promotion.flags)}
+          <Checkbox label={t('app.changes.acknowledge')} checked={acknowledgePromotion}
+            onchange={(event: Event) => (acknowledgePromotion = (event.currentTarget as HTMLInputElement).checked)} />
+        {/if}
+      {/if}
+      {#if mayChange}
+        <div class="actions">
+          {#if promotion?.plan_hash && promotion.changes.length > 0}
+            <Button tone="primary" size="sm" isBusy={sandboxBusy} data-sandbox-promote
+              disabledReason={needsAcknowledge(promotion.flags) && !acknowledgePromotion ? t('app.changes.acknowledge_first') : undefined}
+              onclick={() => sandboxStep(() => config.promote(promotion?.plan_hash ?? '', acknowledgePromotion), 'app.changes.sandbox_promoted')}>{t('app.changes.sandbox_promote')}</Button>
+          {/if}
+          <Button tone="subtle" size="sm" data-sandbox-reset
+            onclick={() => sandboxStep(() => config.resetSandbox(false), 'app.changes.sandbox_copied')}>{t('app.changes.sandbox_reset')}</Button>
+          <Button tone="subtle" size="sm" data-sandbox-discard
+            onclick={() => sandboxStep(() => config.resetSandbox(true), 'app.changes.sandbox_discarded')}>{t('app.changes.sandbox_discard')}</Button>
+        </div>
+      {/if}
+    {/if}
+  </section>
 
   <section class="panel" data-file>
     <h2>{t('app.changes.file')}</h2>
