@@ -180,4 +180,3 @@ func (h ReportSla) Descriptor() usecase.Descriptor {
 		}),
 	}, entrySlaTarget)
 }
-

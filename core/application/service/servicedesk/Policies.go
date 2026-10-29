@@ -124,7 +124,7 @@ func (h ListSlaPolicies) Descriptor() usecase.Descriptor {
 			"priority, the statuses that pause them and the share at which they are at risk, and its calendar.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  deskRead, ReadOnly: true,
-		Audit:       usecase.AuditDeclaration{Action: PoliciesReadAction},
+		Audit: usecase.AuditDeclaration{Action: PoliciesReadAction},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, _ usecase.Input) (usecase.Output, error) {
 			policies, err := h.Execute(ctx, actor)
 			if err != nil {

@@ -137,7 +137,7 @@ func (h ListBusinessCalendars) Descriptor() usecase.Descriptor {
 		Summary:     "Lists the workspace's business calendars: each one's working hours per weekday, holidays and time zone.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  deskRead, ReadOnly: true,
-		Audit:       usecase.AuditDeclaration{Action: CalendarsReadAction},
+		Audit: usecase.AuditDeclaration{Action: CalendarsReadAction},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, _ usecase.Input) (usecase.Output, error) {
 			calendars, err := h.Execute(ctx, actor)
 			if err != nil {
