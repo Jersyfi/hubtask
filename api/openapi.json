@@ -3623,6 +3623,8 @@
           "backup"
         ],
         "operationId": "listBackupSchedules",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "backupScheduleResponse",
         "summary": "The schedules the workspace has",
         "description": "What runs on its own, and when it next will. Needs the permission that manages structure, or the auditor's read-only configuration permission - a schedule is what a workspace has decided will leave it every night, which is exactly what an auditor reads.\n`next_run_at` is absent for a schedule that is switched off and for one whose recurrence is exhausted. The second is not an error: the rule may be perfectly good and simply spent, and the schedule stays visible and editable rather than disappearing.\n",
         "responses": {
@@ -3733,6 +3735,7 @@
           "backup"
         ],
         "operationId": "deleteBackupSchedule",
+        "x-hubtask-rest": "generated",
         "summary": "Remove a schedule",
         "description": "The schedule stops existing and nothing else changes: the archives it produced stay at the target, and the runs it started stay in the log. Removing one that is not there is not an error. Auditable.\nSwitching a schedule off is usually the right operation and this one is not - `PATCH` with `enabled: false` keeps the rule for the night somebody wants it back.\n",
         "responses": {
@@ -4443,6 +4446,7 @@
           "retention"
         ],
         "operationId": "deleteRetentionPolicy",
+        "x-hubtask-rest": "generated",
         "summary": "Withdraw a retention rule",
         "description": "The rule stops applying. What it already did stands - retention deletes, and a deletion is not undone by withdrawing the instruction that caused it - and what it had marked for a future pass is unmarked, because an entry counting down towards a rule nobody holds any more would be deleted by a rule that does not exist.\nWithdrawing one that is not there is not an error. Auditable.\n",
         "responses": {
@@ -7530,6 +7534,9 @@
           "admin"
         ],
         "operationId": "listInstallationPresets",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-list": "data",
+        "x-hubtask-rest-answer": "installationPresetResponse",
         "summary": "The installation's presets",
         "description": "The presets this installation offers every workspace, by name, each with its eight settings, whether it is the default a new hub starts from where its workspace chose none, and - on the default - the settings it locks for every workspace. Multi mode only; single mode refuses with `admin.multi_mode_required`, as the workspace's own presets are the one level there.\n",
         "responses": {
@@ -7565,6 +7572,7 @@
           "admin"
         ],
         "operationId": "createInstallationPreset",
+        "x-hubtask-rest": "generated",
         "summary": "Create a preset of the installation",
         "description": "A preset every workspace is offered, marked as the installation's (`origin` `INSTALLATION` on `GET /presets`). Its settings start from one of Hubtask's presets (`preset`) or from Hubtask's default, with `settings` on top, held to what the installation offers like a layer's. A name is the installation's once (`presets.name_taken`); beyond 50 presets it is refused with `presets.limit_reached`. Refused while a file enforces the installation's level (`admin.instance_enforced_from_file`).\n",
         "requestBody": {
@@ -7612,6 +7620,7 @@
           "admin"
         ],
         "operationId": "changeInstallationPreset",
+        "x-hubtask-rest": "generated",
         "summary": "Change a preset of the installation",
         "description": "Renames it, copies one of Hubtask's presets into it again (`preset`), sets settings on top (`settings`), makes it the default or not (`is_default`) and sets the settings it locks (`locks`, the whole set). Only the default locks: locks on another preset are refused with `presets.locks_need_default`, and making another preset the default lifts the former default's locks. A lock fixes a setting - or one capability of one level, `fields.TASK.DUE_DATE` - to this preset's value in every workspace, hub and collection, answered there with origin `INSTANCE`. Hubs and collections made from it keep their settings. With `If-Match`, a change made on a preset somebody else changed since is refused with `version_conflict`.\n",
         "parameters": [
@@ -7657,6 +7666,7 @@
           "admin"
         ],
         "operationId": "withdrawInstallationPreset",
+        "x-hubtask-rest": "generated",
         "summary": "Withdraw a preset of the installation",
         "description": "It is offered to no workspace any more; hubs and collections made from it keep their settings. The default is refused with `presets.installation_default` until another preset is the default or none is.\n",
         "parameters": [
@@ -8297,6 +8307,8 @@
           "admin"
         ],
         "operationId": "listInstanceAiProviders",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "offeredAiModelResponse",
         "summary": "The AI models this installation offers every workspace",
         "description": "A workspace sees only each model's name, processor and jurisdiction, and switches one on itself - offering a model switches nothing on. Behind `admin:tenants` **and** the operator register, both. The key is not among the fields.\n",
         "responses": {
@@ -8323,6 +8335,9 @@
           "admin"
         ],
         "operationId": "createInstanceAiProvider",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-use-case": "ConfigureInstanceAiProvider",
+        "x-hubtask-rest-answer": "offeredAiModelResponse",
         "summary": "Offer an AI model to every workspace",
         "description": "The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.\n",
         "requestBody": {
@@ -8363,6 +8378,11 @@
           "admin"
         ],
         "operationId": "configureInstanceAiProvider",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "providerId": "id"
+        },
+        "x-hubtask-rest-answer": "offeredAiModelResponse",
         "summary": "Change an offered AI model",
         "description": "Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.\n",
         "requestBody": {
@@ -8396,6 +8416,10 @@
           "admin"
         ],
         "operationId": "removeInstanceAiProvider",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "providerId": "id"
+        },
         "summary": "Withdraw an offered AI model",
         "description": "Removes the model and its sealed key. Every workspace that chose it gets no AI answer until it chooses again; nothing a workspace configured itself is touched. Journalled.\n",
         "responses": {

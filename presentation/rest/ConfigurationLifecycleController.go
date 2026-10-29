@@ -16,29 +16,9 @@ import (
 // The lifecycle of operational configuration: listed, revised and removed through the same
 // catalogue that creates it.
 const (
-	listBackupSchedulesUseCase   = "ListBackupSchedules"
 	updateBackupScheduleUseCase  = "UpdateBackupSchedule"
-	deleteBackupScheduleUseCase  = "DeleteBackupSchedule"
 	updateRetentionPolicyUseCase = "UpdateRetentionPolicy"
-	deleteRetentionPolicyUseCase = "DeleteRetentionPolicy"
 )
-
-// ListBackupSchedules answers GET /backup-schedules.
-//
-// An array rather than a page, for `ListBackupTargets`' reason: a workspace has a handful of
-// schedules, and a cursor over three rows would be ceremony.
-func (c *RestController) ListBackupSchedules(w http.ResponseWriter, r *http.Request) {
-	out, ok := c.read(w, r, listBackupSchedulesUseCase, usecase.Input{})
-	if !ok {
-		return
-	}
-
-	schedules := []openapi.BackupSchedule{}
-	for _, row := range rowsOf(out) {
-		schedules = append(schedules, backupScheduleResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, schedules)
-}
 
 // UpdateBackupSchedule answers PATCH /backup-schedules/{scheduleId}.
 func (c *RestController) UpdateBackupSchedule(
@@ -89,18 +69,6 @@ func (c *RestController) UpdateBackupSchedule(
 		return
 	}
 	writeJSON(w, r, http.StatusOK, backupScheduleResponse(out))
-}
-
-// DeleteBackupSchedule answers DELETE /backup-schedules/{scheduleId}.
-func (c *RestController) DeleteBackupSchedule(
-	w http.ResponseWriter, r *http.Request, scheduleID openapi_types.UUID,
-) {
-	if _, ok := c.read(w, r, deleteBackupScheduleUseCase, usecase.Input{
-		"schedule_id": scheduleID.String(),
-	}); !ok {
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 // UpdateRetentionPolicy answers PATCH /retention-policies/{policyId}.
@@ -164,16 +132,4 @@ func (c *RestController) UpdateRetentionPolicy(
 		return
 	}
 	writeJSON(w, r, http.StatusOK, retentionPolicyResponse(out))
-}
-
-// DeleteRetentionPolicy answers DELETE /retention-policies/{policyId}.
-func (c *RestController) DeleteRetentionPolicy(
-	w http.ResponseWriter, r *http.Request, policyID openapi_types.UUID,
-) {
-	if _, ok := c.read(w, r, deleteRetentionPolicyUseCase, usecase.Input{
-		"policy_id": policyID.String(),
-	}); !ok {
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }

@@ -2661,6 +2661,8 @@ paths:
     get:
       tags: [backup]
       operationId: listBackupSchedules
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: backupScheduleResponse
       summary: The schedules the workspace has
       description: >
         What runs on its own, and when it next will. Needs the permission that manages structure,
@@ -2734,6 +2736,7 @@ paths:
     delete:
       tags: [backup]
       operationId: deleteBackupSchedule
+      x-hubtask-rest: generated
       summary: Remove a schedule
       description: >
         The schedule stops existing and nothing else changes: the archives it produced stay at
@@ -3201,6 +3204,7 @@ paths:
     delete:
       tags: [retention]
       operationId: deleteRetentionPolicy
+      x-hubtask-rest: generated
       summary: Withdraw a retention rule
       description: >
         The rule stops applying. What it already did stands - retention deletes, and a deletion is
@@ -5938,6 +5942,9 @@ paths:
     get:
       tags: [admin]
       operationId: listInstallationPresets
+      x-hubtask-rest: generated
+      x-hubtask-rest-list: data
+      x-hubtask-rest-answer: installationPresetResponse
       summary: The installation's presets
       description: >
         The presets this installation offers every workspace, by name, each with its eight
@@ -5963,6 +5970,7 @@ paths:
     post:
       tags: [admin]
       operationId: createInstallationPreset
+      x-hubtask-rest: generated
       summary: Create a preset of the installation
       description: >
         A preset every workspace is offered, marked as the installation's (`origin` `INSTALLATION`
@@ -5994,6 +6002,7 @@ paths:
     patch:
       tags: [admin]
       operationId: changeInstallationPreset
+      x-hubtask-rest: generated
       summary: Change a preset of the installation
       description: >
         Renames it, copies one of Hubtask's presets into it again (`preset`), sets settings on top
@@ -6026,6 +6035,7 @@ paths:
     delete:
       tags: [admin]
       operationId: withdrawInstallationPreset
+      x-hubtask-rest: generated
       summary: Withdraw a preset of the installation
       description: >
         It is offered to no workspace any more; hubs and collections made from it keep their
@@ -6477,6 +6487,8 @@ paths:
     get:
       tags: [admin]
       operationId: listInstanceAiProviders
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: offeredAiModelResponse
       summary: The AI models this installation offers every workspace
       description: >
         A workspace sees only each model's name, processor and jurisdiction, and switches one on
@@ -6496,6 +6508,9 @@ paths:
     post:
       tags: [admin]
       operationId: createInstanceAiProvider
+      x-hubtask-rest: generated
+      x-hubtask-rest-use-case: ConfigureInstanceAiProvider
+      x-hubtask-rest-answer: offeredAiModelResponse
       summary: Offer an AI model to every workspace
       description: >
         The same rules as a workspace's own model, plus a name and a processor every workspace is
@@ -6524,6 +6539,9 @@ paths:
     put:
       tags: [admin]
       operationId: configureInstanceAiProvider
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: {providerId: id}
+      x-hubtask-rest-answer: offeredAiModelResponse
       summary: Change an offered AI model
       description: >
         Set whole, with the key's one exception: omitting it keeps the one that is sealed, an
@@ -6546,6 +6564,8 @@ paths:
     delete:
       tags: [admin]
       operationId: removeInstanceAiProvider
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: {providerId: id}
       summary: Withdraw an offered AI model
       description: >
         Removes the model and its sealed key. Every workspace that chose it gets no AI answer until
