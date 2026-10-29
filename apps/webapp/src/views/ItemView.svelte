@@ -67,6 +67,9 @@
   import { archivalOf } from '../lib/data/containers.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { definitionsFor, valueText } from '../lib/data/customfields.ts';
+  import { hasForm, panelRows } from '../lib/data/entryforms.ts';
+  import { entryTypes, typeOf, typesShown } from '../lib/data/entrytypes.svelte.ts';
+  import type { EntryFormState } from '@hubtask/sync-engine';
   import { formatDecimal } from '../lib/i18n/number.ts';
   import { formatDuration } from '../lib/i18n/duration.ts';
   import { commentsPath } from '../lib/data/comments.svelte.ts';
@@ -344,6 +347,40 @@
     item ? (item.label_ids ?? []).map((labelId) => labels.of(item.collection_id).find((each) => each.id === labelId)).filter((each) => each !== undefined) : [],
   );
   const definitions = $derived(item ? definitionsFor(customFields.of(item.collection_id), item.type as string) : []);
+
+  // The entry's type's form, in edit mode (UC-FLW-01 check 2): its custom fields in the form's
+  // sections and order, a hidden one left out, a read-only one opening nothing. The server answers
+  // the conditions for the entry as it is stored, again whenever its version moves.
+  $effect(() => {
+    if (!typesShown(manifest.value)) return;
+    return untrack(() => entryTypes.open());
+  });
+  const itemType = $derived(
+    item && typesShown(manifest.value) ? typeOf(entryTypes.all, item.type as string, item.entry_type ?? undefined) : undefined,
+  );
+  const itemForm = $derived(itemType && hasForm(itemType.form) ? itemType.form : undefined);
+  let formAnswer = $state<EntryFormState | undefined>(undefined);
+  $effect(() => {
+    const key = itemForm && itemType ? itemType.key : undefined;
+    const itemId = item?.id;
+    void item?.version;
+    if (!key || !itemId) {
+      formAnswer = undefined;
+      return;
+    }
+    let isCurrent = true;
+    entryTypes.evaluate(key, { item_id: itemId }).then(
+      (answer) => { if (isCurrent) formAnswer = answer; },
+      () => { if (isCurrent) formAnswer = undefined; },
+    );
+    return () => { isCurrent = false; };
+  });
+  const fieldRows = $derived(
+    panelRows(itemForm, formAnswer, definitions.map((definition) => definition.key)).flatMap((row) => {
+      const definition = definitions.find((each) => each.key === row.key);
+      return definition ? [{ ...row, definition }] : [];
+    }),
+  );
 
   /** The due date as the row says it - the same words `DueMark` draws. */
   const dueValue = $derived(
@@ -1406,9 +1443,16 @@
               </DetailRow>
             {/if}
             {#if carries('CUSTOM_FIELDS')}
-              {#each definitions as definition (definition.id)}
+              {#each fieldRows as row (row.definition.id)}
+                {@const definition = row.definition}
                 {@const held = (item.custom_fields as Record<string, unknown> | undefined)?.[definition.key]}
-                <DetailRow id={`field-${definition.key}`} label={definition.key} value={valueText(definition, held, fieldReading)} isReadOnly={!isWritable}>
+                {#if row.opens}<h3 class="form-section" data-form-section>{row.opens}</h3>{/if}
+                <DetailRow
+                  id={`field-${definition.key}`}
+                  label={row.required ? t('app.entry_forms.required_label', { name: definition.key }) : definition.key}
+                  value={valueText(definition, held, fieldReading)}
+                  isReadOnly={!isWritable || row.readOnly}
+                >
                   <CustomFieldPanel {item} path={peoplePath} only={definition.key} />
                 </DetailRow>
               {/each}
@@ -1429,6 +1473,14 @@
 {/if}
 
 <style>
+  .form-section {
+    margin: 0;
+    margin-block-start: var(--sp-150);
+    font-size: var(--fs-075);
+    font-weight: var(--fw-semibold);
+    color: var(--text-secondary);
+  }
+
   .section {
     margin: 0;
     font-family: var(--font-display);

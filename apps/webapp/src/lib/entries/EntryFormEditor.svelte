@@ -255,7 +255,7 @@
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); }
-  .heading { margin: 0 0 var(--sp-100); font-size: var(--fs-100); font-weight: var(--fw-semibold); }
+  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .part { display: grid; gap: var(--sp-150); }
 
   .fields {

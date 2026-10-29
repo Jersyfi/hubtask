@@ -86,6 +86,43 @@ export function unfoldedIn(form: EntryForm | undefined, state: EntryFormState | 
   });
 }
 
+/** One custom field's row on the entry panel, as the form lays it out. */
+export interface PanelRow {
+  readonly key: string;
+  /** The section's name where the row opens one. */
+  readonly opens?: string;
+  readonly required: boolean;
+  readonly readOnly: boolean;
+}
+
+/**
+ * The entry panel's custom field rows in the form's sections and order, the ones the answer hides
+ * left out, and the fields the form does not name after them as they were - the same form capture
+ * draws, in edit mode.
+ */
+export function panelRows(
+  form: EntryForm | undefined,
+  answer: EntryFormState | undefined,
+  keys: readonly string[],
+): readonly PanelRow[] {
+  const rows: PanelRow[] = [];
+  const placed = new Set<string>();
+  for (const group of groupsOf(form)) {
+    let opens = group.section?.name;
+    for (const field of group.fields) {
+      const custom = customKeyOf(field.key);
+      if (custom === undefined || !keys.includes(custom)) continue;
+      placed.add(custom);
+      const standing = standingOf(field, answer);
+      if (standing.hidden) continue;
+      rows.push({ key: custom, ...(opens ? { opens } : {}), required: standing.required, readOnly: standing.readOnly });
+      opens = undefined;
+    }
+  }
+  for (const key of keys) if (!placed.has(key)) rows.push({ key, required: false, readOnly: false });
+  return rows;
+}
+
 /** A field problem's path as a form key: `/custom_fields/size` is `custom_fields.size`. */
 export function formKeyOfPath(path: string): string {
   return path.replace(/^\//, '').split('/').join('.');

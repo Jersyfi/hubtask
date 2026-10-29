@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import type { EntryForm, EntryFormState } from '@hubtask/sync-engine';
 
 import {
-  addableKeys, channelIn, draftOfForm, formOfDraft, groupsOf, hasForm, moveField, refusalsByField, removeField,
+  addableKeys, channelIn, panelRows, draftOfForm, formOfDraft, groupsOf, hasForm, moveField, refusalsByField, removeField,
   removeSection, standingOf, unfilled, unfoldedIn, validationWords,
 } from './entryforms.ts';
 
@@ -98,4 +98,16 @@ test('the editor moves, removes and sends only what was designed', () => {
   assert.deepEqual(sent.channels, [], 'a channel that narrows nothing is not sent');
   // The source form stays as it was.
   assert.equal(form.fields?.length, 4);
+});
+
+test('the entry panel lays the custom fields out by the form, hidden ones left out', () => {
+  const answer = state({
+    'custom_fields.severity': { required: true, read_only: true, hidden: false },
+    'custom_fields.browser': { required: false, read_only: false, hidden: true },
+  });
+  assert.deepEqual(panelRows(form, answer, ['size', 'browser', 'severity']), [
+    { key: 'severity', opens: 'Impact', required: true, readOnly: true },
+    { key: 'size', required: false, readOnly: false },
+  ]);
+  assert.deepEqual(panelRows(undefined, undefined, ['size']), [{ key: 'size', required: false, readOnly: false }]);
 });
