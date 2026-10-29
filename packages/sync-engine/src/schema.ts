@@ -178,6 +178,11 @@ export type ConfigVersion = components['schemas']['ConfigVersion'];
 export type ConfigVersionList = components['schemas']['ConfigVersionList'];
 export type ConfigProposal = components['schemas']['ConfigProposal'];
 export type ConfigProposalList = components['schemas']['ConfigProposalList'];
+/** Templates: bundles of blocks with a version, and the plan of taking or upgrading one (D-17). */
+export type ConfigTemplate = components['schemas']['ConfigTemplate'];
+export type ConfigTemplateList = components['schemas']['ConfigTemplateList'];
+export type ConfigTemplatePlan = components['schemas']['ConfigTemplatePlan'];
+export type ConfigUpgradeChange = components['schemas']['ConfigUpgradeChange'];
 /** Every setting the product declares, with its levels and writers - no place's value. */
 export type SettingsCatalogue = components['schemas']['SettingsCatalogue'];
 export type SettingDefinition = components['schemas']['SettingDefinition'];
