@@ -110,10 +110,22 @@ func TestAWorkspaceSummaryReadsTheBoundCollections(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(statement.SQL, `wi.collection_id = ANY($1::uuid[])`) ||
+	if !strings.Contains(statement.SQL, `(wi.collection_id = ANY($1::uuid[]) OR wi.id = ANY($2::uuid[]))`) ||
 		strings.Contains(statement.SQL, collection.String()) {
 		t.Fatalf("the collections are not one bound array:\n%s", statement.SQL)
 	}
+
+	// An entry shared with the actor alone is a second bound array, never statement text.
+	entry := shared.ID("0192f000-0000-7000-8000-0000000000aa")
+	search.Anchor.ItemIDs = []shared.ID{entry}
+	statement, err = Aggregate(search, aggregation, "UTC", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(statement.SQL, entry.String()) {
+		t.Fatalf("the shared entry is statement text:\n%s", statement.SQL)
+	}
+	search.Anchor.ItemIDs = nil
 
 	search.Anchor.CollectionIDs = nil
 	statement, err = Aggregate(search, aggregation, "UTC", 10)

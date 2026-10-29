@@ -68,7 +68,10 @@ type CollectionQuery struct {
 	// IncludePrivate keeps the collections of private hubs. Without it the answer is the shared
 	// set: the collections everybody who may convert an arrival may write in.
 	IncludePrivate bool
-	Page           Page
+	// IncludeArchived keeps the archived collections, and those under an archived hub; trashed
+	// ones never.
+	IncludeArchived bool
+	Page            Page
 }
 
 // CollectionInHub is one collection with the hub it sits in, as a picker names it.
@@ -87,7 +90,7 @@ type CollectionPage struct {
 // Collections reads the collections across the hubs.
 type Collections interface {
 	// InOrder answers the collections that are neither trashed nor archived - their own stamp or
-	// their hub's - in the hubs' manual order and then each hub's. It judges no permission.
+	// their hub's; archived ones too when asked - in the hubs' manual order and then each hub's. It judges no permission.
 	InOrder(ctx context.Context, query CollectionQuery) (CollectionPage, error)
 }
 
@@ -309,6 +312,9 @@ type Anchor struct {
 	ItemID shared.ID
 	// CollectionIDs are the collections, for a collections anchor. Empty is no entry at all.
 	CollectionIDs []shared.ID
+	// ItemIDs are entries a collections anchor reaches besides its collections: those shared with
+	// the actor alone, in a collection they do not read.
+	ItemIDs []shared.ID
 	// PathPrefix is that entry's own path, which every row of its subtree begins with (I-W2).
 	PathPrefix string
 	// IncludeDescendants searches the subtree rather than one level below the anchor.

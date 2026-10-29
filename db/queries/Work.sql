@@ -139,9 +139,10 @@ LIMIT sqlc.arg('page_size');
 
 -- name: ListCollectionsInOrder :many
 -- Every collection a conversion could land in, across the hubs, in the order a person reads the
--- tree: the hubs' manual order, then each hub's collections in theirs. Trashed and archived ones are
--- never here, and neither is a collection under an archived hub - it is archived too (I-C3), and a
--- create there is refused. A private hub's collections only when the caller asks for them: the
+-- tree: the hubs' manual order, then each hub's collections in theirs. Trashed ones are never here,
+-- archived ones only when asked (a workspace summary over archived entries), and neither is a
+-- collection under an archived hub otherwise - it is archived too (I-C3), and a create there is
+-- refused. A private hub's collections only when the caller asks for them: the
 -- shared set a model chooses from leaves them out, a person's own picker keeps them and has them
 -- narrowed to what that person may create in.
 --
@@ -163,7 +164,7 @@ JOIN container hub ON hub.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
 WHERE c.type = 'COLLECTION'
   AND c.deleted_at IS NULL AND hub.deleted_at IS NULL
-  AND c.archived_at IS NULL AND hub.archived_at IS NULL
+  AND (sqlc.arg('include_archived')::boolean OR (c.archived_at IS NULL AND hub.archived_at IS NULL))
   AND (sqlc.arg('include_private')::boolean OR NOT hub.private)
   AND (
     sqlc.narg('cursor_hub_order_key')::text IS NULL

@@ -1427,19 +1427,20 @@ JOIN container hub ON hub.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
 WHERE c.type = 'COLLECTION'
   AND c.deleted_at IS NULL AND hub.deleted_at IS NULL
-  AND c.archived_at IS NULL AND hub.archived_at IS NULL
-  AND ($1::boolean OR NOT hub.private)
+  AND ($1::boolean OR (c.archived_at IS NULL AND hub.archived_at IS NULL))
+  AND ($2::boolean OR NOT hub.private)
   AND (
-    $2::text IS NULL
+    $3::text IS NULL
     OR (hub.order_key COLLATE "C", hub.id, c.order_key COLLATE "C", c.id)
-       > ($2::text COLLATE "C", $3::uuid,
-          $4::text COLLATE "C", $5::uuid)
+       > ($3::text COLLATE "C", $4::uuid,
+          $5::text COLLATE "C", $6::uuid)
   )
 ORDER BY hub.order_key COLLATE "C", hub.id, c.order_key COLLATE "C", c.id
-LIMIT $6
+LIMIT $7
 `
 
 type ListCollectionsInOrderParams struct {
+	IncludeArchived   bool
 	IncludePrivate    bool
 	CursorHubOrderKey *string
 	CursorHubID       pgtype.UUID
@@ -1478,9 +1479,10 @@ type ListCollectionsInOrderRow struct {
 }
 
 // Every collection a conversion could land in, across the hubs, in the order a person reads the
-// tree: the hubs' manual order, then each hub's collections in theirs. Trashed and archived ones are
-// never here, and neither is a collection under an archived hub - it is archived too (I-C3), and a
-// create there is refused. A private hub's collections only when the caller asks for them: the
+// tree: the hubs' manual order, then each hub's collections in theirs. Trashed ones are never here,
+// archived ones only when asked (a workspace summary over archived entries), and neither is a
+// collection under an archived hub otherwise - it is archived too (I-C3), and a create there is
+// refused. A private hub's collections only when the caller asks for them: the
 // shared set a model chooses from leaves them out, a person's own picker keeps them and has them
 // narrowed to what that person may create in.
 //
@@ -1489,6 +1491,7 @@ type ListCollectionsInOrderRow struct {
 // layer's to decide.
 func (q *Queries) ListCollectionsInOrder(ctx context.Context, arg ListCollectionsInOrderParams) ([]ListCollectionsInOrderRow, error) {
 	rows, err := q.db.Query(ctx, listCollectionsInOrder,
+		arg.IncludeArchived,
 		arg.IncludePrivate,
 		arg.CursorHubOrderKey,
 		arg.CursorHubID,

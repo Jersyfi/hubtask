@@ -620,6 +620,16 @@ func (b *builder) restriction(ids []shared.ID) {
 	b.write(`::uuid[])`)
 }
 
+// identifiers is a set of identifiers as a bound text array; empty, never nil, so the array is
+// typed and matches nothing.
+func identifiers(ids []shared.ID) []string {
+	values := make([]string, 0, len(ids))
+	for _, id := range ids {
+		values = append(values, id.String())
+	}
+	return values
+}
+
 // scope is the anchor the use case resolved, as a predicate.
 func (b *builder) scope(anchor repository.Anchor) {
 	switch anchor.Kind {
@@ -637,19 +647,17 @@ func (b *builder) scope(anchor repository.Anchor) {
 		b.write(`wi.tenant_id = current_tenant_id()`)
 
 	case repository.AnchorCollections:
-		// A bound array, as the restriction is, so the text does not grow with the workspace. An
-		// empty set reads nothing rather than everything.
-		if len(anchor.CollectionIDs) == 0 {
+		// Bound arrays, as the restriction is, so the text does not grow with the workspace. An
+		// empty set reads nothing rather than everything; the shared entries are a second array.
+		if len(anchor.CollectionIDs) == 0 && len(anchor.ItemIDs) == 0 {
 			b.write(`false`)
 			return
 		}
-		values := make([]string, 0, len(anchor.CollectionIDs))
-		for _, id := range anchor.CollectionIDs {
-			values = append(values, id.String())
-		}
-		b.write(`wi.collection_id = ANY(`)
-		b.param(values)
-		b.write(`::uuid[])`)
+		b.write(`(wi.collection_id = ANY(`)
+		b.param(identifiers(anchor.CollectionIDs))
+		b.write(`::uuid[]) OR wi.id = ANY(`)
+		b.param(identifiers(anchor.ItemIDs))
+		b.write(`::uuid[]))`)
 
 	case repository.AnchorHub:
 		// The hub's collections, as a subquery rather than a list the use case read first: the list

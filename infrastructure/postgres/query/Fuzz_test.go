@@ -144,7 +144,7 @@ func FuzzCompile(f *testing.F) {
 				t.Fatalf("the aggregation does not parse: %v", err)
 			}
 			for _, anchor := range []repository.Anchor{search.Anchor, {
-				Kind: repository.AnchorCollections, CollectionIDs: []shared.ID{collection},
+				Kind: repository.AnchorCollections, CollectionIDs: []shared.ID{collection}, ItemIDs: []shared.ID{collection},
 			}} {
 				summary, err := Aggregate(repository.ItemSearch{Anchor: anchor, Spec: search.Spec},
 					counted, document, 5001)
