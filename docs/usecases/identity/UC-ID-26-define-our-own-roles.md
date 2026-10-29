@@ -5,9 +5,9 @@ context: identity
 actors: [PE-owner, PE-admin, PE-auditor, PE-member, PE-requester, PE-agent]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-07, P-08, P-11]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/service/PermissionCatalogue_test.go, core/application/service/identity/Roles_test.go, test/security/custom_roles_test.go, test/integration/custom_role_test.go, core/application/service/work/TakeStep_test.go]
+checked_by: [core/domain/service/PermissionCatalogue_test.go, core/application/service/identity/Roles_test.go, test/security/custom_roles_test.go, test/integration/custom_role_test.go, core/application/service/work/TakeStep_test.go, core/application/service/workflow/Workflows_test.go, apps/webapp/src/lib/data/roles.test.ts]
 ---
 
 # Define our own roles from the permissions Hubtask knows
@@ -67,9 +67,3 @@ lack it themselves.
 * A custom role is held at a place, never on a single entry; sharing an entry stays a shipped
   role's.
 * Hiding a field from readers is UC-ID-27.
-
-## Today
-
-* Check 6: not met — the administration has no *Roles* section yet.
-* Check 7: not met — *Who may do what* is not drawn yet.
-* Check 8: not met — *View as* is not drawn yet.

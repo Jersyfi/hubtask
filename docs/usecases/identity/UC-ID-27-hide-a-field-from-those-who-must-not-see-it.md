@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11]
 state: partial
 tasks: []
-checked_by: [core/application/service/work/FormGate_test.go, core/domain/service/PermissionCatalogue_test.go]
+checked_by: [core/application/service/work/FormGate_test.go, core/domain/service/PermissionCatalogue_test.go, apps/webapp/src/lib/data/roles.test.ts]
 ---
 
 # Hide a field from those who must not see it
@@ -45,4 +45,3 @@ token is refused when it tries to write it.
 ## Today
 
 * Check 3: not met — no field is restricted for reading; every reader of the entry reads it.
-* Check 4: not met — the entry panel does not know a field is restricted.
