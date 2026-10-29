@@ -39,6 +39,26 @@ func (s Inventory) hubCIs(ctx context.Context, hub shared.ID) ([]domain.CI, erro
 	return out, nil
 }
 
+// conflictRuns is how many of a hub's latest runs a source's conflict rate is read from.
+const conflictRuns = 20
+
+// recentRuns reads a hub's latest runs with their decisions.
+func (s Inventory) recentRuns(ctx context.Context, hub shared.ID) ([]domain.Run, error) {
+	listed, err := s.Store.Runs(ctx, hub, conflictRuns)
+	if err != nil {
+		return nil, err
+	}
+	runs := make([]domain.Run, 0, len(listed))
+	for _, r := range listed {
+		run, err := s.Store.FindRun(ctx, r.ID)
+		if err != nil {
+			return nil, err
+		}
+		runs = append(runs, run)
+	}
+	return runs, nil
+}
+
 // ReadCmdbHealth judges a hub's inventory.
 type ReadCmdbHealth struct{ Inventory Inventory }
 
@@ -49,7 +69,9 @@ func (h ReadCmdbHealth) Descriptor() usecase.Descriptor {
 		Summary: "Judges a hub's inventory of active configuration items: completeness (required and " +
 			"recommended attributes and an owner filled), correctness (stale - unconfirmed by any source for " +
 			"its class's period -, orphaned - without a relation its class needs -, or in an open duplicate), " +
-			"CIs without an owner and reviews overdue, per class and in all, with the CIs found wanting and why.",
+			"CIs without an owner and reviews overdue, per class and in all, with the CIs found wanting and why; " +
+			"the relations a program reported and no longer confirms; each service's score over the CIs it rests " +
+			"on; and each source's conflict rate over the hub's latest twenty runs.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input:       []usecase.Field{{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub."}},
 		Audit:       usecase.AuditDeclaration{Action: CIReadAction, TargetType: ciTarget, Severity: audit.SeverityInfo},
@@ -88,7 +110,11 @@ func (h ReadCmdbHealth) Descriptor() usecase.Descriptor {
 						dups[c] = true
 					}
 				}
-				health = domain.Judge(cis, relations, reg.classes, dups, h.Inventory.Clock.Now())
+				runs, err := h.Inventory.recentRuns(ctx, hub)
+				if err != nil {
+					return err
+				}
+				health = domain.Judge(cis, relations, reg.classes, reg.types, dups, runs, h.Inventory.Clock.Now())
 				return nil
 			})
 			if err != nil {
@@ -115,10 +141,22 @@ func HealthOutput(h domain.Health) usecase.Output {
 			"missing": append([]string{}, p.Missing...),
 		})
 	}
+	services := make([]usecase.Output, 0, len(h.Services))
+	for _, sh := range h.Services {
+		services = append(services, usecase.Output{
+			"ci_id": sh.Service.String(), "class": sh.Class, "name": sh.Name, "cis": sh.CIs,
+			"wanting": sh.Wanting, "score": sh.Score,
+		})
+	}
+	sources := make([]usecase.Output, 0, len(h.Sources))
+	for _, c := range h.Sources {
+		sources = append(sources, usecase.Output{"source": c.Source, "reported": c.Reported, "kept": c.Kept, "conflict_rate": c.Rate})
+	}
 	return usecase.Output{
 		"total": h.Total, "completeness": h.Completeness, "correctness": h.Correctness, "stale": h.Stale,
 		"orphans": h.Orphans, "duplicates": h.Duplicates, "without_owner": h.WithoutOwner,
 		"review_overdue": h.ReviewOverdue, "classes": classes, "problems": problems,
+		"stale_relations": h.StaleRelations, "services": services, "sources": sources,
 	}
 }
 

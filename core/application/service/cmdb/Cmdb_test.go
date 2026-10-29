@@ -258,6 +258,23 @@ func (m *memory) InsertRun(_ context.Context, r domain.Run) error {
 	m.runs = append(m.runs, r)
 	return nil
 }
+func (m *memory) Runs(_ context.Context, h shared.ID, limit int) ([]domain.Run, error) {
+	var out []domain.Run
+	for i := len(m.runs) - 1; i >= 0 && len(out) < limit; i-- {
+		if m.runs[i].HubID == h {
+			out = append(out, domain.Run{ID: m.runs[i].ID, HubID: h, Source: m.runs[i].Source})
+		}
+	}
+	return out, nil
+}
+func (m *memory) FindRun(_ context.Context, id shared.ID) (domain.Run, error) {
+	for _, r := range m.runs {
+		if r.ID == id {
+			return r, nil
+		}
+	}
+	return domain.Run{}, shared.ErrNotFound
+}
 func (m *memory) InsertHold(_ context.Context, h domain.Hold) error {
 	m.holds = append(m.holds, h)
 	return nil

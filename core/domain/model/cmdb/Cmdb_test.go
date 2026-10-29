@@ -139,9 +139,54 @@ func TestHealthFindsIncompleteStaleOrphanedAndDuplicateCIs(t *testing.T) {
 			Compliance: Compliance{OwnerGroup: id("99")}},
 		{ID: id("03"), Class: "server", Stage: StageRetired},
 	}
-	h := Judge(cis, nil, NewClasses(nil), map[shared.ID]bool{id("02"): true}, now)
+	h := Judge(cis, nil, NewClasses(nil), NewRelationTypes(nil), map[shared.ID]bool{id("02"): true}, nil, now)
 	if h.Total != 2 || h.Orphans != 1 || h.Stale != 1 || h.Duplicates != 1 || h.WithoutOwner != 1 {
 		t.Fatalf("got %+v", h)
+	}
+}
+
+// A service's score is the share of what it rests on that health finds wanting in nothing (H7); a
+// relation a program no longer confirms is stale (R10), a person's never.
+func TestHealthScoresServicesAndCountsStaleRelations(t *testing.T) {
+	fresh, old := now.Add(-time.Hour), now.Add(-90*24*time.Hour)
+	owner := Compliance{OwnerGroup: id("99")}
+	cis := []CI{
+		{ID: id("01"), Class: "business_service", Name: "Booking", Stage: StageInUse, LastSeen: &fresh, Compliance: owner},
+		{ID: id("02"), Class: "application_service", Stage: StageInUse, LastSeen: &fresh, Compliance: owner},
+		{ID: id("03"), Class: "virtual_machine", Stage: StageInUse, LastSeen: &old},
+		{ID: id("04"), Class: "business_service", Name: "Alone", Stage: StageInUse, LastSeen: &fresh, Compliance: owner},
+	}
+	rels := []Relation{
+		{Type: RelDependsOn, SourceCI: id("01"), TargetCI: id("02"), DataSource: ManualSource, LastSeen: old},
+		{Type: RelRunsOn, SourceCI: id("02"), TargetCI: id("03"), DataSource: "netbox", LastSeen: old},
+	}
+	h := Judge(cis, rels, NewClasses(nil), NewRelationTypes(nil), nil, nil, now)
+	if h.StaleRelations != 1 {
+		t.Errorf("stale relations %d, want the program's one", h.StaleRelations)
+	}
+	// The application service is a service too, and the worst scored comes first.
+	if len(h.Services) != 3 || h.Services[0].Service != id("02") || h.Services[0].CIs != 2 {
+		t.Fatalf("services %+v, want the application first over itself and its VM", h.Services)
+	}
+	if booking := h.Services[1]; booking.Service != id("01") || booking.CIs != 3 || booking.Wanting != 1 {
+		t.Errorf("Booking %+v, want its three CIs with the stale VM wanting", booking)
+	}
+	if h.Services[2].Service != id("04") || h.Services[2].Score != 1 {
+		t.Errorf("the lone service %+v, want a full score", h.Services[2])
+	}
+}
+
+// A source's conflict rate is the share of the attributes it reported that a better source kept
+// (H5).
+func TestConflictsAreTheShareKeptByABetterSource(t *testing.T) {
+	runs := []Run{
+		{Source: "scan", Decisions: []Decision{{Taken: []string{"a", "b"}, Kept: []Kept{{Attribute: "c", By: "netbox"}}}}},
+		{Source: "scan", Decisions: []Decision{{Kept: []Kept{{Attribute: "c", By: "netbox"}}}}},
+		{Source: "netbox", Decisions: []Decision{{Taken: []string{"c"}}}},
+	}
+	got := Conflicts(runs)
+	if len(got) != 2 || got[0].Source != "scan" || got[0].Reported != 4 || got[0].Kept != 2 || got[0].Rate != 0.5 || got[1].Rate != 0 {
+		t.Fatalf("conflicts %+v", got)
 	}
 }
 
