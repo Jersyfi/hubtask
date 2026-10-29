@@ -127,6 +127,11 @@ export const ROUTES: readonly Route[] = [
   // A hub's whiteboards and one of them (M4), addressed as a page is.
   { name: 'hub-whiteboards', pattern: '/hubs/:id/whiteboards' },
   { name: 'whiteboard', pattern: '/whiteboards/:id' },
+  // A hub's assets (M6) by section, and one configuration item, addressed by itself because an
+  // impact, a duplicate or a health problem links it without its hub.
+  { name: 'hub-assets', pattern: '/hubs/:id/assets' },
+  { name: 'hub-assets-section', pattern: '/hubs/:id/assets/:section' },
+  { name: 'ci', pattern: '/cis/:id' },
   { name: 'collection', pattern: '/collections/:id' },
   // A place's settings, a section each (design-system.md §11.8): an address, so a section is
   // linked, reloaded and gone back to like any page. The bare path opens the first section.

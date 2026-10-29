@@ -851,10 +851,27 @@
    * The place's own menu, the same items as its row in the navigation (`placeMenu`, design-system.md
    * §11.8): what is done to the place itself, for whom it may be done. Entries are the toolbar's.
    */
+  /**
+   * A hub's module screens, where their modules are on: its pages (M3), its whiteboards (M4) and its
+   * assets (M6). The first two are the head's secondary actions, the header holding two; the rest
+   * join the place's menu. Import is the place's menu's, the filter the toolbar's.
+   */
+  const moduleActions = $derived.by<PageAction[]>(() => {
+    if (container?.type !== 'HUB') return [];
+    const on = manifest.value?.modules_on ?? [];
+    const actions: PageAction[] = [];
+    if (on.includes('KNOWLEDGE')) actions.push({ label: t('app.pages.title'), icon: 'book-open', onclick: () => onnavigate(`/hubs/${id}/pages`) });
+    if (on.includes('WHITEBOARD')) actions.push({ label: t('app.whiteboards.title'), icon: 'layout-template', onclick: () => onnavigate(`/hubs/${id}/whiteboards`) });
+    if (on.includes('ASSETS')) actions.push({ label: t('app.assets.title'), icon: 'shield', onclick: () => onnavigate(`/hubs/${id}/assets`) });
+    return actions;
+  });
   const pageMenu = $derived<MenuItem[]>(
     container === undefined
       ? []
-      : placeMenu({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', mayShape, mayDelete, archival, privacy: privacyControl, readOnlyReason }, (code) => t(code)),
+      : [
+          ...moduleActions.slice(2).map((action, index) => ({ id: `module:${index + 2}`, label: action.label, icon: action.icon })),
+          ...placeMenu({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', mayShape, mayDelete, archival, privacy: privacyControl, readOnlyReason }, (code) => t(code)),
+        ],
   );
 
   /**
@@ -899,7 +916,8 @@
   }
 
   function choseFromMenu(id: string) {
-    if (id === 'settings') openStructure('general');
+    if (id.startsWith('module:')) moduleActions[Number(id.slice(7))]?.onclick?.();
+    else if (id === 'settings') openStructure('general');
     else if (id === 'move') isMovingHub = true;
     else if (id === 'import') startImport();
     else if (id === 'position') isPositioning = true;
@@ -953,17 +971,9 @@
             }
           : undefined,
   );
-  /**
-   * The head's secondary actions are a hub's pages and its whiteboards, where the knowledge (M3) and
-   * the whiteboard module (M4) are on: import is the place's menu's, the filter the toolbar's.
-   */
   const headSecondary = $derived.by<readonly [] | readonly [PageAction] | readonly [PageAction, PageAction]>(() => {
-    if (container?.type !== 'HUB') return [];
-    const on = manifest.value?.modules_on ?? [];
-    const actions: PageAction[] = [];
-    if (on.includes('KNOWLEDGE')) actions.push({ label: t('app.pages.title'), icon: 'book-open', onclick: () => onnavigate(`/hubs/${id}/pages`) });
-    if (on.includes('WHITEBOARD')) actions.push({ label: t('app.whiteboards.title'), icon: 'layout-template', onclick: () => onnavigate(`/hubs/${id}/whiteboards`) });
-    return actions.length === 2 ? [actions[0]!, actions[1]!] : actions.length === 1 ? [actions[0]!] : [];
+    const actions = moduleActions;
+    return actions.length >= 2 ? [actions[0]!, actions[1]!] : actions.length === 1 ? [actions[0]!] : [];
   });
   /**
    * The order, the toolbar's own menu (design-system.md §11.1): the fields the installation lets

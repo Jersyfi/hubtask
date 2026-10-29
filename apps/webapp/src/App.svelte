@@ -74,6 +74,7 @@
     LinkTypesView: () => import('./views/LinkTypesView.svelte'),
     PagesView: () => import('./views/PagesView.svelte'),
     WhiteboardsView: () => import('./views/WhiteboardsView.svelte'),
+    AssetsView: () => import('./views/AssetsView.svelte'),
     ChangesView: () => import('./views/ChangesView.svelte'),
     WorkflowsView: () => import('./views/WorkflowsView.svelte'),
     BackupView: () => import('./views/BackupView.svelte'),
@@ -396,6 +397,18 @@
         props={{
           hubId: route.name === 'hub-whiteboards' ? route.params.id : undefined,
           boardId: route.name === 'whiteboard' ? route.params.id : undefined,
+          onnavigate: (path: string) => router.navigate(path),
+        }}
+      />
+    {/key}
+  {:else if route.name === 'hub-assets' || route.name === 'hub-assets-section' || route.name === 'ci'}
+    {#key route.name === 'ci' ? route.path : route.params.id}
+      <LazyView
+        load={views.AssetsView}
+        props={{
+          hubId: route.name === 'ci' ? undefined : route.params.id,
+          section: route.name === 'hub-assets-section' ? route.params.section : undefined,
+          ciId: route.name === 'ci' ? route.params.id : undefined,
           onnavigate: (path: string) => router.navigate(path),
         }}
       />
