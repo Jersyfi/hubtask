@@ -1443,6 +1443,66 @@ class Client:
         """Every setting the product declares"""
         return self._call("GET", "/settings/catalogue", {}, None, {}, None, "none", None, "json")
 
+    def read_config_schema(self) -> "ConfigSchema":
+        """The configuration document's JSON Schema"""
+        return self._call("GET", "/meta/config-schema", {}, None, {}, None, "none", None, "json")
+
+    def export_config(self) -> "ConfigExport":
+        """The configuration document in force"""
+        return self._call("GET", "/config", {}, None, {}, None, "none", None, "json")
+
+    def explain_config(self, *, query: dict[str, Any] | None = None) -> "ConfigExplanation":
+        """Explain one key of the configuration"""
+        return self._call("GET", "/config/explain", {}, query, {}, None, "none", None, "json")
+
+    def validate_config(self, body: "ConfigDocumentRequest") -> "ConfigValidation":
+        """Check a configuration document"""
+        return self._call("POST", "/config:validate", {}, None, {}, body, "json", "application/json", "json")
+
+    def plan_config(self, body: "ConfigPlanRequest") -> "ConfigPlan":
+        """Plan a configuration change or a rollback"""
+        return self._call("POST", "/config:plan", {}, None, {}, body, "json", "application/json", "json")
+
+    def propose_config(self, body: "ConfigApplyRequest") -> "ConfigApplyResult":
+        """Propose a planned change for a person to decide"""
+        return self._call("POST", "/config:propose", {}, None, {}, body, "json", "application/json", "json")
+
+    def apply_config(self, body: "ConfigApplyRequest", *, if_match: str | None = None) -> "ConfigApplyResult":
+        """Apply a planned configuration change"""
+        return self._call("POST", "/config:apply", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_config_versions(self, *, query: dict[str, Any] | None = None) -> "ConfigVersionList":
+        """The configuration's versions"""
+        return self._call("GET", "/config/versions", {}, query, {}, None, "none", None, "json")
+
+    def read_config_version(self, version: str) -> "ConfigVersion":
+        """One configuration version with its document"""
+        return self._call("GET", "/config/versions/{version}", {"version": version}, None, {}, None, "none", None, "json")
+
+    def list_config_proposals(self, *, query: dict[str, Any] | None = None) -> "ConfigProposalList":
+        """The proposed configuration changes"""
+        return self._call("GET", "/config/proposals", {}, query, {}, None, "none", None, "json")
+
+    def decide_config_proposal(self, proposal_id: str, body: "ConfigDecision") -> "ConfigApplyResult":
+        """Apply or decline a proposed change"""
+        return self._call("POST", "/config/proposals/{proposalId}:decide", {"proposalId": proposal_id}, None, {}, body, "json", "application/json", "json")
+
+    def set_config_policy(self, body: "ConfigPolicy") -> "ConfigPolicy":
+        """Set what an agent's apply does"""
+        return self._call("PUT", "/config/policy", {}, None, {}, body, "json", "application/json", "json")
+
+    def list_config_templates(self) -> "ConfigTemplateList":
+        """The workspace's templates"""
+        return self._call("GET", "/config/templates", {}, None, {}, None, "none", None, "json")
+
+    def publish_config_template(self, body: "ConfigTemplatePublish") -> "ConfigTemplate":
+        """Publish a template's next version"""
+        return self._call("POST", "/config/templates", {}, None, {}, body, "json", "application/json", "json")
+
+    def plan_config_template(self, key: str, body: "ConfigTemplatePlanRequest") -> "ConfigTemplatePlan":
+        """Plan taking or upgrading a template"""
+        return self._call("POST", "/config/templates/{key}:plan", {"key": key}, None, {}, body, "json", "application/json", "json")
+
     def list_modules(self, *, query: dict[str, Any] | None = None) -> "ModuleList":
         """The modules of the suite at the workspace or one hub"""
         return self._call("GET", "/tenant/modules", {}, query, {}, None, "none", None, "json")

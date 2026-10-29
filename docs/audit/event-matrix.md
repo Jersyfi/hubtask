@@ -174,6 +174,25 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `backup.target_tested` | TestBackupTarget | `backup_target` | INFO | Every time |
 | `backup.verified` | VerifyBackup | `backup_run` | INFO | Every time |
 
+## Config
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `config.applied` | ApplyConfig | `configuration` | INFO | Every time |
+| `config.applied` | DecideConfigProposal | `configuration` | INFO | Every time |
+| `config.planned` | PlanConfig | `configuration` | INFO | When refused |
+| `config.planned` | PlanConfigTemplate | `configuration` | INFO | When refused |
+| `config.planned` | ValidateConfig | `configuration` | INFO | When refused |
+| `config.policy_set` | SetConfigPolicy | `configuration` | INFO | Every time |
+| `config.proposed` | ProposeConfig | `configuration` | INFO | Every time |
+| `config.read` | ExplainConfig | `configuration` | INFO | When refused |
+| `config.read` | ExportConfig | `configuration` | INFO | When refused |
+| `config.read` | ListConfigProposals | `configuration` | INFO | When refused |
+| `config.read` | ListConfigTemplates | `configuration` | INFO | When refused |
+| `config.read` | ListConfigVersions | `configuration` | INFO | When refused |
+| `config.read` | ReadConfigVersion | `configuration` | INFO | When refused |
+| `config.template_published` | PublishConfigTemplate | `configuration` | INFO | Every time |
+
 ## Data: comments
 
 | Action | Use case | Target | Severity | Recorded |
@@ -460,6 +479,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `` | InspectInvitation | `` |  | When refused |
 | `` | ListRoles | `` |  | When refused |
 | `` | LocateOidcFlow | `` |  | When refused |
+| `` | ReadConfigSchema | `` |  | When refused |
 | `` | ReadSettingsCatalogue | `` |  | When refused |
 
 ## Permissions

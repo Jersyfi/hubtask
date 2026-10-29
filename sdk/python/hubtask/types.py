@@ -1484,6 +1484,172 @@ class SettingDefinition(TypedDict, total=False):
     writers: Required[list[dict[str, Any]]]
     preview: str
 
+ConfigDocument = dict[str, Any]
+
+class ConfigSchema(TypedDict, total=False):
+    schema: Required[dict[str, Any]]
+
+class ConfigExport(TypedDict, total=False):
+    document: Required["ConfigDocument"]
+    hash: Required[str]
+    version: Required[int]
+    withheld: Required[list[str]]
+
+class ConfigExplanation(TypedDict, total=False):
+    key: Required[str]
+    value: Required[dict[str, Any]]
+    source: Required[str]
+    locked_by: str | None
+    permission: Required[str]
+    operation: str
+    applies_to: Required[str]
+    allowed: list[str]
+
+class ConfigRefusal(TypedDict, total=False):
+    path: Required[str]
+    code: Required[str]
+    params: dict[str, Any]
+
+class ConfigDocumentRequest(TypedDict, total=False):
+    document: Required["ConfigDocument"]
+    mode: Literal["MERGE", "REPLACE"]
+
+class ConfigValidation(TypedDict, total=False):
+    valid: Required[bool]
+    refusals: Required[list["ConfigRefusal"]]
+
+class ConfigPlanRequest(TypedDict, total=False):
+    document: "ConfigDocument"
+    mode: Literal["MERGE", "REPLACE"]
+    to_version: int
+
+class ConfigChange(TypedDict, total=False):
+    path: Required[str]
+    section: Required[str]
+    key: Required[str]
+    op: Required[Literal["ADD", "CHANGE", "REMOVE"]]
+    fields: Required[list[str]]
+    before: dict[str, Any] | None
+    after: dict[str, Any] | None
+
+class ConfigPlan(TypedDict, total=False):
+    base_hash: Required[str]
+    plan_hash: Required[str | None]
+    changes: Required[list["ConfigChange"]]
+    operations: Required[list[dict[str, Any]]]
+    refusals: Required[list["ConfigRefusal"]]
+    flags: Required[dict[str, Any]]
+    counts: Required["ConfigCounts"]
+
+class ConfigCounts(TypedDict, total=False):
+    added: Required[int]
+    changed: Required[int]
+    removed: Required[int]
+
+class ConfigApplyRequest(TypedDict, total=False):
+    document: "ConfigDocument"
+    mode: Literal["MERGE", "REPLACE"]
+    to_version: int
+    plan_hash: Required[str]
+    acknowledge: bool
+    template: str
+
+class ConfigVersion(TypedDict, total=False):
+    version: Required[int]
+    hash: Required[str]
+    plan_hash: Required[str]
+    actor_kind: Required[str]
+    actor_id: str | None
+    proposed_by: str | None
+    rolled_back_to: int | None
+    template: str | None
+    added: Required[int]
+    changed: Required[int]
+    removed: Required[int]
+    created_at: Required[str]
+    document: "ConfigDocument"
+
+class ConfigVersionList(TypedDict, total=False):
+    data: Required[list["ConfigVersion"]]
+
+class ConfigProposal(TypedDict, total=False):
+    id: Required[str]
+    state: Required[Literal["WAITING", "APPLIED", "DECLINED"]]
+    document: Required["ConfigDocument"]
+    mode: Required[Literal["MERGE", "REPLACE"]]
+    base_hash: Required[str]
+    plan_hash: Required[str]
+    template: str | None
+    added: Required[int]
+    changed: Required[int]
+    removed: Required[int]
+    hides_data: Required[bool]
+    changes_permissions: Required[bool]
+    proposed_by: str | None
+    decided_by: str | None
+    created_at: Required[str]
+    decided_at: str | None
+
+class ConfigProposalList(TypedDict, total=False):
+    data: Required[list["ConfigProposal"]]
+
+class ConfigApplyResult(TypedDict, total=False):
+    state: Required[Literal["APPLIED", "PROPOSED", "DECLINED"]]
+    version: "ConfigVersion"
+    proposal: "ConfigProposal"
+
+class ConfigDecision(TypedDict, total=False):
+    decision: Required[Literal["APPLY", "DECLINE"]]
+    acknowledge: bool
+
+class ConfigPolicy(TypedDict, total=False):
+    agent_apply: Required[Literal["ALLOWED", "APPROVAL", "NEVER"]]
+
+class ConfigTemplate(TypedDict, total=False):
+    key: Required[str]
+    version: Required[int]
+    name: Required[str]
+    origin: Required[Literal["HUBTASK", "INSTALLATION", "WORKSPACE", "OWN"]]
+    provenance: Required[str]
+    document: Required["ConfigDocument"]
+    created_at: Required[str]
+    taken_version: int | None
+    update_available: Required[bool]
+
+class ConfigTemplateList(TypedDict, total=False):
+    data: Required[list["ConfigTemplate"]]
+
+class ConfigTemplatePublish(TypedDict, total=False):
+    key: Required[str]
+    name: Required[str]
+    document: "ConfigDocument"
+
+class ConfigTemplatePlanRequest(TypedDict, total=False):
+    version: int
+    take: list[str]
+
+class ConfigUpgradeChange(TypedDict, total=False):
+    path: Required[str]
+    state: Required[Literal["TAKE", "CONFLICT"]]
+    removed: Required[bool]
+    base: Any
+    ours: Any
+    theirs: Any
+
+class ConfigTemplatePlan(TypedDict, total=False):
+    base_hash: Required[str]
+    plan_hash: Required[str | None]
+    changes: Required[list["ConfigChange"]]
+    operations: Required[list[dict[str, Any]]]
+    refusals: Required[list["ConfigRefusal"]]
+    flags: Required[dict[str, Any]]
+    counts: Required["ConfigCounts"]
+    template: Required[str]
+    from_version: int | None
+    upgrade: Required[list["ConfigUpgradeChange"]]
+    document: Required["ConfigDocument"]
+    mode: Required[Literal["MERGE", "REPLACE"]]
+
 class SettingsCatalogue(TypedDict, total=False):
     settings: Required[list["SettingDefinition"]]
 

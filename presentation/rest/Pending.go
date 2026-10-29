@@ -1797,3 +1797,32 @@ func (pending) RevokeRoleGrant(w http.ResponseWriter, r *http.Request, _ openapi
 func (pending) ExplainAccess(w http.ResponseWriter, r *http.Request, _ openapi.ExplainAccessParams) {
 	notAvailable(w, r)
 }
+
+// The configuration document (F-6).
+func (pending) ReadConfigSchema(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) ExportConfig(w http.ResponseWriter, r *http.Request)     { notAvailable(w, r) }
+func (pending) ExplainConfig(w http.ResponseWriter, r *http.Request, _ openapi.ExplainConfigParams) {
+	notAvailable(w, r)
+}
+func (pending) ValidateConfig(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) PlanConfig(w http.ResponseWriter, r *http.Request)     { notAvailable(w, r) }
+func (pending) ProposeConfig(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
+func (pending) ApplyConfig(w http.ResponseWriter, r *http.Request, _ openapi.ApplyConfigParams) {
+	notAvailable(w, r)
+}
+func (pending) ListConfigVersions(w http.ResponseWriter, r *http.Request, _ openapi.ListConfigVersionsParams) {
+	notAvailable(w, r)
+}
+func (pending) ReadConfigVersion(w http.ResponseWriter, r *http.Request, _ int) { notAvailable(w, r) }
+func (pending) ListConfigProposals(w http.ResponseWriter, r *http.Request, _ openapi.ListConfigProposalsParams) {
+	notAvailable(w, r)
+}
+func (pending) DecideConfigProposal(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+func (pending) SetConfigPolicy(w http.ResponseWriter, r *http.Request)       { notAvailable(w, r) }
+func (pending) ListConfigTemplates(w http.ResponseWriter, r *http.Request)   { notAvailable(w, r) }
+func (pending) PublishConfigTemplate(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) PlanConfigTemplate(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}

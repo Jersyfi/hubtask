@@ -1817,6 +1817,81 @@ export class HubtaskClient {
     return this.call("GET", "/settings/catalogue", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** The configuration document's JSON Schema */
+  readConfigSchema(options: CallOptions = {}): Promise<operations["readConfigSchema"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/meta/config-schema", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The configuration document in force */
+  exportConfig(options: CallOptions = {}): Promise<operations["exportConfig"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/config", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Explain one key of the configuration */
+  explainConfig(options: CallOptions & { readonly query?: NonNullable<operations["explainConfig"]['parameters']['query']> } = {}): Promise<operations["explainConfig"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/config/explain", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Check a configuration document */
+  validateConfig(body: NonNullable<operations["validateConfig"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["validateConfig"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/config:validate", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Plan a configuration change or a rollback */
+  planConfig(body: NonNullable<operations["planConfig"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["planConfig"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/config:plan", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Propose a planned change for a person to decide */
+  proposeConfig(body: NonNullable<operations["proposeConfig"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["proposeConfig"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/config:propose", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Apply a planned configuration change */
+  applyConfig(body: NonNullable<operations["applyConfig"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["applyConfig"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/config:apply", {  }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The configuration's versions */
+  listConfigVersions(options: CallOptions & { readonly query?: NonNullable<operations["listConfigVersions"]['parameters']['query']> } = {}): Promise<operations["listConfigVersions"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/config/versions", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** One configuration version with its document */
+  readConfigVersion(version: string, options: CallOptions = {}): Promise<operations["readConfigVersion"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/config/versions/{version}", { "version": version }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The proposed configuration changes */
+  listConfigProposals(options: CallOptions & { readonly query?: NonNullable<operations["listConfigProposals"]['parameters']['query']> } = {}): Promise<operations["listConfigProposals"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/config/proposals", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Apply or decline a proposed change */
+  decideConfigProposal(proposalId: string, body: NonNullable<operations["decideConfigProposal"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["decideConfigProposal"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/config/proposals/{proposalId}:decide", { "proposalId": proposalId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Set what an agent's apply does */
+  setConfigPolicy(body: NonNullable<operations["setConfigPolicy"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setConfigPolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/config/policy", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The workspace's templates */
+  listConfigTemplates(options: CallOptions = {}): Promise<operations["listConfigTemplates"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/config/templates", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Publish a template's next version */
+  publishConfigTemplate(body: NonNullable<operations["publishConfigTemplate"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["publishConfigTemplate"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/config/templates", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Plan taking or upgrading a template */
+  planConfigTemplate(key: string, body: NonNullable<operations["planConfigTemplate"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["planConfigTemplate"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/config/templates/{key}:plan", { "key": key }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The modules of the suite at the workspace or one hub */
   listModules(options: CallOptions & { readonly query?: NonNullable<operations["listModules"]['parameters']['query']> } = {}): Promise<operations["listModules"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/tenant/modules", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

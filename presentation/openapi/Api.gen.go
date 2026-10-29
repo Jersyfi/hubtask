@@ -1473,6 +1473,240 @@ func (e CompletionPolicy) Valid() bool {
 	}
 }
 
+// Defines values for ConfigApplyRequestMode.
+const (
+	ConfigApplyRequestModeMERGE   ConfigApplyRequestMode = "MERGE"
+	ConfigApplyRequestModeREPLACE ConfigApplyRequestMode = "REPLACE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigApplyRequestMode enum.
+func (e ConfigApplyRequestMode) Valid() bool {
+	switch e {
+	case ConfigApplyRequestModeMERGE:
+		return true
+	case ConfigApplyRequestModeREPLACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigApplyResultState.
+const (
+	ConfigApplyResultStateAPPLIED  ConfigApplyResultState = "APPLIED"
+	ConfigApplyResultStateDECLINED ConfigApplyResultState = "DECLINED"
+	ConfigApplyResultStatePROPOSED ConfigApplyResultState = "PROPOSED"
+)
+
+// Valid indicates whether the value is a known member of the ConfigApplyResultState enum.
+func (e ConfigApplyResultState) Valid() bool {
+	switch e {
+	case ConfigApplyResultStateAPPLIED:
+		return true
+	case ConfigApplyResultStateDECLINED:
+		return true
+	case ConfigApplyResultStatePROPOSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigChangeOp.
+const (
+	ADD    ConfigChangeOp = "ADD"
+	CHANGE ConfigChangeOp = "CHANGE"
+	REMOVE ConfigChangeOp = "REMOVE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigChangeOp enum.
+func (e ConfigChangeOp) Valid() bool {
+	switch e {
+	case ADD:
+		return true
+	case CHANGE:
+		return true
+	case REMOVE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigDecisionDecision.
+const (
+	APPLY   ConfigDecisionDecision = "APPLY"
+	DECLINE ConfigDecisionDecision = "DECLINE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigDecisionDecision enum.
+func (e ConfigDecisionDecision) Valid() bool {
+	switch e {
+	case APPLY:
+		return true
+	case DECLINE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigDocumentRequestMode.
+const (
+	ConfigDocumentRequestModeMERGE   ConfigDocumentRequestMode = "MERGE"
+	ConfigDocumentRequestModeREPLACE ConfigDocumentRequestMode = "REPLACE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigDocumentRequestMode enum.
+func (e ConfigDocumentRequestMode) Valid() bool {
+	switch e {
+	case ConfigDocumentRequestModeMERGE:
+		return true
+	case ConfigDocumentRequestModeREPLACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigPlanRequestMode.
+const (
+	ConfigPlanRequestModeMERGE   ConfigPlanRequestMode = "MERGE"
+	ConfigPlanRequestModeREPLACE ConfigPlanRequestMode = "REPLACE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigPlanRequestMode enum.
+func (e ConfigPlanRequestMode) Valid() bool {
+	switch e {
+	case ConfigPlanRequestModeMERGE:
+		return true
+	case ConfigPlanRequestModeREPLACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigPolicyAgentApply.
+const (
+	ConfigPolicyAgentApplyALLOWED  ConfigPolicyAgentApply = "ALLOWED"
+	ConfigPolicyAgentApplyAPPROVAL ConfigPolicyAgentApply = "APPROVAL"
+	ConfigPolicyAgentApplyNEVER    ConfigPolicyAgentApply = "NEVER"
+)
+
+// Valid indicates whether the value is a known member of the ConfigPolicyAgentApply enum.
+func (e ConfigPolicyAgentApply) Valid() bool {
+	switch e {
+	case ConfigPolicyAgentApplyALLOWED:
+		return true
+	case ConfigPolicyAgentApplyAPPROVAL:
+		return true
+	case ConfigPolicyAgentApplyNEVER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigProposalMode.
+const (
+	ConfigProposalModeMERGE   ConfigProposalMode = "MERGE"
+	ConfigProposalModeREPLACE ConfigProposalMode = "REPLACE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigProposalMode enum.
+func (e ConfigProposalMode) Valid() bool {
+	switch e {
+	case ConfigProposalModeMERGE:
+		return true
+	case ConfigProposalModeREPLACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigProposalState.
+const (
+	ConfigProposalStateAPPLIED  ConfigProposalState = "APPLIED"
+	ConfigProposalStateDECLINED ConfigProposalState = "DECLINED"
+	ConfigProposalStateWAITING  ConfigProposalState = "WAITING"
+)
+
+// Valid indicates whether the value is a known member of the ConfigProposalState enum.
+func (e ConfigProposalState) Valid() bool {
+	switch e {
+	case ConfigProposalStateAPPLIED:
+		return true
+	case ConfigProposalStateDECLINED:
+		return true
+	case ConfigProposalStateWAITING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigTemplateOrigin.
+const (
+	ConfigTemplateOriginHUBTASK      ConfigTemplateOrigin = "HUBTASK"
+	ConfigTemplateOriginINSTALLATION ConfigTemplateOrigin = "INSTALLATION"
+	ConfigTemplateOriginOWN          ConfigTemplateOrigin = "OWN"
+	ConfigTemplateOriginWORKSPACE    ConfigTemplateOrigin = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigTemplateOrigin enum.
+func (e ConfigTemplateOrigin) Valid() bool {
+	switch e {
+	case ConfigTemplateOriginHUBTASK:
+		return true
+	case ConfigTemplateOriginINSTALLATION:
+		return true
+	case ConfigTemplateOriginOWN:
+		return true
+	case ConfigTemplateOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigTemplatePlanMode.
+const (
+	ConfigTemplatePlanModeMERGE   ConfigTemplatePlanMode = "MERGE"
+	ConfigTemplatePlanModeREPLACE ConfigTemplatePlanMode = "REPLACE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigTemplatePlanMode enum.
+func (e ConfigTemplatePlanMode) Valid() bool {
+	switch e {
+	case ConfigTemplatePlanModeMERGE:
+		return true
+	case ConfigTemplatePlanModeREPLACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigUpgradeChangeState.
+const (
+	ConfigUpgradeChangeStateCONFLICT ConfigUpgradeChangeState = "CONFLICT"
+	ConfigUpgradeChangeStateTAKE     ConfigUpgradeChangeState = "TAKE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigUpgradeChangeState enum.
+func (e ConfigUpgradeChangeState) Valid() bool {
+	switch e {
+	case ConfigUpgradeChangeStateCONFLICT:
+		return true
+	case ConfigUpgradeChangeStateTAKE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConsentRecordSource.
 const (
 	ConsentRecordSourceConfig      ConsentRecordSource = "config"
@@ -6318,6 +6552,27 @@ func (e ListRuleRunsParamsTrigger) Valid() bool {
 	}
 }
 
+// Defines values for ListConfigProposalsParamsState.
+const (
+	ListConfigProposalsParamsStateAPPLIED  ListConfigProposalsParamsState = "APPLIED"
+	ListConfigProposalsParamsStateDECLINED ListConfigProposalsParamsState = "DECLINED"
+	ListConfigProposalsParamsStateWAITING  ListConfigProposalsParamsState = "WAITING"
+)
+
+// Valid indicates whether the value is a known member of the ListConfigProposalsParamsState enum.
+func (e ListConfigProposalsParamsState) Valid() bool {
+	switch e {
+	case ListConfigProposalsParamsStateAPPLIED:
+		return true
+	case ListConfigProposalsParamsStateDECLINED:
+		return true
+	case ListConfigProposalsParamsStateWAITING:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListWebhookDeliveriesParamsStatus.
 const (
 	ListWebhookDeliveriesParamsStatusDEADLETTER   ListWebhookDeliveriesParamsStatus = "DEAD_LETTER"
@@ -7922,6 +8177,295 @@ type Completion struct {
 
 // CompletionPolicy Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 type CompletionPolicy string
+
+// ConfigApplyRequest defines model for ConfigApplyRequest.
+type ConfigApplyRequest struct {
+	Acknowledge *bool `json:"acknowledge,omitempty"`
+
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document *ConfigDocument         `json:"document,omitempty"`
+	Mode     *ConfigApplyRequestMode `json:"mode,omitempty"`
+	PlanHash string                  `json:"plan_hash"`
+
+	// Template The template@version the document came from.
+	Template  *string `json:"template,omitempty"`
+	ToVersion *int    `json:"to_version,omitempty"`
+}
+
+// ConfigApplyRequestMode defines model for ConfigApplyRequest.Mode.
+type ConfigApplyRequestMode string
+
+// ConfigApplyResult defines model for ConfigApplyResult.
+type ConfigApplyResult struct {
+	Proposal *ConfigProposal        `json:"proposal,omitempty"`
+	State    ConfigApplyResultState `json:"state"`
+	Version  *ConfigVersion         `json:"version,omitempty"`
+}
+
+// ConfigApplyResultState defines model for ConfigApplyResult.State.
+type ConfigApplyResultState string
+
+// ConfigChange defines model for ConfigChange.
+type ConfigChange struct {
+	After   *map[string]interface{} `json:"after,omitempty"`
+	Before  *map[string]interface{} `json:"before,omitempty"`
+	Fields  []string                `json:"fields"`
+	Key     string                  `json:"key"`
+	Op      ConfigChangeOp          `json:"op"`
+	Path    string                  `json:"path"`
+	Section string                  `json:"section"`
+}
+
+// ConfigChangeOp defines model for ConfigChange.Op.
+type ConfigChangeOp string
+
+// ConfigCounts defines model for ConfigCounts.
+type ConfigCounts struct {
+	Added   int `json:"added"`
+	Changed int `json:"changed"`
+	Removed int `json:"removed"`
+}
+
+// ConfigDecision defines model for ConfigDecision.
+type ConfigDecision struct {
+	Acknowledge *bool                  `json:"acknowledge,omitempty"`
+	Decision    ConfigDecisionDecision `json:"decision"`
+}
+
+// ConfigDecisionDecision defines model for ConfigDecision.Decision.
+type ConfigDecisionDecision string
+
+// ConfigDocument Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+type ConfigDocument map[string]map[string]*map[string]interface{}
+
+// ConfigDocumentRequest defines model for ConfigDocumentRequest.
+type ConfigDocumentRequest struct {
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document ConfigDocument             `json:"document"`
+	Mode     *ConfigDocumentRequestMode `json:"mode,omitempty"`
+}
+
+// ConfigDocumentRequestMode defines model for ConfigDocumentRequest.Mode.
+type ConfigDocumentRequestMode string
+
+// ConfigExplanation defines model for ConfigExplanation.
+type ConfigExplanation struct {
+	Allowed    *[]string              `json:"allowed,omitempty"`
+	AppliesTo  string                 `json:"applies_to"`
+	Key        string                 `json:"key"`
+	LockedBy   *string                `json:"locked_by,omitempty"`
+	Operation  *string                `json:"operation,omitempty"`
+	Permission string                 `json:"permission"`
+	Source     string                 `json:"source"`
+	Value      map[string]interface{} `json:"value"`
+}
+
+// ConfigExport defines model for ConfigExport.
+type ConfigExport struct {
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document ConfigDocument `json:"document"`
+	Hash     string         `json:"hash"`
+
+	// Version The newest applied version; 0 where none was applied yet.
+	Version  int      `json:"version"`
+	Withheld []string `json:"withheld"`
+}
+
+// ConfigPlan defines model for ConfigPlan.
+type ConfigPlan struct {
+	BaseHash string         `json:"base_hash"`
+	Changes  []ConfigChange `json:"changes"`
+	Counts   ConfigCounts   `json:"counts"`
+	Flags    struct {
+		ChangesPermissions bool `json:"changes_permissions"`
+		HidesData          bool `json:"hides_data"`
+	} `json:"flags"`
+	Operations []struct {
+		Path    string `json:"path"`
+		UseCase string `json:"use_case"`
+	} `json:"operations"`
+
+	// PlanHash Null where the plan refuses.
+	PlanHash *string         `json:"plan_hash"`
+	Refusals []ConfigRefusal `json:"refusals"`
+}
+
+// ConfigPlanRequest defines model for ConfigPlanRequest.
+type ConfigPlanRequest struct {
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document  *ConfigDocument        `json:"document,omitempty"`
+	Mode      *ConfigPlanRequestMode `json:"mode,omitempty"`
+	ToVersion *int                   `json:"to_version,omitempty"`
+}
+
+// ConfigPlanRequestMode defines model for ConfigPlanRequest.Mode.
+type ConfigPlanRequestMode string
+
+// ConfigPolicy defines model for ConfigPolicy.
+type ConfigPolicy struct {
+	AgentApply ConfigPolicyAgentApply `json:"agent_apply"`
+}
+
+// ConfigPolicyAgentApply defines model for ConfigPolicy.AgentApply.
+type ConfigPolicyAgentApply string
+
+// ConfigProposal defines model for ConfigProposal.
+type ConfigProposal struct {
+	Added              int                 `json:"added"`
+	BaseHash           string              `json:"base_hash"`
+	Changed            int                 `json:"changed"`
+	ChangesPermissions bool                `json:"changes_permissions"`
+	CreatedAt          time.Time           `json:"created_at"`
+	DecidedAt          *time.Time          `json:"decided_at,omitempty"`
+	DecidedBy          *openapi_types.UUID `json:"decided_by,omitempty"`
+
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document   ConfigDocument      `json:"document"`
+	HidesData  bool                `json:"hides_data"`
+	Id         openapi_types.UUID  `json:"id"`
+	Mode       ConfigProposalMode  `json:"mode"`
+	PlanHash   string              `json:"plan_hash"`
+	ProposedBy *openapi_types.UUID `json:"proposed_by,omitempty"`
+	Removed    int                 `json:"removed"`
+	State      ConfigProposalState `json:"state"`
+	Template   *string             `json:"template,omitempty"`
+}
+
+// ConfigProposalMode defines model for ConfigProposal.Mode.
+type ConfigProposalMode string
+
+// ConfigProposalState defines model for ConfigProposal.State.
+type ConfigProposalState string
+
+// ConfigProposalList defines model for ConfigProposalList.
+type ConfigProposalList struct {
+	Data []ConfigProposal `json:"data"`
+}
+
+// ConfigRefusal defines model for ConfigRefusal.
+type ConfigRefusal struct {
+	Code   string             `json:"code"`
+	Params *map[string]string `json:"params,omitempty"`
+
+	// Path The key path as a JSON Pointer.
+	Path string `json:"path"`
+}
+
+// ConfigSchema defines model for ConfigSchema.
+type ConfigSchema struct {
+	Schema map[string]interface{} `json:"schema"`
+}
+
+// ConfigTemplate defines model for ConfigTemplate.
+type ConfigTemplate struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document ConfigDocument       `json:"document"`
+	Key      string               `json:"key"`
+	Name     string               `json:"name"`
+	Origin   ConfigTemplateOrigin `json:"origin"`
+
+	// Provenance key@version
+	Provenance      string `json:"provenance"`
+	TakenVersion    *int   `json:"taken_version,omitempty"`
+	UpdateAvailable bool   `json:"update_available"`
+	Version         int    `json:"version"`
+}
+
+// ConfigTemplateOrigin defines model for ConfigTemplate.Origin.
+type ConfigTemplateOrigin string
+
+// ConfigTemplateList defines model for ConfigTemplateList.
+type ConfigTemplateList struct {
+	Data []ConfigTemplate `json:"data"`
+}
+
+// ConfigTemplatePlan defines model for ConfigTemplatePlan.
+type ConfigTemplatePlan struct {
+	BaseHash string         `json:"base_hash"`
+	Changes  []ConfigChange `json:"changes"`
+	Counts   ConfigCounts   `json:"counts"`
+
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document ConfigDocument `json:"document"`
+	Flags    struct {
+		ChangesPermissions bool `json:"changes_permissions"`
+		HidesData          bool `json:"hides_data"`
+	} `json:"flags"`
+	FromVersion *int                   `json:"from_version,omitempty"`
+	Mode        ConfigTemplatePlanMode `json:"mode"`
+	Operations  []struct {
+		Path    string `json:"path"`
+		UseCase string `json:"use_case"`
+	} `json:"operations"`
+
+	// PlanHash Null where the plan refuses.
+	PlanHash *string               `json:"plan_hash"`
+	Refusals []ConfigRefusal       `json:"refusals"`
+	Template string                `json:"template"`
+	Upgrade  []ConfigUpgradeChange `json:"upgrade"`
+}
+
+// ConfigTemplatePlanMode defines model for ConfigTemplatePlan.Mode.
+type ConfigTemplatePlanMode string
+
+// ConfigTemplatePlanRequest defines model for ConfigTemplatePlanRequest.
+type ConfigTemplatePlanRequest struct {
+	Take    *[]string `json:"take,omitempty"`
+	Version *int      `json:"version,omitempty"`
+}
+
+// ConfigTemplatePublish defines model for ConfigTemplatePublish.
+type ConfigTemplatePublish struct {
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document *ConfigDocument `json:"document,omitempty"`
+	Key      string          `json:"key"`
+	Name     string          `json:"name"`
+}
+
+// ConfigUpgradeChange defines model for ConfigUpgradeChange.
+type ConfigUpgradeChange struct {
+	Base    interface{}              `json:"base,omitempty"`
+	Ours    interface{}              `json:"ours,omitempty"`
+	Path    string                   `json:"path"`
+	Removed bool                     `json:"removed"`
+	State   ConfigUpgradeChangeState `json:"state"`
+	Theirs  interface{}              `json:"theirs,omitempty"`
+}
+
+// ConfigUpgradeChangeState defines model for ConfigUpgradeChange.State.
+type ConfigUpgradeChangeState string
+
+// ConfigValidation defines model for ConfigValidation.
+type ConfigValidation struct {
+	Refusals []ConfigRefusal `json:"refusals"`
+	Valid    bool            `json:"valid"`
+}
+
+// ConfigVersion defines model for ConfigVersion.
+type ConfigVersion struct {
+	ActorId   *openapi_types.UUID `json:"actor_id,omitempty"`
+	ActorKind string              `json:"actor_kind"`
+	Added     int                 `json:"added"`
+	Changed   int                 `json:"changed"`
+	CreatedAt time.Time           `json:"created_at"`
+
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document     *ConfigDocument     `json:"document,omitempty"`
+	Hash         string              `json:"hash"`
+	PlanHash     string              `json:"plan_hash"`
+	ProposedBy   *openapi_types.UUID `json:"proposed_by,omitempty"`
+	Removed      int                 `json:"removed"`
+	RolledBackTo *int                `json:"rolled_back_to,omitempty"`
+	Template     *string             `json:"template,omitempty"`
+	Version      int                 `json:"version"`
+}
+
+// ConfigVersionList defines model for ConfigVersionList.
+type ConfigVersionList struct {
+	Data []ConfigVersion `json:"data"`
+}
 
 // ConnectedIdentity One provider identity connected to the caller's account.
 type ConnectedIdentity struct {
@@ -15203,6 +15747,30 @@ type SetCollectionHandleParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ExplainConfigParams defines parameters for ExplainConfig.
+type ExplainConfigParams struct {
+	Key string `form:"key" json:"key"`
+}
+
+// ListConfigProposalsParams defines parameters for ListConfigProposals.
+type ListConfigProposalsParams struct {
+	State *ListConfigProposalsParamsState `form:"state,omitempty" json:"state,omitempty"`
+}
+
+// ListConfigProposalsParamsState defines parameters for ListConfigProposals.
+type ListConfigProposalsParamsState string
+
+// ListConfigVersionsParams defines parameters for ListConfigVersions.
+type ListConfigVersionsParams struct {
+	Before *int `form:"before,omitempty" json:"before,omitempty"`
+}
+
+// ApplyConfigParams defines parameters for ApplyConfig.
+type ApplyConfigParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListContainersParams defines parameters for ListContainers.
 type ListContainersParams struct {
 	Type            *ContainerTypeFilter `form:"type,omitempty" json:"type,omitempty"`
@@ -16486,6 +17054,30 @@ type StartBackupJSONRequestBody = BackupStart
 // SetCollectionHandleJSONRequestBody defines body for SetCollectionHandle for application/json ContentType.
 type SetCollectionHandleJSONRequestBody = CollectionHandle
 
+// SetConfigPolicyJSONRequestBody defines body for SetConfigPolicy for application/json ContentType.
+type SetConfigPolicyJSONRequestBody = ConfigPolicy
+
+// DecideConfigProposalJSONRequestBody defines body for DecideConfigProposal for application/json ContentType.
+type DecideConfigProposalJSONRequestBody = ConfigDecision
+
+// PublishConfigTemplateJSONRequestBody defines body for PublishConfigTemplate for application/json ContentType.
+type PublishConfigTemplateJSONRequestBody = ConfigTemplatePublish
+
+// PlanConfigTemplateJSONRequestBody defines body for PlanConfigTemplate for application/json ContentType.
+type PlanConfigTemplateJSONRequestBody = ConfigTemplatePlanRequest
+
+// ApplyConfigJSONRequestBody defines body for ApplyConfig for application/json ContentType.
+type ApplyConfigJSONRequestBody = ConfigApplyRequest
+
+// PlanConfigJSONRequestBody defines body for PlanConfig for application/json ContentType.
+type PlanConfigJSONRequestBody = ConfigPlanRequest
+
+// ProposeConfigJSONRequestBody defines body for ProposeConfig for application/json ContentType.
+type ProposeConfigJSONRequestBody = ConfigApplyRequest
+
+// ValidateConfigJSONRequestBody defines body for ValidateConfig for application/json ContentType.
+type ValidateConfigJSONRequestBody = ConfigDocumentRequest
+
 // CreateContainerJSONRequestBody defines body for CreateContainer for application/json ContentType.
 type CreateContainerJSONRequestBody = ContainerCreate
 
@@ -17355,6 +17947,48 @@ type ServerInterface interface {
 	// SetCollectionHandle Give a collection another handle
 	// (PUT /collections/{collection_id}/handle)
 	SetCollectionHandle(w http.ResponseWriter, r *http.Request, collectionId openapi_types.UUID, params SetCollectionHandleParams)
+	// ExportConfig The configuration document in force
+	// (GET /config)
+	ExportConfig(w http.ResponseWriter, r *http.Request)
+	// ExplainConfig Explain one key of the configuration
+	// (GET /config/explain)
+	ExplainConfig(w http.ResponseWriter, r *http.Request, params ExplainConfigParams)
+	// SetConfigPolicy Set what an agent's apply does
+	// (PUT /config/policy)
+	SetConfigPolicy(w http.ResponseWriter, r *http.Request)
+	// ListConfigProposals The proposed configuration changes
+	// (GET /config/proposals)
+	ListConfigProposals(w http.ResponseWriter, r *http.Request, params ListConfigProposalsParams)
+	// DecideConfigProposal Apply or decline a proposed change
+	// (POST /config/proposals/{proposalId}:decide)
+	DecideConfigProposal(w http.ResponseWriter, r *http.Request, proposalId openapi_types.UUID)
+	// ListConfigTemplates The workspace's templates
+	// (GET /config/templates)
+	ListConfigTemplates(w http.ResponseWriter, r *http.Request)
+	// PublishConfigTemplate Publish a template's next version
+	// (POST /config/templates)
+	PublishConfigTemplate(w http.ResponseWriter, r *http.Request)
+	// PlanConfigTemplate Plan taking or upgrading a template
+	// (POST /config/templates/{key}:plan)
+	PlanConfigTemplate(w http.ResponseWriter, r *http.Request, key string)
+	// ListConfigVersions The configuration's versions
+	// (GET /config/versions)
+	ListConfigVersions(w http.ResponseWriter, r *http.Request, params ListConfigVersionsParams)
+	// ReadConfigVersion One configuration version with its document
+	// (GET /config/versions/{version})
+	ReadConfigVersion(w http.ResponseWriter, r *http.Request, version int)
+	// ApplyConfig Apply a planned configuration change
+	// (POST /config:apply)
+	ApplyConfig(w http.ResponseWriter, r *http.Request, params ApplyConfigParams)
+	// PlanConfig Plan a configuration change or a rollback
+	// (POST /config:plan)
+	PlanConfig(w http.ResponseWriter, r *http.Request)
+	// ProposeConfig Propose a planned change for a person to decide
+	// (POST /config:propose)
+	ProposeConfig(w http.ResponseWriter, r *http.Request)
+	// ValidateConfig Check a configuration document
+	// (POST /config:validate)
+	ValidateConfig(w http.ResponseWriter, r *http.Request)
 
 	// (GET /containers)
 	ListContainers(w http.ResponseWriter, r *http.Request, params ListContainersParams)
@@ -17862,6 +18496,9 @@ type ServerInterface interface {
 	// GetCapabilities Self-description of the installation
 	// (GET /meta/capabilities)
 	GetCapabilities(w http.ResponseWriter, r *http.Request)
+	// ReadConfigSchema The configuration document's JSON Schema
+	// (GET /meta/config-schema)
+	ReadConfigSchema(w http.ResponseWriter, r *http.Request)
 	// GetHealthReport Deep self-diagnosis of the installation
 	// (GET /meta/health)
 	GetHealthReport(w http.ResponseWriter, r *http.Request)
@@ -23088,6 +23725,322 @@ func (siw *ServerInterfaceWrapper) SetCollectionHandle(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SetCollectionHandle(w, r, collectionId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportConfig operation middleware
+func (siw *ServerInterfaceWrapper) ExportConfig(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportConfig(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExplainConfig operation middleware
+func (siw *ServerInterfaceWrapper) ExplainConfig(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ExplainConfigParams
+
+	// ------------- Required query parameter "key" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "key", r.URL.Query(), &params.Key, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "key"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExplainConfig(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetConfigPolicy operation middleware
+func (siw *ServerInterfaceWrapper) SetConfigPolicy(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetConfigPolicy(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListConfigProposals operation middleware
+func (siw *ServerInterfaceWrapper) ListConfigProposals(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListConfigProposalsParams
+
+	// ------------- Optional query parameter "state" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "state", r.URL.Query(), &params.State, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListConfigProposals(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DecideConfigProposal operation middleware
+func (siw *ServerInterfaceWrapper) DecideConfigProposal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "proposalId" -------------
+	var proposalId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "proposalId", r.PathValue("proposalId"), &proposalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "proposalId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DecideConfigProposal(w, r, proposalId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListConfigTemplates operation middleware
+func (siw *ServerInterfaceWrapper) ListConfigTemplates(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListConfigTemplates(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PublishConfigTemplate operation middleware
+func (siw *ServerInterfaceWrapper) PublishConfigTemplate(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PublishConfigTemplate(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PlanConfigTemplate operation middleware
+func (siw *ServerInterfaceWrapper) PlanConfigTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PlanConfigTemplate(w, r, key)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListConfigVersions operation middleware
+func (siw *ServerInterfaceWrapper) ListConfigVersions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListConfigVersionsParams
+
+	// ------------- Optional query parameter "before" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "before", r.URL.Query(), &params.Before, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "before"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "before", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListConfigVersions(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadConfigVersion operation middleware
+func (siw *ServerInterfaceWrapper) ReadConfigVersion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "version" -------------
+	var version int
+
+	err = runtime.BindStyledParameterWithOptions("simple", "version", r.PathValue("version"), &version, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "version", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadConfigVersion(w, r, version)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ApplyConfig operation middleware
+func (siw *ServerInterfaceWrapper) ApplyConfig(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ApplyConfigParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApplyConfig(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PlanConfig operation middleware
+func (siw *ServerInterfaceWrapper) PlanConfig(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PlanConfig(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ProposeConfig operation middleware
+func (siw *ServerInterfaceWrapper) ProposeConfig(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ProposeConfig(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ValidateConfig operation middleware
+func (siw *ServerInterfaceWrapper) ValidateConfig(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ValidateConfig(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -29974,6 +30927,20 @@ func (siw *ServerInterfaceWrapper) GetCapabilities(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// ReadConfigSchema operation middleware
+func (siw *ServerInterfaceWrapper) ReadConfigSchema(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadConfigSchema(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetHealthReport operation middleware
 func (siw *ServerInterfaceWrapper) GetHealthReport(w http.ResponseWriter, r *http.Request) {
 
@@ -33196,6 +34163,21 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/links:query", wrapper.ListLinksAmong)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/references:resolve", wrapper.ResolveReferences)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/settings/catalogue", wrapper.ReadSettingsCatalogue)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/meta/config-schema", wrapper.ReadConfigSchema)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/config", wrapper.ExportConfig)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/config/explain", wrapper.ExplainConfig)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/config:validate", wrapper.ValidateConfig)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/config:plan", wrapper.PlanConfig)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/config:propose", wrapper.ProposeConfig)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/config:apply", wrapper.ApplyConfig)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/config/versions", wrapper.ListConfigVersions)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/config/versions/{version}", wrapper.ReadConfigVersion)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/config/proposals", wrapper.ListConfigProposals)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/config/proposals/{proposalId}:decide", wrapper.DecideConfigProposal)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/config/policy", wrapper.SetConfigPolicy)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/config/templates", wrapper.ListConfigTemplates)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/config/templates", wrapper.PublishConfigTemplate)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/config/templates/{key}:plan", wrapper.PlanConfigTemplate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/modules", wrapper.ListModules)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tenant/modules/{module}", wrapper.SetModule)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/presets", wrapper.ListPresets)

@@ -1479,6 +1479,240 @@ func (e CompletionPolicy) Valid() bool {
 	}
 }
 
+// Defines values for ConfigApplyRequestMode.
+const (
+	ConfigApplyRequestModeMERGE   ConfigApplyRequestMode = "MERGE"
+	ConfigApplyRequestModeREPLACE ConfigApplyRequestMode = "REPLACE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigApplyRequestMode enum.
+func (e ConfigApplyRequestMode) Valid() bool {
+	switch e {
+	case ConfigApplyRequestModeMERGE:
+		return true
+	case ConfigApplyRequestModeREPLACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigApplyResultState.
+const (
+	ConfigApplyResultStateAPPLIED  ConfigApplyResultState = "APPLIED"
+	ConfigApplyResultStateDECLINED ConfigApplyResultState = "DECLINED"
+	ConfigApplyResultStatePROPOSED ConfigApplyResultState = "PROPOSED"
+)
+
+// Valid indicates whether the value is a known member of the ConfigApplyResultState enum.
+func (e ConfigApplyResultState) Valid() bool {
+	switch e {
+	case ConfigApplyResultStateAPPLIED:
+		return true
+	case ConfigApplyResultStateDECLINED:
+		return true
+	case ConfigApplyResultStatePROPOSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigChangeOp.
+const (
+	ADD    ConfigChangeOp = "ADD"
+	CHANGE ConfigChangeOp = "CHANGE"
+	REMOVE ConfigChangeOp = "REMOVE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigChangeOp enum.
+func (e ConfigChangeOp) Valid() bool {
+	switch e {
+	case ADD:
+		return true
+	case CHANGE:
+		return true
+	case REMOVE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigDecisionDecision.
+const (
+	APPLY   ConfigDecisionDecision = "APPLY"
+	DECLINE ConfigDecisionDecision = "DECLINE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigDecisionDecision enum.
+func (e ConfigDecisionDecision) Valid() bool {
+	switch e {
+	case APPLY:
+		return true
+	case DECLINE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigDocumentRequestMode.
+const (
+	ConfigDocumentRequestModeMERGE   ConfigDocumentRequestMode = "MERGE"
+	ConfigDocumentRequestModeREPLACE ConfigDocumentRequestMode = "REPLACE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigDocumentRequestMode enum.
+func (e ConfigDocumentRequestMode) Valid() bool {
+	switch e {
+	case ConfigDocumentRequestModeMERGE:
+		return true
+	case ConfigDocumentRequestModeREPLACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigPlanRequestMode.
+const (
+	ConfigPlanRequestModeMERGE   ConfigPlanRequestMode = "MERGE"
+	ConfigPlanRequestModeREPLACE ConfigPlanRequestMode = "REPLACE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigPlanRequestMode enum.
+func (e ConfigPlanRequestMode) Valid() bool {
+	switch e {
+	case ConfigPlanRequestModeMERGE:
+		return true
+	case ConfigPlanRequestModeREPLACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigPolicyAgentApply.
+const (
+	ConfigPolicyAgentApplyALLOWED  ConfigPolicyAgentApply = "ALLOWED"
+	ConfigPolicyAgentApplyAPPROVAL ConfigPolicyAgentApply = "APPROVAL"
+	ConfigPolicyAgentApplyNEVER    ConfigPolicyAgentApply = "NEVER"
+)
+
+// Valid indicates whether the value is a known member of the ConfigPolicyAgentApply enum.
+func (e ConfigPolicyAgentApply) Valid() bool {
+	switch e {
+	case ConfigPolicyAgentApplyALLOWED:
+		return true
+	case ConfigPolicyAgentApplyAPPROVAL:
+		return true
+	case ConfigPolicyAgentApplyNEVER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigProposalMode.
+const (
+	ConfigProposalModeMERGE   ConfigProposalMode = "MERGE"
+	ConfigProposalModeREPLACE ConfigProposalMode = "REPLACE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigProposalMode enum.
+func (e ConfigProposalMode) Valid() bool {
+	switch e {
+	case ConfigProposalModeMERGE:
+		return true
+	case ConfigProposalModeREPLACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigProposalState.
+const (
+	ConfigProposalStateAPPLIED  ConfigProposalState = "APPLIED"
+	ConfigProposalStateDECLINED ConfigProposalState = "DECLINED"
+	ConfigProposalStateWAITING  ConfigProposalState = "WAITING"
+)
+
+// Valid indicates whether the value is a known member of the ConfigProposalState enum.
+func (e ConfigProposalState) Valid() bool {
+	switch e {
+	case ConfigProposalStateAPPLIED:
+		return true
+	case ConfigProposalStateDECLINED:
+		return true
+	case ConfigProposalStateWAITING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigTemplateOrigin.
+const (
+	ConfigTemplateOriginHUBTASK      ConfigTemplateOrigin = "HUBTASK"
+	ConfigTemplateOriginINSTALLATION ConfigTemplateOrigin = "INSTALLATION"
+	ConfigTemplateOriginOWN          ConfigTemplateOrigin = "OWN"
+	ConfigTemplateOriginWORKSPACE    ConfigTemplateOrigin = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigTemplateOrigin enum.
+func (e ConfigTemplateOrigin) Valid() bool {
+	switch e {
+	case ConfigTemplateOriginHUBTASK:
+		return true
+	case ConfigTemplateOriginINSTALLATION:
+		return true
+	case ConfigTemplateOriginOWN:
+		return true
+	case ConfigTemplateOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigTemplatePlanMode.
+const (
+	ConfigTemplatePlanModeMERGE   ConfigTemplatePlanMode = "MERGE"
+	ConfigTemplatePlanModeREPLACE ConfigTemplatePlanMode = "REPLACE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigTemplatePlanMode enum.
+func (e ConfigTemplatePlanMode) Valid() bool {
+	switch e {
+	case ConfigTemplatePlanModeMERGE:
+		return true
+	case ConfigTemplatePlanModeREPLACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConfigUpgradeChangeState.
+const (
+	ConfigUpgradeChangeStateCONFLICT ConfigUpgradeChangeState = "CONFLICT"
+	ConfigUpgradeChangeStateTAKE     ConfigUpgradeChangeState = "TAKE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigUpgradeChangeState enum.
+func (e ConfigUpgradeChangeState) Valid() bool {
+	switch e {
+	case ConfigUpgradeChangeStateCONFLICT:
+		return true
+	case ConfigUpgradeChangeStateTAKE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConsentRecordSource.
 const (
 	ConsentRecordSourceConfig      ConsentRecordSource = "config"
@@ -6324,6 +6558,27 @@ func (e ListRuleRunsParamsTrigger) Valid() bool {
 	}
 }
 
+// Defines values for ListConfigProposalsParamsState.
+const (
+	ListConfigProposalsParamsStateAPPLIED  ListConfigProposalsParamsState = "APPLIED"
+	ListConfigProposalsParamsStateDECLINED ListConfigProposalsParamsState = "DECLINED"
+	ListConfigProposalsParamsStateWAITING  ListConfigProposalsParamsState = "WAITING"
+)
+
+// Valid indicates whether the value is a known member of the ListConfigProposalsParamsState enum.
+func (e ListConfigProposalsParamsState) Valid() bool {
+	switch e {
+	case ListConfigProposalsParamsStateAPPLIED:
+		return true
+	case ListConfigProposalsParamsStateDECLINED:
+		return true
+	case ListConfigProposalsParamsStateWAITING:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListWebhookDeliveriesParamsStatus.
 const (
 	ListWebhookDeliveriesParamsStatusDEADLETTER   ListWebhookDeliveriesParamsStatus = "DEAD_LETTER"
@@ -7928,6 +8183,295 @@ type Completion struct {
 
 // CompletionPolicy Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 type CompletionPolicy string
+
+// ConfigApplyRequest defines model for ConfigApplyRequest.
+type ConfigApplyRequest struct {
+	Acknowledge *bool `json:"acknowledge,omitempty"`
+
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document *ConfigDocument         `json:"document,omitempty"`
+	Mode     *ConfigApplyRequestMode `json:"mode,omitempty"`
+	PlanHash string                  `json:"plan_hash"`
+
+	// Template The template@version the document came from.
+	Template  *string `json:"template,omitempty"`
+	ToVersion *int    `json:"to_version,omitempty"`
+}
+
+// ConfigApplyRequestMode defines model for ConfigApplyRequest.Mode.
+type ConfigApplyRequestMode string
+
+// ConfigApplyResult defines model for ConfigApplyResult.
+type ConfigApplyResult struct {
+	Proposal *ConfigProposal        `json:"proposal,omitempty"`
+	State    ConfigApplyResultState `json:"state"`
+	Version  *ConfigVersion         `json:"version,omitempty"`
+}
+
+// ConfigApplyResultState defines model for ConfigApplyResult.State.
+type ConfigApplyResultState string
+
+// ConfigChange defines model for ConfigChange.
+type ConfigChange struct {
+	After   *map[string]interface{} `json:"after,omitempty"`
+	Before  *map[string]interface{} `json:"before,omitempty"`
+	Fields  []string                `json:"fields"`
+	Key     string                  `json:"key"`
+	Op      ConfigChangeOp          `json:"op"`
+	Path    string                  `json:"path"`
+	Section string                  `json:"section"`
+}
+
+// ConfigChangeOp defines model for ConfigChange.Op.
+type ConfigChangeOp string
+
+// ConfigCounts defines model for ConfigCounts.
+type ConfigCounts struct {
+	Added   int `json:"added"`
+	Changed int `json:"changed"`
+	Removed int `json:"removed"`
+}
+
+// ConfigDecision defines model for ConfigDecision.
+type ConfigDecision struct {
+	Acknowledge *bool                  `json:"acknowledge,omitempty"`
+	Decision    ConfigDecisionDecision `json:"decision"`
+}
+
+// ConfigDecisionDecision defines model for ConfigDecision.Decision.
+type ConfigDecisionDecision string
+
+// ConfigDocument Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+type ConfigDocument map[string]map[string]*map[string]interface{}
+
+// ConfigDocumentRequest defines model for ConfigDocumentRequest.
+type ConfigDocumentRequest struct {
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document ConfigDocument             `json:"document"`
+	Mode     *ConfigDocumentRequestMode `json:"mode,omitempty"`
+}
+
+// ConfigDocumentRequestMode defines model for ConfigDocumentRequest.Mode.
+type ConfigDocumentRequestMode string
+
+// ConfigExplanation defines model for ConfigExplanation.
+type ConfigExplanation struct {
+	Allowed    *[]string              `json:"allowed,omitempty"`
+	AppliesTo  string                 `json:"applies_to"`
+	Key        string                 `json:"key"`
+	LockedBy   *string                `json:"locked_by,omitempty"`
+	Operation  *string                `json:"operation,omitempty"`
+	Permission string                 `json:"permission"`
+	Source     string                 `json:"source"`
+	Value      map[string]interface{} `json:"value"`
+}
+
+// ConfigExport defines model for ConfigExport.
+type ConfigExport struct {
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document ConfigDocument `json:"document"`
+	Hash     string         `json:"hash"`
+
+	// Version The newest applied version; 0 where none was applied yet.
+	Version  int      `json:"version"`
+	Withheld []string `json:"withheld"`
+}
+
+// ConfigPlan defines model for ConfigPlan.
+type ConfigPlan struct {
+	BaseHash string         `json:"base_hash"`
+	Changes  []ConfigChange `json:"changes"`
+	Counts   ConfigCounts   `json:"counts"`
+	Flags    struct {
+		ChangesPermissions bool `json:"changes_permissions"`
+		HidesData          bool `json:"hides_data"`
+	} `json:"flags"`
+	Operations []struct {
+		Path    string `json:"path"`
+		UseCase string `json:"use_case"`
+	} `json:"operations"`
+
+	// PlanHash Null where the plan refuses.
+	PlanHash *string         `json:"plan_hash"`
+	Refusals []ConfigRefusal `json:"refusals"`
+}
+
+// ConfigPlanRequest defines model for ConfigPlanRequest.
+type ConfigPlanRequest struct {
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document  *ConfigDocument        `json:"document,omitempty"`
+	Mode      *ConfigPlanRequestMode `json:"mode,omitempty"`
+	ToVersion *int                   `json:"to_version,omitempty"`
+}
+
+// ConfigPlanRequestMode defines model for ConfigPlanRequest.Mode.
+type ConfigPlanRequestMode string
+
+// ConfigPolicy defines model for ConfigPolicy.
+type ConfigPolicy struct {
+	AgentApply ConfigPolicyAgentApply `json:"agent_apply"`
+}
+
+// ConfigPolicyAgentApply defines model for ConfigPolicy.AgentApply.
+type ConfigPolicyAgentApply string
+
+// ConfigProposal defines model for ConfigProposal.
+type ConfigProposal struct {
+	Added              int                 `json:"added"`
+	BaseHash           string              `json:"base_hash"`
+	Changed            int                 `json:"changed"`
+	ChangesPermissions bool                `json:"changes_permissions"`
+	CreatedAt          time.Time           `json:"created_at"`
+	DecidedAt          *time.Time          `json:"decided_at,omitempty"`
+	DecidedBy          *openapi_types.UUID `json:"decided_by,omitempty"`
+
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document   ConfigDocument      `json:"document"`
+	HidesData  bool                `json:"hides_data"`
+	Id         openapi_types.UUID  `json:"id"`
+	Mode       ConfigProposalMode  `json:"mode"`
+	PlanHash   string              `json:"plan_hash"`
+	ProposedBy *openapi_types.UUID `json:"proposed_by,omitempty"`
+	Removed    int                 `json:"removed"`
+	State      ConfigProposalState `json:"state"`
+	Template   *string             `json:"template,omitempty"`
+}
+
+// ConfigProposalMode defines model for ConfigProposal.Mode.
+type ConfigProposalMode string
+
+// ConfigProposalState defines model for ConfigProposal.State.
+type ConfigProposalState string
+
+// ConfigProposalList defines model for ConfigProposalList.
+type ConfigProposalList struct {
+	Data []ConfigProposal `json:"data"`
+}
+
+// ConfigRefusal defines model for ConfigRefusal.
+type ConfigRefusal struct {
+	Code   string             `json:"code"`
+	Params *map[string]string `json:"params,omitempty"`
+
+	// Path The key path as a JSON Pointer.
+	Path string `json:"path"`
+}
+
+// ConfigSchema defines model for ConfigSchema.
+type ConfigSchema struct {
+	Schema map[string]interface{} `json:"schema"`
+}
+
+// ConfigTemplate defines model for ConfigTemplate.
+type ConfigTemplate struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document ConfigDocument       `json:"document"`
+	Key      string               `json:"key"`
+	Name     string               `json:"name"`
+	Origin   ConfigTemplateOrigin `json:"origin"`
+
+	// Provenance key@version
+	Provenance      string `json:"provenance"`
+	TakenVersion    *int   `json:"taken_version,omitempty"`
+	UpdateAvailable bool   `json:"update_available"`
+	Version         int    `json:"version"`
+}
+
+// ConfigTemplateOrigin defines model for ConfigTemplate.Origin.
+type ConfigTemplateOrigin string
+
+// ConfigTemplateList defines model for ConfigTemplateList.
+type ConfigTemplateList struct {
+	Data []ConfigTemplate `json:"data"`
+}
+
+// ConfigTemplatePlan defines model for ConfigTemplatePlan.
+type ConfigTemplatePlan struct {
+	BaseHash string         `json:"base_hash"`
+	Changes  []ConfigChange `json:"changes"`
+	Counts   ConfigCounts   `json:"counts"`
+
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document ConfigDocument `json:"document"`
+	Flags    struct {
+		ChangesPermissions bool `json:"changes_permissions"`
+		HidesData          bool `json:"hides_data"`
+	} `json:"flags"`
+	FromVersion *int                   `json:"from_version,omitempty"`
+	Mode        ConfigTemplatePlanMode `json:"mode"`
+	Operations  []struct {
+		Path    string `json:"path"`
+		UseCase string `json:"use_case"`
+	} `json:"operations"`
+
+	// PlanHash Null where the plan refuses.
+	PlanHash *string               `json:"plan_hash"`
+	Refusals []ConfigRefusal       `json:"refusals"`
+	Template string                `json:"template"`
+	Upgrade  []ConfigUpgradeChange `json:"upgrade"`
+}
+
+// ConfigTemplatePlanMode defines model for ConfigTemplatePlan.Mode.
+type ConfigTemplatePlanMode string
+
+// ConfigTemplatePlanRequest defines model for ConfigTemplatePlanRequest.
+type ConfigTemplatePlanRequest struct {
+	Take    *[]string `json:"take,omitempty"`
+	Version *int      `json:"version,omitempty"`
+}
+
+// ConfigTemplatePublish defines model for ConfigTemplatePublish.
+type ConfigTemplatePublish struct {
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document *ConfigDocument `json:"document,omitempty"`
+	Key      string          `json:"key"`
+	Name     string          `json:"name"`
+}
+
+// ConfigUpgradeChange defines model for ConfigUpgradeChange.
+type ConfigUpgradeChange struct {
+	Base    interface{}              `json:"base,omitempty"`
+	Ours    interface{}              `json:"ours,omitempty"`
+	Path    string                   `json:"path"`
+	Removed bool                     `json:"removed"`
+	State   ConfigUpgradeChangeState `json:"state"`
+	Theirs  interface{}              `json:"theirs,omitempty"`
+}
+
+// ConfigUpgradeChangeState defines model for ConfigUpgradeChange.State.
+type ConfigUpgradeChangeState string
+
+// ConfigValidation defines model for ConfigValidation.
+type ConfigValidation struct {
+	Refusals []ConfigRefusal `json:"refusals"`
+	Valid    bool            `json:"valid"`
+}
+
+// ConfigVersion defines model for ConfigVersion.
+type ConfigVersion struct {
+	ActorId   *openapi_types.UUID `json:"actor_id,omitempty"`
+	ActorKind string              `json:"actor_kind"`
+	Added     int                 `json:"added"`
+	Changed   int                 `json:"changed"`
+	CreatedAt time.Time           `json:"created_at"`
+
+	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
+	Document     *ConfigDocument     `json:"document,omitempty"`
+	Hash         string              `json:"hash"`
+	PlanHash     string              `json:"plan_hash"`
+	ProposedBy   *openapi_types.UUID `json:"proposed_by,omitempty"`
+	Removed      int                 `json:"removed"`
+	RolledBackTo *int                `json:"rolled_back_to,omitempty"`
+	Template     *string             `json:"template,omitempty"`
+	Version      int                 `json:"version"`
+}
+
+// ConfigVersionList defines model for ConfigVersionList.
+type ConfigVersionList struct {
+	Data []ConfigVersion `json:"data"`
+}
 
 // ConnectedIdentity One provider identity connected to the caller's account.
 type ConnectedIdentity struct {
@@ -15209,6 +15753,30 @@ type SetCollectionHandleParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ExplainConfigParams defines parameters for ExplainConfig.
+type ExplainConfigParams struct {
+	Key string `form:"key" json:"key"`
+}
+
+// ListConfigProposalsParams defines parameters for ListConfigProposals.
+type ListConfigProposalsParams struct {
+	State *ListConfigProposalsParamsState `form:"state,omitempty" json:"state,omitempty"`
+}
+
+// ListConfigProposalsParamsState defines parameters for ListConfigProposals.
+type ListConfigProposalsParamsState string
+
+// ListConfigVersionsParams defines parameters for ListConfigVersions.
+type ListConfigVersionsParams struct {
+	Before *int `form:"before,omitempty" json:"before,omitempty"`
+}
+
+// ApplyConfigParams defines parameters for ApplyConfig.
+type ApplyConfigParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListContainersParams defines parameters for ListContainers.
 type ListContainersParams struct {
 	Type            *ContainerTypeFilter `form:"type,omitempty" json:"type,omitempty"`
@@ -16491,6 +17059,30 @@ type StartBackupJSONRequestBody = BackupStart
 
 // SetCollectionHandleJSONRequestBody defines body for SetCollectionHandle for application/json ContentType.
 type SetCollectionHandleJSONRequestBody = CollectionHandle
+
+// SetConfigPolicyJSONRequestBody defines body for SetConfigPolicy for application/json ContentType.
+type SetConfigPolicyJSONRequestBody = ConfigPolicy
+
+// DecideConfigProposalJSONRequestBody defines body for DecideConfigProposal for application/json ContentType.
+type DecideConfigProposalJSONRequestBody = ConfigDecision
+
+// PublishConfigTemplateJSONRequestBody defines body for PublishConfigTemplate for application/json ContentType.
+type PublishConfigTemplateJSONRequestBody = ConfigTemplatePublish
+
+// PlanConfigTemplateJSONRequestBody defines body for PlanConfigTemplate for application/json ContentType.
+type PlanConfigTemplateJSONRequestBody = ConfigTemplatePlanRequest
+
+// ApplyConfigJSONRequestBody defines body for ApplyConfig for application/json ContentType.
+type ApplyConfigJSONRequestBody = ConfigApplyRequest
+
+// PlanConfigJSONRequestBody defines body for PlanConfig for application/json ContentType.
+type PlanConfigJSONRequestBody = ConfigPlanRequest
+
+// ProposeConfigJSONRequestBody defines body for ProposeConfig for application/json ContentType.
+type ProposeConfigJSONRequestBody = ConfigApplyRequest
+
+// ValidateConfigJSONRequestBody defines body for ValidateConfig for application/json ContentType.
+type ValidateConfigJSONRequestBody = ConfigDocumentRequest
 
 // CreateContainerJSONRequestBody defines body for CreateContainer for application/json ContentType.
 type CreateContainerJSONRequestBody = ContainerCreate
@@ -19608,6 +20200,192 @@ type ClientInterface interface {
 	// Corresponds with PUT /collections/{collection_id}/handle (the `SetCollectionHandle` operationId).
 	SetCollectionHandle(ctx context.Context, collectionId openapi_types.UUID, params *SetCollectionHandleParams, body SetCollectionHandleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ExportConfig The configuration document in force
+	//
+	// The workspace's configuration as one document - modules, roles, fields, link types, entry types with their forms, workflows and the configuration settings - each block by its stable key, never content and never a secret. `hash` is what a plan is made against and is the `ETag`; a section the reader may not read, or whose module is off, is listed in `withheld`. Needs the right to change the workspace's shape, or to read its configuration.
+	//
+	// Corresponds with GET /config (the `ExportConfig` operationId).
+	ExportConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExplainConfig Explain one key of the configuration
+	//
+	// One key path of the document - `types.incident`, `modules.workflows`, `settings.config.agent_apply`: its value, the level it comes from and which level locked it, the permission a person needs to change it and the operation that does.
+	//
+	// Corresponds with GET /config/explain (the `ExplainConfig` operationId).
+	ExplainConfig(ctx context.Context, params *ExplainConfigParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetConfigPolicyWithBody Set what an agent's apply does
+	//
+	// `APPROVAL` (the default) keeps an agent's apply for a person, `ALLOWED` applies it, `NEVER` refuses it. The installation or a plan may lock it; the workspace may only tighten it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /config/policy (the `SetConfigPolicy` operationId).
+	SetConfigPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetConfigPolicy Set what an agent's apply does
+	//
+	// `APPROVAL` (the default) keeps an agent's apply for a person, `ALLOWED` applies it, `NEVER` refuses it. The installation or a plan may lock it; the workspace may only tighten it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /config/policy (the `SetConfigPolicy` operationId).
+	SetConfigPolicy(ctx context.Context, body SetConfigPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListConfigProposals The proposed configuration changes
+	//
+	// Proposals newest first, in one state or every state.
+	//
+	// Corresponds with GET /config/proposals (the `ListConfigProposals` operationId).
+	ListConfigProposals(ctx context.Context, params *ListConfigProposalsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DecideConfigProposalWithBody Apply or decline a proposed change
+	//
+	// Applying re-plans the proposal against the configuration in force and refuses it as `config.version_conflict` where that moved since; a plan that hides data or changes permissions needs `acknowledge`. An agent cannot decide a proposal.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /config/proposals/{proposalId}:decide (the `DecideConfigProposal` operationId).
+	DecideConfigProposalWithBody(ctx context.Context, proposalId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DecideConfigProposal Apply or decline a proposed change
+	//
+	// Applying re-plans the proposal against the configuration in force and refuses it as `config.version_conflict` where that moved since; a plan that hides data or changes permissions needs `acknowledge`. An agent cannot decide a proposal.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /config/proposals/{proposalId}:decide (the `DecideConfigProposal` operationId).
+	DecideConfigProposal(ctx context.Context, proposalId openapi_types.UUID, body DecideConfigProposalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListConfigTemplates The workspace's templates
+	//
+	// Each template's newest version, the version the workspace took and whether an update is available.
+	//
+	// Corresponds with GET /config/templates (the `ListConfigTemplates` operationId).
+	ListConfigTemplates(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PublishConfigTemplateWithBody Publish a template's next version
+	//
+	// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A version never changes once published.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /config/templates (the `PublishConfigTemplate` operationId).
+	PublishConfigTemplateWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PublishConfigTemplate Publish a template's next version
+	//
+	// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A version never changes once published.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /config/templates (the `PublishConfigTemplate` operationId).
+	PublishConfigTemplate(ctx context.Context, body PublishConfigTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PlanConfigTemplateWithBody Plan taking or upgrading a template
+	//
+	// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /config/templates/{key}:plan (the `PlanConfigTemplate` operationId).
+	PlanConfigTemplateWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PlanConfigTemplate Plan taking or upgrading a template
+	//
+	// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /config/templates/{key}:plan (the `PlanConfigTemplate` operationId).
+	PlanConfigTemplate(ctx context.Context, key string, body PlanConfigTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListConfigVersions The configuration's versions
+	//
+	// Every applied version, newest first: who applied it, whose proposal it was, the counts, the template it took and the version a rollback went back to.
+	//
+	// Corresponds with GET /config/versions (the `ListConfigVersions` operationId).
+	ListConfigVersions(ctx context.Context, params *ListConfigVersionsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadConfigVersion One configuration version with its document
+	//
+	// The document as it was in force after that version's apply, so two versions are compared.
+	//
+	// Corresponds with GET /config/versions/{version} (the `ReadConfigVersion` operationId).
+	ReadConfigVersion(ctx context.Context, version int, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ApplyConfigWithBody Apply a planned configuration change
+	//
+	// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /config:apply (the `ApplyConfig` operationId).
+	ApplyConfigWithBody(ctx context.Context, params *ApplyConfigParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ApplyConfig Apply a planned configuration change
+	//
+	// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /config:apply (the `ApplyConfig` operationId).
+	ApplyConfig(ctx context.Context, params *ApplyConfigParams, body ApplyConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PlanConfigWithBody Plan a configuration change or a rollback
+	//
+	// Plans a document - or, with `to_version`, a rollback to an earlier version stated whole - against the configuration in force: each change by key path with before and after, the operations it runs, what it refuses and why, whether it hides data or changes permissions, and the plan hash to apply it by. Writes nothing.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /config:plan (the `PlanConfig` operationId).
+	PlanConfigWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PlanConfig Plan a configuration change or a rollback
+	//
+	// Plans a document - or, with `to_version`, a rollback to an earlier version stated whole - against the configuration in force: each change by key path with before and after, the operations it runs, what it refuses and why, whether it hides data or changes permissions, and the plan hash to apply it by. Writes nothing.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /config:plan (the `PlanConfig` operationId).
+	PlanConfig(ctx context.Context, body PlanConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ProposeConfigWithBody Propose a planned change for a person to decide
+	//
+	// Keeps a planned change for a person to apply or decline; it appears in the administration's Changes as proposed. How an agent with the read and plan scopes brings a change to the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /config:propose (the `ProposeConfig` operationId).
+	ProposeConfigWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ProposeConfig Propose a planned change for a person to decide
+	//
+	// Keeps a planned change for a person to apply or decline; it appears in the administration's Changes as proposed. How an agent with the read and plan scopes brings a change to the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /config:propose (the `ProposeConfig` operationId).
+	ProposeConfig(ctx context.Context, body ProposeConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ValidateConfigWithBody Check a configuration document
+	//
+	// Answers what a document refuses - a message code, the key path and its parameters - and nothing else. Writes nothing.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /config:validate (the `ValidateConfig` operationId).
+	ValidateConfigWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ValidateConfig Check a configuration document
+	//
+	// Answers what a document refuses - a message code, the key path and its parameters - and nothing else. Writes nothing.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /config:validate (the `ValidateConfig` operationId).
+	ValidateConfig(ctx context.Context, body ValidateConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListContainers performs a GET /containers (the `ListContainers` operationId) request.
 	ListContainers(ctx context.Context, params *ListContainersParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -21544,6 +22322,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /meta/capabilities (the `GetCapabilities` operationId).
 	GetCapabilities(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadConfigSchema The configuration document's JSON Schema
+	//
+	// The JSON Schema of the workspace's configuration document: every section, the stable keys its blocks are named by, and each attribute's type, allowed values and description, taken from the operations that write it. Needs a signed-in caller.
+	//
+	// Corresponds with GET /meta/config-schema (the `ReadConfigSchema` operationId).
+	ReadConfigSchema(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetHealthReport Deep self-diagnosis of the installation
 	//
@@ -28123,6 +28908,412 @@ func (c *Client) SetCollectionHandle(ctx context.Context, collectionId openapi_t
 	return c.Client.Do(req)
 }
 
+// ExportConfig The configuration document in force
+//
+// The workspace's configuration as one document - modules, roles, fields, link types, entry types with their forms, workflows and the configuration settings - each block by its stable key, never content and never a secret. `hash` is what a plan is made against and is the `ETag`; a section the reader may not read, or whose module is off, is listed in `withheld`. Needs the right to change the workspace's shape, or to read its configuration.
+//
+// Corresponds with GET /config (the `ExportConfig` operationId).
+func (c *Client) ExportConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExportConfigRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ExplainConfig Explain one key of the configuration
+//
+// One key path of the document - `types.incident`, `modules.workflows`, `settings.config.agent_apply`: its value, the level it comes from and which level locked it, the permission a person needs to change it and the operation that does.
+//
+// Corresponds with GET /config/explain (the `ExplainConfig` operationId).
+func (c *Client) ExplainConfig(ctx context.Context, params *ExplainConfigParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExplainConfigRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetConfigPolicyWithBody Set what an agent's apply does
+//
+// `APPROVAL` (the default) keeps an agent's apply for a person, `ALLOWED` applies it, `NEVER` refuses it. The installation or a plan may lock it; the workspace may only tighten it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /config/policy (the `SetConfigPolicy` operationId).
+func (c *Client) SetConfigPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetConfigPolicyRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetConfigPolicy Set what an agent's apply does
+//
+// `APPROVAL` (the default) keeps an agent's apply for a person, `ALLOWED` applies it, `NEVER` refuses it. The installation or a plan may lock it; the workspace may only tighten it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /config/policy (the `SetConfigPolicy` operationId).
+func (c *Client) SetConfigPolicy(ctx context.Context, body SetConfigPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetConfigPolicyRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListConfigProposals The proposed configuration changes
+//
+// Proposals newest first, in one state or every state.
+//
+// Corresponds with GET /config/proposals (the `ListConfigProposals` operationId).
+func (c *Client) ListConfigProposals(ctx context.Context, params *ListConfigProposalsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListConfigProposalsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DecideConfigProposalWithBody Apply or decline a proposed change
+//
+// Applying re-plans the proposal against the configuration in force and refuses it as `config.version_conflict` where that moved since; a plan that hides data or changes permissions needs `acknowledge`. An agent cannot decide a proposal.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /config/proposals/{proposalId}:decide (the `DecideConfigProposal` operationId).
+func (c *Client) DecideConfigProposalWithBody(ctx context.Context, proposalId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDecideConfigProposalRequestWithBody(c.Server, proposalId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DecideConfigProposal Apply or decline a proposed change
+//
+// Applying re-plans the proposal against the configuration in force and refuses it as `config.version_conflict` where that moved since; a plan that hides data or changes permissions needs `acknowledge`. An agent cannot decide a proposal.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /config/proposals/{proposalId}:decide (the `DecideConfigProposal` operationId).
+func (c *Client) DecideConfigProposal(ctx context.Context, proposalId openapi_types.UUID, body DecideConfigProposalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDecideConfigProposalRequest(c.Server, proposalId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListConfigTemplates The workspace's templates
+//
+// Each template's newest version, the version the workspace took and whether an update is available.
+//
+// Corresponds with GET /config/templates (the `ListConfigTemplates` operationId).
+func (c *Client) ListConfigTemplates(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListConfigTemplatesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PublishConfigTemplateWithBody Publish a template's next version
+//
+// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A version never changes once published.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /config/templates (the `PublishConfigTemplate` operationId).
+func (c *Client) PublishConfigTemplateWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishConfigTemplateRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PublishConfigTemplate Publish a template's next version
+//
+// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A version never changes once published.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /config/templates (the `PublishConfigTemplate` operationId).
+func (c *Client) PublishConfigTemplate(ctx context.Context, body PublishConfigTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishConfigTemplateRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PlanConfigTemplateWithBody Plan taking or upgrading a template
+//
+// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /config/templates/{key}:plan (the `PlanConfigTemplate` operationId).
+func (c *Client) PlanConfigTemplateWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPlanConfigTemplateRequestWithBody(c.Server, key, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PlanConfigTemplate Plan taking or upgrading a template
+//
+// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /config/templates/{key}:plan (the `PlanConfigTemplate` operationId).
+func (c *Client) PlanConfigTemplate(ctx context.Context, key string, body PlanConfigTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPlanConfigTemplateRequest(c.Server, key, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListConfigVersions The configuration's versions
+//
+// Every applied version, newest first: who applied it, whose proposal it was, the counts, the template it took and the version a rollback went back to.
+//
+// Corresponds with GET /config/versions (the `ListConfigVersions` operationId).
+func (c *Client) ListConfigVersions(ctx context.Context, params *ListConfigVersionsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListConfigVersionsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadConfigVersion One configuration version with its document
+//
+// The document as it was in force after that version's apply, so two versions are compared.
+//
+// Corresponds with GET /config/versions/{version} (the `ReadConfigVersion` operationId).
+func (c *Client) ReadConfigVersion(ctx context.Context, version int, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadConfigVersionRequest(c.Server, version)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ApplyConfigWithBody Apply a planned configuration change
+//
+// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /config:apply (the `ApplyConfig` operationId).
+func (c *Client) ApplyConfigWithBody(ctx context.Context, params *ApplyConfigParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewApplyConfigRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ApplyConfig Apply a planned configuration change
+//
+// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /config:apply (the `ApplyConfig` operationId).
+func (c *Client) ApplyConfig(ctx context.Context, params *ApplyConfigParams, body ApplyConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewApplyConfigRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PlanConfigWithBody Plan a configuration change or a rollback
+//
+// Plans a document - or, with `to_version`, a rollback to an earlier version stated whole - against the configuration in force: each change by key path with before and after, the operations it runs, what it refuses and why, whether it hides data or changes permissions, and the plan hash to apply it by. Writes nothing.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /config:plan (the `PlanConfig` operationId).
+func (c *Client) PlanConfigWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPlanConfigRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PlanConfig Plan a configuration change or a rollback
+//
+// Plans a document - or, with `to_version`, a rollback to an earlier version stated whole - against the configuration in force: each change by key path with before and after, the operations it runs, what it refuses and why, whether it hides data or changes permissions, and the plan hash to apply it by. Writes nothing.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /config:plan (the `PlanConfig` operationId).
+func (c *Client) PlanConfig(ctx context.Context, body PlanConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPlanConfigRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ProposeConfigWithBody Propose a planned change for a person to decide
+//
+// Keeps a planned change for a person to apply or decline; it appears in the administration's Changes as proposed. How an agent with the read and plan scopes brings a change to the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /config:propose (the `ProposeConfig` operationId).
+func (c *Client) ProposeConfigWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewProposeConfigRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ProposeConfig Propose a planned change for a person to decide
+//
+// Keeps a planned change for a person to apply or decline; it appears in the administration's Changes as proposed. How an agent with the read and plan scopes brings a change to the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /config:propose (the `ProposeConfig` operationId).
+func (c *Client) ProposeConfig(ctx context.Context, body ProposeConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewProposeConfigRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ValidateConfigWithBody Check a configuration document
+//
+// Answers what a document refuses - a message code, the key path and its parameters - and nothing else. Writes nothing.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /config:validate (the `ValidateConfig` operationId).
+func (c *Client) ValidateConfigWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewValidateConfigRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ValidateConfig Check a configuration document
+//
+// Answers what a document refuses - a message code, the key path and its parameters - and nothing else. Writes nothing.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /config:validate (the `ValidateConfig` operationId).
+func (c *Client) ValidateConfig(ctx context.Context, body ValidateConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewValidateConfigRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListContainers performs a GET /containers (the `ListContainers` operationId) request.
 func (c *Client) ListContainers(ctx context.Context, params *ListContainersParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListContainersRequest(c.Server, params)
@@ -32500,6 +33691,23 @@ func (c *Client) RevokeMembership(ctx context.Context, membershipId MembershipId
 // Corresponds with GET /meta/capabilities (the `GetCapabilities` operationId).
 func (c *Client) GetCapabilities(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetCapabilitiesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadConfigSchema The configuration document's JSON Schema
+//
+// The JSON Schema of the workspace's configuration document: every section, the stable keys its blocks are named by, and each attribute's type, allowed values and description, taken from the operations that write it. Needs a signed-in caller.
+//
+// Corresponds with GET /meta/config-schema (the `ReadConfigSchema` operationId).
+func (c *Client) ReadConfigSchema(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadConfigSchemaRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -42672,6 +43880,601 @@ func NewSetCollectionHandleRequestWithBody(server string, collectionId openapi_t
 	return req, nil
 }
 
+// NewExportConfigRequest constructs an http.Request for the ExportConfig method
+func NewExportConfigRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewExplainConfigRequest constructs an http.Request for the ExplainConfig method
+func NewExplainConfigRequest(server string, params *ExplainConfigParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/explain")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "key", params.Key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetConfigPolicyRequest calls the generic SetConfigPolicy builder with application/json body
+func NewSetConfigPolicyRequest(server string, body SetConfigPolicyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetConfigPolicyRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetConfigPolicyRequestWithBody constructs an http.Request for the SetConfigPolicy method, with any body, and a specified content type
+func NewSetConfigPolicyRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/policy")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListConfigProposalsRequest constructs an http.Request for the ListConfigProposals method
+func NewListConfigProposalsRequest(server string, params *ListConfigProposalsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/proposals")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.State != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "state", *params.State, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDecideConfigProposalRequest calls the generic DecideConfigProposal builder with application/json body
+func NewDecideConfigProposalRequest(server string, proposalId openapi_types.UUID, body DecideConfigProposalJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDecideConfigProposalRequestWithBody(server, proposalId, "application/json", bodyReader)
+}
+
+// NewDecideConfigProposalRequestWithBody constructs an http.Request for the DecideConfigProposal method, with any body, and a specified content type
+func NewDecideConfigProposalRequestWithBody(server string, proposalId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "proposalId", proposalId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/proposals/%s:decide", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListConfigTemplatesRequest constructs an http.Request for the ListConfigTemplates method
+func NewListConfigTemplatesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/templates")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPublishConfigTemplateRequest calls the generic PublishConfigTemplate builder with application/json body
+func NewPublishConfigTemplateRequest(server string, body PublishConfigTemplateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPublishConfigTemplateRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPublishConfigTemplateRequestWithBody constructs an http.Request for the PublishConfigTemplate method, with any body, and a specified content type
+func NewPublishConfigTemplateRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/templates")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPlanConfigTemplateRequest calls the generic PlanConfigTemplate builder with application/json body
+func NewPlanConfigTemplateRequest(server string, key string, body PlanConfigTemplateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPlanConfigTemplateRequestWithBody(server, key, "application/json", bodyReader)
+}
+
+// NewPlanConfigTemplateRequestWithBody constructs an http.Request for the PlanConfigTemplate method, with any body, and a specified content type
+func NewPlanConfigTemplateRequestWithBody(server string, key string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/templates/%s:plan", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListConfigVersionsRequest constructs an http.Request for the ListConfigVersions method
+func NewListConfigVersionsRequest(server string, params *ListConfigVersionsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/versions")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Before != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "before", *params.Before, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadConfigVersionRequest constructs an http.Request for the ReadConfigVersion method
+func NewReadConfigVersionRequest(server string, version int) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "version", version, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/versions/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewApplyConfigRequest calls the generic ApplyConfig builder with application/json body
+func NewApplyConfigRequest(server string, params *ApplyConfigParams, body ApplyConfigJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewApplyConfigRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewApplyConfigRequestWithBody constructs an http.Request for the ApplyConfig method, with any body, and a specified content type
+func NewApplyConfigRequestWithBody(server string, params *ApplyConfigParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config:apply")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewPlanConfigRequest calls the generic PlanConfig builder with application/json body
+func NewPlanConfigRequest(server string, body PlanConfigJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPlanConfigRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPlanConfigRequestWithBody constructs an http.Request for the PlanConfig method, with any body, and a specified content type
+func NewPlanConfigRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config:plan")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewProposeConfigRequest calls the generic ProposeConfig builder with application/json body
+func NewProposeConfigRequest(server string, body ProposeConfigJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewProposeConfigRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewProposeConfigRequestWithBody constructs an http.Request for the ProposeConfig method, with any body, and a specified content type
+func NewProposeConfigRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config:propose")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewValidateConfigRequest calls the generic ValidateConfig builder with application/json body
+func NewValidateConfigRequest(server string, body ValidateConfigJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewValidateConfigRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewValidateConfigRequestWithBody constructs an http.Request for the ValidateConfig method, with any body, and a specified content type
+func NewValidateConfigRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config:validate")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListContainersRequest constructs an http.Request for the ListContainers method
 func NewListContainersRequest(server string, params *ListContainersParams) (*http.Request, error) {
 	var err error
@@ -51333,6 +53136,33 @@ func NewGetCapabilitiesRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewReadConfigSchemaRequest constructs an http.Request for the ReadConfigSchema method
+func NewReadConfigSchemaRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/meta/config-schema")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetHealthReportRequest constructs an http.Request for the GetHealthReport method
 func NewGetHealthReportRequest(server string) (*http.Request, error) {
 	var err error
@@ -58329,6 +60159,204 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /collections/{collection_id}/handle (the `SetCollectionHandle` operationId).
 	SetCollectionHandleWithResponse(ctx context.Context, collectionId openapi_types.UUID, params *SetCollectionHandleParams, body SetCollectionHandleJSONRequestBody, reqEditors ...RequestEditorFn) (*SetCollectionHandleResult, error)
 
+	// ExportConfigWithResponse The configuration document in force
+	//
+	// The workspace's configuration as one document - modules, roles, fields, link types, entry types with their forms, workflows and the configuration settings - each block by its stable key, never content and never a secret. `hash` is what a plan is made against and is the `ETag`; a section the reader may not read, or whose module is off, is listed in `withheld`. Needs the right to change the workspace's shape, or to read its configuration.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /config (the `ExportConfig` operationId).
+	ExportConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ExportConfigResult, error)
+
+	// ExplainConfigWithResponse Explain one key of the configuration
+	//
+	// One key path of the document - `types.incident`, `modules.workflows`, `settings.config.agent_apply`: its value, the level it comes from and which level locked it, the permission a person needs to change it and the operation that does.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /config/explain (the `ExplainConfig` operationId).
+	ExplainConfigWithResponse(ctx context.Context, params *ExplainConfigParams, reqEditors ...RequestEditorFn) (*ExplainConfigResult, error)
+
+	// SetConfigPolicyWithBodyWithResponse Set what an agent's apply does
+	//
+	// `APPROVAL` (the default) keeps an agent's apply for a person, `ALLOWED` applies it, `NEVER` refuses it. The installation or a plan may lock it; the workspace may only tighten it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /config/policy (the `SetConfigPolicy` operationId).
+	SetConfigPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetConfigPolicyResult, error)
+
+	// SetConfigPolicyWithResponse Set what an agent's apply does
+	//
+	// `APPROVAL` (the default) keeps an agent's apply for a person, `ALLOWED` applies it, `NEVER` refuses it. The installation or a plan may lock it; the workspace may only tighten it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /config/policy (the `SetConfigPolicy` operationId).
+	SetConfigPolicyWithResponse(ctx context.Context, body SetConfigPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetConfigPolicyResult, error)
+
+	// ListConfigProposalsWithResponse The proposed configuration changes
+	//
+	// Proposals newest first, in one state or every state.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /config/proposals (the `ListConfigProposals` operationId).
+	ListConfigProposalsWithResponse(ctx context.Context, params *ListConfigProposalsParams, reqEditors ...RequestEditorFn) (*ListConfigProposalsResult, error)
+
+	// DecideConfigProposalWithBodyWithResponse Apply or decline a proposed change
+	//
+	// Applying re-plans the proposal against the configuration in force and refuses it as `config.version_conflict` where that moved since; a plan that hides data or changes permissions needs `acknowledge`. An agent cannot decide a proposal.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /config/proposals/{proposalId}:decide (the `DecideConfigProposal` operationId).
+	DecideConfigProposalWithBodyWithResponse(ctx context.Context, proposalId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DecideConfigProposalResult, error)
+
+	// DecideConfigProposalWithResponse Apply or decline a proposed change
+	//
+	// Applying re-plans the proposal against the configuration in force and refuses it as `config.version_conflict` where that moved since; a plan that hides data or changes permissions needs `acknowledge`. An agent cannot decide a proposal.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /config/proposals/{proposalId}:decide (the `DecideConfigProposal` operationId).
+	DecideConfigProposalWithResponse(ctx context.Context, proposalId openapi_types.UUID, body DecideConfigProposalJSONRequestBody, reqEditors ...RequestEditorFn) (*DecideConfigProposalResult, error)
+
+	// ListConfigTemplatesWithResponse The workspace's templates
+	//
+	// Each template's newest version, the version the workspace took and whether an update is available.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /config/templates (the `ListConfigTemplates` operationId).
+	ListConfigTemplatesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListConfigTemplatesResult, error)
+
+	// PublishConfigTemplateWithBodyWithResponse Publish a template's next version
+	//
+	// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A version never changes once published.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /config/templates (the `PublishConfigTemplate` operationId).
+	PublishConfigTemplateWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishConfigTemplateResult, error)
+
+	// PublishConfigTemplateWithResponse Publish a template's next version
+	//
+	// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A version never changes once published.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /config/templates (the `PublishConfigTemplate` operationId).
+	PublishConfigTemplateWithResponse(ctx context.Context, body PublishConfigTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishConfigTemplateResult, error)
+
+	// PlanConfigTemplateWithBodyWithResponse Plan taking or upgrading a template
+	//
+	// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /config/templates/{key}:plan (the `PlanConfigTemplate` operationId).
+	PlanConfigTemplateWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PlanConfigTemplateResult, error)
+
+	// PlanConfigTemplateWithResponse Plan taking or upgrading a template
+	//
+	// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /config/templates/{key}:plan (the `PlanConfigTemplate` operationId).
+	PlanConfigTemplateWithResponse(ctx context.Context, key string, body PlanConfigTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*PlanConfigTemplateResult, error)
+
+	// ListConfigVersionsWithResponse The configuration's versions
+	//
+	// Every applied version, newest first: who applied it, whose proposal it was, the counts, the template it took and the version a rollback went back to.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /config/versions (the `ListConfigVersions` operationId).
+	ListConfigVersionsWithResponse(ctx context.Context, params *ListConfigVersionsParams, reqEditors ...RequestEditorFn) (*ListConfigVersionsResult, error)
+
+	// ReadConfigVersionWithResponse One configuration version with its document
+	//
+	// The document as it was in force after that version's apply, so two versions are compared.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /config/versions/{version} (the `ReadConfigVersion` operationId).
+	ReadConfigVersionWithResponse(ctx context.Context, version int, reqEditors ...RequestEditorFn) (*ReadConfigVersionResult, error)
+
+	// ApplyConfigWithBodyWithResponse Apply a planned configuration change
+	//
+	// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /config:apply (the `ApplyConfig` operationId).
+	ApplyConfigWithBodyWithResponse(ctx context.Context, params *ApplyConfigParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ApplyConfigResult, error)
+
+	// ApplyConfigWithResponse Apply a planned configuration change
+	//
+	// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /config:apply (the `ApplyConfig` operationId).
+	ApplyConfigWithResponse(ctx context.Context, params *ApplyConfigParams, body ApplyConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*ApplyConfigResult, error)
+
+	// PlanConfigWithBodyWithResponse Plan a configuration change or a rollback
+	//
+	// Plans a document - or, with `to_version`, a rollback to an earlier version stated whole - against the configuration in force: each change by key path with before and after, the operations it runs, what it refuses and why, whether it hides data or changes permissions, and the plan hash to apply it by. Writes nothing.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /config:plan (the `PlanConfig` operationId).
+	PlanConfigWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PlanConfigResult, error)
+
+	// PlanConfigWithResponse Plan a configuration change or a rollback
+	//
+	// Plans a document - or, with `to_version`, a rollback to an earlier version stated whole - against the configuration in force: each change by key path with before and after, the operations it runs, what it refuses and why, whether it hides data or changes permissions, and the plan hash to apply it by. Writes nothing.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /config:plan (the `PlanConfig` operationId).
+	PlanConfigWithResponse(ctx context.Context, body PlanConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*PlanConfigResult, error)
+
+	// ProposeConfigWithBodyWithResponse Propose a planned change for a person to decide
+	//
+	// Keeps a planned change for a person to apply or decline; it appears in the administration's Changes as proposed. How an agent with the read and plan scopes brings a change to the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /config:propose (the `ProposeConfig` operationId).
+	ProposeConfigWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ProposeConfigResult, error)
+
+	// ProposeConfigWithResponse Propose a planned change for a person to decide
+	//
+	// Keeps a planned change for a person to apply or decline; it appears in the administration's Changes as proposed. How an agent with the read and plan scopes brings a change to the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /config:propose (the `ProposeConfig` operationId).
+	ProposeConfigWithResponse(ctx context.Context, body ProposeConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*ProposeConfigResult, error)
+
+	// ValidateConfigWithBodyWithResponse Check a configuration document
+	//
+	// Answers what a document refuses - a message code, the key path and its parameters - and nothing else. Writes nothing.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /config:validate (the `ValidateConfig` operationId).
+	ValidateConfigWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ValidateConfigResult, error)
+
+	// ValidateConfigWithResponse Check a configuration document
+	//
+	// Answers what a document refuses - a message code, the key path and its parameters - and nothing else. Writes nothing.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /config:validate (the `ValidateConfig` operationId).
+	ValidateConfigWithResponse(ctx context.Context, body ValidateConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*ValidateConfigResult, error)
+
 	// ListContainersWithResponse performs a GET /containers (the `ListContainers` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -60513,6 +62541,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /meta/capabilities (the `GetCapabilities` operationId).
 	GetCapabilitiesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCapabilitiesResult, error)
+
+	// ReadConfigSchemaWithResponse The configuration document's JSON Schema
+	//
+	// The JSON Schema of the workspace's configuration document: every section, the stable keys its blocks are named by, and each attribute's type, allowed values and description, taken from the operations that write it. Needs a signed-in caller.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /meta/config-schema (the `ReadConfigSchema` operationId).
+	ReadConfigSchemaWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadConfigSchemaResult, error)
 
 	// GetHealthReportWithResponse Deep self-diagnosis of the installation
 	//
@@ -70139,6 +72176,685 @@ func (r SetCollectionHandleResult) ContentType() string {
 	return ""
 }
 
+// ExportConfigResult200Headers the declared response headers of an HTTP 200 response for ExportConfig
+type ExportConfigResult200Headers struct {
+	ETag *string
+}
+
+type ExportConfigResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigExport
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *ExportConfigResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ExportConfigResult) GetJSON200() *ConfigExport {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ExportConfigResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ExportConfigResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ExportConfigResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ExportConfigResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ExportConfigResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ExplainConfigResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigExplanation
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ExplainConfigResult) GetJSON200() *ConfigExplanation {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ExplainConfigResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ExplainConfigResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ExplainConfigResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ExplainConfigResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ExplainConfigResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetConfigPolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigPolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetConfigPolicyResult) GetJSON200() *ConfigPolicy {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetConfigPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetConfigPolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetConfigPolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetConfigPolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetConfigPolicyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListConfigProposalsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigProposalList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListConfigProposalsResult) GetJSON200() *ConfigProposalList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListConfigProposalsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListConfigProposalsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListConfigProposalsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListConfigProposalsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListConfigProposalsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DecideConfigProposalResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigApplyResult
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DecideConfigProposalResult) GetJSON200() *ConfigApplyResult {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DecideConfigProposalResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DecideConfigProposalResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DecideConfigProposalResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DecideConfigProposalResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DecideConfigProposalResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListConfigTemplatesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigTemplateList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListConfigTemplatesResult) GetJSON200() *ConfigTemplateList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListConfigTemplatesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListConfigTemplatesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListConfigTemplatesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListConfigTemplatesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListConfigTemplatesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PublishConfigTemplateResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *ConfigTemplate
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r PublishConfigTemplateResult) GetJSON201() *ConfigTemplate {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PublishConfigTemplateResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PublishConfigTemplateResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PublishConfigTemplateResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PublishConfigTemplateResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PublishConfigTemplateResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PlanConfigTemplateResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigTemplatePlan
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PlanConfigTemplateResult) GetJSON200() *ConfigTemplatePlan {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PlanConfigTemplateResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PlanConfigTemplateResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PlanConfigTemplateResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PlanConfigTemplateResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PlanConfigTemplateResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListConfigVersionsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigVersionList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListConfigVersionsResult) GetJSON200() *ConfigVersionList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListConfigVersionsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListConfigVersionsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListConfigVersionsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListConfigVersionsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListConfigVersionsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadConfigVersionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigVersion
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadConfigVersionResult) GetJSON200() *ConfigVersion {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadConfigVersionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadConfigVersionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadConfigVersionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadConfigVersionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadConfigVersionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ApplyConfigResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigApplyResult
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ApplyConfigResult) GetJSON200() *ConfigApplyResult {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ApplyConfigResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ApplyConfigResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ApplyConfigResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ApplyConfigResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ApplyConfigResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PlanConfigResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigPlan
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PlanConfigResult) GetJSON200() *ConfigPlan {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PlanConfigResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PlanConfigResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PlanConfigResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PlanConfigResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PlanConfigResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ProposeConfigResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigApplyResult
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ProposeConfigResult) GetJSON200() *ConfigApplyResult {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ProposeConfigResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ProposeConfigResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ProposeConfigResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ProposeConfigResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ProposeConfigResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ValidateConfigResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigValidation
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ValidateConfigResult) GetJSON200() *ConfigValidation {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ValidateConfigResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ValidateConfigResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ValidateConfigResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ValidateConfigResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ValidateConfigResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListContainersResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -78572,6 +81288,54 @@ func (r GetCapabilitiesResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetCapabilitiesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadConfigSchemaResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigSchema
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadConfigSchemaResult) GetJSON200() *ConfigSchema {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadConfigSchemaResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadConfigSchemaResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadConfigSchemaResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadConfigSchemaResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadConfigSchemaResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -87325,6 +90089,336 @@ func (c *ClientWithResponses) SetCollectionHandleWithResponse(ctx context.Contex
 	return ParseSetCollectionHandleResult(rsp)
 }
 
+// ExportConfigWithResponse The configuration document in force
+//
+// The workspace's configuration as one document - modules, roles, fields, link types, entry types with their forms, workflows and the configuration settings - each block by its stable key, never content and never a secret. `hash` is what a plan is made against and is the `ETag`; a section the reader may not read, or whose module is off, is listed in `withheld`. Needs the right to change the workspace's shape, or to read its configuration.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /config (the `ExportConfig` operationId).
+func (c *ClientWithResponses) ExportConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ExportConfigResult, error) {
+	rsp, err := c.ExportConfig(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExportConfigResult(rsp)
+}
+
+// ExplainConfigWithResponse Explain one key of the configuration
+//
+// One key path of the document - `types.incident`, `modules.workflows`, `settings.config.agent_apply`: its value, the level it comes from and which level locked it, the permission a person needs to change it and the operation that does.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /config/explain (the `ExplainConfig` operationId).
+func (c *ClientWithResponses) ExplainConfigWithResponse(ctx context.Context, params *ExplainConfigParams, reqEditors ...RequestEditorFn) (*ExplainConfigResult, error) {
+	rsp, err := c.ExplainConfig(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExplainConfigResult(rsp)
+}
+
+// SetConfigPolicyWithBodyWithResponse Set what an agent's apply does
+//
+// `APPROVAL` (the default) keeps an agent's apply for a person, `ALLOWED` applies it, `NEVER` refuses it. The installation or a plan may lock it; the workspace may only tighten it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /config/policy (the `SetConfigPolicy` operationId).
+func (c *ClientWithResponses) SetConfigPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetConfigPolicyResult, error) {
+	rsp, err := c.SetConfigPolicyWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetConfigPolicyResult(rsp)
+}
+
+// SetConfigPolicyWithResponse Set what an agent's apply does
+//
+// `APPROVAL` (the default) keeps an agent's apply for a person, `ALLOWED` applies it, `NEVER` refuses it. The installation or a plan may lock it; the workspace may only tighten it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /config/policy (the `SetConfigPolicy` operationId).
+func (c *ClientWithResponses) SetConfigPolicyWithResponse(ctx context.Context, body SetConfigPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetConfigPolicyResult, error) {
+	rsp, err := c.SetConfigPolicy(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetConfigPolicyResult(rsp)
+}
+
+// ListConfigProposalsWithResponse The proposed configuration changes
+//
+// Proposals newest first, in one state or every state.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /config/proposals (the `ListConfigProposals` operationId).
+func (c *ClientWithResponses) ListConfigProposalsWithResponse(ctx context.Context, params *ListConfigProposalsParams, reqEditors ...RequestEditorFn) (*ListConfigProposalsResult, error) {
+	rsp, err := c.ListConfigProposals(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListConfigProposalsResult(rsp)
+}
+
+// DecideConfigProposalWithBodyWithResponse Apply or decline a proposed change
+//
+// Applying re-plans the proposal against the configuration in force and refuses it as `config.version_conflict` where that moved since; a plan that hides data or changes permissions needs `acknowledge`. An agent cannot decide a proposal.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /config/proposals/{proposalId}:decide (the `DecideConfigProposal` operationId).
+func (c *ClientWithResponses) DecideConfigProposalWithBodyWithResponse(ctx context.Context, proposalId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DecideConfigProposalResult, error) {
+	rsp, err := c.DecideConfigProposalWithBody(ctx, proposalId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDecideConfigProposalResult(rsp)
+}
+
+// DecideConfigProposalWithResponse Apply or decline a proposed change
+//
+// Applying re-plans the proposal against the configuration in force and refuses it as `config.version_conflict` where that moved since; a plan that hides data or changes permissions needs `acknowledge`. An agent cannot decide a proposal.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /config/proposals/{proposalId}:decide (the `DecideConfigProposal` operationId).
+func (c *ClientWithResponses) DecideConfigProposalWithResponse(ctx context.Context, proposalId openapi_types.UUID, body DecideConfigProposalJSONRequestBody, reqEditors ...RequestEditorFn) (*DecideConfigProposalResult, error) {
+	rsp, err := c.DecideConfigProposal(ctx, proposalId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDecideConfigProposalResult(rsp)
+}
+
+// ListConfigTemplatesWithResponse The workspace's templates
+//
+// Each template's newest version, the version the workspace took and whether an update is available.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /config/templates (the `ListConfigTemplates` operationId).
+func (c *ClientWithResponses) ListConfigTemplatesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListConfigTemplatesResult, error) {
+	rsp, err := c.ListConfigTemplates(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListConfigTemplatesResult(rsp)
+}
+
+// PublishConfigTemplateWithBodyWithResponse Publish a template's next version
+//
+// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A version never changes once published.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /config/templates (the `PublishConfigTemplate` operationId).
+func (c *ClientWithResponses) PublishConfigTemplateWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishConfigTemplateResult, error) {
+	rsp, err := c.PublishConfigTemplateWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePublishConfigTemplateResult(rsp)
+}
+
+// PublishConfigTemplateWithResponse Publish a template's next version
+//
+// A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A version never changes once published.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /config/templates (the `PublishConfigTemplate` operationId).
+func (c *ClientWithResponses) PublishConfigTemplateWithResponse(ctx context.Context, body PublishConfigTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishConfigTemplateResult, error) {
+	rsp, err := c.PublishConfigTemplate(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePublishConfigTemplateResult(rsp)
+}
+
+// PlanConfigTemplateWithBodyWithResponse Plan taking or upgrading a template
+//
+// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /config/templates/{key}:plan (the `PlanConfigTemplate` operationId).
+func (c *ClientWithResponses) PlanConfigTemplateWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PlanConfigTemplateResult, error) {
+	rsp, err := c.PlanConfigTemplateWithBody(ctx, key, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePlanConfigTemplateResult(rsp)
+}
+
+// PlanConfigTemplateWithResponse Plan taking or upgrading a template
+//
+// Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /config/templates/{key}:plan (the `PlanConfigTemplate` operationId).
+func (c *ClientWithResponses) PlanConfigTemplateWithResponse(ctx context.Context, key string, body PlanConfigTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*PlanConfigTemplateResult, error) {
+	rsp, err := c.PlanConfigTemplate(ctx, key, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePlanConfigTemplateResult(rsp)
+}
+
+// ListConfigVersionsWithResponse The configuration's versions
+//
+// Every applied version, newest first: who applied it, whose proposal it was, the counts, the template it took and the version a rollback went back to.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /config/versions (the `ListConfigVersions` operationId).
+func (c *ClientWithResponses) ListConfigVersionsWithResponse(ctx context.Context, params *ListConfigVersionsParams, reqEditors ...RequestEditorFn) (*ListConfigVersionsResult, error) {
+	rsp, err := c.ListConfigVersions(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListConfigVersionsResult(rsp)
+}
+
+// ReadConfigVersionWithResponse One configuration version with its document
+//
+// The document as it was in force after that version's apply, so two versions are compared.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /config/versions/{version} (the `ReadConfigVersion` operationId).
+func (c *ClientWithResponses) ReadConfigVersionWithResponse(ctx context.Context, version int, reqEditors ...RequestEditorFn) (*ReadConfigVersionResult, error) {
+	rsp, err := c.ReadConfigVersion(ctx, version, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadConfigVersionResult(rsp)
+}
+
+// ApplyConfigWithBodyWithResponse Apply a planned configuration change
+//
+// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /config:apply (the `ApplyConfig` operationId).
+func (c *ClientWithResponses) ApplyConfigWithBodyWithResponse(ctx context.Context, params *ApplyConfigParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ApplyConfigResult, error) {
+	rsp, err := c.ApplyConfigWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseApplyConfigResult(rsp)
+}
+
+// ApplyConfigWithResponse Apply a planned configuration change
+//
+// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /config:apply (the `ApplyConfig` operationId).
+func (c *ClientWithResponses) ApplyConfigWithResponse(ctx context.Context, params *ApplyConfigParams, body ApplyConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*ApplyConfigResult, error) {
+	rsp, err := c.ApplyConfig(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseApplyConfigResult(rsp)
+}
+
+// PlanConfigWithBodyWithResponse Plan a configuration change or a rollback
+//
+// Plans a document - or, with `to_version`, a rollback to an earlier version stated whole - against the configuration in force: each change by key path with before and after, the operations it runs, what it refuses and why, whether it hides data or changes permissions, and the plan hash to apply it by. Writes nothing.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /config:plan (the `PlanConfig` operationId).
+func (c *ClientWithResponses) PlanConfigWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PlanConfigResult, error) {
+	rsp, err := c.PlanConfigWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePlanConfigResult(rsp)
+}
+
+// PlanConfigWithResponse Plan a configuration change or a rollback
+//
+// Plans a document - or, with `to_version`, a rollback to an earlier version stated whole - against the configuration in force: each change by key path with before and after, the operations it runs, what it refuses and why, whether it hides data or changes permissions, and the plan hash to apply it by. Writes nothing.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /config:plan (the `PlanConfig` operationId).
+func (c *ClientWithResponses) PlanConfigWithResponse(ctx context.Context, body PlanConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*PlanConfigResult, error) {
+	rsp, err := c.PlanConfig(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePlanConfigResult(rsp)
+}
+
+// ProposeConfigWithBodyWithResponse Propose a planned change for a person to decide
+//
+// Keeps a planned change for a person to apply or decline; it appears in the administration's Changes as proposed. How an agent with the read and plan scopes brings a change to the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /config:propose (the `ProposeConfig` operationId).
+func (c *ClientWithResponses) ProposeConfigWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ProposeConfigResult, error) {
+	rsp, err := c.ProposeConfigWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseProposeConfigResult(rsp)
+}
+
+// ProposeConfigWithResponse Propose a planned change for a person to decide
+//
+// Keeps a planned change for a person to apply or decline; it appears in the administration's Changes as proposed. How an agent with the read and plan scopes brings a change to the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /config:propose (the `ProposeConfig` operationId).
+func (c *ClientWithResponses) ProposeConfigWithResponse(ctx context.Context, body ProposeConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*ProposeConfigResult, error) {
+	rsp, err := c.ProposeConfig(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseProposeConfigResult(rsp)
+}
+
+// ValidateConfigWithBodyWithResponse Check a configuration document
+//
+// Answers what a document refuses - a message code, the key path and its parameters - and nothing else. Writes nothing.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /config:validate (the `ValidateConfig` operationId).
+func (c *ClientWithResponses) ValidateConfigWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ValidateConfigResult, error) {
+	rsp, err := c.ValidateConfigWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseValidateConfigResult(rsp)
+}
+
+// ValidateConfigWithResponse Check a configuration document
+//
+// Answers what a document refuses - a message code, the key path and its parameters - and nothing else. Writes nothing.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /config:validate (the `ValidateConfig` operationId).
+func (c *ClientWithResponses) ValidateConfigWithResponse(ctx context.Context, body ValidateConfigJSONRequestBody, reqEditors ...RequestEditorFn) (*ValidateConfigResult, error) {
+	rsp, err := c.ValidateConfig(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseValidateConfigResult(rsp)
+}
+
 // ListContainersWithResponse performs a GET /containers (the `ListContainers` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -90978,6 +94072,21 @@ func (c *ClientWithResponses) GetCapabilitiesWithResponse(ctx context.Context, r
 		return nil, err
 	}
 	return ParseGetCapabilitiesResult(rsp)
+}
+
+// ReadConfigSchemaWithResponse The configuration document's JSON Schema
+//
+// The JSON Schema of the workspace's configuration document: every section, the stable keys its blocks are named by, and each attribute's type, allowed values and description, taken from the operations that write it. Needs a signed-in caller.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /meta/config-schema (the `ReadConfigSchema` operationId).
+func (c *ClientWithResponses) ReadConfigSchemaWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadConfigSchemaResult, error) {
+	rsp, err := c.ReadConfigSchema(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadConfigSchemaResult(rsp)
 }
 
 // GetHealthReportWithResponse Deep self-diagnosis of the installation
@@ -98994,6 +102103,481 @@ func ParseSetCollectionHandleResult(rsp *http.Response) (*SetCollectionHandleRes
 	return response, nil
 }
 
+// ParseExportConfigResult parses an HTTP response from a ExportConfigWithResponse call
+func ParseExportConfigResult(rsp *http.Response) (*ExportConfigResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ExportConfigResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigExport
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers ExportConfigResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseExplainConfigResult parses an HTTP response from a ExplainConfigWithResponse call
+func ParseExplainConfigResult(rsp *http.Response) (*ExplainConfigResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ExplainConfigResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigExplanation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetConfigPolicyResult parses an HTTP response from a SetConfigPolicyWithResponse call
+func ParseSetConfigPolicyResult(rsp *http.Response) (*SetConfigPolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetConfigPolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListConfigProposalsResult parses an HTTP response from a ListConfigProposalsWithResponse call
+func ParseListConfigProposalsResult(rsp *http.Response) (*ListConfigProposalsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListConfigProposalsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigProposalList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDecideConfigProposalResult parses an HTTP response from a DecideConfigProposalWithResponse call
+func ParseDecideConfigProposalResult(rsp *http.Response) (*DecideConfigProposalResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DecideConfigProposalResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigApplyResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListConfigTemplatesResult parses an HTTP response from a ListConfigTemplatesWithResponse call
+func ParseListConfigTemplatesResult(rsp *http.Response) (*ListConfigTemplatesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListConfigTemplatesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigTemplateList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePublishConfigTemplateResult parses an HTTP response from a PublishConfigTemplateWithResponse call
+func ParsePublishConfigTemplateResult(rsp *http.Response) (*PublishConfigTemplateResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PublishConfigTemplateResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ConfigTemplate
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePlanConfigTemplateResult parses an HTTP response from a PlanConfigTemplateWithResponse call
+func ParsePlanConfigTemplateResult(rsp *http.Response) (*PlanConfigTemplateResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PlanConfigTemplateResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigTemplatePlan
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListConfigVersionsResult parses an HTTP response from a ListConfigVersionsWithResponse call
+func ParseListConfigVersionsResult(rsp *http.Response) (*ListConfigVersionsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListConfigVersionsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigVersionList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadConfigVersionResult parses an HTTP response from a ReadConfigVersionWithResponse call
+func ParseReadConfigVersionResult(rsp *http.Response) (*ReadConfigVersionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadConfigVersionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigVersion
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseApplyConfigResult parses an HTTP response from a ApplyConfigWithResponse call
+func ParseApplyConfigResult(rsp *http.Response) (*ApplyConfigResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ApplyConfigResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigApplyResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePlanConfigResult parses an HTTP response from a PlanConfigWithResponse call
+func ParsePlanConfigResult(rsp *http.Response) (*PlanConfigResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PlanConfigResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigPlan
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseProposeConfigResult parses an HTTP response from a ProposeConfigWithResponse call
+func ParseProposeConfigResult(rsp *http.Response) (*ProposeConfigResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ProposeConfigResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigApplyResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseValidateConfigResult parses an HTTP response from a ValidateConfigWithResponse call
+func ParseValidateConfigResult(rsp *http.Response) (*ValidateConfigResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ValidateConfigResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigValidation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListContainersResult parses an HTTP response from a ListContainersWithResponse call
 func ParseListContainersResult(rsp *http.Response) (*ListContainersResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -105247,6 +108831,39 @@ func ParseGetCapabilitiesResult(rsp *http.Response) (*GetCapabilitiesResult, err
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadConfigSchemaResult parses an HTTP response from a ReadConfigSchemaWithResponse call
+func ParseReadConfigSchemaResult(rsp *http.Response) (*ReadConfigSchemaResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadConfigSchemaResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigSchema
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 

@@ -12555,6 +12555,541 @@
         }
       }
     },
+    "/meta/config-schema": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "readConfigSchema",
+        "summary": "The configuration document's JSON Schema",
+        "description": "The JSON Schema of the workspace's configuration document: every section, the stable keys its blocks are named by, and each attribute's type, allowed values and description, taken from the operations that write it. Needs a signed-in caller.\n",
+        "responses": {
+          "200": {
+            "description": "The schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigSchema"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/config": {
+      "get": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "exportConfig",
+        "summary": "The configuration document in force",
+        "description": "The workspace's configuration as one document - modules, roles, fields, link types, entry types with their forms, workflows and the configuration settings - each block by its stable key, never content and never a secret. `hash` is what a plan is made against and is the `ETag`; a section the reader may not read, or whose module is off, is listed in `withheld`. Needs the right to change the workspace's shape, or to read its configuration.\n",
+        "responses": {
+          "200": {
+            "description": "The document",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigExport"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/config/explain": {
+      "get": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "explainConfig",
+        "summary": "Explain one key of the configuration",
+        "description": "One key path of the document - `types.incident`, `modules.workflows`, `settings.config.agent_apply`: its value, the level it comes from and which level locked it, the permission a person needs to change it and the operation that does.\n",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The explanation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigExplanation"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/config:validate": {
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "validateConfig",
+        "summary": "Check a configuration document",
+        "description": "Answers what a document refuses - a message code, the key path and its parameters - and nothing else. Writes nothing.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigDocumentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The refusals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigValidation"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/config:plan": {
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "planConfig",
+        "summary": "Plan a configuration change or a rollback",
+        "description": "Plans a document - or, with `to_version`, a rollback to an earlier version stated whole - against the configuration in force: each change by key path with before and after, the operations it runs, what it refuses and why, whether it hides data or changes permissions, and the plan hash to apply it by. Writes nothing.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigPlanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigPlan"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/config:propose": {
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "proposeConfig",
+        "summary": "Propose a planned change for a person to decide",
+        "description": "Keeps a planned change for a person to apply or decline; it appears in the administration's Changes as proposed. How an agent with the read and plan scopes brings a change to the workspace.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigApplyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The proposal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigApplyResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/config:apply": {
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "applyConfig",
+        "summary": "Apply a planned configuration change",
+        "description": "Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigApplyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied, or proposed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigApplyResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/config/versions": {
+      "get": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "listConfigVersions",
+        "summary": "The configuration's versions",
+        "description": "Every applied version, newest first: who applied it, whose proposal it was, the counts, the template it took and the version a rollback went back to.\n",
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The versions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigVersionList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/config/versions/{version}": {
+      "parameters": [
+        {
+          "name": "version",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "readConfigVersion",
+        "summary": "One configuration version with its document",
+        "description": "The document as it was in force after that version's apply, so two versions are compared.",
+        "responses": {
+          "200": {
+            "description": "The version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigVersion"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/config/proposals": {
+      "get": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "listConfigProposals",
+        "summary": "The proposed configuration changes",
+        "description": "Proposals newest first, in one state or every state.",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "WAITING",
+                "APPLIED",
+                "DECLINED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The proposals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigProposalList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/config/proposals/{proposalId}:decide": {
+      "parameters": [
+        {
+          "name": "proposalId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "decideConfigProposal",
+        "summary": "Apply or decline a proposed change",
+        "description": "Applying re-plans the proposal against the configuration in force and refuses it as `config.version_conflict` where that moved since; a plan that hides data or changes permissions needs `acknowledge`. An agent cannot decide a proposal.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The decision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigApplyResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/config/policy": {
+      "put": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "setConfigPolicy",
+        "summary": "Set what an agent's apply does",
+        "description": "`APPROVAL` (the default) keeps an agent's apply for a person, `ALLOWED` applies it, `NEVER` refuses it. The installation or a plan may lock it; the workspace may only tighten it.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigPolicy"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The setting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigPolicy"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/config/templates": {
+      "get": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "listConfigTemplates",
+        "summary": "The workspace's templates",
+        "description": "Each template's newest version, the version the workspace took and whether an update is available.\n",
+        "responses": {
+          "200": {
+            "description": "The templates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigTemplateList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "publishConfigTemplate",
+        "summary": "Publish a template's next version",
+        "description": "A configuration document in MERGE form that taking the template applies, checked before it is published; omitted, the configuration in force (save as template). A version never changes once published.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigTemplatePublish"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The version published",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigTemplate"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/config/templates/{key}:plan": {
+      "parameters": [
+        {
+          "name": "key",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "planConfigTemplate",
+        "summary": "Plan taking or upgrading a template",
+        "description": "Plans taking a template version or, for one the workspace took, upgrading to it by a three-way comparison: each change is `TAKE` (the template changed it, the workspace did not) or `CONFLICT` (both did); conflicts are left unless named in `take`. Answers the document to apply with `template` set, and its plan.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigTemplatePlanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigTemplatePlan"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/tenant/modules": {
       "get": {
         "tags": [
@@ -23840,6 +24375,769 @@
             "description": "The `operationId` that answers, before a save, what a change reaches; absent where a change reaches nothing beyond the value itself.\n"
           }
         }
+      },
+      "ConfigDocument": {
+        "type": "object",
+        "description": "Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.\n",
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          }
+        }
+      },
+      "ConfigSchema": {
+        "type": "object",
+        "required": [
+          "schema"
+        ],
+        "properties": {
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "ConfigExport": {
+        "type": "object",
+        "required": [
+          "document",
+          "hash",
+          "version",
+          "withheld"
+        ],
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/ConfigDocument"
+          },
+          "hash": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "description": "The newest applied version; 0 where none was applied yet."
+          },
+          "withheld": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ConfigExplanation": {
+        "type": "object",
+        "required": [
+          "key",
+          "value",
+          "source",
+          "permission",
+          "applies_to"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "source": {
+            "type": "string"
+          },
+          "locked_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "permission": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "string"
+          },
+          "applies_to": {
+            "type": "string"
+          },
+          "allowed": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ConfigRefusal": {
+        "type": "object",
+        "required": [
+          "path",
+          "code"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "The key path as a JSON Pointer."
+          },
+          "code": {
+            "type": "string"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ConfigDocumentRequest": {
+        "type": "object",
+        "required": [
+          "document"
+        ],
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/ConfigDocument"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "MERGE",
+              "REPLACE"
+            ]
+          }
+        }
+      },
+      "ConfigValidation": {
+        "type": "object",
+        "required": [
+          "valid",
+          "refusals"
+        ],
+        "properties": {
+          "valid": {
+            "type": "boolean"
+          },
+          "refusals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfigRefusal"
+            }
+          }
+        }
+      },
+      "ConfigPlanRequest": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/ConfigDocument"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "MERGE",
+              "REPLACE"
+            ]
+          },
+          "to_version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "ConfigChange": {
+        "type": "object",
+        "required": [
+          "path",
+          "section",
+          "key",
+          "op",
+          "fields"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "section": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "op": {
+            "type": "string",
+            "enum": [
+              "ADD",
+              "CHANGE",
+              "REMOVE"
+            ]
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "before": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          },
+          "after": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          }
+        }
+      },
+      "ConfigPlan": {
+        "type": "object",
+        "required": [
+          "base_hash",
+          "plan_hash",
+          "changes",
+          "operations",
+          "refusals",
+          "flags",
+          "counts"
+        ],
+        "properties": {
+          "base_hash": {
+            "type": "string"
+          },
+          "plan_hash": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Null where the plan refuses."
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfigChange"
+            }
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "use_case",
+                "path"
+              ],
+              "properties": {
+                "use_case": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "refusals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfigRefusal"
+            }
+          },
+          "flags": {
+            "type": "object",
+            "required": [
+              "hides_data",
+              "changes_permissions"
+            ],
+            "properties": {
+              "hides_data": {
+                "type": "boolean"
+              },
+              "changes_permissions": {
+                "type": "boolean"
+              }
+            }
+          },
+          "counts": {
+            "$ref": "#/components/schemas/ConfigCounts"
+          }
+        }
+      },
+      "ConfigCounts": {
+        "type": "object",
+        "required": [
+          "added",
+          "changed",
+          "removed"
+        ],
+        "properties": {
+          "added": {
+            "type": "integer"
+          },
+          "changed": {
+            "type": "integer"
+          },
+          "removed": {
+            "type": "integer"
+          }
+        }
+      },
+      "ConfigApplyRequest": {
+        "type": "object",
+        "required": [
+          "plan_hash"
+        ],
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/ConfigDocument"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "MERGE",
+              "REPLACE"
+            ]
+          },
+          "to_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "plan_hash": {
+            "type": "string"
+          },
+          "acknowledge": {
+            "type": "boolean"
+          },
+          "template": {
+            "type": "string",
+            "description": "The template@version the document came from."
+          }
+        }
+      },
+      "ConfigVersion": {
+        "type": "object",
+        "required": [
+          "version",
+          "hash",
+          "plan_hash",
+          "actor_kind",
+          "added",
+          "changed",
+          "removed",
+          "created_at"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer"
+          },
+          "hash": {
+            "type": "string"
+          },
+          "plan_hash": {
+            "type": "string"
+          },
+          "actor_kind": {
+            "type": "string"
+          },
+          "actor_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "proposed_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "rolled_back_to": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "template": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "added": {
+            "type": "integer"
+          },
+          "changed": {
+            "type": "integer"
+          },
+          "removed": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "document": {
+            "$ref": "#/components/schemas/ConfigDocument"
+          }
+        }
+      },
+      "ConfigVersionList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfigVersion"
+            }
+          }
+        }
+      },
+      "ConfigProposal": {
+        "type": "object",
+        "required": [
+          "id",
+          "state",
+          "document",
+          "mode",
+          "base_hash",
+          "plan_hash",
+          "added",
+          "changed",
+          "removed",
+          "hides_data",
+          "changes_permissions",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "WAITING",
+              "APPLIED",
+              "DECLINED"
+            ]
+          },
+          "document": {
+            "$ref": "#/components/schemas/ConfigDocument"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "MERGE",
+              "REPLACE"
+            ]
+          },
+          "base_hash": {
+            "type": "string"
+          },
+          "plan_hash": {
+            "type": "string"
+          },
+          "template": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "added": {
+            "type": "integer"
+          },
+          "changed": {
+            "type": "integer"
+          },
+          "removed": {
+            "type": "integer"
+          },
+          "hides_data": {
+            "type": "boolean"
+          },
+          "changes_permissions": {
+            "type": "boolean"
+          },
+          "proposed_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "decided_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decided_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "ConfigProposalList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfigProposal"
+            }
+          }
+        }
+      },
+      "ConfigApplyResult": {
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "APPLIED",
+              "PROPOSED",
+              "DECLINED"
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/ConfigVersion"
+          },
+          "proposal": {
+            "$ref": "#/components/schemas/ConfigProposal"
+          }
+        }
+      },
+      "ConfigDecision": {
+        "type": "object",
+        "required": [
+          "decision"
+        ],
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "APPLY",
+              "DECLINE"
+            ]
+          },
+          "acknowledge": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ConfigPolicy": {
+        "type": "object",
+        "required": [
+          "agent_apply"
+        ],
+        "properties": {
+          "agent_apply": {
+            "type": "string",
+            "enum": [
+              "ALLOWED",
+              "APPROVAL",
+              "NEVER"
+            ]
+          }
+        }
+      },
+      "ConfigTemplate": {
+        "type": "object",
+        "required": [
+          "key",
+          "version",
+          "name",
+          "origin",
+          "provenance",
+          "document",
+          "created_at",
+          "update_available"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "HUBTASK",
+              "INSTALLATION",
+              "WORKSPACE",
+              "OWN"
+            ]
+          },
+          "provenance": {
+            "type": "string",
+            "description": "key@version"
+          },
+          "document": {
+            "$ref": "#/components/schemas/ConfigDocument"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "taken_version": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "update_available": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ConfigTemplateList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfigTemplate"
+            }
+          }
+        }
+      },
+      "ConfigTemplatePublish": {
+        "type": "object",
+        "required": [
+          "key",
+          "name"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "document": {
+            "$ref": "#/components/schemas/ConfigDocument"
+          }
+        }
+      },
+      "ConfigTemplatePlanRequest": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "take": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ConfigUpgradeChange": {
+        "type": "object",
+        "required": [
+          "path",
+          "state",
+          "removed"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "TAKE",
+              "CONFLICT"
+            ]
+          },
+          "removed": {
+            "type": "boolean"
+          },
+          "base": {},
+          "ours": {},
+          "theirs": {}
+        }
+      },
+      "ConfigTemplatePlan": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ConfigPlan"
+          },
+          {
+            "type": "object",
+            "required": [
+              "template",
+              "upgrade",
+              "document",
+              "mode"
+            ],
+            "properties": {
+              "template": {
+                "type": "string"
+              },
+              "from_version": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "upgrade": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ConfigUpgradeChange"
+                }
+              },
+              "document": {
+                "$ref": "#/components/schemas/ConfigDocument"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "MERGE",
+                  "REPLACE"
+                ]
+              }
+            }
+          }
+        ]
       },
       "SettingsCatalogue": {
         "type": "object",

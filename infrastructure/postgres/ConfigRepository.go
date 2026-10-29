@@ -271,7 +271,7 @@ func proposalFrom(row sqlc.ConfigProposal) (domain.Proposal, error) {
 	return domain.Proposal{
 		ID: ids[0], TenantID: ids[1], State: domain.ProposalState(row.State), Document: document,
 		Mode: domain.Mode(row.Mode), BaseHash: row.BaseHash, PlanHash: row.PlanHash, Template: textOf(row.Template),
-		Counts: domain.Counts{Added: int(row.Added), Changed: int(row.Changed), Removed: int(row.Removed)},
+		Counts:     domain.Counts{Added: int(row.Added), Changed: int(row.Changed), Removed: int(row.Removed)},
 		Flags:      domain.Flags{HidesData: row.HidesData, ChangesPermissions: row.ChangesPermissions},
 		ProposedBy: ids[2], DecidedBy: ids[3], CreatedAt: timeFrom(row.CreatedAt), DecidedAt: optionalTime(row.DecidedAt),
 	}, nil
