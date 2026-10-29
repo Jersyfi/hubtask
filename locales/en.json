@@ -8284,5 +8284,14 @@
   "app.cmdb_admin.may_create": "May make new items",
   "app.cmdb_admin.updates_only": "updates only what it finds",
   "app.cmdb_admin.source_classes": "Classes it may write",
-  "app.cmdb_admin.source_classes_hint": "With the classes beneath them; none chosen is every class."
+  "app.cmdb_admin.source_classes_hint": "With the classes beneath them; none chosen is every class.",
+  "app.assets.copy_reference": "Copy the reference",
+  "app.assets.reference_copied": "Copied. Paste it into an entry's notes, a page or a whiteboard to point at this item.",
+  "app.assets.backlinks": "Pointing here",
+  "app.assets.backlinks_show": "Show what points here",
+  "app.assets.backlinks_none": "Nothing you may see points here.",
+  "app.assets.backlink_kind.PAGE": "page",
+  "app.assets.backlink_kind.ENTRY": "entry",
+  "app.assets.backlink_kind.COMMENT": "comment",
+  "app.assets.backlink_kind.WHITEBOARD": "whiteboard"
 }

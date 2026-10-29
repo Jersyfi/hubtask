@@ -32,7 +32,9 @@
             ? `/pages/${target.id}`
             : target.kind === 'HUB'
               ? `/hubs/${target.id}`
-              : undefined,
+              : target.kind === 'CI'
+                ? `/cis/${target.id}`
+                : undefined,
   );
 </script>
 

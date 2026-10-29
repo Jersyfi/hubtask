@@ -12,16 +12,17 @@
 
   import { untrack } from 'svelte';
   import { Badge, Banner, Button, Checkbox, Input, Select, Spinner, Stack, Textarea, type SelectOption } from '@hubtask/design-system/components';
-  import type { CiClass, CiCompliance, CiImpact, CiRelationType, ConfigurationItem, ConfigurationItemList } from '@hubtask/sync-engine';
+  import type { CiBacklinkList, CiClass, CiCompliance, CiImpact, CiRelationType, ConfigurationItem, ConfigurationItemList } from '@hubtask/sync-engine';
 
   import { accounts } from '../data/accounts.svelte.ts';
   import {
-    attributeText, changedAttributes, cisPath, classWord, cmdb, DIMENSIONS, impactByDepth, PROTECTION_LEVELS, protectionRows, refinements,
+    attributeText, changedAttributes, ciReferenceText, cisPath, classWord, cmdb, DIMENSIONS, impactByDepth, PROTECTION_LEVELS, protectionRows, refinements,
     relationRows, relationWord, typeAllows, type Dimension, type Level, type Words,
   } from '../data/cmdb.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { groups } from '../data/groups.svelte.ts';
   import { people } from '../data/people.svelte.ts';
+  import { backlinkHref } from '../data/whiteboards.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -238,6 +239,22 @@
       );
     });
   });
+  // What points at the CI, read when asked: a reference is the reader's, judged per source.
+  let backlinks = $state<CiBacklinkList['data'] | undefined>(undefined);
+  async function showBacklinks() {
+    const read = await act(() => cmdb.backlinks(ci.id));
+    if (read) backlinks = read;
+  }
+
+  async function copyReference() {
+    try {
+      await navigator.clipboard.writeText(ciReferenceText(ci.id));
+      toast.show({ text: t('app.assets.reference_copied'), tone: 'success' });
+    } catch {
+      // A clipboard the browser refuses says nothing: the CI's address is on screen.
+    }
+  }
+
   const depths = $derived(impact ? impactByDepth(impact.reached) : []);
   const services = $derived(new Set(impact?.services ?? []));
 </script>
@@ -251,6 +268,7 @@
       <Badge size="sm" tone={ci.status === 'OK' ? 'neutral' : 'warning'}>{t(`app.assets.status.${ci.status}`)}</Badge>
       <span class="meta">{ci.last_seen_at ? t('app.assets.last_seen', { when: when(ci.last_seen_at) }) : t('app.assets.never_seen')}</span>
     </span>
+    <div><Button size="sm" tone="subtle" icon="link" onclick={() => void copyReference()}>{t('app.assets.copy_reference')}</Button></div>
   </header>
 
   {#if ci.merged_into}
@@ -425,6 +443,24 @@
           {/each}
         </ul>
       {/each}
+    {/if}
+  </section>
+
+  <section class="part" aria-labelledby="ci-backlinks">
+    <h2 id="ci-backlinks" class="heading">{t('app.assets.backlinks')}</h2>
+    {#if !backlinks}
+      <div><Button size="sm" tone="secondary" onclick={() => void showBacklinks()}>{t('app.assets.backlinks_show')}</Button></div>
+    {:else if backlinks.length === 0}
+      <p class="meta">{t('app.assets.backlinks_none')}</p>
+    {:else}
+      <ul class="rows">
+        {#each backlinks as link (`${link.source_kind}-${link.source_id}`)}
+          <li class="row">
+            <a href={backlinkHref(link)}>{link.title}</a>
+            <span class="meta">{t(`app.assets.backlink_kind.${link.source_kind}`)}</span>
+          </li>
+        {/each}
+      </ul>
     {/if}
   </section>
 </Stack>

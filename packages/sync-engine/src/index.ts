@@ -180,6 +180,7 @@ export type {
   CiImpact,
   CiReached,
   CmdbHealth,
+  CiBacklinkList,
   EntryLink,
   EntryLinkCreate,
   EntryLinkList,

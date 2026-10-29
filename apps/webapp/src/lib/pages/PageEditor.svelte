@@ -92,6 +92,7 @@
       else if (kind === 'PAGE') onnavigate(`/pages/${ref.id}`);
       else if (kind === 'HUB') onnavigate(`/hubs/${ref.id}`);
       else if (kind === 'COLLECTION') onnavigate(`/collections/${ref.id}`);
+      else if (kind === 'CI') onnavigate(`/cis/${ref.id}`);
       else if (kind === 'VIEW' && target.collection_id) onnavigate(`/collections/${target.collection_id}?view=${ref.id}`);
     },
     subscribe: (listener: () => void) => {

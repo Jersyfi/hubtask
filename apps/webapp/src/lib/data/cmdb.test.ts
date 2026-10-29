@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import type { CiAttribute, CiClass, CiRelationType, ConfigurationItem } from '@hubtask/sync-engine';
 
 import {
-  changedAttributes, cisPath, classDefine, classDraft, keyIsWellFormed, classWord, fileColumns, fileFormat, guessMapping, impactByDepth, instantiable, inventoryByClass,
+  changedAttributes, ciReferenceText, cisPath, classDefine, classDraft, keyIsWellFormed, classWord, fileColumns, fileFormat, guessMapping, impactByDepth, instantiable, inventoryByClass,
   missingRequired, outcomeTone, parseAttribute, percent, protectionRows, refinements, relationRows, relationWord, sectionOf,
   sideBySide, typeAllows,
 } from './cmdb.ts';
@@ -178,4 +178,11 @@ test('an own class is edited by what it declares and sent as the contract takes 
   assert.equal(keyIsWellFormed('rack_server'), true);
   assert.equal(keyIsWellFormed('Rack'), false);
   assert.equal(keyIsWellFormed('1rack'), false);
+});
+
+test('a CI is pointed at by an address the server keeps as a reference (UC-AST-01 check 9)', async () => {
+  const { referencesIn } = await import('./links.ts');
+  const id = '0192f000-0000-7000-8000-0000000007b1';
+  assert.equal(ciReferenceText(id), `[](hubtask:ci/${id})`);
+  assert.deepEqual(referencesIn(`runs on ${ciReferenceText(id, 'CARD')}`), [{ reference: { kind: 'CI', id }, strength: 'CARD' }]);
 });

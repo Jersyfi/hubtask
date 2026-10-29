@@ -8,11 +8,11 @@
  */
 
 import type {
-  CiClass, CiClassDefine, CiRelationType, CiRelationTypeDefine, CiSource, CiSourceDefine, CiCompliance, CiDuplicateResolved, CiFileImport, CiImpact, CiRelation, CiRun, ConfigurationItem, ConfigurationItemCreate,
+  CiBacklinkList, CiClass, CiClassDefine, CiRelationType, CiRelationTypeDefine, CiSource, CiSourceDefine, CiCompliance, CiDuplicateResolved, CiFileImport, CiImpact, CiRelation, CiRun, ConfigurationItem, ConfigurationItemCreate,
   ConfigurationItemList, ConfigurationItemUpdate,
 } from '@hubtask/sync-engine';
 
-import { ciPath, cisPath, classesPath, duplicatesPath, healthPath, holdsPath, impactPath, relationTypesPath, runPath, runsPath, sourcesPath } from './cmdb.ts';
+import { backlinksPath, ciPath, cisPath, classesPath, duplicatesPath, healthPath, holdsPath, impactPath, relationTypesPath, runPath, runsPath, sourcesPath } from './cmdb.ts';
 import { engine } from './engine.ts';
 
 export * from './cmdb.ts';
@@ -32,6 +32,13 @@ class Cmdb {
     const state = await engine.refresh<CiImpact>({ path: impactPath(ciId, direction) });
     if (state.status !== 'ready') throw state.status === 'failed' ? state.error : new Error('impact');
     return state.data;
+  }
+
+  /** What points at a CI and the reader may see. */
+  async backlinks(ciId: string): Promise<CiBacklinkList['data']> {
+    const state = await engine.refresh<CiBacklinkList>({ path: backlinksPath(ciId) });
+    if (state.status === 'failed') throw state.error;
+    return state.status === 'ready' ? state.data.data : [];
   }
 
   async run(runId: string): Promise<CiRun> {

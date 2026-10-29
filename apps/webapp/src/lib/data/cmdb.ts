@@ -367,3 +367,9 @@ export function classDefine(draft: ClassDraft) {
 
 /** A key as a person may type one: small letters, digits and underscores, starting with a letter. */
 export const keyIsWellFormed = (key: string) => /^[a-z][a-z0-9_]{0,62}$/u.test(key);
+
+/** The text a mention or a card of a CI is written as in notes, a page or a board's words. */
+export const ciReferenceText = (ciId: string, strength: 'MENTION' | 'CARD' = 'MENTION') =>
+  `${strength === 'CARD' ? '!' : ''}[](hubtask:ci/${ciId})`;
+
+export const backlinksPath = (ciId: string) => `/cis/${ciId}/backlinks`;

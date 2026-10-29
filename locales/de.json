@@ -8281,5 +8281,14 @@
   "app.cmdb_admin.may_create": "Darf neue Elemente anlegen",
   "app.cmdb_admin.updates_only": "ändert nur, was es findet",
   "app.cmdb_admin.source_classes": "Klassen, die sie schreiben darf",
-  "app.cmdb_admin.source_classes_hint": "Mit den Klassen darunter; keine gewählt heißt jede Klasse."
+  "app.cmdb_admin.source_classes_hint": "Mit den Klassen darunter; keine gewählt heißt jede Klasse.",
+  "app.assets.copy_reference": "Verweis kopieren",
+  "app.assets.reference_copied": "Kopiert. Fügen Sie ihn in die Notizen eines Eintrags, eine Seite oder ein Whiteboard ein, um auf dieses Element zu verweisen.",
+  "app.assets.backlinks": "Verweist hierher",
+  "app.assets.backlinks_show": "Zeigen, was hierher verweist",
+  "app.assets.backlinks_none": "Nichts, was Sie sehen dürfen, verweist hierher.",
+  "app.assets.backlink_kind.PAGE": "Seite",
+  "app.assets.backlink_kind.ENTRY": "Eintrag",
+  "app.assets.backlink_kind.COMMENT": "Kommentar",
+  "app.assets.backlink_kind.WHITEBOARD": "Whiteboard"
 }
