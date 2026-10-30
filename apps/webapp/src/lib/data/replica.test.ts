@@ -529,3 +529,33 @@ test('a week, the capacities, the absences and the rates are answered from the c
   const rates = await storeFor({ path: '/cost-rates' }, storage) as { data: Record<string, unknown>[] };
   assert.deepEqual(rates.data.map((row) => row.id), ['rate-1']);
 });
+
+// UC-TIM-01 check 9: while the server is away the timer is started, stopped and discarded from the
+// queue with the device's moments; a stop waiting reads the timer as stopped, and a stop or a discard
+// of a timer the copy does not hold goes online.
+test('the timer is started, stopped and discarded from the queue', async () => {
+  const empty = new MemoryStorage();
+  assert.equal(await mutationFor('POST', '/timer:stop', { zone: 'Europe/Berlin' }, helpers(empty)), undefined, 'no timer held');
+  assert.equal(await mutationFor('DELETE', '/timer', undefined, helpers(empty)), undefined, 'no timer held');
+  const before = Date.now();
+  const start = await mutationFor('POST', '/timer:start', { work_type: 'development' }, helpers(empty));
+  assert.equal(start?.kind, 'ENTITY_UPSERT');
+  assert.equal(start?.entity, 'time_timer');
+  assert.equal(start?.itemId, '0192f000-0000-7000-8000-00000000f00d');
+  assert.equal(start?.payload?.work_type, 'development');
+  assert.ok(Date.parse(String(start?.payload?.started_at)) >= before - 1000, "the start carries the device's moment");
+
+  const storage = new MemoryStorage();
+  await storage.put('time_timers', 'me', record({ id: 'me', running: true, work_type: 'development', started_at: new Date().toISOString() }));
+  const stop = await mutationFor('POST', '/timer:stop', { zone: 'Europe/Berlin' }, helpers(storage));
+  assert.equal(stop?.kind, 'ENTITY_PATCH');
+  assert.equal(stop?.itemId, 'me');
+  assert.equal(stop?.payload?.zone, 'Europe/Berlin');
+  assert.ok(typeof stop?.payload?.stopped_at === 'string', "the stop carries the device's moment");
+  assert.deepEqual(await mutationFor('DELETE', '/timer', undefined, helpers(storage)), {
+    kind: 'ENTITY_DELETE', entity: 'time_timer', entityKey: 'own', itemId: 'me',
+  });
+
+  await storage.put('time_timers', 'me', record({ id: 'me', zone: 'Europe/Berlin', stopped_at: new Date().toISOString(), key: 'own' }));
+  assert.deepEqual(await storeFor({ path: '/timer' }, storage), { running: false }, 'a stop waiting reads as stopped');
+});

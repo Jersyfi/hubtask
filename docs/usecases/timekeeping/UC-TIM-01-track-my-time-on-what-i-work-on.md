@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-07, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/timekeeping/Timekeeping_test.go, core/application/service/timekeeping/Keeper_test.go, test/integration/time_repository_test.go, apps/webapp/src/lib/data/time.test.ts]
+checked_by: [core/domain/model/timekeeping/Timekeeping_test.go, core/application/service/timekeeping/Keeper_test.go, core/application/service/timekeeping/Timers_test.go, core/application/service/sync/Entity_test.go, apps/webapp/src/lib/data/replica.test.ts, test/integration/time_repository_test.go, apps/webapp/src/lib/data/time.test.ts]
 ---
 
 # Track my time on what I work on
@@ -42,8 +42,12 @@ meeting on no entry.
 7. REST, MCP and hubctl record, change, remove and list time and start, stop, read and discard the
    timer alike.
 8. The web app shows the running timer on an entry and lets a person start and stop it there.
+9. While the server is away a device starts, stops and discards the timer and shows it running;
+   once the server is back, the record a stop wrote holds the minutes the timer ran on the device,
+   a start more than a day old is refused with `timers.ran_too_long`, and every device shows the
+   one timer.
 
 ## Where it ends
 
 * No attendance clocking: working-time records under labour law are a different purpose.
-* A timer offline is not built; a device without the server cannot start or stop one.
+* Offline, only the timer is written; records are recorded, changed and removed with the server.

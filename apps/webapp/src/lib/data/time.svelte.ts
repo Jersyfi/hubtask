@@ -7,8 +7,10 @@
  * person's capacity, the absences, the cost rates and a plan's budget.
  * The reads are subscriptions at the call site.
  *
- * **Online only.** Time is not in the replica yet, so the engine refuses a write made offline
- * (`sync.needs_connection`) rather than queueing it; UC-TIM-01 *Where it ends* names the timer.
+ * **Offline**, the timer is started, stopped and discarded from the queue with the device's moments
+ * (`replica.ts`, `timerOf`), and the timer, a person's own week, capacities, the absences and the
+ * rates are read from the copy; every other time write goes online, and the engine refuses it made
+ * offline (`sync.needs_connection`).
  */
 
 import type {

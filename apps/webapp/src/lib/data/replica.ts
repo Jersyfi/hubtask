@@ -406,7 +406,8 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
   // away (M7): the copy holds the reader's own timer alone, its minutes counted here; a policy
   // never set is the default.
   if (pathname === '/timer') {
-    const [timer] = await documents(storage, 'time_timers');
+    // A stop waiting in the queue leaves the timer stopped (`timerOf`).
+    const timer = (await documents(storage, 'time_timers')).find((row) => row.stopped_at === undefined);
     if (!timer) return { running: false };
     const started = typeof timer.started_at === 'string' ? Date.parse(timer.started_at) : Number.NaN;
     const elapsed = Number.isFinite(started) ? Math.max(0, Math.floor((Date.now() - started) / 60000)) : 0;
@@ -741,7 +742,42 @@ export async function mutationFor(
     return { kind: 'COMMENT_ADD', itemId: match[1], payload: { ...fields, id: helpers.mintId() } };
   }
 
+  if (pathname === '/timer:start' || pathname === '/timer:stop' || pathname === '/timer') {
+    return timerOf(method, pathname, fields, helpers);
+  }
+
   return vocabularyOf(method, pathname, fields, helpers);
+}
+
+/**
+ * The person's own timer started, stopped or discarded while the server is away (UC-TIM-01): an
+ * `ENTITY_*` mutation of `time_timer` carrying the device's moment, so the record a stop writes holds
+ * the minutes the timer ran, not the minutes the push waited (offline-sync.md §4.4). A stop or a
+ * discard of a timer the copy does not hold goes online.
+ */
+async function timerOf(
+  method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  pathname: string,
+  fields: Record<string, unknown>,
+  helpers: { readonly storage: Storage; readonly mintId: () => string },
+): Promise<QueuedWrite | undefined> {
+  const held = (await helpers.storage.all<StoredRecord<Document>>('time_timers'))
+    .find((record) => !record.tombstone && record.document.stopped_at === undefined);
+  const now = new Date().toISOString();
+  if (method === 'POST' && pathname === '/timer:start') {
+    return {
+      kind: 'ENTITY_UPSERT', entity: 'time_timer', entityKey: 'own', itemId: held?.id ?? helpers.mintId(),
+      payload: { ...fields, started_at: now },
+    };
+  }
+  if (!held) return undefined;
+  if (method === 'POST' && pathname === '/timer:stop') {
+    return { kind: 'ENTITY_PATCH', entity: 'time_timer', entityKey: 'own', itemId: held.id, payload: { ...fields, stopped_at: now } };
+  }
+  if (method === 'DELETE' && pathname === '/timer') {
+    return { kind: 'ENTITY_DELETE', entity: 'time_timer', entityKey: 'own', itemId: held.id };
+  }
+  return undefined;
 }
 
 /** The vocabulary's paths, each the entity its change log names (offline-sync.md §4.4). */
@@ -874,7 +910,7 @@ async function weekOf(storage: Storage, start: string): Promise<unknown> {
   const held = (await documents(storage, 'time_records'))
     .filter((row) => String(row.day) >= start && String(row.day) <= end)
     .sort((a, b) => String(a.day).localeCompare(String(b.day)) || String(a.id).localeCompare(String(b.id)));
-  const records = await Promise.all(held.map(async (row) => {
+  const records: Document[] = await Promise.all(held.map(async (row) => {
     const entry = typeof row.entry_id === 'string' ? await one(storage, 'items', row.entry_id) : undefined;
     return {
       ...row,
