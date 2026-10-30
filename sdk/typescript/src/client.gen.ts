@@ -2494,6 +2494,81 @@ export class HubtaskClient {
     return this.call("DELETE", "/groups/{groupId}", { "groupId": groupId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** What this SCIM service supports */
+  getScimServiceProviderConfig(options: CallOptions = {}): Promise<operations["getScimServiceProviderConfig"]['responses'][200]['content']["application/scim+json"]> {
+    return this.call("GET", "/scim/v2/ServiceProviderConfig", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The SCIM resource types served */
+  listScimResourceTypes(options: CallOptions = {}): Promise<operations["listScimResourceTypes"]['responses'][200]['content']["application/scim+json"]> {
+    return this.call("GET", "/scim/v2/ResourceTypes", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The SCIM schemas served */
+  listScimSchemas(options: CallOptions = {}): Promise<operations["listScimSchemas"]['responses'][200]['content']["application/scim+json"]> {
+    return this.call("GET", "/scim/v2/Schemas", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The people a directory provisions */
+  listScimUsers(options: CallOptions & { readonly query?: NonNullable<operations["listScimUsers"]['parameters']['query']> } = {}): Promise<operations["listScimUsers"]['responses'][200]['content']["application/scim+json"]> {
+    return this.call("GET", "/scim/v2/Users", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Provision a person */
+  createScimUser(body: NonNullable<operations["createScimUser"]['requestBody']>['content']["application/scim+json"], options: CallOptions = {}): Promise<operations["createScimUser"]['responses'][201]['content']["application/scim+json"]> {
+    return this.call("POST", "/scim/v2/Users", {  }, undefined, {  }, body, "json", "application/scim+json", "json", options.signal);
+  }
+
+  /** A provisioned person */
+  getScimUser(scimUserId: string, options: CallOptions = {}): Promise<operations["getScimUser"]['responses'][200]['content']["application/scim+json"]> {
+    return this.call("GET", "/scim/v2/Users/{scimUserId}", { "scimUserId": scimUserId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Replace a provisioned person */
+  replaceScimUser(scimUserId: string, body: NonNullable<operations["replaceScimUser"]['requestBody']>['content']["application/scim+json"], options: CallOptions = {}): Promise<operations["replaceScimUser"]['responses'][200]['content']["application/scim+json"]> {
+    return this.call("PUT", "/scim/v2/Users/{scimUserId}", { "scimUserId": scimUserId }, undefined, {  }, body, "json", "application/scim+json", "json", options.signal);
+  }
+
+  /** Change a provisioned person */
+  patchScimUser(scimUserId: string, body: NonNullable<operations["patchScimUser"]['requestBody']>['content']["application/scim+json"], options: CallOptions = {}): Promise<operations["patchScimUser"]['responses'][200]['content']["application/scim+json"]> {
+    return this.call("PATCH", "/scim/v2/Users/{scimUserId}", { "scimUserId": scimUserId }, undefined, {  }, body, "json", "application/scim+json", "json", options.signal);
+  }
+
+  /** Deprovision a person */
+  deleteScimUser(scimUserId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/scim/v2/Users/{scimUserId}", { "scimUserId": scimUserId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** The groups a directory provisions */
+  listScimGroups(options: CallOptions & { readonly query?: NonNullable<operations["listScimGroups"]['parameters']['query']> } = {}): Promise<operations["listScimGroups"]['responses'][200]['content']["application/scim+json"]> {
+    return this.call("GET", "/scim/v2/Groups", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Provision a group */
+  createScimGroup(body: NonNullable<operations["createScimGroup"]['requestBody']>['content']["application/scim+json"], options: CallOptions = {}): Promise<operations["createScimGroup"]['responses'][201]['content']["application/scim+json"]> {
+    return this.call("POST", "/scim/v2/Groups", {  }, undefined, {  }, body, "json", "application/scim+json", "json", options.signal);
+  }
+
+  /** A provisioned group */
+  getScimGroup(scimGroupId: string, options: CallOptions & { readonly query?: NonNullable<operations["getScimGroup"]['parameters']['query']> } = {}): Promise<operations["getScimGroup"]['responses'][200]['content']["application/scim+json"]> {
+    return this.call("GET", "/scim/v2/Groups/{scimGroupId}", { "scimGroupId": scimGroupId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Replace a provisioned group */
+  replaceScimGroup(scimGroupId: string, body: NonNullable<operations["replaceScimGroup"]['requestBody']>['content']["application/scim+json"], options: CallOptions = {}): Promise<operations["replaceScimGroup"]['responses'][200]['content']["application/scim+json"]> {
+    return this.call("PUT", "/scim/v2/Groups/{scimGroupId}", { "scimGroupId": scimGroupId }, undefined, {  }, body, "json", "application/scim+json", "json", options.signal);
+  }
+
+  /** Change a provisioned group */
+  patchScimGroup(scimGroupId: string, body: NonNullable<operations["patchScimGroup"]['requestBody']>['content']["application/scim+json"], options: CallOptions = {}): Promise<operations["patchScimGroup"]['responses'][200]['content']["application/scim+json"]> {
+    return this.call("PATCH", "/scim/v2/Groups/{scimGroupId}", { "scimGroupId": scimGroupId }, undefined, {  }, body, "json", "application/scim+json", "json", options.signal);
+  }
+
+  /** Remove a provisioned group */
+  deleteScimGroup(scimGroupId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/scim/v2/Groups/{scimGroupId}", { "scimGroupId": scimGroupId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** Answers the first start's question for good */
   closeStarter(options: CallOptions = {}): Promise<void> {
     return this.call("POST", "/tenant/starter:close", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);

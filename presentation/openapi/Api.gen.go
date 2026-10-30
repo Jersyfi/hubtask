@@ -6,6 +6,7 @@
 package openapi
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -18966,6 +18967,75 @@ type SavedViewUpdate struct {
 	VisibleFields *[]string               `json:"visible_fields,omitempty"`
 }
 
+// ScimErrorBody A SCIM error (RFC 7644 §3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
+type ScimErrorBody struct {
+	Detail   *string  `json:"detail,omitempty"`
+	Schemas  []string `json:"schemas"`
+	ScimType *string  `json:"scimType,omitempty"`
+	Status   string   `json:"status"`
+}
+
+// ScimGroup A SCIM group (RFC 7643 §4.2) with its members by the users' `id`.
+type ScimGroup struct {
+	DisplayName *string `json:"displayName,omitempty"`
+	ExternalId  *string `json:"externalId,omitempty"`
+	Id          *string `json:"id,omitempty"`
+	Members     *[]struct {
+		Display *string `json:"display,omitempty"`
+		Value   *string `json:"value,omitempty"`
+	} `json:"members,omitempty"`
+	Meta                 *map[string]interface{} `json:"meta,omitempty"`
+	Schemas              *[]string               `json:"schemas,omitempty"`
+	AdditionalProperties map[string]interface{}  `json:"-"`
+}
+
+// ScimListResponse A SCIM list response (RFC 7644 §3.4.2).
+type ScimListResponse struct {
+	Resources    []ScimResource `json:"Resources"`
+	ItemsPerPage *int           `json:"itemsPerPage,omitempty"`
+	Schemas      []string       `json:"schemas"`
+	StartIndex   *int           `json:"startIndex,omitempty"`
+	TotalResults int            `json:"totalResults"`
+}
+
+// ScimPatch A SCIM PATCH request (RFC 7644 §3.5.2).
+type ScimPatch struct {
+	Operations []struct {
+		Op    string      `json:"op"`
+		Path  *string     `json:"path,omitempty"`
+		Value interface{} `json:"value,omitempty"`
+	} `json:"Operations"`
+	Schemas *[]string `json:"schemas,omitempty"`
+}
+
+// ScimResource A SCIM 2.0 resource (RFC 7643 §3), its `schemas` naming what it is.
+type ScimResource struct {
+	Schemas              []string               `json:"schemas"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
+// ScimUser A SCIM user (RFC 7643 §4.1) as this service keeps it: `userName` the address, `name` and `displayName` the name shown, `emails` the address again, `active`, `externalId`.
+type ScimUser struct {
+	Active      *bool   `json:"active,omitempty"`
+	DisplayName *string `json:"displayName,omitempty"`
+	Emails      *[]struct {
+		Primary *bool   `json:"primary,omitempty"`
+		Type    *string `json:"type,omitempty"`
+		Value   *string `json:"value,omitempty"`
+	} `json:"emails,omitempty"`
+	ExternalId *string                 `json:"externalId,omitempty"`
+	Id         *string                 `json:"id,omitempty"`
+	Meta       *map[string]interface{} `json:"meta,omitempty"`
+	Name       *struct {
+		FamilyName *string `json:"familyName,omitempty"`
+		Formatted  *string `json:"formatted,omitempty"`
+		GivenName  *string `json:"givenName,omitempty"`
+	} `json:"name,omitempty"`
+	Schemas              *[]string              `json:"schemas,omitempty"`
+	UserName             *string                `json:"userName,omitempty"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
 // SearchMode How much of the search to use.
 // `AUTO` is the default and searches by words and, where the installation has it, by meaning. `LEXICAL` searches by words only: it asks no provider, spends no budget and waits on nothing, which is what a caller in a loop - an automation, an import, a client's own type-ahead - wants. There is deliberately no `SEMANTIC`: an installation may not have it, and a mode the server cannot promise is a mode that would have to fail.
 type SearchMode string
@@ -21740,6 +21810,12 @@ type ReminderId = openapi_types.UUID
 // RuleId defines model for RuleId.
 type RuleId = openapi_types.UUID
 
+// ScimGroupId defines model for ScimGroupId.
+type ScimGroupId = string
+
+// ScimUserId defines model for ScimUserId.
+type ScimUserId = string
+
 // SessionId defines model for SessionId.
 type SessionId = openapi_types.UUID
 
@@ -21781,6 +21857,9 @@ type WeekOfTimesheet = openapi_types.Date
 
 // WhiteboardId defines model for WhiteboardId.
 type WhiteboardId = openapi_types.UUID
+
+// ScimError A SCIM error (RFC 7644 §3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
+type ScimError = ScimErrorBody
 
 // ExplainAccessParams defines parameters for ExplainAccess.
 type ExplainAccessParams struct {
@@ -23668,6 +23747,26 @@ type ChangeRoleParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListScimGroupsParams defines parameters for ListScimGroups.
+type ListScimGroupsParams struct {
+	Filter             *string `form:"filter,omitempty" json:"filter,omitempty"`
+	StartIndex         *int    `form:"startIndex,omitempty" json:"startIndex,omitempty"`
+	Count              *int    `form:"count,omitempty" json:"count,omitempty"`
+	ExcludedAttributes *string `form:"excludedAttributes,omitempty" json:"excludedAttributes,omitempty"`
+}
+
+// GetScimGroupParams defines parameters for GetScimGroup.
+type GetScimGroupParams struct {
+	ExcludedAttributes *string `form:"excludedAttributes,omitempty" json:"excludedAttributes,omitempty"`
+}
+
+// ListScimUsersParams defines parameters for ListScimUsers.
+type ListScimUsersParams struct {
+	Filter     *string `form:"filter,omitempty" json:"filter,omitempty"`
+	StartIndex *int    `form:"startIndex,omitempty" json:"startIndex,omitempty"`
+	Count      *int    `form:"count,omitempty" json:"count,omitempty"`
+}
+
 // DefineSlaPolicyParams defines parameters for DefineSlaPolicy.
 type DefineSlaPolicyParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -24875,6 +24974,42 @@ type CreateRoleJSONRequestBody = CustomRoleCreate
 // ChangeRoleApplicationMergePatchPlusJSONRequestBody defines body for ChangeRole for application/merge-patch+json ContentType.
 type ChangeRoleApplicationMergePatchPlusJSONRequestBody = CustomRoleChange
 
+// CreateScimGroupJSONRequestBody defines body for CreateScimGroup for application/json ContentType.
+type CreateScimGroupJSONRequestBody = ScimGroup
+
+// CreateScimGroupApplicationScimPlusJSONRequestBody defines body for CreateScimGroup for application/scim+json ContentType.
+type CreateScimGroupApplicationScimPlusJSONRequestBody = ScimGroup
+
+// PatchScimGroupJSONRequestBody defines body for PatchScimGroup for application/json ContentType.
+type PatchScimGroupJSONRequestBody = ScimPatch
+
+// PatchScimGroupApplicationScimPlusJSONRequestBody defines body for PatchScimGroup for application/scim+json ContentType.
+type PatchScimGroupApplicationScimPlusJSONRequestBody = ScimPatch
+
+// ReplaceScimGroupJSONRequestBody defines body for ReplaceScimGroup for application/json ContentType.
+type ReplaceScimGroupJSONRequestBody = ScimGroup
+
+// ReplaceScimGroupApplicationScimPlusJSONRequestBody defines body for ReplaceScimGroup for application/scim+json ContentType.
+type ReplaceScimGroupApplicationScimPlusJSONRequestBody = ScimGroup
+
+// CreateScimUserJSONRequestBody defines body for CreateScimUser for application/json ContentType.
+type CreateScimUserJSONRequestBody = ScimUser
+
+// CreateScimUserApplicationScimPlusJSONRequestBody defines body for CreateScimUser for application/scim+json ContentType.
+type CreateScimUserApplicationScimPlusJSONRequestBody = ScimUser
+
+// PatchScimUserJSONRequestBody defines body for PatchScimUser for application/json ContentType.
+type PatchScimUserJSONRequestBody = ScimPatch
+
+// PatchScimUserApplicationScimPlusJSONRequestBody defines body for PatchScimUser for application/scim+json ContentType.
+type PatchScimUserApplicationScimPlusJSONRequestBody = ScimPatch
+
+// ReplaceScimUserJSONRequestBody defines body for ReplaceScimUser for application/json ContentType.
+type ReplaceScimUserJSONRequestBody = ScimUser
+
+// ReplaceScimUserApplicationScimPlusJSONRequestBody defines body for ReplaceScimUser for application/scim+json ContentType.
+type ReplaceScimUserApplicationScimPlusJSONRequestBody = ScimUser
+
 // SearchItemsJSONRequestBody defines body for SearchItems for application/json ContentType.
 type SearchItemsJSONRequestBody = ItemSearchQuery
 
@@ -25024,6 +25159,405 @@ type PreviewWorkflowPublishJSONRequestBody = WorkflowPublishPreview
 
 // PublishWorkflowJSONRequestBody defines body for PublishWorkflow for application/json ContentType.
 type PublishWorkflowJSONRequestBody = WorkflowPublish
+
+// Getter for additional properties for ScimGroup. Returns the specified
+// element and whether it was found
+func (a ScimGroup) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for ScimGroup
+func (a *ScimGroup) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for ScimGroup to handle AdditionalProperties
+func (a *ScimGroup) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["displayName"]; found {
+		err = json.Unmarshal(raw, &a.DisplayName)
+		if err != nil {
+			return fmt.Errorf("error reading 'displayName': %w", err)
+		}
+		delete(object, "displayName")
+	}
+
+	if raw, found := object["externalId"]; found {
+		err = json.Unmarshal(raw, &a.ExternalId)
+		if err != nil {
+			return fmt.Errorf("error reading 'externalId': %w", err)
+		}
+		delete(object, "externalId")
+	}
+
+	if raw, found := object["id"]; found {
+		err = json.Unmarshal(raw, &a.Id)
+		if err != nil {
+			return fmt.Errorf("error reading 'id': %w", err)
+		}
+		delete(object, "id")
+	}
+
+	if raw, found := object["members"]; found {
+		err = json.Unmarshal(raw, &a.Members)
+		if err != nil {
+			return fmt.Errorf("error reading 'members': %w", err)
+		}
+		delete(object, "members")
+	}
+
+	if raw, found := object["meta"]; found {
+		err = json.Unmarshal(raw, &a.Meta)
+		if err != nil {
+			return fmt.Errorf("error reading 'meta': %w", err)
+		}
+		delete(object, "meta")
+	}
+
+	if raw, found := object["schemas"]; found {
+		err = json.Unmarshal(raw, &a.Schemas)
+		if err != nil {
+			return fmt.Errorf("error reading 'schemas': %w", err)
+		}
+		delete(object, "schemas")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for ScimGroup to handle AdditionalProperties
+func (a ScimGroup) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.DisplayName != nil {
+		object["displayName"], err = json.Marshal(a.DisplayName)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'displayName': %w", err)
+		}
+	}
+
+	if a.ExternalId != nil {
+		object["externalId"], err = json.Marshal(a.ExternalId)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'externalId': %w", err)
+		}
+	}
+
+	if a.Id != nil {
+		object["id"], err = json.Marshal(a.Id)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'id': %w", err)
+		}
+	}
+
+	if a.Members != nil {
+		object["members"], err = json.Marshal(a.Members)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'members': %w", err)
+		}
+	}
+
+	if a.Meta != nil {
+		object["meta"], err = json.Marshal(a.Meta)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'meta': %w", err)
+		}
+	}
+
+	if a.Schemas != nil {
+		object["schemas"], err = json.Marshal(a.Schemas)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'schemas': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
+// Getter for additional properties for ScimResource. Returns the specified
+// element and whether it was found
+func (a ScimResource) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for ScimResource
+func (a *ScimResource) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for ScimResource to handle AdditionalProperties
+func (a *ScimResource) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["schemas"]; found {
+		err = json.Unmarshal(raw, &a.Schemas)
+		if err != nil {
+			return fmt.Errorf("error reading 'schemas': %w", err)
+		}
+		delete(object, "schemas")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for ScimResource to handle AdditionalProperties
+func (a ScimResource) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.Schemas != nil {
+		object["schemas"], err = json.Marshal(a.Schemas)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'schemas': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
+// Getter for additional properties for ScimUser. Returns the specified
+// element and whether it was found
+func (a ScimUser) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for ScimUser
+func (a *ScimUser) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for ScimUser to handle AdditionalProperties
+func (a *ScimUser) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["active"]; found {
+		err = json.Unmarshal(raw, &a.Active)
+		if err != nil {
+			return fmt.Errorf("error reading 'active': %w", err)
+		}
+		delete(object, "active")
+	}
+
+	if raw, found := object["displayName"]; found {
+		err = json.Unmarshal(raw, &a.DisplayName)
+		if err != nil {
+			return fmt.Errorf("error reading 'displayName': %w", err)
+		}
+		delete(object, "displayName")
+	}
+
+	if raw, found := object["emails"]; found {
+		err = json.Unmarshal(raw, &a.Emails)
+		if err != nil {
+			return fmt.Errorf("error reading 'emails': %w", err)
+		}
+		delete(object, "emails")
+	}
+
+	if raw, found := object["externalId"]; found {
+		err = json.Unmarshal(raw, &a.ExternalId)
+		if err != nil {
+			return fmt.Errorf("error reading 'externalId': %w", err)
+		}
+		delete(object, "externalId")
+	}
+
+	if raw, found := object["id"]; found {
+		err = json.Unmarshal(raw, &a.Id)
+		if err != nil {
+			return fmt.Errorf("error reading 'id': %w", err)
+		}
+		delete(object, "id")
+	}
+
+	if raw, found := object["meta"]; found {
+		err = json.Unmarshal(raw, &a.Meta)
+		if err != nil {
+			return fmt.Errorf("error reading 'meta': %w", err)
+		}
+		delete(object, "meta")
+	}
+
+	if raw, found := object["name"]; found {
+		err = json.Unmarshal(raw, &a.Name)
+		if err != nil {
+			return fmt.Errorf("error reading 'name': %w", err)
+		}
+		delete(object, "name")
+	}
+
+	if raw, found := object["schemas"]; found {
+		err = json.Unmarshal(raw, &a.Schemas)
+		if err != nil {
+			return fmt.Errorf("error reading 'schemas': %w", err)
+		}
+		delete(object, "schemas")
+	}
+
+	if raw, found := object["userName"]; found {
+		err = json.Unmarshal(raw, &a.UserName)
+		if err != nil {
+			return fmt.Errorf("error reading 'userName': %w", err)
+		}
+		delete(object, "userName")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for ScimUser to handle AdditionalProperties
+func (a ScimUser) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.Active != nil {
+		object["active"], err = json.Marshal(a.Active)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'active': %w", err)
+		}
+	}
+
+	if a.DisplayName != nil {
+		object["displayName"], err = json.Marshal(a.DisplayName)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'displayName': %w", err)
+		}
+	}
+
+	if a.Emails != nil {
+		object["emails"], err = json.Marshal(a.Emails)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'emails': %w", err)
+		}
+	}
+
+	if a.ExternalId != nil {
+		object["externalId"], err = json.Marshal(a.ExternalId)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'externalId': %w", err)
+		}
+	}
+
+	if a.Id != nil {
+		object["id"], err = json.Marshal(a.Id)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'id': %w", err)
+		}
+	}
+
+	if a.Meta != nil {
+		object["meta"], err = json.Marshal(a.Meta)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'meta': %w", err)
+		}
+	}
+
+	if a.Name != nil {
+		object["name"], err = json.Marshal(a.Name)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'name': %w", err)
+		}
+	}
+
+	if a.Schemas != nil {
+		object["schemas"], err = json.Marshal(a.Schemas)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'schemas': %w", err)
+		}
+	}
+
+	if a.UserName != nil {
+		object["userName"], err = json.Marshal(a.UserName)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'userName': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -26656,6 +27190,51 @@ type ServerInterface interface {
 	// ChangeRole Change a role of the workspace's own
 	// (PATCH /roles/{key})
 	ChangeRole(w http.ResponseWriter, r *http.Request, key string, params ChangeRoleParams)
+	// ListScimGroups The groups a directory provisions
+	// (GET /scim/v2/Groups)
+	ListScimGroups(w http.ResponseWriter, r *http.Request, params ListScimGroupsParams)
+	// CreateScimGroup Provision a group
+	// (POST /scim/v2/Groups)
+	CreateScimGroup(w http.ResponseWriter, r *http.Request)
+	// DeleteScimGroup Remove a provisioned group
+	// (DELETE /scim/v2/Groups/{scimGroupId})
+	DeleteScimGroup(w http.ResponseWriter, r *http.Request, scimGroupId ScimGroupId)
+	// GetScimGroup A provisioned group
+	// (GET /scim/v2/Groups/{scimGroupId})
+	GetScimGroup(w http.ResponseWriter, r *http.Request, scimGroupId ScimGroupId, params GetScimGroupParams)
+	// PatchScimGroup Change a provisioned group
+	// (PATCH /scim/v2/Groups/{scimGroupId})
+	PatchScimGroup(w http.ResponseWriter, r *http.Request, scimGroupId ScimGroupId)
+	// ReplaceScimGroup Replace a provisioned group
+	// (PUT /scim/v2/Groups/{scimGroupId})
+	ReplaceScimGroup(w http.ResponseWriter, r *http.Request, scimGroupId ScimGroupId)
+	// ListScimResourceTypes The SCIM resource types served
+	// (GET /scim/v2/ResourceTypes)
+	ListScimResourceTypes(w http.ResponseWriter, r *http.Request)
+	// ListScimSchemas The SCIM schemas served
+	// (GET /scim/v2/Schemas)
+	ListScimSchemas(w http.ResponseWriter, r *http.Request)
+	// GetScimServiceProviderConfig What this SCIM service supports
+	// (GET /scim/v2/ServiceProviderConfig)
+	GetScimServiceProviderConfig(w http.ResponseWriter, r *http.Request)
+	// ListScimUsers The people a directory provisions
+	// (GET /scim/v2/Users)
+	ListScimUsers(w http.ResponseWriter, r *http.Request, params ListScimUsersParams)
+	// CreateScimUser Provision a person
+	// (POST /scim/v2/Users)
+	CreateScimUser(w http.ResponseWriter, r *http.Request)
+	// DeleteScimUser Deprovision a person
+	// (DELETE /scim/v2/Users/{scimUserId})
+	DeleteScimUser(w http.ResponseWriter, r *http.Request, scimUserId ScimUserId)
+	// GetScimUser A provisioned person
+	// (GET /scim/v2/Users/{scimUserId})
+	GetScimUser(w http.ResponseWriter, r *http.Request, scimUserId ScimUserId)
+	// PatchScimUser Change a provisioned person
+	// (PATCH /scim/v2/Users/{scimUserId})
+	PatchScimUser(w http.ResponseWriter, r *http.Request, scimUserId ScimUserId)
+	// ReplaceScimUser Replace a provisioned person
+	// (PUT /scim/v2/Users/{scimUserId})
+	ReplaceScimUser(w http.ResponseWriter, r *http.Request, scimUserId ScimUserId)
 	// SearchItems Full-text search over the entries a caller may see
 	// (POST /search)
 	SearchItems(w http.ResponseWriter, r *http.Request)
@@ -45518,6 +46097,431 @@ func (siw *ServerInterfaceWrapper) ChangeRole(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// ListScimGroups operation middleware
+func (siw *ServerInterfaceWrapper) ListScimGroups(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListScimGroupsParams
+
+	// ------------- Optional query parameter "filter" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "filter", r.URL.Query(), &params.Filter, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "filter"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filter", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "startIndex" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "startIndex", r.URL.Query(), &params.StartIndex, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "startIndex"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "startIndex", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "count" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "count", r.URL.Query(), &params.Count, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "count"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "count", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "excludedAttributes" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "excludedAttributes", r.URL.Query(), &params.ExcludedAttributes, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "excludedAttributes"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "excludedAttributes", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListScimGroups(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateScimGroup operation middleware
+func (siw *ServerInterfaceWrapper) CreateScimGroup(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateScimGroup(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteScimGroup operation middleware
+func (siw *ServerInterfaceWrapper) DeleteScimGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "scimGroupId" -------------
+	var scimGroupId ScimGroupId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "scimGroupId", r.PathValue("scimGroupId"), &scimGroupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scimGroupId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteScimGroup(w, r, scimGroupId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetScimGroup operation middleware
+func (siw *ServerInterfaceWrapper) GetScimGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "scimGroupId" -------------
+	var scimGroupId ScimGroupId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "scimGroupId", r.PathValue("scimGroupId"), &scimGroupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scimGroupId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetScimGroupParams
+
+	// ------------- Optional query parameter "excludedAttributes" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "excludedAttributes", r.URL.Query(), &params.ExcludedAttributes, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "excludedAttributes"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "excludedAttributes", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetScimGroup(w, r, scimGroupId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PatchScimGroup operation middleware
+func (siw *ServerInterfaceWrapper) PatchScimGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "scimGroupId" -------------
+	var scimGroupId ScimGroupId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "scimGroupId", r.PathValue("scimGroupId"), &scimGroupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scimGroupId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PatchScimGroup(w, r, scimGroupId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReplaceScimGroup operation middleware
+func (siw *ServerInterfaceWrapper) ReplaceScimGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "scimGroupId" -------------
+	var scimGroupId ScimGroupId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "scimGroupId", r.PathValue("scimGroupId"), &scimGroupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scimGroupId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReplaceScimGroup(w, r, scimGroupId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListScimResourceTypes operation middleware
+func (siw *ServerInterfaceWrapper) ListScimResourceTypes(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListScimResourceTypes(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListScimSchemas operation middleware
+func (siw *ServerInterfaceWrapper) ListScimSchemas(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListScimSchemas(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetScimServiceProviderConfig operation middleware
+func (siw *ServerInterfaceWrapper) GetScimServiceProviderConfig(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetScimServiceProviderConfig(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListScimUsers operation middleware
+func (siw *ServerInterfaceWrapper) ListScimUsers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListScimUsersParams
+
+	// ------------- Optional query parameter "filter" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "filter", r.URL.Query(), &params.Filter, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "filter"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filter", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "startIndex" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "startIndex", r.URL.Query(), &params.StartIndex, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "startIndex"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "startIndex", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "count" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "count", r.URL.Query(), &params.Count, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "count"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "count", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListScimUsers(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateScimUser operation middleware
+func (siw *ServerInterfaceWrapper) CreateScimUser(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateScimUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteScimUser operation middleware
+func (siw *ServerInterfaceWrapper) DeleteScimUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "scimUserId" -------------
+	var scimUserId ScimUserId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "scimUserId", r.PathValue("scimUserId"), &scimUserId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scimUserId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteScimUser(w, r, scimUserId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetScimUser operation middleware
+func (siw *ServerInterfaceWrapper) GetScimUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "scimUserId" -------------
+	var scimUserId ScimUserId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "scimUserId", r.PathValue("scimUserId"), &scimUserId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scimUserId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetScimUser(w, r, scimUserId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PatchScimUser operation middleware
+func (siw *ServerInterfaceWrapper) PatchScimUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "scimUserId" -------------
+	var scimUserId ScimUserId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "scimUserId", r.PathValue("scimUserId"), &scimUserId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scimUserId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PatchScimUser(w, r, scimUserId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReplaceScimUser operation middleware
+func (siw *ServerInterfaceWrapper) ReplaceScimUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "scimUserId" -------------
+	var scimUserId ScimUserId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "scimUserId", r.PathValue("scimUserId"), &scimUserId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scimUserId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReplaceScimUser(w, r, scimUserId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SearchItems operation middleware
 func (siw *ServerInterfaceWrapper) SearchItems(w http.ResponseWriter, r *http.Request) {
 
@@ -49425,6 +50429,21 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/groups/{groupId}", wrapper.DeleteGroup)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/groups/{groupId}", wrapper.GetGroup)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/groups/{groupId}", wrapper.UpdateGroup)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/scim/v2/ServiceProviderConfig", wrapper.GetScimServiceProviderConfig)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/scim/v2/ResourceTypes", wrapper.ListScimResourceTypes)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/scim/v2/Schemas", wrapper.ListScimSchemas)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/scim/v2/Users", wrapper.ListScimUsers)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/scim/v2/Users", wrapper.CreateScimUser)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/scim/v2/Users/{scimUserId}", wrapper.DeleteScimUser)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/scim/v2/Users/{scimUserId}", wrapper.GetScimUser)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/scim/v2/Users/{scimUserId}", wrapper.PatchScimUser)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/scim/v2/Users/{scimUserId}", wrapper.ReplaceScimUser)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/scim/v2/Groups", wrapper.ListScimGroups)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/scim/v2/Groups", wrapper.CreateScimGroup)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/scim/v2/Groups/{scimGroupId}", wrapper.DeleteScimGroup)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/scim/v2/Groups/{scimGroupId}", wrapper.GetScimGroup)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/scim/v2/Groups/{scimGroupId}", wrapper.PatchScimGroup)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/scim/v2/Groups/{scimGroupId}", wrapper.ReplaceScimGroup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/starter:close", wrapper.CloseStarter)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant/structure", wrapper.SetWorkspaceStructure)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/structure:preview", wrapper.PreviewWorkspaceStructure)

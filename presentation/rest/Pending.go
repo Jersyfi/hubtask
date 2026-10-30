@@ -2564,3 +2564,55 @@ func (pending) DecideAgentRequest(w http.ResponseWriter, r *http.Request, _ open
 func (pending) ListValueProvenance(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }
+
+func (pending) GetScimServiceProviderConfig(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ListScimResourceTypes(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ListScimSchemas(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ListScimUsers(w http.ResponseWriter, r *http.Request, _ openapi.ListScimUsersParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateScimUser(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) GetScimUser(w http.ResponseWriter, r *http.Request, _ openapi.ScimUserId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReplaceScimUser(w http.ResponseWriter, r *http.Request, _ openapi.ScimUserId) {
+	notAvailable(w, r)
+}
+
+func (pending) PatchScimUser(w http.ResponseWriter, r *http.Request, _ openapi.ScimUserId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteScimUser(w http.ResponseWriter, r *http.Request, _ openapi.ScimUserId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListScimGroups(w http.ResponseWriter, r *http.Request, _ openapi.ListScimGroupsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateScimGroup(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) GetScimGroup(w http.ResponseWriter, r *http.Request, _ openapi.ScimGroupId, _ openapi.GetScimGroupParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReplaceScimGroup(w http.ResponseWriter, r *http.Request, _ openapi.ScimGroupId) {
+	notAvailable(w, r)
+}
+
+func (pending) PatchScimGroup(w http.ResponseWriter, r *http.Request, _ openapi.ScimGroupId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteScimGroup(w http.ResponseWriter, r *http.Request, _ openapi.ScimGroupId) {
+	notAvailable(w, r)
+}

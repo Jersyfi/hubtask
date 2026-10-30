@@ -1983,6 +1983,66 @@ class Client:
         """Delete a group"""
         return self._call("DELETE", "/groups/{groupId}", {"groupId": group_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
 
+    def get_scim_service_provider_config(self) -> "ScimResource":
+        """What this SCIM service supports"""
+        return self._call("GET", "/scim/v2/ServiceProviderConfig", {}, None, {}, None, "none", None, "json")
+
+    def list_scim_resource_types(self) -> "ScimListResponse":
+        """The SCIM resource types served"""
+        return self._call("GET", "/scim/v2/ResourceTypes", {}, None, {}, None, "none", None, "json")
+
+    def list_scim_schemas(self) -> "ScimListResponse":
+        """The SCIM schemas served"""
+        return self._call("GET", "/scim/v2/Schemas", {}, None, {}, None, "none", None, "json")
+
+    def list_scim_users(self, *, query: dict[str, Any] | None = None) -> "ScimListResponse":
+        """The people a directory provisions"""
+        return self._call("GET", "/scim/v2/Users", {}, query, {}, None, "none", None, "json")
+
+    def create_scim_user(self, body: "ScimUser") -> "ScimUser":
+        """Provision a person"""
+        return self._call("POST", "/scim/v2/Users", {}, None, {}, body, "json", "application/scim+json", "json")
+
+    def get_scim_user(self, scim_user_id: str) -> "ScimUser":
+        """A provisioned person"""
+        return self._call("GET", "/scim/v2/Users/{scimUserId}", {"scimUserId": scim_user_id}, None, {}, None, "none", None, "json")
+
+    def replace_scim_user(self, scim_user_id: str, body: "ScimUser") -> "ScimUser":
+        """Replace a provisioned person"""
+        return self._call("PUT", "/scim/v2/Users/{scimUserId}", {"scimUserId": scim_user_id}, None, {}, body, "json", "application/scim+json", "json")
+
+    def patch_scim_user(self, scim_user_id: str, body: "ScimPatch") -> "ScimUser":
+        """Change a provisioned person"""
+        return self._call("PATCH", "/scim/v2/Users/{scimUserId}", {"scimUserId": scim_user_id}, None, {}, body, "json", "application/scim+json", "json")
+
+    def delete_scim_user(self, scim_user_id: str) -> None:
+        """Deprovision a person"""
+        return self._call("DELETE", "/scim/v2/Users/{scimUserId}", {"scimUserId": scim_user_id}, None, {}, None, "none", None, "void")
+
+    def list_scim_groups(self, *, query: dict[str, Any] | None = None) -> "ScimListResponse":
+        """The groups a directory provisions"""
+        return self._call("GET", "/scim/v2/Groups", {}, query, {}, None, "none", None, "json")
+
+    def create_scim_group(self, body: "ScimGroup") -> "ScimGroup":
+        """Provision a group"""
+        return self._call("POST", "/scim/v2/Groups", {}, None, {}, body, "json", "application/scim+json", "json")
+
+    def get_scim_group(self, scim_group_id: str, *, query: dict[str, Any] | None = None) -> "ScimGroup":
+        """A provisioned group"""
+        return self._call("GET", "/scim/v2/Groups/{scimGroupId}", {"scimGroupId": scim_group_id}, query, {}, None, "none", None, "json")
+
+    def replace_scim_group(self, scim_group_id: str, body: "ScimGroup") -> "ScimGroup":
+        """Replace a provisioned group"""
+        return self._call("PUT", "/scim/v2/Groups/{scimGroupId}", {"scimGroupId": scim_group_id}, None, {}, body, "json", "application/scim+json", "json")
+
+    def patch_scim_group(self, scim_group_id: str, body: "ScimPatch") -> "ScimGroup":
+        """Change a provisioned group"""
+        return self._call("PATCH", "/scim/v2/Groups/{scimGroupId}", {"scimGroupId": scim_group_id}, None, {}, body, "json", "application/scim+json", "json")
+
+    def delete_scim_group(self, scim_group_id: str) -> None:
+        """Remove a provisioned group"""
+        return self._call("DELETE", "/scim/v2/Groups/{scimGroupId}", {"scimGroupId": scim_group_id}, None, {}, None, "none", None, "void")
+
     def close_starter(self) -> None:
         """Answers the first start's question for good"""
         return self._call("POST", "/tenant/starter:close", {}, None, {}, None, "none", None, "void")

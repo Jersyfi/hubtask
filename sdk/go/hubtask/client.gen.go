@@ -18972,6 +18972,75 @@ type SavedViewUpdate struct {
 	VisibleFields *[]string               `json:"visible_fields,omitempty"`
 }
 
+// ScimErrorBody A SCIM error (RFC 7644 §3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
+type ScimErrorBody struct {
+	Detail   *string  `json:"detail,omitempty"`
+	Schemas  []string `json:"schemas"`
+	ScimType *string  `json:"scimType,omitempty"`
+	Status   string   `json:"status"`
+}
+
+// ScimGroup A SCIM group (RFC 7643 §4.2) with its members by the users' `id`.
+type ScimGroup struct {
+	DisplayName *string `json:"displayName,omitempty"`
+	ExternalId  *string `json:"externalId,omitempty"`
+	Id          *string `json:"id,omitempty"`
+	Members     *[]struct {
+		Display *string `json:"display,omitempty"`
+		Value   *string `json:"value,omitempty"`
+	} `json:"members,omitempty"`
+	Meta                 *map[string]interface{} `json:"meta,omitempty"`
+	Schemas              *[]string               `json:"schemas,omitempty"`
+	AdditionalProperties map[string]interface{}  `json:"-"`
+}
+
+// ScimListResponse A SCIM list response (RFC 7644 §3.4.2).
+type ScimListResponse struct {
+	Resources    []ScimResource `json:"Resources"`
+	ItemsPerPage *int           `json:"itemsPerPage,omitempty"`
+	Schemas      []string       `json:"schemas"`
+	StartIndex   *int           `json:"startIndex,omitempty"`
+	TotalResults int            `json:"totalResults"`
+}
+
+// ScimPatch A SCIM PATCH request (RFC 7644 §3.5.2).
+type ScimPatch struct {
+	Operations []struct {
+		Op    string      `json:"op"`
+		Path  *string     `json:"path,omitempty"`
+		Value interface{} `json:"value,omitempty"`
+	} `json:"Operations"`
+	Schemas *[]string `json:"schemas,omitempty"`
+}
+
+// ScimResource A SCIM 2.0 resource (RFC 7643 §3), its `schemas` naming what it is.
+type ScimResource struct {
+	Schemas              []string               `json:"schemas"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
+// ScimUser A SCIM user (RFC 7643 §4.1) as this service keeps it: `userName` the address, `name` and `displayName` the name shown, `emails` the address again, `active`, `externalId`.
+type ScimUser struct {
+	Active      *bool   `json:"active,omitempty"`
+	DisplayName *string `json:"displayName,omitempty"`
+	Emails      *[]struct {
+		Primary *bool   `json:"primary,omitempty"`
+		Type    *string `json:"type,omitempty"`
+		Value   *string `json:"value,omitempty"`
+	} `json:"emails,omitempty"`
+	ExternalId *string                 `json:"externalId,omitempty"`
+	Id         *string                 `json:"id,omitempty"`
+	Meta       *map[string]interface{} `json:"meta,omitempty"`
+	Name       *struct {
+		FamilyName *string `json:"familyName,omitempty"`
+		Formatted  *string `json:"formatted,omitempty"`
+		GivenName  *string `json:"givenName,omitempty"`
+	} `json:"name,omitempty"`
+	Schemas              *[]string              `json:"schemas,omitempty"`
+	UserName             *string                `json:"userName,omitempty"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
 // SearchMode How much of the search to use.
 // `AUTO` is the default and searches by words and, where the installation has it, by meaning. `LEXICAL` searches by words only: it asks no provider, spends no budget and waits on nothing, which is what a caller in a loop - an automation, an import, a client's own type-ahead - wants. There is deliberately no `SEMANTIC`: an installation may not have it, and a mode the server cannot promise is a mode that would have to fail.
 type SearchMode string
@@ -21746,6 +21815,12 @@ type ReminderId = openapi_types.UUID
 // RuleId defines model for RuleId.
 type RuleId = openapi_types.UUID
 
+// ScimGroupId defines model for ScimGroupId.
+type ScimGroupId = string
+
+// ScimUserId defines model for ScimUserId.
+type ScimUserId = string
+
 // SessionId defines model for SessionId.
 type SessionId = openapi_types.UUID
 
@@ -21787,6 +21862,9 @@ type WeekOfTimesheet = openapi_types.Date
 
 // WhiteboardId defines model for WhiteboardId.
 type WhiteboardId = openapi_types.UUID
+
+// ScimError A SCIM error (RFC 7644 §3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
+type ScimError = ScimErrorBody
 
 // ExplainAccessParams defines parameters for ExplainAccess.
 type ExplainAccessParams struct {
@@ -23674,6 +23752,26 @@ type ChangeRoleParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListScimGroupsParams defines parameters for ListScimGroups.
+type ListScimGroupsParams struct {
+	Filter             *string `form:"filter,omitempty" json:"filter,omitempty"`
+	StartIndex         *int    `form:"startIndex,omitempty" json:"startIndex,omitempty"`
+	Count              *int    `form:"count,omitempty" json:"count,omitempty"`
+	ExcludedAttributes *string `form:"excludedAttributes,omitempty" json:"excludedAttributes,omitempty"`
+}
+
+// GetScimGroupParams defines parameters for GetScimGroup.
+type GetScimGroupParams struct {
+	ExcludedAttributes *string `form:"excludedAttributes,omitempty" json:"excludedAttributes,omitempty"`
+}
+
+// ListScimUsersParams defines parameters for ListScimUsers.
+type ListScimUsersParams struct {
+	Filter     *string `form:"filter,omitempty" json:"filter,omitempty"`
+	StartIndex *int    `form:"startIndex,omitempty" json:"startIndex,omitempty"`
+	Count      *int    `form:"count,omitempty" json:"count,omitempty"`
+}
+
 // DefineSlaPolicyParams defines parameters for DefineSlaPolicy.
 type DefineSlaPolicyParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -24881,6 +24979,42 @@ type CreateRoleJSONRequestBody = CustomRoleCreate
 // ChangeRoleApplicationMergePatchPlusJSONRequestBody defines body for ChangeRole for application/merge-patch+json ContentType.
 type ChangeRoleApplicationMergePatchPlusJSONRequestBody = CustomRoleChange
 
+// CreateScimGroupJSONRequestBody defines body for CreateScimGroup for application/json ContentType.
+type CreateScimGroupJSONRequestBody = ScimGroup
+
+// CreateScimGroupApplicationScimPlusJSONRequestBody defines body for CreateScimGroup for application/scim+json ContentType.
+type CreateScimGroupApplicationScimPlusJSONRequestBody = ScimGroup
+
+// PatchScimGroupJSONRequestBody defines body for PatchScimGroup for application/json ContentType.
+type PatchScimGroupJSONRequestBody = ScimPatch
+
+// PatchScimGroupApplicationScimPlusJSONRequestBody defines body for PatchScimGroup for application/scim+json ContentType.
+type PatchScimGroupApplicationScimPlusJSONRequestBody = ScimPatch
+
+// ReplaceScimGroupJSONRequestBody defines body for ReplaceScimGroup for application/json ContentType.
+type ReplaceScimGroupJSONRequestBody = ScimGroup
+
+// ReplaceScimGroupApplicationScimPlusJSONRequestBody defines body for ReplaceScimGroup for application/scim+json ContentType.
+type ReplaceScimGroupApplicationScimPlusJSONRequestBody = ScimGroup
+
+// CreateScimUserJSONRequestBody defines body for CreateScimUser for application/json ContentType.
+type CreateScimUserJSONRequestBody = ScimUser
+
+// CreateScimUserApplicationScimPlusJSONRequestBody defines body for CreateScimUser for application/scim+json ContentType.
+type CreateScimUserApplicationScimPlusJSONRequestBody = ScimUser
+
+// PatchScimUserJSONRequestBody defines body for PatchScimUser for application/json ContentType.
+type PatchScimUserJSONRequestBody = ScimPatch
+
+// PatchScimUserApplicationScimPlusJSONRequestBody defines body for PatchScimUser for application/scim+json ContentType.
+type PatchScimUserApplicationScimPlusJSONRequestBody = ScimPatch
+
+// ReplaceScimUserJSONRequestBody defines body for ReplaceScimUser for application/json ContentType.
+type ReplaceScimUserJSONRequestBody = ScimUser
+
+// ReplaceScimUserApplicationScimPlusJSONRequestBody defines body for ReplaceScimUser for application/scim+json ContentType.
+type ReplaceScimUserApplicationScimPlusJSONRequestBody = ScimUser
+
 // SearchItemsJSONRequestBody defines body for SearchItems for application/json ContentType.
 type SearchItemsJSONRequestBody = ItemSearchQuery
 
@@ -25030,6 +25164,405 @@ type PreviewWorkflowPublishJSONRequestBody = WorkflowPublishPreview
 
 // PublishWorkflowJSONRequestBody defines body for PublishWorkflow for application/json ContentType.
 type PublishWorkflowJSONRequestBody = WorkflowPublish
+
+// Getter for additional properties for ScimGroup. Returns the specified
+// element and whether it was found
+func (a ScimGroup) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for ScimGroup
+func (a *ScimGroup) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for ScimGroup to handle AdditionalProperties
+func (a *ScimGroup) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["displayName"]; found {
+		err = json.Unmarshal(raw, &a.DisplayName)
+		if err != nil {
+			return fmt.Errorf("error reading 'displayName': %w", err)
+		}
+		delete(object, "displayName")
+	}
+
+	if raw, found := object["externalId"]; found {
+		err = json.Unmarshal(raw, &a.ExternalId)
+		if err != nil {
+			return fmt.Errorf("error reading 'externalId': %w", err)
+		}
+		delete(object, "externalId")
+	}
+
+	if raw, found := object["id"]; found {
+		err = json.Unmarshal(raw, &a.Id)
+		if err != nil {
+			return fmt.Errorf("error reading 'id': %w", err)
+		}
+		delete(object, "id")
+	}
+
+	if raw, found := object["members"]; found {
+		err = json.Unmarshal(raw, &a.Members)
+		if err != nil {
+			return fmt.Errorf("error reading 'members': %w", err)
+		}
+		delete(object, "members")
+	}
+
+	if raw, found := object["meta"]; found {
+		err = json.Unmarshal(raw, &a.Meta)
+		if err != nil {
+			return fmt.Errorf("error reading 'meta': %w", err)
+		}
+		delete(object, "meta")
+	}
+
+	if raw, found := object["schemas"]; found {
+		err = json.Unmarshal(raw, &a.Schemas)
+		if err != nil {
+			return fmt.Errorf("error reading 'schemas': %w", err)
+		}
+		delete(object, "schemas")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for ScimGroup to handle AdditionalProperties
+func (a ScimGroup) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.DisplayName != nil {
+		object["displayName"], err = json.Marshal(a.DisplayName)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'displayName': %w", err)
+		}
+	}
+
+	if a.ExternalId != nil {
+		object["externalId"], err = json.Marshal(a.ExternalId)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'externalId': %w", err)
+		}
+	}
+
+	if a.Id != nil {
+		object["id"], err = json.Marshal(a.Id)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'id': %w", err)
+		}
+	}
+
+	if a.Members != nil {
+		object["members"], err = json.Marshal(a.Members)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'members': %w", err)
+		}
+	}
+
+	if a.Meta != nil {
+		object["meta"], err = json.Marshal(a.Meta)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'meta': %w", err)
+		}
+	}
+
+	if a.Schemas != nil {
+		object["schemas"], err = json.Marshal(a.Schemas)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'schemas': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
+// Getter for additional properties for ScimResource. Returns the specified
+// element and whether it was found
+func (a ScimResource) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for ScimResource
+func (a *ScimResource) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for ScimResource to handle AdditionalProperties
+func (a *ScimResource) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["schemas"]; found {
+		err = json.Unmarshal(raw, &a.Schemas)
+		if err != nil {
+			return fmt.Errorf("error reading 'schemas': %w", err)
+		}
+		delete(object, "schemas")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for ScimResource to handle AdditionalProperties
+func (a ScimResource) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.Schemas != nil {
+		object["schemas"], err = json.Marshal(a.Schemas)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'schemas': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
+// Getter for additional properties for ScimUser. Returns the specified
+// element and whether it was found
+func (a ScimUser) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for ScimUser
+func (a *ScimUser) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for ScimUser to handle AdditionalProperties
+func (a *ScimUser) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["active"]; found {
+		err = json.Unmarshal(raw, &a.Active)
+		if err != nil {
+			return fmt.Errorf("error reading 'active': %w", err)
+		}
+		delete(object, "active")
+	}
+
+	if raw, found := object["displayName"]; found {
+		err = json.Unmarshal(raw, &a.DisplayName)
+		if err != nil {
+			return fmt.Errorf("error reading 'displayName': %w", err)
+		}
+		delete(object, "displayName")
+	}
+
+	if raw, found := object["emails"]; found {
+		err = json.Unmarshal(raw, &a.Emails)
+		if err != nil {
+			return fmt.Errorf("error reading 'emails': %w", err)
+		}
+		delete(object, "emails")
+	}
+
+	if raw, found := object["externalId"]; found {
+		err = json.Unmarshal(raw, &a.ExternalId)
+		if err != nil {
+			return fmt.Errorf("error reading 'externalId': %w", err)
+		}
+		delete(object, "externalId")
+	}
+
+	if raw, found := object["id"]; found {
+		err = json.Unmarshal(raw, &a.Id)
+		if err != nil {
+			return fmt.Errorf("error reading 'id': %w", err)
+		}
+		delete(object, "id")
+	}
+
+	if raw, found := object["meta"]; found {
+		err = json.Unmarshal(raw, &a.Meta)
+		if err != nil {
+			return fmt.Errorf("error reading 'meta': %w", err)
+		}
+		delete(object, "meta")
+	}
+
+	if raw, found := object["name"]; found {
+		err = json.Unmarshal(raw, &a.Name)
+		if err != nil {
+			return fmt.Errorf("error reading 'name': %w", err)
+		}
+		delete(object, "name")
+	}
+
+	if raw, found := object["schemas"]; found {
+		err = json.Unmarshal(raw, &a.Schemas)
+		if err != nil {
+			return fmt.Errorf("error reading 'schemas': %w", err)
+		}
+		delete(object, "schemas")
+	}
+
+	if raw, found := object["userName"]; found {
+		err = json.Unmarshal(raw, &a.UserName)
+		if err != nil {
+			return fmt.Errorf("error reading 'userName': %w", err)
+		}
+		delete(object, "userName")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for ScimUser to handle AdditionalProperties
+func (a ScimUser) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.Active != nil {
+		object["active"], err = json.Marshal(a.Active)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'active': %w", err)
+		}
+	}
+
+	if a.DisplayName != nil {
+		object["displayName"], err = json.Marshal(a.DisplayName)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'displayName': %w", err)
+		}
+	}
+
+	if a.Emails != nil {
+		object["emails"], err = json.Marshal(a.Emails)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'emails': %w", err)
+		}
+	}
+
+	if a.ExternalId != nil {
+		object["externalId"], err = json.Marshal(a.ExternalId)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'externalId': %w", err)
+		}
+	}
+
+	if a.Id != nil {
+		object["id"], err = json.Marshal(a.Id)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'id': %w", err)
+		}
+	}
+
+	if a.Meta != nil {
+		object["meta"], err = json.Marshal(a.Meta)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'meta': %w", err)
+		}
+	}
+
+	if a.Name != nil {
+		object["name"], err = json.Marshal(a.Name)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'name': %w", err)
+		}
+	}
+
+	if a.Schemas != nil {
+		object["schemas"], err = json.Marshal(a.Schemas)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'schemas': %w", err)
+		}
+	}
+
+	if a.UserName != nil {
+		object["userName"], err = json.Marshal(a.UserName)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'userName': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
 
 // RequestEditorFn is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -32368,6 +32901,227 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /roles/{key} (the `ChangeRole` operationId).
 	ChangeRoleWithApplicationMergePatchPlusJSONBody(ctx context.Context, key string, params *ChangeRoleParams, body ChangeRoleApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListScimGroups The groups a directory provisions
+	//
+	// The workspace's groups as SCIM groups, with their members unless `excludedAttributes=members`. A filter names `displayName`, `externalId` or `id` with `eq`.
+	//
+	// Corresponds with GET /scim/v2/Groups (the `ListScimGroups` operationId).
+	ListScimGroups(ctx context.Context, params *ListScimGroupsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateScimGroupWithBody Provision a group
+	//
+	// A group with its members, held to the same rules as a group made by hand: a name taken is `409 uniqueness`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /scim/v2/Groups (the `CreateScimGroup` operationId).
+	CreateScimGroupWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateScimGroup Provision a group
+	//
+	// A group with its members, held to the same rules as a group made by hand: a name taken is `409 uniqueness`.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /scim/v2/Groups (the `CreateScimGroup` operationId).
+	CreateScimGroup(ctx context.Context, body CreateScimGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateScimGroupWithApplicationScimPlusJSONBody Provision a group
+	//
+	// A group with its members, held to the same rules as a group made by hand: a name taken is `409 uniqueness`.
+	//
+	// Takes a body of the `application/scim+json` content type.
+	//
+	// Corresponds with POST /scim/v2/Groups (the `CreateScimGroup` operationId).
+	CreateScimGroupWithApplicationScimPlusJSONBody(ctx context.Context, body CreateScimGroupApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteScimGroup Remove a provisioned group
+	//
+	// The group and the roles it granted; its people stay.
+	//
+	// Corresponds with DELETE /scim/v2/Groups/{scimGroupId} (the `DeleteScimGroup` operationId).
+	DeleteScimGroup(ctx context.Context, scimGroupId ScimGroupId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetScimGroup A provisioned group
+	//
+	// Corresponds with GET /scim/v2/Groups/{scimGroupId} (the `GetScimGroup` operationId).
+	GetScimGroup(ctx context.Context, scimGroupId ScimGroupId, params *GetScimGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PatchScimGroupWithBody Change a provisioned group
+	//
+	// SCIM PATCH operations on `displayName`, `externalId` and `members`: `add` and `remove` with a value list or a path `members[value eq "…"]`, `replace` of the whole set.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /scim/v2/Groups/{scimGroupId} (the `PatchScimGroup` operationId).
+	PatchScimGroupWithBody(ctx context.Context, scimGroupId ScimGroupId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PatchScimGroup Change a provisioned group
+	//
+	// SCIM PATCH operations on `displayName`, `externalId` and `members`: `add` and `remove` with a value list or a path `members[value eq "…"]`, `replace` of the whole set.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /scim/v2/Groups/{scimGroupId} (the `PatchScimGroup` operationId).
+	PatchScimGroup(ctx context.Context, scimGroupId ScimGroupId, body PatchScimGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PatchScimGroupWithApplicationScimPlusJSONBody Change a provisioned group
+	//
+	// SCIM PATCH operations on `displayName`, `externalId` and `members`: `add` and `remove` with a value list or a path `members[value eq "…"]`, `replace` of the whole set.
+	//
+	// Takes a body of the `application/scim+json` content type.
+	//
+	// Corresponds with PATCH /scim/v2/Groups/{scimGroupId} (the `PatchScimGroup` operationId).
+	PatchScimGroupWithApplicationScimPlusJSONBody(ctx context.Context, scimGroupId ScimGroupId, body PatchScimGroupApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReplaceScimGroupWithBody Replace a provisioned group
+	//
+	// The name, the directory's identifier and the complete membership. A change of who is in a group that holds `OWNER` needs a person's step-up and is refused to a directory (`403`).
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /scim/v2/Groups/{scimGroupId} (the `ReplaceScimGroup` operationId).
+	ReplaceScimGroupWithBody(ctx context.Context, scimGroupId ScimGroupId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReplaceScimGroup Replace a provisioned group
+	//
+	// The name, the directory's identifier and the complete membership. A change of who is in a group that holds `OWNER` needs a person's step-up and is refused to a directory (`403`).
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /scim/v2/Groups/{scimGroupId} (the `ReplaceScimGroup` operationId).
+	ReplaceScimGroup(ctx context.Context, scimGroupId ScimGroupId, body ReplaceScimGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReplaceScimGroupWithApplicationScimPlusJSONBody Replace a provisioned group
+	//
+	// The name, the directory's identifier and the complete membership. A change of who is in a group that holds `OWNER` needs a person's step-up and is refused to a directory (`403`).
+	//
+	// Takes a body of the `application/scim+json` content type.
+	//
+	// Corresponds with PUT /scim/v2/Groups/{scimGroupId} (the `ReplaceScimGroup` operationId).
+	ReplaceScimGroupWithApplicationScimPlusJSONBody(ctx context.Context, scimGroupId ScimGroupId, body ReplaceScimGroupApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListScimResourceTypes The SCIM resource types served
+	//
+	// The `User` and `Group` resource types (RFC 7643 §6), as a list response.
+	//
+	// Corresponds with GET /scim/v2/ResourceTypes (the `ListScimResourceTypes` operationId).
+	ListScimResourceTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListScimSchemas The SCIM schemas served
+	//
+	// The core `User` and `Group` schemas (RFC 7643 §7) with the attributes this service keeps.
+	//
+	// Corresponds with GET /scim/v2/Schemas (the `ListScimSchemas` operationId).
+	ListScimSchemas(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetScimServiceProviderConfig What this SCIM service supports
+	//
+	// The SCIM 2.0 service provider configuration (RFC 7643 §5) a directory reads before it provisions: PATCH and filtering supported, bulk, sorting and password changes not, and the bearer token of a service account as the one way to authenticate.
+	//
+	// Corresponds with GET /scim/v2/ServiceProviderConfig (the `GetScimServiceProviderConfig` operationId).
+	GetScimServiceProviderConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListScimUsers The people a directory provisions
+	//
+	// The workspace's people as SCIM users (RFC 7644 §3.4.2): `userName` is the address, `externalId` the directory's own identifier, `active` whether the person may act. A filter names one attribute with `eq` - `userName`, `externalId`, `id` or `emails.value`; any other is refused `400 invalidFilter`. Paged by `startIndex` (from 1) and `count` (at most 200). Authenticated by the bearer token of a service account that may manage members.
+	//
+	// Corresponds with GET /scim/v2/Users (the `ListScimUsers` operationId).
+	ListScimUsers(ctx context.Context, params *ListScimUsersParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateScimUserWithBody Provision a person
+	//
+	// A person the directory provisions: an account in INVITED state under the address that signs in through the workspace's identity provider, active at their first sign-in there. An address an account here already holds is answered `409 uniqueness`, except an account the directory switched off, which is switched on again under its new identifier. Within the workspace's people limit.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /scim/v2/Users (the `CreateScimUser` operationId).
+	CreateScimUserWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateScimUser Provision a person
+	//
+	// A person the directory provisions: an account in INVITED state under the address that signs in through the workspace's identity provider, active at their first sign-in there. An address an account here already holds is answered `409 uniqueness`, except an account the directory switched off, which is switched on again under its new identifier. Within the workspace's people limit.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /scim/v2/Users (the `CreateScimUser` operationId).
+	CreateScimUser(ctx context.Context, body CreateScimUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateScimUserWithApplicationScimPlusJSONBody Provision a person
+	//
+	// A person the directory provisions: an account in INVITED state under the address that signs in through the workspace's identity provider, active at their first sign-in there. An address an account here already holds is answered `409 uniqueness`, except an account the directory switched off, which is switched on again under its new identifier. Within the workspace's people limit.
+	//
+	// Takes a body of the `application/scim+json` content type.
+	//
+	// Corresponds with POST /scim/v2/Users (the `CreateScimUser` operationId).
+	CreateScimUserWithApplicationScimPlusJSONBody(ctx context.Context, body CreateScimUserApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteScimUser Deprovision a person
+	//
+	// The person is switched off and their sessions end; the account, its authorship and its trail stay - a directory never erases anybody's data (an erasure is the workspace's own, UC-PRV). Provisioning the address again switches the account on.
+	//
+	// Corresponds with DELETE /scim/v2/Users/{scimUserId} (the `DeleteScimUser` operationId).
+	DeleteScimUser(ctx context.Context, scimUserId ScimUserId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetScimUser A provisioned person
+	//
+	// Corresponds with GET /scim/v2/Users/{scimUserId} (the `GetScimUser` operationId).
+	GetScimUser(ctx context.Context, scimUserId ScimUserId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PatchScimUserWithBody Change a provisioned person
+	//
+	// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /scim/v2/Users/{scimUserId} (the `PatchScimUser` operationId).
+	PatchScimUserWithBody(ctx context.Context, scimUserId ScimUserId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PatchScimUser Change a provisioned person
+	//
+	// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /scim/v2/Users/{scimUserId} (the `PatchScimUser` operationId).
+	PatchScimUser(ctx context.Context, scimUserId ScimUserId, body PatchScimUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PatchScimUserWithApplicationScimPlusJSONBody Change a provisioned person
+	//
+	// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+	//
+	// Takes a body of the `application/scim+json` content type.
+	//
+	// Corresponds with PATCH /scim/v2/Users/{scimUserId} (the `PatchScimUser` operationId).
+	PatchScimUserWithApplicationScimPlusJSONBody(ctx context.Context, scimUserId ScimUserId, body PatchScimUserApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReplaceScimUserWithBody Replace a provisioned person
+	//
+	// The display name, the directory's identifier and `active`. The address a person signs in with is not changed by the directory: a different `userName` is refused `400 mutability`. Switching a person off ends their sessions; the workspace's last owner and any owner of it are not switched off by a directory (`409`).
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /scim/v2/Users/{scimUserId} (the `ReplaceScimUser` operationId).
+	ReplaceScimUserWithBody(ctx context.Context, scimUserId ScimUserId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReplaceScimUser Replace a provisioned person
+	//
+	// The display name, the directory's identifier and `active`. The address a person signs in with is not changed by the directory: a different `userName` is refused `400 mutability`. Switching a person off ends their sessions; the workspace's last owner and any owner of it are not switched off by a directory (`409`).
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /scim/v2/Users/{scimUserId} (the `ReplaceScimUser` operationId).
+	ReplaceScimUser(ctx context.Context, scimUserId ScimUserId, body ReplaceScimUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReplaceScimUserWithApplicationScimPlusJSONBody Replace a provisioned person
+	//
+	// The display name, the directory's identifier and `active`. The address a person signs in with is not changed by the directory: a different `userName` is refused `400 mutability`. Switching a person off ends their sessions; the workspace's last owner and any owner of it are not switched off by a directory (`409`).
+	//
+	// Takes a body of the `application/scim+json` content type.
+	//
+	// Corresponds with PUT /scim/v2/Users/{scimUserId} (the `ReplaceScimUser` operationId).
+	ReplaceScimUserWithApplicationScimPlusJSONBody(ctx context.Context, scimUserId ScimUserId, body ReplaceScimUserApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SearchItemsWithBody Full-text search over the entries a caller may see
 	//
@@ -48943,6 +49697,497 @@ func (c *Client) ChangeRoleWithBody(ctx context.Context, key string, params *Cha
 // Corresponds with PATCH /roles/{key} (the `ChangeRole` operationId).
 func (c *Client) ChangeRoleWithApplicationMergePatchPlusJSONBody(ctx context.Context, key string, params *ChangeRoleParams, body ChangeRoleApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewChangeRoleRequestWithApplicationMergePatchPlusJSONBody(c.Server, key, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListScimGroups The groups a directory provisions
+//
+// The workspace's groups as SCIM groups, with their members unless `excludedAttributes=members`. A filter names `displayName`, `externalId` or `id` with `eq`.
+//
+// Corresponds with GET /scim/v2/Groups (the `ListScimGroups` operationId).
+func (c *Client) ListScimGroups(ctx context.Context, params *ListScimGroupsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListScimGroupsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateScimGroupWithBody Provision a group
+//
+// A group with its members, held to the same rules as a group made by hand: a name taken is `409 uniqueness`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /scim/v2/Groups (the `CreateScimGroup` operationId).
+func (c *Client) CreateScimGroupWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateScimGroupRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateScimGroup Provision a group
+//
+// A group with its members, held to the same rules as a group made by hand: a name taken is `409 uniqueness`.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /scim/v2/Groups (the `CreateScimGroup` operationId).
+func (c *Client) CreateScimGroup(ctx context.Context, body CreateScimGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateScimGroupRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateScimGroupWithApplicationScimPlusJSONBody Provision a group
+//
+// A group with its members, held to the same rules as a group made by hand: a name taken is `409 uniqueness`.
+//
+// Takes a body of the `application/scim+json` content type.
+//
+// Corresponds with POST /scim/v2/Groups (the `CreateScimGroup` operationId).
+func (c *Client) CreateScimGroupWithApplicationScimPlusJSONBody(ctx context.Context, body CreateScimGroupApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateScimGroupRequestWithApplicationScimPlusJSONBody(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteScimGroup Remove a provisioned group
+//
+// The group and the roles it granted; its people stay.
+//
+// Corresponds with DELETE /scim/v2/Groups/{scimGroupId} (the `DeleteScimGroup` operationId).
+func (c *Client) DeleteScimGroup(ctx context.Context, scimGroupId ScimGroupId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteScimGroupRequest(c.Server, scimGroupId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetScimGroup A provisioned group
+//
+// Corresponds with GET /scim/v2/Groups/{scimGroupId} (the `GetScimGroup` operationId).
+func (c *Client) GetScimGroup(ctx context.Context, scimGroupId ScimGroupId, params *GetScimGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetScimGroupRequest(c.Server, scimGroupId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PatchScimGroupWithBody Change a provisioned group
+//
+// SCIM PATCH operations on `displayName`, `externalId` and `members`: `add` and `remove` with a value list or a path `members[value eq "…"]`, `replace` of the whole set.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /scim/v2/Groups/{scimGroupId} (the `PatchScimGroup` operationId).
+func (c *Client) PatchScimGroupWithBody(ctx context.Context, scimGroupId ScimGroupId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchScimGroupRequestWithBody(c.Server, scimGroupId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PatchScimGroup Change a provisioned group
+//
+// SCIM PATCH operations on `displayName`, `externalId` and `members`: `add` and `remove` with a value list or a path `members[value eq "…"]`, `replace` of the whole set.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /scim/v2/Groups/{scimGroupId} (the `PatchScimGroup` operationId).
+func (c *Client) PatchScimGroup(ctx context.Context, scimGroupId ScimGroupId, body PatchScimGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchScimGroupRequest(c.Server, scimGroupId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PatchScimGroupWithApplicationScimPlusJSONBody Change a provisioned group
+//
+// SCIM PATCH operations on `displayName`, `externalId` and `members`: `add` and `remove` with a value list or a path `members[value eq "…"]`, `replace` of the whole set.
+//
+// Takes a body of the `application/scim+json` content type.
+//
+// Corresponds with PATCH /scim/v2/Groups/{scimGroupId} (the `PatchScimGroup` operationId).
+func (c *Client) PatchScimGroupWithApplicationScimPlusJSONBody(ctx context.Context, scimGroupId ScimGroupId, body PatchScimGroupApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchScimGroupRequestWithApplicationScimPlusJSONBody(c.Server, scimGroupId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReplaceScimGroupWithBody Replace a provisioned group
+//
+// The name, the directory's identifier and the complete membership. A change of who is in a group that holds `OWNER` needs a person's step-up and is refused to a directory (`403`).
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /scim/v2/Groups/{scimGroupId} (the `ReplaceScimGroup` operationId).
+func (c *Client) ReplaceScimGroupWithBody(ctx context.Context, scimGroupId ScimGroupId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceScimGroupRequestWithBody(c.Server, scimGroupId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReplaceScimGroup Replace a provisioned group
+//
+// The name, the directory's identifier and the complete membership. A change of who is in a group that holds `OWNER` needs a person's step-up and is refused to a directory (`403`).
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /scim/v2/Groups/{scimGroupId} (the `ReplaceScimGroup` operationId).
+func (c *Client) ReplaceScimGroup(ctx context.Context, scimGroupId ScimGroupId, body ReplaceScimGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceScimGroupRequest(c.Server, scimGroupId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReplaceScimGroupWithApplicationScimPlusJSONBody Replace a provisioned group
+//
+// The name, the directory's identifier and the complete membership. A change of who is in a group that holds `OWNER` needs a person's step-up and is refused to a directory (`403`).
+//
+// Takes a body of the `application/scim+json` content type.
+//
+// Corresponds with PUT /scim/v2/Groups/{scimGroupId} (the `ReplaceScimGroup` operationId).
+func (c *Client) ReplaceScimGroupWithApplicationScimPlusJSONBody(ctx context.Context, scimGroupId ScimGroupId, body ReplaceScimGroupApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceScimGroupRequestWithApplicationScimPlusJSONBody(c.Server, scimGroupId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListScimResourceTypes The SCIM resource types served
+//
+// The `User` and `Group` resource types (RFC 7643 §6), as a list response.
+//
+// Corresponds with GET /scim/v2/ResourceTypes (the `ListScimResourceTypes` operationId).
+func (c *Client) ListScimResourceTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListScimResourceTypesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListScimSchemas The SCIM schemas served
+//
+// The core `User` and `Group` schemas (RFC 7643 §7) with the attributes this service keeps.
+//
+// Corresponds with GET /scim/v2/Schemas (the `ListScimSchemas` operationId).
+func (c *Client) ListScimSchemas(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListScimSchemasRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetScimServiceProviderConfig What this SCIM service supports
+//
+// The SCIM 2.0 service provider configuration (RFC 7643 §5) a directory reads before it provisions: PATCH and filtering supported, bulk, sorting and password changes not, and the bearer token of a service account as the one way to authenticate.
+//
+// Corresponds with GET /scim/v2/ServiceProviderConfig (the `GetScimServiceProviderConfig` operationId).
+func (c *Client) GetScimServiceProviderConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetScimServiceProviderConfigRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListScimUsers The people a directory provisions
+//
+// The workspace's people as SCIM users (RFC 7644 §3.4.2): `userName` is the address, `externalId` the directory's own identifier, `active` whether the person may act. A filter names one attribute with `eq` - `userName`, `externalId`, `id` or `emails.value`; any other is refused `400 invalidFilter`. Paged by `startIndex` (from 1) and `count` (at most 200). Authenticated by the bearer token of a service account that may manage members.
+//
+// Corresponds with GET /scim/v2/Users (the `ListScimUsers` operationId).
+func (c *Client) ListScimUsers(ctx context.Context, params *ListScimUsersParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListScimUsersRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateScimUserWithBody Provision a person
+//
+// A person the directory provisions: an account in INVITED state under the address that signs in through the workspace's identity provider, active at their first sign-in there. An address an account here already holds is answered `409 uniqueness`, except an account the directory switched off, which is switched on again under its new identifier. Within the workspace's people limit.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /scim/v2/Users (the `CreateScimUser` operationId).
+func (c *Client) CreateScimUserWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateScimUserRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateScimUser Provision a person
+//
+// A person the directory provisions: an account in INVITED state under the address that signs in through the workspace's identity provider, active at their first sign-in there. An address an account here already holds is answered `409 uniqueness`, except an account the directory switched off, which is switched on again under its new identifier. Within the workspace's people limit.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /scim/v2/Users (the `CreateScimUser` operationId).
+func (c *Client) CreateScimUser(ctx context.Context, body CreateScimUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateScimUserRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateScimUserWithApplicationScimPlusJSONBody Provision a person
+//
+// A person the directory provisions: an account in INVITED state under the address that signs in through the workspace's identity provider, active at their first sign-in there. An address an account here already holds is answered `409 uniqueness`, except an account the directory switched off, which is switched on again under its new identifier. Within the workspace's people limit.
+//
+// Takes a body of the `application/scim+json` content type.
+//
+// Corresponds with POST /scim/v2/Users (the `CreateScimUser` operationId).
+func (c *Client) CreateScimUserWithApplicationScimPlusJSONBody(ctx context.Context, body CreateScimUserApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateScimUserRequestWithApplicationScimPlusJSONBody(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteScimUser Deprovision a person
+//
+// The person is switched off and their sessions end; the account, its authorship and its trail stay - a directory never erases anybody's data (an erasure is the workspace's own, UC-PRV). Provisioning the address again switches the account on.
+//
+// Corresponds with DELETE /scim/v2/Users/{scimUserId} (the `DeleteScimUser` operationId).
+func (c *Client) DeleteScimUser(ctx context.Context, scimUserId ScimUserId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteScimUserRequest(c.Server, scimUserId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetScimUser A provisioned person
+//
+// Corresponds with GET /scim/v2/Users/{scimUserId} (the `GetScimUser` operationId).
+func (c *Client) GetScimUser(ctx context.Context, scimUserId ScimUserId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetScimUserRequest(c.Server, scimUserId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PatchScimUserWithBody Change a provisioned person
+//
+// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /scim/v2/Users/{scimUserId} (the `PatchScimUser` operationId).
+func (c *Client) PatchScimUserWithBody(ctx context.Context, scimUserId ScimUserId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchScimUserRequestWithBody(c.Server, scimUserId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PatchScimUser Change a provisioned person
+//
+// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /scim/v2/Users/{scimUserId} (the `PatchScimUser` operationId).
+func (c *Client) PatchScimUser(ctx context.Context, scimUserId ScimUserId, body PatchScimUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchScimUserRequest(c.Server, scimUserId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PatchScimUserWithApplicationScimPlusJSONBody Change a provisioned person
+//
+// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+//
+// Takes a body of the `application/scim+json` content type.
+//
+// Corresponds with PATCH /scim/v2/Users/{scimUserId} (the `PatchScimUser` operationId).
+func (c *Client) PatchScimUserWithApplicationScimPlusJSONBody(ctx context.Context, scimUserId ScimUserId, body PatchScimUserApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchScimUserRequestWithApplicationScimPlusJSONBody(c.Server, scimUserId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReplaceScimUserWithBody Replace a provisioned person
+//
+// The display name, the directory's identifier and `active`. The address a person signs in with is not changed by the directory: a different `userName` is refused `400 mutability`. Switching a person off ends their sessions; the workspace's last owner and any owner of it are not switched off by a directory (`409`).
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /scim/v2/Users/{scimUserId} (the `ReplaceScimUser` operationId).
+func (c *Client) ReplaceScimUserWithBody(ctx context.Context, scimUserId ScimUserId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceScimUserRequestWithBody(c.Server, scimUserId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReplaceScimUser Replace a provisioned person
+//
+// The display name, the directory's identifier and `active`. The address a person signs in with is not changed by the directory: a different `userName` is refused `400 mutability`. Switching a person off ends their sessions; the workspace's last owner and any owner of it are not switched off by a directory (`409`).
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /scim/v2/Users/{scimUserId} (the `ReplaceScimUser` operationId).
+func (c *Client) ReplaceScimUser(ctx context.Context, scimUserId ScimUserId, body ReplaceScimUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceScimUserRequest(c.Server, scimUserId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReplaceScimUserWithApplicationScimPlusJSONBody Replace a provisioned person
+//
+// The display name, the directory's identifier and `active`. The address a person signs in with is not changed by the directory: a different `userName` is refused `400 mutability`. Switching a person off ends their sessions; the workspace's last owner and any owner of it are not switched off by a directory (`409`).
+//
+// Takes a body of the `application/scim+json` content type.
+//
+// Corresponds with PUT /scim/v2/Users/{scimUserId} (the `ReplaceScimUser` operationId).
+func (c *Client) ReplaceScimUserWithApplicationScimPlusJSONBody(ctx context.Context, scimUserId ScimUserId, body ReplaceScimUserApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceScimUserRequestWithApplicationScimPlusJSONBody(c.Server, scimUserId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -77554,6 +78799,752 @@ func NewChangeRoleRequestWithBody(server string, key string, params *ChangeRoleP
 	return req, nil
 }
 
+// NewListScimGroupsRequest constructs an http.Request for the ListScimGroups method
+func NewListScimGroupsRequest(server string, params *ListScimGroupsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/scim/v2/Groups")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Filter != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "filter", *params.Filter, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.StartIndex != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "startIndex", *params.StartIndex, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Count != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "count", *params.Count, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.ExcludedAttributes != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "excludedAttributes", *params.ExcludedAttributes, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateScimGroupRequest calls the generic CreateScimGroup builder with application/json body
+func NewCreateScimGroupRequest(server string, body CreateScimGroupJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateScimGroupRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateScimGroupRequestWithApplicationScimPlusJSONBody calls the generic CreateScimGroup builder with application/scim+json body
+func NewCreateScimGroupRequestWithApplicationScimPlusJSONBody(server string, body CreateScimGroupApplicationScimPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateScimGroupRequestWithBody(server, "application/scim+json", bodyReader)
+}
+
+// NewCreateScimGroupRequestWithBody constructs an http.Request for the CreateScimGroup method, with any body, and a specified content type
+func NewCreateScimGroupRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/scim/v2/Groups")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteScimGroupRequest constructs an http.Request for the DeleteScimGroup method
+func NewDeleteScimGroupRequest(server string, scimGroupId ScimGroupId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "scimGroupId", scimGroupId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/scim/v2/Groups/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetScimGroupRequest constructs an http.Request for the GetScimGroup method
+func NewGetScimGroupRequest(server string, scimGroupId ScimGroupId, params *GetScimGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "scimGroupId", scimGroupId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/scim/v2/Groups/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.ExcludedAttributes != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "excludedAttributes", *params.ExcludedAttributes, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPatchScimGroupRequest calls the generic PatchScimGroup builder with application/json body
+func NewPatchScimGroupRequest(server string, scimGroupId ScimGroupId, body PatchScimGroupJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPatchScimGroupRequestWithBody(server, scimGroupId, "application/json", bodyReader)
+}
+
+// NewPatchScimGroupRequestWithApplicationScimPlusJSONBody calls the generic PatchScimGroup builder with application/scim+json body
+func NewPatchScimGroupRequestWithApplicationScimPlusJSONBody(server string, scimGroupId ScimGroupId, body PatchScimGroupApplicationScimPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPatchScimGroupRequestWithBody(server, scimGroupId, "application/scim+json", bodyReader)
+}
+
+// NewPatchScimGroupRequestWithBody constructs an http.Request for the PatchScimGroup method, with any body, and a specified content type
+func NewPatchScimGroupRequestWithBody(server string, scimGroupId ScimGroupId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "scimGroupId", scimGroupId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/scim/v2/Groups/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReplaceScimGroupRequest calls the generic ReplaceScimGroup builder with application/json body
+func NewReplaceScimGroupRequest(server string, scimGroupId ScimGroupId, body ReplaceScimGroupJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReplaceScimGroupRequestWithBody(server, scimGroupId, "application/json", bodyReader)
+}
+
+// NewReplaceScimGroupRequestWithApplicationScimPlusJSONBody calls the generic ReplaceScimGroup builder with application/scim+json body
+func NewReplaceScimGroupRequestWithApplicationScimPlusJSONBody(server string, scimGroupId ScimGroupId, body ReplaceScimGroupApplicationScimPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReplaceScimGroupRequestWithBody(server, scimGroupId, "application/scim+json", bodyReader)
+}
+
+// NewReplaceScimGroupRequestWithBody constructs an http.Request for the ReplaceScimGroup method, with any body, and a specified content type
+func NewReplaceScimGroupRequestWithBody(server string, scimGroupId ScimGroupId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "scimGroupId", scimGroupId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/scim/v2/Groups/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListScimResourceTypesRequest constructs an http.Request for the ListScimResourceTypes method
+func NewListScimResourceTypesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/scim/v2/ResourceTypes")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListScimSchemasRequest constructs an http.Request for the ListScimSchemas method
+func NewListScimSchemasRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/scim/v2/Schemas")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetScimServiceProviderConfigRequest constructs an http.Request for the GetScimServiceProviderConfig method
+func NewGetScimServiceProviderConfigRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/scim/v2/ServiceProviderConfig")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListScimUsersRequest constructs an http.Request for the ListScimUsers method
+func NewListScimUsersRequest(server string, params *ListScimUsersParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/scim/v2/Users")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Filter != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "filter", *params.Filter, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.StartIndex != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "startIndex", *params.StartIndex, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Count != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "count", *params.Count, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateScimUserRequest calls the generic CreateScimUser builder with application/json body
+func NewCreateScimUserRequest(server string, body CreateScimUserJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateScimUserRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateScimUserRequestWithApplicationScimPlusJSONBody calls the generic CreateScimUser builder with application/scim+json body
+func NewCreateScimUserRequestWithApplicationScimPlusJSONBody(server string, body CreateScimUserApplicationScimPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateScimUserRequestWithBody(server, "application/scim+json", bodyReader)
+}
+
+// NewCreateScimUserRequestWithBody constructs an http.Request for the CreateScimUser method, with any body, and a specified content type
+func NewCreateScimUserRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/scim/v2/Users")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteScimUserRequest constructs an http.Request for the DeleteScimUser method
+func NewDeleteScimUserRequest(server string, scimUserId ScimUserId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "scimUserId", scimUserId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/scim/v2/Users/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetScimUserRequest constructs an http.Request for the GetScimUser method
+func NewGetScimUserRequest(server string, scimUserId ScimUserId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "scimUserId", scimUserId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/scim/v2/Users/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPatchScimUserRequest calls the generic PatchScimUser builder with application/json body
+func NewPatchScimUserRequest(server string, scimUserId ScimUserId, body PatchScimUserJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPatchScimUserRequestWithBody(server, scimUserId, "application/json", bodyReader)
+}
+
+// NewPatchScimUserRequestWithApplicationScimPlusJSONBody calls the generic PatchScimUser builder with application/scim+json body
+func NewPatchScimUserRequestWithApplicationScimPlusJSONBody(server string, scimUserId ScimUserId, body PatchScimUserApplicationScimPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPatchScimUserRequestWithBody(server, scimUserId, "application/scim+json", bodyReader)
+}
+
+// NewPatchScimUserRequestWithBody constructs an http.Request for the PatchScimUser method, with any body, and a specified content type
+func NewPatchScimUserRequestWithBody(server string, scimUserId ScimUserId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "scimUserId", scimUserId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/scim/v2/Users/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReplaceScimUserRequest calls the generic ReplaceScimUser builder with application/json body
+func NewReplaceScimUserRequest(server string, scimUserId ScimUserId, body ReplaceScimUserJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReplaceScimUserRequestWithBody(server, scimUserId, "application/json", bodyReader)
+}
+
+// NewReplaceScimUserRequestWithApplicationScimPlusJSONBody calls the generic ReplaceScimUser builder with application/scim+json body
+func NewReplaceScimUserRequestWithApplicationScimPlusJSONBody(server string, scimUserId ScimUserId, body ReplaceScimUserApplicationScimPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReplaceScimUserRequestWithBody(server, scimUserId, "application/scim+json", bodyReader)
+}
+
+// NewReplaceScimUserRequestWithBody constructs an http.Request for the ReplaceScimUser method, with any body, and a specified content type
+func NewReplaceScimUserRequestWithBody(server string, scimUserId ScimUserId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "scimUserId", scimUserId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/scim/v2/Users/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewSearchItemsRequest calls the generic SearchItems builder with application/json body
 func NewSearchItemsRequest(server string, body SearchItemsJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -90357,6 +92348,245 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PATCH /roles/{key} (the `ChangeRole` operationId).
 	ChangeRoleWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, key string, params *ChangeRoleParams, body ChangeRoleApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeRoleResult, error)
+
+	// ListScimGroupsWithResponse The groups a directory provisions
+	//
+	// The workspace's groups as SCIM groups, with their members unless `excludedAttributes=members`. A filter names `displayName`, `externalId` or `id` with `eq`.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /scim/v2/Groups (the `ListScimGroups` operationId).
+	ListScimGroupsWithResponse(ctx context.Context, params *ListScimGroupsParams, reqEditors ...RequestEditorFn) (*ListScimGroupsResult, error)
+
+	// CreateScimGroupWithBodyWithResponse Provision a group
+	//
+	// A group with its members, held to the same rules as a group made by hand: a name taken is `409 uniqueness`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /scim/v2/Groups (the `CreateScimGroup` operationId).
+	CreateScimGroupWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateScimGroupResult, error)
+
+	// CreateScimGroupWithResponse Provision a group
+	//
+	// A group with its members, held to the same rules as a group made by hand: a name taken is `409 uniqueness`.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /scim/v2/Groups (the `CreateScimGroup` operationId).
+	CreateScimGroupWithResponse(ctx context.Context, body CreateScimGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateScimGroupResult, error)
+
+	// CreateScimGroupWithApplicationScimPlusJSONBodyWithResponse Provision a group
+	//
+	// A group with its members, held to the same rules as a group made by hand: a name taken is `409 uniqueness`.
+	//
+	// Takes a body of the `application/scim+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /scim/v2/Groups (the `CreateScimGroup` operationId).
+	CreateScimGroupWithApplicationScimPlusJSONBodyWithResponse(ctx context.Context, body CreateScimGroupApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateScimGroupResult, error)
+
+	// DeleteScimGroupWithResponse Remove a provisioned group
+	//
+	// The group and the roles it granted; its people stay.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /scim/v2/Groups/{scimGroupId} (the `DeleteScimGroup` operationId).
+	DeleteScimGroupWithResponse(ctx context.Context, scimGroupId ScimGroupId, reqEditors ...RequestEditorFn) (*DeleteScimGroupResult, error)
+
+	// GetScimGroupWithResponse A provisioned group
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /scim/v2/Groups/{scimGroupId} (the `GetScimGroup` operationId).
+	GetScimGroupWithResponse(ctx context.Context, scimGroupId ScimGroupId, params *GetScimGroupParams, reqEditors ...RequestEditorFn) (*GetScimGroupResult, error)
+
+	// PatchScimGroupWithBodyWithResponse Change a provisioned group
+	//
+	// SCIM PATCH operations on `displayName`, `externalId` and `members`: `add` and `remove` with a value list or a path `members[value eq "…"]`, `replace` of the whole set.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /scim/v2/Groups/{scimGroupId} (the `PatchScimGroup` operationId).
+	PatchScimGroupWithBodyWithResponse(ctx context.Context, scimGroupId ScimGroupId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PatchScimGroupResult, error)
+
+	// PatchScimGroupWithResponse Change a provisioned group
+	//
+	// SCIM PATCH operations on `displayName`, `externalId` and `members`: `add` and `remove` with a value list or a path `members[value eq "…"]`, `replace` of the whole set.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /scim/v2/Groups/{scimGroupId} (the `PatchScimGroup` operationId).
+	PatchScimGroupWithResponse(ctx context.Context, scimGroupId ScimGroupId, body PatchScimGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchScimGroupResult, error)
+
+	// PatchScimGroupWithApplicationScimPlusJSONBodyWithResponse Change a provisioned group
+	//
+	// SCIM PATCH operations on `displayName`, `externalId` and `members`: `add` and `remove` with a value list or a path `members[value eq "…"]`, `replace` of the whole set.
+	//
+	// Takes a body of the `application/scim+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /scim/v2/Groups/{scimGroupId} (the `PatchScimGroup` operationId).
+	PatchScimGroupWithApplicationScimPlusJSONBodyWithResponse(ctx context.Context, scimGroupId ScimGroupId, body PatchScimGroupApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchScimGroupResult, error)
+
+	// ReplaceScimGroupWithBodyWithResponse Replace a provisioned group
+	//
+	// The name, the directory's identifier and the complete membership. A change of who is in a group that holds `OWNER` needs a person's step-up and is refused to a directory (`403`).
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /scim/v2/Groups/{scimGroupId} (the `ReplaceScimGroup` operationId).
+	ReplaceScimGroupWithBodyWithResponse(ctx context.Context, scimGroupId ScimGroupId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceScimGroupResult, error)
+
+	// ReplaceScimGroupWithResponse Replace a provisioned group
+	//
+	// The name, the directory's identifier and the complete membership. A change of who is in a group that holds `OWNER` needs a person's step-up and is refused to a directory (`403`).
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /scim/v2/Groups/{scimGroupId} (the `ReplaceScimGroup` operationId).
+	ReplaceScimGroupWithResponse(ctx context.Context, scimGroupId ScimGroupId, body ReplaceScimGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceScimGroupResult, error)
+
+	// ReplaceScimGroupWithApplicationScimPlusJSONBodyWithResponse Replace a provisioned group
+	//
+	// The name, the directory's identifier and the complete membership. A change of who is in a group that holds `OWNER` needs a person's step-up and is refused to a directory (`403`).
+	//
+	// Takes a body of the `application/scim+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /scim/v2/Groups/{scimGroupId} (the `ReplaceScimGroup` operationId).
+	ReplaceScimGroupWithApplicationScimPlusJSONBodyWithResponse(ctx context.Context, scimGroupId ScimGroupId, body ReplaceScimGroupApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceScimGroupResult, error)
+
+	// ListScimResourceTypesWithResponse The SCIM resource types served
+	//
+	// The `User` and `Group` resource types (RFC 7643 §6), as a list response.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /scim/v2/ResourceTypes (the `ListScimResourceTypes` operationId).
+	ListScimResourceTypesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListScimResourceTypesResult, error)
+
+	// ListScimSchemasWithResponse The SCIM schemas served
+	//
+	// The core `User` and `Group` schemas (RFC 7643 §7) with the attributes this service keeps.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /scim/v2/Schemas (the `ListScimSchemas` operationId).
+	ListScimSchemasWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListScimSchemasResult, error)
+
+	// GetScimServiceProviderConfigWithResponse What this SCIM service supports
+	//
+	// The SCIM 2.0 service provider configuration (RFC 7643 §5) a directory reads before it provisions: PATCH and filtering supported, bulk, sorting and password changes not, and the bearer token of a service account as the one way to authenticate.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /scim/v2/ServiceProviderConfig (the `GetScimServiceProviderConfig` operationId).
+	GetScimServiceProviderConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetScimServiceProviderConfigResult, error)
+
+	// ListScimUsersWithResponse The people a directory provisions
+	//
+	// The workspace's people as SCIM users (RFC 7644 §3.4.2): `userName` is the address, `externalId` the directory's own identifier, `active` whether the person may act. A filter names one attribute with `eq` - `userName`, `externalId`, `id` or `emails.value`; any other is refused `400 invalidFilter`. Paged by `startIndex` (from 1) and `count` (at most 200). Authenticated by the bearer token of a service account that may manage members.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /scim/v2/Users (the `ListScimUsers` operationId).
+	ListScimUsersWithResponse(ctx context.Context, params *ListScimUsersParams, reqEditors ...RequestEditorFn) (*ListScimUsersResult, error)
+
+	// CreateScimUserWithBodyWithResponse Provision a person
+	//
+	// A person the directory provisions: an account in INVITED state under the address that signs in through the workspace's identity provider, active at their first sign-in there. An address an account here already holds is answered `409 uniqueness`, except an account the directory switched off, which is switched on again under its new identifier. Within the workspace's people limit.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /scim/v2/Users (the `CreateScimUser` operationId).
+	CreateScimUserWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateScimUserResult, error)
+
+	// CreateScimUserWithResponse Provision a person
+	//
+	// A person the directory provisions: an account in INVITED state under the address that signs in through the workspace's identity provider, active at their first sign-in there. An address an account here already holds is answered `409 uniqueness`, except an account the directory switched off, which is switched on again under its new identifier. Within the workspace's people limit.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /scim/v2/Users (the `CreateScimUser` operationId).
+	CreateScimUserWithResponse(ctx context.Context, body CreateScimUserJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateScimUserResult, error)
+
+	// CreateScimUserWithApplicationScimPlusJSONBodyWithResponse Provision a person
+	//
+	// A person the directory provisions: an account in INVITED state under the address that signs in through the workspace's identity provider, active at their first sign-in there. An address an account here already holds is answered `409 uniqueness`, except an account the directory switched off, which is switched on again under its new identifier. Within the workspace's people limit.
+	//
+	// Takes a body of the `application/scim+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /scim/v2/Users (the `CreateScimUser` operationId).
+	CreateScimUserWithApplicationScimPlusJSONBodyWithResponse(ctx context.Context, body CreateScimUserApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateScimUserResult, error)
+
+	// DeleteScimUserWithResponse Deprovision a person
+	//
+	// The person is switched off and their sessions end; the account, its authorship and its trail stay - a directory never erases anybody's data (an erasure is the workspace's own, UC-PRV). Provisioning the address again switches the account on.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /scim/v2/Users/{scimUserId} (the `DeleteScimUser` operationId).
+	DeleteScimUserWithResponse(ctx context.Context, scimUserId ScimUserId, reqEditors ...RequestEditorFn) (*DeleteScimUserResult, error)
+
+	// GetScimUserWithResponse A provisioned person
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /scim/v2/Users/{scimUserId} (the `GetScimUser` operationId).
+	GetScimUserWithResponse(ctx context.Context, scimUserId ScimUserId, reqEditors ...RequestEditorFn) (*GetScimUserResult, error)
+
+	// PatchScimUserWithBodyWithResponse Change a provisioned person
+	//
+	// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /scim/v2/Users/{scimUserId} (the `PatchScimUser` operationId).
+	PatchScimUserWithBodyWithResponse(ctx context.Context, scimUserId ScimUserId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PatchScimUserResult, error)
+
+	// PatchScimUserWithResponse Change a provisioned person
+	//
+	// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /scim/v2/Users/{scimUserId} (the `PatchScimUser` operationId).
+	PatchScimUserWithResponse(ctx context.Context, scimUserId ScimUserId, body PatchScimUserJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchScimUserResult, error)
+
+	// PatchScimUserWithApplicationScimPlusJSONBodyWithResponse Change a provisioned person
+	//
+	// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+	//
+	// Takes a body of the `application/scim+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /scim/v2/Users/{scimUserId} (the `PatchScimUser` operationId).
+	PatchScimUserWithApplicationScimPlusJSONBodyWithResponse(ctx context.Context, scimUserId ScimUserId, body PatchScimUserApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchScimUserResult, error)
+
+	// ReplaceScimUserWithBodyWithResponse Replace a provisioned person
+	//
+	// The display name, the directory's identifier and `active`. The address a person signs in with is not changed by the directory: a different `userName` is refused `400 mutability`. Switching a person off ends their sessions; the workspace's last owner and any owner of it are not switched off by a directory (`409`).
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /scim/v2/Users/{scimUserId} (the `ReplaceScimUser` operationId).
+	ReplaceScimUserWithBodyWithResponse(ctx context.Context, scimUserId ScimUserId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceScimUserResult, error)
+
+	// ReplaceScimUserWithResponse Replace a provisioned person
+	//
+	// The display name, the directory's identifier and `active`. The address a person signs in with is not changed by the directory: a different `userName` is refused `400 mutability`. Switching a person off ends their sessions; the workspace's last owner and any owner of it are not switched off by a directory (`409`).
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /scim/v2/Users/{scimUserId} (the `ReplaceScimUser` operationId).
+	ReplaceScimUserWithResponse(ctx context.Context, scimUserId ScimUserId, body ReplaceScimUserJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceScimUserResult, error)
+
+	// ReplaceScimUserWithApplicationScimPlusJSONBodyWithResponse Replace a provisioned person
+	//
+	// The display name, the directory's identifier and `active`. The address a person signs in with is not changed by the directory: a different `userName` is refused `400 mutability`. Switching a person off ends their sessions; the workspace's last owner and any owner of it are not switched off by a directory (`409`).
+	//
+	// Takes a body of the `application/scim+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /scim/v2/Users/{scimUserId} (the `ReplaceScimUser` operationId).
+	ReplaceScimUserWithApplicationScimPlusJSONBodyWithResponse(ctx context.Context, scimUserId ScimUserId, body ReplaceScimUserApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceScimUserResult, error)
 
 	// SearchItemsWithBodyWithResponse Full-text search over the entries a caller may see
 	//
@@ -118309,6 +120539,712 @@ func (r ChangeRoleResult) ContentType() string {
 	return ""
 }
 
+type ListScimGroupsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationscimJSON200 the response for an HTTP 200 `application/scim+json` response
+	ApplicationscimJSON200 *ScimListResponse
+	// ApplicationscimJSON4XX the response for an HTTP 4XX `application/scim+json` response
+	ApplicationscimJSON4XX *ScimError
+}
+
+// GetApplicationscimJSON200 returns the response for an HTTP 200 `application/scim+json` response
+func (r ListScimGroupsResult) GetApplicationscimJSON200() *ScimListResponse {
+	return r.ApplicationscimJSON200
+}
+
+// GetApplicationscimJSON4XX returns the response for an HTTP 4XX `application/scim+json` response
+func (r ListScimGroupsResult) GetApplicationscimJSON4XX() *ScimError {
+	return r.ApplicationscimJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListScimGroupsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListScimGroupsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListScimGroupsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListScimGroupsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateScimGroupResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationscimJSON201 the response for an HTTP 201 `application/scim+json` response
+	ApplicationscimJSON201 *ScimGroup
+	// ApplicationscimJSON4XX the response for an HTTP 4XX `application/scim+json` response
+	ApplicationscimJSON4XX *ScimError
+}
+
+// GetApplicationscimJSON201 returns the response for an HTTP 201 `application/scim+json` response
+func (r CreateScimGroupResult) GetApplicationscimJSON201() *ScimGroup {
+	return r.ApplicationscimJSON201
+}
+
+// GetApplicationscimJSON4XX returns the response for an HTTP 4XX `application/scim+json` response
+func (r CreateScimGroupResult) GetApplicationscimJSON4XX() *ScimError {
+	return r.ApplicationscimJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateScimGroupResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateScimGroupResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateScimGroupResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateScimGroupResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteScimGroupResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationscimJSON4XX the response for an HTTP 4XX `application/scim+json` response
+	ApplicationscimJSON4XX *ScimError
+}
+
+// GetApplicationscimJSON4XX returns the response for an HTTP 4XX `application/scim+json` response
+func (r DeleteScimGroupResult) GetApplicationscimJSON4XX() *ScimError {
+	return r.ApplicationscimJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteScimGroupResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteScimGroupResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteScimGroupResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteScimGroupResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetScimGroupResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationscimJSON200 the response for an HTTP 200 `application/scim+json` response
+	ApplicationscimJSON200 *ScimGroup
+	// ApplicationscimJSON4XX the response for an HTTP 4XX `application/scim+json` response
+	ApplicationscimJSON4XX *ScimError
+}
+
+// GetApplicationscimJSON200 returns the response for an HTTP 200 `application/scim+json` response
+func (r GetScimGroupResult) GetApplicationscimJSON200() *ScimGroup {
+	return r.ApplicationscimJSON200
+}
+
+// GetApplicationscimJSON4XX returns the response for an HTTP 4XX `application/scim+json` response
+func (r GetScimGroupResult) GetApplicationscimJSON4XX() *ScimError {
+	return r.ApplicationscimJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetScimGroupResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetScimGroupResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetScimGroupResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetScimGroupResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PatchScimGroupResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationscimJSON200 the response for an HTTP 200 `application/scim+json` response
+	ApplicationscimJSON200 *ScimGroup
+	// ApplicationscimJSON4XX the response for an HTTP 4XX `application/scim+json` response
+	ApplicationscimJSON4XX *ScimError
+}
+
+// GetApplicationscimJSON200 returns the response for an HTTP 200 `application/scim+json` response
+func (r PatchScimGroupResult) GetApplicationscimJSON200() *ScimGroup {
+	return r.ApplicationscimJSON200
+}
+
+// GetApplicationscimJSON4XX returns the response for an HTTP 4XX `application/scim+json` response
+func (r PatchScimGroupResult) GetApplicationscimJSON4XX() *ScimError {
+	return r.ApplicationscimJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PatchScimGroupResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PatchScimGroupResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PatchScimGroupResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PatchScimGroupResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReplaceScimGroupResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationscimJSON200 the response for an HTTP 200 `application/scim+json` response
+	ApplicationscimJSON200 *ScimGroup
+	// ApplicationscimJSON4XX the response for an HTTP 4XX `application/scim+json` response
+	ApplicationscimJSON4XX *ScimError
+}
+
+// GetApplicationscimJSON200 returns the response for an HTTP 200 `application/scim+json` response
+func (r ReplaceScimGroupResult) GetApplicationscimJSON200() *ScimGroup {
+	return r.ApplicationscimJSON200
+}
+
+// GetApplicationscimJSON4XX returns the response for an HTTP 4XX `application/scim+json` response
+func (r ReplaceScimGroupResult) GetApplicationscimJSON4XX() *ScimError {
+	return r.ApplicationscimJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReplaceScimGroupResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReplaceScimGroupResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReplaceScimGroupResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReplaceScimGroupResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListScimResourceTypesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationscimJSON200 the response for an HTTP 200 `application/scim+json` response
+	ApplicationscimJSON200 *ScimListResponse
+	// ApplicationscimJSON4XX the response for an HTTP 4XX `application/scim+json` response
+	ApplicationscimJSON4XX *ScimError
+}
+
+// GetApplicationscimJSON200 returns the response for an HTTP 200 `application/scim+json` response
+func (r ListScimResourceTypesResult) GetApplicationscimJSON200() *ScimListResponse {
+	return r.ApplicationscimJSON200
+}
+
+// GetApplicationscimJSON4XX returns the response for an HTTP 4XX `application/scim+json` response
+func (r ListScimResourceTypesResult) GetApplicationscimJSON4XX() *ScimError {
+	return r.ApplicationscimJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListScimResourceTypesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListScimResourceTypesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListScimResourceTypesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListScimResourceTypesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListScimSchemasResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationscimJSON200 the response for an HTTP 200 `application/scim+json` response
+	ApplicationscimJSON200 *ScimListResponse
+	// ApplicationscimJSON4XX the response for an HTTP 4XX `application/scim+json` response
+	ApplicationscimJSON4XX *ScimError
+}
+
+// GetApplicationscimJSON200 returns the response for an HTTP 200 `application/scim+json` response
+func (r ListScimSchemasResult) GetApplicationscimJSON200() *ScimListResponse {
+	return r.ApplicationscimJSON200
+}
+
+// GetApplicationscimJSON4XX returns the response for an HTTP 4XX `application/scim+json` response
+func (r ListScimSchemasResult) GetApplicationscimJSON4XX() *ScimError {
+	return r.ApplicationscimJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListScimSchemasResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListScimSchemasResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListScimSchemasResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListScimSchemasResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetScimServiceProviderConfigResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationscimJSON200 the response for an HTTP 200 `application/scim+json` response
+	ApplicationscimJSON200 *ScimResource
+	// ApplicationscimJSON4XX the response for an HTTP 4XX `application/scim+json` response
+	ApplicationscimJSON4XX *ScimError
+}
+
+// GetApplicationscimJSON200 returns the response for an HTTP 200 `application/scim+json` response
+func (r GetScimServiceProviderConfigResult) GetApplicationscimJSON200() *ScimResource {
+	return r.ApplicationscimJSON200
+}
+
+// GetApplicationscimJSON4XX returns the response for an HTTP 4XX `application/scim+json` response
+func (r GetScimServiceProviderConfigResult) GetApplicationscimJSON4XX() *ScimError {
+	return r.ApplicationscimJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetScimServiceProviderConfigResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetScimServiceProviderConfigResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetScimServiceProviderConfigResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetScimServiceProviderConfigResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListScimUsersResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationscimJSON200 the response for an HTTP 200 `application/scim+json` response
+	ApplicationscimJSON200 *ScimListResponse
+	// ApplicationscimJSON4XX the response for an HTTP 4XX `application/scim+json` response
+	ApplicationscimJSON4XX *ScimError
+}
+
+// GetApplicationscimJSON200 returns the response for an HTTP 200 `application/scim+json` response
+func (r ListScimUsersResult) GetApplicationscimJSON200() *ScimListResponse {
+	return r.ApplicationscimJSON200
+}
+
+// GetApplicationscimJSON4XX returns the response for an HTTP 4XX `application/scim+json` response
+func (r ListScimUsersResult) GetApplicationscimJSON4XX() *ScimError {
+	return r.ApplicationscimJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListScimUsersResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListScimUsersResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListScimUsersResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListScimUsersResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateScimUserResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationscimJSON201 the response for an HTTP 201 `application/scim+json` response
+	ApplicationscimJSON201 *ScimUser
+	// ApplicationscimJSON4XX the response for an HTTP 4XX `application/scim+json` response
+	ApplicationscimJSON4XX *ScimError
+}
+
+// GetApplicationscimJSON201 returns the response for an HTTP 201 `application/scim+json` response
+func (r CreateScimUserResult) GetApplicationscimJSON201() *ScimUser {
+	return r.ApplicationscimJSON201
+}
+
+// GetApplicationscimJSON4XX returns the response for an HTTP 4XX `application/scim+json` response
+func (r CreateScimUserResult) GetApplicationscimJSON4XX() *ScimError {
+	return r.ApplicationscimJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateScimUserResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateScimUserResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateScimUserResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateScimUserResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteScimUserResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationscimJSON4XX the response for an HTTP 4XX `application/scim+json` response
+	ApplicationscimJSON4XX *ScimError
+}
+
+// GetApplicationscimJSON4XX returns the response for an HTTP 4XX `application/scim+json` response
+func (r DeleteScimUserResult) GetApplicationscimJSON4XX() *ScimError {
+	return r.ApplicationscimJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteScimUserResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteScimUserResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteScimUserResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteScimUserResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetScimUserResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationscimJSON200 the response for an HTTP 200 `application/scim+json` response
+	ApplicationscimJSON200 *ScimUser
+	// ApplicationscimJSON4XX the response for an HTTP 4XX `application/scim+json` response
+	ApplicationscimJSON4XX *ScimError
+}
+
+// GetApplicationscimJSON200 returns the response for an HTTP 200 `application/scim+json` response
+func (r GetScimUserResult) GetApplicationscimJSON200() *ScimUser {
+	return r.ApplicationscimJSON200
+}
+
+// GetApplicationscimJSON4XX returns the response for an HTTP 4XX `application/scim+json` response
+func (r GetScimUserResult) GetApplicationscimJSON4XX() *ScimError {
+	return r.ApplicationscimJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetScimUserResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetScimUserResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetScimUserResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetScimUserResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PatchScimUserResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationscimJSON200 the response for an HTTP 200 `application/scim+json` response
+	ApplicationscimJSON200 *ScimUser
+	// ApplicationscimJSON4XX the response for an HTTP 4XX `application/scim+json` response
+	ApplicationscimJSON4XX *ScimError
+}
+
+// GetApplicationscimJSON200 returns the response for an HTTP 200 `application/scim+json` response
+func (r PatchScimUserResult) GetApplicationscimJSON200() *ScimUser {
+	return r.ApplicationscimJSON200
+}
+
+// GetApplicationscimJSON4XX returns the response for an HTTP 4XX `application/scim+json` response
+func (r PatchScimUserResult) GetApplicationscimJSON4XX() *ScimError {
+	return r.ApplicationscimJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PatchScimUserResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PatchScimUserResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PatchScimUserResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PatchScimUserResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReplaceScimUserResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationscimJSON200 the response for an HTTP 200 `application/scim+json` response
+	ApplicationscimJSON200 *ScimUser
+	// ApplicationscimJSON4XX the response for an HTTP 4XX `application/scim+json` response
+	ApplicationscimJSON4XX *ScimError
+}
+
+// GetApplicationscimJSON200 returns the response for an HTTP 200 `application/scim+json` response
+func (r ReplaceScimUserResult) GetApplicationscimJSON200() *ScimUser {
+	return r.ApplicationscimJSON200
+}
+
+// GetApplicationscimJSON4XX returns the response for an HTTP 4XX `application/scim+json` response
+func (r ReplaceScimUserResult) GetApplicationscimJSON4XX() *ScimError {
+	return r.ApplicationscimJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReplaceScimUserResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReplaceScimUserResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReplaceScimUserResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReplaceScimUserResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type SearchItemsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -135916,6 +138852,407 @@ func (c *ClientWithResponses) ChangeRoleWithApplicationMergePatchPlusJSONBodyWit
 		return nil, err
 	}
 	return ParseChangeRoleResult(rsp)
+}
+
+// ListScimGroupsWithResponse The groups a directory provisions
+//
+// The workspace's groups as SCIM groups, with their members unless `excludedAttributes=members`. A filter names `displayName`, `externalId` or `id` with `eq`.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /scim/v2/Groups (the `ListScimGroups` operationId).
+func (c *ClientWithResponses) ListScimGroupsWithResponse(ctx context.Context, params *ListScimGroupsParams, reqEditors ...RequestEditorFn) (*ListScimGroupsResult, error) {
+	rsp, err := c.ListScimGroups(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListScimGroupsResult(rsp)
+}
+
+// CreateScimGroupWithBodyWithResponse Provision a group
+//
+// A group with its members, held to the same rules as a group made by hand: a name taken is `409 uniqueness`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /scim/v2/Groups (the `CreateScimGroup` operationId).
+func (c *ClientWithResponses) CreateScimGroupWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateScimGroupResult, error) {
+	rsp, err := c.CreateScimGroupWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateScimGroupResult(rsp)
+}
+
+// CreateScimGroupWithResponse Provision a group
+//
+// A group with its members, held to the same rules as a group made by hand: a name taken is `409 uniqueness`.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /scim/v2/Groups (the `CreateScimGroup` operationId).
+func (c *ClientWithResponses) CreateScimGroupWithResponse(ctx context.Context, body CreateScimGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateScimGroupResult, error) {
+	rsp, err := c.CreateScimGroup(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateScimGroupResult(rsp)
+}
+
+// CreateScimGroupWithApplicationScimPlusJSONBodyWithResponse Provision a group
+//
+// A group with its members, held to the same rules as a group made by hand: a name taken is `409 uniqueness`.
+//
+// Takes a body of the `application/scim+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /scim/v2/Groups (the `CreateScimGroup` operationId).
+func (c *ClientWithResponses) CreateScimGroupWithApplicationScimPlusJSONBodyWithResponse(ctx context.Context, body CreateScimGroupApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateScimGroupResult, error) {
+	rsp, err := c.CreateScimGroupWithApplicationScimPlusJSONBody(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateScimGroupResult(rsp)
+}
+
+// DeleteScimGroupWithResponse Remove a provisioned group
+//
+// The group and the roles it granted; its people stay.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /scim/v2/Groups/{scimGroupId} (the `DeleteScimGroup` operationId).
+func (c *ClientWithResponses) DeleteScimGroupWithResponse(ctx context.Context, scimGroupId ScimGroupId, reqEditors ...RequestEditorFn) (*DeleteScimGroupResult, error) {
+	rsp, err := c.DeleteScimGroup(ctx, scimGroupId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteScimGroupResult(rsp)
+}
+
+// GetScimGroupWithResponse A provisioned group
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /scim/v2/Groups/{scimGroupId} (the `GetScimGroup` operationId).
+func (c *ClientWithResponses) GetScimGroupWithResponse(ctx context.Context, scimGroupId ScimGroupId, params *GetScimGroupParams, reqEditors ...RequestEditorFn) (*GetScimGroupResult, error) {
+	rsp, err := c.GetScimGroup(ctx, scimGroupId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetScimGroupResult(rsp)
+}
+
+// PatchScimGroupWithBodyWithResponse Change a provisioned group
+//
+// SCIM PATCH operations on `displayName`, `externalId` and `members`: `add` and `remove` with a value list or a path `members[value eq "…"]`, `replace` of the whole set.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /scim/v2/Groups/{scimGroupId} (the `PatchScimGroup` operationId).
+func (c *ClientWithResponses) PatchScimGroupWithBodyWithResponse(ctx context.Context, scimGroupId ScimGroupId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PatchScimGroupResult, error) {
+	rsp, err := c.PatchScimGroupWithBody(ctx, scimGroupId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePatchScimGroupResult(rsp)
+}
+
+// PatchScimGroupWithResponse Change a provisioned group
+//
+// SCIM PATCH operations on `displayName`, `externalId` and `members`: `add` and `remove` with a value list or a path `members[value eq "…"]`, `replace` of the whole set.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /scim/v2/Groups/{scimGroupId} (the `PatchScimGroup` operationId).
+func (c *ClientWithResponses) PatchScimGroupWithResponse(ctx context.Context, scimGroupId ScimGroupId, body PatchScimGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchScimGroupResult, error) {
+	rsp, err := c.PatchScimGroup(ctx, scimGroupId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePatchScimGroupResult(rsp)
+}
+
+// PatchScimGroupWithApplicationScimPlusJSONBodyWithResponse Change a provisioned group
+//
+// SCIM PATCH operations on `displayName`, `externalId` and `members`: `add` and `remove` with a value list or a path `members[value eq "…"]`, `replace` of the whole set.
+//
+// Takes a body of the `application/scim+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /scim/v2/Groups/{scimGroupId} (the `PatchScimGroup` operationId).
+func (c *ClientWithResponses) PatchScimGroupWithApplicationScimPlusJSONBodyWithResponse(ctx context.Context, scimGroupId ScimGroupId, body PatchScimGroupApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchScimGroupResult, error) {
+	rsp, err := c.PatchScimGroupWithApplicationScimPlusJSONBody(ctx, scimGroupId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePatchScimGroupResult(rsp)
+}
+
+// ReplaceScimGroupWithBodyWithResponse Replace a provisioned group
+//
+// The name, the directory's identifier and the complete membership. A change of who is in a group that holds `OWNER` needs a person's step-up and is refused to a directory (`403`).
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /scim/v2/Groups/{scimGroupId} (the `ReplaceScimGroup` operationId).
+func (c *ClientWithResponses) ReplaceScimGroupWithBodyWithResponse(ctx context.Context, scimGroupId ScimGroupId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceScimGroupResult, error) {
+	rsp, err := c.ReplaceScimGroupWithBody(ctx, scimGroupId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceScimGroupResult(rsp)
+}
+
+// ReplaceScimGroupWithResponse Replace a provisioned group
+//
+// The name, the directory's identifier and the complete membership. A change of who is in a group that holds `OWNER` needs a person's step-up and is refused to a directory (`403`).
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /scim/v2/Groups/{scimGroupId} (the `ReplaceScimGroup` operationId).
+func (c *ClientWithResponses) ReplaceScimGroupWithResponse(ctx context.Context, scimGroupId ScimGroupId, body ReplaceScimGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceScimGroupResult, error) {
+	rsp, err := c.ReplaceScimGroup(ctx, scimGroupId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceScimGroupResult(rsp)
+}
+
+// ReplaceScimGroupWithApplicationScimPlusJSONBodyWithResponse Replace a provisioned group
+//
+// The name, the directory's identifier and the complete membership. A change of who is in a group that holds `OWNER` needs a person's step-up and is refused to a directory (`403`).
+//
+// Takes a body of the `application/scim+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /scim/v2/Groups/{scimGroupId} (the `ReplaceScimGroup` operationId).
+func (c *ClientWithResponses) ReplaceScimGroupWithApplicationScimPlusJSONBodyWithResponse(ctx context.Context, scimGroupId ScimGroupId, body ReplaceScimGroupApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceScimGroupResult, error) {
+	rsp, err := c.ReplaceScimGroupWithApplicationScimPlusJSONBody(ctx, scimGroupId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceScimGroupResult(rsp)
+}
+
+// ListScimResourceTypesWithResponse The SCIM resource types served
+//
+// The `User` and `Group` resource types (RFC 7643 §6), as a list response.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /scim/v2/ResourceTypes (the `ListScimResourceTypes` operationId).
+func (c *ClientWithResponses) ListScimResourceTypesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListScimResourceTypesResult, error) {
+	rsp, err := c.ListScimResourceTypes(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListScimResourceTypesResult(rsp)
+}
+
+// ListScimSchemasWithResponse The SCIM schemas served
+//
+// The core `User` and `Group` schemas (RFC 7643 §7) with the attributes this service keeps.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /scim/v2/Schemas (the `ListScimSchemas` operationId).
+func (c *ClientWithResponses) ListScimSchemasWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListScimSchemasResult, error) {
+	rsp, err := c.ListScimSchemas(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListScimSchemasResult(rsp)
+}
+
+// GetScimServiceProviderConfigWithResponse What this SCIM service supports
+//
+// The SCIM 2.0 service provider configuration (RFC 7643 §5) a directory reads before it provisions: PATCH and filtering supported, bulk, sorting and password changes not, and the bearer token of a service account as the one way to authenticate.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /scim/v2/ServiceProviderConfig (the `GetScimServiceProviderConfig` operationId).
+func (c *ClientWithResponses) GetScimServiceProviderConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetScimServiceProviderConfigResult, error) {
+	rsp, err := c.GetScimServiceProviderConfig(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetScimServiceProviderConfigResult(rsp)
+}
+
+// ListScimUsersWithResponse The people a directory provisions
+//
+// The workspace's people as SCIM users (RFC 7644 §3.4.2): `userName` is the address, `externalId` the directory's own identifier, `active` whether the person may act. A filter names one attribute with `eq` - `userName`, `externalId`, `id` or `emails.value`; any other is refused `400 invalidFilter`. Paged by `startIndex` (from 1) and `count` (at most 200). Authenticated by the bearer token of a service account that may manage members.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /scim/v2/Users (the `ListScimUsers` operationId).
+func (c *ClientWithResponses) ListScimUsersWithResponse(ctx context.Context, params *ListScimUsersParams, reqEditors ...RequestEditorFn) (*ListScimUsersResult, error) {
+	rsp, err := c.ListScimUsers(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListScimUsersResult(rsp)
+}
+
+// CreateScimUserWithBodyWithResponse Provision a person
+//
+// A person the directory provisions: an account in INVITED state under the address that signs in through the workspace's identity provider, active at their first sign-in there. An address an account here already holds is answered `409 uniqueness`, except an account the directory switched off, which is switched on again under its new identifier. Within the workspace's people limit.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /scim/v2/Users (the `CreateScimUser` operationId).
+func (c *ClientWithResponses) CreateScimUserWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateScimUserResult, error) {
+	rsp, err := c.CreateScimUserWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateScimUserResult(rsp)
+}
+
+// CreateScimUserWithResponse Provision a person
+//
+// A person the directory provisions: an account in INVITED state under the address that signs in through the workspace's identity provider, active at their first sign-in there. An address an account here already holds is answered `409 uniqueness`, except an account the directory switched off, which is switched on again under its new identifier. Within the workspace's people limit.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /scim/v2/Users (the `CreateScimUser` operationId).
+func (c *ClientWithResponses) CreateScimUserWithResponse(ctx context.Context, body CreateScimUserJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateScimUserResult, error) {
+	rsp, err := c.CreateScimUser(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateScimUserResult(rsp)
+}
+
+// CreateScimUserWithApplicationScimPlusJSONBodyWithResponse Provision a person
+//
+// A person the directory provisions: an account in INVITED state under the address that signs in through the workspace's identity provider, active at their first sign-in there. An address an account here already holds is answered `409 uniqueness`, except an account the directory switched off, which is switched on again under its new identifier. Within the workspace's people limit.
+//
+// Takes a body of the `application/scim+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /scim/v2/Users (the `CreateScimUser` operationId).
+func (c *ClientWithResponses) CreateScimUserWithApplicationScimPlusJSONBodyWithResponse(ctx context.Context, body CreateScimUserApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateScimUserResult, error) {
+	rsp, err := c.CreateScimUserWithApplicationScimPlusJSONBody(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateScimUserResult(rsp)
+}
+
+// DeleteScimUserWithResponse Deprovision a person
+//
+// The person is switched off and their sessions end; the account, its authorship and its trail stay - a directory never erases anybody's data (an erasure is the workspace's own, UC-PRV). Provisioning the address again switches the account on.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /scim/v2/Users/{scimUserId} (the `DeleteScimUser` operationId).
+func (c *ClientWithResponses) DeleteScimUserWithResponse(ctx context.Context, scimUserId ScimUserId, reqEditors ...RequestEditorFn) (*DeleteScimUserResult, error) {
+	rsp, err := c.DeleteScimUser(ctx, scimUserId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteScimUserResult(rsp)
+}
+
+// GetScimUserWithResponse A provisioned person
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /scim/v2/Users/{scimUserId} (the `GetScimUser` operationId).
+func (c *ClientWithResponses) GetScimUserWithResponse(ctx context.Context, scimUserId ScimUserId, reqEditors ...RequestEditorFn) (*GetScimUserResult, error) {
+	rsp, err := c.GetScimUser(ctx, scimUserId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetScimUserResult(rsp)
+}
+
+// PatchScimUserWithBodyWithResponse Change a provisioned person
+//
+// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /scim/v2/Users/{scimUserId} (the `PatchScimUser` operationId).
+func (c *ClientWithResponses) PatchScimUserWithBodyWithResponse(ctx context.Context, scimUserId ScimUserId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PatchScimUserResult, error) {
+	rsp, err := c.PatchScimUserWithBody(ctx, scimUserId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePatchScimUserResult(rsp)
+}
+
+// PatchScimUserWithResponse Change a provisioned person
+//
+// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /scim/v2/Users/{scimUserId} (the `PatchScimUser` operationId).
+func (c *ClientWithResponses) PatchScimUserWithResponse(ctx context.Context, scimUserId ScimUserId, body PatchScimUserJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchScimUserResult, error) {
+	rsp, err := c.PatchScimUser(ctx, scimUserId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePatchScimUserResult(rsp)
+}
+
+// PatchScimUserWithApplicationScimPlusJSONBodyWithResponse Change a provisioned person
+//
+// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+//
+// Takes a body of the `application/scim+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /scim/v2/Users/{scimUserId} (the `PatchScimUser` operationId).
+func (c *ClientWithResponses) PatchScimUserWithApplicationScimPlusJSONBodyWithResponse(ctx context.Context, scimUserId ScimUserId, body PatchScimUserApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchScimUserResult, error) {
+	rsp, err := c.PatchScimUserWithApplicationScimPlusJSONBody(ctx, scimUserId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePatchScimUserResult(rsp)
+}
+
+// ReplaceScimUserWithBodyWithResponse Replace a provisioned person
+//
+// The display name, the directory's identifier and `active`. The address a person signs in with is not changed by the directory: a different `userName` is refused `400 mutability`. Switching a person off ends their sessions; the workspace's last owner and any owner of it are not switched off by a directory (`409`).
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /scim/v2/Users/{scimUserId} (the `ReplaceScimUser` operationId).
+func (c *ClientWithResponses) ReplaceScimUserWithBodyWithResponse(ctx context.Context, scimUserId ScimUserId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceScimUserResult, error) {
+	rsp, err := c.ReplaceScimUserWithBody(ctx, scimUserId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceScimUserResult(rsp)
+}
+
+// ReplaceScimUserWithResponse Replace a provisioned person
+//
+// The display name, the directory's identifier and `active`. The address a person signs in with is not changed by the directory: a different `userName` is refused `400 mutability`. Switching a person off ends their sessions; the workspace's last owner and any owner of it are not switched off by a directory (`409`).
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /scim/v2/Users/{scimUserId} (the `ReplaceScimUser` operationId).
+func (c *ClientWithResponses) ReplaceScimUserWithResponse(ctx context.Context, scimUserId ScimUserId, body ReplaceScimUserJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceScimUserResult, error) {
+	rsp, err := c.ReplaceScimUser(ctx, scimUserId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceScimUserResult(rsp)
+}
+
+// ReplaceScimUserWithApplicationScimPlusJSONBodyWithResponse Replace a provisioned person
+//
+// The display name, the directory's identifier and `active`. The address a person signs in with is not changed by the directory: a different `userName` is refused `400 mutability`. Switching a person off ends their sessions; the workspace's last owner and any owner of it are not switched off by a directory (`409`).
+//
+// Takes a body of the `application/scim+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /scim/v2/Users/{scimUserId} (the `ReplaceScimUser` operationId).
+func (c *ClientWithResponses) ReplaceScimUserWithApplicationScimPlusJSONBodyWithResponse(ctx context.Context, scimUserId ScimUserId, body ReplaceScimUserApplicationScimPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceScimUserResult, error) {
+	rsp, err := c.ReplaceScimUserWithApplicationScimPlusJSONBody(ctx, scimUserId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceScimUserResult(rsp)
 }
 
 // SearchItemsWithBodyWithResponse Full-text search over the entries a caller may see
@@ -157131,6 +160468,496 @@ func ParseChangeRoleResult(rsp *http.Response) (*ChangeRoleResult, error) {
 			return nil, err
 		}
 		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListScimGroupsResult parses an HTTP response from a ListScimGroupsWithResponse call
+func ParseListScimGroupsResult(rsp *http.Response) (*ListScimGroupsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListScimGroupsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ScimListResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest ScimError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateScimGroupResult parses an HTTP response from a CreateScimGroupWithResponse call
+func ParseCreateScimGroupResult(rsp *http.Response) (*CreateScimGroupResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateScimGroupResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ScimGroup
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest ScimError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteScimGroupResult parses an HTTP response from a DeleteScimGroupWithResponse call
+func ParseDeleteScimGroupResult(rsp *http.Response) (*DeleteScimGroupResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteScimGroupResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest ScimError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetScimGroupResult parses an HTTP response from a GetScimGroupWithResponse call
+func ParseGetScimGroupResult(rsp *http.Response) (*GetScimGroupResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetScimGroupResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ScimGroup
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest ScimError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePatchScimGroupResult parses an HTTP response from a PatchScimGroupWithResponse call
+func ParsePatchScimGroupResult(rsp *http.Response) (*PatchScimGroupResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PatchScimGroupResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ScimGroup
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON200 = &dest
+
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest ScimError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReplaceScimGroupResult parses an HTTP response from a ReplaceScimGroupWithResponse call
+func ParseReplaceScimGroupResult(rsp *http.Response) (*ReplaceScimGroupResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReplaceScimGroupResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ScimGroup
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest ScimError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListScimResourceTypesResult parses an HTTP response from a ListScimResourceTypesWithResponse call
+func ParseListScimResourceTypesResult(rsp *http.Response) (*ListScimResourceTypesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListScimResourceTypesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ScimListResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest ScimError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListScimSchemasResult parses an HTTP response from a ListScimSchemasWithResponse call
+func ParseListScimSchemasResult(rsp *http.Response) (*ListScimSchemasResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListScimSchemasResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ScimListResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest ScimError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetScimServiceProviderConfigResult parses an HTTP response from a GetScimServiceProviderConfigWithResponse call
+func ParseGetScimServiceProviderConfigResult(rsp *http.Response) (*GetScimServiceProviderConfigResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetScimServiceProviderConfigResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ScimResource
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest ScimError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListScimUsersResult parses an HTTP response from a ListScimUsersWithResponse call
+func ParseListScimUsersResult(rsp *http.Response) (*ListScimUsersResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListScimUsersResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ScimListResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest ScimError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateScimUserResult parses an HTTP response from a CreateScimUserWithResponse call
+func ParseCreateScimUserResult(rsp *http.Response) (*CreateScimUserResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateScimUserResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ScimUser
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest ScimError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteScimUserResult parses an HTTP response from a DeleteScimUserWithResponse call
+func ParseDeleteScimUserResult(rsp *http.Response) (*DeleteScimUserResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteScimUserResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest ScimError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetScimUserResult parses an HTTP response from a GetScimUserWithResponse call
+func ParseGetScimUserResult(rsp *http.Response) (*GetScimUserResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetScimUserResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ScimUser
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest ScimError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePatchScimUserResult parses an HTTP response from a PatchScimUserWithResponse call
+func ParsePatchScimUserResult(rsp *http.Response) (*PatchScimUserResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PatchScimUserResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ScimUser
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest ScimError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReplaceScimUserResult parses an HTTP response from a ReplaceScimUserWithResponse call
+func ParseReplaceScimUserResult(rsp *http.Response) (*ReplaceScimUserResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReplaceScimUserResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ScimUser
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest ScimError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationscimJSON4XX = &dest
 
 	}
 
