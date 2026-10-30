@@ -406,3 +406,5 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-IMP-01](./importer/UC-IMP-01-import-entries-from-a-spreadsheet.md) | Import entries from a spreadsheet | importer |
 | [UC-IMP-02](./importer/UC-IMP-02-move-over-from-another-task-app.md) | Move over from Trello, Google Tasks or Microsoft To Do | importer |
 | [UC-IMP-03](./importer/UC-IMP-03-see-what-an-import-did.md) | See what an import did | importer |
+| [UC-IMP-04](./importer/UC-IMP-04-move-over-from-an-issue-tracker.md) | Move over from an issue tracker with its configuration, history and attachments | importer |
+| [UC-IMP-05](./importer/UC-IMP-05-move-a-wiki-space-into-a-hub.md) | Move a wiki space into a hub's pages | importer |

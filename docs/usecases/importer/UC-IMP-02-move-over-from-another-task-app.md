@@ -51,5 +51,6 @@ members, which are not accounts here.
 
 * No live connection to the other app and no import by signing in to it: the person brings the
   export file ([NG-phone-home](../../vision/non-goals.md)).
-* No Asana, Jira, Todoist or other sources yet; each is its own converter.
+* No Asana, Todoist or other sources yet; each is its own converter. An issue tracker's projects
+  are [UC-IMP-04](./UC-IMP-04-move-over-from-an-issue-tracker.md) (D-10).
 * Attachments stored behind the other app's sign-in are not fetched.

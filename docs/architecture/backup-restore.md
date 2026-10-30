@@ -513,6 +513,8 @@ or, with `collection_id`, a collection of that hub the entries land in; a conver
 | Trello | A board export |
 | Google Tasks | Google Takeout's `Tasks.json` |
 | Microsoft To Do | The Graph API's JSON, **fetched by the person** (`hubctl import todo` shows the requests) — a live connection would need a token this product would have to hold. Windows zone names are mapped by CLDR's `windowsZones`; a row with an unknown zone is refused, not guessed |
+| Jira (`JIRA`) | The issue search's JSON with `names`, `schema` and `changelog` expanded, or a ZIP of such answers with the attachments under `attachments/<attachment id>/` (UC-IMP-04). Each project a collection with its configuration: issue types as entry types, the statuses with their categories as a workflow (`imported_<project key>`, every status reachable from any) bound to the collection, custom fields of a kind the product has plus priority, components, versions, key, assignee and reporter as the collection's fields, the change log as `item.history_imported` steps, comments, links (`blocks`, `duplicates`, workspace link types, an epic as `implements`), attachments with their bytes. Into a collection the workflow is not carried |
+| Confluence (`CONFLUENCE`) | A space's HTML export as a ZIP (UC-IMP-05): the pages in their breadcrumb's tree under the hub, the content as Markdown, a link between pages a `hubtask:page/` reference; it lands pages only and takes no `collection_id` (`imports.kind_takes_no_collection`). Attachments and pictures are counted |
 
 Rules:
 
@@ -531,6 +533,9 @@ Rules:
 * **A different file whose collection meets a name the hub already holds** is refused with
   `imports.collection_exists` and lands nothing; the applier answers a unique index as a conflict
   (`containers.name_taken`, `backup.row_conflicts`), never as a database error the queue would retry.
+* **A ZIP is bounded by what it yields, not what it declares**: 256 MiB a member and 1 GiB in all,
+  beyond which it is `imports.archive_unreadable`; attachments travel into the in-memory archive by
+  digest and the applier stores them as a restore does, one object per content.
 * The run (`import_run`) carries the report and the refused row numbers; the file is deleted when
   the job ends; the `sync_epoch` advances as after a `MERGE` restore, the rows landing without
   change log entries.

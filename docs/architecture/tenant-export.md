@@ -385,8 +385,12 @@ it, with its references and its order; configuration is data and is never on the
 
 **Not yet** — named gaps, each owned by a step of [the suite plan](../backlog/suite/README.md):
 
-* No import from other tools' exports (issue trackers, wikis) with their configuration, history and
-  attachments.
+* An import from other tools' exports exists for an issue tracker's projects with their
+  configuration, history and attachments ([UC-IMP-04](../usecases/importer/UC-IMP-04-move-over-from-an-issue-tracker.md))
+  and for a wiki space's pages ([UC-IMP-05](../usecases/importer/UC-IMP-05-move-a-wiki-space-into-a-hub.md)),
+  through the same archive records (backup-restore.md §9). Not yet: a wiki's attachments and
+  history (pages hold no attachments; the HTML export carries no versions), and a tracker's
+  transitions, screens and boards.
 * A workspace of a shared installation whose operator allows no workspace targets cannot take its
   data out without the operator; the Data Act asks for no obstacle. Closing it means a self-service
   export for the workspace's owner, which UC-BAK-07's *Where it ends* (no direct download, the
