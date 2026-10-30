@@ -387,3 +387,30 @@ func destructiveDescriptor() Descriptor {
 			}),
 	}
 }
+
+// UC-ID-29 check 2: during a view as somebody every write is refused at the registry, whatever its
+// scope; a read and the end of the view pass.
+func TestAViewAsSomebodyWritesNothing(t *testing.T) {
+	calls := 0
+	write := descriptor("CreateContainer", &calls)
+	read := descriptor("ListContainers", &calls)
+	read.ReadOnly = true
+	end := descriptor("EndViewAs", &calls)
+	end.EndsAView = true
+	registry, err := NewRegistry(nil, write, read, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+	view := appshared.ActorContext{ViewedBy: shared.MustParseID("0192f000-0000-7000-8000-0000000000ef")}
+
+	_, err = registry.Invoke(context.Background(), "CreateContainer", view, Input{"type": "HUB", "name": "x"})
+	var refusal *shared.Error
+	if !errors.As(err, &refusal) || refusal.DetailCode != "access.view_as_read_only" || calls != 0 {
+		t.Fatalf("a write during a view: %v, calls %d", err, calls)
+	}
+	for _, name := range []string{"ListContainers", "EndViewAs"} {
+		if _, err := registry.Invoke(context.Background(), name, view, Input{"type": "HUB", "name": "x"}); err != nil {
+			t.Fatalf("%s refused during a view: %v", name, err)
+		}
+	}
+}

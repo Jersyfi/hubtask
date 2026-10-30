@@ -273,6 +273,7 @@ func (h EndViewAs) Descriptor() usecase.Descriptor {
 		Name:        EndViewAsName,
 		Summary:     "Ends the caller's view as another person; the session is its own person's again.",
 		SideEffects: "Clears the session's view and writes an audit entry where one ran.",
+		EndsAView:   true,
 		Audit: usecase.AuditDeclaration{
 			Action: ViewAsEndedAction, TargetType: accountTarget,
 			Severity: audit.SeverityInfo, Required: true,

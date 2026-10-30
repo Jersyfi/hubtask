@@ -98,6 +98,9 @@ type Descriptor struct {
 	// so that an agent client can ask for confirmation before the dangerous ones (ai-first.md).
 	ReadOnly    bool
 	Destructive bool
+	// EndsAView admits an operation that writes during a view as somebody (UC-ID-29): only the
+	// one that ends the view. Every other write is refused there, whatever its token scope.
+	EndsAView bool
 	// StepUp says when this operation demands a fresh re-authentication (security.md §5),
 	// in prose, the way Activity.Exempt gives a reason: "always", or the condition - "granting
 	// or revoking the OWNER role". Empty for the operations that never do. The declaration is
@@ -267,6 +270,9 @@ func (r *Registry) Invoke(ctx context.Context, name string, actor appshared.Acto
 	if err := descriptor.PermitAgent(actor); err != nil {
 		return nil, err
 	}
+	if err := descriptor.PermitViewer(actor); err != nil {
+		return nil, err
+	}
 	if err := descriptor.ValidateInput(in); err != nil {
 		return nil, err
 	}
@@ -313,6 +319,17 @@ func (d Descriptor) PermitAgent(actor appshared.ActorContext) error {
 			"use_case": d.Name,
 			"scope":    AgentDestructiveScope,
 		})
+}
+
+// PermitViewer refuses every write during a view as somebody (UC-ID-29 check 2): a view only reads.
+// The view's reading scopes refuse a write too; this holds for an operation whose scope reads but
+// which records something all the same, and for the next one somebody declares so.
+func (d Descriptor) PermitViewer(actor appshared.ActorContext) error {
+	if d.ReadOnly || d.EndsAView || !actor.IsViewingAs() {
+		return nil
+	}
+	return shared.ErrForbidden.WithDetail("access.view_as_read_only").
+		WithParams(map[string]string{"use_case": d.Name})
 }
 
 func lowerFirst(name string) string {

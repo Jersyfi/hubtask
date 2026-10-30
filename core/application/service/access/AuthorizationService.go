@@ -183,7 +183,7 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 // refusal is recorded as the agent's, with the reason `delegator`, and reads to the caller as any
 // other refusal does.
 func (s Service) delegatorAllows(ctx context.Context, actor appshared.ActorContext, request Request) error {
-	if actor.OnBehalfOf.IsZero() {
+	if _, reason := alsoAsked(actor); reason == "" {
 		return nil
 	}
 	allowed, err := s.delegatorPermits(ctx, actor, request)
@@ -193,16 +193,31 @@ func (s Service) delegatorAllows(ctx context.Context, actor appshared.ActorConte
 	if allowed {
 		return nil
 	}
-	s.recordRefusal(ctx, actor, request, "delegator")
+	_, reason := alsoAsked(actor)
+	s.recordRefusal(ctx, actor, request, reason)
 	if request.aboutAnEntry() && !request.On.ID.IsZero() {
 		return appshared.ItemNotFound(request.On.ID)
 	}
 	return notPermitted(request)
 }
 
-// delegatorPermits is the delegating person's answer, recorded nowhere.
+// alsoAsked is the second account a request is asked of, and the reason a refusal by it records:
+// the person a registered agent acts for (G2), or the administrator whose session shows the app as
+// this actor's person (UC-ID-29) - a view shows only what both may read. Empty for every other
+// request.
+func alsoAsked(actor appshared.ActorContext) (shared.ID, string) {
+	switch {
+	case !actor.OnBehalfOf.IsZero():
+		return actor.OnBehalfOf, "delegator"
+	case actor.IsViewingAs():
+		return actor.ViewedBy, "viewer"
+	}
+	return shared.ID(""), ""
+}
+
+// delegatorPermits is the second account's answer (alsoAsked), recorded nowhere.
 func (s Service) delegatorPermits(ctx context.Context, actor appshared.ActorContext, request Request) (bool, error) {
-	person := actor.OnBehalfOf
+	person, _ := alsoAsked(actor)
 	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), person, request.scopePath(), false)
 	if err != nil {
 		return false, err
@@ -286,7 +301,7 @@ func (s Service) Permits(
 	if !request.satisfiedBy(memberships, path) {
 		return false, nil
 	}
-	if actor.OnBehalfOf.IsZero() {
+	if _, reason := alsoAsked(actor); reason == "" {
 		return true, nil
 	}
 	return s.delegatorPermits(ctx, actor, request)
@@ -350,26 +365,26 @@ func (s Service) ReachInto(
 		}
 	}
 
-	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, request.Path,
+	reach, memberships, path, err := s.reachOf(ctx, actor, actor.AccountID, request, containerID,
 		opensFor(actor, actor.AccountID))
 	if err != nil {
 		return Reach{}, err
 	}
-	if request.satisfiedBy(memberships, path) {
-		return Reach{All: true}, nil
+	if second, reason := alsoAsked(actor); reason != "" && (reach.All || len(reach.Shared) > 0) {
+		// An agent reaches no further than the person it acts for, a view no further than its
+		// viewer: the entries both reach.
+		theirs, _, _, err := s.reachOf(ctx, actor, second, request, containerID, false)
+		if err != nil {
+			return Reach{}, err
+		}
+		reach = reach.within(theirs)
+		if !reach.All && len(reach.Shared) == 0 {
+			s.recordRefusal(ctx, actor, request, reason)
+			return Reach{}, notPermitted(request)
+		}
 	}
-
-	var sharedWith []shared.ID
-	err = s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
-		sharedWith, err = s.Memberships.SharedItemsIn(ctx, actor.AccountID, containerID)
-		return err
-	})
-	if err != nil {
-		return Reach{}, err
-	}
-	if len(sharedWith) > 0 {
-		return Reach{Shared: sharedWith}, nil
+	if reach.All || len(reach.Shared) > 0 {
+		return reach, nil
 	}
 
 	if hidden(memberships, path) {
@@ -378,6 +393,48 @@ func (s Service) ReachInto(
 	}
 	s.recordRefusal(ctx, actor, request, "permission")
 	return Reach{}, notPermitted(request)
+}
+
+// reachOf is one account's reach into a container, recorded nowhere: all of it, the entries
+// shared with the account, or nothing.
+func (s Service) reachOf(
+	ctx context.Context, actor appshared.ActorContext, account shared.ID, request Request,
+	containerID shared.ID, opens bool,
+) (Reach, []identity.Membership, resolved, error) {
+	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), account, request.Path, opens)
+	if err != nil {
+		return Reach{}, nil, resolved{}, err
+	}
+	if request.satisfiedBy(memberships, path) {
+		return Reach{All: true}, memberships, path, nil
+	}
+	var sharedWith []shared.ID
+	err = s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		sharedWith, err = s.Memberships.SharedItemsIn(ctx, account, containerID)
+		return err
+	})
+	if err != nil {
+		return Reach{}, nil, resolved{}, err
+	}
+	return Reach{Shared: sharedWith}, memberships, path, nil
+}
+
+// within is the part of this reach the other reaches too.
+func (r Reach) within(other Reach) Reach {
+	switch {
+	case other.All:
+		return r
+	case r.All:
+		return other
+	}
+	kept := make([]shared.ID, 0, len(r.Shared))
+	for _, id := range r.Shared {
+		if slices.Contains(other.Shared, id) {
+			kept = append(kept, id)
+		}
+	}
+	return Reach{Shared: kept}
 }
 
 // decideAboutTheEntry applies the qualifiers the permission column cannot express.
@@ -498,9 +555,9 @@ func (s Service) Permitted(
 	for i, path := range answers {
 		allowed[i] = request.satisfiedBy(memberships, path)
 	}
-	if !actor.OnBehalfOf.IsZero() {
-		// An agent sees no more than the person it acts for (G2).
-		delegated, theirs, err := s.held(ctx, actor.PersistenceScope(), actor.OnBehalfOf, paths, false)
+	if second, reason := alsoAsked(actor); reason != "" {
+		// An agent sees no more than the person it acts for (G2), a view no more than its viewer.
+		delegated, theirs, err := s.held(ctx, actor.PersistenceScope(), second, paths, false)
 		if err != nil {
 			return nil, err
 		}

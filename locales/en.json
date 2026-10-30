@@ -301,6 +301,7 @@
   "access.not_permitted": "Your role in this workspace does not allow that ({permission}).",
   "access.role_above_own": "You can give a role only up to your own here, and {role} is above it.",
   "access.view_as_online_only": "While you look at the app as somebody else, nothing is copied to this device. End the view to work offline again.",
+  "access.view_as_read_only": "While you look at the app as somebody else, nothing can be changed. End the view to work as yourself again.",
   "access.view_as_private_hub": "This person is a member of a private hub, so their screens cannot be viewed.",
   "access.view_as_needs_a_session": "Only your own signed-in session can show the app as somebody else.",
   "access.view_as_not_a_person": "Only an active person of this workspace can be viewed.",

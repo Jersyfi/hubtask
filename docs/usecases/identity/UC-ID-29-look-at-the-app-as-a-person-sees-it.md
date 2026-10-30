@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-11]
 state: built
 tasks: []
-checked_by: [core/application/service/identity/ViewAs_test.go, test/integration/session_view_as_test.go]
+checked_by: [core/application/service/identity/ViewAs_test.go, core/application/service/access/ViewAs_test.go, core/application/usecase/Registry_test.go, test/integration/session_view_as_test.go]
 ---
 
 # Look at the app as a person of the workspace sees it
@@ -33,8 +33,10 @@ app as Lena, when, and until when.
 1. *People & access → See their screens* on an active person starts a view: every screen reads as
    that person, under a banner naming them and when the view ends; the trail records
    `account.viewed_as` as a warning naming the administrator and the person.
-2. During a view a write is refused for the scope it lacks, and a device's copy - the snapshot, a
-   pull, the stream - is refused with `access.view_as_online_only`; the web app keeps no replica.
+2. During a view every write is refused - for the scope it lacks, or with `access.view_as_read_only`
+   where its scope only reads -, the view reads only what both the person and the administrator may
+   read, and a device's copy - the snapshot, a pull, the stream - is refused with
+   `access.view_as_online_only`; the web app keeps no replica.
 3. A view ends after half an hour, when the person is switched off or deleted, and when they join a
    private hub; the session is then the administrator's own again.
 4. *End view* ends it; the trail records `account.view_as_ended`.
