@@ -7834,6 +7834,8 @@ paths:
     post:
       tags: [calendar]
       operationId: createCalendarFeed
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: c.calendarFeedSecretResponse
       description: >
         Mints a feed over one saved view, and answers its token and its URL - once. The token is
         stored as a hash keyed on the installation secret under its own purpose label, so it can
@@ -8313,6 +8315,7 @@ paths:
     get:
       tags: [audit]
       operationId: listAuditEntries
+      x-hubtask-rest-utc: [from, to]
       x-hubtask-rest: generated
       x-hubtask-rest-query: { limit: size }
       x-hubtask-rest-list: whole
@@ -8358,6 +8361,7 @@ paths:
     post:
       tags: [audit]
       operationId: verifyAuditChain
+      x-hubtask-rest-utc: [from, to]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: auditVerificationResponse
       summary: Verify the integrity of the audit chain
@@ -8487,6 +8491,7 @@ paths:
     post:
       tags: [audit]
       operationId: exportAuditTrail
+      x-hubtask-rest-utc: [from, to]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: acceptedJob
       summary: Export the audit trail over a period
@@ -9772,6 +9777,11 @@ paths:
     patch:
       tags: [identity]
       operationId: updateAccountPreferences
+      x-hubtask-rest: generated
+      x-hubtask-rest-null: empty
+      x-hubtask-rest-words: [celebrations]
+      x-hubtask-rest-utc: [onboarding_completed_at]
+      x-hubtask-rest-answer: accountResponse
       summary: Set how the product speaks to an account
       description: |
         Locale, time zone and the first day of the week. An empty value clears the preference,
@@ -13465,6 +13475,9 @@ paths:
     post:
       tags: [identity]
       operationId: completePasskeyRegistration
+      x-hubtask-rest: generated
+      x-hubtask-rest-shown-once: recovery_codes
+      x-hubtask-rest-answer: passkeyRegisteredResponse
       summary: Finish adding a passkey or a security key to the caller's account
       description: |
         The second call: what the browser's ceremony answered, and the name the person chose. The
@@ -14758,6 +14771,7 @@ paths:
     post:
       tags: [oauth]
       operationId: authorizeOauthClient
+      x-hubtask-rest: generated
       summary: Consent to an app's request for bounded access
       description: >
         The authorization endpoint, headless: the signed-in person - never a

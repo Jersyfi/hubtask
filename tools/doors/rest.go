@@ -85,6 +85,12 @@ type RESTDoor struct {
 	// NullAs passes an explicit null member as the named value instead (`x-hubtask-rest-null-as`),
 	// or leaves it out where the value is null: a bucket's null limit is the number 0.
 	NullAs map[string]any
+	// Words are boolean members the use case reads as their word, `true` or `false`
+	// (`x-hubtask-rest-words`): a preference that has a third state, cleared.
+	Words []string
+	// UTC are date-time members and query parameters that reach the use case as the instant in
+	// UTC (`x-hubtask-rest-utc`), where it keeps the text it was sent.
+	UTC []string
 	// Dropped are body members the contract declares and the use case does not
 	// (`x-hubtask-rest-drop`): accepted and dropped, as the door did before it was generated, until
 	// the owner decides the member's fate. Never a member the use case reads.
@@ -118,6 +124,8 @@ type restOperation struct {
 	Cache       string                       `yaml:"x-hubtask-rest-cache"`
 	Drop        []string                     `yaml:"x-hubtask-rest-drop"`
 	NullAs      map[string]any               `yaml:"x-hubtask-rest-null-as"`
+	Words       []string                     `yaml:"x-hubtask-rest-words"`
+	UTC         []string                     `yaml:"x-hubtask-rest-utc"`
 	Alternate   *struct {
 		When   string `yaml:"when"`
 		Answer string `yaml:"answer"`
@@ -323,7 +331,32 @@ func restDoor(
 			}
 		}
 		door.NullAs = op.NullAs
+		for _, name := range op.Words {
+			held := false
+			for _, content := range op.RequestBody.Content {
+				member, ok := doc.composed(content.Schema).Properties[name]
+				held = ok && doc.kind(member) == "boolean"
+			}
+			if !held {
+				return door, fmt.Errorf("x-hubtask-rest-words names %s, which is not a boolean member of the body", name)
+			}
+		}
+		door.Words = op.Words
 	}
+	for _, name := range op.UTC {
+		held := slicesContains(door.Query, name)
+		if op.RequestBody != nil {
+			for _, content := range op.RequestBody.Content {
+				if member, ok := doc.composed(content.Schema).Properties[name]; ok && doc.resolve(member).Format == "date-time" {
+					held = true
+				}
+			}
+		}
+		if !held {
+			return door, fmt.Errorf("x-hubtask-rest-utc names %s, which is neither a query parameter nor a date-time member", name)
+		}
+	}
+	door.UTC = op.UTC
 
 	for _, status := range []string{"200", "201", "202", "204"} {
 		response, ok := op.Responses[status]
@@ -546,6 +579,12 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 				pairs = append(pairs, fmt.Sprintf("%q: %s", key, value))
 			}
 			extra += ", NullAs: map[string]any{" + strings.Join(pairs, ", ") + "}"
+		}
+		if len(d.UTC) > 0 {
+			extra += fmt.Sprintf(", UTC: %#v", d.UTC)
+		}
+		if len(d.Words) > 0 {
+			extra += fmt.Sprintf(", Words: %#v", d.Words)
 		}
 		if len(d.Dropped) > 0 {
 			extra += fmt.Sprintf(", Dropped: %#v", d.Dropped)

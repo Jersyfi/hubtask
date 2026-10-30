@@ -44,7 +44,11 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    the named mapper draws one row, and `x-hubtask-rest-list: whole` has it draw the whole answer
    instead (a page with members beside its rows, a list spelled otherwise). `x-hubtask-rest-null-as: { member: value }` passes an explicit
    null member as that value, or leaves it out where the value is null (a bucket's null limit is
-   the number 0). `x-hubtask-rest-drop: [member]` accepts and drops a body member the contract
+   the number 0). `x-hubtask-rest-words: [member]` hands a boolean on as its word (`true`, `false`) to a use case that
+   reads a cleared third state; `x-hubtask-rest-utc: [name]` hands an instant on in UTC where the
+   use case keeps the text it was sent; a shown-once member may be a list (recovery codes); an
+   answer mapper may be the controller's own (`c.calendarFeedSecretResponse`), where it composes
+   an address from the installation's base URL. `x-hubtask-rest-drop: [member]` accepts and drops a body member the contract
    declares and the use case does not, as its hand-written door did, until the owner decides it
    (a schedule's `enabled`). `x-hubtask-rest-cache:
    no-store` marks an answer made of the caller's words - a read sent as a `POST` - not to be

@@ -13029,6 +13029,8 @@
           "calendar"
         ],
         "operationId": "createCalendarFeed",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "c.calendarFeedSecretResponse",
         "description": "Mints a feed over one saved view, and answers its token and its URL - once. The token is stored as a hash keyed on the installation secret under its own purpose label, so it can never be replayed as a page cursor, a media token or a personal access token, and the stored value cannot be turned back into the token.\nThe feed reads as its owner reads, evaluated at every fetch: an owner who loses access to half the view sees the feed narrow with them, and a revoked membership is not survived by a token that remembers better days.\n",
         "parameters": [
           {
@@ -13669,6 +13671,10 @@
           "audit"
         ],
         "operationId": "listAuditEntries",
+        "x-hubtask-rest-utc": [
+          "from",
+          "to"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-query": {
           "limit": "size"
@@ -13796,6 +13802,10 @@
           "audit"
         ],
         "operationId": "verifyAuditChain",
+        "x-hubtask-rest-utc": [
+          "from",
+          "to"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "auditVerificationResponse",
         "summary": "Verify the integrity of the audit chain",
@@ -13955,6 +13965,10 @@
           "audit"
         ],
         "operationId": "exportAuditTrail",
+        "x-hubtask-rest-utc": [
+          "from",
+          "to"
+        ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "acceptedJob",
         "summary": "Export the audit trail over a period",
@@ -15715,6 +15729,15 @@
           "identity"
         ],
         "operationId": "updateAccountPreferences",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-null": "empty",
+        "x-hubtask-rest-words": [
+          "celebrations"
+        ],
+        "x-hubtask-rest-utc": [
+          "onboarding_completed_at"
+        ],
+        "x-hubtask-rest-answer": "accountResponse",
         "summary": "Set how the product speaks to an account",
         "description": "Locale, time zone and the first day of the week. An empty value clears the preference,\nwhich means the workspace default applies again — the second link of the resolution chain\nrequest → account → tenant → installation.\n",
         "requestBody": {
@@ -20169,6 +20192,9 @@
           "identity"
         ],
         "operationId": "completePasskeyRegistration",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-shown-once": "recovery_codes",
+        "x-hubtask-rest-answer": "passkeyRegisteredResponse",
         "summary": "Finish adding a passkey or a security key to the caller's account",
         "description": "The second call: what the browser's ceremony answered, and the name the person chose. The\nchallenge inside the client data must be the one the same session started within five\nminutes, and it is spent by this call whatever its outcome; otherwise\n`auth.passkey_challenge_stale`. The ceremony is checked against this workspace's address\n(origin and relying party), the authenticator's key must use one of the accepted\nalgorithms, and anything malformed is refused with `auth.passkey_registration_invalid`.\nA credential already held here is refused with `auth.passkey_already_registered`, an\naccount at its limit with `auth.passkey_limit_reached`, a name that is empty, longer than\n64 characters or holds control characters with `auth.passkey_name_invalid`.\n\nWhere the account held no unused recovery code, the answer carries ten new ones, shown\nonce and stored only as hashes.\n",
         "requestBody": {
@@ -21640,6 +21666,7 @@
           "oauth"
         ],
         "operationId": "authorizeOauthClient",
+        "x-hubtask-rest": "generated",
         "summary": "Consent to an app's request for bounded access",
         "description": "The authorization endpoint, headless: the signed-in person - never a token, a person - names the client, the exact redirect URI, the scopes from this installation's own catalogue, and the PKCE challenge, and receives the single-use code the app will exchange. The consent is recorded as a grant the person can see and revoke beside their sessions; the web application's consent screen calls exactly this.\nA public client without PKCE is refused; `S256` is the only accepted method - `plain` would put the verifier on the wire twice.\n",
         "requestBody": {

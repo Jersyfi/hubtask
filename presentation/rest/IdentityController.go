@@ -64,43 +64,6 @@ func managedAccountCreatedResponse(out usecase.Output) openapi.ManagedAccountCre
 	}
 }
 
-// UpdateAccountPreferences answers PATCH /accounts/{accountId}/preferences.
-func (c *RestController) UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, accountID openapi.AccountId) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.AccountPreferences
-		present, err := decodeJSONWithPresence(r, &body)
-		if err != nil {
-			return nil, err
-		}
-		// The absent/empty distinction survives the mapping: a field the client omitted is absent
-		// from the input, and one it sent empty is present and empty. That is the difference
-		// between "leave my time zone" and "clear it". A null is the empty one: the contract
-		// declares it for all three, and the generated pointer cannot tell it from an omission,
-		// so presence is read from the bytes and a null is written as "".
-		in := usecase.Input{"account_id": accountID.String()}
-		if present["locale"] {
-			in["locale"] = stringOrEmpty(body.Locale)
-		}
-		if present["time_zone"] {
-			in["time_zone"] = stringOrEmpty(body.TimeZone)
-		}
-		if present["week_start"] {
-			in["week_start"] = weekStartOrEmpty(body.WeekStart)
-		}
-		// The moments travel as the words the use case reads - "true"/"false", an RFC
-		// 3339 instant - and a null as the empty one, like the three above.
-		if present["celebrations"] {
-			in["celebrations"] = boolWordOrEmpty(body.Celebrations)
-		}
-		if present["onboarding_completed_at"] {
-			in["onboarding_completed_at"] = instantOrEmpty(body.OnboardingCompletedAt)
-		}
-		return c.UseCases.Invoke(r.Context(), updateAccountPreferencesUseCase, actor, in)
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, accountResponse(out))
-	})
-}
-
 // notificationPreferenceResponse maps one row of the settings form. The timestamp is a pointer
 // with no omitempty, so a default carries an explicit null rather than no field at all.
 func notificationPreferenceResponse(out usecase.Output) openapi.NotificationPreference {

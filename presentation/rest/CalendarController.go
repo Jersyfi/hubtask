@@ -24,36 +24,9 @@ import (
 // thing that is genuinely this layer's - the address a client subscribes to, which is a URL and
 // therefore a question about this installation rather than about the domain.
 
-const (
-	createCalendarFeedUseCase = "CreateCalendarFeed"
-)
-
-// CreateCalendarFeed answers POST /integrations/calendar-feeds.
-func (c *RestController) CreateCalendarFeed(
-	w http.ResponseWriter, r *http.Request, _ openapi.CreateCalendarFeedParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.CalendarFeedCreate
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	in := usecase.Input{"view_id": body.ViewId.String()}
-	if body.Kind != nil {
-		in["kind"] = string(*body.Kind)
-	}
-	out, err := c.UseCases.Invoke(r.Context(), createCalendarFeedUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
+// calendarFeedSecretResponse draws a new feed with its token and the address it is read at, which
+// the adapter composes from the installation's base URL.
+func (c *RestController) calendarFeedSecretResponse(out usecase.Output) openapi.CalendarFeedSecret {
 	feed := calendarFeedResponse(out)
 	token := out.String("token")
 	address := c.feedURL(token)
@@ -65,7 +38,7 @@ func (c *RestController) CreateCalendarFeed(
 		k := openapi.CalendarFeedSecretKind(*feed.Kind)
 		kind = &k
 	}
-	writeJSON(w, r, http.StatusCreated, openapi.CalendarFeedSecret{
+	return openapi.CalendarFeedSecret{
 		Kind:      kind,
 		Id:        feed.Id,
 		AccountId: feed.AccountId,
@@ -74,7 +47,7 @@ func (c *RestController) CreateCalendarFeed(
 		RevokedAt: feed.RevokedAt,
 		Token:     token,
 		Url:       address,
-	})
+	}
 }
 
 // feedURL is the address a calendar client is given. Built from the configured base URL rather

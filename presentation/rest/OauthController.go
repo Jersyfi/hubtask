@@ -20,8 +20,7 @@ import (
 
 // The use case names of the OAuth2 provider.
 const (
-	authorizeOauthClientUseCase = "AuthorizeOauthClient"
-	exchangeOauthCodeUseCase    = "ExchangeOauthCode"
+	exchangeOauthCodeUseCase = "ExchangeOauthCode"
 )
 
 // oauthClientSecretResponse maps a registered client with the one answer its secret ever appears in (T-18's shown once).
@@ -32,43 +31,6 @@ func oauthClientSecretResponse(out usecase.Output) openapi.OauthClientSecret {
 		Confidential: client.Confidential, CreatedAt: client.CreatedAt,
 		ClientSecret: optionalTextField(out["client_secret"]),
 	}
-}
-
-// AuthorizeOauthClient answers POST /oauth/authorize. Written out for ListServiceAccounts'
-// reason: the identity helper's closure gives the linter nothing to trace the context through.
-func (c *RestController) AuthorizeOauthClient(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.OauthAuthorization
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	scopes := make([]any, 0, len(body.Scopes))
-	for _, scope := range body.Scopes {
-		scopes = append(scopes, scope)
-	}
-	out, err := c.UseCases.Invoke(r.Context(), authorizeOauthClientUseCase, actorOf(r), usecase.Input{
-		"client_id":             body.ClientId.String(),
-		"redirect_uri":          body.RedirectUri,
-		"scopes":                scopes,
-		"code_challenge":        body.CodeChallenge,
-		"code_challenge_method": string(body.CodeChallengeMethod),
-		"state":                 optionalStringField(body.State),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, openapi.OauthCode{
-		Code:      out.String("code"),
-		ExpiresAt: timeValue(out["expires_at"]),
-		State:     optionalTextField(out["state"]),
-	})
 }
 
 // ExchangeOauthCode answers POST /oauth/token. Written out for SignIn's reason: the route is

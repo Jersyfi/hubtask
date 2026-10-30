@@ -9,7 +9,9 @@ import (
 	"io"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -77,6 +79,10 @@ type restDoor struct {
 	// NullAs passes an explicit null member as the value it names, or leaves it out where that is
 	// nil: a bucket's null limit is the number 0.
 	NullAs map[string]any
+	// UTC are instants that reach the use case in UTC, where it keeps the text it was sent.
+	UTC []string
+	// Words are boolean members the use case reads as their word, `true` or `false`.
+	Words []string
 	// Dropped are body members the contract declares and the use case does not: accepted and
 	// dropped, as before the door was generated, until the owner decides them.
 	Dropped []string
@@ -108,7 +114,7 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 		}
 		for _, name := range d.Query {
 			if value, ok := values[name]; ok && value != nil {
-				in[d.input(name)] = whole(d, name, value)
+				in[d.input(name)] = inUTC(d, name, whole(d, name, value))
 			}
 		}
 	}
@@ -156,10 +162,13 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 						}
 						continue
 					}
+					if flag, ok := value.(bool); ok && slices.Contains(d.Words, name) {
+						value = strconv.FormatBool(flag)
+					}
 					if value == nil && d.NullClears {
 						value = ""
 					}
-					in[name] = whole(d, name, value)
+					in[name] = inUTC(d, name, whole(d, name, value))
 				}
 			}
 		}
@@ -204,7 +213,7 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 	if d.NoStore {
 		w.Header().Set("Cache-Control", "no-store")
 	}
-	if d.ShownOnce != "" && out.String(d.ShownOnce) != "" {
+	if d.ShownOnce != "" && shown(out[d.ShownOnce]) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set(ShownOnceHeader, d.ShownOnce)
 	}
@@ -252,6 +261,19 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 		w.Header().Set("ETag", etag(out.Int(d.ETag)))
 	}
 	writeJSON(w, r, d.Status, written)
+}
+
+// shown says whether a shown-once member carries anything: a secret, or a list of them.
+func shown(value any) bool {
+	switch value := value.(type) {
+	case string:
+		return value != ""
+	case []any:
+		return len(value) > 0
+	case []string:
+		return len(value) > 0
+	}
+	return false
 }
 
 // members reads the generated parameters struct by its JSON names - the contract's.
@@ -320,6 +342,20 @@ func answerData[T any](draw func(usecase.Output) T) answerer {
 		}
 		return map[string]any{"data": data}
 	}
+}
+
+// inUTC hands an instant the door names on in UTC; a text that is no instant stays as sent, for
+// the use case to refuse in its own words.
+func inUTC(d restDoor, name string, value any) any {
+	text, ok := value.(string)
+	if !ok || !slices.Contains(d.UTC, name) {
+		return value
+	}
+	at, err := time.Parse(time.RFC3339Nano, text)
+	if err != nil {
+		return value
+	}
+	return at.UTC().Format(time.RFC3339Nano)
 }
 
 // whole hands an integer the contract declares on as a Go integer rather than JSON's float64.
