@@ -267,7 +267,7 @@ func (q *Queries) ListPlanBaselines(ctx context.Context, planID pgtype.UUID) ([]
 
 const listPlanEntries = `-- name: ListPlanEntries :many
 
-SELECT wi.id, wi.parent_id, wi.collection_id, c.parent_id AS hub_id, wi.assignee_id,
+SELECT wi.id, wi.parent_id, wi.collection_id, c.parent_id AS hub_id, wi.assignee_id, wi.title,
   wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone, wi.is_completed, wi.version,
   coalesce(es.mode, 'MANUAL')::text AS mode, coalesce(es.milestone, false)::boolean AS milestone
 FROM work_item wi
@@ -291,6 +291,7 @@ type ListPlanEntriesRow struct {
 	CollectionID pgtype.UUID
 	HubID        pgtype.UUID
 	AssigneeID   pgtype.UUID
+	Title        string
 	StartAt      pgtype.Timestamptz
 	DueAt        pgtype.Timestamptz
 	DueDateOnly  bool
@@ -321,6 +322,7 @@ func (q *Queries) ListPlanEntries(ctx context.Context, arg ListPlanEntriesParams
 			&i.CollectionID,
 			&i.HubID,
 			&i.AssigneeID,
+			&i.Title,
 			&i.StartAt,
 			&i.DueAt,
 			&i.DueDateOnly,

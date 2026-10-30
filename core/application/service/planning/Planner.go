@@ -312,7 +312,7 @@ func (p Planner) loadOutside(ctx context.Context, actor appshared.ActorContext, 
 			continue
 		}
 		out.Entries[s.ID] = planrepo.PlanEntry{
-			ID: s.ID, CollectionID: s.CollectionID, HubID: s.HubID, StartAt: s.StartAt, DueAt: s.DueAt,
+			ID: s.ID, CollectionID: s.CollectionID, HubID: s.HubID, Title: s.Title, StartAt: s.StartAt, DueAt: s.DueAt,
 			Done: s.Completed, Mode: domain.Manual, Milestone: schedules[s.ID].Milestone,
 		}
 	}

@@ -20002,9 +20002,12 @@ components:
 
     PlanScheduleEntry:
       type: object
-      required: [item_id, start, finish, duration_days, moved, total_float_days, free_float_days, critical, summary, external, mode, milestone, done]
+      required: [item_id, title, parent_id, collection_id, start, finish, duration_days, moved, total_float_days, free_float_days, critical, summary, external, mode, milestone, done]
       properties:
         item_id: { type: string, format: uuid }
+        title: { type: string }
+        parent_id: { type: [string, "null"], format: uuid, description: "The parent entry within the plan; null for a top-level or outside entry." }
+        collection_id: { type: string, format: uuid }
         start: { type: string, format: date }
         finish: { type: string, format: date, description: "The last working day, included." }
         duration_days: { type: integer, description: "Working days; 0 for a milestone." }

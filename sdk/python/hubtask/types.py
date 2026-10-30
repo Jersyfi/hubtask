@@ -1222,6 +1222,9 @@ BusinessHours = TypedDict("BusinessHours", {
 
 class PlanScheduleEntry(TypedDict, total=False):
     item_id: Required[str]
+    title: Required[str]
+    parent_id: Required[str | None]
+    collection_id: Required[str]
     start: Required[str]
     finish: Required[str]
     duration_days: Required[int]

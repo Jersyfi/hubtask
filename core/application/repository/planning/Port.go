@@ -21,6 +21,7 @@ type PlanEntry struct {
 	CollectionID shared.ID
 	HubID        shared.ID
 	AssigneeID   shared.ID
+	Title        string
 	StartAt      *time.Time
 	DueAt        *time.Time
 	DueDateOnly  bool

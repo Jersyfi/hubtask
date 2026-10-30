@@ -73,7 +73,7 @@ func (r PlanningRepository) Entries(ctx context.Context, planID shared.ID, max i
 		}
 		entry := repository.PlanEntry{
 			ID: id, ParentID: parent, CollectionID: collection, HubID: hub, AssigneeID: assignee,
-			StartAt: optionalTime(row.StartAt), DueAt: optionalTime(row.DueAt), DueDateOnly: row.DueDateOnly,
+			Title: row.Title, StartAt: optionalTime(row.StartAt), DueAt: optionalTime(row.DueAt), DueDateOnly: row.DueDateOnly,
 			Done: row.IsCompleted, Version: int(row.Version), Mode: planning.Mode(row.Mode), Milestone: row.Milestone,
 		}
 		if row.DueTimeZone != nil {

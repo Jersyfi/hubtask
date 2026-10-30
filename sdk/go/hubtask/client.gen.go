@@ -15089,8 +15089,9 @@ type PlanSchedule struct {
 
 // PlanScheduleEntry defines model for PlanScheduleEntry.
 type PlanScheduleEntry struct {
-	Critical bool `json:"critical"`
-	Done     bool `json:"done"`
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	Critical     bool               `json:"critical"`
+	Done         bool               `json:"done"`
 
 	// DurationDays Working days; 0 for a milestone.
 	DurationDays int `json:"duration_days"`
@@ -15108,11 +15109,15 @@ type PlanScheduleEntry struct {
 	Mode          PlanScheduleEntryMode `json:"mode"`
 
 	// Moved The scheduler proposes these dates instead of the entry's own.
-	Moved bool               `json:"moved"`
-	Start openapi_types.Date `json:"start"`
+	Moved bool `json:"moved"`
+
+	// ParentId The parent entry within the plan; null for a top-level or outside entry.
+	ParentId *openapi_types.UUID `json:"parent_id"`
+	Start    openapi_types.Date  `json:"start"`
 
 	// Summary A parent whose dates are its children's span.
-	Summary bool `json:"summary"`
+	Summary bool   `json:"summary"`
+	Title   string `json:"title"`
 
 	// TotalFloatDays How far it may slip before the plan's end does; negative on a chain a manual entry breaks.
 	TotalFloatDays int `json:"total_float_days"`

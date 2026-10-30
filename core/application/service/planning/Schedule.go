@@ -71,8 +71,13 @@ func (s Scheduled) Output() usecase.Output {
 		if !mode.Valid() {
 			mode = domain.Manual
 		}
+		var parent any
+		if !entry.ParentID.IsZero() && !s.Loaded.External[p.ID] {
+			parent = entry.ParentID.String()
+		}
 		entries = append(entries, usecase.Output{
-			"item_id": p.ID.String(), "start": p.Start.String(), "finish": p.Finish.String(),
+			"item_id": p.ID.String(), "title": entry.Title, "parent_id": parent,
+			"collection_id": entry.CollectionID.String(), "start": p.Start.String(), "finish": p.Finish.String(),
 			"duration_days": p.Duration, "moved": p.Moved, "total_float_days": p.TotalFloat,
 			"free_float_days": p.FreeFloat, "critical": p.Critical, "summary": p.Summary,
 			"external": s.Loaded.External[p.ID], "mode": string(mode), "milestone": entry.Milestone,

@@ -217,7 +217,7 @@ func newFixture() fixture {
 		schedules: map[shared.ID]planrepo.EntrySchedule{},
 		timings:   map[shared.ID]domain.Timing{},
 		entries: []planrepo.PlanEntry{
-			{ID: design, CollectionID: collection, HubID: hubID, StartAt: at("2026-11-02"), DueAt: at("2026-11-04"), Mode: domain.Manual, Version: 3},
+			{ID: design, CollectionID: collection, HubID: hubID, Title: "Approve the design", StartAt: at("2026-11-02"), DueAt: at("2026-11-04"), Mode: domain.Manual, Version: 3},
 			{ID: build, CollectionID: collection, HubID: hubID, StartAt: at("2026-11-20"), DueAt: at("2026-11-23"), Mode: domain.Automatic, Version: 5},
 			{ID: launch, CollectionID: collection, HubID: hubID, DueAt: at("2026-12-01"), Mode: domain.Automatic, Milestone: true, Version: 1},
 			{ID: secret, CollectionID: collection, HubID: hubID, StartAt: at("2026-11-02"), DueAt: at("2026-11-02"), Mode: domain.Manual},
@@ -273,6 +273,9 @@ func TestAPlanIsScheduledForItsReader(t *testing.T) {
 	}
 	if l := entryOf(t, out, launch); l["start"] != "2026-11-06" || l["milestone"] != true || l["duration_days"] != 0 {
 		t.Errorf("launch = %v, want the milestone on the Friday build finishes", l)
+	}
+	if d := entryOf(t, out, design); d["title"] != "Approve the design" || d["parent_id"] != nil || d["collection_id"] != collection.String() {
+		t.Errorf("design = %v, want its title, no parent and its collection for the chart", d)
 	}
 	if d := entryOf(t, out, design); d["moved"] != false || d["critical"] != true {
 		t.Errorf("design = %v", d)

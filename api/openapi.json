@@ -27697,6 +27697,9 @@
         "type": "object",
         "required": [
           "item_id",
+          "title",
+          "parent_id",
+          "collection_id",
           "start",
           "finish",
           "duration_days",
@@ -27712,6 +27715,21 @@
         ],
         "properties": {
           "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The parent entry within the plan; null for a top-level or outside entry."
+          },
+          "collection_id": {
             "type": "string",
             "format": "uuid"
           },

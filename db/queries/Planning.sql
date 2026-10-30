@@ -5,7 +5,7 @@
 -- name: ListPlanEntries :many
 -- The entries of a plan that are neither trashed nor archived, with their mode, in a stable order,
 -- bounded.
-SELECT wi.id, wi.parent_id, wi.collection_id, c.parent_id AS hub_id, wi.assignee_id,
+SELECT wi.id, wi.parent_id, wi.collection_id, c.parent_id AS hub_id, wi.assignee_id, wi.title,
   wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone, wi.is_completed, wi.version,
   coalesce(es.mode, 'MANUAL')::text AS mode, coalesce(es.milestone, false)::boolean AS milestone
 FROM work_item wi
