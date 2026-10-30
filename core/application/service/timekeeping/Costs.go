@@ -149,6 +149,9 @@ func (h SetCostRate) Execute(ctx context.Context, actor appshared.ActorContext, 
 		if err := h.Keeper.Resources.PutRate(ctx, r, expected, actor.AccountID, now); err != nil {
 			return err
 		}
+		if err := h.Keeper.ratesChanged(ctx, actor); err != nil {
+			return err
+		}
 		r.Version = expected + 1
 		subject := "role"
 		if !r.AccountID.IsZero() {
@@ -235,6 +238,9 @@ func (h RemoveCostRate) Execute(ctx context.Context, actor appshared.ActorContex
 	now := h.Keeper.Clock.Now()
 	return h.Keeper.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if err := h.Keeper.Resources.RemoveRate(ctx, id, expected); err != nil {
+			return err
+		}
+		if err := h.Keeper.ratesChanged(ctx, actor); err != nil {
 			return err
 		}
 		return h.Keeper.record(ctx, actor, RateRemovedAction, rateTarget, id, now)
@@ -433,6 +439,9 @@ func (h SetBudget) Execute(ctx context.Context, actor appshared.ActorContext, b 
 			return err
 		}
 		b.Version = expected + 1
+		if err := h.Keeper.budgetChanged(ctx, actor, b.PlanID, &b); err != nil {
+			return err
+		}
 		return h.Keeper.record(ctx, actor, BudgetSetAction, budgetTarget, b.PlanID, now,
 			audit.Change{Field: "minutes", Classification: audit.Open, From: strconv.FormatInt(before.Minutes, 10), To: strconv.FormatInt(b.Minutes, 10)},
 			audit.Change{Field: "amount_minor", Classification: audit.Open, From: strconv.FormatInt(before.AmountMinor, 10), To: strconv.FormatInt(b.AmountMinor, 10)},
@@ -493,6 +502,9 @@ func (h RemoveBudget) Execute(ctx context.Context, actor appshared.ActorContext,
 	now := h.Keeper.Clock.Now()
 	return h.Keeper.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if err := h.Keeper.Resources.RemoveBudget(ctx, planID, expected); err != nil {
+			return err
+		}
+		if err := h.Keeper.budgetChanged(ctx, actor, planID, nil); err != nil {
 			return err
 		}
 		return h.Keeper.record(ctx, actor, BudgetRemovedAction, budgetTarget, planID, now)

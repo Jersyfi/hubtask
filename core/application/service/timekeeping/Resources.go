@@ -166,6 +166,9 @@ func (h SetCapacity) Execute(ctx context.Context, actor appshared.ActorContext, 
 		if err := h.Keeper.Resources.PutCapacity(ctx, h.Keeper.IDs.NewID(), c, actor.AccountID, now); err != nil {
 			return err
 		}
+		if err := h.Keeper.capacitiesChanged(ctx, actor, c.AccountID); err != nil {
+			return err
+		}
 		total := 0
 		for _, m := range c.WeekMinutes {
 			total += m
@@ -249,6 +252,9 @@ func (h RemoveCapacity) Execute(ctx context.Context, actor appshared.ActorContex
 		}
 		if !removed {
 			return shared.ErrNotFound.WithDetail("time.capacity_not_found")
+		}
+		if err := h.Keeper.capacitiesChanged(ctx, actor, account); err != nil {
+			return err
 		}
 		return h.Keeper.record(ctx, actor, CapacityRemovedAction, capacityTarget, account, now,
 			audit.Change{Field: "from", Classification: audit.Open, From: from.String()})
@@ -371,6 +377,9 @@ func (h RecordAbsence) Execute(ctx context.Context, actor appshared.ActorContext
 		if err := h.Keeper.Resources.PutAbsence(ctx, a, 0, actor.AccountID, now); err != nil {
 			return err
 		}
+		if err := h.Keeper.absenceChanged(ctx, actor, a.ID, &a); err != nil {
+			return err
+		}
 		return h.Keeper.record(ctx, actor, AbsenceRecordedAction, absenceTarget, a.ID, now, absenceChanges(domain.Absence{}, a)...)
 	})
 	return a, err
@@ -489,6 +498,9 @@ func (h UpdateAbsence) Execute(ctx context.Context, actor appshared.ActorContext
 		if err := h.Keeper.Resources.PutAbsence(ctx, a, expected, actor.AccountID, now); err != nil {
 			return err
 		}
+		if err := h.Keeper.absenceChanged(ctx, actor, a.ID, &a); err != nil {
+			return err
+		}
 		return h.Keeper.record(ctx, actor, AbsenceUpdatedAction, absenceTarget, a.ID, now, absenceChanges(before, a)...)
 	})
 	return a, err
@@ -552,6 +564,9 @@ func (h RemoveAbsence) Execute(ctx context.Context, actor appshared.ActorContext
 	now := h.Keeper.Clock.Now()
 	return h.Keeper.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if err := h.Keeper.Resources.RemoveAbsence(ctx, id, expected); err != nil {
+			return err
+		}
+		if err := h.Keeper.absenceChanged(ctx, actor, id, nil); err != nil {
 			return err
 		}
 		return h.Keeper.record(ctx, actor, AbsenceRemovedAction, absenceTarget, id, now,

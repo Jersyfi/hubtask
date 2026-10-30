@@ -445,7 +445,7 @@ func (TimeRepository) RemoveTimer(ctx context.Context, account shared.ID) (bool,
 }
 
 func sheetFrom(
-	accountValue pgtype.UUID, week pgtype.Date, state string, minutes int32, submitted, decided pgtype.Timestamptz,
+	idValue, accountValue pgtype.UUID, week pgtype.Date, state string, minutes int32, submitted, decided pgtype.Timestamptz,
 	decidedByValue pgtype.UUID, reason string, version int32,
 ) (domain.Timesheet, error) {
 	account, err := idFrom(accountValue)
@@ -456,8 +456,12 @@ func sheetFrom(
 	if err != nil {
 		return domain.Timesheet{}, err
 	}
+	id, err := idFrom(idValue)
+	if err != nil {
+		return domain.Timesheet{}, err
+	}
 	return domain.Timesheet{
-		AccountID: account, WeekStart: dateDay(week), State: domain.SheetState(state), Minutes: int(minutes),
+		ID: id, AccountID: account, WeekStart: dateDay(week), State: domain.SheetState(state), Minutes: int(minutes),
 		SubmittedAt: optionalTime(submitted), DecidedAt: optionalTime(decided), DecidedBy: decidedBy,
 		Reason: reason, Version: int(version),
 	}, nil
@@ -480,7 +484,7 @@ func (TimeRepository) Sheet(ctx context.Context, account shared.ID, week domain.
 	if err != nil {
 		return domain.Timesheet{}, false, timeError(err, "reading a week")
 	}
-	sheet, err := sheetFrom(row.AccountID, row.WeekStart, row.State, row.Minutes, row.SubmittedAt, row.DecidedAt,
+	sheet, err := sheetFrom(row.ID, row.AccountID, row.WeekStart, row.State, row.Minutes, row.SubmittedAt, row.DecidedAt,
 		row.DecidedBy, row.Reason, row.Version)
 	return sheet, err == nil, err
 }
@@ -506,7 +510,7 @@ func (TimeRepository) Sheets(
 	}
 	out := make([]domain.Timesheet, 0, len(rows))
 	for _, r := range rows {
-		sheet, err := sheetFrom(r.AccountID, r.WeekStart, r.State, r.Minutes, r.SubmittedAt, r.DecidedAt,
+		sheet, err := sheetFrom(r.ID, r.AccountID, r.WeekStart, r.State, r.Minutes, r.SubmittedAt, r.DecidedAt,
 			r.DecidedBy, r.Reason, r.Version)
 		if err != nil {
 			return nil, err

@@ -40,6 +40,8 @@ const MaxReasonLength = 500
 
 // Timesheet is one person's week from Monday.
 type Timesheet struct {
+	// ID is the week's row, empty for a week nobody has handed in yet.
+	ID        shared.ID
 	AccountID shared.ID
 	WeekStart Day
 	State     SheetState

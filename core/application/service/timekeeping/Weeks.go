@@ -260,13 +260,20 @@ func (h CopyTimesheetWeek) Descriptor() usecase.Descriptor {
 	}, sheetTarget)
 }
 
-// putSheet writes a week inside the caller's transaction, a new row for a week never handed in.
-func (k Keeper) putSheet(ctx context.Context, s domain.Timesheet, held bool, before int, now time.Time) error {
+// putSheet writes a week inside the caller's transaction, a new row for a week never handed in,
+// and tells its person's devices.
+func (k Keeper) putSheet(ctx context.Context, actor appshared.ActorContext, s *domain.Timesheet, held bool, before int, now time.Time) error {
 	expected := 0
 	if held {
 		expected = before
+	} else {
+		s.ID = k.IDs.NewID()
 	}
-	return k.Store.PutSheet(ctx, k.IDs.NewID(), s, expected, now)
+	if err := k.Store.PutSheet(ctx, s.ID, *s, expected, now); err != nil {
+		return err
+	}
+	s.Version = before + 1
+	return k.sheetChanged(ctx, actor, *s)
 }
 
 // SubmitTimesheet hands the caller's week in; its records no longer change until it is sent back.
@@ -291,10 +298,9 @@ func (h SubmitTimesheet) Execute(ctx context.Context, actor appshared.ActorConte
 		if out, err = sheet.Submit(minutes, now); err != nil {
 			return err
 		}
-		if err := h.Keeper.putSheet(ctx, out, held, sheet.Version, now); err != nil {
+		if err := h.Keeper.putSheet(ctx, actor, &out, held, sheet.Version, now); err != nil {
 			return err
 		}
-		out.Version = sheet.Version + 1
 		return h.Keeper.record(ctx, actor, SheetSubmittedAction, sheetTarget, actor.AccountID, now,
 			audit.Change{Field: "week_start", Classification: audit.Open, To: out.WeekStart.String()},
 			audit.Change{Field: "minutes", Classification: audit.Open, To: strconv.Itoa(minutes)})
@@ -344,10 +350,9 @@ func (h WithdrawTimesheet) Execute(ctx context.Context, actor appshared.ActorCon
 		if out, err = sheet.Withdraw(); err != nil {
 			return err
 		}
-		if err := h.Keeper.putSheet(ctx, out, held, sheet.Version, now); err != nil {
+		if err := h.Keeper.putSheet(ctx, actor, &out, held, sheet.Version, now); err != nil {
 			return err
 		}
-		out.Version = sheet.Version + 1
 		return h.Keeper.record(ctx, actor, SheetWithdrawnAction, sheetTarget, actor.AccountID, now,
 			audit.Change{Field: "week_start", Classification: audit.Open, To: out.WeekStart.String()})
 	})
@@ -419,10 +424,13 @@ func (k Keeper) decide(
 		if out, err = apply(sheet, now); err != nil {
 			return err
 		}
-		if err := k.Store.PutSheet(ctx, "", out, sheet.Version, now); err != nil {
+		if err := k.Store.PutSheet(ctx, out.ID, out, sheet.Version, now); err != nil {
 			return err
 		}
 		out.Version = sheet.Version + 1
+		if err := k.sheetChanged(ctx, actor, out); err != nil {
+			return err
+		}
 		return k.record(ctx, actor, action, sheetTarget, account, now,
 			audit.Change{Field: "week_start", Classification: audit.Open, To: out.WeekStart.String()},
 			audit.Change{Field: "state", Classification: audit.Open, From: string(sheet.State), To: string(out.State)})
