@@ -18,6 +18,7 @@
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import PlanReach from './PlanReach.svelte';
 
   interface Props {
     /** A hub taking a template's hub part; omitted is the workspace. */
@@ -164,6 +165,7 @@
             <li><code>{change.op}</code> {change.path}</li>
           {/each}
         </ul>
+        <PlanReach reach={plan.reach} />
         {#if needsAcknowledge(plan.flags)}
           <Checkbox label={t('app.changes.acknowledge')} checked={acknowledged}
             onchange={(event: Event) => (acknowledged = (event.currentTarget as HTMLInputElement).checked)} />

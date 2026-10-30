@@ -9,7 +9,7 @@
  */
 
 import type {
-  ConfigApplyResult, ConfigExport, ConfigPlan, ConfigProposalList, ConfigSandbox, ConfigTemplateList, ConfigTemplatePlan, ConfigVersion,
+  ConfigApplyResult, ConfigExport, ConfigPlan, ConfigProposal, ConfigProposalList, ConfigSandbox, ConfigTemplateList, ConfigTemplatePlan, ConfigVersion,
   ConfigVersionList, ResourceState,
 } from '@hubtask/sync-engine';
 
@@ -59,6 +59,17 @@ class Config {
   /** Plans going back to a version; writes nothing. */
   async planRollback(version: number): Promise<ConfigPlan> {
     return engine.mutate<ConfigPlan>('POST', '/config:plan', { to_version: version });
+  }
+
+  /**
+   * Plans a proposal's document afresh against the configuration in force, as the reader - the
+   * preview a person decides it by. Writes nothing.
+   */
+  async planProposal(proposal: ConfigProposal): Promise<ConfigPlan> {
+    return engine.mutate<ConfigPlan>('POST', '/config:plan', {
+      document: proposal.document, mode: proposal.mode,
+      ...(proposal.hub_id ? { hub_id: proposal.hub_id } : {}),
+    });
   }
 
   /** Applies a rollback by the plan's hash. */

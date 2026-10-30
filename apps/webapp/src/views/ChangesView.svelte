@@ -12,7 +12,7 @@
 
   import { untrack } from 'svelte';
   import { Banner, Button, Checkbox, CodeBlock, Dialog, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
-  import type { ConfigExport, ConfigPlan, ConfigProposalList, ConfigSandbox, ConfigVersion, ConfigVersionList, ResourceState } from '@hubtask/sync-engine';
+  import type { ConfigExport, ConfigPlan, ConfigProposal, ConfigProposalList, ConfigSandbox, ConfigVersion, ConfigVersionList, ResourceState } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { config, needsAcknowledge } from '../lib/data/config.svelte.ts';
@@ -25,6 +25,7 @@
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import PlanReach from '../lib/settings/PlanReach.svelte';
 
   $effect(() => page.entitle(t('app.changes.title')));
 
@@ -63,6 +64,24 @@
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
     } finally {
       busy = undefined;
+    }
+  }
+
+  // An agent's proposal is shown with the same preview as any plan (config-document.md §3): planned
+  // afresh against the configuration in force, as the reader, writing nothing.
+  let previewing = $state<string>();
+  let previewed = $state<ConfigPlan>();
+  let isPreviewOpen = $state(false);
+
+  async function preview(proposal: ConfigProposal) {
+    previewing = proposal.id;
+    try {
+      previewed = await config.planProposal(proposal);
+      isPreviewOpen = true;
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    } finally {
+      previewing = undefined;
     }
   }
 
@@ -235,6 +254,7 @@
                     disabledReason={needsAcknowledge(proposal) && !acknowledged[proposal.id] ? t('app.changes.acknowledge_first') : undefined}
                     onclick={() => decide(proposal.id, 'APPLY')}>{t('app.changes.apply')}</Button>
                   <Button tone="subtle" size="sm" data-decline={proposal.id} onclick={() => decide(proposal.id, 'DECLINE')}>{t('app.changes.decline')}</Button>
+                  <Button tone="subtle" size="sm" isBusy={previewing === proposal.id} data-preview={proposal.id} onclick={() => preview(proposal)}>{t('app.changes.preview')}</Button>
                 </div>
               </Stack>
             {/if}
@@ -370,6 +390,7 @@
             <li><code>{change.op}</code> {change.path}</li>
           {/each}
         </ul>
+        <PlanReach reach={promotion.reach} />
         {#if mayChange && needsAcknowledge(promotion.flags)}
           <Checkbox label={t('app.changes.acknowledge')} checked={acknowledgePromotion}
             onchange={(event: Event) => (acknowledgePromotion = (event.currentTarget as HTMLInputElement).checked)} />
@@ -404,6 +425,30 @@
   </section>
 </Stack>
 
+{#if previewed}
+  <Dialog bind:isOpen={isPreviewOpen} title={t('app.changes.preview_title')} dismissLabel={t('app.changes.cancel')}>
+    <Stack gap="150">
+      {#if previewed.refusals.length > 0}
+        <Banner tone="danger" title={t('app.changes.preview_refused')}>
+          <ul class="changes">
+            {#each previewed.refusals as refused (refused.path + refused.code)}
+              <li><code>{refused.path}</code> {refused.code}</li>
+            {/each}
+          </ul>
+        </Banner>
+      {:else}
+        <p class="quiet">{counts(previewed.counts)}</p>
+        <ul class="changes">
+          {#each previewed.changes as change (change.path)}
+            <li><code>{change.op}</code> {change.path}</li>
+          {/each}
+        </ul>
+        <PlanReach reach={previewed.reach} />
+      {/if}
+    </Stack>
+  </Dialog>
+{/if}
+
 {#if plan && rollingBack !== undefined}
   <Dialog bind:isOpen={isRollbackOpen} title={t('app.changes.rollback_title', { version: rollingBack })} dismissLabel={t('app.changes.cancel')}>
     <Stack gap="150">
@@ -416,26 +461,7 @@
             <li><code>{change.op}</code> {change.path}</li>
           {/each}
         </ul>
-        {#if plan.reach && plan.reach.length > 0}
-          <ul class="changes" data-reach>
-            {#each plan.reach as reached (reached.path)}
-              {#if reached.withheld}
-                <li>{t('app.changes.reach_withheld', { path: reached.path })}</li>
-              {:else if reached.entries !== undefined}
-                <li>{t('app.changes.reach_entries', { path: reached.path, count: reached.entries })}</li>
-              {/if}
-              {#if !reached.withheld && reached.hidden_entries !== undefined}
-                <li>{t('app.changes.reach_hidden', { path: reached.path, entries: reached.hidden_entries, values: reached.hidden_values ?? 0 })}</li>
-              {/if}
-              {#if !reached.withheld && reached.accounts !== undefined}
-                <li>{t('app.changes.reach_people', {
-                  path: reached.path, accounts: reached.accounts, groups: reached.groups ?? 0,
-                  gained: reached.gained?.length ?? 0, lost: reached.lost?.length ?? 0,
-                })}</li>
-              {/if}
-            {/each}
-          </ul>
-        {/if}
+        <PlanReach reach={plan.reach} />
         {#if needsAcknowledge(plan.flags)}
           <Checkbox label={t('app.changes.acknowledge')} checked={acknowledgeRollback}
             onchange={(event: Event) => (acknowledgeRollback = (event.currentTarget as HTMLInputElement).checked)} />
