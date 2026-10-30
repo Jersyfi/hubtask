@@ -1,0 +1,385 @@
+{
+  "key": "classic_project",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "planning": {
+        "switch": "ON"
+      },
+      "knowledge": {
+        "switch": "ON"
+      }
+    },
+    "roles": {
+      "project_board": {
+        "name": "Project board",
+        "permissions": [
+          "READ",
+          "COMMENT"
+        ]
+      }
+    },
+    "fields": {
+      "probability": {
+        "kind": "SELECT",
+        "options": [
+          "High",
+          "Medium",
+          "Low"
+        ],
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "impact": {
+        "kind": "SELECT",
+        "options": [
+          "High",
+          "Medium",
+          "Low"
+        ],
+        "applies_to": [
+          "TASK"
+        ]
+      }
+    },
+    "types": {
+      "deliverable": {
+        "level": "TASK",
+        "name": "Deliverable",
+        "icon": "briefcase",
+        "color_token": "blue",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ]
+        }
+      },
+      "risk": {
+        "level": "TASK",
+        "name": "Risk",
+        "icon": "shield",
+        "color_token": "amber",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ]
+        }
+      },
+      "issue": {
+        "level": "TASK",
+        "name": "Issue",
+        "icon": "circle-alert",
+        "color_token": "red",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ]
+        }
+      },
+      "change_request": {
+        "level": "TASK",
+        "name": "Change request",
+        "icon": "git-branch",
+        "color_token": "violet",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "deliverable": {
+        "name": "Deliverable",
+        "shape": {
+          "initial": "planned",
+          "statuses": [
+            {
+              "key": "planned",
+              "name": "Planned",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "in_progress",
+              "name": "In progress",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "accepted",
+              "name": "Accepted",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "start",
+              "name": "Start",
+              "from": [
+                "planned"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "accept",
+              "name": "Accept",
+              "from": [
+                "in_progress"
+              ],
+              "to": "accepted"
+            },
+            {
+              "key": "reopen",
+              "name": "Reopen",
+              "from": [
+                "accepted"
+              ],
+              "to": "in_progress"
+            }
+          ]
+        }
+      },
+      "risk": {
+        "name": "Risk",
+        "shape": {
+          "initial": "identified",
+          "statuses": [
+            {
+              "key": "identified",
+              "name": "Identified",
+              "category": "TODO",
+              "color_token": "amber"
+            },
+            {
+              "key": "mitigating",
+              "name": "Mitigating",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "closed",
+              "name": "Closed",
+              "category": "DONE",
+              "color_token": "slate"
+            }
+          ],
+          "steps": [
+            {
+              "key": "mitigate",
+              "name": "Mitigate",
+              "from": [
+                "identified"
+              ],
+              "to": "mitigating"
+            },
+            {
+              "key": "close",
+              "name": "Close",
+              "from": [
+                "identified",
+                "mitigating"
+              ],
+              "to": "closed"
+            }
+          ]
+        }
+      },
+      "issue": {
+        "name": "Issue",
+        "shape": {
+          "initial": "open",
+          "statuses": [
+            {
+              "key": "open",
+              "name": "Open",
+              "category": "TODO",
+              "color_token": "red"
+            },
+            {
+              "key": "resolving",
+              "name": "Resolving",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "resolved",
+              "name": "Resolved",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "resolve_start",
+              "name": "Work on it",
+              "from": [
+                "open"
+              ],
+              "to": "resolving"
+            },
+            {
+              "key": "resolve",
+              "name": "Resolve",
+              "from": [
+                "open",
+                "resolving"
+              ],
+              "to": "resolved"
+            }
+          ]
+        }
+      },
+      "change_request": {
+        "name": "Change request",
+        "shape": {
+          "initial": "raised",
+          "statuses": [
+            {
+              "key": "raised",
+              "name": "Raised",
+              "category": "BACKLOG",
+              "color_token": "slate"
+            },
+            {
+              "key": "assessing",
+              "name": "Assessing",
+              "category": "TODO",
+              "color_token": "amber"
+            },
+            {
+              "key": "approved",
+              "name": "Approved",
+              "category": "DONE",
+              "color_token": "green"
+            },
+            {
+              "key": "rejected",
+              "name": "Rejected",
+              "category": "DONE",
+              "color_token": "slate"
+            }
+          ],
+          "steps": [
+            {
+              "key": "assess",
+              "name": "Assess",
+              "from": [
+                "raised"
+              ],
+              "to": "assessing"
+            },
+            {
+              "key": "approve",
+              "name": "Approve",
+              "from": [
+                "assessing"
+              ],
+              "to": "approved"
+            },
+            {
+              "key": "reject",
+              "name": "Reject",
+              "from": [
+                "assessing"
+              ],
+              "to": "rejected"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "planning": {
+        "switch": "ON"
+      },
+      "knowledge": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "deliverable": {
+        "workflow": "deliverable"
+      },
+      "risk": {
+        "workflow": "risk"
+      },
+      "issue": {
+        "workflow": "issue"
+      },
+      "change_request": {
+        "workflow": "change_request"
+      }
+    }
+  }
+}

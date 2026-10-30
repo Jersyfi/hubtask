@@ -1,0 +1,119 @@
+{
+  "key": "kanban_team",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "types": {
+      "card": {
+        "level": "TASK",
+        "name": "Card",
+        "icon": "square-check",
+        "color_token": "blue",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "card": {
+        "name": "Card",
+        "shape": {
+          "initial": "todo",
+          "statuses": [
+            {
+              "key": "todo",
+              "name": "To do",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "doing",
+              "name": "Doing",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "review",
+              "name": "Review",
+              "category": "IN_PROGRESS",
+              "color_token": "violet"
+            },
+            {
+              "key": "done",
+              "name": "Done",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "pull",
+              "name": "Pull",
+              "from": [
+                "todo"
+              ],
+              "to": "doing"
+            },
+            {
+              "key": "review",
+              "name": "Ask for review",
+              "from": [
+                "doing"
+              ],
+              "to": "review"
+            },
+            {
+              "key": "rework",
+              "name": "Rework",
+              "from": [
+                "review"
+              ],
+              "to": "doing"
+            },
+            {
+              "key": "finish",
+              "name": "Finish",
+              "from": [
+                "review"
+              ],
+              "to": "done"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "card": {
+        "workflow": "card"
+      }
+    }
+  }
+}

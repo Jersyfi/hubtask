@@ -1,0 +1,280 @@
+{
+  "key": "scrum_team",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "planning": {
+        "switch": "ON"
+      },
+      "knowledge": {
+        "switch": "ON"
+      }
+    },
+    "roles": {
+      "product_owner": {
+        "name": "Product Owner",
+        "permissions": [
+          "READ",
+          "COMMENT",
+          "WRITE_ITEMS"
+        ]
+      }
+    },
+    "types": {
+      "story": {
+        "level": "TASK",
+        "name": "Story",
+        "icon": "book-open",
+        "color_token": "blue",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ]
+        }
+      },
+      "bug": {
+        "level": "TASK",
+        "name": "Bug",
+        "icon": "triangle-alert",
+        "color_token": "red",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "story": {
+        "name": "Story",
+        "shape": {
+          "initial": "backlog",
+          "statuses": [
+            {
+              "key": "backlog",
+              "name": "Backlog",
+              "category": "BACKLOG",
+              "color_token": "slate"
+            },
+            {
+              "key": "todo",
+              "name": "To do",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "in_progress",
+              "name": "In progress",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "in_review",
+              "name": "In review",
+              "category": "IN_PROGRESS",
+              "color_token": "violet"
+            },
+            {
+              "key": "done",
+              "name": "Done",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "plan",
+              "name": "Plan",
+              "from": [
+                "backlog"
+              ],
+              "to": "todo"
+            },
+            {
+              "key": "start",
+              "name": "Start",
+              "from": [
+                "todo"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "review",
+              "name": "Ask for review",
+              "from": [
+                "in_progress"
+              ],
+              "to": "in_review"
+            },
+            {
+              "key": "rework",
+              "name": "Rework",
+              "from": [
+                "in_review"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "finish",
+              "name": "Finish",
+              "from": [
+                "in_review"
+              ],
+              "to": "done"
+            },
+            {
+              "key": "reopen",
+              "name": "Reopen",
+              "from": [
+                "done"
+              ],
+              "to": "todo"
+            }
+          ]
+        }
+      },
+      "bug": {
+        "name": "Bug",
+        "shape": {
+          "initial": "backlog",
+          "statuses": [
+            {
+              "key": "backlog",
+              "name": "Backlog",
+              "category": "BACKLOG",
+              "color_token": "slate"
+            },
+            {
+              "key": "todo",
+              "name": "To do",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "in_progress",
+              "name": "In progress",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "in_review",
+              "name": "In review",
+              "category": "IN_PROGRESS",
+              "color_token": "violet"
+            },
+            {
+              "key": "done",
+              "name": "Done",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "plan",
+              "name": "Plan",
+              "from": [
+                "backlog"
+              ],
+              "to": "todo"
+            },
+            {
+              "key": "start",
+              "name": "Start",
+              "from": [
+                "todo"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "review",
+              "name": "Ask for review",
+              "from": [
+                "in_progress"
+              ],
+              "to": "in_review"
+            },
+            {
+              "key": "rework",
+              "name": "Rework",
+              "from": [
+                "in_review"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "finish",
+              "name": "Finish",
+              "from": [
+                "in_review"
+              ],
+              "to": "done"
+            },
+            {
+              "key": "reopen",
+              "name": "Reopen",
+              "from": [
+                "done"
+              ],
+              "to": "todo"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "planning": {
+        "switch": "ON"
+      },
+      "knowledge": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "story": {
+        "workflow": "story"
+      },
+      "bug": {
+        "workflow": "bug"
+      }
+    }
+  }
+}
