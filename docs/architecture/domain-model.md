@@ -340,7 +340,9 @@ structure setting the workspace decides itself, set and reset through `SetWorksp
 `locks` - the workspace's whole set of locks - and `default_preset`, a Hubtask preset's key or a
 workspace preset's `preset_id`, which a published template leaves out), `workflows`,
 `business_calendars`, `sla_policies` and `reply_templates` (the service desk's, each defined whole
-under its key), `settings` (the catalogue settings the workspace decided itself by their catalogue
+under its key), `views` (the views shared workspace-wide, a queue among them) and `rules` (the
+workspace's automation rules, a macro among them) by the stable key a view and a rule carry in their
+scope (migration 0286: the writer's, or drawn from the name; a taken one refused), `settings` (the catalogue settings the workspace decided itself by their catalogue
 key: the sign-in switches and legal links, the localisation, the AI narrowing and opt-out,
 `config.agent_apply`, `knowledge.public_links`; a value left to the level above has no block but is
 explained) - each
@@ -377,7 +379,8 @@ the preset's version); a workspace template may not take one of those keys
 `hub_id` on the plan and the apply, once the workspace took the template
 (`config.template_workspace_first`; one without a hub part is `config.template_not_for_hubs`), and
 the part taken is that hub's base (`config_hub_template_use`). The ITIL template's hub part says
-which of its workflows each of its types follows in the hub. The five tables are in the workspace
+which of its workflows each of its types follows in the hub, and brings the desk's queues (*Mine*,
+*Unassigned*, *About to breach*, *Unhappy*) and macros as the hub's views and rules. The five tables are in the workspace
 archive (tenant-export.md §6).
 A plan also says what it **reaches** beyond the configuration, in counts: the entries a workflow's
 new shape moves (its publish preview, `PreviewWorkflowPublish`, given the shape the plan sets - a
@@ -388,9 +391,16 @@ role the people and groups that hold it and the permissions gained and lost.
 `structure` (the settings the hub decides itself, through `SetContainerStructure`), `scheme`
 (which workflow it runs per entry type, `every_type` for the row without one) and
 `business_calendars` (its own versions of the workspace's calendars under their keys, through
-`DefineHubCalendar` and `DeleteHubCalendar`), authorised as
-`STRUCTURE` at the hub. The hub is named by the request and never inside the document, so one hub's
-document applies to another unchanged; its versions are the workspace's numbering with `hub_id`
+`DefineHubCalendar` and `DeleteHubCalendar`), `views` and `rules` (the views shared on the hub and
+the rules scoped to it), authorised as
+`STRUCTURE` at the hub. The hub is named by the request and inside the document as `@hub`, so one
+hub's document applies to another unchanged. A view's anchor, a `collection_id` it filters on and a
+rule step's `…collection_id`, `…container_id` or `…hub_id` name a place by its handle - a hub has one
+as a collection has since migration 0286 - and an identifier no handle is known for stays as it is;
+a rule a document brings acts as whoever applies it unless it names `run_as`, is written switched
+off and then switched on where its block says `enabled`; a rule listing longer than an export walks
+(fifty pages of 200) refuses the document (`config.section_too_large`) rather than leaving rules out
+that an apply would read as removed; its versions are the workspace's numbering with `hub_id`
 set (migration 0223), listed in the hub's history only, and a version restores only its own scope
 (`config.version_other_scope`). **The sandbox** (`config_sandbox`, migration 0224, one per
 workspace) is a copy of the document without content and the copy it started from:
