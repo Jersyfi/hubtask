@@ -59,6 +59,15 @@ generates the declared subset into the repository, so what ships is those shapes
 package. ISC is permissive with one obligation - keep the notice, which is this row. Lucide is
 itself a fork of Feather (MIT), and its LICENSE carries both notices.
 
+## Libraries bundled into the web app
+
+Not linked into the binary, but shipped inside the web bundle it serves. The list grows with each
+library a step accepts; each notice is under `third-party/licenses/_bundled/`.
+
+| Library | Licence | For |
+|---|---|---|
+| [@marcbachmann/cel-js](https://github.com/marcbachmann/cel-js/blob/main/LICENSE) 8.0.0 | MIT | The browser's evaluator of forms and calculated fields offline (`packages/expression`) |
+
 ## Brand marks
 
 The sign-in buttons carry the mark of a provider a workspace can pick as a preset. A mark is not
