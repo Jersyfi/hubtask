@@ -367,6 +367,7 @@ tenants, data categories and period within 72 hours
 | Chat room notifications (UC-INT-12) | Title and link only, never a note or a comment; only where an administrator subscribed the room |
 | Code from a forge (UC-INT-13) | Inbound only: a commit's subject, a branch's name, a pull request's title, address and the forge's account name are kept on the entry; a description and a full message are read for keys and not kept; nothing is sent to the forge |
 | Files in a store (UC-INT-14) | A file's address and name are kept on the entry and erased with it; the file stays in its store and is never fetched; the person who linked it is a subject of the access export |
+| A calendar push (UC-INT-16) | The person's own feed written into their own calendar at Microsoft or Google: each dated entry's title, moment and link leave to the provider the person chose, nothing else; the provider account's address and the sealed grant are kept until they disconnect, never archived nor in the access export, which the person reads on *Your settings → Calendars* |
 | Visibility of profile data to other tenant members | Minimal (display name, avatar) |
 | Retention | The shortest defensible periods (§5) |
 

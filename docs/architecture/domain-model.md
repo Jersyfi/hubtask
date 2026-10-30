@@ -1025,6 +1025,14 @@ store by its https address, with a name and the store (told by the address unles
 entry and address, at most fifty per entry. The file is never fetched or copied; a link taken off
 leaves it in its store (UC-INT-14, migration 0276, archived).
 
+### 3.15 A calendar feed pushed into a calendar (context: Integration, M10)
+
+A **`CalendarPush`** writes its owner's own calendar feed into their calendar at Microsoft 365 or
+Google: one per feed and provider, at most ten per person, `ACTIVE` until a refusal for good -
+the grant revoked, the feed gone - makes it `FAILED`. A **`PushedEvent`** is what it wrote for one
+entry, the provider's event and a digest, so a run writes only what changed (`PlanPush`)
+(UC-INT-16, migration 0278, not archived: the grant opens on one installation).
+
 ## 4. Domain events
 
 Named `de.hubtask.<context>.<entity>.<action>.v1`, every event carries `tenantId`,

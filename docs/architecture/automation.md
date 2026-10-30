@@ -575,6 +575,25 @@ names a wire protocol (engineering-guidelines.md §2, item 17); nothing calls th
 * **Offline**: a link is the change log's `code_link`, filed under its entry's collection.
 * **Retention**: a hook is switched off, never removed; its links go with their entry.
 
+### 3.6 A calendar feed pushed into a calendar
+
+A person's calendar feed is written into their own calendar at Microsoft 365 (Graph,
+`/me/events`) or Google (Calendar API, the primary calendar)
+([UC-INT-16](../usecases/integration/UC-INT-16-write-my-calendar-feed-into-my-calendar.md)).
+
+* **Consent**: the mailboxes' installation apps (`HUBTASK_MAIL_OAUTH_*`) with PKCE and a scope for
+  the calendar's events alone (`Calendars.ReadWrite`, `calendar.events`); the provider sends the
+  browser back to `/profile/calendars`, which the operator registers as a second redirect URI.
+  The refresh token is sealed under the push's own purpose label; a rotated one is sealed again.
+* **Run**: one detached `calendar.push` job per push, every quarter hour. It reads the feed as its
+  owner now - the `.ics` route's own reader - and compares each entry's digest with what it wrote
+  (`calendar_push_event`): new entries are created, changed ones patched, gone ones deleted.
+  Events are free, without a reminder, a timed entry half an hour long.
+* **Refusals**: a grant the provider no longer takes or a feed gone stops the push (`FAILED`, its
+  code kept); anything else is tried again at the next run.
+* **Retention**: disconnecting removes the push and what it wrote is forgotten here; the events
+  stay in the calendar. Not archived: the grant opens on one installation only.
+
 ---
 
 ## 4. Why automation is its own service
