@@ -20,30 +20,7 @@ import (
 
 const (
 	getContainerUseCase  = "GetContainer"
-	getWorkItemUseCase   = "GetWorkItem"
-	listWorkItemsUseCase = "ListWorkItems"
 )
-
-// GetWorkItem answers GET /items/{itemId}.
-func (c *RestController) GetWorkItem(
-	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId, params openapi.GetWorkItemParams,
-) {
-	labels, err := expansionsOf(params.Expand)
-	if err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-
-	out, ok := c.read(w, r, getWorkItemUseCase, usecase.Input{
-		"item_id": itemID.String(), "expand_labels": labels,
-	})
-	if !ok {
-		return
-	}
-
-	w.Header().Set("ETag", etag(out.Int("version")))
-	writeJSON(w, r, http.StatusOK, workItemResponse(out))
-}
 
 // expansionsOf reads the relations a client asked for and reports which of them this installation
 // serves.
@@ -99,35 +76,6 @@ func expandNotSupported(relation string) error {
 		WithDetail("items.expand_not_supported").
 		WithParams(map[string]string{"value": relation}).
 		WithFields(shared.FieldError{Path: "/expand", Code: "items.expand_not_supported"})
-}
-
-// ListWorkItems answers GET /items.
-func (c *RestController) ListWorkItems(
-	w http.ResponseWriter, r *http.Request, params openapi.ListWorkItemsParams,
-) {
-	labels, err := expansionsOf(params.Expand)
-	if err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-
-	out, ok := c.read(w, r, listWorkItemsUseCase, usecase.Input{
-		"collection_id":    params.CollectionId.String(),
-		"parent_id":        optionalUUIDField(params.ParentId),
-		"include_archived": optionalBoolField(params.IncludeArchived),
-		"cursor":           optionalStringField(params.Cursor),
-		"size":             optionalIntField(params.Size),
-		"expand_labels":    labels,
-	})
-	if !ok {
-		return
-	}
-
-	page := openapi.WorkItemPage{Data: []openapi.WorkItem{}, Page: pageResponse(out)}
-	for _, row := range rowsOf(out) {
-		page.Data = append(page.Data, workItemResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, page)
 }
 
 // read runs one catalogue entry and reports whether the caller may go on to write a body. The four

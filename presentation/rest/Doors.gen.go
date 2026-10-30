@@ -253,6 +253,7 @@ var restDoors = map[string]restDoor{
 	"getTemplate":                       {UseCase: "GetTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getViewAs":                         {UseCase: "GetViewAs", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getWebhookSubscription":            {UseCase: "GetWebhookSubscription", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getWorkItem":                       {UseCase: "GetWorkItem", Status: 200, Query: []string{"expand"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Expand: map[string]string{"labels": "expand_labels"}},
 	"giveConsent":                       {UseCase: "GiveConsent", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"giveKudos":                         {UseCase: "GiveKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"grantMembership":                   {UseCase: "GrantMembership", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "/memberships/{id}", NullClears: false, Integers: []string(nil)},
@@ -399,6 +400,7 @@ var restDoors = map[string]restDoor{
 	"listWhiteboardComments":            {UseCase: "ListWhiteboardComments", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listWhiteboardVersions":            {UseCase: "ListWhiteboardVersions", Status: 200, Query: []string{"before", "limit"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"before", "limit"}},
 	"listWhiteboards":                   {UseCase: "ListWhiteboards", Status: 200, Query: []string{"trashed"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listWorkItems":                     {UseCase: "ListWorkItems", Status: 200, Query: []string{"collection_id", "cursor", "expand", "include_archived", "parent_id", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}, Expand: map[string]string{"labels": "expand_labels"}},
 	"listWorkTypes":                     {UseCase: "ListWorkTypes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listWorkflows":                     {UseCase: "ListWorkflows", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"locateOidcFlow":                    {UseCase: "LocateOidcFlow", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -2154,6 +2156,11 @@ func (c *RestController) GetWebhookSubscription(w http.ResponseWriter, r *http.R
 	c.door(w, r, restDoors["getWebhookSubscription"], usecase.Input{"webhook_id": webhookId.String()}, nil, nil, answerBy(webhookResponse))
 }
 
+// GetWorkItem answers GET /items/{itemId} by the generated mapping.
+func (c *RestController) GetWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.GetWorkItemParams) {
+	c.door(w, r, restDoors["getWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
+}
+
 // GiveConsent answers POST /privacy/consents:give by the generated mapping.
 func (c *RestController) GiveConsent(w http.ResponseWriter, r *http.Request) {
 	var body openapi.GiveConsentJSONRequestBody
@@ -2981,6 +2988,11 @@ func (c *RestController) ListWhiteboardVersions(w http.ResponseWriter, r *http.R
 func (c *RestController) ListWhiteboards(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params openapi.ListWhiteboardsParams) {
 	var answer openapi.WhiteboardList
 	c.door(w, r, restDoors["listWhiteboards"], usecase.Input{"hub_id": hubId.String()}, params, nil, &answer)
+}
+
+// ListWorkItems answers GET /items by the generated mapping.
+func (c *RestController) ListWorkItems(w http.ResponseWriter, r *http.Request, params openapi.ListWorkItemsParams) {
+	c.door(w, r, restDoors["listWorkItems"], usecase.Input{}, params, nil, answerPage(workItemResponse))
 }
 
 // ListWorkTypes answers GET /time-work-types by the generated mapping.

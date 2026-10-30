@@ -88,6 +88,9 @@ type RESTDoor struct {
 	// Words are boolean members the use case reads as their word, `true` or `false`
 	// (`x-hubtask-rest-words`): a preference that has a third state, cleared.
 	Words []string
+	// Expand turns the `expand` query parameter's words into the boolean inputs they name
+	// (`x-hubtask-rest-expand`); a word the door does not name is refused.
+	Expand map[string]string
 	// UTC are date-time members and query parameters that reach the use case as the instant in
 	// UTC (`x-hubtask-rest-utc`), where it keeps the text it was sent.
 	UTC []string
@@ -126,6 +129,7 @@ type restOperation struct {
 	NullAs      map[string]any               `yaml:"x-hubtask-rest-null-as"`
 	Words       []string                     `yaml:"x-hubtask-rest-words"`
 	UTC         []string                     `yaml:"x-hubtask-rest-utc"`
+	Expand      map[string]string            `yaml:"x-hubtask-rest-expand"`
 	Alternate   *struct {
 		When   string `yaml:"when"`
 		Answer string `yaml:"answer"`
@@ -357,6 +361,10 @@ func restDoor(
 		}
 	}
 	door.UTC = op.UTC
+	if len(op.Expand) > 0 && !slicesContains(door.Query, "expand") {
+		return door, fmt.Errorf("x-hubtask-rest-expand needs the expand query parameter")
+	}
+	door.Expand = op.Expand
 
 	for _, status := range []string{"200", "201", "202", "204"} {
 		response, ok := op.Responses[status]
@@ -579,6 +587,18 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 				pairs = append(pairs, fmt.Sprintf("%q: %s", key, value))
 			}
 			extra += ", NullAs: map[string]any{" + strings.Join(pairs, ", ") + "}"
+		}
+		if len(d.Expand) > 0 {
+			keys := make([]string, 0, len(d.Expand))
+			for key := range d.Expand {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+			pairs := make([]string, 0, len(keys))
+			for _, key := range keys {
+				pairs = append(pairs, fmt.Sprintf("%q: %q", key, d.Expand[key]))
+			}
+			extra += ", Expand: map[string]string{" + strings.Join(pairs, ", ") + "}"
 		}
 		if len(d.UTC) > 0 {
 			extra += fmt.Sprintf(", UTC: %#v", d.UTC)

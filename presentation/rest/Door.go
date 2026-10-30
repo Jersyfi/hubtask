@@ -79,6 +79,9 @@ type restDoor struct {
 	// NullAs passes an explicit null member as the value it names, or leaves it out where that is
 	// nil: a bucket's null limit is the number 0.
 	NullAs map[string]any
+	// Expand turns the `expand` parameter's words into the boolean inputs they name; a word not
+	// named is refused.
+	Expand map[string]string
 	// UTC are instants that reach the use case in UTC, where it keeps the text it was sent.
 	UTC []string
 	// Words are boolean members the use case reads as their word, `true` or `false`.
@@ -113,6 +116,23 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 			return
 		}
 		for _, name := range d.Query {
+			if name == "expand" && d.Expand != nil {
+				words, _ := values[name].([]any)
+				for _, word := range words {
+					text, _ := word.(string)
+					text = strings.TrimSpace(text)
+					if text == "" {
+						continue
+					}
+					input, named := d.Expand[text]
+					if !named {
+						WriteProblem(w, expandNotSupported(text), requestID)
+						return
+					}
+					in[input] = true
+				}
+				continue
+			}
 			if value, ok := values[name]; ok && value != nil {
 				in[d.input(name)] = inUTC(d, name, whole(d, name, value))
 			}

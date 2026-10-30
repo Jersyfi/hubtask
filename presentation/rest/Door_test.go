@@ -131,7 +131,15 @@ func TestEveryGeneratedMappingIsADescriptors(t *testing.T) {
 			t.Errorf("%s maps to %s, which the catalogue does not have", operation, door.UseCase)
 			continue
 		}
+		for _, input := range door.Expand {
+			if !fields[input] {
+				t.Errorf("%s expands into %s, which %s does not declare", operation, input, door.UseCase)
+			}
+		}
 		for _, name := range door.Query {
+			if name == "expand" && door.Expand != nil {
+				continue
+			}
 			if !fields[door.input(name)] {
 				t.Errorf("%s passes %s, which %s does not declare", operation, door.input(name), door.UseCase)
 			}

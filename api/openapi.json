@@ -26416,6 +26416,11 @@
           "items"
         ],
         "operationId": "listWorkItems",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-expand": {
+          "labels": "expand_labels"
+        },
+        "x-hubtask-rest-answer": "workItemResponse",
         "description": "The items of one level, in their manual order: the items directly in the collection when\n`parent_id` is omitted, and the children of that item when it is given. A whole subtree,\nand every other filter, is what `POST /items:query` is for.\n",
         "parameters": [
           {
@@ -26508,6 +26513,11 @@
           "items"
         ],
         "operationId": "getWorkItem",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-expand": {
+          "labels": "expand_labels"
+        },
+        "x-hubtask-rest-answer": "workItemResponse",
         "parameters": [
           {
             "$ref": "#/components/parameters/Expand"
