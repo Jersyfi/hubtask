@@ -7498,6 +7498,7 @@
   "app.permissions.name.comment": "Kommentieren",
   "app.permissions.name.request": "Anfragen stellen",
   "app.permissions.name.approve_time": "Zeiten freigeben",
+  "app.permissions.name.manage_costs": "Kosten verwalten",
   "app.roles.family_field": "Jedes geschützte Feld",
   "app.roles.family_step": "Jeder Workflow-Schritt",
   "app.roles.field_write": "Das Feld {field} schreiben",

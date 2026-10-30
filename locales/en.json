@@ -7501,6 +7501,7 @@
   "app.permissions.name.comment": "Comment",
   "app.permissions.name.request": "Raise requests",
   "app.permissions.name.approve_time": "Approve time",
+  "app.permissions.name.manage_costs": "Manage costs",
   "app.roles.family_field": "Every restricted field",
   "app.roles.family_step": "Every workflow step",
   "app.roles.field_write": "Write the field {field}",

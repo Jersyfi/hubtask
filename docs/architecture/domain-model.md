@@ -473,6 +473,11 @@ sending back other people's weeks of time and reading their time where its entri
 a project lead at a hub (UC-TIM-03). The shipped roles hold it through `MANAGE_MEMBERS`, which every
 time use case accepts as well; nobody approves their own week.
 
+**Manage costs** (`MANAGE_COSTS`) is the finance permission a custom role names: reading and writing
+the hourly cost rates of people and roles, a hub's or collection's budget, and its burn in money
+(UC-TIM-08). Rates tell what a person earns, so no other permission reads them; the shipped roles
+hold it through `MANAGE_MEMBERS`.
+
 **Nobody grants above their own role.** Handing out a role at a scope needs `MANAGE_MEMBERS` there
 **and** a role along the scope's path at least as strong as the one handed out, in the order of the
 table (`AUDITOR` last): an owner gives any role, an administrator any but `OWNER`, the owner of a hub

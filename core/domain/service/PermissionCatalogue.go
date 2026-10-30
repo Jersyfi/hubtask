@@ -27,6 +27,10 @@ const (
 	// their time where the entries lie (UC-TIM-03): a project lead's, granted at a hub. The shipped
 	// roles reach it through MANAGE_MEMBERS, which every time use case accepts as well.
 	PermissionApproveTime Permission = "APPROVE_TIME"
+	// PermissionManageCosts is reading and writing what time costs - the hourly rates of people and
+	// roles - and a hub's or collection's budget and its burn in money (research §6.3: rates are
+	// behind a finance permission). The shipped roles reach it through MANAGE_MEMBERS.
+	PermissionManageCosts Permission = "MANAGE_COSTS"
 )
 
 // The two families of the catalogue that name an object: a field's permission and a step's.
@@ -105,6 +109,7 @@ var base = []baseEntry{
 	{PermissionDeleteContainer, "how_we_work"},
 	{PermissionManageMembers, "people"},
 	{PermissionApproveTime, "people"},
+	{PermissionManageCosts, "people"},
 	{PermissionReadConfiguration, "evidence"},
 	{PermissionAuditRead, "evidence"},
 	{PermissionRequest, "portal"},
