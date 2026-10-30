@@ -685,6 +685,23 @@ func (r PrivacyRepository) DiscardKudos(ctx context.Context, accountID shared.ID
 	return int(rows), nil
 }
 
+// PseudonymiseTime clears the words on the person's time and removes their running timer.
+func (r PrivacyRepository) PseudonymiseTime(ctx context.Context, accountID shared.ID) (int, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return 0, err
+	}
+	cleared, err := queries.ClearTimeNotesOfAccount(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("clearing the notes on an account's time", err)
+	}
+	timers, err := queries.DeleteTimerOfAccount(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("removing an account's running timer", err)
+	}
+	return int(cleared + timers), nil
+}
+
 // kudosPage bounds one read of a person's kudos; the copy pages through all of them.
 const kudosPage = 500
 

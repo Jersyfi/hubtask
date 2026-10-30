@@ -114,6 +114,13 @@ func (e *erasureStore) DiscardAiDrafts(context.Context, shared.ID) (int, error) 
 	return 1, nil
 }
 
+func (e *erasureStore) PseudonymiseTime(context.Context, shared.ID) (int, error) {
+	if err := e.step("time"); err != nil {
+		return 0, err
+	}
+	return 1, nil
+}
+
 func (e *erasureStore) DiscardKudos(context.Context, shared.ID) (int, error) {
 	if err := e.step("kudos"); err != nil {
 		return 0, err
@@ -613,7 +620,7 @@ func TestAnErasureWithoutAModeIsRefused(t *testing.T) {
 // which is the failure risk R-09 is about.
 func TestAStorageLocationThatRefusesFailsTheErasure(t *testing.T) {
 	for _, step := range []string{
-		"contributions", "credentials", "notifications", "ai drafts", "kudos", "assignments", "delete comments",
+		"contributions", "credentials", "notifications", "ai drafts", "kudos", "time", "assignments", "delete comments",
 		"media",
 	} {
 		h := newErasureHarness()

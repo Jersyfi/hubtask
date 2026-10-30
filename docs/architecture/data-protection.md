@@ -108,6 +108,11 @@ practice. Rules:
   between two other people. Kudos stay out of every archive an administrator reads (UC-WRK-29
   check 6); the copy is the person's own, and one without them would answer Art. 15 short. No
   restore reads the section.
+* **An erasure keeps a person's time and removes its words** (accepted.md B, 2026-10-30): their
+  time records and weeks, capacities, absences and own cost rate stay under the account's
+  identifier - the pseudonym once the account is anonymised or deleted - so the sums accounting,
+  plans and costs read are kept, in both modes; the notes on their records and a rejection's reason
+  on their weeks are cleared, and their running timer is removed. Nothing of the time is deleted.
 * **An installation-wide case is a loop, not a wider query**: one workspace at a time under its own
   tenant context, through the ordinary repositories; only the tenant identifiers from
   `subject_tenants()` cross the boundary ([multi-tenancy.md](./multi-tenancy.md) §2.1). It needs

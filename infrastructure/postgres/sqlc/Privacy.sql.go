@@ -167,6 +167,32 @@ func (q *Queries) ClearAssignmentsOn(ctx context.Context, arg ClearAssignmentsOn
 	return result.RowsAffected(), nil
 }
 
+const clearTimeNotesOfAccount = `-- name: ClearTimeNotesOfAccount :one
+WITH notes AS (
+  UPDATE time_record SET note = ''
+  WHERE time_record.tenant_id = current_tenant_id() AND time_record.account_id = $1::uuid
+    AND time_record.note <> ''
+  RETURNING 1
+), reasons AS (
+  UPDATE timesheet SET reason = ''
+  WHERE timesheet.tenant_id = current_tenant_id() AND timesheet.account_id = $1::uuid
+    AND timesheet.reason <> ''
+  RETURNING 1
+)
+SELECT ((SELECT count(*) FROM notes) + (SELECT count(*) FROM reasons))::bigint AS cleared
+`
+
+// A person's erasure keeps their time - day, minutes, entry, kind, billable, the week and its
+// decision - so that what accounting sums stays (accepted.md B): what goes is the words, the notes
+// on their records and a rejection's reason on their weeks. The account identifier stays, and is
+// the pseudonym once the account is anonymised or gone.
+func (q *Queries) ClearTimeNotesOfAccount(ctx context.Context, subject pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, clearTimeNotesOfAccount, subject)
+	var cleared int64
+	err := row.Scan(&cleared)
+	return cleared, err
+}
+
 const completeReappliedErasure = `-- name: CompleteReappliedErasure :execrows
 UPDATE data_subject_request SET
   status             = 'COMPLETED',
@@ -369,6 +395,19 @@ DELETE FROM webauthn_credential WHERE account_id = $1
 // credentials (identity.md §23.5).
 func (q *Queries) DeletePasskeysOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, deletePasskeysOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteTimerOfAccount = `-- name: DeleteTimerOfAccount :execrows
+DELETE FROM time_timer WHERE tenant_id = current_tenant_id() AND account_id = $1
+`
+
+// A running timer is not time anybody recorded: it goes with the person.
+func (q *Queries) DeleteTimerOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTimerOfAccount, accountID)
 	if err != nil {
 		return 0, err
 	}

@@ -107,7 +107,10 @@ type Erased struct {
 	// AiDrafts are what AI drafted for the person alone and the words they asked with.
 	AiDrafts int
 	// Kudos are the acknowledgements the person gave and received.
-	Kudos       int
+	Kudos int
+	// Time is what the person's time lost of its words, and their running timer; the records,
+	// weeks, capacities, absences and their own cost rate are kept for the sums (accepted.md B).
+	Time        int
 	Assignments int
 	Comments    int
 	// Intake is what the person sent in by mail or captured into the jumble: removed in a full
@@ -228,6 +231,14 @@ func (e Eraser) erase(
 			return err
 		}
 		erased.Kudos = kudos
+
+		// Time is kept, both modes: what accounting sums stays, under the account's identifier,
+		// which is the pseudonym once the account is anonymised or gone; only the words go.
+		times, err := e.Erasure.PseudonymiseTime(ctx, subject)
+		if err != nil {
+			return err
+		}
+		erased.Time = times
 
 		assignments, err := e.Erasure.ReleaseAssignmentsOn(ctx, subject, plan.ReleaseOn, now)
 		if err != nil {
@@ -478,6 +489,7 @@ func (e Eraser) record(
 		{Field: "notifications", Classification: audit.Open, To: erased.Notifications},
 		{Field: "ai_drafts", Classification: audit.Open, To: erased.AiDrafts},
 		{Field: "kudos", Classification: audit.Open, To: erased.Kudos},
+		{Field: "time", Classification: audit.Open, To: erased.Time},
 		{Field: "assignments", Classification: audit.Open, To: erased.Assignments},
 		{Field: "comments", Classification: audit.Open, To: erased.Comments},
 		{Field: "intake", Classification: audit.Open, To: erased.Intake},

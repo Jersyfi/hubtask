@@ -314,6 +314,28 @@ DELETE FROM notification WHERE tenant_id = current_tenant_id() AND recipient_id 
 DELETE FROM ai_suggestion
 WHERE tenant_id = current_tenant_id() AND target_type = 'ACCOUNT' AND target_id = sqlc.arg('account_id');
 
+-- name: ClearTimeNotesOfAccount :one
+-- A person's erasure keeps their time - day, minutes, entry, kind, billable, the week and its
+-- decision - so that what accounting sums stays (accepted.md B): what goes is the words, the notes
+-- on their records and a rejection's reason on their weeks. The account identifier stays, and is
+-- the pseudonym once the account is anonymised or gone.
+WITH notes AS (
+  UPDATE time_record SET note = ''
+  WHERE time_record.tenant_id = current_tenant_id() AND time_record.account_id = sqlc.arg('subject')::uuid
+    AND time_record.note <> ''
+  RETURNING 1
+), reasons AS (
+  UPDATE timesheet SET reason = ''
+  WHERE timesheet.tenant_id = current_tenant_id() AND timesheet.account_id = sqlc.arg('subject')::uuid
+    AND timesheet.reason <> ''
+  RETURNING 1
+)
+SELECT ((SELECT count(*) FROM notes) + (SELECT count(*) FROM reasons))::bigint AS cleared;
+
+-- name: DeleteTimerOfAccount :execrows
+-- A running timer is not time anybody recorded: it goes with the person.
+DELETE FROM time_timer WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id');
+
 -- name: DeleteKudosOfAccount :execrows
 -- Kudos the person gave and received: an acknowledgement between two people, about both of them,
 -- and evidence of nothing.

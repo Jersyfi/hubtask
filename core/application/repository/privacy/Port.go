@@ -262,6 +262,12 @@ type Erasure interface {
 	// people, about both, and evidence of nothing (UC-WRK-29 check 5).
 	DiscardKudos(ctx context.Context, accountID shared.ID) (int, error)
 
+	// PseudonymiseTime keeps the person's time - records, weeks, capacities, absences and their own
+	// cost rate - so that the sums accounting reads stay (accepted.md B), and removes the words: the
+	// notes on their records and a rejection's reason on their weeks. Their running timer goes. It
+	// reports what it cleared and removed.
+	PseudonymiseTime(ctx context.Context, accountID shared.ID) (int, error)
+
 	// CountIntake answers how much of the intake carries the person's address or names them as
 	// its submitter.
 	CountIntake(ctx context.Context, accountID shared.ID) (int, error)
