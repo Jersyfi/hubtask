@@ -28,6 +28,7 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import AttributeField from './AttributeField.svelte';
+  import CiAssetPart from './CiAssetPart.svelte';
 
   interface Props {
     ci: ConfigurationItem;
@@ -410,6 +411,8 @@
       </tbody>
     </table>
   </section>
+
+  <CiAssetPart {ci} {classes} {hubCis} {mayWrite} />
 
   <section class="part" aria-labelledby="ci-impact">
     <div class="part-head">
