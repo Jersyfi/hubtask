@@ -3396,3 +3396,141 @@ SELECT EXISTS (SELECT 1 FROM whiteboard_comment WHERE id = (sqlc.arg('payload'):
 
 -- name: ClearWhiteboardComment :execrows
 DELETE FROM whiteboard_comment;
+
+-- name: ImportCmdbAffected :execrows
+INSERT INTO cmdb_affected (id, tenant_id, item_id, ci_id, added_by, added_at)
+SELECT r.id, r.tenant_id, r.item_id, r.ci_id, r.added_by, r.added_at
+FROM jsonb_populate_record(
+  NULL::cmdb_affected,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  added_by = EXCLUDED.added_by,
+  added_at = EXCLUDED.added_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbAffected :one
+SELECT EXISTS (SELECT 1 FROM cmdb_affected WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbAffected :execrows
+DELETE FROM cmdb_affected;
+
+-- name: ImportCmdbCampaign :execrows
+INSERT INTO cmdb_campaign (id, tenant_id, hub_id, name, classes, due_by, due_on, review_months, started_by, started_at, closed_at, closed_by, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.name, r.classes, r.due_by, r.due_on, r.review_months, r.started_by, r.started_at, r.closed_at, r.closed_by, r.version
+FROM jsonb_populate_record(
+  NULL::cmdb_campaign,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  classes = EXCLUDED.classes,
+  due_by = EXCLUDED.due_by,
+  due_on = EXCLUDED.due_on,
+  review_months = EXCLUDED.review_months,
+  closed_at = EXCLUDED.closed_at,
+  closed_by = EXCLUDED.closed_by,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbCampaign :one
+SELECT EXISTS (SELECT 1 FROM cmdb_campaign WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbCampaign :execrows
+DELETE FROM cmdb_campaign;
+
+-- name: ImportCmdbAttestation :execrows
+INSERT INTO cmdb_attestation (tenant_id, campaign_id, ci_id, owner_id, verdict, attested_by, attested_at)
+SELECT r.tenant_id, r.campaign_id, r.ci_id, r.owner_id, r.verdict, r.attested_by, r.attested_at
+FROM jsonb_populate_record(
+  NULL::cmdb_attestation,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, campaign_id, ci_id) DO UPDATE SET
+  owner_id = EXCLUDED.owner_id,
+  verdict = EXCLUDED.verdict,
+  attested_by = EXCLUDED.attested_by,
+  attested_at = EXCLUDED.attested_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbAttestation :one
+SELECT EXISTS (SELECT 1 FROM cmdb_attestation WHERE campaign_id = (sqlc.arg('payload')::jsonb->>'campaign_id')::uuid AND ci_id = (sqlc.arg('payload')::jsonb->>'ci_id')::uuid) AS held;
+
+-- name: ClearCmdbAttestation :execrows
+DELETE FROM cmdb_attestation;
+
+-- name: ImportCmdbCiGroup :execrows
+INSERT INTO cmdb_ci_group (id, tenant_id, hub_id, key, name, filter, service_id, updated_by, updated_at, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.key, r.name, r.filter, r.service_id, r.updated_by, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::cmdb_ci_group,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  filter = EXCLUDED.filter,
+  service_id = EXCLUDED.service_id,
+  updated_by = EXCLUDED.updated_by,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbCiGroup :one
+SELECT EXISTS (SELECT 1 FROM cmdb_ci_group WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbCiGroup :execrows
+DELETE FROM cmdb_ci_group;
+
+-- name: ImportCmdbAsset :execrows
+INSERT INTO cmdb_asset (ci_id, tenant_id, hub_id, asset_tag, cost_minor, currency, purchased_on, supplier, warranty_until, contract_id, stockroom_id, assigned_to, request_id, state, disposal, updated_by, updated_at, version)
+SELECT r.ci_id, r.tenant_id, r.hub_id, r.asset_tag, r.cost_minor, r.currency, r.purchased_on, r.supplier, r.warranty_until, r.contract_id, r.stockroom_id, r.assigned_to, r.request_id, r.state, r.disposal, r.updated_by, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::cmdb_asset,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (ci_id) DO UPDATE SET
+  asset_tag = EXCLUDED.asset_tag,
+  cost_minor = EXCLUDED.cost_minor,
+  currency = EXCLUDED.currency,
+  purchased_on = EXCLUDED.purchased_on,
+  supplier = EXCLUDED.supplier,
+  warranty_until = EXCLUDED.warranty_until,
+  contract_id = EXCLUDED.contract_id,
+  stockroom_id = EXCLUDED.stockroom_id,
+  assigned_to = EXCLUDED.assigned_to,
+  request_id = EXCLUDED.request_id,
+  state = EXCLUDED.state,
+  disposal = EXCLUDED.disposal,
+  updated_by = EXCLUDED.updated_by,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbAsset :one
+SELECT EXISTS (SELECT 1 FROM cmdb_asset WHERE ci_id = (sqlc.arg('payload')::jsonb->>'ci_id')::uuid) AS held;
+
+-- name: ClearCmdbAsset :execrows
+DELETE FROM cmdb_asset;
+
+-- name: ImportCmdbSoftwareAlias :execrows
+INSERT INTO cmdb_software_alias (id, tenant_id, match_publisher, match_product, publisher, product, updated_by, updated_at, version)
+SELECT r.id, r.tenant_id, r.match_publisher, r.match_product, r.publisher, r.product, r.updated_by, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::cmdb_software_alias,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  match_publisher = EXCLUDED.match_publisher,
+  match_product = EXCLUDED.match_product,
+  publisher = EXCLUDED.publisher,
+  product = EXCLUDED.product,
+  updated_by = EXCLUDED.updated_by,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbSoftwareAlias :one
+SELECT EXISTS (SELECT 1 FROM cmdb_software_alias WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbSoftwareAlias :execrows
+DELETE FROM cmdb_software_alias;

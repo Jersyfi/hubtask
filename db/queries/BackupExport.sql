@@ -1570,3 +1570,82 @@ FROM (
   WHERE s.key_1 > sqlc.arg('after_id')::uuid
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportCmdbAffected :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM cmdb_affected x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportCmdbCampaigns :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM cmdb_campaign x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportCmdbAttestations :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.campaign_id::text || '/' || x.ci_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.campaign_id AS key_1,
+         x.ci_id AS key_2
+  FROM cmdb_attestation x
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportCmdbCiGroups :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM cmdb_ci_group x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportCmdbAssets :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.ci_id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.ci_id AS key_1
+  FROM cmdb_asset x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportCmdbSoftwareAliases :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM cmdb_software_alias x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;

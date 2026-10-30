@@ -931,6 +931,15 @@ type ChangeLogDefault struct {
 	Payload     []byte
 }
 
+type CmdbAffected struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	ItemID   pgtype.UUID
+	CiID     pgtype.UUID
+	AddedBy  pgtype.UUID
+	AddedAt  pgtype.Timestamptz
+}
+
 type CmdbAlert struct {
 	ID          pgtype.UUID
 	TenantID    pgtype.UUID
@@ -946,6 +955,53 @@ type CmdbAlert struct {
 	LastAt      pgtype.Timestamptz
 	ResolvedAt  pgtype.Timestamptz
 	Count       int32
+}
+
+type CmdbAsset struct {
+	CiID          pgtype.UUID
+	TenantID      pgtype.UUID
+	HubID         pgtype.UUID
+	AssetTag      string
+	CostMinor     int64
+	Currency      string
+	PurchasedOn   pgtype.Date
+	Supplier      string
+	WarrantyUntil pgtype.Date
+	ContractID    pgtype.UUID
+	StockroomID   pgtype.UUID
+	AssignedTo    pgtype.UUID
+	RequestID     pgtype.UUID
+	State         string
+	Disposal      []byte
+	UpdatedBy     pgtype.UUID
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
+}
+
+type CmdbAttestation struct {
+	TenantID   pgtype.UUID
+	CampaignID pgtype.UUID
+	CiID       pgtype.UUID
+	OwnerID    pgtype.UUID
+	Verdict    string
+	AttestedBy pgtype.UUID
+	AttestedAt pgtype.Timestamptz
+}
+
+type CmdbCampaign struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	HubID        pgtype.UUID
+	Name         string
+	Classes      []string
+	DueBy        pgtype.Date
+	DueOn        pgtype.Date
+	ReviewMonths int32
+	StartedBy    pgtype.UUID
+	StartedAt    pgtype.Timestamptz
+	ClosedAt     pgtype.Timestamptz
+	ClosedBy     pgtype.UUID
+	Version      int32
 }
 
 type CmdbCi struct {
@@ -971,6 +1027,19 @@ type CmdbCi struct {
 	UpdatedBy      pgtype.UUID
 	UpdatedAt      pgtype.Timestamptz
 	Version        int32
+}
+
+type CmdbCiGroup struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	HubID     pgtype.UUID
+	Key       string
+	Name      string
+	Filter    []byte
+	ServiceID pgtype.UUID
+	UpdatedBy pgtype.UUID
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
 }
 
 type CmdbCiIdentifier struct {
@@ -1095,6 +1164,18 @@ type CmdbRun struct {
 	StartedAt pgtype.Timestamptz
 	Counts    []byte
 	Decisions []byte
+}
+
+type CmdbSoftwareAlias struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	MatchPublisher string
+	MatchProduct   string
+	Publisher      string
+	Product        string
+	UpdatedBy      pgtype.UUID
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
 }
 
 type CmdbSource struct {

@@ -799,6 +799,72 @@ var importers = map[string]importer{
 			return queries.ClearCmdbConnector(ctx)
 		},
 	},
+	"cmdb_affected": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportCmdbAffected(ctx, sqlc.ImportCmdbAffectedParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsCmdbAffected(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearCmdbAffected(ctx)
+		},
+	},
+	"cmdb_campaign": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportCmdbCampaign(ctx, sqlc.ImportCmdbCampaignParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsCmdbCampaign(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearCmdbCampaign(ctx)
+		},
+	},
+	"cmdb_attestation": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportCmdbAttestation(ctx, sqlc.ImportCmdbAttestationParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsCmdbAttestation(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearCmdbAttestation(ctx)
+		},
+	},
+	"cmdb_ci_group": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportCmdbCiGroup(ctx, sqlc.ImportCmdbCiGroupParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsCmdbCiGroup(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearCmdbCiGroup(ctx)
+		},
+	},
+	"cmdb_asset": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportCmdbAsset(ctx, sqlc.ImportCmdbAssetParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsCmdbAsset(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearCmdbAsset(ctx)
+		},
+	},
+	"cmdb_software_alias": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportCmdbSoftwareAlias(ctx, sqlc.ImportCmdbSoftwareAliasParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsCmdbSoftwareAlias(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearCmdbSoftwareAlias(ctx)
+		},
+	},
 	"cmdb_alert": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportCmdbAlert(ctx, sqlc.ImportCmdbAlertParams{Payload: payload, Overwrite: overwrite})

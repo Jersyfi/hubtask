@@ -959,6 +959,85 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"cmdb_affected": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportCmdbAffected(ctx, sqlc.ExportCmdbAffectedParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportCmdbAffectedRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"cmdb_campaign": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportCmdbCampaigns(ctx, sqlc.ExportCmdbCampaignsParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportCmdbCampaignsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"cmdb_attestation": {
+		delta: false,
+		keys:  2,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportCmdbAttestations(ctx, sqlc.ExportCmdbAttestationsParams{
+				AfterID:     cursorUUID(page.After, 0),
+				AfterSecond: cursorUUID(page.After, 1),
+				Batch:       page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportCmdbAttestationsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"cmdb_ci_group": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportCmdbCiGroups(ctx, sqlc.ExportCmdbCiGroupsParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportCmdbCiGroupsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"cmdb_asset": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportCmdbAssets(ctx, sqlc.ExportCmdbAssetsParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportCmdbAssetsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"cmdb_software_alias": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportCmdbSoftwareAliases(ctx, sqlc.ExportCmdbSoftwareAliasesParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportCmdbSoftwareAliasesRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"cmdb_alert": {
 		delta: false,
 		keys:  1,

@@ -126,6 +126,14 @@ var subjectColumns = map[string][]string{
 	"cmdb_run":       {"actor_id"},
 	"cmdb_hold":      {"resolved_by"},
 	"cmdb_duplicate": {"resolved_by"},
+	// The CIs they named on entries, the campaigns they ran and the CIs they attested or were asked
+	// to, the groups and aliases they defined, and the assets they hold or last changed (M6).
+	"cmdb_affected":       {"added_by"},
+	"cmdb_campaign":       {"started_by", "closed_by"},
+	"cmdb_attestation":    {"owner_id", "attested_by"},
+	"cmdb_ci_group":       {"updated_by"},
+	"cmdb_asset":          {"assigned_to", "updated_by"},
+	"cmdb_software_alias": {"updated_by"},
 	// The connectors that run with their rights (M6).
 	"cmdb_connector":  {"run_as"},
 	"config_revision": {"actor_id", "proposed_by"},

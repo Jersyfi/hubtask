@@ -226,6 +226,12 @@ re-mints identities must rewrite exactly these).
 | 108 | `page_article_ratings` | `page_article_rating` | `page_id/collection_id/account_id` | `page_id`→pages, `collection_id`→containers, `account_id`→accounts (a requester's "was this helpful?") |
 | 109 | `page_media` | `page_media` | `page_id/media_id` | `page_id`→pages, `media_id`→media_objects (the pictures and files a page holds, migration 0265, UC-DOC-14) |
 | 110 | `whiteboard_comments` | `whiteboard_comment` | `id` | `whiteboard_id`→whiteboards, `parent_id`→whiteboard_comments, `author_id`→accounts (cleared when absent) (comments pinned to a board's objects and places, migration 0266, UC-CNV-09; `element_id` names an object of the scene) |
+| 111 | `cmdb_affected` | `cmdb_affected` | `id` | `item_id`→work_items, `ci_id`→cmdb_cis (the CIs an entry names as affected, migration 0267, UC-AST-09) |
+| 112 | `cmdb_campaigns` | `cmdb_campaign` | `id` | `hub_id`→containers (certification campaigns of a hub's CIs, UC-AST-10) |
+| 113 | `cmdb_attestations` | `cmdb_attestation` | `campaign_id/ci_id` | `campaign_id`→cmdb_campaigns, `ci_id`→cmdb_cis (one CI asked in a campaign, its owner then and the verdict) |
+| 114 | `cmdb_ci_groups` | `cmdb_ci_group` | `id` | `hub_id`→containers, `service_id`→cmdb_cis (cleared when absent) (a hub's CI groups by filter, UC-AST-11) |
+| 115 | `cmdb_assets` | `cmdb_asset` | `ci_id` | `ci_id`→cmdb_cis, `hub_id`→containers, `contract_id`/`stockroom_id`→cmdb_cis, `assigned_to`→accounts, `request_id`→work_items (each cleared when absent) (a CI's asset record and its disposal, UC-AST-12) |
+| 116 | `cmdb_software_aliases` | `cmdb_software_alias` | `id` | — (the workspace's software aliases, UC-AST-13) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

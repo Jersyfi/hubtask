@@ -777,6 +777,50 @@ var entities = []Entity{
 			{Field: "connector_id", Table: "cmdb_connector"},
 		},
 	},
+	// The CMDB's assurance (migration 0267): the CIs an entry names as affected, certification
+	// campaigns with their attestations, a hub's CI groups, the CIs' asset records and the software
+	// aliases. Whole; a group, an asset and an alias are removed without a marker, as a CI is.
+	{
+		Name: "cmdb_affected", Table: "cmdb_affected", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "item_id", Table: "work_item"},
+			{Field: "ci_id", Table: "cmdb_ci"},
+		},
+	},
+	{
+		Name: "cmdb_campaigns", Table: "cmdb_campaign", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+		},
+	},
+	{
+		Name: "cmdb_attestations", Table: "cmdb_attestation", Whole: true, Later: true, Keys: []string{"campaign_id", "ci_id"},
+		References: []Reference{
+			{Field: "campaign_id", Table: "cmdb_campaign"},
+			{Field: "ci_id", Table: "cmdb_ci"},
+		},
+	},
+	{
+		Name: "cmdb_ci_groups", Table: "cmdb_ci_group", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+			{Field: "service_id", Table: "cmdb_ci", Clearable: true},
+		},
+	},
+	{
+		Name: "cmdb_assets", Table: "cmdb_asset", Whole: true, Unmarked: true, Later: true, Keys: []string{"ci_id"},
+		References: []Reference{
+			{Field: "ci_id", Table: "cmdb_ci"},
+			{Field: "hub_id", Table: "container"},
+			{Field: "contract_id", Table: "cmdb_ci", Clearable: true},
+			{Field: "stockroom_id", Table: "cmdb_ci", Clearable: true},
+			{Field: "assigned_to", Table: "account", Clearable: true},
+			{Field: "request_id", Table: "work_item", Clearable: true},
+		},
+	},
+	{
+		Name: "cmdb_software_aliases", Table: "cmdb_software_alias", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+	},
 	// The service desk's business calendars, SLA policies and what became of each goal on an entry
 	// (migration 0240). Whole: each is deleted without a marker. A calendar precedes the policies
 	// that name it by key; a duplicate skips a key the workspace holds, and its policies then name
