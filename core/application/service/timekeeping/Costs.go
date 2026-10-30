@@ -333,33 +333,21 @@ func (h ReadBudget) Execute(ctx context.Context, actor appshared.ActorContext, p
 // rolesAt answers each person's role keys along the plan's path, the most specific first.
 func (k Keeper) rolesAt(ctx context.Context, actor appshared.ActorContext, lines []domain.Line, at place) (map[shared.ID][]string, error) {
 	out := map[shared.ID][]string{}
-	if k.Memberships == nil {
+	if k.Roles == nil {
 		return out, nil
 	}
 	path := at.path()
-	err := k.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		for _, l := range lines {
-			if _, done := out[l.AccountID]; done {
-				continue
-			}
-			held, err := k.Memberships.Along(ctx, l.AccountID, path)
-			if err != nil {
-				return err
-			}
-			sort.SliceStable(held, func(i, j int) bool { return depth(held[i].Scope) > depth(held[j].Scope) })
-			keys := []string{}
-			for _, m := range held {
-				if m.IsCustom() {
-					keys = append(keys, m.Custom)
-				} else {
-					keys = append(keys, string(m.Role))
-				}
-			}
-			out[l.AccountID] = keys
+	for _, l := range lines {
+		if _, done := out[l.AccountID]; done {
+			continue
 		}
-		return nil
-	})
-	return out, err
+		keys, err := k.Roles.RolesBy(ctx, actor, l.AccountID, path)
+		if err != nil {
+			return nil, err
+		}
+		out[l.AccountID] = keys
+	}
+	return out, nil
 }
 
 func depth(s identity.Scope) int {

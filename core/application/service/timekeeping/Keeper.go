@@ -18,7 +18,6 @@ import (
 	"strconv"
 	"time"
 
-	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	planrepo "github.com/Jersyfi/hubtask/core/application/repository/planning"
 	deskrepo "github.com/Jersyfi/hubtask/core/application/repository/servicedesk"
 	timerepo "github.com/Jersyfi/hubtask/core/application/repository/timekeeping"
@@ -97,13 +96,18 @@ type Reader interface {
 	Permitted(ctx context.Context, actor appshared.ActorContext, request access.Request, paths [][]identity.Scope) ([]bool, error)
 }
 
+// RoleHolder answers the role keys a person holds along a path, the most specific first.
+type RoleHolder interface {
+	RolesBy(ctx context.Context, actor appshared.ActorContext, accountID shared.ID, path []identity.Scope) ([]string, error)
+}
+
 // Keeper is what every time use case shares.
 type Keeper struct {
 	Store     timerepo.Store
 	Resources timerepo.Resources
-	// Memberships answers the roles a person holds where their time was spent, which a role's
-	// cost rate prices.
-	Memberships identityrepo.Memberships
+	// Roles answers the roles a person holds where their time was spent, which a role's cost rate
+	// prices - the authoriser's answer, so that a private hub counts as everywhere else (rule 2).
+	Roles RoleHolder
 	// Calendars names the business calendars a workload counts public holidays on; nil counts none.
 	Calendars  deskrepo.Calendars
 	Items      workrepo.Items

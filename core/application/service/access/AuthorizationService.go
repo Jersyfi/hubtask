@@ -686,6 +686,46 @@ func (s Service) HeldBy(
 	return heldOf(memberships, at), nil
 }
 
+// RolesBy answers the role keys another account holds along the path that count there - a private
+// hub judged as everywhere else (ADR-0073 §1) -, the most specific scope first: what a role's
+// cost rate is looked up by. Whether the actor may ask is the caller's authorisation.
+func (s Service) RolesBy(
+	ctx context.Context, actor appshared.ActorContext, accountID shared.ID, path []identity.Scope,
+) ([]string, error) {
+	if accountID.IsZero() {
+		return nil, nil
+	}
+	memberships, at, err := s.heldAlong(ctx, actor.PersistenceScope(), accountID, path, opensFor(actor, accountID))
+	if err != nil {
+		return nil, err
+	}
+	counting := service.Counting(memberships, at.path, at.privacy)
+	slices.SortStableFunc(counting, func(a, b identity.Membership) int { return scopeDepth(b.Scope) - scopeDepth(a.Scope) })
+	keys := []string{}
+	for _, membership := range counting {
+		key := string(membership.Role)
+		if membership.IsCustom() {
+			key = membership.Custom
+		}
+		if !slices.Contains(keys, key) {
+			keys = append(keys, key)
+		}
+	}
+	return keys, nil
+}
+
+func scopeDepth(s identity.Scope) int {
+	switch s.Type {
+	case identity.ScopeTenant:
+		return 0
+	case identity.ScopeHub:
+		return 1
+	case identity.ScopeCollection:
+		return 2
+	}
+	return 3
+}
+
 func heldOf(memberships []identity.Membership, at resolved) Held {
 	held := Held{
 		Roles: []string{}, Permissions: service.Held(memberships, at.path, at.privacy),

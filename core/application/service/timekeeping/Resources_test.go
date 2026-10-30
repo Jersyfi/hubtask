@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Jersyfi/hubtask/core/application/repository/identity"
 	planrepo "github.com/Jersyfi/hubtask/core/application/repository/planning"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	idmodel "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/timekeeping"
@@ -132,17 +132,15 @@ func (r *resources) RemoveBudget(_ context.Context, plan shared.ID, _ int) error
 	return nil
 }
 
-// memberships holds ana as MEMBER at the workspace and as a custom "designer" in the hub.
-type memberships struct{ identity.Memberships }
+// roles holds ana as a custom "designer" in the hub and as MEMBER at the workspace, the most
+// specific first.
+type roles struct{}
 
-func (memberships) Along(_ context.Context, account shared.ID, _ []idmodel.Scope) ([]idmodel.Membership, error) {
+func (roles) RolesBy(_ context.Context, _ appshared.ActorContext, account shared.ID, _ []idmodel.Scope) ([]string, error) {
 	if account != ana {
 		return nil, nil
 	}
-	return []idmodel.Membership{
-		{AccountID: ana, Scope: idmodel.TenantScope(), Role: idmodel.Role("MEMBER")},
-		{AccountID: ana, Scope: idmodel.HubScope(hubID), Custom: "designer"},
-	}, nil
+	return []string{"designer", "MEMBER"}, nil
 }
 
 // assigned is a plan whose checkout form is ana's, due Friday, its payment ben's without dates.
@@ -160,7 +158,7 @@ func (assigned) Entries(context.Context, shared.ID, int) ([]planrepo.PlanEntry, 
 
 func (f *fixture) withResources() *resources {
 	r := newResources()
-	f.keeper.Resources, f.keeper.Memberships = r, memberships{}
+	f.keeper.Resources, f.keeper.Roles = r, roles{}
 	return r
 }
 

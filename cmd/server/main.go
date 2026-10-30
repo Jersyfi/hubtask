@@ -1849,7 +1849,7 @@ func run() error {
 	// the entries lie.
 	keeper := timeservice.Keeper{
 		Store: postgres.NewTimeRepository(), Resources: postgres.NewTimeResourceRepository(),
-		Memberships: postgres.NewMembershipRepository(), Calendars: serviceDeskStore.Calendars(),
+		Roles: authorizer, Calendars: serviceDeskStore.Calendars(),
 		Items: items, Containers: containers, References: entryLinks,
 		Plans: planningStore, Estimates: planningStore.Sprints(), Authorizer: authorizer, Reader: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
