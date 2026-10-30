@@ -108,6 +108,8 @@ type Space struct {
 	// Public offers a page's public link where the workspace allows it (UC-DOC-08); its zero
 	// value offers none.
 	Public PublicLinking
+	// Articles publishes pages to a service's portal (UC-DOC-13); nil offers none.
+	Articles repository.Articles
 }
 
 // announce records each page as it now stands, body included, filed under its hub.

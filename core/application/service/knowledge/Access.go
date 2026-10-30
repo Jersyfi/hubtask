@@ -241,6 +241,8 @@ type Access struct {
 	// allows one.
 	PublicLink  *domain.PublicLink
 	PublicLinks bool
+	// Articles are the services' portals the page is published to (UC-DOC-13).
+	Articles []domain.Article
 }
 
 // AccessOutput is the shape every door returns (api/openapi.yaml, schema PageAccess).
@@ -251,6 +253,10 @@ func AccessOutput(a Access) usecase.Output {
 			"account_id": share.AccountID.String(), "granted_by": idOrNil(share.GrantedBy), "granted_at": share.GrantedAt,
 		})
 	}
+	articles := make([]usecase.Output, 0, len(a.Articles))
+	for _, article := range a.Articles {
+		articles = append(articles, ArticleOutput(article))
+	}
 	var readers any
 	if a.Readers.Restricted {
 		readers = idStrings(a.Readers.Accounts)
@@ -260,6 +266,7 @@ func AccessOutput(a Access) usecase.Output {
 		"restricted_above": a.Readers.Restricted && !a.Page.Restricted, "readers": readers,
 		"shares": shares, "may_share": a.MayShare,
 		"public_link": publicLinkOrNil(a.PublicLink), "public_links_allowed": a.PublicLinks,
+		"articles": articles,
 	}
 }
 
@@ -300,6 +307,11 @@ func (h ReadPageAccess) Execute(ctx context.Context, actor appshared.ActorContex
 		out.Readers = readers[page.ID]
 		if out.Shares, err = h.Space.Pages.Shares(ctx, page.ID, domain.MaxSharesPerPage); err != nil {
 			return err
+		}
+		if h.Space.Articles != nil {
+			if out.Articles, err = h.Space.Articles.Of(ctx, page.ID); err != nil {
+				return err
+			}
 		}
 		if out.PublicLink, err = h.Space.publicLinkOf(ctx, page.ID); err != nil || h.Space.Public.Links == nil {
 			return err
