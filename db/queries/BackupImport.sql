@@ -2753,3 +2753,88 @@ SELECT EXISTS (
 
 -- name: ClearEntryEstimate :execrows
 DELETE FROM entry_estimate;
+
+-- name: ImportTimeWorkType :execrows
+INSERT INTO time_work_type (id, tenant_id, key, name, billable, archived, position, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.name, r.billable, r.archived, r.position, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::time_work_type,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, billable = EXCLUDED.billable, archived = EXCLUDED.archived, position = EXCLUDED.position, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsTimeWorkType :one
+SELECT EXISTS (SELECT 1 FROM time_work_type WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearTimeWorkType :execrows
+DELETE FROM time_work_type;
+
+-- name: ImportTimeRecord :execrows
+INSERT INTO time_record (id, tenant_id, account_id, entry_id, work_type, day, started_at, minutes, note, billable, source, corrects, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.account_id, r.entry_id, r.work_type, r.day, r.started_at, r.minutes, r.note, r.billable, r.source, r.corrects, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::time_record,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  entry_id = EXCLUDED.entry_id, work_type = EXCLUDED.work_type, day = EXCLUDED.day, started_at = EXCLUDED.started_at, minutes = EXCLUDED.minutes, note = EXCLUDED.note, billable = EXCLUDED.billable, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsTimeRecord :one
+SELECT EXISTS (SELECT 1 FROM time_record WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearTimeRecord :execrows
+DELETE FROM time_record;
+
+-- name: ImportTimeTimer :execrows
+INSERT INTO time_timer (id, tenant_id, account_id, entry_id, work_type, note, billable, started_at, version)
+SELECT r.id, r.tenant_id, r.account_id, r.entry_id, r.work_type, r.note, r.billable, r.started_at, r.version
+FROM jsonb_populate_record(
+  NULL::time_timer,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  entry_id = EXCLUDED.entry_id, work_type = EXCLUDED.work_type, note = EXCLUDED.note, billable = EXCLUDED.billable, started_at = EXCLUDED.started_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsTimeTimer :one
+SELECT EXISTS (SELECT 1 FROM time_timer WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearTimeTimer :execrows
+DELETE FROM time_timer;
+
+-- name: ImportTimesheet :execrows
+INSERT INTO timesheet (id, tenant_id, account_id, week_start, state, minutes, submitted_at, decided_at, decided_by, reason, updated_at, version)
+SELECT r.id, r.tenant_id, r.account_id, r.week_start, r.state, r.minutes, r.submitted_at, r.decided_at, r.decided_by, r.reason, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::timesheet,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  state = EXCLUDED.state, minutes = EXCLUDED.minutes, submitted_at = EXCLUDED.submitted_at, decided_at = EXCLUDED.decided_at, decided_by = EXCLUDED.decided_by, reason = EXCLUDED.reason, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsTimesheet :one
+SELECT EXISTS (SELECT 1 FROM timesheet WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearTimesheet :execrows
+DELETE FROM timesheet;
+
+-- name: ImportTimePolicy :execrows
+INSERT INTO time_policy (id, tenant_id, locked_through, visibility, updated_at, updated_by, version)
+SELECT r.id, r.tenant_id, r.locked_through, r.visibility, r.updated_at, r.updated_by, r.version
+FROM jsonb_populate_record(
+  NULL::time_policy,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  locked_through = EXCLUDED.locked_through, visibility = EXCLUDED.visibility, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsTimePolicy :one
+SELECT EXISTS (SELECT 1 FROM time_policy WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearTimePolicy :execrows
+DELETE FROM time_policy;

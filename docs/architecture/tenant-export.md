@@ -191,6 +191,11 @@ re-mints identities must rewrite exactly these).
 | 73 | `sprints` | `sprint` | `id` | `collection_id`→containers, `created_by`→accounts (a collection's time box with its goal, commitment and result, migration 0245) |
 | 74 | `sprint_entries` | `sprint_entry` | `sprint_id`, `entry_id` | `sprint_id`→sprints, `entry_id`→work_items (an entry's membership in a sprint and what became of it at the close) |
 | 75 | `entry_estimates` | `entry_estimate` | `entry_id` | `entry_id`→work_items, `updated_by`→accounts (how big an entry is in points, hours or a T-shirt size) |
+| 76 | `time_work_types` | `time_work_type` | `id` | — (the workspace's kinds of work, by key, migration 0246) |
+| 77 | `time_records` | `time_record` | `id` | `account_id`→accounts, `entry_id`→work_items, cleared when withheld (a person's time on one day; no foreign key on the entry, so approved time outlives a purged entry) |
+| 78 | `time_timers` | `time_timer` | `id` | `account_id`→accounts, `entry_id`→work_items, cleared when withheld (a person's running clock) |
+| 79 | `timesheets` | `timesheet` | `id` | `account_id`→accounts, `decided_by`→accounts (a person's week from Monday, handed in, approved or sent back) |
+| 80 | `time_policies` | `time_policy` | `id` | `updated_by`→accounts (the workspace's locked period and visibility of other people's time; not duplicated) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

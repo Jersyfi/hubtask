@@ -843,6 +843,66 @@ func (q *Queries) ClearTemplate(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearTimePolicy = `-- name: ClearTimePolicy :execrows
+DELETE FROM time_policy
+`
+
+func (q *Queries) ClearTimePolicy(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearTimePolicy)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearTimeRecord = `-- name: ClearTimeRecord :execrows
+DELETE FROM time_record
+`
+
+func (q *Queries) ClearTimeRecord(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearTimeRecord)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearTimeTimer = `-- name: ClearTimeTimer :execrows
+DELETE FROM time_timer
+`
+
+func (q *Queries) ClearTimeTimer(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearTimeTimer)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearTimeWorkType = `-- name: ClearTimeWorkType :execrows
+DELETE FROM time_work_type
+`
+
+func (q *Queries) ClearTimeWorkType(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearTimeWorkType)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearTimesheet = `-- name: ClearTimesheet :execrows
+DELETE FROM timesheet
+`
+
+func (q *Queries) ClearTimesheet(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearTimesheet)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearWebhookSubscription = `-- name: ClearWebhookSubscription :execrows
 DELETE FROM webhook_subscription
 `
@@ -1726,6 +1786,61 @@ SELECT EXISTS (SELECT 1 FROM tenant WHERE id = ($1::jsonb->>'id')::uuid) AS held
 
 func (q *Queries) HoldsTenant(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsTenant, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsTimePolicy = `-- name: HoldsTimePolicy :one
+SELECT EXISTS (SELECT 1 FROM time_policy WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsTimePolicy(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsTimePolicy, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsTimeRecord = `-- name: HoldsTimeRecord :one
+SELECT EXISTS (SELECT 1 FROM time_record WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsTimeRecord(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsTimeRecord, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsTimeTimer = `-- name: HoldsTimeTimer :one
+SELECT EXISTS (SELECT 1 FROM time_timer WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsTimeTimer(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsTimeTimer, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsTimeWorkType = `-- name: HoldsTimeWorkType :one
+SELECT EXISTS (SELECT 1 FROM time_work_type WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsTimeWorkType(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsTimeWorkType, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsTimesheet = `-- name: HoldsTimesheet :one
+SELECT EXISTS (SELECT 1 FROM timesheet WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsTimesheet(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsTimesheet, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -4733,6 +4848,131 @@ type ImportTenantParams struct {
 // updated returns nothing at all, which is how the caller tells the three outcomes apart.
 func (q *Queries) ImportTenant(ctx context.Context, arg ImportTenantParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importTenant, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importTimePolicy = `-- name: ImportTimePolicy :execrows
+INSERT INTO time_policy (id, tenant_id, locked_through, visibility, updated_at, updated_by, version)
+SELECT r.id, r.tenant_id, r.locked_through, r.visibility, r.updated_at, r.updated_by, r.version
+FROM jsonb_populate_record(
+  NULL::time_policy,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  locked_through = EXCLUDED.locked_through, visibility = EXCLUDED.visibility, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportTimePolicyParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportTimePolicy(ctx context.Context, arg ImportTimePolicyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importTimePolicy, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importTimeRecord = `-- name: ImportTimeRecord :execrows
+INSERT INTO time_record (id, tenant_id, account_id, entry_id, work_type, day, started_at, minutes, note, billable, source, corrects, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.account_id, r.entry_id, r.work_type, r.day, r.started_at, r.minutes, r.note, r.billable, r.source, r.corrects, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::time_record,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  entry_id = EXCLUDED.entry_id, work_type = EXCLUDED.work_type, day = EXCLUDED.day, started_at = EXCLUDED.started_at, minutes = EXCLUDED.minutes, note = EXCLUDED.note, billable = EXCLUDED.billable, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportTimeRecordParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportTimeRecord(ctx context.Context, arg ImportTimeRecordParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importTimeRecord, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importTimeTimer = `-- name: ImportTimeTimer :execrows
+INSERT INTO time_timer (id, tenant_id, account_id, entry_id, work_type, note, billable, started_at, version)
+SELECT r.id, r.tenant_id, r.account_id, r.entry_id, r.work_type, r.note, r.billable, r.started_at, r.version
+FROM jsonb_populate_record(
+  NULL::time_timer,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  entry_id = EXCLUDED.entry_id, work_type = EXCLUDED.work_type, note = EXCLUDED.note, billable = EXCLUDED.billable, started_at = EXCLUDED.started_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportTimeTimerParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportTimeTimer(ctx context.Context, arg ImportTimeTimerParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importTimeTimer, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importTimeWorkType = `-- name: ImportTimeWorkType :execrows
+INSERT INTO time_work_type (id, tenant_id, key, name, billable, archived, position, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.name, r.billable, r.archived, r.position, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::time_work_type,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, billable = EXCLUDED.billable, archived = EXCLUDED.archived, position = EXCLUDED.position, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportTimeWorkTypeParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportTimeWorkType(ctx context.Context, arg ImportTimeWorkTypeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importTimeWorkType, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importTimesheet = `-- name: ImportTimesheet :execrows
+INSERT INTO timesheet (id, tenant_id, account_id, week_start, state, minutes, submitted_at, decided_at, decided_by, reason, updated_at, version)
+SELECT r.id, r.tenant_id, r.account_id, r.week_start, r.state, r.minutes, r.submitted_at, r.decided_at, r.decided_by, r.reason, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::timesheet,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  state = EXCLUDED.state, minutes = EXCLUDED.minutes, submitted_at = EXCLUDED.submitted_at, decided_at = EXCLUDED.decided_at, decided_by = EXCLUDED.decided_by, reason = EXCLUDED.reason, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportTimesheetParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportTimesheet(ctx context.Context, arg ImportTimesheetParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importTimesheet, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

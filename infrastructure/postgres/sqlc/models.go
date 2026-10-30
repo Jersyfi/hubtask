@@ -2321,6 +2321,74 @@ type TenantHost struct {
 	CreatedAt    pgtype.Timestamptz
 }
 
+type TimePolicy struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	LockedThrough pgtype.Date
+	Visibility    string
+	UpdatedAt     pgtype.Timestamptz
+	UpdatedBy     pgtype.UUID
+	Version       int32
+}
+
+type TimeRecord struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	EntryID   pgtype.UUID
+	WorkType  string
+	Day       pgtype.Date
+	StartedAt pgtype.Timestamptz
+	Minutes   int32
+	Note      string
+	Billable  bool
+	Source    string
+	Corrects  pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
+type TimeTimer struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	EntryID   pgtype.UUID
+	WorkType  string
+	Note      string
+	Billable  bool
+	StartedAt pgtype.Timestamptz
+	Version   int32
+}
+
+type TimeWorkType struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	Key       string
+	Name      string
+	Billable  bool
+	Archived  bool
+	Position  int32
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
+type Timesheet struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	AccountID   pgtype.UUID
+	WeekStart   pgtype.Date
+	State       string
+	Minutes     int32
+	SubmittedAt pgtype.Timestamptz
+	DecidedAt   pgtype.Timestamptz
+	DecidedBy   pgtype.UUID
+	Reason      string
+	UpdatedAt   pgtype.Timestamptz
+	Version     int32
+}
+
 type Tombstone struct {
 	TenantID   pgtype.UUID
 	Entity     string

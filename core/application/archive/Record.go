@@ -772,6 +772,44 @@ var entities = []Entity{
 			{Field: "updated_by", Table: "account", Clearable: true},
 		},
 	},
+	// The time module (migration 0246, M7): kinds of work, records, running timers, a person's
+	// weeks and the workspace's time policy. Whole: none says when a row was removed. A record
+	// names its entry without a foreign key - approved time outlives a purged entry - so a restore
+	// that withholds the entry clears the reference and keeps the time.
+	{
+		Name: "time_work_types", Table: "time_work_type", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true, Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
+	},
+	{
+		Name: "time_records", Table: "time_record", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "entry_id", Table: "work_item", Clearable: true},
+		},
+	},
+	{
+		Name: "time_timers", Table: "time_timer", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "entry_id", Table: "work_item", Clearable: true},
+		},
+	},
+	{
+		Name: "timesheets", Table: "timesheet", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "decided_by", Table: "account", Clearable: true},
+		},
+		Unique: []UniqueField{{Field: "week_start", Rule: UniqueSkip, Within: []string{"account_id"}}},
+	},
+	{
+		Name: "time_policies", Table: "time_policy", Whole: true, Unmarked: true, Later: true,
+		Keys:       []string{"id"},
+		References: []Reference{{Field: "updated_by", Table: "account", Clearable: true}},
+	},
 	{
 		Name: "satisfaction_ratings", Table: "satisfaction_rating", Whole: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,
