@@ -62,6 +62,8 @@ type Store interface {
 	ListRequests(ctx context.Context, status domain.RequestStatus, agent shared.ID, max int) ([]domain.Request, error)
 	// DecideRequest writes a pending request's answer; false where it was no longer pending.
 	DecideRequest(ctx context.Context, r domain.Request, expected int) (bool, error)
+	// FailRequest records that an approved request could not be performed, with the refusal's code.
+	FailRequest(ctx context.Context, id shared.ID, code string) error
 
 	ListCases(ctx context.Context, agent shared.ID, max int) ([]domain.Case, error)
 	InsertCase(ctx context.Context, c domain.Case) error

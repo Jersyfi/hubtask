@@ -492,6 +492,19 @@ func (AgentRepository) DecideRequest(ctx context.Context, r domain.Request, expe
 	return n > 0, nil
 }
 
+func (AgentRepository) FailRequest(ctx context.Context, id shared.ID, code string) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return err
+	}
+	_, err = queries.FailAgentRequest(ctx, sqlc.FailAgentRequestParams{Code: code, ID: key})
+	return agentError(err, "failing a held act")
+}
+
 func (AgentRepository) ListCases(ctx context.Context, agent shared.ID, max int) ([]domain.Case, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

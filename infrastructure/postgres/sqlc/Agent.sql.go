@@ -147,6 +147,25 @@ func (q *Queries) DeleteAgentCase(ctx context.Context, arg DeleteAgentCaseParams
 	return result.RowsAffected(), nil
 }
 
+const failAgentRequest = `-- name: FailAgentRequest :execrows
+UPDATE agent_request SET status = 'FAILED', code = $1, version = version + 1
+WHERE tenant_id = current_tenant_id() AND id = $2::uuid AND status = 'APPROVED'
+`
+
+type FailAgentRequestParams struct {
+	Code string
+	ID   pgtype.UUID
+}
+
+// An approved act that could not be performed: the refusal's code, for the person to read.
+func (q *Queries) FailAgentRequest(ctx context.Context, arg FailAgentRequestParams) (int64, error) {
+	result, err := q.db.Exec(ctx, failAgentRequest, arg.Code, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const findAgent = `-- name: FindAgent :one
 SELECT id, account_id, name, purpose, kind, owner_id, risk_class, scopes, model_id, policy_reversible,
        policy_irreversible, tokens_per_day, actions_per_hour, concurrent_runs, min_accuracy, status,

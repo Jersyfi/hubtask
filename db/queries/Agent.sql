@@ -199,3 +199,8 @@ WHERE tenant_id = current_tenant_id() AND target_type = sqlc.arg('target_type')
   AND target_id = sqlc.arg('target_id')::uuid
 ORDER BY accepted_at DESC, id
 LIMIT sqlc.arg('max')::int;
+
+-- name: FailAgentRequest :execrows
+-- An approved act that could not be performed: the refusal's code, for the person to read.
+UPDATE agent_request SET status = 'FAILED', code = sqlc.arg('code'), version = version + 1
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid AND status = 'APPROVED';
