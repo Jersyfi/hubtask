@@ -10,6 +10,7 @@ import (
 
 func value(s string) *string { return &s }
 
+// UC-GOL-04 check 15: a running total and what is left between two series, exact.
 func TestARunningTotalSumsEachGroupOverItsPeriods(t *testing.T) {
 	cases := []struct {
 		name   string
