@@ -119,6 +119,12 @@ export function collectionOf(entity: string): string {
       return 'cis';
     case 'cmdb_relation':
       return 'ci_relations';
+    case 'cmdb_affected':
+      return 'ci_affected';
+    case 'cmdb_ci_group':
+      return 'ci_groups';
+    case 'cmdb_asset':
+      return 'ci_assets';
     default:
       return entity;
   }
