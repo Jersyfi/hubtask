@@ -129,6 +129,9 @@ const (
 	// FieldSlaStanding is the worst standing of the entry's SLA goals, from MET up to BREACHED;
 	// AT_RISK is a goal still running past its warning. Absent when no policy holds the entry.
 	FieldSlaStanding = "sla_standing"
+	// FieldSatisfaction is the requester's score of the resolved entry, 1 to 5, absent while none
+	// was given (UC-SVC-07). A queue keeps the unhappy ones with LTE 2.
+	FieldSatisfaction = "satisfaction"
 
 	// CustomFieldPrefix names the family (api-guidelines.md §3). The one field name in the
 	// grammar that carries a value: everything after the dot is a key, which is why it is a
@@ -335,6 +338,11 @@ var catalogue = []Field{
 		Name: FieldSlaStanding, Kind: KindEnum,
 		Operators: []Operator{OpEq, OpNeq, OpIn, OpNotIn, OpIsNull},
 		Values:    SlaStandings(),
+		Nullable:  true,
+	},
+	{
+		Name: FieldSatisfaction, Kind: KindInt,
+		Operators: []Operator{OpEq, OpNeq, OpIn, OpLt, OpLte, OpGt, OpGte, OpBetween, OpIsNull},
 		Nullable:  true,
 	},
 }

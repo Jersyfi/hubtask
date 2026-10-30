@@ -149,7 +149,7 @@ func (b *builder) aggregateValue(aggregation view.Aggregation) {
 }
 
 // quantity writes a built-in measure: the span between two of the row's stamps in whole minutes,
-// NULL where either is missing. timestamptz_mi is the subtraction operator's own function, spelled
+// NULL where either is missing, or the requester's score. timestamptz_mi is the subtraction operator's own function, spelled
 // as a name for the reason customText spells jsonb_extract_path_text.
 func (b *builder) quantity(quantity view.Quantity) {
 	var from, to string
@@ -158,6 +158,10 @@ func (b *builder) quantity(quantity view.Quantity) {
 		from, to = `wi.created_at`, `wi.completed_at`
 	case view.QuantityScheduledSpan:
 		from, to = `wi.start_at`, `wi.due_at`
+	case view.QuantitySatisfaction:
+		// A score, not a span.
+		b.write(satisfactionScore)
+		return
 	default:
 		b.fail(shared.ErrInternal.WithDetail("query.quantity_unknown"))
 		return

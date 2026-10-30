@@ -244,6 +244,10 @@ func column(field view.Field, prefix string) (string, bool) {
 		if prefix == itemPrefix {
 			return slaStanding, true
 		}
+	case view.FieldSatisfaction:
+		if prefix == itemPrefix {
+			return satisfactionScore, true
+		}
 	}
 	return "", false
 }
@@ -259,6 +263,11 @@ const slaStanding = `(SELECT (ARRAY['MET', 'PAUSED', 'RUNNING', 'AT_RISK', 'BREA
 	`WHEN es.standing = 'RUNNING' AND es.at_risk_at IS NOT NULL THEN 4 ` +
 	`WHEN es.standing = 'RUNNING' THEN 3 WHEN es.standing = 'PAUSED' THEN 2 ELSE 1 END)] ` +
 	`FROM entry_sla es WHERE es.tenant_id = wi.tenant_id AND es.item_id = wi.id)`
+
+// satisfactionScore is the requester's score of the entry, one row at most
+// (satisfaction_rating_item_uq).
+const satisfactionScore = `(SELECT sr.score::bigint FROM satisfaction_rating sr WHERE sr.tenant_id = wi.tenant_id ` +
+	`AND sr.item_id = wi.id)`
 
 // Derived reports a sort field whose value is not a column of the row, so the adapter reads the
 // cursor's key of it beside the page (DerivedKey).

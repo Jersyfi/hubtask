@@ -38,8 +38,8 @@ const (
 )
 
 // Quantity is a measure every entry carries without a definition: a span between two of its own
-// stamps, in whole minutes. A closed vocabulary like the functions; the compiler writes one
-// constant expression per quantity.
+// stamps in whole minutes, or the requester's satisfaction score. A closed vocabulary like the
+// functions; the compiler writes one constant expression per quantity.
 type Quantity string
 
 const (
@@ -48,10 +48,15 @@ const (
 	QuantityLeadTime Quantity = "lead_time"
 	// QuantityScheduledSpan is start to due. An entry missing either holds none.
 	QuantityScheduledSpan Quantity = "scheduled_span"
+	// QuantitySatisfaction is the requester's score of the resolved entry, 1 to 5 (UC-SVC-07):
+	// AVG over a queue's view is that queue's satisfaction. An entry nobody rated holds none.
+	QuantitySatisfaction Quantity = "satisfaction"
 )
 
 // Quantities lists the built-in measures, for a door that offers them.
-func Quantities() []Quantity { return []Quantity{QuantityLeadTime, QuantityScheduledSpan} }
+func Quantities() []Quantity {
+	return []Quantity{QuantityLeadTime, QuantityScheduledSpan, QuantitySatisfaction}
+}
 
 // AggregateSource is what an aggregation counts: the entries a query keeps, or the links between
 // them (F-9). Records are entries; time records and pages have no store yet.
