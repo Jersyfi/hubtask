@@ -287,3 +287,31 @@ func TestAnActRunWithItsOwnerToldTellsThemOnceAnHour(t *testing.T) {
 		t.Fatalf("told = %v", told.told)
 	}
 }
+
+// UC-AGT-07 check 8: a rule's run on a ticket's arrival or resolution starts the job on the entry
+// the run is about (`item_id`, supplied by the run); a hub's job is not started from an entry, and
+// a start naming no target is refused.
+func TestARuleStartsAJobOnTheTicketItIsAbout(t *testing.T) {
+	f := newFixture()
+	a, q := f.shipped(t, "TICKET_TRIAGE", nil)
+	desk := f.desk
+	desk.Queue = q
+	start := func(agent domain.Agent, in usecase.Input) (usecase.Output, error) {
+		in["agent_id"] = agent.ID.String()
+		return (StartAgentJob{Desk: desk}).Descriptor().Handler.Invoke(context.Background(), person(ana), in)
+	}
+	out, err := start(a, usecase.Input{"item_id": ticket.String()})
+	if err != nil {
+		t.Fatalf("a rule's start: %v", err)
+	}
+	if job := f.store.jobs[shared.MustParseID(out.String("id"))]; job.TargetID != ticket || job.TargetType != domain.TargetEntry {
+		t.Fatalf("job = %+v", job)
+	}
+	dup, _ := f.shipped(t, "DUPLICATE_REVIEW", nil)
+	if _, err := start(dup, usecase.Input{"item_id": ticket.String()}); code(err) != "agents.target_invalid" {
+		t.Fatalf("a hub's job from an entry = %v", err)
+	}
+	if _, err := start(a, usecase.Input{}); code(err) != "agents.target_required" {
+		t.Fatalf("no target = %v", err)
+	}
+}

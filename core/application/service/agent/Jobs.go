@@ -55,7 +55,8 @@ func (h StartAgentJob) Descriptor() usecase.Descriptor {
 		TokenScope:  scopeWrite,
 		Input: []usecase.Field{
 			{Name: "agent_id", Kind: usecase.KindID, Required: true, Description: "The shipped agent."},
-			{Name: "target_id", Kind: usecase.KindID, Required: true, Description: "The entry, or for duplicate review the hub."},
+			{Name: "target_id", Kind: usecase.KindID, Description: "The entry, or for duplicate review the hub; the entry a rule's run is about without it."},
+			{Name: "item_id", Kind: usecase.KindID, Description: "The entry a rule's run is about, supplied by the run: a ticket's arrival or resolution starts the job on it."},
 		},
 		Audit: usecase.AuditDeclaration{Action: AgentJobStartedAction, TargetType: agentTarget, Severity: audit.SeverityNotice, Required: true},
 		Activity: usecase.ActivityDeclaration{
@@ -73,7 +74,7 @@ func (h StartAgentJob) invoke(ctx context.Context, actor appshared.ActorContext,
 	if err != nil {
 		return nil, err
 	}
-	target, err := in.ID("target_id")
+	target, fromRun, err := jobTargetOf(in)
 	if err != nil {
 		return nil, err
 	}
@@ -88,6 +89,11 @@ func (h StartAgentJob) invoke(ctx context.Context, actor appshared.ActorContext,
 	targetType, ok := a.Kind.Target()
 	if !ok {
 		return nil, shared.ErrConflict.WithDetail("agents.runs_elsewhere")
+	}
+	if fromRun && targetType != domain.TargetEntry {
+		// A run supplies an entry; duplicate review works on a hub, which the rule names itself.
+		return nil, shared.ErrValidation.WithDetail("agents.target_invalid").
+			WithParams(map[string]string{"target_type": string(targetType)})
 	}
 	if d.Queue == nil {
 		return nil, shared.ErrInternal.WithDetail("agents.jobs_not_wired")
@@ -121,6 +127,22 @@ func (h StartAgentJob) invoke(ctx context.Context, actor appshared.ActorContext,
 		return nil, err
 	}
 	return JobOutput(job), nil
+}
+
+// jobTargetOf is the job's target: the one named, else the entry a rule's run is about
+// (automation.md §1.3, supplied fields), so an event rule starts a job on the ticket that arrived
+// or was resolved.
+func jobTargetOf(in usecase.Input) (shared.ID, bool, error) {
+	if in.String("target_id") != "" {
+		target, err := in.ID("target_id")
+		return target, false, err
+	}
+	if in.String("item_id") != "" {
+		target, err := in.ID("item_id")
+		return target, true, err
+	}
+	return "", false, shared.ErrValidation.WithDetail("agents.target_required").
+		WithFields(shared.FieldError{Path: "/target_id", Code: "agents.target_required"})
 }
 
 // situation is what a job is judged on, read in the caller's transaction: the kill switch, the

@@ -9642,6 +9642,7 @@
   "agents.stored_shape": "Was zu diesem Agenten gespeichert ist, konnte nicht gelesen werden.",
   "agents.suspended": "Dieser Agent ist gestoppt.",
   "agents.target_invalid": "Dieser Agent arbeitet an einem Ziel der Art {target_type}.",
+  "agents.target_required": "Sagen Sie, woran der Agent arbeitet.",
   "agents.too_many_scopes": "Ein Agent hat höchstens 64 Bereiche.",
   "agents.transition_invalid": "Ein Agent im Zustand {from} kann nicht {to} werden.",
   "provenance.incomplete": "Die Herkunft dieses Werts konnte nicht festgehalten werden.",

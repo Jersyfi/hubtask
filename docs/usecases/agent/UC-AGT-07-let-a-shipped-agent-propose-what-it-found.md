@@ -48,9 +48,13 @@ knowledge agent proposes a page from it in the hub's space.
 6. REST, MCP and hubctl start a job and list an agent's jobs alike.
 7. The web app's administration lists an agent's jobs and lets its owner or an administrator start
    one on an entry or a hub.
+8. An automation rule starts a job on the ticket its run is about - its arrival (`item.created`) or
+   its resolution - with the action `START_AGENT_JOB`, the run supplying the entry; a hub's job is
+   not started from an entry (`agents.target_invalid`), and a start naming no target is refused
+   (`agents.target_required`). The rule's account is held to the owner's or an administrator's right.
 
 ## Where it ends
 
-* A job runs when somebody starts it; no ticket's arrival or resolution starts one by itself yet.
+* A job runs when somebody or a rule starts it; nothing starts one without a rule saying so.
 * Routing a ticket to a queue by its offering is not proposed.
 * No agent-to-agent protocol and no orchestration of several agents.

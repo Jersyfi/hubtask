@@ -9645,6 +9645,7 @@
   "agents.stored_shape": "What was stored for this agent could not be read.",
   "agents.suspended": "This agent is stopped.",
   "agents.target_invalid": "This agent works on a {target_type}.",
+  "agents.target_required": "Say what the agent works on.",
   "agents.too_many_scopes": "An agent has at most 64 scopes.",
   "agents.transition_invalid": "An agent that is {from} cannot become {to}.",
   "provenance.incomplete": "The origin of this value could not be recorded.",
