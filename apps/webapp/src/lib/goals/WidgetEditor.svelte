@@ -40,7 +40,7 @@
   type Chart = DashboardWidgetWrite['chart'];
   type Source = DashboardWidgetWrite['source'];
   const CHARTS: readonly Chart[] = ['NUMBER', 'BAR', 'PIE', 'LINE', 'TABLE', 'MATRIX', 'PROGRESS'];
-  const FUNCTIONS = ['COUNT', 'SUM', 'AVG', 'MIN', 'MAX'] as const;
+  const FUNCTIONS = ['COUNT', 'SUM', 'AVG', 'MIN', 'MAX', 'P50', 'P85', 'P95'] as const;
   const PERIODS = ['', 'day', 'week', 'month'] as const;
   const SOURCES = ['entries', 'links', 'time', 'pages'] as const;
   type SummarySource = (typeof SOURCES)[number];
