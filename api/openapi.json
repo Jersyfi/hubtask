@@ -115,6 +115,9 @@
     },
     {
       "name": "servicedesk"
+    },
+    {
+      "name": "planning"
     }
   ],
   "x-hubtask-cli-groups": {
@@ -129,9 +132,377 @@
     "ci": "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact",
     "business-calendar": "the workspace's business calendars: working hours, holidays and a time zone under a key",
     "sla": "the workspace's SLA policies, how an entry's goals stand, and how they stood in a period",
-    "request": "the requester portal: a service's catalogue, raising a request, following and answering your own"
+    "request": "the requester portal: a service's catalogue, raising a request, following and answering your own",
+    "plan": "a hub's or a collection's plan: its schedule, critical path and the moves it proposes",
+    "baseline": "a plan's baselines: the agreed dates kept and compared with today's"
   },
   "paths": {
+    "/plans/{planId}/schedule": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PlanId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "readPlanSchedule",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "plan schedule",
+        "summary": "A plan as the scheduler places it",
+        "description": "Every visible entry of the hub or collection with its start and finish as the scheduler places it: automatic entries as early as their predecessors allow, manual ones where they stand, with the dependencies they break. Each entry's total and free float in working days, the critical path, and the entries without a date. Counts a business calendar's working days, or Monday to Friday. Changes nothing. Needs READ at the plan and the planning module switched on.\n",
+        "parameters": [
+          {
+            "name": "calendar",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,49}$"
+            },
+            "description": "A business calendar's key."
+          },
+          {
+            "name": "zone",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "An IANA time zone, when no calendar names one; UTC without."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The schedule",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanSchedule"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/plans/{planId}/schedule:apply": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PlanId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "applyPlanSchedule",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "plan apply",
+        "summary": "Apply the moves a person accepted",
+        "description": "Schedules the plan again and applies the proposed moves of the entries named, all or none, each as a change of its start and its all-day due date that is checked, recorded and announced as one by hand is. A proposed move not named stays a proposal. Needs WRITE_ITEMS at the plan and on every entry moved.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "item_ids"
+                ],
+                "properties": {
+                  "item_ids": {
+                    "type": "array",
+                    "maxItems": 500,
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "calendar": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,49}$"
+                  },
+                  "zone": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What moved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanMoves"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/plans/{planId}/baselines": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PlanId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "listBaselines",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "baseline ls",
+        "summary": "A plan's baselines",
+        "description": "The plan's baselines, the newest first. Needs READ at the plan.",
+        "responses": {
+          "200": {
+            "description": "The baselines",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanBaselineList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "takeBaseline",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "baseline take",
+        "summary": "Keep the plan as it is agreed now",
+        "description": "Copies the start and due of every entry of the hub or collection under a name. A plan keeps at most 20 baselines (`baselines.limit`); a baseline is never changed. Needs WRITE_ITEMS at the plan.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 120
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Taken",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanBaseline"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/baselines/{baselineId}": {
+      "parameters": [
+        {
+          "name": "baselineId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "compareBaseline",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "baseline compare",
+        "summary": "A baseline beside today's plan",
+        "description": "Entry by entry, the start and due the baseline holds, today's, and how many calendar days each slipped (positive is later); entries added and gone since are marked. An entry the caller may not see is left out. Needs READ at the plan.\n",
+        "responses": {
+          "200": {
+            "description": "The comparison",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaselineComparison"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "deleteBaseline",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "baseline rm",
+        "summary": "Delete a baseline",
+        "description": "Deletes the baseline and the dates it holds; no entry changes. Needs WRITE_ITEMS at the plan.",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/links/{linkId}/timing": {
+      "parameters": [
+        {
+          "name": "linkId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "setDependencyTiming",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "link timing",
+        "summary": "How a dependency's waiting entry hangs on the other",
+        "description": "FS (finish to start), SS (start to start), FF (finish to finish) or SF (start to finish), with a lag in working days - negative for a lead, at most 999 either way. A link nobody waits on takes none (`links.timing_without_dependency`). Needs WRITE_ITEMS on the waiting entry.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "dependency_kind"
+                ],
+                "properties": {
+                  "dependency_kind": {
+                    "type": "string",
+                    "enum": [
+                      "FS",
+                      "SS",
+                      "FF",
+                      "SF"
+                    ]
+                  },
+                  "lag_days": {
+                    "type": "integer",
+                    "minimum": -999,
+                    "maximum": 999
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryLink"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/items/{itemId}/scheduling": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ItemId"
+        }
+      ],
+      "put": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "setEntryScheduling",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "plan mode",
+        "summary": "Whether the scheduler may move an entry, and whether it is a milestone",
+        "description": "AUTOMATIC places the entry as early as its predecessors allow; MANUAL keeps it where a person put it. A milestone is a date without a duration. A field left out keeps what stands; every entry is MANUAL and no milestone until set. Needs WRITE_ITEMS on the entry.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "MANUAL",
+                      "AUTOMATIC"
+                    ]
+                  },
+                  "milestone": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The entry's scheduling",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryScheduling"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/business-calendars": {
       "get": {
         "tags": [
@@ -21435,6 +21806,16 @@
           "format": "uuid"
         }
       },
+      "PlanId": {
+        "name": "planId",
+        "in": "path",
+        "required": true,
+        "description": "The hub or collection the plan is.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
       "CommentId": {
         "name": "commentId",
         "in": "path",
@@ -27312,6 +27693,409 @@
           }
         }
       },
+      "PlanScheduleEntry": {
+        "type": "object",
+        "required": [
+          "item_id",
+          "start",
+          "finish",
+          "duration_days",
+          "moved",
+          "total_float_days",
+          "free_float_days",
+          "critical",
+          "summary",
+          "external",
+          "mode",
+          "milestone",
+          "done"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "start": {
+            "type": "string",
+            "format": "date"
+          },
+          "finish": {
+            "type": "string",
+            "format": "date",
+            "description": "The last working day, included."
+          },
+          "duration_days": {
+            "type": "integer",
+            "description": "Working days; 0 for a milestone."
+          },
+          "moved": {
+            "type": "boolean",
+            "description": "The scheduler proposes these dates instead of the entry's own."
+          },
+          "total_float_days": {
+            "type": "integer",
+            "description": "How far it may slip before the plan's end does; negative on a chain a manual entry breaks."
+          },
+          "free_float_days": {
+            "type": "integer",
+            "description": "How far it may slip before a successor must move."
+          },
+          "critical": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "boolean",
+            "description": "A parent whose dates are its children's span."
+          },
+          "external": {
+            "type": "boolean",
+            "description": "An entry outside the plan a dependency names; kept where it is."
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "MANUAL",
+              "AUTOMATIC"
+            ]
+          },
+          "milestone": {
+            "type": "boolean"
+          },
+          "done": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PlanDependency": {
+        "type": "object",
+        "required": [
+          "link_id",
+          "type",
+          "predecessor_id",
+          "successor_id",
+          "dependency_kind",
+          "lag_days"
+        ],
+        "properties": {
+          "link_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string"
+          },
+          "predecessor_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "successor_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dependency_kind": {
+            "type": "string",
+            "enum": [
+              "FS",
+              "SS",
+              "FF",
+              "SF"
+            ]
+          },
+          "lag_days": {
+            "type": "integer"
+          }
+        }
+      },
+      "PlanConflict": {
+        "type": "object",
+        "description": "A dependency a manual, finished or summary entry breaks.",
+        "required": [
+          "predecessor_id",
+          "successor_id",
+          "dependency_kind",
+          "earliest"
+        ],
+        "properties": {
+          "predecessor_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "successor_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dependency_kind": {
+            "type": "string",
+            "enum": [
+              "FS",
+              "SS",
+              "FF",
+              "SF"
+            ]
+          },
+          "earliest": {
+            "type": "string",
+            "format": "date",
+            "description": "The earliest start (FS, SS) or finish (FF, SF) the dependency allows."
+          }
+        }
+      },
+      "PlanSchedule": {
+        "type": "object",
+        "required": [
+          "zone",
+          "finish",
+          "entries",
+          "dependencies",
+          "conflicts",
+          "unscheduled",
+          "critical_path"
+        ],
+        "properties": {
+          "zone": {
+            "type": "string"
+          },
+          "finish": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The plan's last working day; null for a plan without dates."
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanScheduleEntry"
+            }
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanDependency"
+            }
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanConflict"
+            }
+          },
+          "unscheduled": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Entries with neither a start nor a due date."
+          },
+          "critical_path": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The critical entries, earliest first."
+          }
+        }
+      },
+      "PlanMoves": {
+        "type": "object",
+        "required": [
+          "moved"
+        ],
+        "properties": {
+          "moved": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "item_id",
+                "start",
+                "finish"
+              ],
+              "properties": {
+                "item_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "start": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "finish": {
+                  "type": "string",
+                  "format": "date"
+                }
+              }
+            }
+          }
+        }
+      },
+      "EntryScheduling": {
+        "type": "object",
+        "required": [
+          "item_id",
+          "mode",
+          "milestone"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "MANUAL",
+              "AUTOMATIC"
+            ]
+          },
+          "milestone": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PlanBaseline": {
+        "type": "object",
+        "required": [
+          "id",
+          "plan_id",
+          "name",
+          "taken_at",
+          "taken_by",
+          "entry_count"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "plan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "taken_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "taken_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "entry_count": {
+            "type": "integer"
+          }
+        }
+      },
+      "PlanBaselineList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanBaseline"
+            }
+          }
+        }
+      },
+      "BaselineVariance": {
+        "type": "object",
+        "required": [
+          "item_id",
+          "in_baseline",
+          "in_plan",
+          "baseline_start_at",
+          "baseline_due_at",
+          "start_at",
+          "due_at",
+          "start_variance_days",
+          "finish_variance_days"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "in_baseline": {
+            "type": "boolean",
+            "description": "False for an entry added since."
+          },
+          "in_plan": {
+            "type": "boolean",
+            "description": "False for an entry gone since."
+          },
+          "baseline_start_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "baseline_due_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "start_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "due_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "start_variance_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Calendar days later than agreed; negative is earlier."
+          },
+          "finish_variance_days": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      },
+      "BaselineComparison": {
+        "type": "object",
+        "required": [
+          "baseline",
+          "entries"
+        ],
+        "properties": {
+          "baseline": {
+            "$ref": "#/components/schemas/PlanBaseline"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BaselineVariance"
+            }
+          }
+        }
+      },
       "BusinessCalendar": {
         "type": "object",
         "description": "Working hours, holidays and a time zone under a key - what an SLA counts its targets in.",
@@ -28213,6 +28997,20 @@
               "TARGET"
             ],
             "description": "Which end waits for the other, by the link's type."
+          },
+          "dependency_kind": {
+            "type": "string",
+            "enum": [
+              "FS",
+              "SS",
+              "FF",
+              "SF"
+            ],
+            "description": "How a dependency's waiting end hangs on the other; FS on every link nobody waits on."
+          },
+          "lag_days": {
+            "type": "integer",
+            "description": "Working days between the two moments; negative is a lead."
           }
         }
       },

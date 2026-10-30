@@ -38,6 +38,7 @@ import (
 	mailservice "github.com/Jersyfi/hubtask/core/application/service/mail"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	metaservice "github.com/Jersyfi/hubtask/core/application/service/meta"
+	planningservice "github.com/Jersyfi/hubtask/core/application/service/planning"
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
@@ -133,6 +134,14 @@ func Descriptors() []usecase.Descriptor {
 		servicedeskservice.ReadMyRequest{}.Descriptor(),
 		servicedeskservice.CommentOnMyRequest{}.Descriptor(),
 		servicedeskservice.RateMyRequest{}.Descriptor(),
+		planningservice.ReadPlanSchedule{}.Descriptor(),
+		planningservice.ApplyPlanSchedule{}.Descriptor(),
+		planningservice.SetDependencyTiming{}.Descriptor(),
+		planningservice.SetEntryScheduling{}.Descriptor(),
+		planningservice.TakeBaseline{}.Descriptor(),
+		planningservice.ListBaselines{}.Descriptor(),
+		planningservice.CompareBaseline{}.Descriptor(),
+		planningservice.DeleteBaseline{}.Descriptor(),
 		cmdbservice.ListCiClasses{}.Descriptor(),
 		cmdbservice.DefineCiClass{}.Descriptor(),
 		cmdbservice.ListCiRelationTypes{}.Descriptor(),

@@ -103,6 +103,38 @@ class Client:
             return None
         return json.loads(payload)
 
+    def read_plan_schedule(self, plan_id: str, *, query: dict[str, Any] | None = None) -> "PlanSchedule":
+        """A plan as the scheduler places it"""
+        return self._call("GET", "/plans/{planId}/schedule", {"planId": plan_id}, query, {}, None, "none", None, "json")
+
+    def apply_plan_schedule(self, plan_id: str, body: dict[str, Any]) -> "PlanMoves":
+        """Apply the moves a person accepted"""
+        return self._call("POST", "/plans/{planId}/schedule:apply", {"planId": plan_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_baselines(self, plan_id: str) -> "PlanBaselineList":
+        """A plan's baselines"""
+        return self._call("GET", "/plans/{planId}/baselines", {"planId": plan_id}, None, {}, None, "none", None, "json")
+
+    def take_baseline(self, plan_id: str, body: dict[str, Any]) -> "PlanBaseline":
+        """Keep the plan as it is agreed now"""
+        return self._call("POST", "/plans/{planId}/baselines", {"planId": plan_id}, None, {}, body, "json", "application/json", "json")
+
+    def compare_baseline(self, baseline_id: str) -> "BaselineComparison":
+        """A baseline beside today's plan"""
+        return self._call("GET", "/baselines/{baselineId}", {"baselineId": baseline_id}, None, {}, None, "none", None, "json")
+
+    def delete_baseline(self, baseline_id: str) -> None:
+        """Delete a baseline"""
+        return self._call("DELETE", "/baselines/{baselineId}", {"baselineId": baseline_id}, None, {}, None, "none", None, "void")
+
+    def set_dependency_timing(self, link_id: str, body: dict[str, Any]) -> "EntryLink":
+        """How a dependency's waiting entry hangs on the other"""
+        return self._call("PUT", "/links/{linkId}/timing", {"linkId": link_id}, None, {}, body, "json", "application/json", "json")
+
+    def set_entry_scheduling(self, item_id: str, body: dict[str, Any]) -> "EntryScheduling":
+        """Whether the scheduler may move an entry, and whether it is a milestone"""
+        return self._call("PUT", "/items/{itemId}/scheduling", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
     def list_business_calendars(self) -> "BusinessCalendarList":
         """The workspace's business calendars"""
         return self._call("GET", "/business-calendars", {}, None, {}, None, "none", None, "json")

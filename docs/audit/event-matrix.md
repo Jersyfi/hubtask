@@ -286,6 +286,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `item.read` | SearchItems | `search` | INFO | When refused |
 | `item.reopened` | ReopenWorkItem | `item` | INFO | Every time |
 | `item.restored` | RestoreWorkItem | `item` | NOTICE | Every time |
+| `item.scheduling_set` | SetEntryScheduling | `item` | INFO | Every time |
 | `item.step_taken` | TakeStep | `item` | INFO | Every time |
 | `item.steps_read` | ListEntrySteps | `item` | INFO | When refused |
 | `item.trashed` | TrashWorkItem | `item` | NOTICE | Every time |
@@ -354,6 +355,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `encryption.reseal_requested` | ResealSecrets | `tenant` | NOTICE | Every time |
 | `encryption.status_read` | ReadEncryptionStatus | `tenant` | INFO | When refused |
+
+## Entry_link
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `entry_link.timed` | SetDependencyTiming | `entry_link` | INFO | Every time |
 
 ## Entry_sla
 
@@ -589,7 +596,18 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `plan.created` | CreatePlan | `plan` | NOTICE | Every time |
 | `plan.listed` | ListPlans | `plan` | INFO | When refused |
 | `plan.read` | ReadPlan | `plan` | INFO | When refused |
+| `plan.read` | ReadPlanSchedule | `plan` | INFO | When refused |
 | `plan.removed` | RemovePlan | `plan` | NOTICE | Every time |
+| `plan.scheduled` | ApplyPlanSchedule | `plan` | INFO | Every time |
+
+## Plan_baseline
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `plan_baseline.compared` | CompareBaseline | `plan_baseline` | INFO | When refused |
+| `plan_baseline.deleted` | DeleteBaseline | `plan_baseline` | INFO | Every time |
+| `plan_baseline.read` | ListBaselines | `plan_baseline` | INFO | When refused |
+| `plan_baseline.taken` | TakeBaseline | `plan_baseline` | INFO | Every time |
 
 ## Presets
 

@@ -56,6 +56,7 @@ import (
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
 	"github.com/Jersyfi/hubtask/core/application/service/notification"
+	planningservice "github.com/Jersyfi/hubtask/core/application/service/planning"
 	platformservice "github.com/Jersyfi/hubtask/core/application/service/platform"
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
@@ -1831,6 +1832,17 @@ func run() error {
 		Entries: portalEntries, Items: items, Containers: containers, Comments: postgres.NewCommentRepository(cursors),
 		EntryTypes: entryTypes, Gate: entryGate, Desk: serviceDesk,
 	}
+	// The planning module (M2): a plan is a hub or a collection, read for whoever may see its
+	// entries; an accepted move goes through UpdateWorkItem in the registry.
+	planMoves := &deferredCatalogue{}
+	planningStore := postgres.NewPlanningRepository()
+	planner := planningservice.Planner{
+		Plans: planningStore, Baselines: planningStore.Baselines(), Items: items, Containers: containers,
+		LinkTypes: linkTypeRegistry.Types, Links: entryLinks, References: entryLinks,
+		Calendars: serviceDeskStore.Calendars(), Catalogue: planMoves, Authorizer: authorizer, Reader: authorizer,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		Changes: changes, HLC: hybrid,
+	}
 	// The assets and configuration module (M6): a hub's CIs, judged at the hub; every write of a CI
 	// goes through the inventory's reconciliation.
 	inventory := cmdbservice.Inventory{
@@ -1909,6 +1921,14 @@ func run() error {
 		servicedeskservice.ReadMyRequest{Portal: requestPortal}.Descriptor(),
 		servicedeskservice.CommentOnMyRequest{Portal: requestPortal}.Descriptor(),
 		servicedeskservice.RateMyRequest{Portal: requestPortal}.Descriptor(),
+		planningservice.ReadPlanSchedule{Planner: planner}.Descriptor(),
+		planningservice.ApplyPlanSchedule{Planner: planner}.Descriptor(),
+		planningservice.SetDependencyTiming{Planner: planner}.Descriptor(),
+		planningservice.SetEntryScheduling{Planner: planner}.Descriptor(),
+		planningservice.TakeBaseline{Planner: planner}.Descriptor(),
+		planningservice.ListBaselines{Planner: planner}.Descriptor(),
+		planningservice.CompareBaseline{Planner: planner}.Descriptor(),
+		planningservice.DeleteBaseline{Planner: planner}.Descriptor(),
 		cmdbservice.ListCiClasses{Inventory: inventory}.Descriptor(),
 		cmdbservice.DefineCiClass{Inventory: inventory}.Descriptor(),
 		cmdbservice.ListCiRelationTypes{Inventory: inventory}.Descriptor(),
@@ -3066,6 +3086,7 @@ func run() error {
 	ruleCatalogue.catalogue = useCases
 	alertEntries.catalogue = useCases
 	portalEntries.catalogue = useCases
+	planMoves.catalogue = useCases
 	suggestionCatalogue.catalogue = useCases
 
 	var api *http.Server

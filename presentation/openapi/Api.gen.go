@@ -2958,6 +2958,30 @@ func (e EntryFormChannelChannel) Valid() bool {
 	}
 }
 
+// Defines values for EntryLinkDependencyKind.
+const (
+	EntryLinkDependencyKindFF EntryLinkDependencyKind = "FF"
+	EntryLinkDependencyKindFS EntryLinkDependencyKind = "FS"
+	EntryLinkDependencyKindSF EntryLinkDependencyKind = "SF"
+	EntryLinkDependencyKindSS EntryLinkDependencyKind = "SS"
+)
+
+// Valid indicates whether the value is a known member of the EntryLinkDependencyKind enum.
+func (e EntryLinkDependencyKind) Valid() bool {
+	switch e {
+	case EntryLinkDependencyKindFF:
+		return true
+	case EntryLinkDependencyKindFS:
+		return true
+	case EntryLinkDependencyKindSF:
+		return true
+	case EntryLinkDependencyKindSS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EntryLinkWaits.
 const (
 	EntryLinkWaitsNONE   EntryLinkWaits = "NONE"
@@ -2997,6 +3021,30 @@ func (e EntryLinksBacklinksSourceKind) Valid() bool {
 	}
 }
 
+// Defines values for EntryLinksLinksDependencyKind.
+const (
+	EntryLinksLinksDependencyKindFF EntryLinksLinksDependencyKind = "FF"
+	EntryLinksLinksDependencyKindFS EntryLinksLinksDependencyKind = "FS"
+	EntryLinksLinksDependencyKindSF EntryLinksLinksDependencyKind = "SF"
+	EntryLinksLinksDependencyKindSS EntryLinksLinksDependencyKind = "SS"
+)
+
+// Valid indicates whether the value is a known member of the EntryLinksLinksDependencyKind enum.
+func (e EntryLinksLinksDependencyKind) Valid() bool {
+	switch e {
+	case EntryLinksLinksDependencyKindFF:
+		return true
+	case EntryLinksLinksDependencyKindFS:
+		return true
+	case EntryLinksLinksDependencyKindSF:
+		return true
+	case EntryLinksLinksDependencyKindSS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EntryLinksLinksWaits.
 const (
 	EntryLinksLinksWaitsNONE   EntryLinksLinksWaits = "NONE"
@@ -3012,6 +3060,24 @@ func (e EntryLinksLinksWaits) Valid() bool {
 	case EntryLinksLinksWaitsSOURCE:
 		return true
 	case EntryLinksLinksWaitsTARGET:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EntrySchedulingMode.
+const (
+	EntrySchedulingModeAUTOMATIC EntrySchedulingMode = "AUTOMATIC"
+	EntrySchedulingModeMANUAL    EntrySchedulingMode = "MANUAL"
+)
+
+// Valid indicates whether the value is a known member of the EntrySchedulingMode enum.
+func (e EntrySchedulingMode) Valid() bool {
+	switch e {
+	case EntrySchedulingModeAUTOMATIC:
+		return true
+	case EntrySchedulingModeMANUAL:
 		return true
 	default:
 		return false
@@ -4223,40 +4289,40 @@ func (e MailDeliveredOutcome) Valid() bool {
 
 // Defines values for MailReason.
 const (
-	AUTOMATIC        MailReason = "AUTOMATIC"
-	NOROUTE          MailReason = "NO_ROUTE"
-	NOTPERMITTED     MailReason = "NOT_PERMITTED"
-	REFUSEDBYPLACE   MailReason = "REFUSED_BY_PLACE"
-	SENDERBLOCKED    MailReason = "SENDER_BLOCKED"
-	SENDERNOTALLOWED MailReason = "SENDER_NOT_ALLOWED"
-	SPAM             MailReason = "SPAM"
-	TOOMANY          MailReason = "TOO_MANY"
-	UNKNOWNPLACE     MailReason = "UNKNOWN_PLACE"
-	UNPARSEABLE      MailReason = "UNPARSEABLE"
+	MailReasonAUTOMATIC        MailReason = "AUTOMATIC"
+	MailReasonNOROUTE          MailReason = "NO_ROUTE"
+	MailReasonNOTPERMITTED     MailReason = "NOT_PERMITTED"
+	MailReasonREFUSEDBYPLACE   MailReason = "REFUSED_BY_PLACE"
+	MailReasonSENDERBLOCKED    MailReason = "SENDER_BLOCKED"
+	MailReasonSENDERNOTALLOWED MailReason = "SENDER_NOT_ALLOWED"
+	MailReasonSPAM             MailReason = "SPAM"
+	MailReasonTOOMANY          MailReason = "TOO_MANY"
+	MailReasonUNKNOWNPLACE     MailReason = "UNKNOWN_PLACE"
+	MailReasonUNPARSEABLE      MailReason = "UNPARSEABLE"
 )
 
 // Valid indicates whether the value is a known member of the MailReason enum.
 func (e MailReason) Valid() bool {
 	switch e {
-	case AUTOMATIC:
+	case MailReasonAUTOMATIC:
 		return true
-	case NOROUTE:
+	case MailReasonNOROUTE:
 		return true
-	case NOTPERMITTED:
+	case MailReasonNOTPERMITTED:
 		return true
-	case REFUSEDBYPLACE:
+	case MailReasonREFUSEDBYPLACE:
 		return true
-	case SENDERBLOCKED:
+	case MailReasonSENDERBLOCKED:
 		return true
-	case SENDERNOTALLOWED:
+	case MailReasonSENDERNOTALLOWED:
 		return true
-	case SPAM:
+	case MailReasonSPAM:
 		return true
-	case TOOMANY:
+	case MailReasonTOOMANY:
 		return true
-	case UNKNOWNPLACE:
+	case MailReasonUNKNOWNPLACE:
 		return true
-	case UNPARSEABLE:
+	case MailReasonUNPARSEABLE:
 		return true
 	default:
 		return false
@@ -4980,6 +5046,54 @@ func (e PermissionEntryKind) Valid() bool {
 	}
 }
 
+// Defines values for PlanConflictDependencyKind.
+const (
+	PlanConflictDependencyKindFF PlanConflictDependencyKind = "FF"
+	PlanConflictDependencyKindFS PlanConflictDependencyKind = "FS"
+	PlanConflictDependencyKindSF PlanConflictDependencyKind = "SF"
+	PlanConflictDependencyKindSS PlanConflictDependencyKind = "SS"
+)
+
+// Valid indicates whether the value is a known member of the PlanConflictDependencyKind enum.
+func (e PlanConflictDependencyKind) Valid() bool {
+	switch e {
+	case PlanConflictDependencyKindFF:
+		return true
+	case PlanConflictDependencyKindFS:
+		return true
+	case PlanConflictDependencyKindSF:
+		return true
+	case PlanConflictDependencyKindSS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlanDependencyDependencyKind.
+const (
+	PlanDependencyDependencyKindFF PlanDependencyDependencyKind = "FF"
+	PlanDependencyDependencyKindFS PlanDependencyDependencyKind = "FS"
+	PlanDependencyDependencyKindSF PlanDependencyDependencyKind = "SF"
+	PlanDependencyDependencyKindSS PlanDependencyDependencyKind = "SS"
+)
+
+// Valid indicates whether the value is a known member of the PlanDependencyDependencyKind enum.
+func (e PlanDependencyDependencyKind) Valid() bool {
+	switch e {
+	case PlanDependencyDependencyKindFF:
+		return true
+	case PlanDependencyDependencyKindFS:
+		return true
+	case PlanDependencyDependencyKindSF:
+		return true
+	case PlanDependencyDependencyKindSS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PlanFeature.
 const (
 	AUTOMATIONRULES    PlanFeature = "AUTOMATION_RULES"
@@ -4995,6 +5109,24 @@ func (e PlanFeature) Valid() bool {
 	case OWNSIGNINPROVIDERS:
 		return true
 	case WEBHOOKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlanScheduleEntryMode.
+const (
+	PlanScheduleEntryModeAUTOMATIC PlanScheduleEntryMode = "AUTOMATIC"
+	PlanScheduleEntryModeMANUAL    PlanScheduleEntryMode = "MANUAL"
+)
+
+// Valid indicates whether the value is a known member of the PlanScheduleEntryMode enum.
+func (e PlanScheduleEntryMode) Valid() bool {
+	switch e {
+	case PlanScheduleEntryModeAUTOMATIC:
+		return true
+	case PlanScheduleEntryModeMANUAL:
 		return true
 	default:
 		return false
@@ -8007,6 +8139,24 @@ func (e ListWebhookDeliveriesParamsStatus) Valid() bool {
 	}
 }
 
+// Defines values for SetEntrySchedulingJSONBodyMode.
+const (
+	SetEntrySchedulingJSONBodyModeAUTOMATIC SetEntrySchedulingJSONBodyMode = "AUTOMATIC"
+	SetEntrySchedulingJSONBodyModeMANUAL    SetEntrySchedulingJSONBodyMode = "MANUAL"
+)
+
+// Valid indicates whether the value is a known member of the SetEntrySchedulingJSONBodyMode enum.
+func (e SetEntrySchedulingJSONBodyMode) Valid() bool {
+	switch e {
+	case SetEntrySchedulingJSONBodyModeAUTOMATIC:
+		return true
+	case SetEntrySchedulingJSONBodyModeMANUAL:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListJumbleEntriesParamsStatus.
 const (
 	ListJumbleEntriesParamsStatusDISMISSED ListJumbleEntriesParamsStatus = "DISMISSED"
@@ -8046,6 +8196,30 @@ func (e ListJumbleEntriesParamsChannel) Valid() bool {
 	case ListJumbleEntriesParamsChannelQUICKCAPTURE:
 		return true
 	case ListJumbleEntriesParamsChannelWEBHOOK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SetDependencyTimingJSONBodyDependencyKind.
+const (
+	SetDependencyTimingJSONBodyDependencyKindFF SetDependencyTimingJSONBodyDependencyKind = "FF"
+	SetDependencyTimingJSONBodyDependencyKindFS SetDependencyTimingJSONBodyDependencyKind = "FS"
+	SetDependencyTimingJSONBodyDependencyKindSF SetDependencyTimingJSONBodyDependencyKind = "SF"
+	SetDependencyTimingJSONBodyDependencyKindSS SetDependencyTimingJSONBodyDependencyKind = "SS"
+)
+
+// Valid indicates whether the value is a known member of the SetDependencyTimingJSONBodyDependencyKind enum.
+func (e SetDependencyTimingJSONBodyDependencyKind) Valid() bool {
+	switch e {
+	case SetDependencyTimingJSONBodyDependencyKindFF:
+		return true
+	case SetDependencyTimingJSONBodyDependencyKindFS:
+		return true
+	case SetDependencyTimingJSONBodyDependencyKindSF:
+		return true
+	case SetDependencyTimingJSONBodyDependencyKindSS:
 		return true
 	default:
 		return false
@@ -9255,6 +9429,31 @@ type BackupTargetProbe struct {
 
 	// Writable Whether the write half worked. A target that can be read and not written is a permissions mistake somebody can act on, and it is the common one.
 	Writable bool `json:"writable"`
+}
+
+// BaselineComparison defines model for BaselineComparison.
+type BaselineComparison struct {
+	Baseline PlanBaseline       `json:"baseline"`
+	Entries  []BaselineVariance `json:"entries"`
+}
+
+// BaselineVariance defines model for BaselineVariance.
+type BaselineVariance struct {
+	BaselineDueAt      *time.Time `json:"baseline_due_at"`
+	BaselineStartAt    *time.Time `json:"baseline_start_at"`
+	DueAt              *time.Time `json:"due_at"`
+	FinishVarianceDays *int       `json:"finish_variance_days"`
+
+	// InBaseline False for an entry added since.
+	InBaseline bool `json:"in_baseline"`
+
+	// InPlan False for an entry gone since.
+	InPlan  bool               `json:"in_plan"`
+	ItemId  openapi_types.UUID `json:"item_id"`
+	StartAt *time.Time         `json:"start_at"`
+
+	// StartVarianceDays Calendar days later than agreed; negative is earlier.
+	StartVarianceDays *int `json:"start_variance_days"`
 }
 
 // Bucket A column of a collection's board - the "list" of the requirements. It belongs to exactly one collection, and its name is unique there, compared without regard to case or accents.
@@ -11472,10 +11671,16 @@ type EntryHidden struct {
 
 // EntryLink A link of a type from one entry (the source) to another (the target).
 type EntryLink struct {
-	CreatedAt time.Time          `json:"created_at"`
-	Id        openapi_types.UUID `json:"id"`
-	SourceId  openapi_types.UUID `json:"source_id"`
-	TargetId  openapi_types.UUID `json:"target_id"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// DependencyKind How a dependency's waiting end hangs on the other; FS on every link nobody waits on.
+	DependencyKind *EntryLinkDependencyKind `json:"dependency_kind,omitempty"`
+	Id             openapi_types.UUID       `json:"id"`
+
+	// LagDays Working days between the two moments; negative is a lead.
+	LagDays  *int               `json:"lag_days,omitempty"`
+	SourceId openapi_types.UUID `json:"source_id"`
+	TargetId openapi_types.UUID `json:"target_id"`
 
 	// Type The link type's key.
 	Type string `json:"type"`
@@ -11483,6 +11688,9 @@ type EntryLink struct {
 	// Waits Which end waits for the other, by the link's type.
 	Waits *EntryLinkWaits `json:"waits,omitempty"`
 }
+
+// EntryLinkDependencyKind How a dependency's waiting end hangs on the other; FS on every link nobody waits on.
+type EntryLinkDependencyKind string
 
 // EntryLinkWaits Which end waits for the other, by the link's type.
 type EntryLinkWaits string
@@ -11519,8 +11727,14 @@ type EntryLinks struct {
 
 	// Links The entry's links from both ends, oldest first.
 	Links []struct {
-		CreatedAt time.Time          `json:"created_at"`
-		Id        openapi_types.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+
+		// DependencyKind How a dependency's waiting end hangs on the other; FS on every link nobody waits on.
+		DependencyKind *EntryLinksLinksDependencyKind `json:"dependency_kind,omitempty"`
+		Id             openapi_types.UUID             `json:"id"`
+
+		// LagDays Working days between the two moments; negative is a lead.
+		LagDays *int `json:"lag_days,omitempty"`
 
 		// Other What a reference shows the reader. Where the reader may not see the object, or it is not there, only `kind`, `id`, `anchor` and `available: false` are present.
 		Other ReferenceTarget `json:"other"`
@@ -11559,8 +11773,21 @@ type EntryLinks struct {
 // EntryLinksBacklinksSourceKind An entry's notes, or one of its comments.
 type EntryLinksBacklinksSourceKind string
 
+// EntryLinksLinksDependencyKind How a dependency's waiting end hangs on the other; FS on every link nobody waits on.
+type EntryLinksLinksDependencyKind string
+
 // EntryLinksLinksWaits Which end waits for the other, by the link's type.
 type EntryLinksLinksWaits string
+
+// EntryScheduling defines model for EntryScheduling.
+type EntryScheduling struct {
+	ItemId    openapi_types.UUID  `json:"item_id"`
+	Milestone bool                `json:"milestone"`
+	Mode      EntrySchedulingMode `json:"mode"`
+}
+
+// EntrySchedulingMode defines model for EntryScheduling.Mode.
+type EntrySchedulingMode string
 
 // EntrySlaGoal defines model for EntrySlaGoal.
 type EntrySlaGoal struct {
@@ -14751,6 +14978,21 @@ type Plan struct {
 	Workspaces int `json:"workspaces"`
 }
 
+// PlanBaseline defines model for PlanBaseline.
+type PlanBaseline struct {
+	EntryCount int                 `json:"entry_count"`
+	Id         openapi_types.UUID  `json:"id"`
+	Name       string              `json:"name"`
+	PlanId     openapi_types.UUID  `json:"plan_id"`
+	TakenAt    time.Time           `json:"taken_at"`
+	TakenBy    *openapi_types.UUID `json:"taken_by"`
+}
+
+// PlanBaselineList defines model for PlanBaselineList.
+type PlanBaselineList struct {
+	Data []PlanBaseline `json:"data"`
+}
+
 // PlanChange What a plan decides, in the installation level's shape: each area maps a key to `{value, locked}`, and a key the plan does not name falls through to the installation. A lock here holds every workspace on the plan to the value ("Set by your plan").
 type PlanChange struct {
 	Ai          *map[string]InstanceSetting `json:"ai,omitempty"`
@@ -14765,6 +15007,19 @@ type PlanChange struct {
 	Quotas *map[string]InstanceSetting `json:"quotas,omitempty"`
 	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
 }
+
+// PlanConflict A dependency a manual, finished or summary entry breaks.
+type PlanConflict struct {
+	DependencyKind PlanConflictDependencyKind `json:"dependency_kind"`
+
+	// Earliest The earliest start (FS, SS) or finish (FF, SF) the dependency allows.
+	Earliest      openapi_types.Date `json:"earliest"`
+	PredecessorId openapi_types.UUID `json:"predecessor_id"`
+	SuccessorId   openapi_types.UUID `json:"successor_id"`
+}
+
+// PlanConflictDependencyKind defines model for PlanConflict.DependencyKind.
+type PlanConflictDependencyKind string
 
 // PlanCreate A new plan - its short name and what it decides, as PlanChange.
 type PlanCreate struct {
@@ -14784,8 +15039,81 @@ type PlanCreate struct {
 	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
 }
 
+// PlanDependency defines model for PlanDependency.
+type PlanDependency struct {
+	DependencyKind PlanDependencyDependencyKind `json:"dependency_kind"`
+	LagDays        int                          `json:"lag_days"`
+	LinkId         openapi_types.UUID           `json:"link_id"`
+	PredecessorId  openapi_types.UUID           `json:"predecessor_id"`
+	SuccessorId    openapi_types.UUID           `json:"successor_id"`
+	Type           string                       `json:"type"`
+}
+
+// PlanDependencyDependencyKind defines model for PlanDependency.DependencyKind.
+type PlanDependencyDependencyKind string
+
 // PlanFeature defines model for PlanFeature.
 type PlanFeature string
+
+// PlanMoves defines model for PlanMoves.
+type PlanMoves struct {
+	Moved []struct {
+		Finish openapi_types.Date `json:"finish"`
+		ItemId openapi_types.UUID `json:"item_id"`
+		Start  openapi_types.Date `json:"start"`
+	} `json:"moved"`
+}
+
+// PlanSchedule defines model for PlanSchedule.
+type PlanSchedule struct {
+	Conflicts []PlanConflict `json:"conflicts"`
+
+	// CriticalPath The critical entries, earliest first.
+	CriticalPath []openapi_types.UUID `json:"critical_path"`
+	Dependencies []PlanDependency     `json:"dependencies"`
+	Entries      []PlanScheduleEntry  `json:"entries"`
+
+	// Finish The plan's last working day; null for a plan without dates.
+	Finish *openapi_types.Date `json:"finish"`
+
+	// Unscheduled Entries with neither a start nor a due date.
+	Unscheduled []openapi_types.UUID `json:"unscheduled"`
+	Zone        string               `json:"zone"`
+}
+
+// PlanScheduleEntry defines model for PlanScheduleEntry.
+type PlanScheduleEntry struct {
+	Critical bool `json:"critical"`
+	Done     bool `json:"done"`
+
+	// DurationDays Working days; 0 for a milestone.
+	DurationDays int `json:"duration_days"`
+
+	// External An entry outside the plan a dependency names; kept where it is.
+	External bool `json:"external"`
+
+	// Finish The last working day, included.
+	Finish openapi_types.Date `json:"finish"`
+
+	// FreeFloatDays How far it may slip before a successor must move.
+	FreeFloatDays int                   `json:"free_float_days"`
+	ItemId        openapi_types.UUID    `json:"item_id"`
+	Milestone     bool                  `json:"milestone"`
+	Mode          PlanScheduleEntryMode `json:"mode"`
+
+	// Moved The scheduler proposes these dates instead of the entry's own.
+	Moved bool               `json:"moved"`
+	Start openapi_types.Date `json:"start"`
+
+	// Summary A parent whose dates are its children's span.
+	Summary bool `json:"summary"`
+
+	// TotalFloatDays How far it may slip before the plan's end does; negative on a chain a manual entry breaks.
+	TotalFloatDays int `json:"total_float_days"`
+}
+
+// PlanScheduleEntryMode defines model for PlanScheduleEntry.Mode.
+type PlanScheduleEntryMode string
 
 // PlatformDelivery One event sent to one subscription, across its attempts.
 type PlatformDelivery struct {
@@ -18459,6 +18787,9 @@ type ParentId = openapi_types.UUID
 // PasskeyId defines model for PasskeyId.
 type PasskeyId = openapi_types.UUID
 
+// PlanId defines model for PlanId.
+type PlanId = openapi_types.UUID
+
 // PresetId defines model for PresetId.
 type PresetId = openapi_types.UUID
 
@@ -19540,6 +19871,15 @@ type UpdateReminderParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetEntrySchedulingJSONBody defines parameters for SetEntryScheduling.
+type SetEntrySchedulingJSONBody struct {
+	Milestone *bool                           `json:"milestone,omitempty"`
+	Mode      *SetEntrySchedulingJSONBodyMode `json:"mode,omitempty"`
+}
+
+// SetEntrySchedulingJSONBodyMode defines parameters for SetEntryScheduling.
+type SetEntrySchedulingJSONBodyMode string
+
 // ArchiveWorkItemParams defines parameters for ArchiveWorkItem.
 type ArchiveWorkItemParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -19788,6 +20128,15 @@ type ChangeLinkTypeParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetDependencyTimingJSONBody defines parameters for SetDependencyTiming.
+type SetDependencyTimingJSONBody struct {
+	DependencyKind SetDependencyTimingJSONBodyDependencyKind `json:"dependency_kind"`
+	LagDays        *int                                      `json:"lag_days,omitempty"`
+}
+
+// SetDependencyTimingJSONBodyDependencyKind defines parameters for SetDependencyTiming.
+type SetDependencyTimingJSONBodyDependencyKind string
+
 // ListLinksAmongJSONBody defines parameters for ListLinksAmong.
 type ListLinksAmongJSONBody struct {
 	ItemIds []openapi_types.UUID `json:"item_ids"`
@@ -19918,6 +20267,27 @@ type RestorePageVersionParams struct {
 type MovePageParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// TakeBaselineJSONBody defines parameters for TakeBaseline.
+type TakeBaselineJSONBody struct {
+	Name string `json:"name"`
+}
+
+// ReadPlanScheduleParams defines parameters for ReadPlanSchedule.
+type ReadPlanScheduleParams struct {
+	// Calendar A business calendar's key.
+	Calendar *string `form:"calendar,omitempty" json:"calendar,omitempty"`
+
+	// Zone An IANA time zone, when no calendar names one; UTC without.
+	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
+}
+
+// ApplyPlanScheduleJSONBody defines parameters for ApplyPlanSchedule.
+type ApplyPlanScheduleJSONBody struct {
+	Calendar *string              `json:"calendar,omitempty"`
+	ItemIds  []openapi_types.UUID `json:"item_ids"`
+	Zone     *string              `json:"zone,omitempty"`
 }
 
 // WithdrawPresetParams defines parameters for WithdrawPreset.
@@ -20728,6 +21098,9 @@ type CreateReminderJSONRequestBody = ReminderInput
 // UpdateReminderApplicationMergePatchPlusJSONRequestBody defines body for UpdateReminder for application/merge-patch+json ContentType.
 type UpdateReminderApplicationMergePatchPlusJSONRequestBody = ReminderUpdate
 
+// SetEntrySchedulingJSONRequestBody defines body for SetEntryScheduling for application/json ContentType.
+type SetEntrySchedulingJSONRequestBody SetEntrySchedulingJSONBody
+
 // AssignWorkItemJSONRequestBody defines body for AssignWorkItem for application/json ContentType.
 type AssignWorkItemJSONRequestBody = Assignment
 
@@ -20800,6 +21173,9 @@ type CreateLinkTypeJSONRequestBody = LinkTypeCreate
 // ChangeLinkTypeApplicationMergePatchPlusJSONRequestBody defines body for ChangeLinkType for application/merge-patch+json ContentType.
 type ChangeLinkTypeApplicationMergePatchPlusJSONRequestBody = LinkTypeChange
 
+// SetDependencyTimingJSONRequestBody defines body for SetDependencyTiming for application/json ContentType.
+type SetDependencyTimingJSONRequestBody SetDependencyTimingJSONBody
+
 // ListLinksAmongJSONRequestBody defines body for ListLinksAmong for application/json ContentType.
 type ListLinksAmongJSONRequestBody ListLinksAmongJSONBody
 
@@ -20859,6 +21235,12 @@ type VerifyPageJSONRequestBody = PageVerify
 
 // SearchPagesJSONRequestBody defines body for SearchPages for application/json ContentType.
 type SearchPagesJSONRequestBody = PageSearch
+
+// TakeBaselineJSONRequestBody defines body for TakeBaseline for application/json ContentType.
+type TakeBaselineJSONRequestBody TakeBaselineJSONBody
+
+// ApplyPlanScheduleJSONRequestBody defines body for ApplyPlanSchedule for application/json ContentType.
+type ApplyPlanScheduleJSONRequestBody ApplyPlanScheduleJSONBody
 
 // SavePresetJSONRequestBody defines body for SavePreset for application/json ContentType.
 type SavePresetJSONRequestBody = PresetCreate
@@ -21510,6 +21892,12 @@ type ServerInterface interface {
 	// VerifyBackup Verify an archive at the target
 	// (POST /backups/{backupId}:verify)
 	VerifyBackup(w http.ResponseWriter, r *http.Request, backupId openapi_types.UUID)
+	// DeleteBaseline Delete a baseline
+	// (DELETE /baselines/{baselineId})
+	DeleteBaseline(w http.ResponseWriter, r *http.Request, baselineId openapi_types.UUID)
+	// CompareBaseline A baseline beside today's plan
+	// (GET /baselines/{baselineId})
+	CompareBaseline(w http.ResponseWriter, r *http.Request, baselineId openapi_types.UUID)
 	// ListBusinessCalendars The workspace's business calendars
 	// (GET /business-calendars)
 	ListBusinessCalendars(w http.ResponseWriter, r *http.Request)
@@ -21990,6 +22378,9 @@ type ServerInterface interface {
 	// RenderReplyTemplate A canned reply filled for an entry
 	// (GET /items/{itemId}/reply-templates/{templateKey})
 	RenderReplyTemplate(w http.ResponseWriter, r *http.Request, itemId ItemId, templateKey string)
+	// SetEntryScheduling Whether the scheduler may move an entry, and whether it is a milestone
+	// (PUT /items/{itemId}/scheduling)
+	SetEntryScheduling(w http.ResponseWriter, r *http.Request, itemId ItemId)
 	// ReadEntrySla How an entry's SLA goals stand
 	// (GET /items/{itemId}/sla)
 	ReadEntrySla(w http.ResponseWriter, r *http.Request, itemId ItemId)
@@ -22137,6 +22528,9 @@ type ServerInterface interface {
 	// UnlinkEntries Remove a link
 	// (DELETE /links/{linkId})
 	UnlinkEntries(w http.ResponseWriter, r *http.Request, linkId openapi_types.UUID)
+	// SetDependencyTiming How a dependency's waiting entry hangs on the other
+	// (PUT /links/{linkId}/timing)
+	SetDependencyTiming(w http.ResponseWriter, r *http.Request, linkId openapi_types.UUID)
 	// ListLinksAmong The links between the entries a view shows
 	// (POST /links:query)
 	ListLinksAmong(w http.ResponseWriter, r *http.Request)
@@ -22281,6 +22675,18 @@ type ServerInterface interface {
 	// SearchPages Find pages by their words
 	// (POST /pages:search)
 	SearchPages(w http.ResponseWriter, r *http.Request)
+	// ListBaselines A plan's baselines
+	// (GET /plans/{planId}/baselines)
+	ListBaselines(w http.ResponseWriter, r *http.Request, planId PlanId)
+	// TakeBaseline Keep the plan as it is agreed now
+	// (POST /plans/{planId}/baselines)
+	TakeBaseline(w http.ResponseWriter, r *http.Request, planId PlanId)
+	// ReadPlanSchedule A plan as the scheduler places it
+	// (GET /plans/{planId}/schedule)
+	ReadPlanSchedule(w http.ResponseWriter, r *http.Request, planId PlanId, params ReadPlanScheduleParams)
+	// ApplyPlanSchedule Apply the moves a person accepted
+	// (POST /plans/{planId}/schedule:apply)
+	ApplyPlanSchedule(w http.ResponseWriter, r *http.Request, planId PlanId)
 	// ListPresets The presets a hub or collection can start from
 	// (GET /presets)
 	ListPresets(w http.ResponseWriter, r *http.Request)
@@ -27485,6 +27891,58 @@ func (siw *ServerInterfaceWrapper) VerifyBackup(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.VerifyBackup(w, r, backupId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteBaseline operation middleware
+func (siw *ServerInterfaceWrapper) DeleteBaseline(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "baselineId" -------------
+	var baselineId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "baselineId", r.PathValue("baselineId"), &baselineId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "baselineId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteBaseline(w, r, baselineId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CompareBaseline operation middleware
+func (siw *ServerInterfaceWrapper) CompareBaseline(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "baselineId" -------------
+	var baselineId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "baselineId", r.PathValue("baselineId"), &baselineId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "baselineId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompareBaseline(w, r, baselineId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -33854,6 +34312,32 @@ func (siw *ServerInterfaceWrapper) RenderReplyTemplate(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// SetEntryScheduling operation middleware
+func (siw *ServerInterfaceWrapper) SetEntryScheduling(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetEntryScheduling(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadEntrySla operation middleware
 func (siw *ServerInterfaceWrapper) ReadEntrySla(w http.ResponseWriter, r *http.Request) {
 
@@ -35802,6 +36286,32 @@ func (siw *ServerInterfaceWrapper) UnlinkEntries(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// SetDependencyTiming operation middleware
+func (siw *ServerInterfaceWrapper) SetDependencyTiming(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "linkId" -------------
+	var linkId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "linkId", r.PathValue("linkId"), &linkId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "linkId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetDependencyTiming(w, r, linkId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListLinksAmong operation middleware
 func (siw *ServerInterfaceWrapper) ListLinksAmong(w http.ResponseWriter, r *http.Request) {
 
@@ -37330,6 +37840,139 @@ func (siw *ServerInterfaceWrapper) SearchPages(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SearchPages(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListBaselines operation middleware
+func (siw *ServerInterfaceWrapper) ListBaselines(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planId" -------------
+	var planId PlanId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planId", r.PathValue("planId"), &planId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListBaselines(w, r, planId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TakeBaseline operation middleware
+func (siw *ServerInterfaceWrapper) TakeBaseline(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planId" -------------
+	var planId PlanId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planId", r.PathValue("planId"), &planId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TakeBaseline(w, r, planId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadPlanSchedule operation middleware
+func (siw *ServerInterfaceWrapper) ReadPlanSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planId" -------------
+	var planId PlanId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planId", r.PathValue("planId"), &planId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReadPlanScheduleParams
+
+	// ------------- Optional query parameter "calendar" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "calendar", r.URL.Query(), &params.Calendar, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "calendar"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "calendar", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "zone" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "zone", r.URL.Query(), &params.Zone, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "zone"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "zone", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPlanSchedule(w, r, planId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ApplyPlanSchedule operation middleware
+func (siw *ServerInterfaceWrapper) ApplyPlanSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planId" -------------
+	var planId PlanId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planId", r.PathValue("planId"), &planId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApplyPlanSchedule(w, r, planId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -40959,6 +41602,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans/{planId}/schedule", wrapper.ReadPlanSchedule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/plans/{planId}/schedule:apply", wrapper.ApplyPlanSchedule)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans/{planId}/baselines", wrapper.ListBaselines)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/plans/{planId}/baselines", wrapper.TakeBaseline)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/baselines/{baselineId}", wrapper.DeleteBaseline)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/baselines/{baselineId}", wrapper.CompareBaseline)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/links/{linkId}/timing", wrapper.SetDependencyTiming)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/scheduling", wrapper.SetEntryScheduling)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/business-calendars", wrapper.ListBusinessCalendars)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/business-calendars/{calendarKey}", wrapper.DeleteBusinessCalendar)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/business-calendars/{calendarKey}", wrapper.DefineBusinessCalendar)

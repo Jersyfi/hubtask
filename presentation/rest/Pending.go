@@ -2162,3 +2162,27 @@ func (pending) RenderReplyTemplate(w http.ResponseWriter, r *http.Request, _ ope
 func (pending) RateMyRequest(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }
+func (pending) ReadPlanSchedule(w http.ResponseWriter, r *http.Request, _ openapi.PlanId, _ openapi.ReadPlanScheduleParams) {
+	notAvailable(w, r)
+}
+func (pending) ApplyPlanSchedule(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}
+func (pending) ListBaselines(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}
+func (pending) TakeBaseline(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}
+func (pending) CompareBaseline(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+func (pending) DeleteBaseline(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+func (pending) SetDependencyTiming(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+func (pending) SetEntryScheduling(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}

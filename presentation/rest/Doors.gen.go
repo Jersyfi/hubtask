@@ -29,6 +29,7 @@ var restDoors = map[string]restDoor{
 	"aiSummarizeThread":                 {UseCase: "AiSummarizeThread", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"aiTranslate":                       {UseCase: "AiTranslate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"applyConfig":                       {UseCase: "ApplyConfig", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "base_hash", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
+	"applyPlanSchedule":                 {UseCase: "ApplyPlanSchedule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"archiveContainer":                  {UseCase: "ArchiveContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"archiveWorkItem":                   {UseCase: "ArchiveWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"askWorkspace":                      {UseCase: "AskWorkspace", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -53,6 +54,7 @@ var restDoors = map[string]restDoor{
 	"closeTenantPassword":               {UseCase: "CloseTenantPassword", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"commentJumbleEntry":                {UseCase: "CommentJumbleEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"commentOnMyRequest":                {UseCase: "CommentOnMyRequest", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"compareBaseline":                   {UseCase: "CompareBaseline", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"completeMailboxAuthorization":      {UseCase: "CompleteMailboxAuthorization", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"completeWorkItem":                  {UseCase: "CompleteWorkItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"configureFirstIdentityProvider":    {UseCase: "ConfigureFirstIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
@@ -94,6 +96,7 @@ var restDoors = map[string]restDoor{
 	"defineSlaPolicy":                   {UseCase: "DefineSlaPolicy", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"deleteBackupSchedule":              {UseCase: "DeleteBackupSchedule", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteBackupTarget":                {UseCase: "DeleteBackupTarget", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteBaseline":                    {UseCase: "DeleteBaseline", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteBucket":                      {UseCase: "DeleteBucket", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteBusinessCalendar":            {UseCase: "DeleteBusinessCalendar", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteComment":                     {UseCase: "DeleteComment", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -163,6 +166,7 @@ var restDoors = map[string]restDoor{
 	"listAttachments":                   {UseCase: "ListAttachments", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listBackupSchedules":               {UseCase: "ListBackupSchedules", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listBackupTargets":                 {UseCase: "ListBackupTargets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listBaselines":                     {UseCase: "ListBaselines", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listBuckets":                       {UseCase: "ListBuckets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listBusinessCalendars":             {UseCase: "ListBusinessCalendars", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listCalendarFeeds":                 {UseCase: "ListCalendarFeeds", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -274,6 +278,7 @@ var restDoors = map[string]restDoor{
 	"readPage":                          {UseCase: "ReadPage", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPageVersion":                   {UseCase: "ReadPageVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPlan":                          {UseCase: "ReadPlan", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readPlanSchedule":                  {UseCase: "ReadPlanSchedule", Status: 200, Query: []string{"calendar", "zone"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPlatformSubscription":          {UseCase: "ReadPlatformSubscription", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readQuotas":                        {UseCase: "ReadQuotas", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readSettingsCatalogue":             {UseCase: "ReadSettingsCatalogue", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -345,7 +350,9 @@ var restDoors = map[string]restDoor{
 	"setConfigPolicy":                   {UseCase: "SetConfigPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setCover":                          {UseCase: "SetCover", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setCustomField":                    {UseCase: "SetCustomField", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setDependencyTiming":               {UseCase: "SetDependencyTiming", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"lag_days"}},
 	"setDueDate":                        {UseCase: "SetDueDate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setEntryScheduling":                {UseCase: "SetEntryScheduling", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setEntryTypeForm":                  {UseCase: "SetEntryTypeForm", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "form", Location: "", NullClears: false, Integers: []string(nil)},
 	"setHubPrivacy":                     {UseCase: "SetHubPrivacy", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setItemEntryType":                  {UseCase: "SetItemEntryType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -363,6 +370,7 @@ var restDoors = map[string]restDoor{
 	"suggestFromJumbleEntry":            {UseCase: "SuggestFromJumbleEntry", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"suspendTenant":                     {UseCase: "SuspendTenant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"takeBackKudos":                     {UseCase: "TakeBackKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"takeBaseline":                      {UseCase: "TakeBaseline", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"takeStep":                          {UseCase: "TakeStep", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"testBackupTarget":                  {UseCase: "TestBackupTarget", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"testInstanceBackupTarget":          {UseCase: "TestInstanceBackupTarget", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -491,6 +499,13 @@ func (c *RestController) ApplyConfig(w http.ResponseWriter, r *http.Request, par
 	var body openapi.ApplyConfigJSONRequestBody
 	var answer openapi.ConfigApplyResult
 	c.door(w, r, restDoors["applyConfig"], usecase.Input{}, params, &body, &answer)
+}
+
+// ApplyPlanSchedule answers POST /plans/{planId}/schedule:apply by the generated mapping.
+func (c *RestController) ApplyPlanSchedule(w http.ResponseWriter, r *http.Request, planId openapi.PlanId) {
+	var body openapi.ApplyPlanScheduleJSONRequestBody
+	var answer openapi.PlanMoves
+	c.door(w, r, restDoors["applyPlanSchedule"], usecase.Input{"plan_id": planId.String()}, nil, &body, &answer)
 }
 
 // ArchiveContainer answers POST /containers/{containerId}:archive by the generated mapping.
@@ -632,6 +647,12 @@ func (c *RestController) CommentOnMyRequest(w http.ResponseWriter, r *http.Reque
 	var body openapi.CommentOnMyRequestJSONRequestBody
 	var answer openapi.Comment
 	c.door(w, r, restDoors["commentOnMyRequest"], usecase.Input{"item_id": itemId.String()}, params, &body, &answer)
+}
+
+// CompareBaseline answers GET /baselines/{baselineId} by the generated mapping.
+func (c *RestController) CompareBaseline(w http.ResponseWriter, r *http.Request, baselineId openapi_types.UUID) {
+	var answer openapi.BaselineComparison
+	c.door(w, r, restDoors["compareBaseline"], usecase.Input{"baseline_id": baselineId.String()}, nil, nil, &answer)
 }
 
 // CompleteMailboxAuthorization answers POST /mail/mailboxes:complete by the generated mapping.
@@ -895,6 +916,11 @@ func (c *RestController) DeleteBackupSchedule(w http.ResponseWriter, r *http.Req
 // DeleteBackupTarget answers DELETE /backup-targets/{targetId} by the generated mapping.
 func (c *RestController) DeleteBackupTarget(w http.ResponseWriter, r *http.Request, targetId openapi_types.UUID) {
 	c.door(w, r, restDoors["deleteBackupTarget"], usecase.Input{"target_id": targetId.String()}, nil, nil, nil)
+}
+
+// DeleteBaseline answers DELETE /baselines/{baselineId} by the generated mapping.
+func (c *RestController) DeleteBaseline(w http.ResponseWriter, r *http.Request, baselineId openapi_types.UUID) {
+	c.door(w, r, restDoors["deleteBaseline"], usecase.Input{"baseline_id": baselineId.String()}, nil, nil, nil)
 }
 
 // DeleteBucket answers DELETE /containers/{containerId}/buckets/{bucketId} by the generated mapping.
@@ -1264,6 +1290,12 @@ func (c *RestController) ListBackupSchedules(w http.ResponseWriter, r *http.Requ
 // ListBackupTargets answers GET /backup-targets by the generated mapping.
 func (c *RestController) ListBackupTargets(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["listBackupTargets"], usecase.Input{}, nil, nil, answerRows(backupTargetResponse))
+}
+
+// ListBaselines answers GET /plans/{planId}/baselines by the generated mapping.
+func (c *RestController) ListBaselines(w http.ResponseWriter, r *http.Request, planId openapi.PlanId) {
+	var answer openapi.PlanBaselineList
+	c.door(w, r, restDoors["listBaselines"], usecase.Input{"plan_id": planId.String()}, nil, nil, &answer)
 }
 
 // ListBuckets answers GET /containers/{containerId}/buckets by the generated mapping.
@@ -1901,6 +1933,12 @@ func (c *RestController) ReadPlan(w http.ResponseWriter, r *http.Request, planNa
 	c.door(w, r, restDoors["readPlan"], usecase.Input{"name": planName}, nil, nil, answerBy(planResponse))
 }
 
+// ReadPlanSchedule answers GET /plans/{planId}/schedule by the generated mapping.
+func (c *RestController) ReadPlanSchedule(w http.ResponseWriter, r *http.Request, planId openapi.PlanId, params openapi.ReadPlanScheduleParams) {
+	var answer openapi.PlanSchedule
+	c.door(w, r, restDoors["readPlanSchedule"], usecase.Input{"plan_id": planId.String()}, params, nil, &answer)
+}
+
 // ReadPlatformSubscription answers GET /admin/subscriptions/{subscriptionId} by the generated mapping.
 func (c *RestController) ReadPlatformSubscription(w http.ResponseWriter, r *http.Request, subscriptionId openapi_types.UUID) {
 	var answer openapi.PlatformSubscription
@@ -2303,10 +2341,24 @@ func (c *RestController) SetCustomField(w http.ResponseWriter, r *http.Request, 
 	c.door(w, r, restDoors["setCustomField"], usecase.Input{"item_id": itemId.String(), "key": string(key)}, params, &body, answerBy(workItemResponse))
 }
 
+// SetDependencyTiming answers PUT /links/{linkId}/timing by the generated mapping.
+func (c *RestController) SetDependencyTiming(w http.ResponseWriter, r *http.Request, linkId openapi_types.UUID) {
+	var body openapi.SetDependencyTimingJSONRequestBody
+	var answer openapi.EntryLink
+	c.door(w, r, restDoors["setDependencyTiming"], usecase.Input{"link_id": linkId.String()}, nil, &body, &answer)
+}
+
 // SetDueDate answers PUT /items/{itemId}/due by the generated mapping.
 func (c *RestController) SetDueDate(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.SetDueDateParams) {
 	var body openapi.SetDueDateJSONRequestBody
 	c.door(w, r, restDoors["setDueDate"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(workItemResponse))
+}
+
+// SetEntryScheduling answers PUT /items/{itemId}/scheduling by the generated mapping.
+func (c *RestController) SetEntryScheduling(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
+	var body openapi.SetEntrySchedulingJSONRequestBody
+	var answer openapi.EntryScheduling
+	c.door(w, r, restDoors["setEntryScheduling"], usecase.Input{"item_id": itemId.String()}, nil, &body, &answer)
 }
 
 // SetEntryTypeForm answers PUT /entry-types/{key}/form by the generated mapping.
@@ -2406,6 +2458,13 @@ func (c *RestController) SuspendTenant(w http.ResponseWriter, r *http.Request, t
 // TakeBackKudos answers DELETE /items/{itemId}/kudos by the generated mapping.
 func (c *RestController) TakeBackKudos(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
 	c.door(w, r, restDoors["takeBackKudos"], usecase.Input{"item_id": itemId.String()}, nil, nil, answerBy(kudosResponse))
+}
+
+// TakeBaseline answers POST /plans/{planId}/baselines by the generated mapping.
+func (c *RestController) TakeBaseline(w http.ResponseWriter, r *http.Request, planId openapi.PlanId) {
+	var body openapi.TakeBaselineJSONRequestBody
+	var answer openapi.PlanBaseline
+	c.door(w, r, restDoors["takeBaseline"], usecase.Input{"plan_id": planId.String()}, nil, &body, &answer)
 }
 
 // TakeStep answers POST /items/{itemId}:step by the generated mapping.

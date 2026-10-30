@@ -111,6 +111,46 @@ export class HubtaskClient {
     return (await response.json()) as T;
   }
 
+  /** A plan as the scheduler places it */
+  readPlanSchedule(planId: string, options: CallOptions & { readonly query?: NonNullable<operations["readPlanSchedule"]['parameters']['query']> } = {}): Promise<operations["readPlanSchedule"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/plans/{planId}/schedule", { "planId": planId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Apply the moves a person accepted */
+  applyPlanSchedule(planId: string, body: NonNullable<operations["applyPlanSchedule"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["applyPlanSchedule"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/plans/{planId}/schedule:apply", { "planId": planId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** A plan's baselines */
+  listBaselines(planId: string, options: CallOptions = {}): Promise<operations["listBaselines"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/plans/{planId}/baselines", { "planId": planId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Keep the plan as it is agreed now */
+  takeBaseline(planId: string, body: NonNullable<operations["takeBaseline"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["takeBaseline"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/plans/{planId}/baselines", { "planId": planId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** A baseline beside today's plan */
+  compareBaseline(baselineId: string, options: CallOptions = {}): Promise<operations["compareBaseline"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/baselines/{baselineId}", { "baselineId": baselineId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Delete a baseline */
+  deleteBaseline(baselineId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/baselines/{baselineId}", { "baselineId": baselineId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** How a dependency's waiting entry hangs on the other */
+  setDependencyTiming(linkId: string, body: NonNullable<operations["setDependencyTiming"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setDependencyTiming"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/links/{linkId}/timing", { "linkId": linkId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Whether the scheduler may move an entry, and whether it is a milestone */
+  setEntryScheduling(itemId: string, body: NonNullable<operations["setEntryScheduling"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setEntryScheduling"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/items/{itemId}/scheduling", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The workspace's business calendars */
   listBusinessCalendars(options: CallOptions = {}): Promise<operations["listBusinessCalendars"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/business-calendars", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

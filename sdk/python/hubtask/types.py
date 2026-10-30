@@ -1220,6 +1220,79 @@ BusinessHours = TypedDict("BusinessHours", {
     "to": Required[str],
 }, total=False)
 
+class PlanScheduleEntry(TypedDict, total=False):
+    item_id: Required[str]
+    start: Required[str]
+    finish: Required[str]
+    duration_days: Required[int]
+    moved: Required[bool]
+    total_float_days: Required[int]
+    free_float_days: Required[int]
+    critical: Required[bool]
+    summary: Required[bool]
+    external: Required[bool]
+    mode: Required[Literal["MANUAL", "AUTOMATIC"]]
+    milestone: Required[bool]
+    done: Required[bool]
+
+class PlanDependency(TypedDict, total=False):
+    link_id: Required[str]
+    type: Required[str]
+    predecessor_id: Required[str]
+    successor_id: Required[str]
+    dependency_kind: Required[Literal["FS", "SS", "FF", "SF"]]
+    lag_days: Required[int]
+
+class PlanConflict(TypedDict, total=False):
+    """A dependency a manual, finished or summary entry breaks."""
+    predecessor_id: Required[str]
+    successor_id: Required[str]
+    dependency_kind: Required[Literal["FS", "SS", "FF", "SF"]]
+    earliest: Required[str]
+
+class PlanSchedule(TypedDict, total=False):
+    zone: Required[str]
+    finish: Required[str | None]
+    entries: Required[list["PlanScheduleEntry"]]
+    dependencies: Required[list["PlanDependency"]]
+    conflicts: Required[list["PlanConflict"]]
+    unscheduled: Required[list[str]]
+    critical_path: Required[list[str]]
+
+class PlanMoves(TypedDict, total=False):
+    moved: Required[list[dict[str, Any]]]
+
+class EntryScheduling(TypedDict, total=False):
+    item_id: Required[str]
+    mode: Required[Literal["MANUAL", "AUTOMATIC"]]
+    milestone: Required[bool]
+
+class PlanBaseline(TypedDict, total=False):
+    id: Required[str]
+    plan_id: Required[str]
+    name: Required[str]
+    taken_at: Required[str]
+    taken_by: Required[str | None]
+    entry_count: Required[int]
+
+class PlanBaselineList(TypedDict, total=False):
+    data: Required[list["PlanBaseline"]]
+
+class BaselineVariance(TypedDict, total=False):
+    item_id: Required[str]
+    in_baseline: Required[bool]
+    in_plan: Required[bool]
+    baseline_start_at: Required[str | None]
+    baseline_due_at: Required[str | None]
+    start_at: Required[str | None]
+    due_at: Required[str | None]
+    start_variance_days: Required[int | None]
+    finish_variance_days: Required[int | None]
+
+class BaselineComparison(TypedDict, total=False):
+    baseline: Required["PlanBaseline"]
+    entries: Required[list["BaselineVariance"]]
+
 class BusinessCalendar(TypedDict, total=False):
     """Working hours, holidays and a time zone under a key - what an SLA counts its targets in."""
     key: Required[str]
@@ -1389,6 +1462,8 @@ class EntryLink(TypedDict, total=False):
     target_id: Required[str]
     created_at: Required[str]
     waits: Literal["NONE", "SOURCE", "TARGET"]
+    dependency_kind: Literal["FS", "SS", "FF", "SF"]
+    lag_days: int
 
 class EntryLinkList(TypedDict, total=False):
     data: Required[list["EntryLink"]]

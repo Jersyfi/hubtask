@@ -4,12 +4,14 @@ package main
 
 // generatedGroups is the summary of each group only generated commands open.
 var generatedGroups = map[string]string{
+	"baseline":          "a plan's baselines: the agreed dates kept and compared with today's",
 	"business-calendar": "the workspace's business calendars: working hours, holidays and a time zone under a key",
 	"ci":                "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact",
 	"cmdb":              "the workspace's configuration item classes, relation types and sources, and a hub's inventory health",
 	"link":              "an entry's links to other entries, and references resolved",
 	"link-type":         "the kinds of link between entries: blocks, relates to, duplicates",
 	"page":              "a hub's pages: write, find, move, version, comment on and export them",
+	"plan":              "a hub's or a collection's plan: its schedule, critical path and the moves it proposes",
 	"request":           "the requester portal: a service's catalogue, raising a request, following and answering your own",
 	"role":              "the workspace's own roles, who holds them, and why a person may do what",
 	"setting":           "the settings catalogue: every setting, its level and its source",
@@ -20,6 +22,29 @@ var generatedGroups = map[string]string{
 
 // generatedCommands is every operation the contract names a command for, in a stable order.
 var generatedCommands = []door{
+	{Group: "baseline", Verb: "compare", OperationID: "compareBaseline", Method: "GET", Path: "/baselines/{baselineId}", Summary: "A baseline beside today's plan",
+		PathParams: []doorParam{
+			{Name: "baselineId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "baseline", Verb: "ls", OperationID: "listBaselines", Method: "GET", Path: "/plans/{planId}/baselines", Summary: "A plan's baselines",
+		PathParams: []doorParam{
+			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "name"}},
+	{Group: "baseline", Verb: "rm", OperationID: "deleteBaseline", Method: "DELETE", Path: "/baselines/{baselineId}", Summary: "Delete a baseline",
+		PathParams: []doorParam{
+			{Name: "baselineId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "baseline", Verb: "take", OperationID: "takeBaseline", Method: "POST", Path: "/plans/{planId}/baselines", Summary: "Keep the plan as it is agreed now",
+		PathParams: []doorParam{
+			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "name", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name"}},
 	{Group: "business-calendar", Verb: "define", OperationID: "defineBusinessCalendar", Method: "PUT", Path: "/business-calendars/{calendarKey}", Summary: "Add or replace a business calendar",
 		PathParams: []doorParam{
 			{Name: "calendarKey", Kind: "string", Help: "", Required: true},
@@ -359,6 +384,15 @@ var generatedCommands = []door{
 			{Name: "linkId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "link", Verb: "timing", OperationID: "setDependencyTiming", Method: "PUT", Path: "/links/{linkId}/timing", Summary: "How a dependency's waiting entry hangs on the other",
+		PathParams: []doorParam{
+			{Name: "linkId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "dependency_kind", Kind: "string", Help: "", Required: true},
+			{Name: "lag_days", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
 	{Group: "link-type", Verb: "create", OperationID: "createLinkType", Method: "POST", Path: "/link-types", Summary: "Add a link type",
 		Body: []doorParam{
 			{Name: "cardinality", Kind: "string", Help: "MANY when absent", Required: false},
@@ -554,6 +588,34 @@ var generatedCommands = []door{
 			{Name: "limit", Kind: "integer", Help: "", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"name", "title"}},
+	{Group: "plan", Verb: "apply", OperationID: "applyPlanSchedule", Method: "POST", Path: "/plans/{planId}/schedule:apply", Summary: "Apply the moves a person accepted",
+		PathParams: []doorParam{
+			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "calendar", Kind: "string", Help: "", Required: false},
+			{Name: "item_ids", Kind: "strings", Help: "", Required: true},
+			{Name: "zone", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "plan", Verb: "mode", OperationID: "setEntryScheduling", Method: "PUT", Path: "/items/{itemId}/scheduling", Summary: "Whether the scheduler may move an entry, and whether it is a milestone",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "milestone", Kind: "boolean", Help: "", Required: false},
+			{Name: "mode", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"item_id", "milestone", "mode"}},
+	{Group: "plan", Verb: "schedule", OperationID: "readPlanSchedule", Method: "GET", Path: "/plans/{planId}/schedule", Summary: "A plan as the scheduler places it",
+		PathParams: []doorParam{
+			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "calendar", Kind: "string", Help: "A business calendar's key", Required: false},
+			{Name: "zone", Kind: "string", Help: "An IANA time zone, when no calendar names one; UTC without", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"finish", "zone"}},
 	{Group: "reply", Verb: "define", OperationID: "defineReplyTemplate", Method: "PUT", Path: "/reply-templates/{templateKey}", Summary: "Add or replace a canned reply",
 		PathParams: []doorParam{
 			{Name: "templateKey", Kind: "string", Help: "", Required: true},

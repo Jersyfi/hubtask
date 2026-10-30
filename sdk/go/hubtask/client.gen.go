@@ -2964,6 +2964,30 @@ func (e EntryFormChannelChannel) Valid() bool {
 	}
 }
 
+// Defines values for EntryLinkDependencyKind.
+const (
+	EntryLinkDependencyKindFF EntryLinkDependencyKind = "FF"
+	EntryLinkDependencyKindFS EntryLinkDependencyKind = "FS"
+	EntryLinkDependencyKindSF EntryLinkDependencyKind = "SF"
+	EntryLinkDependencyKindSS EntryLinkDependencyKind = "SS"
+)
+
+// Valid indicates whether the value is a known member of the EntryLinkDependencyKind enum.
+func (e EntryLinkDependencyKind) Valid() bool {
+	switch e {
+	case EntryLinkDependencyKindFF:
+		return true
+	case EntryLinkDependencyKindFS:
+		return true
+	case EntryLinkDependencyKindSF:
+		return true
+	case EntryLinkDependencyKindSS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EntryLinkWaits.
 const (
 	EntryLinkWaitsNONE   EntryLinkWaits = "NONE"
@@ -3003,6 +3027,30 @@ func (e EntryLinksBacklinksSourceKind) Valid() bool {
 	}
 }
 
+// Defines values for EntryLinksLinksDependencyKind.
+const (
+	EntryLinksLinksDependencyKindFF EntryLinksLinksDependencyKind = "FF"
+	EntryLinksLinksDependencyKindFS EntryLinksLinksDependencyKind = "FS"
+	EntryLinksLinksDependencyKindSF EntryLinksLinksDependencyKind = "SF"
+	EntryLinksLinksDependencyKindSS EntryLinksLinksDependencyKind = "SS"
+)
+
+// Valid indicates whether the value is a known member of the EntryLinksLinksDependencyKind enum.
+func (e EntryLinksLinksDependencyKind) Valid() bool {
+	switch e {
+	case EntryLinksLinksDependencyKindFF:
+		return true
+	case EntryLinksLinksDependencyKindFS:
+		return true
+	case EntryLinksLinksDependencyKindSF:
+		return true
+	case EntryLinksLinksDependencyKindSS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EntryLinksLinksWaits.
 const (
 	EntryLinksLinksWaitsNONE   EntryLinksLinksWaits = "NONE"
@@ -3018,6 +3066,24 @@ func (e EntryLinksLinksWaits) Valid() bool {
 	case EntryLinksLinksWaitsSOURCE:
 		return true
 	case EntryLinksLinksWaitsTARGET:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EntrySchedulingMode.
+const (
+	EntrySchedulingModeAUTOMATIC EntrySchedulingMode = "AUTOMATIC"
+	EntrySchedulingModeMANUAL    EntrySchedulingMode = "MANUAL"
+)
+
+// Valid indicates whether the value is a known member of the EntrySchedulingMode enum.
+func (e EntrySchedulingMode) Valid() bool {
+	switch e {
+	case EntrySchedulingModeAUTOMATIC:
+		return true
+	case EntrySchedulingModeMANUAL:
 		return true
 	default:
 		return false
@@ -4229,40 +4295,40 @@ func (e MailDeliveredOutcome) Valid() bool {
 
 // Defines values for MailReason.
 const (
-	AUTOMATIC        MailReason = "AUTOMATIC"
-	NOROUTE          MailReason = "NO_ROUTE"
-	NOTPERMITTED     MailReason = "NOT_PERMITTED"
-	REFUSEDBYPLACE   MailReason = "REFUSED_BY_PLACE"
-	SENDERBLOCKED    MailReason = "SENDER_BLOCKED"
-	SENDERNOTALLOWED MailReason = "SENDER_NOT_ALLOWED"
-	SPAM             MailReason = "SPAM"
-	TOOMANY          MailReason = "TOO_MANY"
-	UNKNOWNPLACE     MailReason = "UNKNOWN_PLACE"
-	UNPARSEABLE      MailReason = "UNPARSEABLE"
+	MailReasonAUTOMATIC        MailReason = "AUTOMATIC"
+	MailReasonNOROUTE          MailReason = "NO_ROUTE"
+	MailReasonNOTPERMITTED     MailReason = "NOT_PERMITTED"
+	MailReasonREFUSEDBYPLACE   MailReason = "REFUSED_BY_PLACE"
+	MailReasonSENDERBLOCKED    MailReason = "SENDER_BLOCKED"
+	MailReasonSENDERNOTALLOWED MailReason = "SENDER_NOT_ALLOWED"
+	MailReasonSPAM             MailReason = "SPAM"
+	MailReasonTOOMANY          MailReason = "TOO_MANY"
+	MailReasonUNKNOWNPLACE     MailReason = "UNKNOWN_PLACE"
+	MailReasonUNPARSEABLE      MailReason = "UNPARSEABLE"
 )
 
 // Valid indicates whether the value is a known member of the MailReason enum.
 func (e MailReason) Valid() bool {
 	switch e {
-	case AUTOMATIC:
+	case MailReasonAUTOMATIC:
 		return true
-	case NOROUTE:
+	case MailReasonNOROUTE:
 		return true
-	case NOTPERMITTED:
+	case MailReasonNOTPERMITTED:
 		return true
-	case REFUSEDBYPLACE:
+	case MailReasonREFUSEDBYPLACE:
 		return true
-	case SENDERBLOCKED:
+	case MailReasonSENDERBLOCKED:
 		return true
-	case SENDERNOTALLOWED:
+	case MailReasonSENDERNOTALLOWED:
 		return true
-	case SPAM:
+	case MailReasonSPAM:
 		return true
-	case TOOMANY:
+	case MailReasonTOOMANY:
 		return true
-	case UNKNOWNPLACE:
+	case MailReasonUNKNOWNPLACE:
 		return true
-	case UNPARSEABLE:
+	case MailReasonUNPARSEABLE:
 		return true
 	default:
 		return false
@@ -4986,6 +5052,54 @@ func (e PermissionEntryKind) Valid() bool {
 	}
 }
 
+// Defines values for PlanConflictDependencyKind.
+const (
+	PlanConflictDependencyKindFF PlanConflictDependencyKind = "FF"
+	PlanConflictDependencyKindFS PlanConflictDependencyKind = "FS"
+	PlanConflictDependencyKindSF PlanConflictDependencyKind = "SF"
+	PlanConflictDependencyKindSS PlanConflictDependencyKind = "SS"
+)
+
+// Valid indicates whether the value is a known member of the PlanConflictDependencyKind enum.
+func (e PlanConflictDependencyKind) Valid() bool {
+	switch e {
+	case PlanConflictDependencyKindFF:
+		return true
+	case PlanConflictDependencyKindFS:
+		return true
+	case PlanConflictDependencyKindSF:
+		return true
+	case PlanConflictDependencyKindSS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlanDependencyDependencyKind.
+const (
+	PlanDependencyDependencyKindFF PlanDependencyDependencyKind = "FF"
+	PlanDependencyDependencyKindFS PlanDependencyDependencyKind = "FS"
+	PlanDependencyDependencyKindSF PlanDependencyDependencyKind = "SF"
+	PlanDependencyDependencyKindSS PlanDependencyDependencyKind = "SS"
+)
+
+// Valid indicates whether the value is a known member of the PlanDependencyDependencyKind enum.
+func (e PlanDependencyDependencyKind) Valid() bool {
+	switch e {
+	case PlanDependencyDependencyKindFF:
+		return true
+	case PlanDependencyDependencyKindFS:
+		return true
+	case PlanDependencyDependencyKindSF:
+		return true
+	case PlanDependencyDependencyKindSS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PlanFeature.
 const (
 	AUTOMATIONRULES    PlanFeature = "AUTOMATION_RULES"
@@ -5001,6 +5115,24 @@ func (e PlanFeature) Valid() bool {
 	case OWNSIGNINPROVIDERS:
 		return true
 	case WEBHOOKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlanScheduleEntryMode.
+const (
+	PlanScheduleEntryModeAUTOMATIC PlanScheduleEntryMode = "AUTOMATIC"
+	PlanScheduleEntryModeMANUAL    PlanScheduleEntryMode = "MANUAL"
+)
+
+// Valid indicates whether the value is a known member of the PlanScheduleEntryMode enum.
+func (e PlanScheduleEntryMode) Valid() bool {
+	switch e {
+	case PlanScheduleEntryModeAUTOMATIC:
+		return true
+	case PlanScheduleEntryModeMANUAL:
 		return true
 	default:
 		return false
@@ -8013,6 +8145,24 @@ func (e ListWebhookDeliveriesParamsStatus) Valid() bool {
 	}
 }
 
+// Defines values for SetEntrySchedulingJSONBodyMode.
+const (
+	SetEntrySchedulingJSONBodyModeAUTOMATIC SetEntrySchedulingJSONBodyMode = "AUTOMATIC"
+	SetEntrySchedulingJSONBodyModeMANUAL    SetEntrySchedulingJSONBodyMode = "MANUAL"
+)
+
+// Valid indicates whether the value is a known member of the SetEntrySchedulingJSONBodyMode enum.
+func (e SetEntrySchedulingJSONBodyMode) Valid() bool {
+	switch e {
+	case SetEntrySchedulingJSONBodyModeAUTOMATIC:
+		return true
+	case SetEntrySchedulingJSONBodyModeMANUAL:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListJumbleEntriesParamsStatus.
 const (
 	ListJumbleEntriesParamsStatusDISMISSED ListJumbleEntriesParamsStatus = "DISMISSED"
@@ -8052,6 +8202,30 @@ func (e ListJumbleEntriesParamsChannel) Valid() bool {
 	case ListJumbleEntriesParamsChannelQUICKCAPTURE:
 		return true
 	case ListJumbleEntriesParamsChannelWEBHOOK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SetDependencyTimingJSONBodyDependencyKind.
+const (
+	SetDependencyTimingJSONBodyDependencyKindFF SetDependencyTimingJSONBodyDependencyKind = "FF"
+	SetDependencyTimingJSONBodyDependencyKindFS SetDependencyTimingJSONBodyDependencyKind = "FS"
+	SetDependencyTimingJSONBodyDependencyKindSF SetDependencyTimingJSONBodyDependencyKind = "SF"
+	SetDependencyTimingJSONBodyDependencyKindSS SetDependencyTimingJSONBodyDependencyKind = "SS"
+)
+
+// Valid indicates whether the value is a known member of the SetDependencyTimingJSONBodyDependencyKind enum.
+func (e SetDependencyTimingJSONBodyDependencyKind) Valid() bool {
+	switch e {
+	case SetDependencyTimingJSONBodyDependencyKindFF:
+		return true
+	case SetDependencyTimingJSONBodyDependencyKindFS:
+		return true
+	case SetDependencyTimingJSONBodyDependencyKindSF:
+		return true
+	case SetDependencyTimingJSONBodyDependencyKindSS:
 		return true
 	default:
 		return false
@@ -9261,6 +9435,31 @@ type BackupTargetProbe struct {
 
 	// Writable Whether the write half worked. A target that can be read and not written is a permissions mistake somebody can act on, and it is the common one.
 	Writable bool `json:"writable"`
+}
+
+// BaselineComparison defines model for BaselineComparison.
+type BaselineComparison struct {
+	Baseline PlanBaseline       `json:"baseline"`
+	Entries  []BaselineVariance `json:"entries"`
+}
+
+// BaselineVariance defines model for BaselineVariance.
+type BaselineVariance struct {
+	BaselineDueAt      *time.Time `json:"baseline_due_at"`
+	BaselineStartAt    *time.Time `json:"baseline_start_at"`
+	DueAt              *time.Time `json:"due_at"`
+	FinishVarianceDays *int       `json:"finish_variance_days"`
+
+	// InBaseline False for an entry added since.
+	InBaseline bool `json:"in_baseline"`
+
+	// InPlan False for an entry gone since.
+	InPlan  bool               `json:"in_plan"`
+	ItemId  openapi_types.UUID `json:"item_id"`
+	StartAt *time.Time         `json:"start_at"`
+
+	// StartVarianceDays Calendar days later than agreed; negative is earlier.
+	StartVarianceDays *int `json:"start_variance_days"`
 }
 
 // Bucket A column of a collection's board - the "list" of the requirements. It belongs to exactly one collection, and its name is unique there, compared without regard to case or accents.
@@ -11478,10 +11677,16 @@ type EntryHidden struct {
 
 // EntryLink A link of a type from one entry (the source) to another (the target).
 type EntryLink struct {
-	CreatedAt time.Time          `json:"created_at"`
-	Id        openapi_types.UUID `json:"id"`
-	SourceId  openapi_types.UUID `json:"source_id"`
-	TargetId  openapi_types.UUID `json:"target_id"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// DependencyKind How a dependency's waiting end hangs on the other; FS on every link nobody waits on.
+	DependencyKind *EntryLinkDependencyKind `json:"dependency_kind,omitempty"`
+	Id             openapi_types.UUID       `json:"id"`
+
+	// LagDays Working days between the two moments; negative is a lead.
+	LagDays  *int               `json:"lag_days,omitempty"`
+	SourceId openapi_types.UUID `json:"source_id"`
+	TargetId openapi_types.UUID `json:"target_id"`
 
 	// Type The link type's key.
 	Type string `json:"type"`
@@ -11489,6 +11694,9 @@ type EntryLink struct {
 	// Waits Which end waits for the other, by the link's type.
 	Waits *EntryLinkWaits `json:"waits,omitempty"`
 }
+
+// EntryLinkDependencyKind How a dependency's waiting end hangs on the other; FS on every link nobody waits on.
+type EntryLinkDependencyKind string
 
 // EntryLinkWaits Which end waits for the other, by the link's type.
 type EntryLinkWaits string
@@ -11525,8 +11733,14 @@ type EntryLinks struct {
 
 	// Links The entry's links from both ends, oldest first.
 	Links []struct {
-		CreatedAt time.Time          `json:"created_at"`
-		Id        openapi_types.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+
+		// DependencyKind How a dependency's waiting end hangs on the other; FS on every link nobody waits on.
+		DependencyKind *EntryLinksLinksDependencyKind `json:"dependency_kind,omitempty"`
+		Id             openapi_types.UUID             `json:"id"`
+
+		// LagDays Working days between the two moments; negative is a lead.
+		LagDays *int `json:"lag_days,omitempty"`
 
 		// Other What a reference shows the reader. Where the reader may not see the object, or it is not there, only `kind`, `id`, `anchor` and `available: false` are present.
 		Other ReferenceTarget `json:"other"`
@@ -11565,8 +11779,21 @@ type EntryLinks struct {
 // EntryLinksBacklinksSourceKind An entry's notes, or one of its comments.
 type EntryLinksBacklinksSourceKind string
 
+// EntryLinksLinksDependencyKind How a dependency's waiting end hangs on the other; FS on every link nobody waits on.
+type EntryLinksLinksDependencyKind string
+
 // EntryLinksLinksWaits Which end waits for the other, by the link's type.
 type EntryLinksLinksWaits string
+
+// EntryScheduling defines model for EntryScheduling.
+type EntryScheduling struct {
+	ItemId    openapi_types.UUID  `json:"item_id"`
+	Milestone bool                `json:"milestone"`
+	Mode      EntrySchedulingMode `json:"mode"`
+}
+
+// EntrySchedulingMode defines model for EntryScheduling.Mode.
+type EntrySchedulingMode string
 
 // EntrySlaGoal defines model for EntrySlaGoal.
 type EntrySlaGoal struct {
@@ -14757,6 +14984,21 @@ type Plan struct {
 	Workspaces int `json:"workspaces"`
 }
 
+// PlanBaseline defines model for PlanBaseline.
+type PlanBaseline struct {
+	EntryCount int                 `json:"entry_count"`
+	Id         openapi_types.UUID  `json:"id"`
+	Name       string              `json:"name"`
+	PlanId     openapi_types.UUID  `json:"plan_id"`
+	TakenAt    time.Time           `json:"taken_at"`
+	TakenBy    *openapi_types.UUID `json:"taken_by"`
+}
+
+// PlanBaselineList defines model for PlanBaselineList.
+type PlanBaselineList struct {
+	Data []PlanBaseline `json:"data"`
+}
+
 // PlanChange What a plan decides, in the installation level's shape: each area maps a key to `{value, locked}`, and a key the plan does not name falls through to the installation. A lock here holds every workspace on the plan to the value ("Set by your plan").
 type PlanChange struct {
 	Ai          *map[string]InstanceSetting `json:"ai,omitempty"`
@@ -14771,6 +15013,19 @@ type PlanChange struct {
 	Quotas *map[string]InstanceSetting `json:"quotas,omitempty"`
 	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
 }
+
+// PlanConflict A dependency a manual, finished or summary entry breaks.
+type PlanConflict struct {
+	DependencyKind PlanConflictDependencyKind `json:"dependency_kind"`
+
+	// Earliest The earliest start (FS, SS) or finish (FF, SF) the dependency allows.
+	Earliest      openapi_types.Date `json:"earliest"`
+	PredecessorId openapi_types.UUID `json:"predecessor_id"`
+	SuccessorId   openapi_types.UUID `json:"successor_id"`
+}
+
+// PlanConflictDependencyKind defines model for PlanConflict.DependencyKind.
+type PlanConflictDependencyKind string
 
 // PlanCreate A new plan - its short name and what it decides, as PlanChange.
 type PlanCreate struct {
@@ -14790,8 +15045,81 @@ type PlanCreate struct {
 	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
 }
 
+// PlanDependency defines model for PlanDependency.
+type PlanDependency struct {
+	DependencyKind PlanDependencyDependencyKind `json:"dependency_kind"`
+	LagDays        int                          `json:"lag_days"`
+	LinkId         openapi_types.UUID           `json:"link_id"`
+	PredecessorId  openapi_types.UUID           `json:"predecessor_id"`
+	SuccessorId    openapi_types.UUID           `json:"successor_id"`
+	Type           string                       `json:"type"`
+}
+
+// PlanDependencyDependencyKind defines model for PlanDependency.DependencyKind.
+type PlanDependencyDependencyKind string
+
 // PlanFeature defines model for PlanFeature.
 type PlanFeature string
+
+// PlanMoves defines model for PlanMoves.
+type PlanMoves struct {
+	Moved []struct {
+		Finish openapi_types.Date `json:"finish"`
+		ItemId openapi_types.UUID `json:"item_id"`
+		Start  openapi_types.Date `json:"start"`
+	} `json:"moved"`
+}
+
+// PlanSchedule defines model for PlanSchedule.
+type PlanSchedule struct {
+	Conflicts []PlanConflict `json:"conflicts"`
+
+	// CriticalPath The critical entries, earliest first.
+	CriticalPath []openapi_types.UUID `json:"critical_path"`
+	Dependencies []PlanDependency     `json:"dependencies"`
+	Entries      []PlanScheduleEntry  `json:"entries"`
+
+	// Finish The plan's last working day; null for a plan without dates.
+	Finish *openapi_types.Date `json:"finish"`
+
+	// Unscheduled Entries with neither a start nor a due date.
+	Unscheduled []openapi_types.UUID `json:"unscheduled"`
+	Zone        string               `json:"zone"`
+}
+
+// PlanScheduleEntry defines model for PlanScheduleEntry.
+type PlanScheduleEntry struct {
+	Critical bool `json:"critical"`
+	Done     bool `json:"done"`
+
+	// DurationDays Working days; 0 for a milestone.
+	DurationDays int `json:"duration_days"`
+
+	// External An entry outside the plan a dependency names; kept where it is.
+	External bool `json:"external"`
+
+	// Finish The last working day, included.
+	Finish openapi_types.Date `json:"finish"`
+
+	// FreeFloatDays How far it may slip before a successor must move.
+	FreeFloatDays int                   `json:"free_float_days"`
+	ItemId        openapi_types.UUID    `json:"item_id"`
+	Milestone     bool                  `json:"milestone"`
+	Mode          PlanScheduleEntryMode `json:"mode"`
+
+	// Moved The scheduler proposes these dates instead of the entry's own.
+	Moved bool               `json:"moved"`
+	Start openapi_types.Date `json:"start"`
+
+	// Summary A parent whose dates are its children's span.
+	Summary bool `json:"summary"`
+
+	// TotalFloatDays How far it may slip before the plan's end does; negative on a chain a manual entry breaks.
+	TotalFloatDays int `json:"total_float_days"`
+}
+
+// PlanScheduleEntryMode defines model for PlanScheduleEntry.Mode.
+type PlanScheduleEntryMode string
 
 // PlatformDelivery One event sent to one subscription, across its attempts.
 type PlatformDelivery struct {
@@ -18465,6 +18793,9 @@ type ParentId = openapi_types.UUID
 // PasskeyId defines model for PasskeyId.
 type PasskeyId = openapi_types.UUID
 
+// PlanId defines model for PlanId.
+type PlanId = openapi_types.UUID
+
 // PresetId defines model for PresetId.
 type PresetId = openapi_types.UUID
 
@@ -19546,6 +19877,15 @@ type UpdateReminderParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetEntrySchedulingJSONBody defines parameters for SetEntryScheduling.
+type SetEntrySchedulingJSONBody struct {
+	Milestone *bool                           `json:"milestone,omitempty"`
+	Mode      *SetEntrySchedulingJSONBodyMode `json:"mode,omitempty"`
+}
+
+// SetEntrySchedulingJSONBodyMode defines parameters for SetEntryScheduling.
+type SetEntrySchedulingJSONBodyMode string
+
 // ArchiveWorkItemParams defines parameters for ArchiveWorkItem.
 type ArchiveWorkItemParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -19794,6 +20134,15 @@ type ChangeLinkTypeParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetDependencyTimingJSONBody defines parameters for SetDependencyTiming.
+type SetDependencyTimingJSONBody struct {
+	DependencyKind SetDependencyTimingJSONBodyDependencyKind `json:"dependency_kind"`
+	LagDays        *int                                      `json:"lag_days,omitempty"`
+}
+
+// SetDependencyTimingJSONBodyDependencyKind defines parameters for SetDependencyTiming.
+type SetDependencyTimingJSONBodyDependencyKind string
+
 // ListLinksAmongJSONBody defines parameters for ListLinksAmong.
 type ListLinksAmongJSONBody struct {
 	ItemIds []openapi_types.UUID `json:"item_ids"`
@@ -19924,6 +20273,27 @@ type RestorePageVersionParams struct {
 type MovePageParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// TakeBaselineJSONBody defines parameters for TakeBaseline.
+type TakeBaselineJSONBody struct {
+	Name string `json:"name"`
+}
+
+// ReadPlanScheduleParams defines parameters for ReadPlanSchedule.
+type ReadPlanScheduleParams struct {
+	// Calendar A business calendar's key.
+	Calendar *string `form:"calendar,omitempty" json:"calendar,omitempty"`
+
+	// Zone An IANA time zone, when no calendar names one; UTC without.
+	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
+}
+
+// ApplyPlanScheduleJSONBody defines parameters for ApplyPlanSchedule.
+type ApplyPlanScheduleJSONBody struct {
+	Calendar *string              `json:"calendar,omitempty"`
+	ItemIds  []openapi_types.UUID `json:"item_ids"`
+	Zone     *string              `json:"zone,omitempty"`
 }
 
 // WithdrawPresetParams defines parameters for WithdrawPreset.
@@ -20734,6 +21104,9 @@ type CreateReminderJSONRequestBody = ReminderInput
 // UpdateReminderApplicationMergePatchPlusJSONRequestBody defines body for UpdateReminder for application/merge-patch+json ContentType.
 type UpdateReminderApplicationMergePatchPlusJSONRequestBody = ReminderUpdate
 
+// SetEntrySchedulingJSONRequestBody defines body for SetEntryScheduling for application/json ContentType.
+type SetEntrySchedulingJSONRequestBody SetEntrySchedulingJSONBody
+
 // AssignWorkItemJSONRequestBody defines body for AssignWorkItem for application/json ContentType.
 type AssignWorkItemJSONRequestBody = Assignment
 
@@ -20806,6 +21179,9 @@ type CreateLinkTypeJSONRequestBody = LinkTypeCreate
 // ChangeLinkTypeApplicationMergePatchPlusJSONRequestBody defines body for ChangeLinkType for application/merge-patch+json ContentType.
 type ChangeLinkTypeApplicationMergePatchPlusJSONRequestBody = LinkTypeChange
 
+// SetDependencyTimingJSONRequestBody defines body for SetDependencyTiming for application/json ContentType.
+type SetDependencyTimingJSONRequestBody SetDependencyTimingJSONBody
+
 // ListLinksAmongJSONRequestBody defines body for ListLinksAmong for application/json ContentType.
 type ListLinksAmongJSONRequestBody ListLinksAmongJSONBody
 
@@ -20865,6 +21241,12 @@ type VerifyPageJSONRequestBody = PageVerify
 
 // SearchPagesJSONRequestBody defines body for SearchPages for application/json ContentType.
 type SearchPagesJSONRequestBody = PageSearch
+
+// TakeBaselineJSONRequestBody defines body for TakeBaseline for application/json ContentType.
+type TakeBaselineJSONRequestBody TakeBaselineJSONBody
+
+// ApplyPlanScheduleJSONRequestBody defines body for ApplyPlanSchedule for application/json ContentType.
+type ApplyPlanScheduleJSONRequestBody ApplyPlanScheduleJSONBody
 
 // SavePresetJSONRequestBody defines body for SavePreset for application/json ContentType.
 type SavePresetJSONRequestBody = PresetCreate
@@ -23761,6 +24143,20 @@ type ClientInterface interface {
 	// Corresponds with POST /backups/{backupId}:verify (the `VerifyBackup` operationId).
 	VerifyBackup(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteBaseline Delete a baseline
+	//
+	// Deletes the baseline and the dates it holds; no entry changes. Needs WRITE_ITEMS at the plan.
+	//
+	// Corresponds with DELETE /baselines/{baselineId} (the `DeleteBaseline` operationId).
+	DeleteBaseline(ctx context.Context, baselineId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompareBaseline A baseline beside today's plan
+	//
+	// Entry by entry, the start and due the baseline holds, today's, and how many calendar days each slipped (positive is later); entries added and gone since are marked. An entry the caller may not see is left out. Needs READ at the plan.
+	//
+	// Corresponds with GET /baselines/{baselineId} (the `CompareBaseline` operationId).
+	CompareBaseline(ctx context.Context, baselineId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListBusinessCalendars The workspace's business calendars
 	//
 	// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs READ at the workspace and the service desk switched on.
@@ -25542,6 +25938,24 @@ type ClientInterface interface {
 	// Corresponds with GET /items/{itemId}/reply-templates/{templateKey} (the `RenderReplyTemplate` operationId).
 	RenderReplyTemplate(ctx context.Context, itemId ItemId, templateKey string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// SetEntrySchedulingWithBody Whether the scheduler may move an entry, and whether it is a milestone
+	//
+	// AUTOMATIC places the entry as early as its predecessors allow; MANUAL keeps it where a person put it. A milestone is a date without a duration. A field left out keeps what stands; every entry is MANUAL and no milestone until set. Needs WRITE_ITEMS on the entry.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /items/{itemId}/scheduling (the `SetEntryScheduling` operationId).
+	SetEntrySchedulingWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetEntryScheduling Whether the scheduler may move an entry, and whether it is a milestone
+	//
+	// AUTOMATIC places the entry as early as its predecessors allow; MANUAL keeps it where a person put it. A milestone is a date without a duration. A field left out keeps what stands; every entry is MANUAL and no milestone until set. Needs WRITE_ITEMS on the entry.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /items/{itemId}/scheduling (the `SetEntryScheduling` operationId).
+	SetEntryScheduling(ctx context.Context, itemId ItemId, body SetEntrySchedulingJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ReadEntrySla How an entry's SLA goals stand
 	//
 	// Per goal of the policy that measures the entry: its target in working seconds, whether it runs, stands still, was met or breached, when it falls due and when it was at risk. Empty when no policy measures the entry. Needs READ on the entry.
@@ -26207,6 +26621,24 @@ type ClientInterface interface {
 	// Corresponds with DELETE /links/{linkId} (the `UnlinkEntries` operationId).
 	UnlinkEntries(ctx context.Context, linkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// SetDependencyTimingWithBody How a dependency's waiting entry hangs on the other
+	//
+	// FS (finish to start), SS (start to start), FF (finish to finish) or SF (start to finish), with a lag in working days - negative for a lead, at most 999 either way. A link nobody waits on takes none (`links.timing_without_dependency`). Needs WRITE_ITEMS on the waiting entry.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /links/{linkId}/timing (the `SetDependencyTiming` operationId).
+	SetDependencyTimingWithBody(ctx context.Context, linkId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetDependencyTiming How a dependency's waiting entry hangs on the other
+	//
+	// FS (finish to start), SS (start to start), FF (finish to finish) or SF (start to finish), with a lag in working days - negative for a lead, at most 999 either way. A link nobody waits on takes none (`links.timing_without_dependency`). Needs WRITE_ITEMS on the waiting entry.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /links/{linkId}/timing (the `SetDependencyTiming` operationId).
+	SetDependencyTiming(ctx context.Context, linkId openapi_types.UUID, body SetDependencyTimingJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListLinksAmongWithBody The links between the entries a view shows
 	//
 	// The links with both ends among the given entries, at most 500 of them, each with which end waits for the other - what a timeline draws as dependencies. A `POST` because the list of entries is a body rather than a query string. A link with an end the caller may not see is left out.
@@ -26805,6 +27237,56 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /pages:search (the `SearchPages` operationId).
 	SearchPages(ctx context.Context, body SearchPagesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListBaselines A plan's baselines
+	//
+	// The plan's baselines, the newest first. Needs READ at the plan.
+	//
+	// Corresponds with GET /plans/{planId}/baselines (the `ListBaselines` operationId).
+	ListBaselines(ctx context.Context, planId PlanId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TakeBaselineWithBody Keep the plan as it is agreed now
+	//
+	// Copies the start and due of every entry of the hub or collection under a name. A plan keeps at most 20 baselines (`baselines.limit`); a baseline is never changed. Needs WRITE_ITEMS at the plan.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /plans/{planId}/baselines (the `TakeBaseline` operationId).
+	TakeBaselineWithBody(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TakeBaseline Keep the plan as it is agreed now
+	//
+	// Copies the start and due of every entry of the hub or collection under a name. A plan keeps at most 20 baselines (`baselines.limit`); a baseline is never changed. Needs WRITE_ITEMS at the plan.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /plans/{planId}/baselines (the `TakeBaseline` operationId).
+	TakeBaseline(ctx context.Context, planId PlanId, body TakeBaselineJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadPlanSchedule A plan as the scheduler places it
+	//
+	// Every visible entry of the hub or collection with its start and finish as the scheduler places it: automatic entries as early as their predecessors allow, manual ones where they stand, with the dependencies they break. Each entry's total and free float in working days, the critical path, and the entries without a date. Counts a business calendar's working days, or Monday to Friday. Changes nothing. Needs READ at the plan and the planning module switched on.
+	//
+	// Corresponds with GET /plans/{planId}/schedule (the `ReadPlanSchedule` operationId).
+	ReadPlanSchedule(ctx context.Context, planId PlanId, params *ReadPlanScheduleParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ApplyPlanScheduleWithBody Apply the moves a person accepted
+	//
+	// Schedules the plan again and applies the proposed moves of the entries named, all or none, each as a change of its start and its all-day due date that is checked, recorded and announced as one by hand is. A proposed move not named stays a proposal. Needs WRITE_ITEMS at the plan and on every entry moved.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /plans/{planId}/schedule:apply (the `ApplyPlanSchedule` operationId).
+	ApplyPlanScheduleWithBody(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ApplyPlanSchedule Apply the moves a person accepted
+	//
+	// Schedules the plan again and applies the proposed moves of the entries named, all or none, each as a change of its start and its all-day due date that is checked, recorded and announced as one by hand is. A proposed move not named stays a proposal. Needs WRITE_ITEMS at the plan and on every entry moved.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /plans/{planId}/schedule:apply (the `ApplyPlanSchedule` operationId).
+	ApplyPlanSchedule(ctx context.Context, planId PlanId, body ApplyPlanScheduleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPresets The presets a hub or collection can start from
 	//
@@ -33542,6 +34024,40 @@ func (c *Client) VerifyBackup(ctx context.Context, backupId openapi_types.UUID, 
 	return c.Client.Do(req)
 }
 
+// DeleteBaseline Delete a baseline
+//
+// Deletes the baseline and the dates it holds; no entry changes. Needs WRITE_ITEMS at the plan.
+//
+// Corresponds with DELETE /baselines/{baselineId} (the `DeleteBaseline` operationId).
+func (c *Client) DeleteBaseline(ctx context.Context, baselineId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteBaselineRequest(c.Server, baselineId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompareBaseline A baseline beside today's plan
+//
+// Entry by entry, the start and due the baseline holds, today's, and how many calendar days each slipped (positive is later); entries added and gone since are marked. An entry the caller may not see is left out. Needs READ at the plan.
+//
+// Corresponds with GET /baselines/{baselineId} (the `CompareBaseline` operationId).
+func (c *Client) CompareBaseline(ctx context.Context, baselineId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompareBaselineRequest(c.Server, baselineId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListBusinessCalendars The workspace's business calendars
 //
 // Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs READ at the workspace and the service desk switched on.
@@ -37663,6 +38179,44 @@ func (c *Client) RenderReplyTemplate(ctx context.Context, itemId ItemId, templat
 	return c.Client.Do(req)
 }
 
+// SetEntrySchedulingWithBody Whether the scheduler may move an entry, and whether it is a milestone
+//
+// AUTOMATIC places the entry as early as its predecessors allow; MANUAL keeps it where a person put it. A milestone is a date without a duration. A field left out keeps what stands; every entry is MANUAL and no milestone until set. Needs WRITE_ITEMS on the entry.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /items/{itemId}/scheduling (the `SetEntryScheduling` operationId).
+func (c *Client) SetEntrySchedulingWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetEntrySchedulingRequestWithBody(c.Server, itemId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetEntryScheduling Whether the scheduler may move an entry, and whether it is a milestone
+//
+// AUTOMATIC places the entry as early as its predecessors allow; MANUAL keeps it where a person put it. A milestone is a date without a duration. A field left out keeps what stands; every entry is MANUAL and no milestone until set. Needs WRITE_ITEMS on the entry.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /items/{itemId}/scheduling (the `SetEntryScheduling` operationId).
+func (c *Client) SetEntryScheduling(ctx context.Context, itemId ItemId, body SetEntrySchedulingJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetEntrySchedulingRequest(c.Server, itemId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ReadEntrySla How an entry's SLA goals stand
 //
 // Per goal of the policy that measures the entry: its target in working seconds, whether it runs, stands still, was met or breached, when it falls due and when it was at risk. Empty when no policy measures the entry. Needs READ on the entry.
@@ -39058,6 +39612,44 @@ func (c *Client) UnlinkEntries(ctx context.Context, linkId openapi_types.UUID, r
 	return c.Client.Do(req)
 }
 
+// SetDependencyTimingWithBody How a dependency's waiting entry hangs on the other
+//
+// FS (finish to start), SS (start to start), FF (finish to finish) or SF (start to finish), with a lag in working days - negative for a lead, at most 999 either way. A link nobody waits on takes none (`links.timing_without_dependency`). Needs WRITE_ITEMS on the waiting entry.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /links/{linkId}/timing (the `SetDependencyTiming` operationId).
+func (c *Client) SetDependencyTimingWithBody(ctx context.Context, linkId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetDependencyTimingRequestWithBody(c.Server, linkId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetDependencyTiming How a dependency's waiting entry hangs on the other
+//
+// FS (finish to start), SS (start to start), FF (finish to finish) or SF (start to finish), with a lag in working days - negative for a lead, at most 999 either way. A link nobody waits on takes none (`links.timing_without_dependency`). Needs WRITE_ITEMS on the waiting entry.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /links/{linkId}/timing (the `SetDependencyTiming` operationId).
+func (c *Client) SetDependencyTiming(ctx context.Context, linkId openapi_types.UUID, body SetDependencyTimingJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetDependencyTimingRequest(c.Server, linkId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListLinksAmongWithBody The links between the entries a view shows
 //
 // The links with both ends among the given entries, at most 500 of them, each with which end waits for the other - what a timeline draws as dependencies. A `POST` because the list of entries is a body rather than a query string. A link with an end the caller may not see is left out.
@@ -40317,6 +40909,116 @@ func (c *Client) SearchPagesWithBody(ctx context.Context, contentType string, bo
 // Corresponds with POST /pages:search (the `SearchPages` operationId).
 func (c *Client) SearchPages(ctx context.Context, body SearchPagesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSearchPagesRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListBaselines A plan's baselines
+//
+// The plan's baselines, the newest first. Needs READ at the plan.
+//
+// Corresponds with GET /plans/{planId}/baselines (the `ListBaselines` operationId).
+func (c *Client) ListBaselines(ctx context.Context, planId PlanId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListBaselinesRequest(c.Server, planId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// TakeBaselineWithBody Keep the plan as it is agreed now
+//
+// Copies the start and due of every entry of the hub or collection under a name. A plan keeps at most 20 baselines (`baselines.limit`); a baseline is never changed. Needs WRITE_ITEMS at the plan.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /plans/{planId}/baselines (the `TakeBaseline` operationId).
+func (c *Client) TakeBaselineWithBody(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTakeBaselineRequestWithBody(c.Server, planId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// TakeBaseline Keep the plan as it is agreed now
+//
+// Copies the start and due of every entry of the hub or collection under a name. A plan keeps at most 20 baselines (`baselines.limit`); a baseline is never changed. Needs WRITE_ITEMS at the plan.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /plans/{planId}/baselines (the `TakeBaseline` operationId).
+func (c *Client) TakeBaseline(ctx context.Context, planId PlanId, body TakeBaselineJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTakeBaselineRequest(c.Server, planId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadPlanSchedule A plan as the scheduler places it
+//
+// Every visible entry of the hub or collection with its start and finish as the scheduler places it: automatic entries as early as their predecessors allow, manual ones where they stand, with the dependencies they break. Each entry's total and free float in working days, the critical path, and the entries without a date. Counts a business calendar's working days, or Monday to Friday. Changes nothing. Needs READ at the plan and the planning module switched on.
+//
+// Corresponds with GET /plans/{planId}/schedule (the `ReadPlanSchedule` operationId).
+func (c *Client) ReadPlanSchedule(ctx context.Context, planId PlanId, params *ReadPlanScheduleParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPlanScheduleRequest(c.Server, planId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ApplyPlanScheduleWithBody Apply the moves a person accepted
+//
+// Schedules the plan again and applies the proposed moves of the entries named, all or none, each as a change of its start and its all-day due date that is checked, recorded and announced as one by hand is. A proposed move not named stays a proposal. Needs WRITE_ITEMS at the plan and on every entry moved.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /plans/{planId}/schedule:apply (the `ApplyPlanSchedule` operationId).
+func (c *Client) ApplyPlanScheduleWithBody(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewApplyPlanScheduleRequestWithBody(c.Server, planId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ApplyPlanSchedule Apply the moves a person accepted
+//
+// Schedules the plan again and applies the proposed moves of the entries named, all or none, each as a change of its start and its all-day due date that is checked, recorded and announced as one by hand is. A proposed move not named stays a proposal. Needs WRITE_ITEMS at the plan and on every entry moved.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /plans/{planId}/schedule:apply (the `ApplyPlanSchedule` operationId).
+func (c *Client) ApplyPlanSchedule(ctx context.Context, planId PlanId, body ApplyPlanScheduleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewApplyPlanScheduleRequest(c.Server, planId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -50832,6 +51534,74 @@ func NewVerifyBackupRequest(server string, backupId openapi_types.UUID) (*http.R
 	return req, nil
 }
 
+// NewDeleteBaselineRequest constructs an http.Request for the DeleteBaseline method
+func NewDeleteBaselineRequest(server string, baselineId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "baselineId", baselineId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/baselines/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCompareBaselineRequest constructs an http.Request for the CompareBaseline method
+func NewCompareBaselineRequest(server string, baselineId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "baselineId", baselineId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/baselines/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListBusinessCalendarsRequest constructs an http.Request for the ListBusinessCalendars method
 func NewListBusinessCalendarsRequest(server string) (*http.Request, error) {
 	var err error
@@ -59094,6 +59864,53 @@ func NewRenderReplyTemplateRequest(server string, itemId ItemId, templateKey str
 	return req, nil
 }
 
+// NewSetEntrySchedulingRequest calls the generic SetEntryScheduling builder with application/json body
+func NewSetEntrySchedulingRequest(server string, itemId ItemId, body SetEntrySchedulingJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetEntrySchedulingRequestWithBody(server, itemId, "application/json", bodyReader)
+}
+
+// NewSetEntrySchedulingRequestWithBody constructs an http.Request for the SetEntryScheduling method, with any body, and a specified content type
+func NewSetEntrySchedulingRequestWithBody(server string, itemId ItemId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/scheduling", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewReadEntrySlaRequest constructs an http.Request for the ReadEntrySla method
 func NewReadEntrySlaRequest(server string, itemId ItemId) (*http.Request, error) {
 	var err error
@@ -61549,6 +62366,53 @@ func NewUnlinkEntriesRequest(server string, linkId openapi_types.UUID) (*http.Re
 	return req, nil
 }
 
+// NewSetDependencyTimingRequest calls the generic SetDependencyTiming builder with application/json body
+func NewSetDependencyTimingRequest(server string, linkId openapi_types.UUID, body SetDependencyTimingJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetDependencyTimingRequestWithBody(server, linkId, "application/json", bodyReader)
+}
+
+// NewSetDependencyTimingRequestWithBody constructs an http.Request for the SetDependencyTiming method, with any body, and a specified content type
+func NewSetDependencyTimingRequestWithBody(server string, linkId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "linkId", linkId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/links/%s/timing", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListLinksAmongRequest calls the generic ListLinksAmong builder with application/json body
 func NewListLinksAmongRequest(server string, body ListLinksAmongJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -63677,6 +64541,207 @@ func NewSearchPagesRequestWithBody(server string, contentType string, body io.Re
 	}
 
 	operationPath := fmt.Sprintf("/pages:search")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListBaselinesRequest constructs an http.Request for the ListBaselines method
+func NewListBaselinesRequest(server string, planId PlanId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planId", planId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/plans/%s/baselines", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewTakeBaselineRequest calls the generic TakeBaseline builder with application/json body
+func NewTakeBaselineRequest(server string, planId PlanId, body TakeBaselineJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewTakeBaselineRequestWithBody(server, planId, "application/json", bodyReader)
+}
+
+// NewTakeBaselineRequestWithBody constructs an http.Request for the TakeBaseline method, with any body, and a specified content type
+func NewTakeBaselineRequestWithBody(server string, planId PlanId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planId", planId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/plans/%s/baselines", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadPlanScheduleRequest constructs an http.Request for the ReadPlanSchedule method
+func NewReadPlanScheduleRequest(server string, planId PlanId, params *ReadPlanScheduleParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planId", planId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/plans/%s/schedule", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Calendar != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "calendar", *params.Calendar, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Zone != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "zone", *params.Zone, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewApplyPlanScheduleRequest calls the generic ApplyPlanSchedule builder with application/json body
+func NewApplyPlanScheduleRequest(server string, planId PlanId, body ApplyPlanScheduleJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewApplyPlanScheduleRequestWithBody(server, planId, "application/json", bodyReader)
+}
+
+// NewApplyPlanScheduleRequestWithBody constructs an http.Request for the ApplyPlanSchedule method, with any body, and a specified content type
+func NewApplyPlanScheduleRequestWithBody(server string, planId PlanId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planId", planId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/plans/%s/schedule:apply", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -71625,6 +72690,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /backups/{backupId}:verify (the `VerifyBackup` operationId).
 	VerifyBackupWithResponse(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*VerifyBackupResult, error)
 
+	// DeleteBaselineWithResponse Delete a baseline
+	//
+	// Deletes the baseline and the dates it holds; no entry changes. Needs WRITE_ITEMS at the plan.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /baselines/{baselineId} (the `DeleteBaseline` operationId).
+	DeleteBaselineWithResponse(ctx context.Context, baselineId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteBaselineResult, error)
+
+	// CompareBaselineWithResponse A baseline beside today's plan
+	//
+	// Entry by entry, the start and due the baseline holds, today's, and how many calendar days each slipped (positive is later); entries added and gone since are marked. An entry the caller may not see is left out. Needs READ at the plan.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /baselines/{baselineId} (the `CompareBaseline` operationId).
+	CompareBaselineWithResponse(ctx context.Context, baselineId openapi_types.UUID, reqEditors ...RequestEditorFn) (*CompareBaselineResult, error)
+
 	// ListBusinessCalendarsWithResponse The workspace's business calendars
 	//
 	// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs READ at the workspace and the service desk switched on.
@@ -73630,6 +74713,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /items/{itemId}/reply-templates/{templateKey} (the `RenderReplyTemplate` operationId).
 	RenderReplyTemplateWithResponse(ctx context.Context, itemId ItemId, templateKey string, reqEditors ...RequestEditorFn) (*RenderReplyTemplateResult, error)
 
+	// SetEntrySchedulingWithBodyWithResponse Whether the scheduler may move an entry, and whether it is a milestone
+	//
+	// AUTOMATIC places the entry as early as its predecessors allow; MANUAL keeps it where a person put it. A milestone is a date without a duration. A field left out keeps what stands; every entry is MANUAL and no milestone until set. Needs WRITE_ITEMS on the entry.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /items/{itemId}/scheduling (the `SetEntryScheduling` operationId).
+	SetEntrySchedulingWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetEntrySchedulingResult, error)
+
+	// SetEntrySchedulingWithResponse Whether the scheduler may move an entry, and whether it is a milestone
+	//
+	// AUTOMATIC places the entry as early as its predecessors allow; MANUAL keeps it where a person put it. A milestone is a date without a duration. A field left out keeps what stands; every entry is MANUAL and no milestone until set. Needs WRITE_ITEMS on the entry.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /items/{itemId}/scheduling (the `SetEntryScheduling` operationId).
+	SetEntrySchedulingWithResponse(ctx context.Context, itemId ItemId, body SetEntrySchedulingJSONRequestBody, reqEditors ...RequestEditorFn) (*SetEntrySchedulingResult, error)
+
 	// ReadEntrySlaWithResponse How an entry's SLA goals stand
 	//
 	// Per goal of the policy that measures the entry: its target in working seconds, whether it runs, stands still, was met or breached, when it falls due and when it was at risk. Empty when no policy measures the entry. Needs READ on the entry.
@@ -74355,6 +75456,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with DELETE /links/{linkId} (the `UnlinkEntries` operationId).
 	UnlinkEntriesWithResponse(ctx context.Context, linkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnlinkEntriesResult, error)
 
+	// SetDependencyTimingWithBodyWithResponse How a dependency's waiting entry hangs on the other
+	//
+	// FS (finish to start), SS (start to start), FF (finish to finish) or SF (start to finish), with a lag in working days - negative for a lead, at most 999 either way. A link nobody waits on takes none (`links.timing_without_dependency`). Needs WRITE_ITEMS on the waiting entry.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /links/{linkId}/timing (the `SetDependencyTiming` operationId).
+	SetDependencyTimingWithBodyWithResponse(ctx context.Context, linkId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetDependencyTimingResult, error)
+
+	// SetDependencyTimingWithResponse How a dependency's waiting entry hangs on the other
+	//
+	// FS (finish to start), SS (start to start), FF (finish to finish) or SF (start to finish), with a lag in working days - negative for a lead, at most 999 either way. A link nobody waits on takes none (`links.timing_without_dependency`). Needs WRITE_ITEMS on the waiting entry.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /links/{linkId}/timing (the `SetDependencyTiming` operationId).
+	SetDependencyTimingWithResponse(ctx context.Context, linkId openapi_types.UUID, body SetDependencyTimingJSONRequestBody, reqEditors ...RequestEditorFn) (*SetDependencyTimingResult, error)
+
 	// ListLinksAmongWithBodyWithResponse The links between the entries a view shows
 	//
 	// The links with both ends among the given entries, at most 500 of them, each with which end waits for the other - what a timeline draws as dependencies. A `POST` because the list of entries is a body rather than a query string. A link with an end the caller may not see is left out.
@@ -75013,6 +76132,60 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /pages:search (the `SearchPages` operationId).
 	SearchPagesWithResponse(ctx context.Context, body SearchPagesJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchPagesResult, error)
+
+	// ListBaselinesWithResponse A plan's baselines
+	//
+	// The plan's baselines, the newest first. Needs READ at the plan.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /plans/{planId}/baselines (the `ListBaselines` operationId).
+	ListBaselinesWithResponse(ctx context.Context, planId PlanId, reqEditors ...RequestEditorFn) (*ListBaselinesResult, error)
+
+	// TakeBaselineWithBodyWithResponse Keep the plan as it is agreed now
+	//
+	// Copies the start and due of every entry of the hub or collection under a name. A plan keeps at most 20 baselines (`baselines.limit`); a baseline is never changed. Needs WRITE_ITEMS at the plan.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /plans/{planId}/baselines (the `TakeBaseline` operationId).
+	TakeBaselineWithBodyWithResponse(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TakeBaselineResult, error)
+
+	// TakeBaselineWithResponse Keep the plan as it is agreed now
+	//
+	// Copies the start and due of every entry of the hub or collection under a name. A plan keeps at most 20 baselines (`baselines.limit`); a baseline is never changed. Needs WRITE_ITEMS at the plan.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /plans/{planId}/baselines (the `TakeBaseline` operationId).
+	TakeBaselineWithResponse(ctx context.Context, planId PlanId, body TakeBaselineJSONRequestBody, reqEditors ...RequestEditorFn) (*TakeBaselineResult, error)
+
+	// ReadPlanScheduleWithResponse A plan as the scheduler places it
+	//
+	// Every visible entry of the hub or collection with its start and finish as the scheduler places it: automatic entries as early as their predecessors allow, manual ones where they stand, with the dependencies they break. Each entry's total and free float in working days, the critical path, and the entries without a date. Counts a business calendar's working days, or Monday to Friday. Changes nothing. Needs READ at the plan and the planning module switched on.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /plans/{planId}/schedule (the `ReadPlanSchedule` operationId).
+	ReadPlanScheduleWithResponse(ctx context.Context, planId PlanId, params *ReadPlanScheduleParams, reqEditors ...RequestEditorFn) (*ReadPlanScheduleResult, error)
+
+	// ApplyPlanScheduleWithBodyWithResponse Apply the moves a person accepted
+	//
+	// Schedules the plan again and applies the proposed moves of the entries named, all or none, each as a change of its start and its all-day due date that is checked, recorded and announced as one by hand is. A proposed move not named stays a proposal. Needs WRITE_ITEMS at the plan and on every entry moved.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /plans/{planId}/schedule:apply (the `ApplyPlanSchedule` operationId).
+	ApplyPlanScheduleWithBodyWithResponse(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ApplyPlanScheduleResult, error)
+
+	// ApplyPlanScheduleWithResponse Apply the moves a person accepted
+	//
+	// Schedules the plan again and applies the proposed moves of the entries named, all or none, each as a change of its start and its all-day due date that is checked, recorded and announced as one by hand is. A proposed move not named stays a proposal. Needs WRITE_ITEMS at the plan and on every entry moved.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /plans/{planId}/schedule:apply (the `ApplyPlanSchedule` operationId).
+	ApplyPlanScheduleWithResponse(ctx context.Context, planId PlanId, body ApplyPlanScheduleJSONRequestBody, reqEditors ...RequestEditorFn) (*ApplyPlanScheduleResult, error)
 
 	// ListPresetsWithResponse The presets a hub or collection can start from
 	//
@@ -84758,6 +85931,95 @@ func (r VerifyBackupResult) ContentType() string {
 	return ""
 }
 
+type DeleteBaselineResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteBaselineResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteBaselineResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteBaselineResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteBaselineResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteBaselineResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CompareBaselineResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *BaselineComparison
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CompareBaselineResult) GetJSON200() *BaselineComparison {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CompareBaselineResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CompareBaselineResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CompareBaselineResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CompareBaselineResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CompareBaselineResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListBusinessCalendarsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -92627,6 +93889,54 @@ func (r RenderReplyTemplateResult) ContentType() string {
 	return ""
 }
 
+type SetEntrySchedulingResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *EntryScheduling
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetEntrySchedulingResult) GetJSON200() *EntryScheduling {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetEntrySchedulingResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetEntrySchedulingResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetEntrySchedulingResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetEntrySchedulingResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetEntrySchedulingResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadEntrySlaResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -95159,6 +96469,54 @@ func (r UnlinkEntriesResult) ContentType() string {
 	return ""
 }
 
+type SetDependencyTimingResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *EntryLink
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetDependencyTimingResult) GetJSON200() *EntryLink {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetDependencyTimingResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetDependencyTimingResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetDependencyTimingResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetDependencyTimingResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetDependencyTimingResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListLinksAmongResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -97401,6 +98759,198 @@ func (r SearchPagesResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SearchPagesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListBaselinesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PlanBaselineList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListBaselinesResult) GetJSON200() *PlanBaselineList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListBaselinesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListBaselinesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListBaselinesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListBaselinesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListBaselinesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type TakeBaselineResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *PlanBaseline
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r TakeBaselineResult) GetJSON201() *PlanBaseline {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r TakeBaselineResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r TakeBaselineResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r TakeBaselineResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r TakeBaselineResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r TakeBaselineResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadPlanScheduleResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PlanSchedule
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPlanScheduleResult) GetJSON200() *PlanSchedule {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPlanScheduleResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPlanScheduleResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPlanScheduleResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPlanScheduleResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPlanScheduleResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ApplyPlanScheduleResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PlanMoves
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ApplyPlanScheduleResult) GetJSON200() *PlanMoves {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ApplyPlanScheduleResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ApplyPlanScheduleResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ApplyPlanScheduleResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ApplyPlanScheduleResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ApplyPlanScheduleResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -107001,6 +108551,36 @@ func (c *ClientWithResponses) VerifyBackupWithResponse(ctx context.Context, back
 	return ParseVerifyBackupResult(rsp)
 }
 
+// DeleteBaselineWithResponse Delete a baseline
+//
+// Deletes the baseline and the dates it holds; no entry changes. Needs WRITE_ITEMS at the plan.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /baselines/{baselineId} (the `DeleteBaseline` operationId).
+func (c *ClientWithResponses) DeleteBaselineWithResponse(ctx context.Context, baselineId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteBaselineResult, error) {
+	rsp, err := c.DeleteBaseline(ctx, baselineId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteBaselineResult(rsp)
+}
+
+// CompareBaselineWithResponse A baseline beside today's plan
+//
+// Entry by entry, the start and due the baseline holds, today's, and how many calendar days each slipped (positive is later); entries added and gone since are marked. An entry the caller may not see is left out. Needs READ at the plan.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /baselines/{baselineId} (the `CompareBaseline` operationId).
+func (c *ClientWithResponses) CompareBaselineWithResponse(ctx context.Context, baselineId openapi_types.UUID, reqEditors ...RequestEditorFn) (*CompareBaselineResult, error) {
+	rsp, err := c.CompareBaseline(ctx, baselineId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompareBaselineResult(rsp)
+}
+
 // ListBusinessCalendarsWithResponse The workspace's business calendars
 //
 // Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs READ at the workspace and the service desk switched on.
@@ -110410,6 +111990,36 @@ func (c *ClientWithResponses) RenderReplyTemplateWithResponse(ctx context.Contex
 	return ParseRenderReplyTemplateResult(rsp)
 }
 
+// SetEntrySchedulingWithBodyWithResponse Whether the scheduler may move an entry, and whether it is a milestone
+//
+// AUTOMATIC places the entry as early as its predecessors allow; MANUAL keeps it where a person put it. A milestone is a date without a duration. A field left out keeps what stands; every entry is MANUAL and no milestone until set. Needs WRITE_ITEMS on the entry.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /items/{itemId}/scheduling (the `SetEntryScheduling` operationId).
+func (c *ClientWithResponses) SetEntrySchedulingWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetEntrySchedulingResult, error) {
+	rsp, err := c.SetEntrySchedulingWithBody(ctx, itemId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetEntrySchedulingResult(rsp)
+}
+
+// SetEntrySchedulingWithResponse Whether the scheduler may move an entry, and whether it is a milestone
+//
+// AUTOMATIC places the entry as early as its predecessors allow; MANUAL keeps it where a person put it. A milestone is a date without a duration. A field left out keeps what stands; every entry is MANUAL and no milestone until set. Needs WRITE_ITEMS on the entry.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /items/{itemId}/scheduling (the `SetEntryScheduling` operationId).
+func (c *ClientWithResponses) SetEntrySchedulingWithResponse(ctx context.Context, itemId ItemId, body SetEntrySchedulingJSONRequestBody, reqEditors ...RequestEditorFn) (*SetEntrySchedulingResult, error) {
+	rsp, err := c.SetEntryScheduling(ctx, itemId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetEntrySchedulingResult(rsp)
+}
+
 // ReadEntrySlaWithResponse How an entry's SLA goals stand
 //
 // Per goal of the policy that measures the entry: its target in working seconds, whether it runs, stands still, was met or breached, when it falls due and when it was at risk. Empty when no policy measures the entry. Needs READ on the entry.
@@ -111573,6 +113183,36 @@ func (c *ClientWithResponses) UnlinkEntriesWithResponse(ctx context.Context, lin
 	return ParseUnlinkEntriesResult(rsp)
 }
 
+// SetDependencyTimingWithBodyWithResponse How a dependency's waiting entry hangs on the other
+//
+// FS (finish to start), SS (start to start), FF (finish to finish) or SF (start to finish), with a lag in working days - negative for a lead, at most 999 either way. A link nobody waits on takes none (`links.timing_without_dependency`). Needs WRITE_ITEMS on the waiting entry.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /links/{linkId}/timing (the `SetDependencyTiming` operationId).
+func (c *ClientWithResponses) SetDependencyTimingWithBodyWithResponse(ctx context.Context, linkId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetDependencyTimingResult, error) {
+	rsp, err := c.SetDependencyTimingWithBody(ctx, linkId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetDependencyTimingResult(rsp)
+}
+
+// SetDependencyTimingWithResponse How a dependency's waiting entry hangs on the other
+//
+// FS (finish to start), SS (start to start), FF (finish to finish) or SF (start to finish), with a lag in working days - negative for a lead, at most 999 either way. A link nobody waits on takes none (`links.timing_without_dependency`). Needs WRITE_ITEMS on the waiting entry.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /links/{linkId}/timing (the `SetDependencyTiming` operationId).
+func (c *ClientWithResponses) SetDependencyTimingWithResponse(ctx context.Context, linkId openapi_types.UUID, body SetDependencyTimingJSONRequestBody, reqEditors ...RequestEditorFn) (*SetDependencyTimingResult, error) {
+	rsp, err := c.SetDependencyTiming(ctx, linkId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetDependencyTimingResult(rsp)
+}
+
 // ListLinksAmongWithBodyWithResponse The links between the entries a view shows
 //
 // The links with both ends among the given entries, at most 500 of them, each with which end waits for the other - what a timeline draws as dependencies. A `POST` because the list of entries is a body rather than a query string. A link with an end the caller may not see is left out.
@@ -112632,6 +114272,96 @@ func (c *ClientWithResponses) SearchPagesWithResponse(ctx context.Context, body 
 		return nil, err
 	}
 	return ParseSearchPagesResult(rsp)
+}
+
+// ListBaselinesWithResponse A plan's baselines
+//
+// The plan's baselines, the newest first. Needs READ at the plan.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /plans/{planId}/baselines (the `ListBaselines` operationId).
+func (c *ClientWithResponses) ListBaselinesWithResponse(ctx context.Context, planId PlanId, reqEditors ...RequestEditorFn) (*ListBaselinesResult, error) {
+	rsp, err := c.ListBaselines(ctx, planId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListBaselinesResult(rsp)
+}
+
+// TakeBaselineWithBodyWithResponse Keep the plan as it is agreed now
+//
+// Copies the start and due of every entry of the hub or collection under a name. A plan keeps at most 20 baselines (`baselines.limit`); a baseline is never changed. Needs WRITE_ITEMS at the plan.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /plans/{planId}/baselines (the `TakeBaseline` operationId).
+func (c *ClientWithResponses) TakeBaselineWithBodyWithResponse(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TakeBaselineResult, error) {
+	rsp, err := c.TakeBaselineWithBody(ctx, planId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTakeBaselineResult(rsp)
+}
+
+// TakeBaselineWithResponse Keep the plan as it is agreed now
+//
+// Copies the start and due of every entry of the hub or collection under a name. A plan keeps at most 20 baselines (`baselines.limit`); a baseline is never changed. Needs WRITE_ITEMS at the plan.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /plans/{planId}/baselines (the `TakeBaseline` operationId).
+func (c *ClientWithResponses) TakeBaselineWithResponse(ctx context.Context, planId PlanId, body TakeBaselineJSONRequestBody, reqEditors ...RequestEditorFn) (*TakeBaselineResult, error) {
+	rsp, err := c.TakeBaseline(ctx, planId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTakeBaselineResult(rsp)
+}
+
+// ReadPlanScheduleWithResponse A plan as the scheduler places it
+//
+// Every visible entry of the hub or collection with its start and finish as the scheduler places it: automatic entries as early as their predecessors allow, manual ones where they stand, with the dependencies they break. Each entry's total and free float in working days, the critical path, and the entries without a date. Counts a business calendar's working days, or Monday to Friday. Changes nothing. Needs READ at the plan and the planning module switched on.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /plans/{planId}/schedule (the `ReadPlanSchedule` operationId).
+func (c *ClientWithResponses) ReadPlanScheduleWithResponse(ctx context.Context, planId PlanId, params *ReadPlanScheduleParams, reqEditors ...RequestEditorFn) (*ReadPlanScheduleResult, error) {
+	rsp, err := c.ReadPlanSchedule(ctx, planId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPlanScheduleResult(rsp)
+}
+
+// ApplyPlanScheduleWithBodyWithResponse Apply the moves a person accepted
+//
+// Schedules the plan again and applies the proposed moves of the entries named, all or none, each as a change of its start and its all-day due date that is checked, recorded and announced as one by hand is. A proposed move not named stays a proposal. Needs WRITE_ITEMS at the plan and on every entry moved.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /plans/{planId}/schedule:apply (the `ApplyPlanSchedule` operationId).
+func (c *ClientWithResponses) ApplyPlanScheduleWithBodyWithResponse(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ApplyPlanScheduleResult, error) {
+	rsp, err := c.ApplyPlanScheduleWithBody(ctx, planId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseApplyPlanScheduleResult(rsp)
+}
+
+// ApplyPlanScheduleWithResponse Apply the moves a person accepted
+//
+// Schedules the plan again and applies the proposed moves of the entries named, all or none, each as a change of its start and its all-day due date that is checked, recorded and announced as one by hand is. A proposed move not named stays a proposal. Needs WRITE_ITEMS at the plan and on every entry moved.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /plans/{planId}/schedule:apply (the `ApplyPlanSchedule` operationId).
+func (c *ClientWithResponses) ApplyPlanScheduleWithResponse(ctx context.Context, planId PlanId, body ApplyPlanScheduleJSONRequestBody, reqEditors ...RequestEditorFn) (*ApplyPlanScheduleResult, error) {
+	rsp, err := c.ApplyPlanSchedule(ctx, planId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseApplyPlanScheduleResult(rsp)
 }
 
 // ListPresetsWithResponse The presets a hub or collection can start from
@@ -120941,6 +122671,68 @@ func ParseVerifyBackupResult(rsp *http.Response) (*VerifyBackupResult, error) {
 	return response, nil
 }
 
+// ParseDeleteBaselineResult parses an HTTP response from a DeleteBaselineWithResponse call
+func ParseDeleteBaselineResult(rsp *http.Response) (*DeleteBaselineResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteBaselineResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCompareBaselineResult parses an HTTP response from a CompareBaselineWithResponse call
+func ParseCompareBaselineResult(rsp *http.Response) (*CompareBaselineResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CompareBaselineResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BaselineComparison
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListBusinessCalendarsResult parses an HTTP response from a ListBusinessCalendarsWithResponse call
 func ParseListBusinessCalendarsResult(rsp *http.Response) (*ListBusinessCalendarsResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -126659,6 +128451,39 @@ func ParseRenderReplyTemplateResult(rsp *http.Response) (*RenderReplyTemplateRes
 	return response, nil
 }
 
+// ParseSetEntrySchedulingResult parses an HTTP response from a SetEntrySchedulingWithResponse call
+func ParseSetEntrySchedulingResult(rsp *http.Response) (*SetEntrySchedulingResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetEntrySchedulingResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EntryScheduling
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseReadEntrySlaResult parses an HTTP response from a ReadEntrySlaWithResponse call
 func ParseReadEntrySlaResult(rsp *http.Response) (*ReadEntrySlaResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -128559,6 +130384,39 @@ func ParseUnlinkEntriesResult(rsp *http.Response) (*UnlinkEntriesResult, error) 
 	return response, nil
 }
 
+// ParseSetDependencyTimingResult parses an HTTP response from a SetDependencyTimingWithResponse call
+func ParseSetDependencyTimingResult(rsp *http.Response) (*SetDependencyTimingResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetDependencyTimingResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EntryLink
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListLinksAmongResult parses an HTTP response from a ListLinksAmongWithResponse call
 func ParseListLinksAmongResult(rsp *http.Response) (*ListLinksAmongResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -130091,6 +131949,138 @@ func ParseSearchPagesResult(rsp *http.Response) (*SearchPagesResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest PageHitList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListBaselinesResult parses an HTTP response from a ListBaselinesWithResponse call
+func ParseListBaselinesResult(rsp *http.Response) (*ListBaselinesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListBaselinesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PlanBaselineList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseTakeBaselineResult parses an HTTP response from a TakeBaselineWithResponse call
+func ParseTakeBaselineResult(rsp *http.Response) (*TakeBaselineResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &TakeBaselineResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PlanBaseline
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadPlanScheduleResult parses an HTTP response from a ReadPlanScheduleWithResponse call
+func ParseReadPlanScheduleResult(rsp *http.Response) (*ReadPlanScheduleResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPlanScheduleResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PlanSchedule
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseApplyPlanScheduleResult parses an HTTP response from a ApplyPlanScheduleWithResponse call
+func ParseApplyPlanScheduleResult(rsp *http.Response) (*ApplyPlanScheduleResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ApplyPlanScheduleResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PlanMoves
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

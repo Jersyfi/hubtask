@@ -195,7 +195,7 @@ type SetEntryScheduling struct{ Planner Planner }
 // Execute writes the entry's mode and mark.
 func (h SetEntryScheduling) Execute(ctx context.Context, actor appshared.ActorContext, cmd SetEntrySchedulingCommand) (planrepo.EntrySchedule, error) {
 	if cmd.ItemID.IsZero() {
-		return planrepo.EntrySchedule{}, invalid("/item_id", "items.id_required")
+		return planrepo.EntrySchedule{}, invalid("/item_id", "items.item_id_required")
 	}
 	if cmd.Mode == nil && cmd.Milestone == nil {
 		return planrepo.EntrySchedule{}, shared.ErrValidation.WithDetail("planning.update_empty")
