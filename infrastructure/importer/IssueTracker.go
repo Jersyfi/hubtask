@@ -743,9 +743,9 @@ func (r *trackerRun) issue(index int, collection shared.ID, statusKeys map[strin
 		if !ok {
 			continue
 		}
-		changes := make([]Change, 0, len(history.Items))
+		changes := make([]RecordedChange, 0, len(history.Items))
 		for _, change := range history.Items {
-			changes = append(changes, Change{Field: change.Field, From: change.FromString, To: change.ToString})
+			changes = append(changes, RecordedChange{Field: change.Field, From: change.FromString, To: change.ToString})
 		}
 		author := ""
 		if history.Author != nil {

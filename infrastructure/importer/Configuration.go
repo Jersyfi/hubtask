@@ -168,8 +168,8 @@ func (b *builder) classify(item shared.ID, entryType, status string, done bool, 
 	data["custom_field_refs"] = named
 }
 
-// Change is one field of a change another system recorded.
-type Change struct {
+// RecordedChange is one field of a change another system recorded.
+type RecordedChange struct {
 	Field string
 	From  string
 	To    string
@@ -177,7 +177,7 @@ type Change struct {
 
 // history adds a change the source recorded, in the entry's history as the importing person's
 // with the source's author named in the change set: the author is no account here.
-func (b *builder) history(key string, item, collection shared.ID, author string, at time.Time, changes []Change) {
+func (b *builder) history(key string, item, collection shared.ID, author string, at time.Time, changes []RecordedChange) {
 	set := map[string]any{}
 	for _, change := range changes {
 		field := keyOf(change.Field)
