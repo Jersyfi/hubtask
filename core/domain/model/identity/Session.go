@@ -163,6 +163,20 @@ type Session struct {
 	// ElevatedUntil is when this session stops carrying the control plane's scope (ADR-0070 §4).
 	// Zero is "not elevated", which is what a session is for all but an hour of its life.
 	ElevatedUntil time.Time
+	// ViewingAs is the person this session shows the app as (UC-ID-29), until ViewingAsUntil. Zero
+	// is the session's own person, which is what a session is for all but the half hour of a view.
+	ViewingAs      shared.ID
+	ViewingAsUntil time.Time
+}
+
+// ViewAsLifetime is how long a view as somebody else lasts. Half an hour: long enough to look at
+// what a person reports, short enough that a tab left open does not keep reading as them. It does
+// not slide; a second look is a second start, and in the trail again.
+const ViewAsLifetime = 30 * time.Minute
+
+// IsViewingAs reports whether this session shows the app as another person at this moment.
+func (s Session) IsViewingAs(now time.Time) bool {
+	return !s.ViewingAs.IsZero() && now.Before(s.ViewingAsUntil)
 }
 
 // ElevationLifetime is how long a raised session stays raised. An hour: long enough to do the work

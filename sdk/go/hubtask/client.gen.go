@@ -20729,6 +20729,27 @@ type Velocity struct {
 // VelocityUnit defines model for Velocity.Unit.
 type VelocityUnit string
 
+// ViewAs A session's view as another person.
+type ViewAs struct {
+	// AccountId The person shown
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+
+	// Active Whether a view runs.
+	Active bool `json:"active"`
+
+	// DisplayName Their name
+	DisplayName *string `json:"display_name,omitempty"`
+
+	// Until When the view ends.
+	Until *time.Time `json:"until,omitempty"`
+}
+
+// ViewAsStart defines model for ViewAsStart.
+type ViewAsStart struct {
+	// AccountId The person to view the app as.
+	AccountId openapi_types.UUID `json:"account_id"`
+}
+
 // ViewExport What to render and how. The view decides which rows; the format decides what they become.
 type ViewExport struct {
 	// Format CSV for a spreadsheet, JSON for a script, ICS for a calendar. ICS renders only the entries that have a due date, because an entry with no date is not a calendar entry.
@@ -24540,6 +24561,9 @@ type SetPasswordAndSignInJSONRequestBody = SignInPasswordChange
 // CompleteSignInJSONRequestBody defines body for CompleteSignIn for application/json ContentType.
 type CompleteSignInJSONRequestBody = SignInCompletion
 
+// StartViewAsJSONRequestBody defines body for StartViewAs for application/json ContentType.
+type StartViewAsJSONRequestBody = ViewAsStart
+
 // StepUpJSONRequestBody defines body for StepUp for application/json ContentType.
 type StepUpJSONRequestBody = StepUpRequest
 
@@ -28199,6 +28223,38 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/sessions:verify (the `CompleteSignIn` operationId).
 	CompleteSignIn(ctx context.Context, body CompleteSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// EndViewAs End the view as another person
+	//
+	// The session is its own person's again. The one act a view may make; ending where no view runs is not an error.
+	//
+	// Corresponds with DELETE /auth/sessions:view-as (the `EndViewAs` operationId).
+	EndViewAs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetViewAs Whether this session shows the app as another person
+	//
+	// What a client draws its banner from: `active` and, while a view runs, the person shown and when the view ends. Asked during a view, the caller is the person viewed.
+	//
+	// Corresponds with GET /auth/sessions:view-as (the `GetViewAs` operationId).
+	GetViewAs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartViewAsWithBody Show the app as another person, read only
+	//
+	// The caller's own session shows the app as the named person of the workspace sees it, for half an hour, read only and online only: every request reads as that person with only the reading scopes, a write is refused for the scope it lacks, and a device's copy is refused with `access.view_as_online_only`. It takes `MANAGE_MEMBERS` at the workspace, and a person holding a role above the caller's is refused with `access.role_above_own` - a view reads everything the person reads. A person who is a member of a private hub, directly or through a group, is refused with `access.view_as_private_hub`; one who joins a private hub during the view ends it. A personal access token, an app's grant, an agent or a rule is refused with `access.view_as_needs_a_session`. Starting replaces a running view; the trail records each start as a warning.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/sessions:view-as (the `StartViewAs` operationId).
+	StartViewAsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartViewAs Show the app as another person, read only
+	//
+	// The caller's own session shows the app as the named person of the workspace sees it, for half an hour, read only and online only: every request reads as that person with only the reading scopes, a write is refused for the scope it lacks, and a device's copy is refused with `access.view_as_online_only`. It takes `MANAGE_MEMBERS` at the workspace, and a person holding a role above the caller's is refused with `access.role_above_own` - a view reads everything the person reads. A person who is a member of a private hub, directly or through a group, is refused with `access.view_as_private_hub`; one who joins a private hub during the view ends it. A personal access token, an app's grant, an agent or a rule is refused with `access.view_as_needs_a_session`. Starting replaces a running view; the trail records each start as a warning.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/sessions:view-as (the `StartViewAs` operationId).
+	StartViewAs(ctx context.Context, body StartViewAsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetSignInRules What a sign-in screen may know before anybody has signed in
 	//
@@ -39415,6 +39471,78 @@ func (c *Client) CompleteSignInWithBody(ctx context.Context, contentType string,
 // Corresponds with POST /auth/sessions:verify (the `CompleteSignIn` operationId).
 func (c *Client) CompleteSignIn(ctx context.Context, body CompleteSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCompleteSignInRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// EndViewAs End the view as another person
+//
+// The session is its own person's again. The one act a view may make; ending where no view runs is not an error.
+//
+// Corresponds with DELETE /auth/sessions:view-as (the `EndViewAs` operationId).
+func (c *Client) EndViewAs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewEndViewAsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetViewAs Whether this session shows the app as another person
+//
+// What a client draws its banner from: `active` and, while a view runs, the person shown and when the view ends. Asked during a view, the caller is the person viewed.
+//
+// Corresponds with GET /auth/sessions:view-as (the `GetViewAs` operationId).
+func (c *Client) GetViewAs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetViewAsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartViewAsWithBody Show the app as another person, read only
+//
+// The caller's own session shows the app as the named person of the workspace sees it, for half an hour, read only and online only: every request reads as that person with only the reading scopes, a write is refused for the scope it lacks, and a device's copy is refused with `access.view_as_online_only`. It takes `MANAGE_MEMBERS` at the workspace, and a person holding a role above the caller's is refused with `access.role_above_own` - a view reads everything the person reads. A person who is a member of a private hub, directly or through a group, is refused with `access.view_as_private_hub`; one who joins a private hub during the view ends it. A personal access token, an app's grant, an agent or a rule is refused with `access.view_as_needs_a_session`. Starting replaces a running view; the trail records each start as a warning.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/sessions:view-as (the `StartViewAs` operationId).
+func (c *Client) StartViewAsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartViewAsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartViewAs Show the app as another person, read only
+//
+// The caller's own session shows the app as the named person of the workspace sees it, for half an hour, read only and online only: every request reads as that person with only the reading scopes, a write is refused for the scope it lacks, and a device's copy is refused with `access.view_as_online_only`. It takes `MANAGE_MEMBERS` at the workspace, and a person holding a role above the caller's is refused with `access.role_above_own` - a view reads everything the person reads. A person who is a member of a private hub, directly or through a group, is refused with `access.view_as_private_hub`; one who joins a private hub during the view ends it. A personal access token, an app's grant, an agent or a rule is refused with `access.view_as_needs_a_session`. Starting replaces a running view; the trail records each start as a warning.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/sessions:view-as (the `StartViewAs` operationId).
+func (c *Client) StartViewAs(ctx context.Context, body StartViewAsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartViewAsRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -59996,6 +60124,100 @@ func NewCompleteSignInRequestWithBody(server string, contentType string, body io
 	}
 
 	operationPath := fmt.Sprintf("/auth/sessions:verify")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewEndViewAsRequest constructs an http.Request for the EndViewAs method
+func NewEndViewAsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/sessions:view-as")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetViewAsRequest constructs an http.Request for the GetViewAs method
+func NewGetViewAsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/sessions:view-as")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewStartViewAsRequest calls the generic StartViewAs builder with application/json body
+func NewStartViewAsRequest(server string, body StartViewAsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewStartViewAsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewStartViewAsRequestWithBody constructs an http.Request for the StartViewAs method, with any body, and a specified content type
+func NewStartViewAsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/sessions:view-as")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -87147,6 +87369,42 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/sessions:verify (the `CompleteSignIn` operationId).
 	CompleteSignInWithResponse(ctx context.Context, body CompleteSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteSignInResult, error)
 
+	// EndViewAsWithResponse End the view as another person
+	//
+	// The session is its own person's again. The one act a view may make; ending where no view runs is not an error.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /auth/sessions:view-as (the `EndViewAs` operationId).
+	EndViewAsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*EndViewAsResult, error)
+
+	// GetViewAsWithResponse Whether this session shows the app as another person
+	//
+	// What a client draws its banner from: `active` and, while a view runs, the person shown and when the view ends. Asked during a view, the caller is the person viewed.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /auth/sessions:view-as (the `GetViewAs` operationId).
+	GetViewAsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetViewAsResult, error)
+
+	// StartViewAsWithBodyWithResponse Show the app as another person, read only
+	//
+	// The caller's own session shows the app as the named person of the workspace sees it, for half an hour, read only and online only: every request reads as that person with only the reading scopes, a write is refused for the scope it lacks, and a device's copy is refused with `access.view_as_online_only`. It takes `MANAGE_MEMBERS` at the workspace, and a person holding a role above the caller's is refused with `access.role_above_own` - a view reads everything the person reads. A person who is a member of a private hub, directly or through a group, is refused with `access.view_as_private_hub`; one who joins a private hub during the view ends it. A personal access token, an app's grant, an agent or a rule is refused with `access.view_as_needs_a_session`. Starting replaces a running view; the trail records each start as a warning.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/sessions:view-as (the `StartViewAs` operationId).
+	StartViewAsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartViewAsResult, error)
+
+	// StartViewAsWithResponse Show the app as another person, read only
+	//
+	// The caller's own session shows the app as the named person of the workspace sees it, for half an hour, read only and online only: every request reads as that person with only the reading scopes, a write is refused for the scope it lacks, and a device's copy is refused with `access.view_as_online_only`. It takes `MANAGE_MEMBERS` at the workspace, and a person holding a role above the caller's is refused with `access.role_above_own` - a view reads everything the person reads. A person who is a member of a private hub, directly or through a group, is refused with `access.view_as_private_hub`; one who joins a private hub during the view ends it. A personal access token, an app's grant, an agent or a rule is refused with `access.view_as_needs_a_session`. Starting replaces a running view; the trail records each start as a warning.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/sessions:view-as (the `StartViewAs` operationId).
+	StartViewAsWithResponse(ctx context.Context, body StartViewAsJSONRequestBody, reqEditors ...RequestEditorFn) (*StartViewAsResult, error)
+
 	// GetSignInRulesWithResponse What a sign-in screen may know before anybody has signed in
 	//
 	// The four things a sign-in card needs and nothing else: which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
@@ -101663,6 +101921,143 @@ func (r CompleteSignInResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CompleteSignInResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type EndViewAsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r EndViewAsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r EndViewAsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r EndViewAsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r EndViewAsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r EndViewAsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetViewAsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ViewAs
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetViewAsResult) GetJSON200() *ViewAs {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetViewAsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetViewAsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetViewAsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetViewAsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetViewAsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type StartViewAsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ViewAs
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r StartViewAsResult) GetJSON200() *ViewAs {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartViewAsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r StartViewAsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StartViewAsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartViewAsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartViewAsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -130304,6 +130699,66 @@ func (c *ClientWithResponses) CompleteSignInWithResponse(ctx context.Context, bo
 	return ParseCompleteSignInResult(rsp)
 }
 
+// EndViewAsWithResponse End the view as another person
+//
+// The session is its own person's again. The one act a view may make; ending where no view runs is not an error.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /auth/sessions:view-as (the `EndViewAs` operationId).
+func (c *ClientWithResponses) EndViewAsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*EndViewAsResult, error) {
+	rsp, err := c.EndViewAs(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseEndViewAsResult(rsp)
+}
+
+// GetViewAsWithResponse Whether this session shows the app as another person
+//
+// What a client draws its banner from: `active` and, while a view runs, the person shown and when the view ends. Asked during a view, the caller is the person viewed.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /auth/sessions:view-as (the `GetViewAs` operationId).
+func (c *ClientWithResponses) GetViewAsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetViewAsResult, error) {
+	rsp, err := c.GetViewAs(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetViewAsResult(rsp)
+}
+
+// StartViewAsWithBodyWithResponse Show the app as another person, read only
+//
+// The caller's own session shows the app as the named person of the workspace sees it, for half an hour, read only and online only: every request reads as that person with only the reading scopes, a write is refused for the scope it lacks, and a device's copy is refused with `access.view_as_online_only`. It takes `MANAGE_MEMBERS` at the workspace, and a person holding a role above the caller's is refused with `access.role_above_own` - a view reads everything the person reads. A person who is a member of a private hub, directly or through a group, is refused with `access.view_as_private_hub`; one who joins a private hub during the view ends it. A personal access token, an app's grant, an agent or a rule is refused with `access.view_as_needs_a_session`. Starting replaces a running view; the trail records each start as a warning.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/sessions:view-as (the `StartViewAs` operationId).
+func (c *ClientWithResponses) StartViewAsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartViewAsResult, error) {
+	rsp, err := c.StartViewAsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartViewAsResult(rsp)
+}
+
+// StartViewAsWithResponse Show the app as another person, read only
+//
+// The caller's own session shows the app as the named person of the workspace sees it, for half an hour, read only and online only: every request reads as that person with only the reading scopes, a write is refused for the scope it lacks, and a device's copy is refused with `access.view_as_online_only`. It takes `MANAGE_MEMBERS` at the workspace, and a person holding a role above the caller's is refused with `access.role_above_own` - a view reads everything the person reads. A person who is a member of a private hub, directly or through a group, is refused with `access.view_as_private_hub`; one who joins a private hub during the view ends it. A personal access token, an app's grant, an agent or a rule is refused with `access.view_as_needs_a_session`. Starting replaces a running view; the trail records each start as a warning.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/sessions:view-as (the `StartViewAs` operationId).
+func (c *ClientWithResponses) StartViewAsWithResponse(ctx context.Context, body StartViewAsJSONRequestBody, reqEditors ...RequestEditorFn) (*StartViewAsResult, error) {
+	rsp, err := c.StartViewAs(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartViewAsResult(rsp)
+}
+
 // GetSignInRulesWithResponse What a sign-in screen may know before anybody has signed in
 //
 // The four things a sign-in card needs and nothing else: which methods this workspace signs in with, which providers it offers, what a password has to meet, and the links its operator is obliged to show.
@@ -146987,6 +147442,101 @@ func ParseCompleteSignInResult(rsp *http.Response) (*CompleteSignInResult, error
 			return nil, err
 		}
 		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseEndViewAsResult parses an HTTP response from a EndViewAsWithResponse call
+func ParseEndViewAsResult(rsp *http.Response) (*EndViewAsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &EndViewAsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetViewAsResult parses an HTTP response from a GetViewAsWithResponse call
+func ParseGetViewAsResult(rsp *http.Response) (*GetViewAsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetViewAsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ViewAs
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartViewAsResult parses an HTTP response from a StartViewAsWithResponse call
+func ParseStartViewAsResult(rsp *http.Response) (*StartViewAsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartViewAsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ViewAs
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

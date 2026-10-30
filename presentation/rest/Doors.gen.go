@@ -159,6 +159,7 @@ var restDoors = map[string]restDoor{
 	"elevateSession":                    {UseCase: "ElevateSession", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"emptyTrash":                        {UseCase: "EmptyTrash", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"enableRule":                        {UseCase: "EnableRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"endViewAs":                         {UseCase: "EndViewAs", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"evaluateEntryForm":                 {UseCase: "EvaluateEntryForm", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"explainAccess":                     {UseCase: "ExplainAccess", Status: 200, Query: []string{"account_id", "permission", "scope_id", "scope_type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"explainConfig":                     {UseCase: "ExplainConfig", Status: 200, Query: []string{"hub_id", "key"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -180,6 +181,7 @@ var restDoors = map[string]restDoor{
 	"getRuleRun":                        {UseCase: "GetRuleRun", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getSavedView":                      {UseCase: "GetSavedView", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getTemplate":                       {UseCase: "GetTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getViewAs":                         {UseCase: "GetViewAs", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getWebhookSubscription":            {UseCase: "GetWebhookSubscription", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"giveConsent":                       {UseCase: "GiveConsent", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"giveKudos":                         {UseCase: "GiveKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -460,6 +462,7 @@ var restDoors = map[string]restDoor{
 	"startAgentJob":                     {UseCase: "StartAgentJob", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"startSprint":                       {UseCase: "StartSprint", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"startTimer":                        {UseCase: "StartTimer", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"startViewAs":                       {UseCase: "StartViewAs", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"stopTimer":                         {UseCase: "StopTimer", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"submitJumbleEntry":                 {UseCase: "SubmitJumbleEntry", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"submitTimesheet":                   {UseCase: "SubmitTimesheet", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1382,6 +1385,11 @@ func (c *RestController) EnableRule(w http.ResponseWriter, r *http.Request, rule
 	c.door(w, r, restDoors["enableRule"], usecase.Input{"rule_id": ruleId.String()}, params, nil, answerBy(ruleResponse))
 }
 
+// EndViewAs answers DELETE /auth/sessions:view-as by the generated mapping.
+func (c *RestController) EndViewAs(w http.ResponseWriter, r *http.Request) {
+	c.door(w, r, restDoors["endViewAs"], usecase.Input{}, nil, nil, nil)
+}
+
 // EvaluateEntryForm answers POST /entry-types/{key}/form:evaluate by the generated mapping.
 func (c *RestController) EvaluateEntryForm(w http.ResponseWriter, r *http.Request, key string) {
 	var body openapi.EvaluateEntryFormJSONRequestBody
@@ -1494,6 +1502,12 @@ func (c *RestController) GetSavedView(w http.ResponseWriter, r *http.Request, vi
 // GetTemplate answers GET /templates/{templateId} by the generated mapping.
 func (c *RestController) GetTemplate(w http.ResponseWriter, r *http.Request, templateId openapi.TemplateId) {
 	c.door(w, r, restDoors["getTemplate"], usecase.Input{"template_id": templateId.String()}, nil, nil, answerBy(templateResponse))
+}
+
+// GetViewAs answers GET /auth/sessions:view-as by the generated mapping.
+func (c *RestController) GetViewAs(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.ViewAs
+	c.door(w, r, restDoors["getViewAs"], usecase.Input{}, nil, nil, &answer)
 }
 
 // GetWebhookSubscription answers GET /integrations/webhooks/{webhookId} by the generated mapping.
@@ -3132,6 +3146,13 @@ func (c *RestController) StartTimer(w http.ResponseWriter, r *http.Request) {
 	var body openapi.StartTimerJSONRequestBody
 	var answer openapi.TimeTimer
 	c.door(w, r, restDoors["startTimer"], usecase.Input{}, nil, &body, &answer)
+}
+
+// StartViewAs answers POST /auth/sessions:view-as by the generated mapping.
+func (c *RestController) StartViewAs(w http.ResponseWriter, r *http.Request) {
+	var body openapi.StartViewAsJSONRequestBody
+	var answer openapi.ViewAs
+	c.door(w, r, restDoors["startViewAs"], usecase.Input{}, nil, &body, &answer)
 }
 
 // StopTimer answers POST /timer:stop by the generated mapping.

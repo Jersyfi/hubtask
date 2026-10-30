@@ -58,6 +58,22 @@ VALUES (
 SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_at, s.revoked_at,
        s.grant_id, s.scopes,
        s.hard_expires_at, s.idle_minutes, s.signed_in_with, s.elevated_until,
+       -- *View as* (UC-ID-29, migration 0258): the person this session shows the app as, and what
+       -- the actor of the request needs of them, on the round trip that already runs. Whether they
+       -- reach a private hub is read only while a view runs: such a view lapses (ADR-0073 §1).
+       s.viewing_as, s.viewing_as_until,
+       va.display_name AS viewing_as_display_name,
+       coalesce(va.kind::text, '')::text   AS viewing_as_kind,
+       coalesce(va.status::text, '')::text AS viewing_as_status,
+       va.time_zone    AS viewing_as_time_zone,
+       va.week_start   AS viewing_as_week_start,
+       (va.id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM membership m JOIN container c ON c.tenant_id = m.tenant_id AND c.id = m.scope_id
+          WHERE m.tenant_id = s.tenant_id AND m.scope_type = 'HUB' AND c.private
+            AND (m.account_id = va.id OR m.group_id IN (
+                  SELECT gm.group_id FROM account_group_member gm
+                  WHERE gm.tenant_id = s.tenant_id AND gm.account_id = va.id))
+        ))::boolean AS viewing_as_private_hub,
        -- The rotation cutoff (ADR-0068 §3), off the row this query already joins: a session opened
        -- before the moment somebody asked everybody for a new password is refused on its next
        -- request. One extraction on a row already in hand, which is what makes the enforcement cost
@@ -95,6 +111,7 @@ FROM session s
 JOIN account a ON a.id = s.account_id
 JOIN tenant  n ON n.id = s.tenant_id
 LEFT JOIN oauth_grant g ON g.id = s.grant_id
+LEFT JOIN account va ON va.tenant_id = s.tenant_id AND va.id = s.viewing_as AND va.deleted_at IS NULL
 WHERE s.id = sqlc.arg('id') AND a.deleted_at IS NULL;
 
 -- name: SessionsForAccount :many
@@ -129,6 +146,19 @@ UPDATE session SET elevated_until = sqlc.arg('elevated_until')
 WHERE id = sqlc.arg('id') AND account_id = sqlc.arg('account_id')
   AND revoked_at IS NULL AND expires_at > sqlc.arg('now')
   AND (elevated_until IS NULL OR elevated_until <= sqlc.arg('now'));
+
+-- name: StartViewingAs :execrows
+-- Shows one of the account's own live sessions the app as another person sees it, until the given
+-- moment (UC-ID-29). A grant session matches nothing: an app acting for somebody views as nobody.
+-- A running view is replaced - the viewer moves on to the next person.
+UPDATE session SET viewing_as = sqlc.arg('viewing_as'), viewing_as_until = sqlc.arg('viewing_as_until')
+WHERE id = sqlc.arg('id') AND account_id = sqlc.arg('account_id')
+  AND revoked_at IS NULL AND expires_at > sqlc.arg('now') AND grant_id IS NULL;
+
+-- name: EndViewingAs :execrows
+-- Ends the view a session of the account runs; nothing where none runs.
+UPDATE session SET viewing_as = NULL, viewing_as_until = NULL
+WHERE id = sqlc.arg('id') AND account_id = sqlc.arg('account_id') AND viewing_as_until IS NOT NULL;
 
 -- name: SessionElevatedUntil :one
 -- When the caller's live session stops carrying the control plane's scope; NULL where it never

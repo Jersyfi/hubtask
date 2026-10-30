@@ -173,6 +173,38 @@ func (a AuthenticateToken) Execute(
 	return actor, nil
 }
 
+// viewedAs turns the administrator's actor into the person their session shows the app as, while
+// a view runs (UC-ID-29): that person, read only. A view that cannot stand - run out, the person
+// gone, switched off, no longer a person, or now in a private hub (ADR-0073 §1) - lapses, and the
+// session is its own person's again: failing towards the session's holder, never towards the
+// person viewed. The viewer's language stays, since they read the screens; the person's day and
+// week are theirs.
+func (a AuthenticateToken) viewedAs(
+	actor appshared.ActorContext, credential repository.SessionCredential, now time.Time,
+) appshared.ActorContext {
+	viewed := credential.Viewed
+	if !credential.Session.IsViewingAs(now) || viewed.ID.IsZero() || viewed.ID == actor.AccountID ||
+		viewed.Kind != identity.AccountUser || viewed.Verify() != nil ||
+		credential.ViewedReachesPrivateHub || !credential.Session.GrantID.IsZero() {
+		return actor
+	}
+	reading := make([]string, 0, len(actor.Scopes))
+	for _, scope := range actor.Scopes {
+		if strings.HasSuffix(scope, ":read") {
+			reading = append(reading, scope)
+		}
+	}
+	viewer, viewerName := actor.AccountID, actor.AccountName
+	actor.AccountID, actor.AccountName = viewed.ID, viewed.DisplayName
+	actor.Kind = appshared.ActorUser
+	actor.Scopes = reading
+	actor.ViewedBy, actor.ViewedByName = viewer, viewerName
+	actor.ViewingAsUntil = credential.Session.ViewingAsUntil
+	actor.TimeZone = firstNonEmpty(viewed.TimeZone, credential.TenantTimeZone, actor.TimeZone)
+	actor.WeekStart = a.weekStart(viewed.WeekStart, credential.WeekStartAbove, actor.Locale)
+	return actor
+}
+
 // executeSession is the session half. The signature is verified first - a forgery costs
 // no database work - and the row is read second, inside the tenant the signed claims name, which
 // is the only honest source of that context for a bearer credential.
@@ -263,6 +295,7 @@ func (a AuthenticateToken) executeSession(
 				credential.Account.TimeZone, credential.TenantTimeZone, cmd.FallbackTimeZone),
 		}
 		actor.WeekStart = a.weekStart(credential.Account.WeekStart, credential.WeekStartAbove, actor.Locale)
+		actor = a.viewedAs(actor, credential, now)
 		return nil
 	})
 	if err != nil {

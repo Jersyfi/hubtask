@@ -2311,6 +2311,15 @@ func run() error {
 		}.Descriptor(),
 		identity.SetPasswordAndSignIn{Writer: passwordWriter}.Descriptor(),
 		identity.RegenerateRecoveryCodes{Writer: sessionWriter}.Descriptor(),
+		identity.StartViewAs{
+			Accounts: accounts, Sessions: postgres.NewSessionRepository(), Held: postgres.NewMembershipRepository(),
+			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		identity.GetViewAs{}.Descriptor(),
+		identity.EndViewAs{
+			Sessions: postgres.NewSessionRepository(), Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{},
+		}.Descriptor(),
 		identity.ElevateSession{
 			Writer: sessionWriter, Operators: operators,
 			Journal: postgres.NewInstanceJournal(cursors), UnitOfWork: unitOfWork,

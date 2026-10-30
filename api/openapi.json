@@ -13204,6 +13204,83 @@
         }
       }
     },
+    "/auth/sessions:view-as": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "getViewAs",
+        "x-hubtask-rest": "generated",
+        "summary": "Whether this session shows the app as another person",
+        "description": "What a client draws its banner from: `active` and, while a view runs, the person shown and when the view ends. Asked during a view, the caller is the person viewed.\n",
+        "responses": {
+          "200": {
+            "description": "The running view, or none",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewAs"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "startViewAs",
+        "x-hubtask-rest": "generated",
+        "summary": "Show the app as another person, read only",
+        "description": "The caller's own session shows the app as the named person of the workspace sees it, for half an hour, read only and online only: every request reads as that person with only the reading scopes, a write is refused for the scope it lacks, and a device's copy is refused with `access.view_as_online_only`. It takes `MANAGE_MEMBERS` at the workspace, and a person holding a role above the caller's is refused with `access.role_above_own` - a view reads everything the person reads. A person who is a member of a private hub, directly or through a group, is refused with `access.view_as_private_hub`; one who joins a private hub during the view ends it. A personal access token, an app's grant, an agent or a rule is refused with `access.view_as_needs_a_session`. Starting replaces a running view; the trail records each start as a warning.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViewAsStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The view runs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewAs"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "endViewAs",
+        "x-hubtask-rest": "generated",
+        "summary": "End the view as another person",
+        "description": "The session is its own person's again. The one act a view may make; ending where no view runs is not an error.\n",
+        "responses": {
+          "204": {
+            "description": "Ended"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/auth/sign-in-rules": {
       "get": {
         "tags": [
@@ -31110,6 +31187,49 @@
         "type": "object",
         "description": "One installation event: the CloudEvents 1.0 structured-JSON document a subscription is sent, unwrapped. `id` is what `X-Hubtask-Event-Id` names on the push side, so a platform deduplicates on it either way; `tenantid` is the workspace the event is about, and `data` carries its state as the schema of the event's `type` describes.\nFree-form here on purpose, for `TriggerEvent`'s reason: the document's shape is owned by the event schemas and the CloudEvents specification, and a second list of its properties here would drift.\n",
         "additionalProperties": true
+      },
+      "ViewAsStart": {
+        "type": "object",
+        "required": [
+          "account_id"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The person to view the app as."
+          }
+        }
+      },
+      "ViewAs": {
+        "type": "object",
+        "description": "A session's view as another person.",
+        "required": [
+          "active"
+        ],
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "description": "Whether a view runs."
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The person shown",
+            "while a view runs.": null
+          },
+          "display_name": {
+            "type": "string",
+            "description": "Their name",
+            "while a view runs.": null
+          },
+          "until": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the view ends."
+          }
+        }
       },
       "SessionElevation": {
         "type": "object",

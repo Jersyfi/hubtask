@@ -1690,6 +1690,21 @@ export class HubtaskClient {
     return this.call("POST", "/auth/sessions:elevate", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Whether this session shows the app as another person */
+  getViewAs(options: CallOptions = {}): Promise<operations["getViewAs"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/auth/sessions:view-as", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Show the app as another person, read only */
+  startViewAs(body: NonNullable<operations["startViewAs"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["startViewAs"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/auth/sessions:view-as", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** End the view as another person */
+  endViewAs(options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/auth/sessions:view-as", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** What a sign-in screen may know before anybody has signed in
    * Public: sent without a bearer where the client holds none. */
   getSignInRules(options: CallOptions = {}): Promise<operations["getSignInRules"]['responses'][200]['content']["application/json"]> {

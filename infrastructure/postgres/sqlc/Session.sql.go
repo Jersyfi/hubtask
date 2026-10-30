@@ -342,6 +342,25 @@ func (q *Queries) ElevateSession(ctx context.Context, arg ElevateSessionParams) 
 	return result.RowsAffected(), nil
 }
 
+const endViewingAs = `-- name: EndViewingAs :execrows
+UPDATE session SET viewing_as = NULL, viewing_as_until = NULL
+WHERE id = $1 AND account_id = $2 AND viewing_as_until IS NOT NULL
+`
+
+type EndViewingAsParams struct {
+	ID        pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+// Ends the view a session of the account runs; nothing where none runs.
+func (q *Queries) EndViewingAs(ctx context.Context, arg EndViewingAsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, endViewingAs, arg.ID, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const extendSession = `-- name: ExtendSession :exec
 UPDATE session SET expires_at = $1 WHERE id = $2
 `
@@ -845,6 +864,22 @@ const findSessionForAuth = `-- name: FindSessionForAuth :one
 SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_at, s.revoked_at,
        s.grant_id, s.scopes,
        s.hard_expires_at, s.idle_minutes, s.signed_in_with, s.elevated_until,
+       -- *View as* (UC-ID-29, migration 0258): the person this session shows the app as, and what
+       -- the actor of the request needs of them, on the round trip that already runs. Whether they
+       -- reach a private hub is read only while a view runs: such a view lapses (ADR-0073 §1).
+       s.viewing_as, s.viewing_as_until,
+       va.display_name AS viewing_as_display_name,
+       coalesce(va.kind::text, '')::text   AS viewing_as_kind,
+       coalesce(va.status::text, '')::text AS viewing_as_status,
+       va.time_zone    AS viewing_as_time_zone,
+       va.week_start   AS viewing_as_week_start,
+       (va.id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM membership m JOIN container c ON c.tenant_id = m.tenant_id AND c.id = m.scope_id
+          WHERE m.tenant_id = s.tenant_id AND m.scope_type = 'HUB' AND c.private
+            AND (m.account_id = va.id OR m.group_id IN (
+                  SELECT gm.group_id FROM account_group_member gm
+                  WHERE gm.tenant_id = s.tenant_id AND gm.account_id = va.id))
+        ))::boolean AS viewing_as_private_hub,
        -- The rotation cutoff (ADR-0068 §3), off the row this query already joins: a session opened
        -- before the moment somebody asked everybody for a new password is refused on its next
        -- request. One extraction on a row already in hand, which is what makes the enforcement cost
@@ -882,6 +917,7 @@ FROM session s
 JOIN account a ON a.id = s.account_id
 JOIN tenant  n ON n.id = s.tenant_id
 LEFT JOIN oauth_grant g ON g.id = s.grant_id
+LEFT JOIN account va ON va.tenant_id = s.tenant_id AND va.id = s.viewing_as AND va.deleted_at IS NULL
 WHERE s.id = $1 AND a.deleted_at IS NULL
 `
 
@@ -899,6 +935,14 @@ type FindSessionForAuthRow struct {
 	IdleMinutes           *int32
 	SignedInWith          *string
 	ElevatedUntil         pgtype.Timestamptz
+	ViewingAs             pgtype.UUID
+	ViewingAsUntil        pgtype.Timestamptz
+	ViewingAsDisplayName  *string
+	ViewingAsKind         string
+	ViewingAsStatus       string
+	ViewingAsTimeZone     *string
+	ViewingAsWeekStart    *string
+	ViewingAsPrivateHub   bool
 	RotationFrom          interface{}
 	GrantClientID         pgtype.UUID
 	AccountKind           AccountKind
@@ -935,6 +979,14 @@ func (q *Queries) FindSessionForAuth(ctx context.Context, id pgtype.UUID) (FindS
 		&i.IdleMinutes,
 		&i.SignedInWith,
 		&i.ElevatedUntil,
+		&i.ViewingAs,
+		&i.ViewingAsUntil,
+		&i.ViewingAsDisplayName,
+		&i.ViewingAsKind,
+		&i.ViewingAsStatus,
+		&i.ViewingAsTimeZone,
+		&i.ViewingAsWeekStart,
+		&i.ViewingAsPrivateHub,
 		&i.RotationFrom,
 		&i.GrantClientID,
 		&i.AccountKind,
@@ -1744,6 +1796,37 @@ func (q *Queries) StartMfaReplacement(ctx context.Context, arg StartMfaReplaceme
 		arg.ExpiresAt,
 		arg.Now,
 		arg.AccountID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const startViewingAs = `-- name: StartViewingAs :execrows
+UPDATE session SET viewing_as = $1, viewing_as_until = $2
+WHERE id = $3 AND account_id = $4
+  AND revoked_at IS NULL AND expires_at > $5 AND grant_id IS NULL
+`
+
+type StartViewingAsParams struct {
+	ViewingAs      pgtype.UUID
+	ViewingAsUntil pgtype.Timestamptz
+	ID             pgtype.UUID
+	AccountID      pgtype.UUID
+	Now            pgtype.Timestamptz
+}
+
+// Shows one of the account's own live sessions the app as another person sees it, until the given
+// moment (UC-ID-29). A grant session matches nothing: an app acting for somebody views as nobody.
+// A running view is replaced - the viewer moves on to the next person.
+func (q *Queries) StartViewingAs(ctx context.Context, arg StartViewingAsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, startViewingAs,
+		arg.ViewingAs,
+		arg.ViewingAsUntil,
+		arg.ID,
+		arg.AccountID,
+		arg.Now,
 	)
 	if err != nil {
 		return 0, err

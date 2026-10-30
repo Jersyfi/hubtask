@@ -72,6 +72,7 @@ export type {
   AccountSummary,
   PrivateHubSummary,
   PrivateHubAccess,
+  ViewAs,
   ModuleList,
   ModuleState,
   ModuleSwitch,

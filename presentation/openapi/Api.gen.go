@@ -20724,6 +20724,27 @@ type Velocity struct {
 // VelocityUnit defines model for Velocity.Unit.
 type VelocityUnit string
 
+// ViewAs A session's view as another person.
+type ViewAs struct {
+	// AccountId The person shown
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+
+	// Active Whether a view runs.
+	Active bool `json:"active"`
+
+	// DisplayName Their name
+	DisplayName *string `json:"display_name,omitempty"`
+
+	// Until When the view ends.
+	Until *time.Time `json:"until,omitempty"`
+}
+
+// ViewAsStart defines model for ViewAsStart.
+type ViewAsStart struct {
+	// AccountId The person to view the app as.
+	AccountId openapi_types.UUID `json:"account_id"`
+}
+
 // ViewExport What to render and how. The view decides which rows; the format decides what they become.
 type ViewExport struct {
 	// Format CSV for a spreadsheet, JSON for a script, ICS for a calendar. ICS renders only the entries that have a due date, because an entry with no date is not a calendar entry.
@@ -24535,6 +24556,9 @@ type SetPasswordAndSignInJSONRequestBody = SignInPasswordChange
 // CompleteSignInJSONRequestBody defines body for CompleteSignIn for application/json ContentType.
 type CompleteSignInJSONRequestBody = SignInCompletion
 
+// StartViewAsJSONRequestBody defines body for StartViewAs for application/json ContentType.
+type StartViewAsJSONRequestBody = ViewAsStart
+
 // StepUpJSONRequestBody defines body for StepUp for application/json ContentType.
 type StepUpJSONRequestBody = StepUpRequest
 
@@ -26100,6 +26124,15 @@ type ServerInterface interface {
 	// CompleteSignIn Present the second factor and receive the pair
 	// (POST /auth/sessions:verify)
 	CompleteSignIn(w http.ResponseWriter, r *http.Request)
+	// EndViewAs End the view as another person
+	// (DELETE /auth/sessions:view-as)
+	EndViewAs(w http.ResponseWriter, r *http.Request)
+	// GetViewAs Whether this session shows the app as another person
+	// (GET /auth/sessions:view-as)
+	GetViewAs(w http.ResponseWriter, r *http.Request)
+	// StartViewAs Show the app as another person, read only
+	// (POST /auth/sessions:view-as)
+	StartViewAs(w http.ResponseWriter, r *http.Request)
 	// GetSignInRules What a sign-in screen may know before anybody has signed in
 	// (GET /auth/sign-in-rules)
 	GetSignInRules(w http.ResponseWriter, r *http.Request)
@@ -32078,6 +32111,48 @@ func (siw *ServerInterfaceWrapper) CompleteSignIn(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CompleteSignIn(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EndViewAs operation middleware
+func (siw *ServerInterfaceWrapper) EndViewAs(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EndViewAs(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetViewAs operation middleware
+func (siw *ServerInterfaceWrapper) GetViewAs(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetViewAs(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartViewAs operation middleware
+func (siw *ServerInterfaceWrapper) StartViewAs(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartViewAs(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -50344,6 +50419,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:check", wrapper.CheckPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:set-password", wrapper.SetPasswordAndSignIn)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:elevate", wrapper.ElevateSession)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/sessions:view-as", wrapper.EndViewAs)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/sessions:view-as", wrapper.GetViewAs)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:view-as", wrapper.StartViewAs)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/sign-in-rules", wrapper.GetSignInRules)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:enroll", wrapper.EnrollTotp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:confirm", wrapper.ConfirmTotp)

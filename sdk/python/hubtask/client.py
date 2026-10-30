@@ -1347,6 +1347,18 @@ class Client:
         """Raise this session to the control plane for an hour"""
         return self._call("POST", "/auth/sessions:elevate", {}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
 
+    def get_view_as(self) -> "ViewAs":
+        """Whether this session shows the app as another person"""
+        return self._call("GET", "/auth/sessions:view-as", {}, None, {}, None, "none", None, "json")
+
+    def start_view_as(self, body: "ViewAsStart") -> "ViewAs":
+        """Show the app as another person, read only"""
+        return self._call("POST", "/auth/sessions:view-as", {}, None, {}, body, "json", "application/json", "json")
+
+    def end_view_as(self) -> None:
+        """End the view as another person"""
+        return self._call("DELETE", "/auth/sessions:view-as", {}, None, {}, None, "none", None, "void")
+
     def get_sign_in_rules(self) -> "SignInRules":
         """What a sign-in screen may know before anybody has signed in"""
         return self._call("GET", "/auth/sign-in-rules", {}, None, {}, None, "none", None, "json")

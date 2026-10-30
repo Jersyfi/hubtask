@@ -198,6 +198,10 @@ func (p PullChanges) resume(
 	if err := actor.RequireScope(streamScope); err != nil {
 		return Position{}, err
 	}
+	// A view as somebody is online only (UC-ID-29): no device keeps a copy of their work.
+	if err := actor.RefuseACopy(); err != nil {
+		return Position{}, err
+	}
 	if cursor != "" {
 		return p.Stream.decode(ctx, actor, cursor)
 	}

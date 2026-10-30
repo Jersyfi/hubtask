@@ -187,6 +187,8 @@ export type AccountSummary = components['schemas']['AccountSummary'];
 /** A private hub as an administrator sees it: whose and how big, never its name (ADR-0073 §3). */
 export type PrivateHubSummary = components['schemas']['PrivateHubSummary'];
 export type PrivateHubAccess = components['schemas']['PrivateHubAccess'];
+/** A session's view as another person (UC-ID-29): read only, online only. */
+export type ViewAs = components['schemas']['ViewAs'];
 /** The suite's modules at a place, each on or off with where that comes from (UC-INS-21). */
 export type ModuleList = components['schemas']['ModuleList'];
 export type ModuleState = components['schemas']['ModuleState'];

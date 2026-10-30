@@ -856,6 +856,16 @@ class PlatformEventPage(TypedDict, total=False):
 
 PlatformEvent = dict[str, Any]
 
+class ViewAsStart(TypedDict, total=False):
+    account_id: Required[str]
+
+class ViewAs(TypedDict, total=False):
+    """A session's view as another person."""
+    active: Required[bool]
+    account_id: str
+    display_name: str
+    until: str
+
 class SessionElevation(TypedDict, total=False):
     """How long this session carries the control plane's scope."""
     elevated_until: Required[str]

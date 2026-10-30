@@ -391,8 +391,9 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 // a service account's token). The time module's eighteen are a person's own time - their records,
 // timer and week - or ask APPROVE_TIME only of other people's time (UC-TIM-01 ... 05); its seven
 // more are a person's own capacity and absences, asking MANAGE_MEMBERS or APPROVE_TIME only of
-// another person's, and the shared calendar of absences every member reads (UC-TIM-06, 07).
-const undeclaredPermissionsAtMost = 176
+// another person's, and the shared calendar of absences every member reads (UC-TIM-06, 07). The
+// two of a view as somebody that ask none are a session's own: reading and ending its view (UC-ID-29).
+const undeclaredPermissionsAtMost = 178
 
 func TestTheDeclaredPermissionsOnlyGrow(t *testing.T) {
 	undeclared := 0

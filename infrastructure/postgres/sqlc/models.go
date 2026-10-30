@@ -2421,6 +2421,8 @@ type Session struct {
 	IdleMinutes        *int32
 	ElevatedUntil      pgtype.Timestamptz
 	SignedInProviderID pgtype.UUID
+	ViewingAs          pgtype.UUID
+	ViewingAsUntil     pgtype.Timestamptz
 }
 
 type SessionRefreshToken struct {

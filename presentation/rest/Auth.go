@@ -246,8 +246,9 @@ func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// A person waiting on this answer: what a running emergency access counts for. Not a CalDAV
-	// client, which keeps what it reads in a calendar beyond the hour (ActorContext.Present).
-	actor.Present = !BasicRoutes[route]
+	// client, which keeps what it reads in a calendar beyond the hour (ActorContext.Present), nor
+	// an administrator viewing as somebody: the access is for the owner looking as themselves.
+	actor.Present = !BasicRoutes[route] && !actor.IsViewingAs()
 	ctx := appshared.ContextWithActor(r.Context(), actor)
 	// The tenant reaches the log lines and the metric label from here (§3.1). An identifier of an
 	// installation, never user content (rule 10).

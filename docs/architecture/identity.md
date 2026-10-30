@@ -1084,3 +1084,19 @@ groups over SCIM 2.0 (RFC 7643, RFC 7644) at `/api/v1/scim/v2` ([UC-ID-28](../us
 * **Not served:** bulk, sorting, ETags, password changes; a filter is one `eq`. The service is not
   a catalogue use case: SCIM's resource semantics are its door's own, and the acts behind it are on
   every door already as invitations and groups. SAML and LDAP wait (§21).
+
+---
+
+## 25. Viewing the app as a person
+
+*View as* (UC-ID-29) is a column pair of the administrator's own session, as the elevation is (§19):
+`viewing_as` and `viewing_as_until`, half an hour that does not slide, ended with the session.
+
+| Rule | Detail |
+|---|---|
+| Who views | `MANAGE_MEMBERS` at the workspace and the ceiling of a way into the account (§13): nobody holding a role above the viewer's. Only a person's own session - a token, an app's grant, an agent and a rule view as nobody (`access.view_as_needs_a_session`). |
+| Who is viewed | An active person other than oneself, in no private hub, directly or through a group (`access.view_as_private_hub`): a private hub is opened only by the owner's emergency access (§22). |
+| What the request is | Authentication turns the session's actor into the person: their identifier, day and week, the viewer's language, only the `:read` scopes, `Present` false (no emergency access counts), `ViewedBy` the viewer. A write is refused for the scope it lacks. |
+| Online only | The sync service refuses the snapshot, the pull and the stream with `access.view_as_online_only`; the web app opens no replica while a view runs. |
+| Lapse | A view run out, a person deleted, switched off, or now in a private hub lapses: the session is its holder's own again - failing towards the holder, never towards the person viewed. |
+| Trail | `account.viewed_as` (warning) at each start, `account.view_as_ended` when the viewer ends it. |

@@ -53,6 +53,9 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `account.service_account_created` | CreateServiceAccount | `account` | NOTICE | Every time |
 | `account.service_accounts_read` | ListServiceAccounts | `account` | INFO | When refused |
 | `account.start_password_issued` | IssueStartPassword | `account` | WARNING | Every time |
+| `account.view_as_ended` | EndViewAs | `account` | INFO | Every time |
+| `account.view_as_read` | GetViewAs | `session` | INFO | When refused |
+| `account.viewed_as` | StartViewAs | `account` | WARNING | Every time |
 
 ## Agent
 

@@ -96,6 +96,15 @@ type ActorContext struct {
 	// agent acting with the person's credential. False is the safe value: an actor somebody forgot
 	// to mark sees nothing of a private hub.
 	Present bool
+	// ViewedBy is the administrator whose own session shows the app as this actor's person (UC-ID-29),
+	// set by authentication and nowhere else. The actor is then the person read only: the scopes
+	// are the reading ones, Present is false, and no device's copy is filled (RefuseACopy). Empty
+	// for every request that is its own person's.
+	ViewedBy shared.ID
+	// ViewedByName is that administrator's label, for the trail of a view's end.
+	ViewedByName string
+	// ViewingAsUntil is when the view lapses.
+	ViewingAsUntil time.Time
 	// APIClient is the OAuth client the credential was issued to, empty for everything
 	// that is not a grant session. It is what the audit trail records as the acting app.
 	APIClient shared.ID
@@ -109,6 +118,18 @@ type ActorContext struct {
 	// The week anchors of a query - `@start_of_week`, `@end_of_week` - are computed from it, so
 	// it travels here beside the zone rather than being looked up per use case. Empty is Monday.
 	WeekStart string
+}
+
+// IsViewingAs reports whether this request is an administrator looking at the app as this person.
+func (a ActorContext) IsViewingAs() bool { return !a.ViewedBy.IsZero() }
+
+// RefuseACopy refuses filling a copy that outlives the request while viewing as somebody: a view
+// is online only (UC-ID-29), and a device's replica of another person's work would outlast it.
+func (a ActorContext) RefuseACopy() error {
+	if a.IsViewingAs() {
+		return shared.ErrForbidden.WithDetail("access.view_as_online_only")
+	}
+	return nil
 }
 
 // ForACopy is the actor as a reader that fills a copy which outlives the request - a device's

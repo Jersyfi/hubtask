@@ -37,6 +37,11 @@ type SessionCredential struct {
 	// credential already joins. A session opened before it is refused on its next request - which
 	// is the whole of the enforcement, at no cost per request.
 	RotationFrom time.Time
+	// Viewed is the person the session shows the app as while a view runs (UC-ID-29): zero when
+	// none is stored or the person is gone. ViewedReachesPrivateHub says they are a member of a
+	// private hub, directly or through a group, which no view may read (ADR-0073 §1).
+	Viewed                  identity.Account
+	ViewedReachesPrivateHub bool
 }
 
 // AccountSessions is what the session list reads: the account's sessions the store still holds, and
@@ -141,6 +146,14 @@ type Sessions interface {
 	// A running hour is not replaced: a session raised until a moment after `now` is not written
 	// either, so two raises at once leave one hour (UC-INS-04 check 4).
 	Elevate(ctx context.Context, sessionID, accountID shared.ID, until, now time.Time) (bool, error)
+
+	// StartViewingAs makes one of the account's own live sessions show the app as another person
+	// until the given moment (UC-ID-29), replacing a running view. False means the session is not
+	// the account's, not live, or an app's grant session - Revoke's indistinguishable answer.
+	StartViewingAs(ctx context.Context, sessionID, accountID, viewed shared.ID, until, now time.Time) (bool, error)
+
+	// EndViewingAs ends the view one of the account's sessions runs; false where none runs.
+	EndViewingAs(ctx context.Context, sessionID, accountID shared.ID) (bool, error)
 
 	// ElevatedUntil answers when the account's live session stops carrying the control plane's
 	// scope, and the zero time where it never did or is not the account's.

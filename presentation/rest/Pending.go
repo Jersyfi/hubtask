@@ -2616,3 +2616,7 @@ func (pending) PatchScimGroup(w http.ResponseWriter, r *http.Request, _ openapi.
 func (pending) DeleteScimGroup(w http.ResponseWriter, r *http.Request, _ openapi.ScimGroupId) {
 	notAvailable(w, r)
 }
+
+func (pending) GetViewAs(w http.ResponseWriter, r *http.Request)   { notAvailable(w, r) }
+func (pending) StartViewAs(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) EndViewAs(w http.ResponseWriter, r *http.Request)   { notAvailable(w, r) }

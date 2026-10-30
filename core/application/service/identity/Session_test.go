@@ -64,6 +64,9 @@ type sessionsStore struct {
 	elevatedUntil time.Time
 	// keptByOthers is the session each "everywhere else" was asked to spare.
 	keptByOthers []shared.ID
+	// viewable are the accounts a view joins, and inPrivateHub those reaching a private hub.
+	viewable     map[shared.ID]domain.Account
+	inPrivateHub map[shared.ID]bool
 }
 
 type elevation struct {
@@ -108,6 +111,34 @@ func (s *sessionsStore) Elevate(
 	}
 	s.elevated = append(s.elevated, elevation{sessionID: sessionID, accountID: accountID, until: until})
 	s.elevatedUntil = until
+	return true, nil
+}
+
+// StartViewingAs marks the stored session as the statement does: only the holder's own, live and
+// not an app's grant. The person viewed is joined from viewable, as the query joins the account.
+func (s *sessionsStore) StartViewingAs(
+	_ context.Context, sessionID, accountID, viewed shared.ID, until, now time.Time,
+) (bool, error) {
+	credential, ok := s.sessions[sessionID]
+	if !ok || credential.Session.AccountID != accountID || !credential.Session.RevokedAt.IsZero() ||
+		!credential.Session.GrantID.IsZero() || !credential.Session.ExpiresAt.After(now) {
+		return false, nil
+	}
+	credential.Session.ViewingAs, credential.Session.ViewingAsUntil = viewed, until
+	credential.Viewed = s.viewable[viewed]
+	credential.ViewedReachesPrivateHub = s.inPrivateHub[viewed]
+	s.sessions[sessionID] = credential
+	return true, nil
+}
+
+func (s *sessionsStore) EndViewingAs(_ context.Context, sessionID, accountID shared.ID) (bool, error) {
+	credential, ok := s.sessions[sessionID]
+	if !ok || credential.Session.AccountID != accountID || credential.Session.ViewingAsUntil.IsZero() {
+		return false, nil
+	}
+	credential.Session.ViewingAs, credential.Session.ViewingAsUntil = "", time.Time{}
+	credential.Viewed, credential.ViewedReachesPrivateHub = domain.Account{}, false
+	s.sessions[sessionID] = credential
 	return true, nil
 }
 
