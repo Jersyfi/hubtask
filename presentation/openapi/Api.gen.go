@@ -1314,6 +1314,39 @@ func (e BulkOperationOp) Valid() bool {
 	}
 }
 
+// Defines values for BusinessHoursDay.
+const (
+	BusinessHoursDayFRIDAY    BusinessHoursDay = "FRIDAY"
+	BusinessHoursDayMONDAY    BusinessHoursDay = "MONDAY"
+	BusinessHoursDaySATURDAY  BusinessHoursDay = "SATURDAY"
+	BusinessHoursDaySUNDAY    BusinessHoursDay = "SUNDAY"
+	BusinessHoursDayTHURSDAY  BusinessHoursDay = "THURSDAY"
+	BusinessHoursDayTUESDAY   BusinessHoursDay = "TUESDAY"
+	BusinessHoursDayWEDNESDAY BusinessHoursDay = "WEDNESDAY"
+)
+
+// Valid indicates whether the value is a known member of the BusinessHoursDay enum.
+func (e BusinessHoursDay) Valid() bool {
+	switch e {
+	case BusinessHoursDayFRIDAY:
+		return true
+	case BusinessHoursDayMONDAY:
+		return true
+	case BusinessHoursDaySATURDAY:
+		return true
+	case BusinessHoursDaySUNDAY:
+		return true
+	case BusinessHoursDayTHURSDAY:
+		return true
+	case BusinessHoursDayTUESDAY:
+		return true
+	case BusinessHoursDayWEDNESDAY:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CapabilitiesSupportedLocalesDirection.
 const (
 	Ltr CapabilitiesSupportedLocalesDirection = "ltr"
@@ -2976,6 +3009,48 @@ func (e EntryLinksLinksWaits) Valid() bool {
 	case EntryLinksLinksWaitsSOURCE:
 		return true
 	case EntryLinksLinksWaitsTARGET:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EntrySlaGoalGoal.
+const (
+	EntrySlaGoalGoalFIRSTRESPONSE EntrySlaGoalGoal = "FIRST_RESPONSE"
+	EntrySlaGoalGoalRESOLUTION    EntrySlaGoalGoal = "RESOLUTION"
+)
+
+// Valid indicates whether the value is a known member of the EntrySlaGoalGoal enum.
+func (e EntrySlaGoalGoal) Valid() bool {
+	switch e {
+	case EntrySlaGoalGoalFIRSTRESPONSE:
+		return true
+	case EntrySlaGoalGoalRESOLUTION:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EntrySlaGoalStanding.
+const (
+	EntrySlaGoalStandingBREACHED EntrySlaGoalStanding = "BREACHED"
+	EntrySlaGoalStandingMET      EntrySlaGoalStanding = "MET"
+	EntrySlaGoalStandingPAUSED   EntrySlaGoalStanding = "PAUSED"
+	EntrySlaGoalStandingRUNNING  EntrySlaGoalStanding = "RUNNING"
+)
+
+// Valid indicates whether the value is a known member of the EntrySlaGoalStanding enum.
+func (e EntrySlaGoalStanding) Valid() bool {
+	switch e {
+	case EntrySlaGoalStandingBREACHED:
+		return true
+	case EntrySlaGoalStandingMET:
+		return true
+	case EntrySlaGoalStandingPAUSED:
+		return true
+	case EntrySlaGoalStandingRUNNING:
 		return true
 	default:
 		return false
@@ -6294,6 +6369,66 @@ func (e SignInPolicyChangeRotationFrom) Valid() bool {
 	}
 }
 
+// Defines values for SlaGoalKind.
+const (
+	SlaGoalKindFIRSTRESPONSE SlaGoalKind = "FIRST_RESPONSE"
+	SlaGoalKindRESOLUTION    SlaGoalKind = "RESOLUTION"
+)
+
+// Valid indicates whether the value is a known member of the SlaGoalKind enum.
+func (e SlaGoalKind) Valid() bool {
+	switch e {
+	case SlaGoalKindFIRSTRESPONSE:
+		return true
+	case SlaGoalKindRESOLUTION:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SlaReportDataGoal.
+const (
+	SlaReportDataGoalFIRSTRESPONSE SlaReportDataGoal = "FIRST_RESPONSE"
+	SlaReportDataGoalRESOLUTION    SlaReportDataGoal = "RESOLUTION"
+)
+
+// Valid indicates whether the value is a known member of the SlaReportDataGoal enum.
+func (e SlaReportDataGoal) Valid() bool {
+	switch e {
+	case SlaReportDataGoalFIRSTRESPONSE:
+		return true
+	case SlaReportDataGoalRESOLUTION:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SlaReportDataStanding.
+const (
+	SlaReportDataStandingBREACHED SlaReportDataStanding = "BREACHED"
+	SlaReportDataStandingMET      SlaReportDataStanding = "MET"
+	SlaReportDataStandingPAUSED   SlaReportDataStanding = "PAUSED"
+	SlaReportDataStandingRUNNING  SlaReportDataStanding = "RUNNING"
+)
+
+// Valid indicates whether the value is a known member of the SlaReportDataStanding enum.
+func (e SlaReportDataStanding) Valid() bool {
+	switch e {
+	case SlaReportDataStandingBREACHED:
+		return true
+	case SlaReportDataStandingMET:
+		return true
+	case SlaReportDataStandingPAUSED:
+		return true
+	case SlaReportDataStandingRUNNING:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SortTermDir.
 const (
 	ASC  SortTermDir = "ASC"
@@ -9198,6 +9333,48 @@ type BulkResult struct {
 	Status int `json:"status"`
 }
 
+// BusinessCalendar Working hours, holidays and a time zone under a key - what an SLA counts its targets in.
+type BusinessCalendar struct {
+	// Holidays Whole local days without working time.
+	Holidays []openapi_types.Date `json:"holidays"`
+	Hours    []BusinessHours      `json:"hours"`
+	Key      string               `json:"key"`
+	Name     string               `json:"name"`
+	Version  int                  `json:"version"`
+
+	// Zone An IANA time zone.
+	Zone string `json:"zone"`
+}
+
+// BusinessCalendarDefine defines model for BusinessCalendarDefine.
+type BusinessCalendarDefine struct {
+	Holidays *[]openapi_types.Date `json:"holidays,omitempty"`
+	Hours    []BusinessHours       `json:"hours"`
+	Name     string                `json:"name"`
+
+	// Zone An IANA time zone, e.g. Europe/Berlin.
+	Zone string `json:"zone"`
+}
+
+// BusinessCalendarList defines model for BusinessCalendarList.
+type BusinessCalendarList struct {
+	Data []BusinessCalendar `json:"data"`
+}
+
+// BusinessHours defines model for BusinessHours.
+type BusinessHours struct {
+	Day BusinessHoursDay `json:"day"`
+
+	// From Local time, HH:MM.
+	From string `json:"from"`
+
+	// To Local time, HH:MM; 24:00 ends the day.
+	To string `json:"to"`
+}
+
+// BusinessHoursDay defines model for BusinessHours.Day.
+type BusinessHoursDay string
+
 // CalendarFeed One subscription: a token its owner holds, over one saved view, revocable. The token itself is not a member - it exists in the answer to the call that minted it and nowhere else afterwards.
 type CalendarFeed struct {
 	// AccountId The owner, whose authorisation the feed reads with at every fetch.
@@ -11378,6 +11555,32 @@ type EntryLinksBacklinksSourceKind string
 
 // EntryLinksLinksWaits Which end waits for the other, by the link's type.
 type EntryLinksLinksWaits string
+
+// EntrySlaGoal defines model for EntrySlaGoal.
+type EntrySlaGoal struct {
+	ArmedAt    time.Time  `json:"armed_at"`
+	AtRiskAt   *time.Time `json:"at_risk_at"`
+	BreachedAt *time.Time `json:"breached_at"`
+
+	// DueAt When the goal falls due; null while its clock stands still or once it ended.
+	DueAt         *time.Time           `json:"due_at"`
+	Goal          EntrySlaGoalGoal     `json:"goal"`
+	MetAt         *time.Time           `json:"met_at"`
+	PolicyKey     string               `json:"policy_key"`
+	Standing      EntrySlaGoalStanding `json:"standing"`
+	TargetSeconds int64                `json:"target_seconds"`
+}
+
+// EntrySlaGoalGoal defines model for EntrySlaGoal.Goal.
+type EntrySlaGoalGoal string
+
+// EntrySlaGoalStanding defines model for EntrySlaGoal.Standing.
+type EntrySlaGoalStanding string
+
+// EntrySlaList defines model for EntrySlaList.
+type EntrySlaList struct {
+	Data []EntrySlaGoal `json:"data"`
+}
 
 // EntrySteps defines model for EntrySteps.
 type EntrySteps struct {
@@ -16094,6 +16297,78 @@ type SignInRules struct {
 	WorkspaceHost string `json:"workspace_host"`
 }
 
+// SlaGoal defines model for SlaGoal.
+type SlaGoal struct {
+	// ByPriority Targets per option of the policy's priority field; an option without one takes minutes.
+	ByPriority *map[string]int `json:"by_priority,omitempty"`
+
+	// Kind FIRST_RESPONSE is met by a comment of somebody other than who raised the entry, or by its completion; RESOLUTION by the completion.
+	Kind SlaGoalKind `json:"kind"`
+
+	// Minutes The target in working minutes.
+	Minutes int `json:"minutes"`
+
+	// PauseStatuses Workflow status keys in which the goal's clock stands still.
+	PauseStatuses *[]string `json:"pause_statuses,omitempty"`
+
+	// WarnPercent The share of the target after which the goal is at risk; 0 announces none.
+	WarnPercent *int `json:"warn_percent,omitempty"`
+}
+
+// SlaGoalKind FIRST_RESPONSE is met by a comment of somebody other than who raised the entry, or by its completion; RESOLUTION by the completion.
+type SlaGoalKind string
+
+// SlaPolicy A promise of response and resolution times for entries of some types, on a business calendar.
+type SlaPolicy struct {
+	// Calendar A business calendar's key; null counts around the clock.
+	Calendar   *string   `json:"calendar"`
+	Enabled    bool      `json:"enabled"`
+	EntryTypes []string  `json:"entry_types"`
+	Goals      []SlaGoal `json:"goals"`
+	Key        string    `json:"key"`
+	Name       string    `json:"name"`
+	Position   int       `json:"position"`
+
+	// PriorityField The custom field whose option value picks a goal's target.
+	PriorityField *string `json:"priority_field"`
+	Version       int     `json:"version"`
+}
+
+// SlaPolicyDefine defines model for SlaPolicyDefine.
+type SlaPolicyDefine struct {
+	// Calendar A business calendar's key; absent counts around the clock.
+	Calendar *string `json:"calendar,omitempty"`
+
+	// Enabled True when absent.
+	Enabled       *bool     `json:"enabled,omitempty"`
+	EntryTypes    []string  `json:"entry_types"`
+	Goals         []SlaGoal `json:"goals"`
+	Name          string    `json:"name"`
+	Position      *int      `json:"position,omitempty"`
+	PriorityField *string   `json:"priority_field,omitempty"`
+}
+
+// SlaPolicyList defines model for SlaPolicyList.
+type SlaPolicyList struct {
+	Data []SlaPolicy `json:"data"`
+}
+
+// SlaReport defines model for SlaReport.
+type SlaReport struct {
+	Data []struct {
+		Entries   int                   `json:"entries"`
+		Goal      SlaReportDataGoal     `json:"goal"`
+		PolicyKey string                `json:"policy_key"`
+		Standing  SlaReportDataStanding `json:"standing"`
+	} `json:"data"`
+}
+
+// SlaReportDataGoal defines model for SlaReport.Data.Goal.
+type SlaReportDataGoal string
+
+// SlaReportDataStanding defines model for SlaReport.Data.Standing.
+type SlaReportDataStanding string
+
 // SortTerm One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by. A custom field (`custom_fields.<key>`) sorts by its typed value - numbers, amounts and durations as numbers, dates as days, text by its first 256 characters; a field holding several values, a person, a reference or formatted text is not sortable.
 type SortTerm struct {
 	Dir   *SortTermDir   `json:"dir,omitempty"`
@@ -18532,6 +18807,12 @@ type ListBackupsAtTargetParams struct {
 	Refresh *bool `form:"refresh,omitempty" json:"refresh,omitempty"`
 }
 
+// DefineBusinessCalendarParams defines parameters for DefineBusinessCalendar.
+type DefineBusinessCalendarParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // UpdateCiParams defines parameters for UpdateCi.
 type UpdateCiParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -19618,6 +19899,18 @@ type ChangeRoleParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// DefineSlaPolicyParams defines parameters for DefineSlaPolicy.
+type DefineSlaPolicyParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ReportSlaParams defines parameters for ReportSla.
+type ReportSlaParams struct {
+	From time.Time `form:"from" json:"from"`
+	To   time.Time `form:"to" json:"to"`
+}
+
 // StreamChangesParams defines parameters for StreamChanges.
 type StreamChangesParams struct {
 	// LastEventID The cursor to resume from, as the stream last sent it. Absent means "from now": a client with no cursor is starting fresh and should pull rather than ask the stream for history.
@@ -20045,6 +20338,9 @@ type CreateBackupTargetJSONRequestBody = BackupTargetCreate
 // StartBackupJSONRequestBody defines body for StartBackup for application/json ContentType.
 type StartBackupJSONRequestBody = BackupStart
 
+// DefineBusinessCalendarJSONRequestBody defines body for DefineBusinessCalendar for application/json ContentType.
+type DefineBusinessCalendarJSONRequestBody = BusinessCalendarDefine
+
 // ResolveCiDuplicateJSONRequestBody defines body for ResolveCiDuplicate for application/json ContentType.
 type ResolveCiDuplicateJSONRequestBody = CiDuplicateResolve
 
@@ -20443,6 +20739,9 @@ type ChangeRoleApplicationMergePatchPlusJSONRequestBody = CustomRoleChange
 
 // SearchItemsJSONRequestBody defines body for SearchItems for application/json ContentType.
 type SearchItemsJSONRequestBody = ItemSearchQuery
+
+// DefineSlaPolicyJSONRequestBody defines body for DefineSlaPolicy for application/json ContentType.
+type DefineSlaPolicyJSONRequestBody = SlaPolicyDefine
 
 // AcceptSuggestionJSONRequestBody defines body for AcceptSuggestion for application/json ContentType.
 type AcceptSuggestionJSONRequestBody = SuggestionAcceptance
@@ -21031,6 +21330,15 @@ type ServerInterface interface {
 	// VerifyBackup Verify an archive at the target
 	// (POST /backups/{backupId}:verify)
 	VerifyBackup(w http.ResponseWriter, r *http.Request, backupId openapi_types.UUID)
+	// ListBusinessCalendars The workspace's business calendars
+	// (GET /business-calendars)
+	ListBusinessCalendars(w http.ResponseWriter, r *http.Request)
+	// DeleteBusinessCalendar Delete an unused business calendar
+	// (DELETE /business-calendars/{calendarKey})
+	DeleteBusinessCalendar(w http.ResponseWriter, r *http.Request, calendarKey string)
+	// DefineBusinessCalendar Add or replace a business calendar
+	// (PUT /business-calendars/{calendarKey})
+	DefineBusinessCalendar(w http.ResponseWriter, r *http.Request, calendarKey string, params DefineBusinessCalendarParams)
 
 	// (GET /calendar/{token}.ics)
 	GetCalendarFeedDocument(w http.ResponseWriter, r *http.Request, token string)
@@ -21499,6 +21807,9 @@ type ServerInterface interface {
 
 	// (PATCH /items/{itemId}/reminders/{reminderId})
 	UpdateReminder(w http.ResponseWriter, r *http.Request, itemId ItemId, reminderId ReminderId, params UpdateReminderParams)
+	// ReadEntrySla How an entry's SLA goals stand
+	// (GET /items/{itemId}/sla)
+	ReadEntrySla(w http.ResponseWriter, r *http.Request, itemId ItemId)
 	// ListEntrySteps The entry's status and the steps the person may take
 	// (GET /items/{itemId}/steps)
 	ListEntrySteps(w http.ResponseWriter, r *http.Request, itemId ItemId)
@@ -21895,6 +22206,18 @@ type ServerInterface interface {
 	// ReadSettingsCatalogue Every setting the product declares
 	// (GET /settings/catalogue)
 	ReadSettingsCatalogue(w http.ResponseWriter, r *http.Request)
+	// ListSlaPolicies The workspace's SLA policies
+	// (GET /sla-policies)
+	ListSlaPolicies(w http.ResponseWriter, r *http.Request)
+	// DeleteSlaPolicy Delete an SLA policy
+	// (DELETE /sla-policies/{policyKey})
+	DeleteSlaPolicy(w http.ResponseWriter, r *http.Request, policyKey string)
+	// DefineSlaPolicy Add or replace an SLA policy
+	// (PUT /sla-policies/{policyKey})
+	DefineSlaPolicy(w http.ResponseWriter, r *http.Request, policyKey string, params DefineSlaPolicyParams)
+	// ReportSla How the SLA goals of a period stood
+	// (GET /sla-report)
+	ReportSla(w http.ResponseWriter, r *http.Request, params ReportSlaParams)
 	// StreamChanges The change stream, as server-sent events
 	// (GET /stream)
 	StreamChanges(w http.ResponseWriter, r *http.Request, params StreamChangesParams)
@@ -26952,6 +27275,96 @@ func (siw *ServerInterfaceWrapper) VerifyBackup(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.VerifyBackup(w, r, backupId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListBusinessCalendars operation middleware
+func (siw *ServerInterfaceWrapper) ListBusinessCalendars(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListBusinessCalendars(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteBusinessCalendar operation middleware
+func (siw *ServerInterfaceWrapper) DeleteBusinessCalendar(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "calendarKey" -------------
+	var calendarKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "calendarKey", r.PathValue("calendarKey"), &calendarKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "calendarKey", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteBusinessCalendar(w, r, calendarKey)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DefineBusinessCalendar operation middleware
+func (siw *ServerInterfaceWrapper) DefineBusinessCalendar(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "calendarKey" -------------
+	var calendarKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "calendarKey", r.PathValue("calendarKey"), &calendarKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "calendarKey", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DefineBusinessCalendarParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DefineBusinessCalendar(w, r, calendarKey, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -33196,6 +33609,32 @@ func (siw *ServerInterfaceWrapper) UpdateReminder(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// ReadEntrySla operation middleware
+func (siw *ServerInterfaceWrapper) ReadEntrySla(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadEntrySla(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListEntrySteps operation middleware
 func (siw *ServerInterfaceWrapper) ListEntrySteps(w http.ResponseWriter, r *http.Request) {
 
@@ -37724,6 +38163,142 @@ func (siw *ServerInterfaceWrapper) ReadSettingsCatalogue(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// ListSlaPolicies operation middleware
+func (siw *ServerInterfaceWrapper) ListSlaPolicies(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSlaPolicies(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteSlaPolicy operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSlaPolicy(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "policyKey" -------------
+	var policyKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "policyKey", r.PathValue("policyKey"), &policyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policyKey", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteSlaPolicy(w, r, policyKey)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DefineSlaPolicy operation middleware
+func (siw *ServerInterfaceWrapper) DefineSlaPolicy(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "policyKey" -------------
+	var policyKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "policyKey", r.PathValue("policyKey"), &policyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policyKey", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DefineSlaPolicyParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DefineSlaPolicy(w, r, policyKey, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReportSla operation middleware
+func (siw *ServerInterfaceWrapper) ReportSla(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReportSlaParams
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReportSla(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // StreamChanges operation middleware
 func (siw *ServerInterfaceWrapper) StreamChanges(w http.ResponseWriter, r *http.Request) {
 
@@ -39814,6 +40389,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/business-calendars", wrapper.ListBusinessCalendars)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/business-calendars/{calendarKey}", wrapper.DeleteBusinessCalendar)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/business-calendars/{calendarKey}", wrapper.DefineBusinessCalendar)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sla-policies", wrapper.ListSlaPolicies)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/sla-policies/{policyKey}", wrapper.DeleteSlaPolicy)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/sla-policies/{policyKey}", wrapper.DefineSlaPolicy)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sla-report", wrapper.ReportSla)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/sla", wrapper.ReadEntrySla)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cmdb/classes", wrapper.ListCiClasses)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/cmdb/classes/{classKey}", wrapper.DefineCiClass)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cmdb/relation-types", wrapper.ListCiRelationTypes)

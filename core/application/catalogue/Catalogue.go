@@ -27,6 +27,7 @@ import (
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
+	servicedeskservice "github.com/Jersyfi/hubtask/core/application/service/servicedesk"
 	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	importservice "github.com/Jersyfi/hubtask/core/application/service/importer"
@@ -114,6 +115,14 @@ func Descriptors() []usecase.Descriptor {
 		whiteboardservice.NameWhiteboardVersion{}.Descriptor(),
 		whiteboardservice.ListWhiteboardBacklinks{}.Descriptor(),
 		whiteboardservice.AttachWhiteboardMedia{}.Descriptor(),
+		servicedeskservice.ListBusinessCalendars{}.Descriptor(),
+		servicedeskservice.DefineBusinessCalendar{}.Descriptor(),
+		servicedeskservice.DeleteBusinessCalendar{}.Descriptor(),
+		servicedeskservice.ListSlaPolicies{}.Descriptor(),
+		servicedeskservice.DefineSlaPolicy{}.Descriptor(),
+		servicedeskservice.DeleteSlaPolicy{}.Descriptor(),
+		servicedeskservice.ReadEntrySla{}.Descriptor(),
+		servicedeskservice.ReportSla{}.Descriptor(),
 		cmdbservice.ListCiClasses{}.Descriptor(),
 		cmdbservice.DefineCiClass{}.Descriptor(),
 		cmdbservice.ListCiRelationTypes{}.Descriptor(),

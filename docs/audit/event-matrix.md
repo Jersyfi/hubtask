@@ -174,6 +174,14 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `backup.target_tested` | TestBackupTarget | `backup_target` | INFO | Every time |
 | `backup.verified` | VerifyBackup | `backup_run` | INFO | Every time |
 
+## Business_calendar
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `business_calendar.defined` | DefineBusinessCalendar | `business_calendar` | INFO | Every time |
+| `business_calendar.deleted` | DeleteBusinessCalendar | `business_calendar` | INFO | Every time |
+| `business_calendar.read` | ListBusinessCalendars | `business_calendar` | INFO | When refused |
+
 ## Cmdb
 
 | Action | Use case | Target | Severity | Recorded |
@@ -346,6 +354,13 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `encryption.reseal_requested` | ResealSecrets | `tenant` | NOTICE | Every time |
 | `encryption.status_read` | ReadEncryptionStatus | `tenant` | INFO | When refused |
+
+## Entry_sla
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `entry_sla.read` | ReadEntrySla | `entry_sla` | INFO | When refused |
+| `entry_sla.reported` | ReportSla | `entry_sla` | INFO | When refused |
 
 ## Entry_type
 
@@ -644,6 +659,14 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `search.reindex_asked` | ReindexSearch | `workspace` | NOTICE | Every time |
+
+## Sla_policy
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `sla_policy.defined` | DefineSlaPolicy | `sla_policy` | INFO | Every time |
+| `sla_policy.deleted` | DeleteSlaPolicy | `sla_policy` | INFO | Every time |
+| `sla_policy.read` | ListSlaPolicies | `sla_policy` | INFO | When refused |
 
 ## Structure: buckets and labels
 

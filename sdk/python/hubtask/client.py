@@ -103,6 +103,38 @@ class Client:
             return None
         return json.loads(payload)
 
+    def list_business_calendars(self) -> "BusinessCalendarList":
+        """The workspace's business calendars"""
+        return self._call("GET", "/business-calendars", {}, None, {}, None, "none", None, "json")
+
+    def define_business_calendar(self, calendar_key: str, body: "BusinessCalendarDefine", *, if_match: str | None = None) -> "BusinessCalendar":
+        """Add or replace a business calendar"""
+        return self._call("PUT", "/business-calendars/{calendarKey}", {"calendarKey": calendar_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_business_calendar(self, calendar_key: str) -> None:
+        """Delete an unused business calendar"""
+        return self._call("DELETE", "/business-calendars/{calendarKey}", {"calendarKey": calendar_key}, None, {}, None, "none", None, "void")
+
+    def list_sla_policies(self) -> "SlaPolicyList":
+        """The workspace's SLA policies"""
+        return self._call("GET", "/sla-policies", {}, None, {}, None, "none", None, "json")
+
+    def define_sla_policy(self, policy_key: str, body: "SlaPolicyDefine", *, if_match: str | None = None) -> "SlaPolicy":
+        """Add or replace an SLA policy"""
+        return self._call("PUT", "/sla-policies/{policyKey}", {"policyKey": policy_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_sla_policy(self, policy_key: str) -> None:
+        """Delete an SLA policy"""
+        return self._call("DELETE", "/sla-policies/{policyKey}", {"policyKey": policy_key}, None, {}, None, "none", None, "void")
+
+    def report_sla(self, *, query: dict[str, Any] | None = None) -> "SlaReport":
+        """How the SLA goals of a period stood"""
+        return self._call("GET", "/sla-report", {}, query, {}, None, "none", None, "json")
+
+    def read_entry_sla(self, item_id: str) -> "EntrySlaList":
+        """How an entry's SLA goals stand"""
+        return self._call("GET", "/items/{itemId}/sla", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
     def list_ci_classes(self) -> "CiClassList":
         """The configuration item classes"""
         return self._call("GET", "/cmdb/classes", {}, None, {}, None, "none", None, "json")

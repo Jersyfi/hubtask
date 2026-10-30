@@ -43,6 +43,7 @@ import (
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	calendarservice "github.com/Jersyfi/hubtask/core/application/service/calendar"
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
+	servicedeskservice "github.com/Jersyfi/hubtask/core/application/service/servicedesk"
 	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
@@ -1815,6 +1816,13 @@ func run() error {
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		Texts: pageSpace.Pages, Entries: entryLinks, Reader: authorizer, Media: mediaObjects,
 	}
+	// The service desk's calendars and SLA policies (M5); the clocks run on the durable timers.
+	serviceDeskStore := postgres.NewServiceDeskRepository()
+	serviceDesk := servicedeskservice.Desk{
+		Calendars: serviceDeskStore.Calendars(), Policies: serviceDeskStore.Policies(),
+		Records: serviceDeskStore.Records(), Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+	}
 	// The assets and configuration module (M6): a hub's CIs, judged at the hub; every write of a CI
 	// goes through the inventory's reconciliation.
 	inventory := cmdbservice.Inventory{
@@ -1873,6 +1881,14 @@ func run() error {
 		whiteboardservice.NameWhiteboardVersion{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.ListWhiteboardBacklinks{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.AttachWhiteboardMedia{Studio: boardStudio}.Descriptor(),
+		servicedeskservice.ListBusinessCalendars{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DefineBusinessCalendar{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DeleteBusinessCalendar{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.ListSlaPolicies{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DefineSlaPolicy{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DeleteSlaPolicy{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.ReadEntrySla{Desk: serviceDesk, Items: items, Containers: containers}.Descriptor(),
+		servicedeskservice.ReportSla{Desk: serviceDesk}.Descriptor(),
 		cmdbservice.ListCiClasses{Inventory: inventory}.Descriptor(),
 		cmdbservice.DefineCiClass{Inventory: inventory}.Descriptor(),
 		cmdbservice.ListCiRelationTypes{Inventory: inventory}.Descriptor(),
@@ -3588,6 +3604,13 @@ func run() error {
 		// an installation without a bus ends up with exactly the subscriber list it had before.
 		Subscribers: append([]eventbusport.Subscriber{
 			notify, webhookFanOut, matchRules, relativeDates,
+			// The SLA clocks (UC-SVC-02): armed, paused, met and stopped by what happens to the
+			// entry, in the dispatcher's transaction; never on a replay.
+			servicedeskservice.SlaClocks{
+				Calendars: serviceDeskStore.Calendars(), Policies: serviceDeskStore.Policies(),
+				Records: serviceDeskStore.Records(), Items: items, IDs: ids,
+				Timers: calendarservice.Clocks{Timers: postgres.NewTimerRepository(), Jobs: jobs, IDs: ids},
+			},
 			// The check a deletion seeds (ADR-0060): one job per workspace, never the check itself
 			// inside the dispatcher's transaction.
 			automationservice.CheckOnDeletion{Jobs: jobs},
@@ -4051,6 +4074,9 @@ func run() error {
 			Timers: postgres.NewTimerRepository(), Clock: clockadapter.System{},
 			BatchSize: calendarservice.DefaultTimerBatch,
 			Elapsed: map[calendardomain.Purpose]calendarservice.TimerElapsed{
+				calendardomain.PurposeSLA: servicedeskservice.SlaElapsed{
+					Records: serviceDeskStore.Records(), Items: items, Events: outbox, IDs: ids,
+				},
 				calendardomain.PurposePageReview: knowledgeservice.PageReviewElapsed{
 					Pages: postgres.NewPageRepository(), Timers: reviewClocks, Clock: clockadapter.System{},
 					Notify: notification.RecordPageReview{

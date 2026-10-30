@@ -4,19 +4,39 @@ package main
 
 // generatedGroups is the summary of each group only generated commands open.
 var generatedGroups = map[string]string{
-	"ci":         "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact",
-	"cmdb":       "the workspace's configuration item classes, relation types and sources, and a hub's inventory health",
-	"link":       "an entry's links to other entries, and references resolved",
-	"link-type":  "the kinds of link between entries: blocks, relates to, duplicates",
-	"page":       "a hub's pages: write, find, move, version, comment on and export them",
-	"role":       "the workspace's own roles, who holds them, and why a person may do what",
-	"setting":    "the settings catalogue: every setting, its level and its source",
-	"whiteboard": "a hub's whiteboards: make, draw on, trash and export them",
-	"workflow":   "the workspace's workflows and which collection runs which",
+	"business-calendar": "the workspace's business calendars: working hours, holidays and a time zone under a key",
+	"ci":                "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact",
+	"cmdb":              "the workspace's configuration item classes, relation types and sources, and a hub's inventory health",
+	"link":              "an entry's links to other entries, and references resolved",
+	"link-type":         "the kinds of link between entries: blocks, relates to, duplicates",
+	"page":              "a hub's pages: write, find, move, version, comment on and export them",
+	"role":              "the workspace's own roles, who holds them, and why a person may do what",
+	"setting":           "the settings catalogue: every setting, its level and its source",
+	"sla":               "the workspace's SLA policies, how an entry's goals stand, and how they stood in a period",
+	"whiteboard":        "a hub's whiteboards: make, draw on, trash and export them",
+	"workflow":          "the workspace's workflows and which collection runs which",
 }
 
 // generatedCommands is every operation the contract names a command for, in a stable order.
 var generatedCommands = []door{
+	{Group: "business-calendar", Verb: "define", OperationID: "defineBusinessCalendar", Method: "PUT", Path: "/business-calendars/{calendarKey}", Summary: "Add or replace a business calendar",
+		PathParams: []doorParam{
+			{Name: "calendarKey", Kind: "string", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "holidays", Kind: "strings", Help: "", Required: false},
+			{Name: "hours", Kind: "json", Help: "", Required: true},
+			{Name: "name", Kind: "string", Help: "", Required: true},
+			{Name: "zone", Kind: "string", Help: "An IANA time zone, e.g", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "name", "version"}},
+	{Group: "business-calendar", Verb: "ls", OperationID: "listBusinessCalendars", Method: "GET", Path: "/business-calendars", Summary: "The workspace's business calendars",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name", "version"}},
+	{Group: "business-calendar", Verb: "rm", OperationID: "deleteBusinessCalendar", Method: "DELETE", Path: "/business-calendars/{calendarKey}", Summary: "Delete an unused business calendar",
+		PathParams: []doorParam{
+			{Name: "calendarKey", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "ci", Verb: "alert ls", OperationID: "listCiAlerts", Method: "GET", Path: "/hubs/{hubId}/ci-alerts", Summary: "A hub's alerts",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
@@ -580,6 +600,38 @@ var generatedCommands = []door{
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "key", "name", "version"}},
 	{Group: "setting", Verb: "catalogue", OperationID: "readSettingsCatalogue", Method: "GET", Path: "/settings/catalogue", Summary: "Every setting the product declares",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "sla", Verb: "define", OperationID: "defineSlaPolicy", Method: "PUT", Path: "/sla-policies/{policyKey}", Summary: "Add or replace an SLA policy",
+		PathParams: []doorParam{
+			{Name: "policyKey", Kind: "string", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "calendar", Kind: "string", Help: "A business calendar's key; absent counts around the clock", Required: false},
+			{Name: "enabled", Kind: "boolean", Help: "True when absent", Required: false},
+			{Name: "entry_types", Kind: "strings", Help: "", Required: true},
+			{Name: "goals", Kind: "json", Help: "", Required: true},
+			{Name: "name", Kind: "string", Help: "", Required: true},
+			{Name: "position", Kind: "integer", Help: "", Required: false},
+			{Name: "priority_field", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "name", "version"}},
+	{Group: "sla", Verb: "ls", OperationID: "listSlaPolicies", Method: "GET", Path: "/sla-policies", Summary: "The workspace's SLA policies",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name", "version"}},
+	{Group: "sla", Verb: "report", OperationID: "reportSla", Method: "GET", Path: "/sla-report", Summary: "How the SLA goals of a period stood",
+		Query: []doorParam{
+			{Name: "from", Kind: "string", Help: "", Required: true},
+			{Name: "to", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"entries", "goal", "policy_key", "standing"}},
+	{Group: "sla", Verb: "rm", OperationID: "deleteSlaPolicy", Method: "DELETE", Path: "/sla-policies/{policyKey}", Summary: "Delete an SLA policy",
+		PathParams: []doorParam{
+			{Name: "policyKey", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "sla", Verb: "show", OperationID: "readEntrySla", Method: "GET", Path: "/items/{itemId}/sla", Summary: "How an entry's SLA goals stand",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"armed_at", "at_risk_at", "breached_at", "due_at", "goal"}},
 	{Group: "type", Verb: "form evaluate", OperationID: "evaluateEntryForm", Method: "POST", Path: "/entry-types/{key}/form:evaluate", Summary: "Answer a type's form for a draft",
 		PathParams: []doorParam{
 			{Name: "key", Kind: "string", Help: "", Required: true},

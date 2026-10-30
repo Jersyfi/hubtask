@@ -111,6 +111,46 @@ export class HubtaskClient {
     return (await response.json()) as T;
   }
 
+  /** The workspace's business calendars */
+  listBusinessCalendars(options: CallOptions = {}): Promise<operations["listBusinessCalendars"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/business-calendars", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add or replace a business calendar */
+  defineBusinessCalendar(calendarKey: string, body: NonNullable<operations["defineBusinessCalendar"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["defineBusinessCalendar"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/business-calendars/{calendarKey}", { "calendarKey": calendarKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Delete an unused business calendar */
+  deleteBusinessCalendar(calendarKey: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/business-calendars/{calendarKey}", { "calendarKey": calendarKey }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** The workspace's SLA policies */
+  listSlaPolicies(options: CallOptions = {}): Promise<operations["listSlaPolicies"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/sla-policies", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add or replace an SLA policy */
+  defineSlaPolicy(policyKey: string, body: NonNullable<operations["defineSlaPolicy"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["defineSlaPolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/sla-policies/{policyKey}", { "policyKey": policyKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Delete an SLA policy */
+  deleteSlaPolicy(policyKey: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/sla-policies/{policyKey}", { "policyKey": policyKey }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** How the SLA goals of a period stood */
+  reportSla(options: CallOptions & { readonly query?: NonNullable<operations["reportSla"]['parameters']['query']> } = {}): Promise<operations["reportSla"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/sla-report", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** How an entry's SLA goals stand */
+  readEntrySla(itemId: string, options: CallOptions = {}): Promise<operations["readEntrySla"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/items/{itemId}/sla", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The configuration item classes */
   listCiClasses(options: CallOptions = {}): Promise<operations["listCiClasses"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/cmdb/classes", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

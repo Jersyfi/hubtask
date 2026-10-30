@@ -2111,3 +2111,24 @@ func (pending) UnrelateCis(w http.ResponseWriter, r *http.Request, _ openapi_typ
 func (pending) UpdateCi(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.UpdateCiParams) {
 	notAvailable(w, r)
 }
+
+// The service desk's calendars, SLA policies and an entry's SLA (M5), answered by the generated
+// mapping.
+func (pending) ListBusinessCalendars(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) DeleteBusinessCalendar(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+func (pending) DefineBusinessCalendar(w http.ResponseWriter, r *http.Request, _ string, _ openapi.DefineBusinessCalendarParams) {
+	notAvailable(w, r)
+}
+func (pending) ReadEntrySla(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+func (pending) ListSlaPolicies(w http.ResponseWriter, r *http.Request)           { notAvailable(w, r) }
+func (pending) DeleteSlaPolicy(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+func (pending) DefineSlaPolicy(w http.ResponseWriter, r *http.Request, _ string, _ openapi.DefineSlaPolicyParams) {
+	notAvailable(w, r)
+}
+func (pending) ReportSla(w http.ResponseWriter, r *http.Request, _ openapi.ReportSlaParams) {
+	notAvailable(w, r)
+}

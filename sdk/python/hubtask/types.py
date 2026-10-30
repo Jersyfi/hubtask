@@ -1214,6 +1214,78 @@ class AccessExplanation(TypedDict, total=False):
     holds: bool
     held_through: list["AccessSource"]
 
+BusinessHours = TypedDict("BusinessHours", {
+    "day": Required[Literal["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]],
+    "from": Required[str],
+    "to": Required[str],
+}, total=False)
+
+class BusinessCalendar(TypedDict, total=False):
+    """Working hours, holidays and a time zone under a key - what an SLA counts its targets in."""
+    key: Required[str]
+    name: Required[str]
+    zone: Required[str]
+    hours: Required[list["BusinessHours"]]
+    holidays: Required[list[str]]
+    version: Required[int]
+
+class BusinessCalendarList(TypedDict, total=False):
+    data: Required[list["BusinessCalendar"]]
+
+class BusinessCalendarDefine(TypedDict, total=False):
+    name: Required[str]
+    zone: Required[str]
+    hours: Required[list["BusinessHours"]]
+    holidays: list[str]
+
+class SlaGoal(TypedDict, total=False):
+    kind: Required[Literal["FIRST_RESPONSE", "RESOLUTION"]]
+    minutes: Required[int]
+    by_priority: dict[str, Any]
+    pause_statuses: list[str]
+    warn_percent: int
+
+class SlaPolicy(TypedDict, total=False):
+    """A promise of response and resolution times for entries of some types, on a business calendar."""
+    key: Required[str]
+    name: Required[str]
+    calendar: Required[str | None]
+    entry_types: Required[list[str]]
+    priority_field: Required[str | None]
+    goals: Required[list["SlaGoal"]]
+    position: Required[int]
+    enabled: Required[bool]
+    version: Required[int]
+
+class SlaPolicyList(TypedDict, total=False):
+    data: Required[list["SlaPolicy"]]
+
+class SlaPolicyDefine(TypedDict, total=False):
+    name: Required[str]
+    calendar: str
+    entry_types: Required[list[str]]
+    priority_field: str
+    goals: Required[list["SlaGoal"]]
+    position: int
+    enabled: bool
+
+class EntrySlaGoal(TypedDict, total=False):
+    goal: Required[Literal["FIRST_RESPONSE", "RESOLUTION"]]
+    policy_key: Required[str]
+    standing: Required[Literal["RUNNING", "PAUSED", "MET", "BREACHED"]]
+    target_seconds: Required[int]
+    armed_at: Required[str]
+    due_at: Required[str | None]
+    at_risk_at: Required[str | None]
+    met_at: Required[str | None]
+    breached_at: Required[str | None]
+
+class EntrySlaList(TypedDict, total=False):
+    data: Required[list["EntrySlaGoal"]]
+
+class SlaReport(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
+
 class LinkType(TypedDict, total=False):
     """A kind of relation between two entries: one of the six every workspace has, or one of its own. What it means is fixed once it is made."""
     key: Required[str]

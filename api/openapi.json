@@ -114,7 +114,7 @@
       "name": "whiteboards"
     },
     {
-      "name": "cmdb"
+      "name": "servicedesk"
     }
   ],
   "x-hubtask-cli-groups": {
@@ -126,9 +126,298 @@
     "page": "a hub's pages: write, find, move, version, comment on and export them",
     "whiteboard": "a hub's whiteboards: make, draw on, trash and export them",
     "cmdb": "the workspace's configuration item classes, relation types and sources, and a hub's inventory health",
-    "ci": "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact"
+    "ci": "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact",
+    "business-calendar": "the workspace's business calendars: working hours, holidays and a time zone under a key",
+    "sla": "the workspace's SLA policies, how an entry's goals stand, and how they stood in a period"
   },
   "paths": {
+    "/business-calendars": {
+      "get": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "listBusinessCalendars",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "business-calendar ls",
+        "summary": "The workspace's business calendars",
+        "description": "Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs a signed-in member of the workspace and the service desk switched on.\n",
+        "responses": {
+          "200": {
+            "description": "The calendars",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessCalendarList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/business-calendars/{calendarKey}": {
+      "parameters": [
+        {
+          "name": "calendarKey",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "defineBusinessCalendar",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "calendarKey": "key"
+        },
+        "x-hubtask-cli": "business-calendar define",
+        "summary": "Add or replace a business calendar",
+        "description": "Creates the calendar under the key, or replaces the one there. Working spans are ordered and disjoint within a day; a week needs at least one working minute. An SLA counts its targets in this calendar's working time; a clock already running keeps the calendar it was armed on. Needs STRUCTURE at the workspace.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessCalendarDefine"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The calendar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessCalendar"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "deleteBusinessCalendar",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "calendarKey": "key"
+        },
+        "x-hubtask-cli": "business-calendar rm",
+        "summary": "Delete an unused business calendar",
+        "description": "Deletes a calendar no SLA policy names; one in use is refused with `calendars.in_use`. Needs STRUCTURE at the workspace.\n",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/sla-policies": {
+      "get": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "listSlaPolicies",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "sla ls",
+        "summary": "The workspace's SLA policies",
+        "description": "Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs a signed-in member of the workspace.\n",
+        "responses": {
+          "200": {
+            "description": "The policies",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlaPolicyList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/sla-policies/{policyKey}": {
+      "parameters": [
+        {
+          "name": "policyKey",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "defineSlaPolicy",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "policyKey": "key"
+        },
+        "x-hubtask-cli": "sla define",
+        "summary": "Add or replace an SLA policy",
+        "description": "Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SlaPolicyDefine"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlaPolicy"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "deleteSlaPolicy",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "policyKey": "key"
+        },
+        "x-hubtask-cli": "sla rm",
+        "summary": "Delete an SLA policy",
+        "description": "Deletes the policy. The entries it measured keep the record of how their goals stood. Needs STRUCTURE at the workspace.\n",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/sla-report": {
+      "get": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "reportSla",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "sla report",
+        "summary": "How the SLA goals of a period stood",
+        "description": "Counts the goals armed in [from, to) - at most a year - per policy, goal and standing (met, breached, running, standing still). Names no entry. Needs STRUCTURE at the workspace.\n",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlaReport"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/items/{itemId}/sla": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ItemId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "readEntrySla",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "sla show",
+        "summary": "How an entry's SLA goals stand",
+        "description": "Per goal of the policy that measures the entry: its target in working seconds, whether it runs, stands still, was met or breached, when it falls due and when it was at risk. Empty when no policy measures the entry. Needs READ on the entry.\n",
+        "responses": {
+          "200": {
+            "description": "The goals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntrySlaList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/cmdb/classes": {
       "get": {
         "tags": [
@@ -26535,6 +26824,419 @@
             "description": "The roles that carry the permission asked about.",
             "items": {
               "$ref": "#/components/schemas/AccessSource"
+            }
+          }
+        }
+      },
+      "BusinessHours": {
+        "type": "object",
+        "required": [
+          "day",
+          "from",
+          "to"
+        ],
+        "properties": {
+          "day": {
+            "type": "string",
+            "enum": [
+              "MONDAY",
+              "TUESDAY",
+              "WEDNESDAY",
+              "THURSDAY",
+              "FRIDAY",
+              "SATURDAY",
+              "SUNDAY"
+            ]
+          },
+          "from": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-4]):[0-5][0-9]$",
+            "description": "Local time, HH:MM."
+          },
+          "to": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-4]):[0-5][0-9]$",
+            "description": "Local time, HH:MM; 24:00 ends the day."
+          }
+        }
+      },
+      "BusinessCalendar": {
+        "type": "object",
+        "description": "Working hours, holidays and a time zone under a key - what an SLA counts its targets in.",
+        "required": [
+          "key",
+          "name",
+          "zone",
+          "hours",
+          "holidays",
+          "version"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "zone": {
+            "type": "string",
+            "description": "An IANA time zone."
+          },
+          "hours": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BusinessHours"
+            }
+          },
+          "holidays": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Whole local days without working time."
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "BusinessCalendarList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BusinessCalendar"
+            }
+          }
+        }
+      },
+      "BusinessCalendarDefine": {
+        "type": "object",
+        "required": [
+          "name",
+          "zone",
+          "hours"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "zone": {
+            "type": "string",
+            "description": "An IANA time zone, e.g. Europe/Berlin."
+          },
+          "hours": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BusinessHours"
+            }
+          },
+          "holidays": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        }
+      },
+      "SlaGoal": {
+        "type": "object",
+        "required": [
+          "kind",
+          "minutes"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "FIRST_RESPONSE",
+              "RESOLUTION"
+            ],
+            "description": "FIRST_RESPONSE is met by a comment of somebody other than who raised the entry, or by its completion; RESOLUTION by the completion."
+          },
+          "minutes": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "The target in working minutes."
+          },
+          "by_priority": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Targets per option of the policy's priority field; an option without one takes minutes."
+          },
+          "pause_statuses": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,49}$"
+            },
+            "description": "Workflow status keys in which the goal's clock stands still."
+          },
+          "warn_percent": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 99,
+            "description": "The share of the target after which the goal is at risk; 0 announces none."
+          }
+        }
+      },
+      "SlaPolicy": {
+        "type": "object",
+        "description": "A promise of response and resolution times for entries of some types, on a business calendar.",
+        "required": [
+          "key",
+          "name",
+          "calendar",
+          "entry_types",
+          "priority_field",
+          "goals",
+          "position",
+          "enabled",
+          "version"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "calendar": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A business calendar's key; null counts around the clock."
+          },
+          "entry_types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "priority_field": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The custom field whose option value picks a goal's target."
+          },
+          "goals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SlaGoal"
+            }
+          },
+          "position": {
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "SlaPolicyList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SlaPolicy"
+            }
+          }
+        }
+      },
+      "SlaPolicyDefine": {
+        "type": "object",
+        "required": [
+          "name",
+          "entry_types",
+          "goals"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "calendar": {
+            "type": "string",
+            "description": "A business calendar's key; absent counts around the clock."
+          },
+          "entry_types": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": {
+              "type": "string"
+            }
+          },
+          "priority_field": {
+            "type": "string"
+          },
+          "goals": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 2,
+            "items": {
+              "$ref": "#/components/schemas/SlaGoal"
+            }
+          },
+          "position": {
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "True when absent."
+          }
+        }
+      },
+      "EntrySlaGoal": {
+        "type": "object",
+        "required": [
+          "goal",
+          "policy_key",
+          "standing",
+          "target_seconds",
+          "armed_at",
+          "due_at",
+          "at_risk_at",
+          "met_at",
+          "breached_at"
+        ],
+        "properties": {
+          "goal": {
+            "type": "string",
+            "enum": [
+              "FIRST_RESPONSE",
+              "RESOLUTION"
+            ]
+          },
+          "policy_key": {
+            "type": "string"
+          },
+          "standing": {
+            "type": "string",
+            "enum": [
+              "RUNNING",
+              "PAUSED",
+              "MET",
+              "BREACHED"
+            ]
+          },
+          "target_seconds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "armed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "due_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the goal falls due; null while its clock stands still or once it ended."
+          },
+          "at_risk_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "met_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "breached_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "EntrySlaList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntrySlaGoal"
+            }
+          }
+        }
+      },
+      "SlaReport": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "policy_key",
+                "goal",
+                "standing",
+                "entries"
+              ],
+              "properties": {
+                "policy_key": {
+                  "type": "string"
+                },
+                "goal": {
+                  "type": "string",
+                  "enum": [
+                    "FIRST_RESPONSE",
+                    "RESOLUTION"
+                  ]
+                },
+                "standing": {
+                  "type": "string",
+                  "enum": [
+                    "RUNNING",
+                    "PAUSED",
+                    "MET",
+                    "BREACHED"
+                  ]
+                },
+                "entries": {
+                  "type": "integer"
+                }
+              }
             }
           }
         }

@@ -1320,6 +1320,39 @@ func (e BulkOperationOp) Valid() bool {
 	}
 }
 
+// Defines values for BusinessHoursDay.
+const (
+	BusinessHoursDayFRIDAY    BusinessHoursDay = "FRIDAY"
+	BusinessHoursDayMONDAY    BusinessHoursDay = "MONDAY"
+	BusinessHoursDaySATURDAY  BusinessHoursDay = "SATURDAY"
+	BusinessHoursDaySUNDAY    BusinessHoursDay = "SUNDAY"
+	BusinessHoursDayTHURSDAY  BusinessHoursDay = "THURSDAY"
+	BusinessHoursDayTUESDAY   BusinessHoursDay = "TUESDAY"
+	BusinessHoursDayWEDNESDAY BusinessHoursDay = "WEDNESDAY"
+)
+
+// Valid indicates whether the value is a known member of the BusinessHoursDay enum.
+func (e BusinessHoursDay) Valid() bool {
+	switch e {
+	case BusinessHoursDayFRIDAY:
+		return true
+	case BusinessHoursDayMONDAY:
+		return true
+	case BusinessHoursDaySATURDAY:
+		return true
+	case BusinessHoursDaySUNDAY:
+		return true
+	case BusinessHoursDayTHURSDAY:
+		return true
+	case BusinessHoursDayTUESDAY:
+		return true
+	case BusinessHoursDayWEDNESDAY:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CapabilitiesSupportedLocalesDirection.
 const (
 	Ltr CapabilitiesSupportedLocalesDirection = "ltr"
@@ -2982,6 +3015,48 @@ func (e EntryLinksLinksWaits) Valid() bool {
 	case EntryLinksLinksWaitsSOURCE:
 		return true
 	case EntryLinksLinksWaitsTARGET:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EntrySlaGoalGoal.
+const (
+	EntrySlaGoalGoalFIRSTRESPONSE EntrySlaGoalGoal = "FIRST_RESPONSE"
+	EntrySlaGoalGoalRESOLUTION    EntrySlaGoalGoal = "RESOLUTION"
+)
+
+// Valid indicates whether the value is a known member of the EntrySlaGoalGoal enum.
+func (e EntrySlaGoalGoal) Valid() bool {
+	switch e {
+	case EntrySlaGoalGoalFIRSTRESPONSE:
+		return true
+	case EntrySlaGoalGoalRESOLUTION:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EntrySlaGoalStanding.
+const (
+	EntrySlaGoalStandingBREACHED EntrySlaGoalStanding = "BREACHED"
+	EntrySlaGoalStandingMET      EntrySlaGoalStanding = "MET"
+	EntrySlaGoalStandingPAUSED   EntrySlaGoalStanding = "PAUSED"
+	EntrySlaGoalStandingRUNNING  EntrySlaGoalStanding = "RUNNING"
+)
+
+// Valid indicates whether the value is a known member of the EntrySlaGoalStanding enum.
+func (e EntrySlaGoalStanding) Valid() bool {
+	switch e {
+	case EntrySlaGoalStandingBREACHED:
+		return true
+	case EntrySlaGoalStandingMET:
+		return true
+	case EntrySlaGoalStandingPAUSED:
+		return true
+	case EntrySlaGoalStandingRUNNING:
 		return true
 	default:
 		return false
@@ -6300,6 +6375,66 @@ func (e SignInPolicyChangeRotationFrom) Valid() bool {
 	}
 }
 
+// Defines values for SlaGoalKind.
+const (
+	SlaGoalKindFIRSTRESPONSE SlaGoalKind = "FIRST_RESPONSE"
+	SlaGoalKindRESOLUTION    SlaGoalKind = "RESOLUTION"
+)
+
+// Valid indicates whether the value is a known member of the SlaGoalKind enum.
+func (e SlaGoalKind) Valid() bool {
+	switch e {
+	case SlaGoalKindFIRSTRESPONSE:
+		return true
+	case SlaGoalKindRESOLUTION:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SlaReportDataGoal.
+const (
+	SlaReportDataGoalFIRSTRESPONSE SlaReportDataGoal = "FIRST_RESPONSE"
+	SlaReportDataGoalRESOLUTION    SlaReportDataGoal = "RESOLUTION"
+)
+
+// Valid indicates whether the value is a known member of the SlaReportDataGoal enum.
+func (e SlaReportDataGoal) Valid() bool {
+	switch e {
+	case SlaReportDataGoalFIRSTRESPONSE:
+		return true
+	case SlaReportDataGoalRESOLUTION:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SlaReportDataStanding.
+const (
+	SlaReportDataStandingBREACHED SlaReportDataStanding = "BREACHED"
+	SlaReportDataStandingMET      SlaReportDataStanding = "MET"
+	SlaReportDataStandingPAUSED   SlaReportDataStanding = "PAUSED"
+	SlaReportDataStandingRUNNING  SlaReportDataStanding = "RUNNING"
+)
+
+// Valid indicates whether the value is a known member of the SlaReportDataStanding enum.
+func (e SlaReportDataStanding) Valid() bool {
+	switch e {
+	case SlaReportDataStandingBREACHED:
+		return true
+	case SlaReportDataStandingMET:
+		return true
+	case SlaReportDataStandingPAUSED:
+		return true
+	case SlaReportDataStandingRUNNING:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SortTermDir.
 const (
 	ASC  SortTermDir = "ASC"
@@ -9204,6 +9339,48 @@ type BulkResult struct {
 	Status int `json:"status"`
 }
 
+// BusinessCalendar Working hours, holidays and a time zone under a key - what an SLA counts its targets in.
+type BusinessCalendar struct {
+	// Holidays Whole local days without working time.
+	Holidays []openapi_types.Date `json:"holidays"`
+	Hours    []BusinessHours      `json:"hours"`
+	Key      string               `json:"key"`
+	Name     string               `json:"name"`
+	Version  int                  `json:"version"`
+
+	// Zone An IANA time zone.
+	Zone string `json:"zone"`
+}
+
+// BusinessCalendarDefine defines model for BusinessCalendarDefine.
+type BusinessCalendarDefine struct {
+	Holidays *[]openapi_types.Date `json:"holidays,omitempty"`
+	Hours    []BusinessHours       `json:"hours"`
+	Name     string                `json:"name"`
+
+	// Zone An IANA time zone, e.g. Europe/Berlin.
+	Zone string `json:"zone"`
+}
+
+// BusinessCalendarList defines model for BusinessCalendarList.
+type BusinessCalendarList struct {
+	Data []BusinessCalendar `json:"data"`
+}
+
+// BusinessHours defines model for BusinessHours.
+type BusinessHours struct {
+	Day BusinessHoursDay `json:"day"`
+
+	// From Local time, HH:MM.
+	From string `json:"from"`
+
+	// To Local time, HH:MM; 24:00 ends the day.
+	To string `json:"to"`
+}
+
+// BusinessHoursDay defines model for BusinessHours.Day.
+type BusinessHoursDay string
+
 // CalendarFeed One subscription: a token its owner holds, over one saved view, revocable. The token itself is not a member - it exists in the answer to the call that minted it and nowhere else afterwards.
 type CalendarFeed struct {
 	// AccountId The owner, whose authorisation the feed reads with at every fetch.
@@ -11384,6 +11561,32 @@ type EntryLinksBacklinksSourceKind string
 
 // EntryLinksLinksWaits Which end waits for the other, by the link's type.
 type EntryLinksLinksWaits string
+
+// EntrySlaGoal defines model for EntrySlaGoal.
+type EntrySlaGoal struct {
+	ArmedAt    time.Time  `json:"armed_at"`
+	AtRiskAt   *time.Time `json:"at_risk_at"`
+	BreachedAt *time.Time `json:"breached_at"`
+
+	// DueAt When the goal falls due; null while its clock stands still or once it ended.
+	DueAt         *time.Time           `json:"due_at"`
+	Goal          EntrySlaGoalGoal     `json:"goal"`
+	MetAt         *time.Time           `json:"met_at"`
+	PolicyKey     string               `json:"policy_key"`
+	Standing      EntrySlaGoalStanding `json:"standing"`
+	TargetSeconds int64                `json:"target_seconds"`
+}
+
+// EntrySlaGoalGoal defines model for EntrySlaGoal.Goal.
+type EntrySlaGoalGoal string
+
+// EntrySlaGoalStanding defines model for EntrySlaGoal.Standing.
+type EntrySlaGoalStanding string
+
+// EntrySlaList defines model for EntrySlaList.
+type EntrySlaList struct {
+	Data []EntrySlaGoal `json:"data"`
+}
 
 // EntrySteps defines model for EntrySteps.
 type EntrySteps struct {
@@ -16100,6 +16303,78 @@ type SignInRules struct {
 	WorkspaceHost string `json:"workspace_host"`
 }
 
+// SlaGoal defines model for SlaGoal.
+type SlaGoal struct {
+	// ByPriority Targets per option of the policy's priority field; an option without one takes minutes.
+	ByPriority *map[string]int `json:"by_priority,omitempty"`
+
+	// Kind FIRST_RESPONSE is met by a comment of somebody other than who raised the entry, or by its completion; RESOLUTION by the completion.
+	Kind SlaGoalKind `json:"kind"`
+
+	// Minutes The target in working minutes.
+	Minutes int `json:"minutes"`
+
+	// PauseStatuses Workflow status keys in which the goal's clock stands still.
+	PauseStatuses *[]string `json:"pause_statuses,omitempty"`
+
+	// WarnPercent The share of the target after which the goal is at risk; 0 announces none.
+	WarnPercent *int `json:"warn_percent,omitempty"`
+}
+
+// SlaGoalKind FIRST_RESPONSE is met by a comment of somebody other than who raised the entry, or by its completion; RESOLUTION by the completion.
+type SlaGoalKind string
+
+// SlaPolicy A promise of response and resolution times for entries of some types, on a business calendar.
+type SlaPolicy struct {
+	// Calendar A business calendar's key; null counts around the clock.
+	Calendar   *string   `json:"calendar"`
+	Enabled    bool      `json:"enabled"`
+	EntryTypes []string  `json:"entry_types"`
+	Goals      []SlaGoal `json:"goals"`
+	Key        string    `json:"key"`
+	Name       string    `json:"name"`
+	Position   int       `json:"position"`
+
+	// PriorityField The custom field whose option value picks a goal's target.
+	PriorityField *string `json:"priority_field"`
+	Version       int     `json:"version"`
+}
+
+// SlaPolicyDefine defines model for SlaPolicyDefine.
+type SlaPolicyDefine struct {
+	// Calendar A business calendar's key; absent counts around the clock.
+	Calendar *string `json:"calendar,omitempty"`
+
+	// Enabled True when absent.
+	Enabled       *bool     `json:"enabled,omitempty"`
+	EntryTypes    []string  `json:"entry_types"`
+	Goals         []SlaGoal `json:"goals"`
+	Name          string    `json:"name"`
+	Position      *int      `json:"position,omitempty"`
+	PriorityField *string   `json:"priority_field,omitempty"`
+}
+
+// SlaPolicyList defines model for SlaPolicyList.
+type SlaPolicyList struct {
+	Data []SlaPolicy `json:"data"`
+}
+
+// SlaReport defines model for SlaReport.
+type SlaReport struct {
+	Data []struct {
+		Entries   int                   `json:"entries"`
+		Goal      SlaReportDataGoal     `json:"goal"`
+		PolicyKey string                `json:"policy_key"`
+		Standing  SlaReportDataStanding `json:"standing"`
+	} `json:"data"`
+}
+
+// SlaReportDataGoal defines model for SlaReport.Data.Goal.
+type SlaReportDataGoal string
+
+// SlaReportDataStanding defines model for SlaReport.Data.Standing.
+type SlaReportDataStanding string
+
 // SortTerm One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by. A custom field (`custom_fields.<key>`) sorts by its typed value - numbers, amounts and durations as numbers, dates as days, text by its first 256 characters; a field holding several values, a person, a reference or formatted text is not sortable.
 type SortTerm struct {
 	Dir   *SortTermDir   `json:"dir,omitempty"`
@@ -18538,6 +18813,12 @@ type ListBackupsAtTargetParams struct {
 	Refresh *bool `form:"refresh,omitempty" json:"refresh,omitempty"`
 }
 
+// DefineBusinessCalendarParams defines parameters for DefineBusinessCalendar.
+type DefineBusinessCalendarParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // UpdateCiParams defines parameters for UpdateCi.
 type UpdateCiParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -19624,6 +19905,18 @@ type ChangeRoleParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// DefineSlaPolicyParams defines parameters for DefineSlaPolicy.
+type DefineSlaPolicyParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ReportSlaParams defines parameters for ReportSla.
+type ReportSlaParams struct {
+	From time.Time `form:"from" json:"from"`
+	To   time.Time `form:"to" json:"to"`
+}
+
 // StreamChangesParams defines parameters for StreamChanges.
 type StreamChangesParams struct {
 	// LastEventID The cursor to resume from, as the stream last sent it. Absent means "from now": a client with no cursor is starting fresh and should pull rather than ask the stream for history.
@@ -20051,6 +20344,9 @@ type CreateBackupTargetJSONRequestBody = BackupTargetCreate
 // StartBackupJSONRequestBody defines body for StartBackup for application/json ContentType.
 type StartBackupJSONRequestBody = BackupStart
 
+// DefineBusinessCalendarJSONRequestBody defines body for DefineBusinessCalendar for application/json ContentType.
+type DefineBusinessCalendarJSONRequestBody = BusinessCalendarDefine
+
 // ResolveCiDuplicateJSONRequestBody defines body for ResolveCiDuplicate for application/json ContentType.
 type ResolveCiDuplicateJSONRequestBody = CiDuplicateResolve
 
@@ -20449,6 +20745,9 @@ type ChangeRoleApplicationMergePatchPlusJSONRequestBody = CustomRoleChange
 
 // SearchItemsJSONRequestBody defines body for SearchItems for application/json ContentType.
 type SearchItemsJSONRequestBody = ItemSearchQuery
+
+// DefineSlaPolicyJSONRequestBody defines body for DefineSlaPolicy for application/json ContentType.
+type DefineSlaPolicyJSONRequestBody = SlaPolicyDefine
 
 // AcceptSuggestionJSONRequestBody defines body for AcceptSuggestion for application/json ContentType.
 type AcceptSuggestionJSONRequestBody = SuggestionAcceptance
@@ -23266,6 +23565,38 @@ type ClientInterface interface {
 	// Corresponds with POST /backups/{backupId}:verify (the `VerifyBackup` operationId).
 	VerifyBackup(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListBusinessCalendars The workspace's business calendars
+	//
+	// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs a signed-in member of the workspace and the service desk switched on.
+	//
+	// Corresponds with GET /business-calendars (the `ListBusinessCalendars` operationId).
+	ListBusinessCalendars(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteBusinessCalendar Delete an unused business calendar
+	//
+	// Deletes a calendar no SLA policy names; one in use is refused with `calendars.in_use`. Needs STRUCTURE at the workspace.
+	//
+	// Corresponds with DELETE /business-calendars/{calendarKey} (the `DeleteBusinessCalendar` operationId).
+	DeleteBusinessCalendar(ctx context.Context, calendarKey string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineBusinessCalendarWithBody Add or replace a business calendar
+	//
+	// Creates the calendar under the key, or replaces the one there. Working spans are ordered and disjoint within a day; a week needs at least one working minute. An SLA counts its targets in this calendar's working time; a clock already running keeps the calendar it was armed on. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /business-calendars/{calendarKey} (the `DefineBusinessCalendar` operationId).
+	DefineBusinessCalendarWithBody(ctx context.Context, calendarKey string, params *DefineBusinessCalendarParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineBusinessCalendar Add or replace a business calendar
+	//
+	// Creates the calendar under the key, or replaces the one there. Working spans are ordered and disjoint within a day; a week needs at least one working minute. An SLA counts its targets in this calendar's working time; a clock already running keeps the calendar it was armed on. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /business-calendars/{calendarKey} (the `DefineBusinessCalendar` operationId).
+	DefineBusinessCalendar(ctx context.Context, calendarKey string, params *DefineBusinessCalendarParams, body DefineBusinessCalendarJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetCalendarFeedDocument performs a GET /calendar/{token}.ics (the `GetCalendarFeedDocument` operationId) request.
 	//
 	// The calendar, as RFC 5545. Gregorian whatever the subscriber's display calendar, with an all-day due date as a VALUE=DATE entry and a timed one carrying its own zone so that it stays put across a daylight saving transition.
@@ -25007,6 +25338,13 @@ type ClientInterface interface {
 	//
 	// Changes a reminder. A merge patch: a field that is not sent is not touched, and each field that moves is its own change log entry, so two devices editing the offset and the channels converge to both. Recipients and channels are chosen whole - the list sent replaces the list stored.
 	UpdateReminderWithApplicationMergePatchPlusJSONBody(ctx context.Context, itemId ItemId, reminderId ReminderId, params *UpdateReminderParams, body UpdateReminderApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadEntrySla How an entry's SLA goals stand
+	//
+	// Per goal of the policy that measures the entry: its target in working seconds, whether it runs, stands still, was met or breached, when it falls due and when it was at risk. Empty when no policy measures the entry. Needs READ on the entry.
+	//
+	// Corresponds with GET /items/{itemId}/sla (the `ReadEntrySla` operationId).
+	ReadEntrySla(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListEntrySteps The entry's status and the steps the person may take
 	//
@@ -26908,6 +27246,45 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /settings/catalogue (the `ReadSettingsCatalogue` operationId).
 	ReadSettingsCatalogue(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListSlaPolicies The workspace's SLA policies
+	//
+	// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs a signed-in member of the workspace.
+	//
+	// Corresponds with GET /sla-policies (the `ListSlaPolicies` operationId).
+	ListSlaPolicies(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteSlaPolicy Delete an SLA policy
+	//
+	// Deletes the policy. The entries it measured keep the record of how their goals stood. Needs STRUCTURE at the workspace.
+	//
+	// Corresponds with DELETE /sla-policies/{policyKey} (the `DeleteSlaPolicy` operationId).
+	DeleteSlaPolicy(ctx context.Context, policyKey string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineSlaPolicyWithBody Add or replace an SLA policy
+	//
+	// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /sla-policies/{policyKey} (the `DefineSlaPolicy` operationId).
+	DefineSlaPolicyWithBody(ctx context.Context, policyKey string, params *DefineSlaPolicyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineSlaPolicy Add or replace an SLA policy
+	//
+	// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /sla-policies/{policyKey} (the `DefineSlaPolicy` operationId).
+	DefineSlaPolicy(ctx context.Context, policyKey string, params *DefineSlaPolicyParams, body DefineSlaPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReportSla How the SLA goals of a period stood
+	//
+	// Counts the goals armed in [from, to) - at most a year - per policy, goal and standing (met, breached, running, standing still). Names no entry. Needs STRUCTURE at the workspace.
+	//
+	// Corresponds with GET /sla-report (the `ReportSla` operationId).
+	ReportSla(ctx context.Context, params *ReportSlaParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StreamChanges The change stream, as server-sent events
 	//
@@ -32829,6 +33206,78 @@ func (c *Client) VerifyBackup(ctx context.Context, backupId openapi_types.UUID, 
 	return c.Client.Do(req)
 }
 
+// ListBusinessCalendars The workspace's business calendars
+//
+// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs a signed-in member of the workspace and the service desk switched on.
+//
+// Corresponds with GET /business-calendars (the `ListBusinessCalendars` operationId).
+func (c *Client) ListBusinessCalendars(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListBusinessCalendarsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteBusinessCalendar Delete an unused business calendar
+//
+// Deletes a calendar no SLA policy names; one in use is refused with `calendars.in_use`. Needs STRUCTURE at the workspace.
+//
+// Corresponds with DELETE /business-calendars/{calendarKey} (the `DeleteBusinessCalendar` operationId).
+func (c *Client) DeleteBusinessCalendar(ctx context.Context, calendarKey string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteBusinessCalendarRequest(c.Server, calendarKey)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineBusinessCalendarWithBody Add or replace a business calendar
+//
+// Creates the calendar under the key, or replaces the one there. Working spans are ordered and disjoint within a day; a week needs at least one working minute. An SLA counts its targets in this calendar's working time; a clock already running keeps the calendar it was armed on. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /business-calendars/{calendarKey} (the `DefineBusinessCalendar` operationId).
+func (c *Client) DefineBusinessCalendarWithBody(ctx context.Context, calendarKey string, params *DefineBusinessCalendarParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineBusinessCalendarRequestWithBody(c.Server, calendarKey, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineBusinessCalendar Add or replace a business calendar
+//
+// Creates the calendar under the key, or replaces the one there. Working spans are ordered and disjoint within a day; a week needs at least one working minute. An SLA counts its targets in this calendar's working time; a clock already running keeps the calendar it was armed on. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /business-calendars/{calendarKey} (the `DefineBusinessCalendar` operationId).
+func (c *Client) DefineBusinessCalendar(ctx context.Context, calendarKey string, params *DefineBusinessCalendarParams, body DefineBusinessCalendarJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineBusinessCalendarRequest(c.Server, calendarKey, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // GetCalendarFeedDocument performs a GET /calendar/{token}.ics (the `GetCalendarFeedDocument` operationId) request.
 //
 // The calendar, as RFC 5545. Gregorian whatever the subscriber's display calendar, with an all-day due date as a VALUE=DATE entry and a timed one carrying its own zone so that it stays put across a daylight saving transition.
@@ -36861,6 +37310,23 @@ func (c *Client) UpdateReminderWithApplicationMergePatchPlusJSONBody(ctx context
 	return c.Client.Do(req)
 }
 
+// ReadEntrySla How an entry's SLA goals stand
+//
+// Per goal of the policy that measures the entry: its target in working seconds, whether it runs, stands still, was met or breached, when it falls due and when it was at risk. Empty when no policy measures the entry. Needs READ on the entry.
+//
+// Corresponds with GET /items/{itemId}/sla (the `ReadEntrySla` operationId).
+func (c *Client) ReadEntrySla(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadEntrySlaRequest(c.Server, itemId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListEntrySteps The entry's status and the steps the person may take
 //
 // The workflow the entry's collection runs for its type, the entry's status, and the steps the person may take from it, each with what it asks for, what it still needs and whether its checks hold. `workflow` is null where none runs; a reader gets no steps.
@@ -40662,6 +41128,95 @@ func (c *Client) ReindexSearch(ctx context.Context, reqEditors ...RequestEditorF
 // Corresponds with GET /settings/catalogue (the `ReadSettingsCatalogue` operationId).
 func (c *Client) ReadSettingsCatalogue(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadSettingsCatalogueRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListSlaPolicies The workspace's SLA policies
+//
+// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs a signed-in member of the workspace.
+//
+// Corresponds with GET /sla-policies (the `ListSlaPolicies` operationId).
+func (c *Client) ListSlaPolicies(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSlaPoliciesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteSlaPolicy Delete an SLA policy
+//
+// Deletes the policy. The entries it measured keep the record of how their goals stood. Needs STRUCTURE at the workspace.
+//
+// Corresponds with DELETE /sla-policies/{policyKey} (the `DeleteSlaPolicy` operationId).
+func (c *Client) DeleteSlaPolicy(ctx context.Context, policyKey string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteSlaPolicyRequest(c.Server, policyKey)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineSlaPolicyWithBody Add or replace an SLA policy
+//
+// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /sla-policies/{policyKey} (the `DefineSlaPolicy` operationId).
+func (c *Client) DefineSlaPolicyWithBody(ctx context.Context, policyKey string, params *DefineSlaPolicyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineSlaPolicyRequestWithBody(c.Server, policyKey, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineSlaPolicy Add or replace an SLA policy
+//
+// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /sla-policies/{policyKey} (the `DefineSlaPolicy` operationId).
+func (c *Client) DefineSlaPolicy(ctx context.Context, policyKey string, params *DefineSlaPolicyParams, body DefineSlaPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineSlaPolicyRequest(c.Server, policyKey, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReportSla How the SLA goals of a period stood
+//
+// Counts the goals armed in [from, to) - at most a year - per policy, goal and standing (met, breached, running, standing still). Names no entry. Needs STRUCTURE at the workspace.
+//
+// Corresponds with GET /sla-report (the `ReportSla` operationId).
+func (c *Client) ReportSla(ctx context.Context, params *ReportSlaParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReportSlaRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -49674,6 +50229,129 @@ func NewVerifyBackupRequest(server string, backupId openapi_types.UUID) (*http.R
 	return req, nil
 }
 
+// NewListBusinessCalendarsRequest constructs an http.Request for the ListBusinessCalendars method
+func NewListBusinessCalendarsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/business-calendars")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteBusinessCalendarRequest constructs an http.Request for the DeleteBusinessCalendar method
+func NewDeleteBusinessCalendarRequest(server string, calendarKey string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "calendarKey", calendarKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/business-calendars/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDefineBusinessCalendarRequest calls the generic DefineBusinessCalendar builder with application/json body
+func NewDefineBusinessCalendarRequest(server string, calendarKey string, params *DefineBusinessCalendarParams, body DefineBusinessCalendarJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDefineBusinessCalendarRequestWithBody(server, calendarKey, params, "application/json", bodyReader)
+}
+
+// NewDefineBusinessCalendarRequestWithBody constructs an http.Request for the DefineBusinessCalendar method, with any body, and a specified content type
+func NewDefineBusinessCalendarRequestWithBody(server string, calendarKey string, params *DefineBusinessCalendarParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "calendarKey", calendarKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/business-calendars/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewGetCalendarFeedDocumentRequest constructs an http.Request for the GetCalendarFeedDocument method
 func NewGetCalendarFeedDocumentRequest(server string, token string) (*http.Request, error) {
 	var err error
@@ -57772,6 +58450,40 @@ func NewUpdateReminderRequestWithBody(server string, itemId ItemId, reminderId R
 	return req, nil
 }
 
+// NewReadEntrySlaRequest constructs an http.Request for the ReadEntrySla method
+func NewReadEntrySlaRequest(server string, itemId ItemId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/sla", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListEntryStepsRequest constructs an http.Request for the ListEntrySteps method
 func NewListEntryStepsRequest(server string, itemId ItemId) (*http.Request, error) {
 	var err error
@@ -63943,6 +64655,187 @@ func NewReadSettingsCatalogueRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewListSlaPoliciesRequest constructs an http.Request for the ListSlaPolicies method
+func NewListSlaPoliciesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sla-policies")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteSlaPolicyRequest constructs an http.Request for the DeleteSlaPolicy method
+func NewDeleteSlaPolicyRequest(server string, policyKey string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "policyKey", policyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sla-policies/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDefineSlaPolicyRequest calls the generic DefineSlaPolicy builder with application/json body
+func NewDefineSlaPolicyRequest(server string, policyKey string, params *DefineSlaPolicyParams, body DefineSlaPolicyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDefineSlaPolicyRequestWithBody(server, policyKey, params, "application/json", bodyReader)
+}
+
+// NewDefineSlaPolicyRequestWithBody constructs an http.Request for the DefineSlaPolicy method, with any body, and a specified content type
+func NewDefineSlaPolicyRequestWithBody(server string, policyKey string, params *DefineSlaPolicyParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "policyKey", policyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sla-policies/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewReportSlaRequest constructs an http.Request for the ReportSla method
+func NewReportSlaRequest(server string, params *ReportSlaParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sla-report")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "from", params.From, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date-time"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "to", params.To, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date-time"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewStreamChangesRequest constructs an http.Request for the StreamChanges method
 func NewStreamChangesRequest(server string, params *StreamChangesParams) (*http.Request, error) {
 	var err error
@@ -69629,6 +70522,42 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /backups/{backupId}:verify (the `VerifyBackup` operationId).
 	VerifyBackupWithResponse(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*VerifyBackupResult, error)
 
+	// ListBusinessCalendarsWithResponse The workspace's business calendars
+	//
+	// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs a signed-in member of the workspace and the service desk switched on.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /business-calendars (the `ListBusinessCalendars` operationId).
+	ListBusinessCalendarsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListBusinessCalendarsResult, error)
+
+	// DeleteBusinessCalendarWithResponse Delete an unused business calendar
+	//
+	// Deletes a calendar no SLA policy names; one in use is refused with `calendars.in_use`. Needs STRUCTURE at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /business-calendars/{calendarKey} (the `DeleteBusinessCalendar` operationId).
+	DeleteBusinessCalendarWithResponse(ctx context.Context, calendarKey string, reqEditors ...RequestEditorFn) (*DeleteBusinessCalendarResult, error)
+
+	// DefineBusinessCalendarWithBodyWithResponse Add or replace a business calendar
+	//
+	// Creates the calendar under the key, or replaces the one there. Working spans are ordered and disjoint within a day; a week needs at least one working minute. An SLA counts its targets in this calendar's working time; a clock already running keeps the calendar it was armed on. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /business-calendars/{calendarKey} (the `DefineBusinessCalendar` operationId).
+	DefineBusinessCalendarWithBodyWithResponse(ctx context.Context, calendarKey string, params *DefineBusinessCalendarParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineBusinessCalendarResult, error)
+
+	// DefineBusinessCalendarWithResponse Add or replace a business calendar
+	//
+	// Creates the calendar under the key, or replaces the one there. Working spans are ordered and disjoint within a day; a week needs at least one working minute. An SLA counts its targets in this calendar's working time; a clock already running keeps the calendar it was armed on. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /business-calendars/{calendarKey} (the `DefineBusinessCalendar` operationId).
+	DefineBusinessCalendarWithResponse(ctx context.Context, calendarKey string, params *DefineBusinessCalendarParams, body DefineBusinessCalendarJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineBusinessCalendarResult, error)
+
 	// GetCalendarFeedDocumentWithResponse performs a GET /calendar/{token}.ics (the `GetCalendarFeedDocument` operationId) request.
 	//
 	// The calendar, as RFC 5545. Gregorian whatever the subscriber's display calendar, with an all-day due date as a VALUE=DATE entry and a timed one carrying its own zone so that it stays put across a daylight saving transition.
@@ -71588,6 +72517,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Changes a reminder. A merge patch: a field that is not sent is not touched, and each field that moves is its own change log entry, so two devices editing the offset and the channels converge to both. Recipients and channels are chosen whole - the list sent replaces the list stored.
 	UpdateReminderWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, itemId ItemId, reminderId ReminderId, params *UpdateReminderParams, body UpdateReminderApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateReminderResult, error)
+
+	// ReadEntrySlaWithResponse How an entry's SLA goals stand
+	//
+	// Per goal of the policy that measures the entry: its target in working seconds, whether it runs, stands still, was met or breached, when it falls due and when it was at risk. Empty when no policy measures the entry. Needs READ on the entry.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /items/{itemId}/sla (the `ReadEntrySla` operationId).
+	ReadEntrySlaWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ReadEntrySlaResult, error)
 
 	// ListEntryStepsWithResponse The entry's status and the steps the person may take
 	//
@@ -73647,6 +74585,51 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /settings/catalogue (the `ReadSettingsCatalogue` operationId).
 	ReadSettingsCatalogueWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadSettingsCatalogueResult, error)
+
+	// ListSlaPoliciesWithResponse The workspace's SLA policies
+	//
+	// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs a signed-in member of the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /sla-policies (the `ListSlaPolicies` operationId).
+	ListSlaPoliciesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListSlaPoliciesResult, error)
+
+	// DeleteSlaPolicyWithResponse Delete an SLA policy
+	//
+	// Deletes the policy. The entries it measured keep the record of how their goals stood. Needs STRUCTURE at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /sla-policies/{policyKey} (the `DeleteSlaPolicy` operationId).
+	DeleteSlaPolicyWithResponse(ctx context.Context, policyKey string, reqEditors ...RequestEditorFn) (*DeleteSlaPolicyResult, error)
+
+	// DefineSlaPolicyWithBodyWithResponse Add or replace an SLA policy
+	//
+	// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /sla-policies/{policyKey} (the `DefineSlaPolicy` operationId).
+	DefineSlaPolicyWithBodyWithResponse(ctx context.Context, policyKey string, params *DefineSlaPolicyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineSlaPolicyResult, error)
+
+	// DefineSlaPolicyWithResponse Add or replace an SLA policy
+	//
+	// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /sla-policies/{policyKey} (the `DefineSlaPolicy` operationId).
+	DefineSlaPolicyWithResponse(ctx context.Context, policyKey string, params *DefineSlaPolicyParams, body DefineSlaPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineSlaPolicyResult, error)
+
+	// ReportSlaWithResponse How the SLA goals of a period stood
+	//
+	// Counts the goals armed in [from, to) - at most a year - per policy, goal and standing (met, breached, running, standing still). Names no entry. Needs STRUCTURE at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /sla-report (the `ReportSla` operationId).
+	ReportSlaWithResponse(ctx context.Context, params *ReportSlaParams, reqEditors ...RequestEditorFn) (*ReportSlaResult, error)
 
 	// StreamChangesWithResponse The change stream, as server-sent events
 	//
@@ -82546,6 +83529,143 @@ func (r VerifyBackupResult) ContentType() string {
 	return ""
 }
 
+type ListBusinessCalendarsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *BusinessCalendarList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListBusinessCalendarsResult) GetJSON200() *BusinessCalendarList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListBusinessCalendarsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListBusinessCalendarsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListBusinessCalendarsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListBusinessCalendarsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListBusinessCalendarsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteBusinessCalendarResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteBusinessCalendarResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteBusinessCalendarResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteBusinessCalendarResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteBusinessCalendarResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteBusinessCalendarResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DefineBusinessCalendarResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *BusinessCalendar
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DefineBusinessCalendarResult) GetJSON200() *BusinessCalendar {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DefineBusinessCalendarResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DefineBusinessCalendarResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DefineBusinessCalendarResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DefineBusinessCalendarResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DefineBusinessCalendarResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetCalendarFeedDocumentResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -90230,6 +91350,54 @@ func (r UpdateReminderResult) ContentType() string {
 	return ""
 }
 
+type ReadEntrySlaResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *EntrySlaList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadEntrySlaResult) GetJSON200() *EntrySlaList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadEntrySlaResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadEntrySlaResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadEntrySlaResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadEntrySlaResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadEntrySlaResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListEntryStepsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -96729,6 +97897,191 @@ func (r ReadSettingsCatalogueResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReadSettingsCatalogueResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListSlaPoliciesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SlaPolicyList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListSlaPoliciesResult) GetJSON200() *SlaPolicyList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListSlaPoliciesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListSlaPoliciesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSlaPoliciesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSlaPoliciesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListSlaPoliciesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteSlaPolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteSlaPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteSlaPolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteSlaPolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteSlaPolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteSlaPolicyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DefineSlaPolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SlaPolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DefineSlaPolicyResult) GetJSON200() *SlaPolicy {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DefineSlaPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DefineSlaPolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DefineSlaPolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DefineSlaPolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DefineSlaPolicyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReportSlaResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SlaReport
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReportSlaResult) GetJSON200() *SlaReport {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReportSlaResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReportSlaResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReportSlaResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReportSlaResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReportSlaResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -103926,6 +105279,66 @@ func (c *ClientWithResponses) VerifyBackupWithResponse(ctx context.Context, back
 	return ParseVerifyBackupResult(rsp)
 }
 
+// ListBusinessCalendarsWithResponse The workspace's business calendars
+//
+// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs a signed-in member of the workspace and the service desk switched on.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /business-calendars (the `ListBusinessCalendars` operationId).
+func (c *ClientWithResponses) ListBusinessCalendarsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListBusinessCalendarsResult, error) {
+	rsp, err := c.ListBusinessCalendars(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListBusinessCalendarsResult(rsp)
+}
+
+// DeleteBusinessCalendarWithResponse Delete an unused business calendar
+//
+// Deletes a calendar no SLA policy names; one in use is refused with `calendars.in_use`. Needs STRUCTURE at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /business-calendars/{calendarKey} (the `DeleteBusinessCalendar` operationId).
+func (c *ClientWithResponses) DeleteBusinessCalendarWithResponse(ctx context.Context, calendarKey string, reqEditors ...RequestEditorFn) (*DeleteBusinessCalendarResult, error) {
+	rsp, err := c.DeleteBusinessCalendar(ctx, calendarKey, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteBusinessCalendarResult(rsp)
+}
+
+// DefineBusinessCalendarWithBodyWithResponse Add or replace a business calendar
+//
+// Creates the calendar under the key, or replaces the one there. Working spans are ordered and disjoint within a day; a week needs at least one working minute. An SLA counts its targets in this calendar's working time; a clock already running keeps the calendar it was armed on. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /business-calendars/{calendarKey} (the `DefineBusinessCalendar` operationId).
+func (c *ClientWithResponses) DefineBusinessCalendarWithBodyWithResponse(ctx context.Context, calendarKey string, params *DefineBusinessCalendarParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineBusinessCalendarResult, error) {
+	rsp, err := c.DefineBusinessCalendarWithBody(ctx, calendarKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineBusinessCalendarResult(rsp)
+}
+
+// DefineBusinessCalendarWithResponse Add or replace a business calendar
+//
+// Creates the calendar under the key, or replaces the one there. Working spans are ordered and disjoint within a day; a week needs at least one working minute. An SLA counts its targets in this calendar's working time; a clock already running keeps the calendar it was armed on. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /business-calendars/{calendarKey} (the `DefineBusinessCalendar` operationId).
+func (c *ClientWithResponses) DefineBusinessCalendarWithResponse(ctx context.Context, calendarKey string, params *DefineBusinessCalendarParams, body DefineBusinessCalendarJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineBusinessCalendarResult, error) {
+	rsp, err := c.DefineBusinessCalendar(ctx, calendarKey, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineBusinessCalendarResult(rsp)
+}
+
 // GetCalendarFeedDocumentWithResponse performs a GET /calendar/{token}.ics (the `GetCalendarFeedDocument` operationId) request.
 //
 // The calendar, as RFC 5545. Gregorian whatever the subscriber's display calendar, with an all-day due date as a VALUE=DATE entry and a timed one carrying its own zone so that it stays put across a daylight saving transition.
@@ -107260,6 +108673,21 @@ func (c *ClientWithResponses) UpdateReminderWithApplicationMergePatchPlusJSONBod
 	return ParseUpdateReminderResult(rsp)
 }
 
+// ReadEntrySlaWithResponse How an entry's SLA goals stand
+//
+// Per goal of the policy that measures the entry: its target in working seconds, whether it runs, stands still, was met or breached, when it falls due and when it was at risk. Empty when no policy measures the entry. Needs READ on the entry.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /items/{itemId}/sla (the `ReadEntrySla` operationId).
+func (c *ClientWithResponses) ReadEntrySlaWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ReadEntrySlaResult, error) {
+	rsp, err := c.ReadEntrySla(ctx, itemId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadEntrySlaResult(rsp)
+}
+
 // ListEntryStepsWithResponse The entry's status and the steps the person may take
 //
 // The workflow the entry's collection runs for its type, the entry's status, and the steps the person may take from it, each with what it asks for, what it still needs and whether its checks hold. `workflow` is null where none runs; a reader gets no steps.
@@ -110463,6 +111891,81 @@ func (c *ClientWithResponses) ReadSettingsCatalogueWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParseReadSettingsCatalogueResult(rsp)
+}
+
+// ListSlaPoliciesWithResponse The workspace's SLA policies
+//
+// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs a signed-in member of the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /sla-policies (the `ListSlaPolicies` operationId).
+func (c *ClientWithResponses) ListSlaPoliciesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListSlaPoliciesResult, error) {
+	rsp, err := c.ListSlaPolicies(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSlaPoliciesResult(rsp)
+}
+
+// DeleteSlaPolicyWithResponse Delete an SLA policy
+//
+// Deletes the policy. The entries it measured keep the record of how their goals stood. Needs STRUCTURE at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /sla-policies/{policyKey} (the `DeleteSlaPolicy` operationId).
+func (c *ClientWithResponses) DeleteSlaPolicyWithResponse(ctx context.Context, policyKey string, reqEditors ...RequestEditorFn) (*DeleteSlaPolicyResult, error) {
+	rsp, err := c.DeleteSlaPolicy(ctx, policyKey, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteSlaPolicyResult(rsp)
+}
+
+// DefineSlaPolicyWithBodyWithResponse Add or replace an SLA policy
+//
+// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /sla-policies/{policyKey} (the `DefineSlaPolicy` operationId).
+func (c *ClientWithResponses) DefineSlaPolicyWithBodyWithResponse(ctx context.Context, policyKey string, params *DefineSlaPolicyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineSlaPolicyResult, error) {
+	rsp, err := c.DefineSlaPolicyWithBody(ctx, policyKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineSlaPolicyResult(rsp)
+}
+
+// DefineSlaPolicyWithResponse Add or replace an SLA policy
+//
+// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /sla-policies/{policyKey} (the `DefineSlaPolicy` operationId).
+func (c *ClientWithResponses) DefineSlaPolicyWithResponse(ctx context.Context, policyKey string, params *DefineSlaPolicyParams, body DefineSlaPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineSlaPolicyResult, error) {
+	rsp, err := c.DefineSlaPolicy(ctx, policyKey, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineSlaPolicyResult(rsp)
+}
+
+// ReportSlaWithResponse How the SLA goals of a period stood
+//
+// Counts the goals armed in [from, to) - at most a year - per policy, goal and standing (met, breached, running, standing still). Names no entry. Needs STRUCTURE at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /sla-report (the `ReportSla` operationId).
+func (c *ClientWithResponses) ReportSlaWithResponse(ctx context.Context, params *ReportSlaParams, reqEditors ...RequestEditorFn) (*ReportSlaResult, error) {
+	rsp, err := c.ReportSla(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReportSlaResult(rsp)
 }
 
 // StreamChangesWithResponse The change stream, as server-sent events
@@ -117506,6 +119009,101 @@ func ParseVerifyBackupResult(rsp *http.Response) (*VerifyBackupResult, error) {
 	return response, nil
 }
 
+// ParseListBusinessCalendarsResult parses an HTTP response from a ListBusinessCalendarsWithResponse call
+func ParseListBusinessCalendarsResult(rsp *http.Response) (*ListBusinessCalendarsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListBusinessCalendarsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BusinessCalendarList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteBusinessCalendarResult parses an HTTP response from a DeleteBusinessCalendarWithResponse call
+func ParseDeleteBusinessCalendarResult(rsp *http.Response) (*DeleteBusinessCalendarResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteBusinessCalendarResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDefineBusinessCalendarResult parses an HTTP response from a DefineBusinessCalendarWithResponse call
+func ParseDefineBusinessCalendarResult(rsp *http.Response) (*DefineBusinessCalendarResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DefineBusinessCalendarResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BusinessCalendar
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetCalendarFeedDocumentResult parses an HTTP response from a GetCalendarFeedDocumentWithResponse call
 func ParseGetCalendarFeedDocumentResult(rsp *http.Response) (*GetCalendarFeedDocumentResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -123096,6 +124694,39 @@ func ParseUpdateReminderResult(rsp *http.Response) (*UpdateReminderResult, error
 	return response, nil
 }
 
+// ParseReadEntrySlaResult parses an HTTP response from a ReadEntrySlaWithResponse call
+func ParseReadEntrySlaResult(rsp *http.Response) (*ReadEntrySlaResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadEntrySlaResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EntrySlaList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListEntryStepsResult parses an HTTP response from a ListEntryStepsWithResponse call
 func ParseListEntryStepsResult(rsp *http.Response) (*ListEntryStepsResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -127742,6 +129373,134 @@ func ParseReadSettingsCatalogueResult(rsp *http.Response) (*ReadSettingsCatalogu
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest SettingsCatalogue
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListSlaPoliciesResult parses an HTTP response from a ListSlaPoliciesWithResponse call
+func ParseListSlaPoliciesResult(rsp *http.Response) (*ListSlaPoliciesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSlaPoliciesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SlaPolicyList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteSlaPolicyResult parses an HTTP response from a DeleteSlaPolicyWithResponse call
+func ParseDeleteSlaPolicyResult(rsp *http.Response) (*DeleteSlaPolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteSlaPolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDefineSlaPolicyResult parses an HTTP response from a DefineSlaPolicyWithResponse call
+func ParseDefineSlaPolicyResult(rsp *http.Response) (*DefineSlaPolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DefineSlaPolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SlaPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReportSlaResult parses an HTTP response from a ReportSlaWithResponse call
+func ParseReportSlaResult(rsp *http.Response) (*ReportSlaResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReportSlaResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SlaReport
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
