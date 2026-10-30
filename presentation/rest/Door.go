@@ -68,6 +68,12 @@ type restDoor struct {
 	// NothingFound answers 204 for an empty output, where the contract declares it beside the
 	// answer (a suggestion that found nothing).
 	NothingFound bool
+	// Flatten hands a nested body member's members on as the flat inputs it names: a use case's
+	// field is one value, and MCP has no nested form for one.
+	Flatten map[string]map[string]string
+	// ReadOnly are the body's read-only members: the answer's, sent back by a client that saves
+	// what it read, and dropped rather than refused as an input nobody declares.
+	ReadOnly []string
 }
 
 // input is the name the use case reads a query parameter by.
@@ -119,6 +125,20 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 				sent = nil
 			}
 			for name, value := range sent {
+				if slices.Contains(d.ReadOnly, name) {
+					continue
+				}
+				if inputs, flat := d.Flatten[name]; flat {
+					nested, _ := value.(map[string]any)
+					for member, inner := range nested {
+						if input, named := inputs[member]; named && inner != nil {
+							if _, taken := in[input]; !taken {
+								in[input] = inner
+							}
+						}
+					}
+					continue
+				}
 				// The path names the resource; a body member of the same name never moves it. An
 				// explicit null stays: in a merge patch it clears, as MCP's arguments carry it.
 				if _, taken := in[name]; !taken {

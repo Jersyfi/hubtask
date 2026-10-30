@@ -33,7 +33,10 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    drawn by the named mapper, when the output's boolean member `when` is true (a sign-in's
    session, or the second step it still owes); an operation that declares `204` beside its answer
    answers it for an empty output, and a `Location` may name a nested part's member
-   (`{account.id}`).
+   (`{account.id}`). A body's read-only members are dropped - a client that saves what it read
+   sends them back - and every other member must be an input the use case declares, a test holds
+   it; `x-hubtask-rest-flatten: { member: { inner: input } }` hands a nested member's members on as
+   the flat inputs MCP also reads.
    The use case's input therefore uses
    the contract's names; a test holds each mapping's query, version and proof to the descriptor's
    declared input. An answer drawn by one of the adapter's shared mappers (an entry, by

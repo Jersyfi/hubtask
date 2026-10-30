@@ -460,3 +460,20 @@ func TestAGeneratedCreationPlacesANestedResource(t *testing.T) {
 		t.Errorf("the start password is not marked shown once: %v", recorder.Header())
 	}
 }
+
+// A client that saves what it read sends the answer's read-only members back; the door drops them
+// rather than handing the use case an input it would refuse.
+func TestAGeneratedOperationDropsReadOnlyMembers(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"enabled": true, "aliases": []any{}}}
+
+	recorder := callDoor(t, registry, http.MethodPut, "/voice/settings",
+		`{"enabled":true,"aliases":[],"installation_skill":true}`,
+		map[string]string{"Content-Type": "application/json"})
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if _, sent := registry.in["installation_skill"]; sent || registry.in["enabled"] != true {
+		t.Errorf("the input is %v", registry.in)
+	}
+}

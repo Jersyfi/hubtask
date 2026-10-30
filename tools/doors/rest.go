@@ -73,6 +73,12 @@ type RESTDoor struct {
 	AlternateStatus            int
 	// NothingFound says the contract declares 204 beside the answer: an empty output answers it.
 	NothingFound bool
+	// Flatten hands a nested body member's members on as flat inputs (`x-hubtask-rest-flatten`):
+	// a use case's field is one value, and MCP has no nested form for one.
+	Flatten map[string]map[string]string
+	// ReadOnly are the body's members the contract marks read-only: the answer's, sent back by a
+	// client that saves what it read, and never an input.
+	ReadOnly []string
 }
 
 // requestInputs are the inputs a door can draw from the request rather than from its members.
@@ -81,25 +87,26 @@ var requestInputs = map[string]bool{"host": true, "tenant_header": true, "user_a
 type pathArg struct{ Input, Value string }
 
 type restOperation struct {
-	OperationID string            `yaml:"operationId"`
-	REST        string            `yaml:"x-hubtask-rest"`
-	IfMatchAs   string            `yaml:"x-hubtask-rest-if-match"`
-	PathAs      map[string]string `yaml:"x-hubtask-rest-path"`
-	BodyAs      string            `yaml:"x-hubtask-rest-body"`
-	AnswerBy    string            `yaml:"x-hubtask-rest-answer"`
-	Location    string            `yaml:"x-hubtask-rest-location"`
-	Null        string            `yaml:"x-hubtask-rest-null"`
-	ETagFrom    string            `yaml:"x-hubtask-rest-etag"`
-	ShownOnce   string            `yaml:"x-hubtask-rest-shown-once"`
-	QueryAs     map[string]string `yaml:"x-hubtask-rest-query"`
-	List        string            `yaml:"x-hubtask-rest-list"`
-	UseCase     string            `yaml:"x-hubtask-rest-use-case"`
-	Request     []string          `yaml:"x-hubtask-rest-request"`
+	OperationID string                       `yaml:"operationId"`
+	REST        string                       `yaml:"x-hubtask-rest"`
+	IfMatchAs   string                       `yaml:"x-hubtask-rest-if-match"`
+	PathAs      map[string]string            `yaml:"x-hubtask-rest-path"`
+	BodyAs      string                       `yaml:"x-hubtask-rest-body"`
+	AnswerBy    string                       `yaml:"x-hubtask-rest-answer"`
+	Location    string                       `yaml:"x-hubtask-rest-location"`
+	Null        string                       `yaml:"x-hubtask-rest-null"`
+	ETagFrom    string                       `yaml:"x-hubtask-rest-etag"`
+	ShownOnce   string                       `yaml:"x-hubtask-rest-shown-once"`
+	QueryAs     map[string]string            `yaml:"x-hubtask-rest-query"`
+	List        string                       `yaml:"x-hubtask-rest-list"`
+	UseCase     string                       `yaml:"x-hubtask-rest-use-case"`
+	Request     []string                     `yaml:"x-hubtask-rest-request"`
+	Flatten     map[string]map[string]string `yaml:"x-hubtask-rest-flatten"`
 	Alternate   *struct {
 		When   string `yaml:"when"`
 		Answer string `yaml:"answer"`
 	} `yaml:"x-hubtask-rest-alternate"`
-	Parameters  []parameter       `yaml:"parameters"`
+	Parameters  []parameter `yaml:"parameters"`
 	RequestBody *struct {
 		Required bool                 `yaml:"required"`
 		Content  map[string]mediaType `yaml:"content"`
@@ -244,13 +251,17 @@ func restDoor(
 	if op.RequestBody != nil {
 		door.BodyRequired = op.RequestBody.Required
 		for _, content := range op.RequestBody.Content {
-			for name, property := range doc.resolve(content.Schema).Properties {
+			for name, property := range doc.composed(content.Schema).Properties {
 				if doc.kind(property) == "integer" {
 					door.Integers = append(door.Integers, name)
+				}
+				if property.ReadOnly || doc.resolve(property).ReadOnly {
+					door.ReadOnly = append(door.ReadOnly, name)
 				}
 			}
 		}
 		sort.Strings(door.Integers)
+		sort.Strings(door.ReadOnly)
 		for _, suffix := range []string{"JSONRequestBody", "ApplicationMergePatchPlusJSONRequestBody"} {
 			if bodies[name+suffix] {
 				door.BodyType = "openapi." + name + suffix
@@ -259,6 +270,16 @@ func restDoor(
 		if door.BodyType == "" {
 			return door, fmt.Errorf("no generated JSON request body type")
 		}
+		for name := range op.Flatten {
+			held := false
+			for _, content := range op.RequestBody.Content {
+				_, held = doc.resolve(content.Schema).Properties[name]
+			}
+			if !held {
+				return door, fmt.Errorf("x-hubtask-rest-flatten names %s, which the body does not hold", name)
+			}
+		}
+		door.Flatten = op.Flatten
 	}
 
 	for _, status := range []string{"200", "201", "202", "204"} {
@@ -436,6 +457,30 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 		}
 		if d.NothingFound {
 			extra += ", NothingFound: true"
+		}
+		if len(d.ReadOnly) > 0 {
+			extra += fmt.Sprintf(", ReadOnly: %#v", d.ReadOnly)
+		}
+		if len(d.Flatten) > 0 {
+			outer := make([]string, 0, len(d.Flatten))
+			for name := range d.Flatten {
+				outer = append(outer, name)
+			}
+			sort.Strings(outer)
+			parts := make([]string, 0, len(outer))
+			for _, name := range outer {
+				inner := make([]string, 0, len(d.Flatten[name]))
+				for member := range d.Flatten[name] {
+					inner = append(inner, member)
+				}
+				sort.Strings(inner)
+				pairs := make([]string, 0, len(inner))
+				for _, member := range inner {
+					pairs = append(pairs, fmt.Sprintf("%q: %q", member, d.Flatten[name][member]))
+				}
+				parts = append(parts, fmt.Sprintf("%q: {%s}", name, strings.Join(pairs, ", ")))
+			}
+			extra += ", Flatten: map[string]map[string]string{" + strings.Join(parts, ", ") + "}"
 		}
 		if d.AlternateWhen != "" {
 			extra += fmt.Sprintf(", AlternateWhen: %q, AlternateStatus: %d, AlternateBy: answerBy(%s)", d.AlternateWhen, d.AlternateStatus, d.AlternateBy)
