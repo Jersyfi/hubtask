@@ -117,9 +117,9 @@ re-mints identities must rewrite exactly these).
 | # | Entity | Table | Identity | References (field → entity) |
 |---|---|---|---|---|
 | 1 | `tenants` | `tenant` | `id` | — (the workspace itself: slug, display name, defaults, settings) |
-| 2 | `accounts` | `account` | `id` | — (people and service accounts; credentials are **not** among the fields, §9) |
+| 2 | `accounts` | `account` | `id` | — (people and service accounts, with the directory's `external_id` where one provisioned them, migration 0256; credentials are **not** among the fields, §9) |
 | 3 | `webauthn_credentials` | `webauthn_credential` | `id` | `account_id`→accounts (a person's passkeys; an export carries their name and dates, not the credential, §9) |
-| 4 | `account_groups` | `account_group` | `id` | — |
+| 4 | `account_groups` | `account_group` | `id` | — (with the directory's `external_id`) |
 | 5 | `account_group_members` | `account_group_member` | `group_id/account_id` | `group_id`→account_groups, `account_id`→accounts |
 | 6 | `memberships` | `membership` | `id` | `account_id`→accounts, `group_id`→account_groups |
 | 7 | `containers` | `container` | `id` | `parent_id`→containers (hubs first — a parent precedes its children within the file). `private` marks a private hub; an archive without it restores the hub shared, as it was |
