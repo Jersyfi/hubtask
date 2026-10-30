@@ -242,33 +242,14 @@ func dateOrNil(value string) *openapi_types.Date {
 	return &openapi_types.Date{Time: day}
 }
 
-// RestrictProcessing answers POST /accounts/{accountId}:restrict.
-func (c *RestController) RestrictProcessing(
-	w http.ResponseWriter, r *http.Request, accountID openapi.AccountId,
-) {
-	var body openapi.ProcessingRestriction
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-
-	in := usecase.Input{"account_id": accountID.String(), "restricted": body.Restricted}
-	if body.Reason != nil {
-		in["reason"] = *body.Reason
-	}
-
-	out, ok := c.read(w, r, restrictProcessingUseCase, in)
-	if !ok {
-		return
-	}
-
-	// What the call set, rather than the person it was set on. A restriction touches nothing else
-	// about an account, and answering their name and address here would be answering more than the
-	// caller asked about.
-	writeJSON(w, r, http.StatusOK, openapi.ProcessingState{
+// processingStateResponse maps what a restriction set, rather than the person it was set on: a
+// restriction touches nothing else about an account, and their name and address would answer more
+// than the caller asked about.
+func processingStateResponse(out usecase.Output) openapi.ProcessingState {
+	return openapi.ProcessingState{
 		AccountId: uuidValue(out.String("id")),
 		Status:    openapi.ProcessingStateStatus(out.String("status")),
-	})
+	}
 }
 
 // ListConsents answers GET /privacy/consents: the register, the one place who withdrew is listed.

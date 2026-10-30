@@ -8888,6 +8888,8 @@
           "voice"
         ],
         "operationId": "saveVoiceSettings",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "voiceSettingsResponse",
         "summary": "Replace the workspace's voice settings",
         "parameters": [
           {
@@ -13732,6 +13734,7 @@
           "auth"
         ],
         "operationId": "disableTotp",
+        "x-hubtask-rest": "generated",
         "summary": "Disable the second factor",
         "description": "Removes the TOTP enrolment. The recovery codes go with it unless a passkey or security key remains, which they then back. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person and the app is the last one the account holds - no passkey or security key of this workspace's address - it cannot be disabled; the refusal names the rule, and `authenticator_app_removable` on `GET /accounts/me` answers the same condition.\nThe body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.\n",
         "parameters": [
@@ -16453,6 +16456,7 @@
           "identity"
         ],
         "operationId": "startProviderConnect",
+        "x-hubtask-rest": "generated",
         "summary": "Begin connecting a sign-in provider to the caller's account",
         "description": "The first of two calls that connect a provider identity to the account the caller is signed\nin as - also one whose address differs from the account's. Asks a fresh proof of the account\nfirst (`auth.step_up_required` otherwise), then answers an authorization request at the\nchosen provider with `prompt=login` and `max_age=0`. The flow is bound to the caller's\nsession: its `state` finishes this connection at `POST /accounts/me/identities:complete` and\nnothing else - neither a sign-in nor a step-up takes it.\n\nThe provider must be a way in for this workspace. Refused with\n`identity_provider.already_connected` where the account already holds an identity at it,\nwith `identity_provider.connect_needs_address` for an account without an address, and with\n`auth.step_up_session_required` for a caller without a session.\n",
         "parameters": [
@@ -16493,6 +16497,8 @@
           "identity"
         ],
         "operationId": "completeProviderConnect",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "connectedIdentityResponse",
         "summary": "Finish connecting a sign-in provider to the caller's account",
         "description": "The second call: the `state` and `authorization_code` the provider sent the browser back\nwith. The provider's sign-in must be fresh - after the connection began - and its address\nverified; it need not be the account's. An identity connected to another account here is\nrefused with `identity_provider.connection_taken`, a sign-in that is not fresh with\n`identity_provider.connection_not_fresh`. On success the connection is recorded and the person\nis told by mail.\n",
         "requestBody": {
@@ -16555,6 +16561,7 @@
           "identity"
         ],
         "operationId": "startPasskeyRegistration",
+        "x-hubtask-rest": "generated",
         "summary": "Begin adding a passkey or a security key to the caller's account",
         "description": "The first of two calls that add a WebAuthn credential. Asks a fresh proof of the account\nfirst (`auth.step_up_required` otherwise), then answers the options to pass to\n`navigator.credentials.create()`: the relying party, the account's opaque user handle, a\nsingle-use challenge, the accepted algorithms (ES256, EdDSA, RS256), the credentials the\naccount already holds to exclude, and attestation `none`. The challenge is bound to the\ncaller's session and lives five minutes; a newer start replaces it.\n\nRefused before the proof is spent with `auth.passkey_limit_reached` where the account holds\nthe most it may, and with `auth.passkey_unavailable` where the installation has no public\naddress; with `auth.step_up_session_required` for a caller without a session, and with\n`auth.passkey_person_only` for anyone but a person.\n",
         "parameters": [
@@ -18459,6 +18466,8 @@
           "privacy"
         ],
         "operationId": "restrictProcessing",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "processingStateResponse",
         "summary": "Restrict the processing of an account's data (Art. 18)",
         "description": "A technical state rather than a lock: the account stays readable and its content stays\nwhere it is, and what stops is *processing* - automation rules and AI leave the record\nalone. Lifting it is the same call with\n`restricted: false` - refused while a legal hold keeps the account from an erasure, until\nthe hold is lifted and the rest of the erasure has run.\nBoth directions are refused for an account that is not active or restricted - an\ninvitation, a disabled or an anonymised account; a legal hold on the account keeps such a\nperson's data instead. Lifting the restriction of an invitation nobody accepted gives back\nthe invitation (`INVITED`).\n",
         "requestBody": {

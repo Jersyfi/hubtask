@@ -18,7 +18,6 @@ import (
 // The passkeys of the caller's own account (identity.md §23).
 
 const (
-	startPasskeyRegistrationUseCase    = "StartPasskeyRegistration"
 	completePasskeyRegistrationUseCase = "CompletePasskeyRegistration"
 )
 
@@ -63,36 +62,6 @@ func passkeyResponse(out usecase.Output) openapi.Passkey {
 func renamedPasskeyResponse(out usecase.Output) openapi.Passkey {
 	passkey, _ := out["passkey"].(usecase.Output)
 	return passkeyResponse(passkey)
-}
-
-// StartPasskeyRegistration answers POST /accounts/me/passkeys:start.
-func (c *RestController) StartPasskeyRegistration(
-	w http.ResponseWriter, r *http.Request, params openapi.StartPasskeyRegistrationParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), startPasskeyRegistrationUseCase, actorOf(r), usecase.Input{
-		"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	// The options are WebAuthn's own JSON shape, nested deeply; going through the generated type holds
-	// the use case's answer to the contract field for field rather than trusting a map.
-	var answer openapi.PasskeyRegistrationOptions
-	encoded, err := json.Marshal(out)
-	if err == nil {
-		err = json.Unmarshal(encoded, &answer)
-	}
-	if err != nil {
-		WriteProblem(w, shared.ErrInternal.WithDetail("rest.answer_unshapeable").WithCause(err), requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, answer)
 }
 
 // CompletePasskeyRegistration answers POST /accounts/me/passkeys:complete.

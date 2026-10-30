@@ -5132,6 +5132,8 @@ paths:
     put:
       tags: [voice]
       operationId: saveVoiceSettings
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: voiceSettingsResponse
       summary: Replace the workspace's voice settings
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -9050,6 +9052,7 @@ paths:
     post:
       tags: [auth]
       operationId: disableTotp
+      x-hubtask-rest: generated
       summary: Disable the second factor
       description: >
         Removes the TOTP enrolment. The recovery codes go with it unless a passkey or security key
@@ -11203,6 +11206,7 @@ paths:
     post:
       tags: [identity]
       operationId: startProviderConnect
+      x-hubtask-rest: generated
       summary: Begin connecting a sign-in provider to the caller's account
       description: |
         The first of two calls that connect a provider identity to the account the caller is signed
@@ -11238,6 +11242,8 @@ paths:
     post:
       tags: [identity]
       operationId: completeProviderConnect
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: connectedIdentityResponse
       summary: Finish connecting a sign-in provider to the caller's account
       description: |
         The second call: the `state` and `authorization_code` the provider sent the browser back
@@ -11294,6 +11300,7 @@ paths:
     post:
       tags: [identity]
       operationId: startPasskeyRegistration
+      x-hubtask-rest: generated
       summary: Begin adding a passkey or a security key to the caller's account
       description: |
         The first of two calls that add a WebAuthn credential. Asks a fresh proof of the account
@@ -12897,6 +12904,8 @@ paths:
     post:
       tags: [privacy]
       operationId: restrictProcessing
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: processingStateResponse
       summary: Restrict the processing of an account's data (Art. 18)
       description: |
         A technical state rather than a lock: the account stays readable and its content stays

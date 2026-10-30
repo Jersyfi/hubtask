@@ -21,45 +21,13 @@ import (
 // what a sentence does are decided inwards of here.
 
 const (
-	saveVoiceSettingsUseCase = "SaveVoiceSettings"
-	showAlexaModelUseCase    = "ShowAlexaModel"
+	showAlexaModelUseCase = "ShowAlexaModel"
 )
 
 // AlexaAnswerer serves Alexa's endpoint. Not a catalogue entry: it proves its caller with Amazon's
 // signature and the linked account's token, not with this API's credentials.
 type AlexaAnswerer interface {
 	Handle(ctx context.Context, header http.Header, body []byte) (voice.Response, error)
-}
-
-// SaveVoiceSettings answers PUT /voice/settings.
-func (c *RestController) SaveVoiceSettings(w http.ResponseWriter, r *http.Request, _ openapi.SaveVoiceSettingsParams) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.VoiceSettings
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-		aliases := make([]any, 0, len(body.Aliases))
-		for _, alias := range body.Aliases {
-			row := map[string]any{"phrase": alias.Phrase, "collection_id": alias.CollectionId.String()}
-			if alias.LabelId != nil {
-				row["label_id"] = alias.LabelId.String()
-			}
-			aliases = append(aliases, row)
-		}
-		input := usecase.Input{"enabled": body.Enabled, "aliases": aliases}
-		if body.DefaultCollectionId != nil {
-			input["default_collection_id"] = body.DefaultCollectionId.String()
-		}
-		if body.InvocationName != nil {
-			input["invocation_name"] = *body.InvocationName
-		}
-		if body.SkillId != nil {
-			input["skill_id"] = *body.SkillId
-		}
-		return c.UseCases.Invoke(r.Context(), saveVoiceSettingsUseCase, actor, input)
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, voiceSettingsResponse(out))
-	})
 }
 
 // ShowAlexaModel answers GET /voice/alexa/model.

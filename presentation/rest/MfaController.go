@@ -20,7 +20,6 @@ const (
 	agreeToTermsUseCase   = "AgreeToTerms"
 	enrollTotpUseCase     = "EnrollTotp"
 	confirmTotpUseCase    = "ConfirmTotp"
-	disableTotpUseCase    = "DisableTotp"
 )
 
 // CompleteSignIn answers POST /auth/sessions:verify. Written out for SignIn's reason: the route
@@ -195,38 +194,6 @@ func (c *RestController) ConfirmTotp(w http.ResponseWriter, r *http.Request) {
 		confirmed.Challenge = &owed
 	}
 	writeJSON(w, r, http.StatusOK, confirmed)
-}
-
-// DisableTotp answers POST /auth/mfa:disable. Written out for ListServiceAccounts' reason: the
-// identity helper's closure gives the linter nothing to trace the request's context through.
-func (c *RestController) DisableTotp(
-	w http.ResponseWriter, r *http.Request, params openapi.DisableTotpParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	// The body is optional since the step-up proves the act (ADR-0075 §3): an empty one is a client
-	// that sends only the header, and the deprecated password is read where one was sent.
-	var body openapi.MfaDisable
-	if r.ContentLength != 0 {
-		if err := decodeJSON(r, &body); err != nil {
-			WriteProblem(w, err, requestID)
-			return
-		}
-	}
-	in := usecase.Input{"step_up_token": stepUpHeaderField(params.XHubtaskStepUp)}
-	if body.Password != nil {
-		in["password"] = *body.Password
-	}
-
-	if _, err := c.UseCases.Invoke(r.Context(), disableTotpUseCase, actorOf(r), in); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 // mfaChallengeResponse maps the 202 projection onto the contract's shape.
