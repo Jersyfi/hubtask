@@ -251,6 +251,15 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `calendar_push.disconnected` | DisconnectCalendarPush | `calendar_push` | INFO | Every time |
 | `calendar_push.listed` | ListCalendarPushes | `calendar_push` | INFO | When refused |
 
+## Chatbot
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `chatbot.created` | CreateChatBot | `chat_bot` | NOTICE | Every time |
+| `chatbot.deleted` | DeleteChatBot | `chat_bot` | NOTICE | Every time |
+| `chatbot.read` | ListChatBots | `chat_bot` | INFO | When refused |
+| `chatbot.updated` | UpdateChatBot | `chat_bot` | NOTICE | Every time |
+
 ## Cmdb
 
 | Action | Use case | Target | Severity | Recorded |

@@ -44,6 +44,7 @@ import (
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	calendarservice "github.com/Jersyfi/hubtask/core/application/service/calendar"
 	calendarpushservice "github.com/Jersyfi/hubtask/core/application/service/calendarpush"
+	chatbotservice "github.com/Jersyfi/hubtask/core/application/service/chatbot"
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
 	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
 	filelinkservice "github.com/Jersyfi/hubtask/core/application/service/filelink"
@@ -108,13 +109,14 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/automation"
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
 	calendarpushadapter "github.com/Jersyfi/hubtask/infrastructure/calendarpush"
-	filestoreadapter "github.com/Jersyfi/hubtask/infrastructure/filestore"
+	chatbotadapter "github.com/Jersyfi/hubtask/infrastructure/chatbot"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	connectoradapter "github.com/Jersyfi/hubtask/infrastructure/connector"
 	"github.com/Jersyfi/hubtask/infrastructure/crypto"
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
 	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
 	celexpression "github.com/Jersyfi/hubtask/infrastructure/expression"
+	filestoreadapter "github.com/Jersyfi/hubtask/infrastructure/filestore"
 	healthadapter "github.com/Jersyfi/hubtask/infrastructure/health"
 	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
@@ -2006,6 +2008,15 @@ func run() error {
 		Addresses:   workspaceAddress(cfg), Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids,
 	}
+	// A hub's Matrix bot (UC-INT-18): it reads its room through the guarded client every minute
+	// and runs the entry use cases as whoever seated it, through the catalogue set below.
+	botEntries := &deferredCatalogue{}
+	chatBots := chatbotservice.Bots{
+		Store: postgres.NewChatBotRepository(), Containers: containers, Entries: entryLinks,
+		Room: chatbotadapter.Matrix{Client: outboundClient}, Invoker: botEntries, Texts: renderer,
+		Addresses: workspaceAddress(cfg), Encryptor: encryptor, Authorizer: authorizer, Jobs: jobs,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
 	// A person's own file store for *Link a file* (UC-INT-17): a Nextcloud by its login flow, needing
 	// no app; Microsoft by the mailboxes' app with a consent to read files alone.
 	fileStores := filestoreservice.Connections{
@@ -2297,6 +2308,10 @@ func run() error {
 		calendarpushservice.CompleteCalendarPushAuthorization{Pushes: calendarPushes}.Descriptor(),
 		calendarpushservice.DisconnectCalendarPush{Pushes: calendarPushes}.Descriptor(),
 		filestoreservice.ListFileStoreConnections{Connections: fileStores}.Descriptor(),
+		chatbotservice.ListChatBots{Bots: chatBots}.Descriptor(),
+		chatbotservice.CreateChatBot{Bots: chatBots}.Descriptor(),
+		chatbotservice.UpdateChatBot{Bots: chatBots}.Descriptor(),
+		chatbotservice.DeleteChatBot{Bots: chatBots}.Descriptor(),
 		filestoreservice.ConnectFileStore{Connections: fileStores}.Descriptor(),
 		filestoreservice.CompleteFileStoreConnection{Connections: fileStores}.Descriptor(),
 		filestoreservice.DisconnectFileStore{Connections: fileStores}.Descriptor(),
@@ -3448,6 +3463,7 @@ func run() error {
 	configCatalogue.catalogue = useCases
 	ruleCatalogue.catalogue = useCases
 	alertEntries.catalogue = useCases
+	botEntries.catalogue = useCases
 	agentCatalogue.catalogue = useCases
 	portalEntries.catalogue = useCases
 	approvalSteps.catalogue = useCases
@@ -4665,7 +4681,9 @@ func run() error {
 			Background: backgroundWork, FallbackLocale: cfg.Locale.DefaultLocale,
 		}},
 		// A calendar push's run every quarter hour (UC-INT-16).
-		queueport.KindCalendarPush:         worker.CalendarPush{Pushes: calendarPushes},
+		queueport.KindCalendarPush: worker.CalendarPush{Pushes: calendarPushes},
+		// A chat bot's read of its room every minute (UC-INT-18).
+		queueport.KindChatBot:              worker.ChatBot{Bots: chatBots},
 		queueport.KindAutomationCheck:      worker.AutomationCheck{Check: ruleCheck},
 		queueport.KindAuditExport:          worker.AuditExport{Archivist: auditArchivist},
 		queueport.KindImport:               importJob,

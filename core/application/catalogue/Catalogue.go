@@ -28,6 +28,7 @@ import (
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	calendarpushservice "github.com/Jersyfi/hubtask/core/application/service/calendarpush"
+	chatbotservice "github.com/Jersyfi/hubtask/core/application/service/chatbot"
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
 	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
 	filelinkservice "github.com/Jersyfi/hubtask/core/application/service/filelink"
@@ -356,6 +357,10 @@ func Descriptors() []usecase.Descriptor {
 		calendarpushservice.CompleteCalendarPushAuthorization{}.Descriptor(),
 		calendarpushservice.DisconnectCalendarPush{}.Descriptor(),
 		filestoreservice.ListFileStoreConnections{}.Descriptor(),
+		chatbotservice.ListChatBots{}.Descriptor(),
+		chatbotservice.CreateChatBot{}.Descriptor(),
+		chatbotservice.UpdateChatBot{}.Descriptor(),
+		chatbotservice.DeleteChatBot{}.Descriptor(),
 		filestoreservice.ConnectFileStore{}.Descriptor(),
 		filestoreservice.CompleteFileStoreConnection{}.Descriptor(),
 		filestoreservice.DisconnectFileStore{}.Descriptor(),
