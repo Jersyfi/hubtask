@@ -7739,6 +7739,78 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /odata/{token}:
+    parameters:
+      - $ref: "#/components/parameters/DataFeedToken"
+    get:
+      tags: [calendar]
+      operationId: getDataFeedService
+      security: []
+      summary: A data feed's OData service document
+      description: >
+        The root a reporting tool is given - Power BI's and Excel's *OData feed*: an OData v4
+        service with one entity set, `Entries`, the rows of the saved view the feed serves, read as
+        the feed's owner reads at every fetch. Read-only. An unknown token, a revoked one, a
+        calendar's token, a feed whose view has been deleted and one whose owner has lost the view
+        all answer the same 404.
+      responses:
+        "200":
+          description: The service document
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DataFeedService" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /odata/{token}/$metadata:
+    parameters:
+      - $ref: "#/components/parameters/DataFeedToken"
+    get:
+      tags: [calendar]
+      operationId: getDataFeedMetadata
+      security: []
+      summary: A data feed's OData metadata
+      description: >
+        The feed's schema as an OData v4 CSDL document: the entity type `Entry` and the entity set
+        `Entries`. The same 404 as the service document for every reason not to serve.
+      responses:
+        "200":
+          description: The metadata
+          content:
+            application/xml:
+              schema: { type: string }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /odata/{token}/Entries:
+    parameters:
+      - $ref: "#/components/parameters/DataFeedToken"
+    get:
+      tags: [calendar]
+      operationId: getDataFeedEntries
+      security: []
+      summary: A data feed's rows
+      description: >
+        The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number,
+        level and type, title, status, completion, dates, assignee, collection and parent, never its
+        notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export
+        cap; `$top` and `$skip` page as OData says, and other query options are not served.
+      parameters:
+        - name: $top
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0 }
+        - name: $skip
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0 }
+      responses:
+        "200":
+          description: The rows
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DataFeedEntries" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /meta/capabilities:
     get:
       tags: [meta]
@@ -20744,6 +20816,15 @@ components:
       bearerFormat: "An OIDC access token, hbt_pat_…, or a service account token"
 
   parameters:
+    DataFeedToken:
+      name: token
+      in: path
+      required: true
+      description: >
+        A data feed's token, the whole credential: these routes carry no bearer authentication,
+        and the address is what a reporting tool stores. It names the tenant in clear inside
+        itself because the lookup needs one before it can happen.
+      schema: { type: string }
     AccountId:
       name: accountId
       in: path
@@ -31459,6 +31540,10 @@ components:
       required: [id, account_id, created_at]
       properties:
         id: { type: string, format: uuid }
+        kind:
+          type: string
+          enum: [CALENDAR, DATA]
+          description: What the token opens - a calendar, or a read-only data feed of the view's rows.
         account_id:
           type: string
           format: uuid
@@ -31478,6 +31563,51 @@ components:
             When the token stopped working. Kept rather than deleted, so that "this token was
             revoked on Tuesday" is answerable.
 
+    DataFeedService:
+      type: object
+      required: ["@odata.context", value]
+      properties:
+        "@odata.context": { type: string }
+        value:
+          type: array
+          items:
+            type: object
+            required: [name, kind, url]
+            properties:
+              name: { type: string }
+              kind: { type: string }
+              url: { type: string }
+
+    DataFeedEntries:
+      type: object
+      required: ["@odata.context", value]
+      properties:
+        "@odata.context": { type: string }
+        "@odata.nextLink": { type: string }
+        value:
+          type: array
+          items: { $ref: "#/components/schemas/DataFeedEntry" }
+
+    DataFeedEntry:
+      type: object
+      required: [Id, Number, Level, Title, Completed, CollectionId, CreatedAt, UpdatedAt]
+      properties:
+        Id: { type: string, format: uuid }
+        Number: { type: integer, format: int64, description: "The entry's number in its workspace, the end of its key." }
+        Level: { type: string, enum: [TASK, WORK_PACKAGE, ACTIVITY] }
+        EntryType: { type: [string, "null"] }
+        Title: { type: string }
+        Status: { type: [string, "null"] }
+        Completed: { type: boolean }
+        CompletedAt: { type: [string, "null"], format: date-time }
+        StartAt: { type: [string, "null"], format: date-time }
+        DueAt: { type: [string, "null"], format: date-time }
+        AssigneeId: { type: [string, "null"], format: uuid }
+        CollectionId: { type: string, format: uuid }
+        ParentId: { type: [string, "null"], format: uuid }
+        CreatedAt: { type: string, format: date-time }
+        UpdatedAt: { type: string, format: date-time }
+
     CalendarFeedCreate:
       type: object
       required: [view_id]
@@ -31486,6 +31616,14 @@ components:
           type: string
           format: uuid
           description: The saved view to serve. It has to be one the caller may read.
+        kind:
+          type: string
+          enum: [CALENDAR, DATA]
+          description: >
+            What the token opens. CALENDAR, the default, serves the view's dated entries as a
+            calendar (`/calendar/{token}.ics` and CalDAV); DATA serves the view's rows as a
+            read-only OData feed (`/odata/{token}`) for Power BI, Excel or another reporting
+            tool. One token opens one kind.
 
     CalendarFeedSecret:
       allOf:

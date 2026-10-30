@@ -1590,6 +1590,24 @@ export class HubtaskClient {
     return this.call("GET", "/calendar/{token}.ics", { "token": token }, undefined, {  }, undefined, "none", undefined, "raw", options.signal);
   }
 
+  /** A data feed's OData service document
+   * Public: sent without a bearer where the client holds none. */
+  getDataFeedService(token: string, options: CallOptions = {}): Promise<operations["getDataFeedService"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/odata/{token}", { "token": token }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** A data feed's OData metadata
+   * Public: sent without a bearer where the client holds none. */
+  getDataFeedMetadata(token: string, options: CallOptions = {}): Promise<Response> {
+    return this.call("GET", "/odata/{token}/$metadata", { "token": token }, undefined, {  }, undefined, "none", undefined, "raw", options.signal);
+  }
+
+  /** A data feed's rows
+   * Public: sent without a bearer where the client holds none. */
+  getDataFeedEntries(token: string, options: CallOptions & { readonly query?: NonNullable<operations["getDataFeedEntries"]['parameters']['query']> } = {}): Promise<operations["getDataFeedEntries"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/odata/{token}/Entries", { "token": token }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Self-description of the installation
    * Public: sent without a bearer where the client holds none. */
   getCapabilities(options: CallOptions = {}): Promise<operations["getCapabilities"]['responses'][200]['content']["application/json"]> {

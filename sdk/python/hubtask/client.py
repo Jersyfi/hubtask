@@ -1279,6 +1279,18 @@ class Client:
         """GET /calendar/{token}.ics"""
         return self._call("GET", "/calendar/{token}.ics", {"token": token}, None, {}, None, "none", None, "raw")
 
+    def get_data_feed_service(self, token: str) -> "DataFeedService":
+        """A data feed's OData service document"""
+        return self._call("GET", "/odata/{token}", {"token": token}, None, {}, None, "none", None, "json")
+
+    def get_data_feed_metadata(self, token: str) -> bytes:
+        """A data feed's OData metadata"""
+        return self._call("GET", "/odata/{token}/$metadata", {"token": token}, None, {}, None, "none", None, "raw")
+
+    def get_data_feed_entries(self, token: str, *, query: dict[str, Any] | None = None) -> "DataFeedEntries":
+        """A data feed's rows"""
+        return self._call("GET", "/odata/{token}/Entries", {"token": token}, query, {}, None, "none", None, "json")
+
     def get_capabilities(self) -> "Capabilities":
         """Self-description of the installation"""
         return self._call("GET", "/meta/capabilities", {}, None, {}, None, "none", None, "json")

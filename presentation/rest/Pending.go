@@ -2877,3 +2877,15 @@ func (pending) LinkEntryFile(w http.ResponseWriter, r *http.Request, _ openapi.I
 func (pending) UnlinkEntryFile(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }
+
+func (pending) GetDataFeedService(w http.ResponseWriter, r *http.Request, _ openapi.DataFeedToken) {
+	notAvailable(w, r)
+}
+
+func (pending) GetDataFeedMetadata(w http.ResponseWriter, r *http.Request, _ openapi.DataFeedToken) {
+	notAvailable(w, r)
+}
+
+func (pending) GetDataFeedEntries(w http.ResponseWriter, r *http.Request, _ openapi.DataFeedToken, _ openapi.GetDataFeedEntriesParams) {
+	notAvailable(w, r)
+}

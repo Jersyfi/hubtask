@@ -3905,16 +3905,47 @@ class TriggerEventPage(TypedDict, total=False):
 class CalendarFeed(TypedDict, total=False):
     """One subscription: a token its owner holds, over one saved view, revocable. The token itself is not a member - it exists in the answer to the call that minted it and nowhere else afterwards."""
     id: Required[str]
+    kind: Literal["CALENDAR", "DATA"]
     account_id: Required[str]
     view_id: str | None
     created_at: Required[str]
     revoked_at: str | None
 
+DataFeedService = TypedDict("DataFeedService", {
+    "@odata.context": Required[str],
+    "value": Required[list[dict[str, Any]]],
+}, total=False)
+
+DataFeedEntries = TypedDict("DataFeedEntries", {
+    "@odata.context": Required[str],
+    "@odata.nextLink": str,
+    "value": Required[list["DataFeedEntry"]],
+}, total=False)
+
+class DataFeedEntry(TypedDict, total=False):
+    Id: Required[str]
+    Key: Required[str]
+    Level: Required[Literal["TASK", "WORK_PACKAGE", "ACTIVITY"]]
+    EntryType: str | None
+    Title: Required[str]
+    Status: str | None
+    Completed: Required[bool]
+    CompletedAt: str | None
+    StartAt: str | None
+    DueAt: str | None
+    AssigneeId: str | None
+    CollectionId: Required[str]
+    ParentId: str | None
+    CreatedAt: Required[str]
+    UpdatedAt: Required[str]
+
 class CalendarFeedCreate(TypedDict, total=False):
     view_id: Required[str]
+    kind: Literal["CALENDAR", "DATA"]
 
 class CalendarFeedSecret(TypedDict, total=False):
     id: Required[str]
+    kind: Literal["CALENDAR", "DATA"]
     account_id: Required[str]
     view_id: str | None
     created_at: Required[str]

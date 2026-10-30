@@ -1906,6 +1906,60 @@ func (e BusinessHoursDay) Valid() bool {
 	}
 }
 
+// Defines values for CalendarFeedKind.
+const (
+	CalendarFeedKindCALENDAR CalendarFeedKind = "CALENDAR"
+	CalendarFeedKindDATA     CalendarFeedKind = "DATA"
+)
+
+// Valid indicates whether the value is a known member of the CalendarFeedKind enum.
+func (e CalendarFeedKind) Valid() bool {
+	switch e {
+	case CalendarFeedKindCALENDAR:
+		return true
+	case CalendarFeedKindDATA:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CalendarFeedCreateKind.
+const (
+	CalendarFeedCreateKindCALENDAR CalendarFeedCreateKind = "CALENDAR"
+	CalendarFeedCreateKindDATA     CalendarFeedCreateKind = "DATA"
+)
+
+// Valid indicates whether the value is a known member of the CalendarFeedCreateKind enum.
+func (e CalendarFeedCreateKind) Valid() bool {
+	switch e {
+	case CalendarFeedCreateKindCALENDAR:
+		return true
+	case CalendarFeedCreateKindDATA:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CalendarFeedSecretKind.
+const (
+	CalendarFeedSecretKindCALENDAR CalendarFeedSecretKind = "CALENDAR"
+	CalendarFeedSecretKindDATA     CalendarFeedSecretKind = "DATA"
+)
+
+// Valid indicates whether the value is a known member of the CalendarFeedSecretKind enum.
+func (e CalendarFeedSecretKind) Valid() bool {
+	switch e {
+	case CalendarFeedSecretKindCALENDAR:
+		return true
+	case CalendarFeedSecretKindDATA:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CapabilitiesSupportedLocalesDirection.
 const (
 	Ltr CapabilitiesSupportedLocalesDirection = "ltr"
@@ -3769,6 +3823,27 @@ func (e DashboardWriteSharing) Valid() bool {
 	case DashboardWriteSharingPRIVATE:
 		return true
 	case DashboardWriteSharingSCOPE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DataFeedEntryLevel.
+const (
+	DataFeedEntryLevelACTIVITY    DataFeedEntryLevel = "ACTIVITY"
+	DataFeedEntryLevelTASK        DataFeedEntryLevel = "TASK"
+	DataFeedEntryLevelWORKPACKAGE DataFeedEntryLevel = "WORK_PACKAGE"
+)
+
+// Valid indicates whether the value is a known member of the DataFeedEntryLevel enum.
+func (e DataFeedEntryLevel) Valid() bool {
+	switch e {
+	case DataFeedEntryLevelACTIVITY:
+		return true
+	case DataFeedEntryLevelTASK:
+		return true
+	case DataFeedEntryLevelWORKPACKAGE:
 		return true
 	default:
 		return false
@@ -12365,6 +12440,9 @@ type CalendarFeed struct {
 	CreatedAt time.Time          `json:"created_at"`
 	Id        openapi_types.UUID `json:"id"`
 
+	// Kind What the token opens - a calendar, or a read-only data feed of the view's rows.
+	Kind *CalendarFeedKind `json:"kind,omitempty"`
+
 	// RevokedAt When the token stopped working. Kept rather than deleted, so that "this token was revoked on Tuesday" is answerable.
 	RevokedAt *time.Time `json:"revoked_at,omitempty"`
 
@@ -12372,11 +12450,20 @@ type CalendarFeed struct {
 	ViewId *openapi_types.UUID `json:"view_id,omitempty"`
 }
 
+// CalendarFeedKind What the token opens - a calendar, or a read-only data feed of the view's rows.
+type CalendarFeedKind string
+
 // CalendarFeedCreate defines model for CalendarFeedCreate.
 type CalendarFeedCreate struct {
+	// Kind What the token opens. CALENDAR, the default, serves the view's dated entries as a calendar (`/calendar/{token}.ics` and CalDAV); DATA serves the view's rows as a read-only OData feed (`/odata/{token}`) for Power BI, Excel or another reporting tool. One token opens one kind.
+	Kind *CalendarFeedCreateKind `json:"kind,omitempty"`
+
 	// ViewId The saved view to serve. It has to be one the caller may read.
 	ViewId openapi_types.UUID `json:"view_id"`
 }
+
+// CalendarFeedCreateKind What the token opens. CALENDAR, the default, serves the view's dated entries as a calendar (`/calendar/{token}.ics` and CalDAV); DATA serves the view's rows as a read-only OData feed (`/odata/{token}`) for Power BI, Excel or another reporting tool. One token opens one kind.
+type CalendarFeedCreateKind string
 
 // CalendarFeedSecret defines model for CalendarFeedSecret.
 type CalendarFeedSecret struct {
@@ -12384,6 +12471,9 @@ type CalendarFeedSecret struct {
 	AccountId openapi_types.UUID `json:"account_id"`
 	CreatedAt time.Time          `json:"created_at"`
 	Id        openapi_types.UUID `json:"id"`
+
+	// Kind What the token opens - a calendar, or a read-only data feed of the view's rows.
+	Kind *CalendarFeedSecretKind `json:"kind,omitempty"`
 
 	// RevokedAt When the token stopped working. Kept rather than deleted, so that "this token was revoked on Tuesday" is answerable.
 	RevokedAt *time.Time `json:"revoked_at,omitempty"`
@@ -12397,6 +12487,9 @@ type CalendarFeedSecret struct {
 	// ViewId The view the feed serves, or null once that view has been deleted. Null rather than the row going with it: a feed is the subscriber's and a view is the workspace's, so a deleted view leaves a feed that serves nothing and says so.
 	ViewId *openapi_types.UUID `json:"view_id,omitempty"`
 }
+
+// CalendarFeedSecretKind What the token opens - a calendar, or a read-only data feed of the view's rows.
+type CalendarFeedSecretKind string
 
 // Capabilities Self-description; clients configure themselves from this.
 type Capabilities struct {
@@ -14580,6 +14673,47 @@ type DashboardWrite struct {
 
 // DashboardWriteSharing PRIVATE its owner's alone, SCOPE whoever reads its place, GROUPS the members of group_ids who read it.
 type DashboardWriteSharing string
+
+// DataFeedEntries defines model for DataFeedEntries.
+type DataFeedEntries struct {
+	OdataContext  string          `json:"@odata.context"`
+	OdataNextLink *string         `json:"@odata.nextLink,omitempty"`
+	Value         []DataFeedEntry `json:"value"`
+}
+
+// DataFeedEntry defines model for DataFeedEntry.
+type DataFeedEntry struct {
+	AssigneeId   *openapi_types.UUID `json:"AssigneeId,omitempty"`
+	CollectionId openapi_types.UUID  `json:"CollectionId"`
+	Completed    bool                `json:"Completed"`
+	CompletedAt  *time.Time          `json:"CompletedAt,omitempty"`
+	CreatedAt    time.Time           `json:"CreatedAt"`
+	DueAt        *time.Time          `json:"DueAt,omitempty"`
+	EntryType    *string             `json:"EntryType,omitempty"`
+	Id           openapi_types.UUID  `json:"Id"`
+
+	// Key The entry's key, `kitchen-12`; its number where its collection has no handle.
+	Key       string              `json:"Key"`
+	Level     DataFeedEntryLevel  `json:"Level"`
+	ParentId  *openapi_types.UUID `json:"ParentId,omitempty"`
+	StartAt   *time.Time          `json:"StartAt,omitempty"`
+	Status    *string             `json:"Status,omitempty"`
+	Title     string              `json:"Title"`
+	UpdatedAt time.Time           `json:"UpdatedAt"`
+}
+
+// DataFeedEntryLevel defines model for DataFeedEntry.Level.
+type DataFeedEntryLevel string
+
+// DataFeedService defines model for DataFeedService.
+type DataFeedService struct {
+	OdataContext string `json:"@odata.context"`
+	Value        []struct {
+		Kind string `json:"kind"`
+		Name string `json:"name"`
+		Url  string `json:"url"`
+	} `json:"value"`
+}
 
 // DataSubjectRequest defines model for DataSubjectRequest.
 type DataSubjectRequest struct {
@@ -23432,6 +23566,9 @@ type CustomFieldKey = string
 // DashboardId defines model for DashboardId.
 type DashboardId = openapi_types.UUID
 
+// DataFeedToken defines model for DataFeedToken.
+type DataFeedToken = string
+
 // DeliveryId defines model for DeliveryId.
 type DeliveryId = openapi_types.UUID
 
@@ -25357,6 +25494,12 @@ type RevokeMembershipParams struct {
 type RegisterOauthClientParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// GetDataFeedEntriesParams defines parameters for GetDataFeedEntries.
+type GetDataFeedEntriesParams struct {
+	Top  *int `form:"$top,omitempty" json:"$top,omitempty"`
+	Skip *int `form:"$skip,omitempty" json:"$skip,omitempty"`
 }
 
 // ChangePageCommentParams defines parameters for ChangePageComment.
@@ -29142,6 +29285,15 @@ type ServerInterface interface {
 	// ExchangeOauthCode Exchange the code for the pair
 	// (POST /oauth/token)
 	ExchangeOauthCode(w http.ResponseWriter, r *http.Request)
+	// GetDataFeedService A data feed's OData service document
+	// (GET /odata/{token})
+	GetDataFeedService(w http.ResponseWriter, r *http.Request, token DataFeedToken)
+	// GetDataFeedMetadata A data feed's OData metadata
+	// (GET /odata/{token}/$metadata)
+	GetDataFeedMetadata(w http.ResponseWriter, r *http.Request, token DataFeedToken)
+	// GetDataFeedEntries A data feed's rows
+	// (GET /odata/{token}/Entries)
+	GetDataFeedEntries(w http.ResponseWriter, r *http.Request, token DataFeedToken, params GetDataFeedEntriesParams)
 	// DeletePageComment Take a page comment back
 	// (DELETE /page-comments/{commentId})
 	DeletePageComment(w http.ResponseWriter, r *http.Request, commentId openapi_types.UUID)
@@ -47540,6 +47692,113 @@ func (siw *ServerInterfaceWrapper) ExchangeOauthCode(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// GetDataFeedService operation middleware
+func (siw *ServerInterfaceWrapper) GetDataFeedService(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token DataFeedToken
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetDataFeedService(w, r, token)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetDataFeedMetadata operation middleware
+func (siw *ServerInterfaceWrapper) GetDataFeedMetadata(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token DataFeedToken
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetDataFeedMetadata(w, r, token)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetDataFeedEntries operation middleware
+func (siw *ServerInterfaceWrapper) GetDataFeedEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token DataFeedToken
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetDataFeedEntriesParams
+
+	// ------------- Optional query parameter "$top" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "$top", r.URL.Query(), &params.Top, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "$top"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "$top", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "$skip" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "$skip", r.URL.Query(), &params.Skip, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "$skip"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "$skip", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetDataFeedEntries(w, r, token, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DeletePageComment operation middleware
 func (siw *ServerInterfaceWrapper) DeletePageComment(w http.ResponseWriter, r *http.Request) {
 
@@ -55066,6 +55325,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/integrations/calendar-feeds", wrapper.CreateCalendarFeed)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/integrations/calendar-feeds/{feedId}", wrapper.RevokeCalendarFeed)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/calendar/{token}.ics", wrapper.GetCalendarFeedDocument)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/odata/{token}", wrapper.GetDataFeedService)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/odata/{token}/$metadata", wrapper.GetDataFeedMetadata)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/odata/{token}/Entries", wrapper.GetDataFeedEntries)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/meta/capabilities", wrapper.GetCapabilities)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/meta/health", wrapper.GetHealthReport)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/audit", wrapper.ListAuditEntries)

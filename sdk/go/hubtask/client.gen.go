@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
@@ -1911,6 +1912,60 @@ func (e BusinessHoursDay) Valid() bool {
 	}
 }
 
+// Defines values for CalendarFeedKind.
+const (
+	CalendarFeedKindCALENDAR CalendarFeedKind = "CALENDAR"
+	CalendarFeedKindDATA     CalendarFeedKind = "DATA"
+)
+
+// Valid indicates whether the value is a known member of the CalendarFeedKind enum.
+func (e CalendarFeedKind) Valid() bool {
+	switch e {
+	case CalendarFeedKindCALENDAR:
+		return true
+	case CalendarFeedKindDATA:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CalendarFeedCreateKind.
+const (
+	CalendarFeedCreateKindCALENDAR CalendarFeedCreateKind = "CALENDAR"
+	CalendarFeedCreateKindDATA     CalendarFeedCreateKind = "DATA"
+)
+
+// Valid indicates whether the value is a known member of the CalendarFeedCreateKind enum.
+func (e CalendarFeedCreateKind) Valid() bool {
+	switch e {
+	case CalendarFeedCreateKindCALENDAR:
+		return true
+	case CalendarFeedCreateKindDATA:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CalendarFeedSecretKind.
+const (
+	CalendarFeedSecretKindCALENDAR CalendarFeedSecretKind = "CALENDAR"
+	CalendarFeedSecretKindDATA     CalendarFeedSecretKind = "DATA"
+)
+
+// Valid indicates whether the value is a known member of the CalendarFeedSecretKind enum.
+func (e CalendarFeedSecretKind) Valid() bool {
+	switch e {
+	case CalendarFeedSecretKindCALENDAR:
+		return true
+	case CalendarFeedSecretKindDATA:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CapabilitiesSupportedLocalesDirection.
 const (
 	Ltr CapabilitiesSupportedLocalesDirection = "ltr"
@@ -3774,6 +3829,27 @@ func (e DashboardWriteSharing) Valid() bool {
 	case DashboardWriteSharingPRIVATE:
 		return true
 	case DashboardWriteSharingSCOPE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DataFeedEntryLevel.
+const (
+	DataFeedEntryLevelACTIVITY    DataFeedEntryLevel = "ACTIVITY"
+	DataFeedEntryLevelTASK        DataFeedEntryLevel = "TASK"
+	DataFeedEntryLevelWORKPACKAGE DataFeedEntryLevel = "WORK_PACKAGE"
+)
+
+// Valid indicates whether the value is a known member of the DataFeedEntryLevel enum.
+func (e DataFeedEntryLevel) Valid() bool {
+	switch e {
+	case DataFeedEntryLevelACTIVITY:
+		return true
+	case DataFeedEntryLevelTASK:
+		return true
+	case DataFeedEntryLevelWORKPACKAGE:
 		return true
 	default:
 		return false
@@ -12370,6 +12446,9 @@ type CalendarFeed struct {
 	CreatedAt time.Time          `json:"created_at"`
 	Id        openapi_types.UUID `json:"id"`
 
+	// Kind What the token opens - a calendar, or a read-only data feed of the view's rows.
+	Kind *CalendarFeedKind `json:"kind,omitempty"`
+
 	// RevokedAt When the token stopped working. Kept rather than deleted, so that "this token was revoked on Tuesday" is answerable.
 	RevokedAt *time.Time `json:"revoked_at,omitempty"`
 
@@ -12377,11 +12456,20 @@ type CalendarFeed struct {
 	ViewId *openapi_types.UUID `json:"view_id,omitempty"`
 }
 
+// CalendarFeedKind What the token opens - a calendar, or a read-only data feed of the view's rows.
+type CalendarFeedKind string
+
 // CalendarFeedCreate defines model for CalendarFeedCreate.
 type CalendarFeedCreate struct {
+	// Kind What the token opens. CALENDAR, the default, serves the view's dated entries as a calendar (`/calendar/{token}.ics` and CalDAV); DATA serves the view's rows as a read-only OData feed (`/odata/{token}`) for Power BI, Excel or another reporting tool. One token opens one kind.
+	Kind *CalendarFeedCreateKind `json:"kind,omitempty"`
+
 	// ViewId The saved view to serve. It has to be one the caller may read.
 	ViewId openapi_types.UUID `json:"view_id"`
 }
+
+// CalendarFeedCreateKind What the token opens. CALENDAR, the default, serves the view's dated entries as a calendar (`/calendar/{token}.ics` and CalDAV); DATA serves the view's rows as a read-only OData feed (`/odata/{token}`) for Power BI, Excel or another reporting tool. One token opens one kind.
+type CalendarFeedCreateKind string
 
 // CalendarFeedSecret defines model for CalendarFeedSecret.
 type CalendarFeedSecret struct {
@@ -12389,6 +12477,9 @@ type CalendarFeedSecret struct {
 	AccountId openapi_types.UUID `json:"account_id"`
 	CreatedAt time.Time          `json:"created_at"`
 	Id        openapi_types.UUID `json:"id"`
+
+	// Kind What the token opens - a calendar, or a read-only data feed of the view's rows.
+	Kind *CalendarFeedSecretKind `json:"kind,omitempty"`
 
 	// RevokedAt When the token stopped working. Kept rather than deleted, so that "this token was revoked on Tuesday" is answerable.
 	RevokedAt *time.Time `json:"revoked_at,omitempty"`
@@ -12402,6 +12493,9 @@ type CalendarFeedSecret struct {
 	// ViewId The view the feed serves, or null once that view has been deleted. Null rather than the row going with it: a feed is the subscriber's and a view is the workspace's, so a deleted view leaves a feed that serves nothing and says so.
 	ViewId *openapi_types.UUID `json:"view_id,omitempty"`
 }
+
+// CalendarFeedSecretKind What the token opens - a calendar, or a read-only data feed of the view's rows.
+type CalendarFeedSecretKind string
 
 // Capabilities Self-description; clients configure themselves from this.
 type Capabilities struct {
@@ -14585,6 +14679,47 @@ type DashboardWrite struct {
 
 // DashboardWriteSharing PRIVATE its owner's alone, SCOPE whoever reads its place, GROUPS the members of group_ids who read it.
 type DashboardWriteSharing string
+
+// DataFeedEntries defines model for DataFeedEntries.
+type DataFeedEntries struct {
+	OdataContext  string          `json:"@odata.context"`
+	OdataNextLink *string         `json:"@odata.nextLink,omitempty"`
+	Value         []DataFeedEntry `json:"value"`
+}
+
+// DataFeedEntry defines model for DataFeedEntry.
+type DataFeedEntry struct {
+	AssigneeId   *openapi_types.UUID `json:"AssigneeId,omitempty"`
+	CollectionId openapi_types.UUID  `json:"CollectionId"`
+	Completed    bool                `json:"Completed"`
+	CompletedAt  *time.Time          `json:"CompletedAt,omitempty"`
+	CreatedAt    time.Time           `json:"CreatedAt"`
+	DueAt        *time.Time          `json:"DueAt,omitempty"`
+	EntryType    *string             `json:"EntryType,omitempty"`
+	Id           openapi_types.UUID  `json:"Id"`
+
+	// Key The entry's key, `kitchen-12`; its number where its collection has no handle.
+	Key       string              `json:"Key"`
+	Level     DataFeedEntryLevel  `json:"Level"`
+	ParentId  *openapi_types.UUID `json:"ParentId,omitempty"`
+	StartAt   *time.Time          `json:"StartAt,omitempty"`
+	Status    *string             `json:"Status,omitempty"`
+	Title     string              `json:"Title"`
+	UpdatedAt time.Time           `json:"UpdatedAt"`
+}
+
+// DataFeedEntryLevel defines model for DataFeedEntry.Level.
+type DataFeedEntryLevel string
+
+// DataFeedService defines model for DataFeedService.
+type DataFeedService struct {
+	OdataContext string `json:"@odata.context"`
+	Value        []struct {
+		Kind string `json:"kind"`
+		Name string `json:"name"`
+		Url  string `json:"url"`
+	} `json:"value"`
+}
 
 // DataSubjectRequest defines model for DataSubjectRequest.
 type DataSubjectRequest struct {
@@ -23437,6 +23572,9 @@ type CustomFieldKey = string
 // DashboardId defines model for DashboardId.
 type DashboardId = openapi_types.UUID
 
+// DataFeedToken defines model for DataFeedToken.
+type DataFeedToken = string
+
 // DeliveryId defines model for DeliveryId.
 type DeliveryId = openapi_types.UUID
 
@@ -25362,6 +25500,12 @@ type RevokeMembershipParams struct {
 type RegisterOauthClientParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// GetDataFeedEntriesParams defines parameters for GetDataFeedEntries.
+type GetDataFeedEntriesParams struct {
+	Top  *int `form:"$top,omitempty" json:"$top,omitempty"`
+	Skip *int `form:"$skip,omitempty" json:"$skip,omitempty"`
 }
 
 // ChangePageCommentParams defines parameters for ChangePageComment.
@@ -34406,6 +34550,27 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 	ExchangeOauthCodeWithFormdataBody(ctx context.Context, body ExchangeOauthCodeFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetDataFeedService A data feed's OData service document
+	//
+	// The root a reporting tool is given - Power BI's and Excel's *OData feed*: an OData v4 service with one entity set, `Entries`, the rows of the saved view the feed serves, read as the feed's owner reads at every fetch. Read-only. An unknown token, a revoked one, a calendar's token, a feed whose view has been deleted and one whose owner has lost the view all answer the same 404.
+	//
+	// Corresponds with GET /odata/{token} (the `GetDataFeedService` operationId).
+	GetDataFeedService(ctx context.Context, token DataFeedToken, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetDataFeedMetadata A data feed's OData metadata
+	//
+	// The feed's schema as an OData v4 CSDL document: the entity type `Entry` and the entity set `Entries`. The same 404 as the service document for every reason not to serve.
+	//
+	// Corresponds with GET /odata/{token}/$metadata (the `GetDataFeedMetadata` operationId).
+	GetDataFeedMetadata(ctx context.Context, token DataFeedToken, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetDataFeedEntries A data feed's rows
+	//
+	// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, key, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
+	//
+	// Corresponds with GET /odata/{token}/Entries (the `GetDataFeedEntries` operationId).
+	GetDataFeedEntries(ctx context.Context, token DataFeedToken, params *GetDataFeedEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeletePageComment Take a page comment back
 	//
@@ -51655,6 +51820,57 @@ func (c *Client) ExchangeOauthCode(ctx context.Context, body ExchangeOauthCodeJS
 // Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 func (c *Client) ExchangeOauthCodeWithFormdataBody(ctx context.Context, body ExchangeOauthCodeFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExchangeOauthCodeRequestWithFormdataBody(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetDataFeedService A data feed's OData service document
+//
+// The root a reporting tool is given - Power BI's and Excel's *OData feed*: an OData v4 service with one entity set, `Entries`, the rows of the saved view the feed serves, read as the feed's owner reads at every fetch. Read-only. An unknown token, a revoked one, a calendar's token, a feed whose view has been deleted and one whose owner has lost the view all answer the same 404.
+//
+// Corresponds with GET /odata/{token} (the `GetDataFeedService` operationId).
+func (c *Client) GetDataFeedService(ctx context.Context, token DataFeedToken, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetDataFeedServiceRequest(c.Server, token)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetDataFeedMetadata A data feed's OData metadata
+//
+// The feed's schema as an OData v4 CSDL document: the entity type `Entry` and the entity set `Entries`. The same 404 as the service document for every reason not to serve.
+//
+// Corresponds with GET /odata/{token}/$metadata (the `GetDataFeedMetadata` operationId).
+func (c *Client) GetDataFeedMetadata(ctx context.Context, token DataFeedToken, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetDataFeedMetadataRequest(c.Server, token)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetDataFeedEntries A data feed's rows
+//
+// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, key, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
+//
+// Corresponds with GET /odata/{token}/Entries (the `GetDataFeedEntries` operationId).
+func (c *Client) GetDataFeedEntries(ctx context.Context, token DataFeedToken, params *GetDataFeedEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetDataFeedEntriesRequest(c.Server, token, params)
 	if err != nil {
 		return nil, err
 	}
@@ -82446,6 +82662,147 @@ func NewExchangeOauthCodeRequestWithBody(server string, contentType string, body
 	return req, nil
 }
 
+// NewGetDataFeedServiceRequest constructs an http.Request for the GetDataFeedService method
+func NewGetDataFeedServiceRequest(server string, token DataFeedToken) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "token", token, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/odata/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetDataFeedMetadataRequest constructs an http.Request for the GetDataFeedMetadata method
+func NewGetDataFeedMetadataRequest(server string, token DataFeedToken) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "token", token, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/odata/%s/$metadata", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetDataFeedEntriesRequest constructs an http.Request for the GetDataFeedEntries method
+func NewGetDataFeedEntriesRequest(server string, token DataFeedToken, params *GetDataFeedEntriesParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "token", token, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/odata/%s/Entries", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Top != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "$top", *params.Top, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Skip != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "$skip", *params.Skip, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewDeletePageCommentRequest constructs an http.Request for the DeletePageComment method
 func NewDeletePageCommentRequest(server string, commentId openapi_types.UUID) (*http.Request, error) {
 	var err error
@@ -100314,6 +100671,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 	ExchangeOauthCodeWithFormdataBodyWithResponse(ctx context.Context, body ExchangeOauthCodeFormdataRequestBody, reqEditors ...RequestEditorFn) (*ExchangeOauthCodeResult, error)
+
+	// GetDataFeedServiceWithResponse A data feed's OData service document
+	//
+	// The root a reporting tool is given - Power BI's and Excel's *OData feed*: an OData v4 service with one entity set, `Entries`, the rows of the saved view the feed serves, read as the feed's owner reads at every fetch. Read-only. An unknown token, a revoked one, a calendar's token, a feed whose view has been deleted and one whose owner has lost the view all answer the same 404.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /odata/{token} (the `GetDataFeedService` operationId).
+	GetDataFeedServiceWithResponse(ctx context.Context, token DataFeedToken, reqEditors ...RequestEditorFn) (*GetDataFeedServiceResult, error)
+
+	// GetDataFeedMetadataWithResponse A data feed's OData metadata
+	//
+	// The feed's schema as an OData v4 CSDL document: the entity type `Entry` and the entity set `Entries`. The same 404 as the service document for every reason not to serve.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /odata/{token}/$metadata (the `GetDataFeedMetadata` operationId).
+	GetDataFeedMetadataWithResponse(ctx context.Context, token DataFeedToken, reqEditors ...RequestEditorFn) (*GetDataFeedMetadataResult, error)
+
+	// GetDataFeedEntriesWithResponse A data feed's rows
+	//
+	// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, key, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /odata/{token}/Entries (the `GetDataFeedEntries` operationId).
+	GetDataFeedEntriesWithResponse(ctx context.Context, token DataFeedToken, params *GetDataFeedEntriesParams, reqEditors ...RequestEditorFn) (*GetDataFeedEntriesResult, error)
 
 	// DeletePageCommentWithResponse Take a page comment back
 	//
@@ -128636,6 +129020,150 @@ func (r ExchangeOauthCodeResult) ContentType() string {
 	return ""
 }
 
+type GetDataFeedServiceResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DataFeedService
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetDataFeedServiceResult) GetJSON200() *DataFeedService {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetDataFeedServiceResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetDataFeedServiceResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetDataFeedServiceResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetDataFeedServiceResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetDataFeedServiceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetDataFeedMetadataResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// XML200 the response for an HTTP 200 `application/xml` response
+	XML200 *string
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetXML200 returns the response for an HTTP 200 `application/xml` response
+func (r GetDataFeedMetadataResult) GetXML200() *string {
+	return r.XML200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetDataFeedMetadataResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetDataFeedMetadataResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetDataFeedMetadataResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetDataFeedMetadataResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetDataFeedMetadataResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetDataFeedEntriesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DataFeedEntries
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetDataFeedEntriesResult) GetJSON200() *DataFeedEntries {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetDataFeedEntriesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetDataFeedEntriesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetDataFeedEntriesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetDataFeedEntriesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetDataFeedEntriesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type DeletePageCommentResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -151271,6 +151799,51 @@ func (c *ClientWithResponses) ExchangeOauthCodeWithFormdataBodyWithResponse(ctx 
 		return nil, err
 	}
 	return ParseExchangeOauthCodeResult(rsp)
+}
+
+// GetDataFeedServiceWithResponse A data feed's OData service document
+//
+// The root a reporting tool is given - Power BI's and Excel's *OData feed*: an OData v4 service with one entity set, `Entries`, the rows of the saved view the feed serves, read as the feed's owner reads at every fetch. Read-only. An unknown token, a revoked one, a calendar's token, a feed whose view has been deleted and one whose owner has lost the view all answer the same 404.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /odata/{token} (the `GetDataFeedService` operationId).
+func (c *ClientWithResponses) GetDataFeedServiceWithResponse(ctx context.Context, token DataFeedToken, reqEditors ...RequestEditorFn) (*GetDataFeedServiceResult, error) {
+	rsp, err := c.GetDataFeedService(ctx, token, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetDataFeedServiceResult(rsp)
+}
+
+// GetDataFeedMetadataWithResponse A data feed's OData metadata
+//
+// The feed's schema as an OData v4 CSDL document: the entity type `Entry` and the entity set `Entries`. The same 404 as the service document for every reason not to serve.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /odata/{token}/$metadata (the `GetDataFeedMetadata` operationId).
+func (c *ClientWithResponses) GetDataFeedMetadataWithResponse(ctx context.Context, token DataFeedToken, reqEditors ...RequestEditorFn) (*GetDataFeedMetadataResult, error) {
+	rsp, err := c.GetDataFeedMetadata(ctx, token, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetDataFeedMetadataResult(rsp)
+}
+
+// GetDataFeedEntriesWithResponse A data feed's rows
+//
+// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, key, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /odata/{token}/Entries (the `GetDataFeedEntries` operationId).
+func (c *ClientWithResponses) GetDataFeedEntriesWithResponse(ctx context.Context, token DataFeedToken, params *GetDataFeedEntriesParams, reqEditors ...RequestEditorFn) (*GetDataFeedEntriesResult, error) {
+	rsp, err := c.GetDataFeedEntries(ctx, token, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetDataFeedEntriesResult(rsp)
 }
 
 // DeletePageCommentWithResponse Take a page comment back
@@ -174366,6 +174939,105 @@ func ParseExchangeOauthCodeResult(rsp *http.Response) (*ExchangeOauthCodeResult,
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetDataFeedServiceResult parses an HTTP response from a GetDataFeedServiceWithResponse call
+func ParseGetDataFeedServiceResult(rsp *http.Response) (*GetDataFeedServiceResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetDataFeedServiceResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DataFeedService
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetDataFeedMetadataResult parses an HTTP response from a GetDataFeedMetadataWithResponse call
+func ParseGetDataFeedMetadataResult(rsp *http.Response) (*GetDataFeedMetadataResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetDataFeedMetadataResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "xml") && rsp.StatusCode == 200:
+		var dest string
+		if err := xml.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.XML200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetDataFeedEntriesResult parses an HTTP response from a GetDataFeedEntriesWithResponse call
+func ParseGetDataFeedEntriesResult(rsp *http.Response) (*GetDataFeedEntriesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetDataFeedEntriesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DataFeedEntries
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
