@@ -48,7 +48,8 @@ lack it themselves.
 5. `GET /access/explain` answers, for a person and a place, the roles that count there, where each
    is held and every permission they carry; given a permission, whether the person holds it and
    through which role. A person may ask about themselves; about somebody else it takes
-   `MANAGE_MEMBERS` or `READ_CONFIGURATION`.
+   `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub or a collection,
+   `READ` at that place - a place the caller does not reach answers not found.
 6. *People & access → Roles* lists the shipped and the workspace's own roles with what each
    carries; an administrator defines, changes and deletes the workspace's own there, and is
    offered only the permissions they hold.
