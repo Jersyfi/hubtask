@@ -36,6 +36,9 @@ type ReadCalendarFeed struct {
 	// an export of one view can never disagree about what is in it.
 	Export     ExportView
 	UnitOfWork persistence.UnitOfWork
+	// Kind is the kind of feed this route opens; zero is a calendar. A token of the other kind
+	// answers what an unknown one answers.
+	Kind domain.FeedKind
 }
 
 // Execute answers the feed's rows, or that there is no such feed.
@@ -64,7 +67,11 @@ func (h ReadCalendarFeed) Execute(
 		if err != nil {
 			return err
 		}
-		if found.IsRevoked() || !found.ServesAView() {
+		kind := h.Kind
+		if kind == "" {
+			kind = domain.CalendarKind
+		}
+		if found.IsRevoked() || !found.ServesAView() || !found.Opens(kind) {
 			return feedGone()
 		}
 

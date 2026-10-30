@@ -332,7 +332,7 @@ func (c *Controller) propfind(w http.ResponseWriter, r *http.Request, actor apps
 				return
 			}
 			for _, feed := range feeds {
-				if !feed.RevokedAt.IsZero() || feed.ViewID.IsZero() {
+				if !feed.RevokedAt.IsZero() || feed.ViewID.IsZero() || !feed.Opens(integration.CalendarKind) {
 					continue
 				}
 				calendar, err := c.calendar(r.Context(), actor, feed)
@@ -463,7 +463,7 @@ func (c *Controller) feed(ctx context.Context, actor appshared.ActorContext, id 
 		return integration.CalendarFeed{}, err
 	}
 	for _, feed := range feeds {
-		if feed.ID.String() == id && feed.RevokedAt.IsZero() && !feed.ViewID.IsZero() {
+		if feed.ID.String() == id && feed.RevokedAt.IsZero() && !feed.ViewID.IsZero() && feed.Opens(integration.CalendarKind) {
 			return feed, nil
 		}
 	}

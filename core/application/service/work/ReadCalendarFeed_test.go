@@ -5,6 +5,7 @@ package work
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -118,8 +119,12 @@ func newFeedReadHarness(t *testing.T) *feedReadHarness {
 }
 
 // subscribe puts a view, a feed and a token in place, and answers the token.
-func (h *feedReadHarness) subscribe(t *testing.T, owner shared.ID) feed.FeedToken {
+func (h *feedReadHarness) subscribe(t *testing.T, owner shared.ID, kind ...feed.FeedKind) feed.FeedToken {
 	t.Helper()
+	var asked feed.FeedKind
+	if len(kind) > 0 {
+		asked = kind[0]
+	}
 
 	saved, err := view.NewSavedView(view.NewSavedViewInput{
 		ID: savedViewID, TenantID: tenantID, OwnerID: owner,
@@ -136,7 +141,7 @@ func (h *feedReadHarness) subscribe(t *testing.T, owner shared.ID) feed.FeedToke
 
 	subscription, err := feed.NewCalendarFeed(feed.NewCalendarFeedInput{
 		ID: shared.MustParseID("0192f000-0000-7000-8000-0000000000f1"), TenantID: tenantID,
-		AccountID: owner, ViewID: saved.ID, Now: now,
+		AccountID: owner, ViewID: saved.ID, Kind: asked, Now: now,
 	})
 	if err != nil {
 		t.Fatalf("the feed was refused: %v", err)
@@ -293,4 +298,30 @@ func mustEntropy(t *testing.T, seed byte) []byte {
 		t.Fatal(err)
 	}
 	return drawn
+}
+
+// A data feed's token opens the view's rows on the data route and nothing on the calendar's, and
+// a calendar's token nothing on the data route (UC-INT-15 check 4).
+func TestAFeedTokenOpensItsOwnRouteAlone(t *testing.T) {
+	h := newFeedReadHarness(t)
+	token := h.subscribe(t, accountID, feed.DataKind)
+	h.items.result = repository.ItemQueryResult{Items: exportedItems(2)}
+
+	if _, err := h.read.Execute(t.Context(), token); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("the calendar route served a data feed: %v", err)
+	}
+	data := h.read
+	data.Kind = feed.DataKind
+	exported, err := data.Execute(t.Context(), token)
+	if err != nil || len(exported.Items) != 2 {
+		t.Errorf("the data route answered %d rows, %v", len(exported.Items), err)
+	}
+
+	calendar := newFeedReadHarness(t)
+	calendarToken := calendar.subscribe(t, accountID)
+	other := calendar.read
+	other.Kind = feed.DataKind
+	if _, err := other.Execute(t.Context(), calendarToken); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("the data route served a calendar feed: %v", err)
+	}
 }

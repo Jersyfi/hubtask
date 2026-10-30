@@ -78,7 +78,7 @@ type MintedFeed struct {
 // permission beyond seeing the view - which is also why a view the caller cannot see answers
 // "not found" here rather than "forbidden" (T-04).
 func (h CreateCalendarFeed) Execute(
-	ctx context.Context, actor appshared.ActorContext, viewID shared.ID,
+	ctx context.Context, actor appshared.ActorContext, viewID shared.ID, kind ...domain.FeedKind,
 ) (MintedFeed, error) {
 	w := h.Writer
 	if err := actor.RequireScope(viewsRead); err != nil {
@@ -131,9 +131,13 @@ func (h CreateCalendarFeed) Execute(
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		now := w.Clock.Now()
 
+		var asked domain.FeedKind
+		if len(kind) > 0 {
+			asked = kind[0]
+		}
 		feed, err := domain.NewCalendarFeed(domain.NewCalendarFeedInput{
 			ID: w.IDs.NewID(), TenantID: actor.TenantID, AccountID: actor.AccountID,
-			ViewID: saved.ID, Now: now,
+			ViewID: saved.ID, Kind: asked, Now: now,
 		})
 		if err != nil {
 			return err
@@ -280,6 +284,10 @@ func feedOutput(feed domain.CalendarFeed) usecase.Output {
 		"created_at": feed.CreatedAt.UTC(),
 		"view_id":    nil,
 		"revoked_at": nil,
+		"kind":       string(feed.Kind),
+	}
+	if feed.Kind == "" {
+		out["kind"] = string(domain.CalendarKind)
 	}
 	if feed.ServesAView() {
 		out["view_id"] = feed.ViewID.String()
@@ -309,6 +317,11 @@ func (h CreateCalendarFeed) Descriptor() usecase.Descriptor {
 				Description: "The saved view to serve. One the caller may read - a view they " +
 					"cannot see answers not found, exactly as reading it would.",
 			},
+			{
+				Name: "kind", Kind: usecase.KindString, Enum: []string{string(domain.CalendarKind), string(domain.DataKind)},
+				Description: "What the token opens: CALENDAR (the default) the view's dated entries as a " +
+					"calendar, DATA the view's rows as a read-only OData feed for a reporting tool.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: FeedCreatedAction, TargetType: feedTarget,
@@ -330,7 +343,7 @@ func (h CreateCalendarFeed) invoke(
 		return nil, err
 	}
 
-	minted, err := h.Execute(ctx, actor, viewID)
+	minted, err := h.Execute(ctx, actor, viewID, domain.FeedKind(in.String("kind")))
 	if err != nil {
 		return nil, err
 	}
