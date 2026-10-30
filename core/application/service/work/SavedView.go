@@ -242,6 +242,9 @@ type ListSavedViewsQuery struct {
 	// ContainerID widens the answer to what is shared along that container's path. Zero answers
 	// the caller's own views alone.
 	ContainerID shared.ID
+	// Workspace widens it to what is shared workspace-wide instead, asking READ at the workspace -
+	// the configuration document's views section reads it.
+	Workspace bool
 }
 
 // Execute returns the views.
@@ -253,6 +256,26 @@ type ListSavedViewsQuery struct {
 func (h ListSavedViews) Execute(
 	ctx context.Context, actor appshared.ActorContext, query ListSavedViewsQuery,
 ) ([]view.SavedView, error) {
+	if query.Workspace && query.ContainerID.IsZero() {
+		if err := h.Authorizer.Authorize(ctx, actor, access.Request{
+			Permission: service.PermissionRead,
+			Path:       []identity.Scope{identity.TenantScope()},
+			Action:     ViewReadAction,
+			TokenScope: viewsRead,
+			TargetType: viewTarget,
+			TargetID:   actor.TenantID,
+		}); err != nil {
+			return nil, err
+		}
+		// No container: the caller's own and the TENANT-wide shares, which match by type alone.
+		var views []view.SavedView
+		err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			var err error
+			views, err = h.Views.ListReachable(ctx, actor.AccountID, nil)
+			return err
+		})
+		return views, err
+	}
 	if query.ContainerID.IsZero() {
 		// The caller's own shelf: self-service, like reading one's own preferences. The token
 		// scope is still the door.
@@ -608,6 +631,11 @@ func (h ListSavedViews) Descriptor() usecase.Descriptor {
 				Description: "The container whose shared views are wanted, together with the " +
 					"caller's own. Omitted answers the caller's own alone.",
 			},
+			{
+				Name: "workspace", Kind: usecase.KindBool,
+				Description: "Without a container: the views shared workspace-wide, together with " +
+					"the caller's own.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ViewReadAction, TargetType: viewTarget,
@@ -625,7 +653,7 @@ func (h ListSavedViews) invoke(
 		return nil, err
 	}
 
-	views, err := h.Execute(ctx, actor, ListSavedViewsQuery{ContainerID: containerID})
+	views, err := h.Execute(ctx, actor, ListSavedViewsQuery{ContainerID: containerID, Workspace: in.Bool("workspace")})
 	if err != nil {
 		return nil, err
 	}

@@ -10323,6 +10323,15 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "required": false,
+            "description": "Without a container: the views shared workspace-wide, together with the caller's own.\n",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {

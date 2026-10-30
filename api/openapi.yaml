@@ -5795,6 +5795,12 @@ paths:
             The container whose shared views are wanted, together with the caller's own. Omitted
             answers the caller's own alone.
           schema: { type: string, format: uuid }
+        - name: workspace
+          in: query
+          required: false
+          description: >
+            Without a container: the views shared workspace-wide, together with the caller's own.
+          schema: { type: boolean }
       responses:
         "200":
           description: The views

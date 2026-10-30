@@ -352,6 +352,22 @@ func TestListingWithAContainerPassesThePathsScopes(t *testing.T) {
 	}
 }
 
+// The configuration document's views section: the workspace-wide shares, asked READ at the
+// workspace, and no container's path handed to the statement.
+func TestListingTheWorkspacesSharesAsksAtTheWorkspace(t *testing.T) {
+	h := newSavedViewHarness(t)
+	if _, err := h.list.Execute(context.Background(), viewActor(), ListSavedViewsQuery{Workspace: true}); err != nil {
+		t.Fatalf("listing the workspace's shares failed: %v", err)
+	}
+	if len(h.authorizer.requests) != 1 || h.authorizer.requests[0].Permission != service.PermissionRead ||
+		len(h.authorizer.requests[0].Path) != 1 {
+		t.Errorf("the permission question was %+v", h.authorizer.requests)
+	}
+	if len(h.views.reachAsked) != 1 || len(h.views.reachAsked[0]) != 0 {
+		t.Errorf("the statement was handed %+v", h.views.reachAsked)
+	}
+}
+
 // The owner edits their own; anyone else needs STRUCTURE on the view's scope - and somebody who
 // cannot even see the view is told it does not exist.
 func TestChangingAnotherAccountsViewAsksStructure(t *testing.T) {

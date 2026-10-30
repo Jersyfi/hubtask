@@ -26882,6 +26882,9 @@ type EmptyTrashParams struct {
 type ListSavedViewsParams struct {
 	// ContainerId The container whose shared views are wanted, together with the caller's own. Omitted answers the caller's own alone.
 	ContainerId *openapi_types.UUID `form:"container_id,omitempty" json:"container_id,omitempty"`
+
+	// Workspace Without a container: the views shared workspace-wide, together with the caller's own.
+	Workspace *bool `form:"workspace,omitempty" json:"workspace,omitempty"`
 }
 
 // CreateSavedViewParams defines parameters for CreateSavedView.
@@ -55124,6 +55127,19 @@ func (siw *ServerInterfaceWrapper) ListSavedViews(w http.ResponseWriter, r *http
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "container_id"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "container_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "workspace" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "workspace", r.URL.Query(), &params.Workspace, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "workspace"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspace", Err: err})
 		}
 		return
 	}

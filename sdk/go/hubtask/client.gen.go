@@ -26888,6 +26888,9 @@ type EmptyTrashParams struct {
 type ListSavedViewsParams struct {
 	// ContainerId The container whose shared views are wanted, together with the caller's own. Omitted answers the caller's own alone.
 	ContainerId *openapi_types.UUID `form:"container_id,omitempty" json:"container_id,omitempty"`
+
+	// Workspace Without a container: the views shared workspace-wide, together with the caller's own.
+	Workspace *bool `form:"workspace,omitempty" json:"workspace,omitempty"`
 }
 
 // CreateSavedViewParams defines parameters for CreateSavedView.
@@ -94001,6 +94004,18 @@ func NewListSavedViewsRequest(server string, params *ListSavedViewsParams) (*htt
 		if params.ContainerId != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "container_id", *params.ContainerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Workspace != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "workspace", *params.Workspace, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {
