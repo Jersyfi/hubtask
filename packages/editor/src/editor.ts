@@ -87,7 +87,10 @@ export const Reference = Node.create<{ drawing?: ReferenceDrawing; fallback: str
   },
 });
 
-/** A card or a live view: `![](hubtask:<kind>/<id>)` on a line of its own. */
+/**
+ * A card, a live view or one of the page's pictures and files: `![](hubtask:<kind>/<id>)` on a line
+ * of its own. The application's `mount` draws a live view and a picture (`media`) in place.
+ */
 export const ReferenceBlock = Node.create<{ drawing?: ReferenceDrawing; fallback: string }>({
   name: 'referenceBlock',
   group: 'block',

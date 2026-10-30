@@ -50,6 +50,15 @@ test('a mention, a card and a live view are references in the notes grammar (UC-
   assert.match(toMarkdown(doc), new RegExp(`See \\[\\]\\(hubtask:entry/${ENTRY}\\)`));
 });
 
+test('a picture or a file the page holds is a block of its own, written as the import writes it (UC-DOC-14 check 1)', () => {
+  const PICTURE = '00000000-0000-0000-0000-0000000000e3';
+  const body = `The flow:\n\n![](hubtask:media/${PICTURE})\n`;
+  const doc = fromMarkdown(body);
+  assert.equal(doc.content?.[1]?.type, 'referenceBlock');
+  assert.deepEqual(doc.content?.[1]?.attrs, { kind: 'media', id: PICTURE, anchor: null });
+  assert.equal(toMarkdown(doc), body);
+});
+
 test('text that looks like Markdown is escaped, not turned into it', () => {
   const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: '# not a heading *nor bold*' }] }] };
   const written = toMarkdown(doc);

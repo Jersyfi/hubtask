@@ -7,12 +7,13 @@
  * content of a page whose live document is still empty.
  *
  * **The notes' grammar** (reference.Extract on the server): a link to `hubtask:<kind>/<id>` is a
- * mention, an image of one a card or - for a view, a dashboard or a whiteboard - a live view. The
+ * mention, an image of one a card or - for a view, a dashboard or a whiteboard - a live view; an
+ * image of `hubtask:media/<id>` is one of the page's pictures and files, drawn as itself. The
  * label is always written empty, as the notes write it: a title in the body would show a reader
  * of the page what the referenced object is called even where they may not see it.
  *
  * Pure and headless - it works on the editor's JSON, never on a DOM - so the projection has tests
- * without a browser. What it does not know (a table, an image of a file) is written as its text.
+ * without a browser. What it does not know (a table, an image from outside) is written as its text.
  */
 
 /** The editor's document as JSON, the shape ProseMirror's `toJSON` answers. */
