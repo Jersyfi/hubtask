@@ -126,6 +126,19 @@ func (c BusinessCalendar) spansOn(year int, month time.Month, day int) [][2]time
 	return out
 }
 
+// Zone answers the calendar's loaded zone: the place its days are local to.
+func (c BusinessCalendar) Zone() *time.Location {
+	if c.location == nil {
+		return time.UTC
+	}
+	return c.location
+}
+
+// WorksOn reports whether a local day holds working time - the day a plan counts (M2).
+func (c BusinessCalendar) WorksOn(year int, month time.Month, day int) bool {
+	return len(c.spansOn(year, month, day)) > 0
+}
+
 // Add answers the instant at which work of the given length, started at start, is done in working
 // time. A start outside working time begins at the next working minute; no work is done at start.
 func (c BusinessCalendar) Add(start time.Time, work time.Duration) time.Time {
