@@ -24,7 +24,9 @@ type approvedKey struct{}
 
 // Approved marks a step as taken by its approval, which the step's own approval does not hold
 // up again. Only the service desk's decision sets it, in the application layer.
-func Approved(ctx context.Context) context.Context { return context.WithValue(ctx, approvedKey{}, true) }
+func Approved(ctx context.Context) context.Context {
+	return context.WithValue(ctx, approvedKey{}, true)
+}
 
 // TakenByApproval reports whether a step is taken by its approval.
 func TakenByApproval(ctx context.Context) bool {
