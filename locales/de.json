@@ -9666,5 +9666,9 @@
   "app.consent.scope.config_apply_scheme": "Workflow-Schemata der Konfiguration anwenden, ohne deren eigenen Bereich",
   "imports.kind_takes_no_collection": "Ein Wiki-Export legt seine Seiten im Hub an. Lass die Sammlung weg und importiere erneut.",
   "imports.archive_unreadable": "Dieses ZIP ließ sich nicht öffnen, oder es enthält keine Datei, die diese Art von Import liest.",
-  "activity.item_history_imported": "Vor dem Import wurde dieser Eintrag im früheren Werkzeug geändert"
+  "activity.item_history_imported": "Vor dem Import wurde dieser Eintrag im früheren Werkzeug geändert",
+  "app.import.kind_JIRA": "Jira",
+  "app.import.kind_JIRA_hint": "Die JSON-Antwort der Vorgangssuche mit aufgeklappten Namen, Schema und Änderungsprotokoll — oder ein ZIP solcher Antworten mit den Anhängen unter attachments/<Anhang-ID>/. Jedes Projekt wird eine Sammlung mit seinen Vorgangstypen, Status, Feldern, Verlauf, Kommentaren, Verknüpfungen und Anhängen.",
+  "app.import.kind_CONFLUENCE": "Confluence",
+  "app.import.kind_CONFLUENCE_hint": "Der HTML-Export eines Bereichs als ZIP: in den Bereichseinstellungen Bereich exportieren, dann HTML wählen. Seine Seiten werden die Seiten dieses Hubs in ihrem Baum; Anhänge und Bilder werden gezählt, nicht übernommen."
 }

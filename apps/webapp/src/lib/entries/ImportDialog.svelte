@@ -34,8 +34,8 @@
   import { imports } from '../data/imports.svelte.ts';
   import {
     CSV_FIELDS,
-    IMPORT_KINDS,
     acceptFor,
+    kindsFor,
     contentTypeFor,
     importIdOf,
     mappingFor,
@@ -207,7 +207,7 @@
       const object = await media.upload(file, 'IMPORT', {
         idempotencyKey: crypto.randomUUID(),
         signal: abort.signal,
-        contentType: contentTypeFor(kind),
+        contentType: contentTypeFor(kind, file.name),
         onProgress: (moved) => (sent = moved),
       });
       mediaId = object.id;
@@ -268,7 +268,7 @@
       <Radio
         label={t('app.import.kind')}
         bind:value={kind}
-        options={IMPORT_KINDS.map((each) => ({
+        options={kindsFor(collection !== undefined).map((each) => ({
           value: each,
           label: t(`app.import.kind_${each}`),
           hint: t(`app.import.kind_${each}_hint`),

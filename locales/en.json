@@ -9669,5 +9669,9 @@
   "app.consent.scope.config_apply_scheme": "Apply the configuration's workflow schemes without their own permission scope",
   "imports.kind_takes_no_collection": "A wiki export lands its pages in the hub. Leave the collection out and import again.",
   "imports.archive_unreadable": "This ZIP could not be opened, or it holds no file this kind of import reads.",
-  "activity.item_history_imported": "Before the import, this entry was changed in the earlier tool"
+  "activity.item_history_imported": "Before the import, this entry was changed in the earlier tool",
+  "app.import.kind_JIRA": "Jira",
+  "app.import.kind_JIRA_hint": "The issue search's JSON answer with names, schema and changelog expanded — or a ZIP of such answers with the attachments under attachments/<attachment id>/. Each project becomes a collection with its issue types, statuses, fields, history, comments, links and attachments.",
+  "app.import.kind_CONFLUENCE": "Confluence",
+  "app.import.kind_CONFLUENCE_hint": "A space's HTML export as a ZIP: in the space settings, choose Export space, then HTML. Its pages become this hub's pages in their tree; attachments and pictures are counted, not brought over."
 }

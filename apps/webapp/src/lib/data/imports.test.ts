@@ -4,14 +4,24 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { IMPORT_KINDS, acceptFor, contentTypeFor, importIdOf, mappingFor, parseHeader, prefill } from './imports.ts';
+import { IMPORT_KINDS, acceptFor, contentTypeFor, importIdOf, kindsFor, mappingFor, parseHeader, prefill } from './imports.ts';
 
-test('the four kinds are offered, CSV as text and the rest as JSON', () => {
-  assert.deepEqual([...IMPORT_KINDS], ['CSV', 'TRELLO', 'GOOGLE_TASKS', 'MICROSOFT_TODO']);
+test('the six kinds are offered, CSV as text, a ZIP as a ZIP and the rest as JSON', () => {
+  assert.deepEqual([...IMPORT_KINDS], ['CSV', 'TRELLO', 'GOOGLE_TASKS', 'MICROSOFT_TODO', 'JIRA', 'CONFLUENCE']);
   assert.equal(contentTypeFor('CSV'), 'text/csv');
   assert.equal(contentTypeFor('TRELLO'), 'application/json');
+  assert.equal(contentTypeFor('JIRA', 'search.json'), 'application/json');
+  assert.equal(contentTypeFor('JIRA', 'Projects.ZIP'), 'application/zip');
+  assert.equal(contentTypeFor('CONFLUENCE', 'space.zip'), 'application/zip');
   assert.match(acceptFor('CSV'), /csv/);
   assert.match(acceptFor('GOOGLE_TASKS'), /json/);
+  assert.match(acceptFor('JIRA'), /zip/);
+});
+
+test('a wiki lands pages in the hub, so a collection does not offer it', () => {
+  assert.ok(kindsFor(false).includes('CONFLUENCE'));
+  assert.ok(!kindsFor(true).includes('CONFLUENCE'));
+  assert.ok(kindsFor(true).includes('JIRA'));
 });
 
 test('the header row: a byte order mark, a quoted cell holding the delimiter, and a semicolon file', () => {

@@ -23,7 +23,17 @@ import type { ImportKind, ImportRequest, ImportRun } from '@hubtask/sync-engine'
 export type { ImportKind, ImportRequest, ImportRun };
 
 /** The kinds, in the order they are offered. Every value of the contract's enum, and nothing else. */
-export const IMPORT_KINDS = ['CSV', 'TRELLO', 'GOOGLE_TASKS', 'MICROSOFT_TODO'] as const satisfies readonly ImportKind[];
+export const IMPORT_KINDS = [
+  'CSV', 'TRELLO', 'GOOGLE_TASKS', 'MICROSOFT_TODO', 'JIRA', 'CONFLUENCE',
+] as const satisfies readonly ImportKind[];
+
+/** The kinds that land pages in the hub: offered on a hub only, never into a collection. */
+const LANDS_PAGES: ReadonlySet<ImportKind> = new Set<ImportKind>(['CONFLUENCE']);
+
+/** The kinds offered where the import starts: on a hub every one, in a collection those that land entries. */
+export function kindsFor(intoCollection: boolean): readonly ImportKind[] {
+  return intoCollection ? IMPORT_KINDS.filter((kind) => !LANDS_PAGES.has(kind)) : IMPORT_KINDS;
+}
 
 // The other direction: a kind the contract has and this list lacks is a compile error here.
 type Unlisted = Exclude<ImportKind, (typeof IMPORT_KINDS)[number]>;
@@ -40,13 +50,19 @@ export type CsvField = (typeof CSV_FIELDS)[number];
  * guesses from the extension: a `.csv` from one platform is `application/vnd.ms-excel` and from
  * another nothing at all, and the server judges the bytes either way.
  */
-export function contentTypeFor(kind: ImportKind): string {
-  return kind === 'CSV' ? 'text/csv' : 'application/json';
+export function contentTypeFor(kind: ImportKind, fileName = ''): string {
+  if (kind === 'CSV') return 'text/csv';
+  // A wiki's export is a ZIP, and so is an issue tracker's answer with its attachments.
+  if (kind === 'CONFLUENCE' || fileName.toLowerCase().endsWith('.zip')) return 'application/zip';
+  return 'application/json';
 }
 
 /** What the file dialog offers first for a kind. A hint to the platform, never a check. */
 export function acceptFor(kind: ImportKind): string {
-  return kind === 'CSV' ? '.csv,text/csv' : '.json,application/json';
+  if (kind === 'CSV') return '.csv,text/csv';
+  if (kind === 'CONFLUENCE') return '.zip,application/zip';
+  if (kind === 'JIRA') return '.json,.zip,application/json,application/zip';
+  return '.json,application/json';
 }
 
 /**
