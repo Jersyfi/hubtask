@@ -38,9 +38,10 @@ type Store interface {
 	// ListTemplates answers every version of every template, newest version first within a key.
 	ListTemplates(ctx context.Context) ([]domain.Template, error)
 	FindTemplate(ctx context.Context, key string, version int) (domain.Template, error)
-	// PutTemplateUse records the template version the workspace took.
+	// PutTemplateUse records the template version the workspace took, or a hub its hub part.
 	PutTemplateUse(ctx context.Context, use domain.TemplateUse) error
-	TemplateUses(ctx context.Context) ([]domain.TemplateUse, error)
+	// TemplateUses answers what the workspace took, or with a hub what that hub took.
+	TemplateUses(ctx context.Context, hub shared.ID) ([]domain.TemplateUse, error)
 
 	// Sandbox answers the workspace's sandbox, false where it has none.
 	Sandbox(ctx context.Context) (domain.Sandbox, bool, error)

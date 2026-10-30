@@ -167,6 +167,20 @@ FROM (
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
 
+-- name: ExportConfigHubTemplateUses :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (u.hub_id::text || '/' || u.template_key)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(u) - 'tenant_id')::jsonb AS payload,
+         u.hub_id AS key_1,
+         u.template_key AS key_2
+  FROM config_hub_template_use u
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::text)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
 -- name: ExportContainers :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

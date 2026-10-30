@@ -1,6 +1,6 @@
 {
   "key": "itil_service_desk",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -665,6 +665,30 @@
       "resolved": {
         "name": "Resolved",
         "body": "Hello {{requester.name}},\n\nwe have resolved “{{entry.title}}”. If something is still wrong, just answer this message.\n\n{{agent.name}}"
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "service_desk": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "incident": {
+        "workflow": "incident"
+      },
+      "service_request": {
+        "workflow": "service_request"
+      },
+      "problem": {
+        "workflow": "problem"
+      },
+      "change": {
+        "workflow": "change"
       }
     }
   }

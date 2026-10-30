@@ -483,6 +483,18 @@ func (q *Queries) ClearComment(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearConfigHubTemplateUse = `-- name: ClearConfigHubTemplateUse :execrows
+DELETE FROM config_hub_template_use
+`
+
+func (q *Queries) ClearConfigHubTemplateUse(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearConfigHubTemplateUse)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearConfigProposal = `-- name: ClearConfigProposal :execrows
 DELETE FROM config_proposal
 `
@@ -1891,6 +1903,21 @@ SELECT EXISTS (SELECT 1 FROM comment WHERE id = ($1::jsonb->>'id')::uuid) AS hel
 
 func (q *Queries) HoldsComment(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsComment, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsConfigHubTemplateUse = `-- name: HoldsConfigHubTemplateUse :one
+SELECT EXISTS (
+  SELECT 1 FROM config_hub_template_use
+  WHERE hub_id = ($1::jsonb->>'hub_id')::uuid
+    AND template_key = $1::jsonb->>'template_key'
+) AS held
+`
+
+func (q *Queries) HoldsConfigHubTemplateUse(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsConfigHubTemplateUse, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -4280,6 +4307,33 @@ func (q *Queries) ImportComment(ctx context.Context, arg ImportCommentParams) (i
 	return result.RowsAffected(), nil
 }
 
+const importConfigHubTemplateUse = `-- name: ImportConfigHubTemplateUse :execrows
+INSERT INTO config_hub_template_use (tenant_id, hub_id, template_key, version, document, applied_at)
+SELECT r.tenant_id, r.hub_id, r.template_key, r.version, r.document, r.applied_at
+FROM jsonb_populate_record(
+  NULL::config_hub_template_use,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, hub_id, template_key) DO UPDATE SET
+  version = EXCLUDED.version,
+  document = EXCLUDED.document,
+  applied_at = EXCLUDED.applied_at
+WHERE $2::boolean
+`
+
+type ImportConfigHubTemplateUseParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportConfigHubTemplateUse(ctx context.Context, arg ImportConfigHubTemplateUseParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importConfigHubTemplateUse, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const importConfigProposal = `-- name: ImportConfigProposal :execrows
 INSERT INTO config_proposal (
   id, tenant_id, state, document, mode, base_hash, plan_hash, template, added, changed, removed,
@@ -4336,8 +4390,8 @@ func (q *Queries) ImportConfigRevision(ctx context.Context, payload []byte) (int
 }
 
 const importConfigTemplate = `-- name: ImportConfigTemplate :execrows
-INSERT INTO config_template (id, tenant_id, key, version, name, origin, document, created_by, created_at)
-SELECT r.id, r.tenant_id, r.key, r.version, r.name, r.origin, r.document, r.created_by, r.created_at
+INSERT INTO config_template (id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document)
+SELECT r.id, r.tenant_id, r.key, r.version, r.name, r.origin, r.document, r.created_by, r.created_at, r.hub_document
 FROM jsonb_populate_record(
   NULL::config_template,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())

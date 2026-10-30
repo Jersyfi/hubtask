@@ -6687,4 +6687,22 @@ ALTER TABLE hub_business_calendar FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON hub_business_calendar
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 
+-- A hub template's part and the hubs that took it (migration 0271).
+ALTER TABLE config_template ADD COLUMN hub_document jsonb;
+CREATE TABLE config_hub_template_use (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id       uuid NOT NULL,
+  template_key text NOT NULL,
+  version      integer NOT NULL,
+  document     jsonb NOT NULL,
+  applied_at   timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, hub_id, template_key),
+  CONSTRAINT config_hub_template_use_hub_fkey
+    FOREIGN KEY (tenant_id, hub_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE config_hub_template_use ENABLE ROW LEVEL SECURITY;
+ALTER TABLE config_hub_template_use FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON config_hub_template_use
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
 COMMIT;

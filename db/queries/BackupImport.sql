@@ -1916,8 +1916,8 @@ DELETE FROM config_proposal;
 -- name: ImportConfigTemplate :execrows
 -- A template's version is never rewritten: one the workspace holds, by identity or by key and
 -- version, is kept.
-INSERT INTO config_template (id, tenant_id, key, version, name, origin, document, created_by, created_at)
-SELECT r.id, r.tenant_id, r.key, r.version, r.name, r.origin, r.document, r.created_by, r.created_at
+INSERT INTO config_template (id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document)
+SELECT r.id, r.tenant_id, r.key, r.version, r.name, r.origin, r.document, r.created_by, r.created_at, r.hub_document
 FROM jsonb_populate_record(
   NULL::config_template,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -1950,6 +1950,29 @@ SELECT EXISTS (
 
 -- name: ClearConfigTemplateUse :execrows
 DELETE FROM config_template_use;
+
+-- name: ImportConfigHubTemplateUse :execrows
+INSERT INTO config_hub_template_use (tenant_id, hub_id, template_key, version, document, applied_at)
+SELECT r.tenant_id, r.hub_id, r.template_key, r.version, r.document, r.applied_at
+FROM jsonb_populate_record(
+  NULL::config_hub_template_use,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, hub_id, template_key) DO UPDATE SET
+  version = EXCLUDED.version,
+  document = EXCLUDED.document,
+  applied_at = EXCLUDED.applied_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsConfigHubTemplateUse :one
+SELECT EXISTS (
+  SELECT 1 FROM config_hub_template_use
+  WHERE hub_id = (sqlc.arg('payload')::jsonb->>'hub_id')::uuid
+    AND template_key = sqlc.arg('payload')::jsonb->>'template_key'
+) AS held;
+
+-- name: ClearConfigHubTemplateUse :execrows
+DELETE FROM config_hub_template_use;
 
 -- name: ImportLinkType :execrows
 INSERT INTO link_type (

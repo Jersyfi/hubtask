@@ -1250,6 +1250,15 @@ type Comment struct {
 	Internal        bool
 }
 
+type ConfigHubTemplateUse struct {
+	TenantID    pgtype.UUID
+	HubID       pgtype.UUID
+	TemplateKey string
+	Version     int32
+	Document    []byte
+	AppliedAt   pgtype.Timestamptz
+}
+
 type ConfigProposal struct {
 	ID                 pgtype.UUID
 	TenantID           pgtype.UUID
@@ -1300,15 +1309,16 @@ type ConfigSandbox struct {
 }
 
 type ConfigTemplate struct {
-	ID        pgtype.UUID
-	TenantID  pgtype.UUID
-	Key       string
-	Version   int32
-	Name      string
-	Origin    string
-	Document  []byte
-	CreatedBy pgtype.UUID
-	CreatedAt pgtype.Timestamptz
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	Key         string
+	Version     int32
+	Name        string
+	Origin      string
+	Document    []byte
+	CreatedBy   pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	HubDocument []byte
 }
 
 type ConfigTemplateUse struct {

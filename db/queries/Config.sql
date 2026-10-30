@@ -64,18 +64,18 @@ SET state = sqlc.arg('state'), decided_by = sqlc.narg('decided_by'), decided_at 
 WHERE id = sqlc.arg('id') AND state = 'WAITING';
 
 -- name: InsertConfigTemplate :exec
-INSERT INTO config_template (id, tenant_id, key, version, name, origin, document, created_by, created_at)
+INSERT INTO config_template (id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document)
 VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('key'), sqlc.arg('version'), sqlc.arg('name'),
-        sqlc.arg('origin'), sqlc.arg('document'), sqlc.narg('created_by'), sqlc.arg('at'));
+        sqlc.arg('origin'), sqlc.arg('document'), sqlc.narg('created_by'), sqlc.arg('at'), sqlc.narg('hub_document'));
 
 -- name: ListConfigTemplates :many
 -- Every version of every template, newest version first within a key.
-SELECT id, tenant_id, key, version, name, origin, document, created_by, created_at
+SELECT id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document
 FROM config_template
 ORDER BY key, version DESC;
 
 -- name: FindConfigTemplate :one
-SELECT id, tenant_id, key, version, name, origin, document, created_by, created_at
+SELECT id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document
 FROM config_template WHERE key = sqlc.arg('key') AND version = sqlc.arg('version');
 
 -- name: UpsertConfigTemplateUse :exec
@@ -87,6 +87,18 @@ DO UPDATE SET version = EXCLUDED.version, document = EXCLUDED.document, applied_
 -- name: ListConfigTemplateUses :many
 SELECT tenant_id, template_key, version, document, applied_at
 FROM config_template_use
+ORDER BY template_key;
+
+-- name: UpsertConfigHubTemplateUse :exec
+INSERT INTO config_hub_template_use (tenant_id, hub_id, template_key, version, document, applied_at)
+VALUES (current_tenant_id(), sqlc.arg('hub_id'), sqlc.arg('template_key'), sqlc.arg('version'), sqlc.arg('document'), sqlc.arg('at'))
+ON CONFLICT (tenant_id, hub_id, template_key)
+DO UPDATE SET version = EXCLUDED.version, document = EXCLUDED.document, applied_at = EXCLUDED.applied_at;
+
+-- name: ListConfigHubTemplateUses :many
+SELECT tenant_id, hub_id, template_key, version, document, applied_at
+FROM config_hub_template_use
+WHERE hub_id = sqlc.arg('hub_id')
 ORDER BY template_key;
 
 -- name: FindConfigSandbox :one

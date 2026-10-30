@@ -360,9 +360,15 @@ func (ConfigRepository) InsertTemplate(ctx context.Context, t domain.Template) e
 	if err != nil {
 		return err
 	}
+	var hub []byte
+	if t.ForHubs() {
+		if hub, err = documentBytes(t.Hub); err != nil {
+			return err
+		}
+	}
 	err = queries.InsertConfigTemplate(ctx, sqlc.InsertConfigTemplateParams{
 		ID: id, Key: t.Key, Version: int32(t.Version), Name: t.Name, Origin: string(t.Origin),
-		Document: document, CreatedBy: creator, At: timestampOf(t.CreatedAt),
+		Document: document, CreatedBy: creator, At: timestampOf(t.CreatedAt), HubDocument: hub,
 	})
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
@@ -388,9 +394,18 @@ func configTemplateFrom(row sqlc.ConfigTemplate) (domain.Template, error) {
 		}
 		ids[i] = id
 	}
+	var hub domain.Document
+	if row.HubDocument != nil {
+		if hub, err = documentFrom(row.HubDocument); err != nil {
+			return domain.Template{}, err
+		}
+		if hub == nil {
+			hub = domain.Document{}
+		}
+	}
 	return domain.Template{
 		ID: ids[0], TenantID: ids[1], Key: row.Key, Version: int(row.Version), Name: row.Name,
-		Origin: domain.TemplateOrigin(row.Origin), Document: document, CreatedBy: ids[2],
+		Origin: domain.TemplateOrigin(row.Origin), Document: document, Hub: hub, CreatedBy: ids[2],
 		CreatedAt: timeFrom(row.CreatedAt),
 	}, nil
 }
@@ -439,6 +454,18 @@ func (ConfigRepository) PutTemplateUse(ctx context.Context, use domain.TemplateU
 	if err != nil {
 		return err
 	}
+	if !use.HubID.IsZero() {
+		hub, err := uuidOf(use.HubID)
+		if err != nil {
+			return err
+		}
+		if err := queries.UpsertConfigHubTemplateUse(ctx, sqlc.UpsertConfigHubTemplateUseParams{
+			HubID: hub, TemplateKey: use.TemplateKey, Version: int32(use.Version), Document: document, At: timestampOf(use.At),
+		}); err != nil {
+			return configError(err, "recording a template a hub took")
+		}
+		return nil
+	}
 	if err := queries.UpsertConfigTemplateUse(ctx, sqlc.UpsertConfigTemplateUseParams{
 		TemplateKey: use.TemplateKey, Version: int32(use.Version), Document: document, At: timestampOf(use.At),
 	}); err != nil {
@@ -447,10 +474,13 @@ func (ConfigRepository) PutTemplateUse(ctx context.Context, use domain.TemplateU
 	return nil
 }
 
-func (ConfigRepository) TemplateUses(ctx context.Context) ([]domain.TemplateUse, error) {
+func (ConfigRepository) TemplateUses(ctx context.Context, hub shared.ID) ([]domain.TemplateUse, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if !hub.IsZero() {
+		return hubTemplateUses(ctx, queries, hub)
 	}
 	rows, err := queries.ListConfigTemplateUses(ctx)
 	if err != nil {
@@ -464,6 +494,28 @@ func (ConfigRepository) TemplateUses(ctx context.Context) ([]domain.TemplateUse,
 		}
 		out = append(out, domain.TemplateUse{
 			TemplateKey: row.TemplateKey, Version: int(row.Version), Document: document, At: timeFrom(row.AppliedAt),
+		})
+	}
+	return out, nil
+}
+
+func hubTemplateUses(ctx context.Context, queries *sqlc.Queries, hub shared.ID) ([]domain.TemplateUse, error) {
+	id, err := uuidOf(hub)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListConfigHubTemplateUses(ctx, id)
+	if err != nil {
+		return nil, configError(err, "listing the templates a hub took")
+	}
+	out := make([]domain.TemplateUse, 0, len(rows))
+	for _, row := range rows {
+		document, err := documentFrom(row.Document)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, domain.TemplateUse{
+			HubID: hub, TemplateKey: row.TemplateKey, Version: int(row.Version), Document: document, At: timeFrom(row.AppliedAt),
 		})
 	}
 	return out, nil

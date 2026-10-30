@@ -128,6 +128,17 @@ var importers = map[string]importer{
 			return queries.ClearConfigTemplate(ctx)
 		},
 	},
+	"config_hub_template_use": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportConfigHubTemplateUse(ctx, sqlc.ImportConfigHubTemplateUseParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsConfigHubTemplateUse(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearConfigHubTemplateUse(ctx)
+		},
+	},
 	"config_template_use": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportConfigTemplateUse(ctx, sqlc.ImportConfigTemplateUseParams{Payload: payload, Overwrite: overwrite})

@@ -88,27 +88,36 @@ var bundled = sync.OnceValues(func() ([]domain.Template, error) {
 			Key      string         `json:"key"`
 			Version  int            `json:"version"`
 			Document map[string]any `json:"document"`
+			Hub      map[string]any `json:"hub"`
 		}
 		if err := json.Unmarshal(raw, &file); err != nil {
 			return nil, err
 		}
-		document := domain.Document{}
-		for name, rawSection := range file.Document {
-			section := domain.Section{}
-			blocks, _ := rawSection.(map[string]any)
-			for key, rawBlock := range blocks {
-				block, _ := rawBlock.(map[string]any)
-				section[key] = domain.Block(block)
-			}
-			document[name] = section
-		}
-		out = append(out, domain.Template{
+		template := domain.Template{
 			Key: file.Key, Version: file.Version, Name: file.Key, Origin: domain.OriginHubtask,
-			Document: document, CreatedAt: shippedAt,
-		})
+			Document: shippedDocument(file.Document), CreatedAt: shippedAt,
+		}
+		if file.Hub != nil {
+			template.Hub = shippedDocument(file.Hub)
+		}
+		out = append(out, template)
 	}
 	return out, nil
 })
+
+func shippedDocument(raw map[string]any) domain.Document {
+	document := domain.Document{}
+	for name, rawSection := range raw {
+		section := domain.Section{}
+		blocks, _ := rawSection.(map[string]any)
+		for key, rawBlock := range blocks {
+			block, _ := rawBlock.(map[string]any)
+			section[key] = domain.Block(block)
+		}
+		document[name] = section
+	}
+	return document
+}
 
 // bundledTemplates answers Hubtask's document templates.
 func bundledTemplates() ([]domain.Template, error) { return bundled() }

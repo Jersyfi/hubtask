@@ -132,7 +132,7 @@ func (q *Queries) FindConfigSandbox(ctx context.Context) (ConfigSandbox, error) 
 }
 
 const findConfigTemplate = `-- name: FindConfigTemplate :one
-SELECT id, tenant_id, key, version, name, origin, document, created_by, created_at
+SELECT id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document
 FROM config_template WHERE key = $1 AND version = $2
 `
 
@@ -154,6 +154,7 @@ func (q *Queries) FindConfigTemplate(ctx context.Context, arg FindConfigTemplate
 		&i.Document,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.HubDocument,
 	)
 	return i, err
 }
@@ -254,20 +255,21 @@ func (q *Queries) InsertConfigRevision(ctx context.Context, arg InsertConfigRevi
 }
 
 const insertConfigTemplate = `-- name: InsertConfigTemplate :exec
-INSERT INTO config_template (id, tenant_id, key, version, name, origin, document, created_by, created_at)
+INSERT INTO config_template (id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document)
 VALUES ($1, current_tenant_id(), $2, $3, $4,
-        $5, $6, $7, $8)
+        $5, $6, $7, $8, $9)
 `
 
 type InsertConfigTemplateParams struct {
-	ID        pgtype.UUID
-	Key       string
-	Version   int32
-	Name      string
-	Origin    string
-	Document  []byte
-	CreatedBy pgtype.UUID
-	At        pgtype.Timestamptz
+	ID          pgtype.UUID
+	Key         string
+	Version     int32
+	Name        string
+	Origin      string
+	Document    []byte
+	CreatedBy   pgtype.UUID
+	At          pgtype.Timestamptz
+	HubDocument []byte
 }
 
 func (q *Queries) InsertConfigTemplate(ctx context.Context, arg InsertConfigTemplateParams) error {
@@ -280,6 +282,7 @@ func (q *Queries) InsertConfigTemplate(ctx context.Context, arg InsertConfigTemp
 		arg.Document,
 		arg.CreatedBy,
 		arg.At,
+		arg.HubDocument,
 	)
 	return err
 }
@@ -317,6 +320,40 @@ func (q *Queries) LatestConfigRevision(ctx context.Context) (ConfigRevision, err
 		&i.HubID,
 	)
 	return i, err
+}
+
+const listConfigHubTemplateUses = `-- name: ListConfigHubTemplateUses :many
+SELECT tenant_id, hub_id, template_key, version, document, applied_at
+FROM config_hub_template_use
+WHERE hub_id = $1
+ORDER BY template_key
+`
+
+func (q *Queries) ListConfigHubTemplateUses(ctx context.Context, hubID pgtype.UUID) ([]ConfigHubTemplateUse, error) {
+	rows, err := q.db.Query(ctx, listConfigHubTemplateUses, hubID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ConfigHubTemplateUse{}
+	for rows.Next() {
+		var i ConfigHubTemplateUse
+		if err := rows.Scan(
+			&i.TenantID,
+			&i.HubID,
+			&i.TemplateKey,
+			&i.Version,
+			&i.Document,
+			&i.AppliedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listConfigProposals = `-- name: ListConfigProposals :many
@@ -475,7 +512,7 @@ func (q *Queries) ListConfigTemplateUses(ctx context.Context) ([]ConfigTemplateU
 }
 
 const listConfigTemplates = `-- name: ListConfigTemplates :many
-SELECT id, tenant_id, key, version, name, origin, document, created_by, created_at
+SELECT id, tenant_id, key, version, name, origin, document, created_by, created_at, hub_document
 FROM config_template
 ORDER BY key, version DESC
 `
@@ -500,6 +537,7 @@ func (q *Queries) ListConfigTemplates(ctx context.Context) ([]ConfigTemplate, er
 			&i.Document,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.HubDocument,
 		); err != nil {
 			return nil, err
 		}
@@ -538,6 +576,32 @@ func (q *Queries) PutConfigSandbox(ctx context.Context, arg PutConfigSandboxPara
 		arg.BaseHash,
 		arg.BaseVersion,
 		arg.Writes,
+		arg.At,
+	)
+	return err
+}
+
+const upsertConfigHubTemplateUse = `-- name: UpsertConfigHubTemplateUse :exec
+INSERT INTO config_hub_template_use (tenant_id, hub_id, template_key, version, document, applied_at)
+VALUES (current_tenant_id(), $1, $2, $3, $4, $5)
+ON CONFLICT (tenant_id, hub_id, template_key)
+DO UPDATE SET version = EXCLUDED.version, document = EXCLUDED.document, applied_at = EXCLUDED.applied_at
+`
+
+type UpsertConfigHubTemplateUseParams struct {
+	HubID       pgtype.UUID
+	TemplateKey string
+	Version     int32
+	Document    []byte
+	At          pgtype.Timestamptz
+}
+
+func (q *Queries) UpsertConfigHubTemplateUse(ctx context.Context, arg UpsertConfigHubTemplateUseParams) error {
+	_, err := q.db.Exec(ctx, upsertConfigHubTemplateUse,
+		arg.HubID,
+		arg.TemplateKey,
+		arg.Version,
+		arg.Document,
 		arg.At,
 	)
 	return err

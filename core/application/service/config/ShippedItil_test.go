@@ -38,8 +38,27 @@ func itilTemplate(t *testing.T) domain.Template {
 // every block one the use cases that apply it accept, and every section one the document has.
 func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 	template := itilTemplate(t)
-	if template.Origin != domain.OriginHubtask || template.Version != 1 || !reservedKey(template.Key) {
-		t.Fatalf("the template is %+v", template)
+	if template.Origin != domain.OriginHubtask || template.Version != 2 || !reservedKey(template.Key) {
+		t.Fatalf("the template is %v %d %v", template.Origin, template.Version, template.Key)
+	}
+	// Its hub part (templates.md §1): the hub's switches and which of the template's workflows
+	// each of its types follows in the hub - every section one a hub's document has.
+	hubKnown := map[string]bool{}
+	for _, s := range hubSections(lintHub) {
+		hubKnown[s.name] = true
+	}
+	for name := range template.Hub {
+		if !hubKnown[name] {
+			t.Errorf("hub section %s is not one of a hub's document", name)
+		}
+	}
+	for entryType, block := range template.Hub[sectionScheme] {
+		if template.Document[sectionTypes][entryType] == nil || template.Document[sectionWorkflows][text(block[workflowAttribute])] == nil {
+			t.Errorf("the scheme's %s names a type or workflow the template does not bring: %v", entryType, block)
+		}
+	}
+	if len(template.Hub[sectionScheme]) != 4 {
+		t.Errorf("the scheme is %v", template.Hub[sectionScheme])
 	}
 	known := map[string]bool{sectionSettings: true}
 	for _, s := range sections() {

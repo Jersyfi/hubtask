@@ -578,6 +578,12 @@ var entities = []Entity{
 	{Name: "config_proposals", Table: "config_proposal", Whole: true, Later: true, Keys: []string{"id"}},
 	{Name: "config_templates", Table: "config_template", Whole: true, Later: true, Keys: []string{"id"}},
 	{Name: "config_template_uses", Table: "config_template_use", Whole: true, Later: true, Keys: []string{"template_key"}},
+	// The hub template parts hubs took (migration 0271); a duplicate takes it to the hub's copy.
+	{
+		Name: "config_hub_template_uses", Table: "config_hub_template_use", Whole: true, Later: true, Duplicable: true,
+		Keys:       []string{"hub_id", "template_key"},
+		References: []Reference{{Field: "hub_id", Table: "container"}},
+	},
 	// Live documents (migration 0230, F-8): the head, the update log and the snapshots. Whole: no
 	// row says when it changed, and retention removes compacted history without a marker. The head
 	// precedes what names it; an author erased since is cleared.

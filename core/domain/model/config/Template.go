@@ -24,16 +24,23 @@ const (
 // so taking it adds and changes what it names and leaves the rest of the place alone. A version
 // never changes once published; a change is the next version.
 type Template struct {
-	ID        shared.ID
-	TenantID  shared.ID
-	Key       string
-	Version   int
-	Name      string
-	Origin    TemplateOrigin
-	Document  Document
+	ID       shared.ID
+	TenantID shared.ID
+	Key      string
+	Version  int
+	Name     string
+	Origin   TemplateOrigin
+	Document Document
+	// Hub is the part a hub takes (templates.md §1, a hub template): a hub's own document - its
+	// switches, structure, scheme and calendars - beside the workspace's part; nil for a template
+	// of the workspace only.
+	Hub       Document
 	CreatedBy shared.ID
 	CreatedAt time.Time
 }
+
+// ForHubs reports whether a hub can be set up from the template.
+func (t Template) ForHubs() bool { return t.Hub != nil }
 
 // Provenance is how a place records what it was set up from: `key@version`.
 func (t Template) Provenance() string { return Provenance(t.Key, t.Version) }
@@ -41,9 +48,11 @@ func (t Template) Provenance() string { return Provenance(t.Key, t.Version) }
 // Provenance spells a template's key and version.
 func Provenance(key string, version int) string { return key + "@" + strconv.Itoa(version) }
 
-// TemplateUse is a template a workspace took: the version, and the template's document as it was
-// then - the base of a three-way upgrade.
+// TemplateUse is a template a workspace or a hub took: the version, and the template's document as
+// it was then - the hub's part for a hub - the base of a three-way upgrade.
 type TemplateUse struct {
+	// HubID is the hub that took the template's hub part, empty for the workspace.
+	HubID       shared.ID
 	TemplateKey string
 	Version     int
 	Document    Document

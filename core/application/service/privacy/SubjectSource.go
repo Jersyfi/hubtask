@@ -184,6 +184,7 @@ var notThePersons = map[string]string{
 	"workflow_scheme":         "which workflow a hub or collection runs for a type, which names nobody",
 	"link_type":               "the workspace's vocabulary of links",
 	"config_template_use":     "which template the workspace took at which version, which names nobody",
+	"config_hub_template_use": "which template a hub took at which version, which names nobody",
 	"realtime_document":       "a live document's head - its last place and its snapshot's - which names nobody",
 	"realtime_snapshot":       "a compaction of many authors' updates into one state, which names nobody; each author's own updates are in the map above",
 	"whiteboard_media":        "which media object lies on which board - the file itself is in media_objects, filtered by who uploaded it",

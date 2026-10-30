@@ -103,7 +103,7 @@ func TestAWorkspacesConfigurationHistoryIsItsOwn(t *testing.T) {
 		if _, err := store.FindTemplate(ctx, "service_desk", 1); err == nil {
 			t.Fatal("B finds A's template")
 		}
-		if uses, err := store.TemplateUses(ctx); err != nil || len(uses) != 0 {
+		if uses, err := store.TemplateUses(ctx, ""); err != nil || len(uses) != 0 {
 			t.Fatalf("B reads the template A took: %v %v", uses, err)
 		}
 		return nil
@@ -124,7 +124,7 @@ func TestAWorkspacesConfigurationHistoryIsItsOwn(t *testing.T) {
 		if again, err := store.DecideProposal(ctx, proposal.ID, domain.ProposalApplied, authorA, now); err != nil || again {
 			t.Fatalf("a decided proposal was decided again: %v %v", again, err)
 		}
-		uses, err := store.TemplateUses(ctx)
+		uses, err := store.TemplateUses(ctx, "")
 		if err != nil || len(uses) != 1 || uses[0].Version != 1 {
 			t.Fatalf("the template A took: %+v %v", uses, err)
 		}

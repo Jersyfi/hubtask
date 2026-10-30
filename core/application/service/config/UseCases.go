@@ -464,7 +464,7 @@ func applyFields() []usecase.Field {
 		usecase.Field{Name: "plan_hash", Kind: usecase.KindString, Required: true, Description: "The plan's hash, as PlanConfig answered it."},
 		usecase.Field{Name: "base_hash", Kind: usecase.KindString, CallerOnly: true, Description: "The hash of the configuration the plan was made on (If-Match), so a changed document is told from a changed configuration."},
 		usecase.Field{Name: "acknowledge", Kind: usecase.KindBool, Description: "True once the person has seen that the plan hides data or changes permissions; required when it does."},
-		usecase.Field{Name: "template", Kind: usecase.KindString, Description: "The template@version the document came from, recorded as the workspace's provenance."},
+		usecase.Field{Name: "template", Kind: usecase.KindString, Description: "The template@version the document came from, recorded as the workspace's provenance - or, with hub_id, as the hub's, for a template with a hub part."},
 		usecase.Field{Name: "step_up_token", Kind: usecase.KindString, CallerOnly: true, Description: "The fresh proof from /auth/step-up, needed where the plan changes the sign-in rule (step_up)."},
 	)
 }
@@ -573,10 +573,6 @@ func (h ApplyConfig) Descriptor() usecase.Descriptor {
 			if err := h.Desk.authorizeAt(ctx, actor, hub, AppliedAction, scopeApply, false); err != nil {
 				return nil, err
 			}
-			// A template is the workspace's provenance: a hub's document takes none.
-			if !hub.IsZero() && in.String("template") != "" {
-				return nil, domain.ErrRefused([]shared.FieldError{{Path: "/template", Code: "config.template_workspace_only"}})
-			}
 			return h.Desk.apply(ctx, actor, in)
 		}),
 	}
@@ -641,7 +637,7 @@ func (d Desk) apply(ctx context.Context, actor appshared.ActorContext, in usecas
 		if err := d.run(ctx, actor, p.Ops, in.String("step_up_token")); err != nil {
 			return err
 		}
-		template, err := d.provenance(ctx, actor, in.String("template"))
+		template, err := d.provenance(ctx, actor, in.String("template"), hub)
 		if err != nil {
 			return err
 		}
@@ -894,7 +890,7 @@ func (d Desk) decide(ctx context.Context, actor appshared.ActorContext, id share
 		if err := d.run(ctx, actor, p.Ops, stepUp); err != nil {
 			return err
 		}
-		template, err := d.provenance(ctx, actor, proposal.Template)
+		template, err := d.provenance(ctx, actor, proposal.Template, proposal.HubID)
 		if err != nil {
 			return err
 		}

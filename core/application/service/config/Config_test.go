@@ -389,7 +389,7 @@ func (s *store) FindTemplate(_ context.Context, key string, version int) (domain
 }
 func (s *store) PutTemplateUse(_ context.Context, use domain.TemplateUse) error {
 	for i := range s.uses {
-		if s.uses[i].TemplateKey == use.TemplateKey {
+		if s.uses[i].TemplateKey == use.TemplateKey && s.uses[i].HubID == use.HubID {
 			s.uses[i] = use
 			return nil
 		}
@@ -397,7 +397,15 @@ func (s *store) PutTemplateUse(_ context.Context, use domain.TemplateUse) error 
 	s.uses = append(s.uses, use)
 	return nil
 }
-func (s *store) TemplateUses(context.Context) ([]domain.TemplateUse, error) { return s.uses, nil }
+func (s *store) TemplateUses(_ context.Context, hub shared.ID) ([]domain.TemplateUse, error) {
+	var out []domain.TemplateUse
+	for _, use := range s.uses {
+		if use.HubID == hub {
+			out = append(out, use)
+		}
+	}
+	return out, nil
+}
 
 type settings struct{ entries map[setting.Key]setting.Entry }
 
