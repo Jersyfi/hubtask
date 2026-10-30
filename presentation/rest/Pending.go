@@ -2132,3 +2132,18 @@ func (pending) DefineSlaPolicy(w http.ResponseWriter, r *http.Request, _ string,
 func (pending) ReportSla(w http.ResponseWriter, r *http.Request, _ openapi.ReportSlaParams) {
 	notAvailable(w, r)
 }
+func (pending) ListRequestCatalogue(w http.ResponseWriter, r *http.Request, _ openapi.ListRequestCatalogueParams) {
+	notAvailable(w, r)
+}
+func (pending) ListMyRequests(w http.ResponseWriter, r *http.Request, _ openapi.ListMyRequestsParams) {
+	notAvailable(w, r)
+}
+func (pending) RaiseRequest(w http.ResponseWriter, r *http.Request, _ openapi.RaiseRequestParams) {
+	notAvailable(w, r)
+}
+func (pending) ReadMyRequest(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+func (pending) CommentOnMyRequest(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.CommentOnMyRequestParams) {
+	notAvailable(w, r)
+}

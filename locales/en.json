@@ -303,6 +303,8 @@
   "auth.password_too_long": "A password may be at most {maximum} characters.",
   "auth.password_sign_in_unavailable": "This account does not sign in with a password.",
   "auth.redemption_failed": "That invitation cannot be redeemed. Ask for a new invitation.",
+  "requests.collection_required": "Name the collection that serves the request.",
+  "requests.type_not_offered": "This service does not offer requests of that kind.",
   "setup.code_wrong": "That setup code is not right. Use the code Hubtask printed when it started, in its console output.",
   "setup.code_expired": "That setup code has expired - it is valid for thirty minutes. Restart Hubtask to print a new one.",
   "setup.already_done": "This installation is already set up. Sign in instead, or ask whoever runs it.",

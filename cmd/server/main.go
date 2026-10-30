@@ -1823,6 +1823,13 @@ func run() error {
 		Records: serviceDeskStore.Records(), Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
+	// The requester portal (UC-SVC-05): it raises and answers through the entry use cases in the
+	// registry, on the PORTAL door.
+	portalEntries := &deferredCatalogue{}
+	requestPortal := servicedeskservice.Portal{
+		Entries: portalEntries, Items: items, Containers: containers, Comments: postgres.NewCommentRepository(cursors),
+		EntryTypes: entryTypes, Gate: entryGate, Desk: serviceDesk,
+	}
 	// The assets and configuration module (M6): a hub's CIs, judged at the hub; every write of a CI
 	// goes through the inventory's reconciliation.
 	inventory := cmdbservice.Inventory{
@@ -1889,6 +1896,11 @@ func run() error {
 		servicedeskservice.DeleteSlaPolicy{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.ReadEntrySla{Desk: serviceDesk, Items: items, Containers: containers}.Descriptor(),
 		servicedeskservice.ReportSla{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.ListRequestCatalogue{Portal: requestPortal}.Descriptor(),
+		servicedeskservice.RaiseRequest{Portal: requestPortal}.Descriptor(),
+		servicedeskservice.ListMyRequests{Portal: requestPortal}.Descriptor(),
+		servicedeskservice.ReadMyRequest{Portal: requestPortal}.Descriptor(),
+		servicedeskservice.CommentOnMyRequest{Portal: requestPortal}.Descriptor(),
 		cmdbservice.ListCiClasses{Inventory: inventory}.Descriptor(),
 		cmdbservice.DefineCiClass{Inventory: inventory}.Descriptor(),
 		cmdbservice.ListCiRelationTypes{Inventory: inventory}.Descriptor(),
@@ -3044,6 +3056,7 @@ func run() error {
 	configCatalogue.catalogue = useCases
 	ruleCatalogue.catalogue = useCases
 	alertEntries.catalogue = useCases
+	portalEntries.catalogue = useCases
 	suggestionCatalogue.catalogue = useCases
 
 	var api *http.Server

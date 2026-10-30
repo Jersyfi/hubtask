@@ -128,7 +128,8 @@
     "cmdb": "the workspace's configuration item classes, relation types and sources, and a hub's inventory health",
     "ci": "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact",
     "business-calendar": "the workspace's business calendars: working hours, holidays and a time zone under a key",
-    "sla": "the workspace's SLA policies, how an entry's goals stand, and how they stood in a period"
+    "sla": "the workspace's SLA policies, how an entry's goals stand, and how they stood in a period",
+    "request": "the requester portal: a service's catalogue, raising a request, following and answering your own"
   },
   "paths": {
     "/business-calendars": {
@@ -408,6 +409,238 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EntrySlaList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/request-catalogue": {
+      "get": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "listRequestCatalogue",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "request catalogue",
+        "summary": "The kinds of request a service offers",
+        "description": "The portal's catalogue of a collection: each type whose form names the PORTAL channel and leaves it open, with its form as the portal shows it - the fields the portal hides taken out. Needs REQUEST at the collection.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CollectionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The catalogue",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestCatalogue"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/requests": {
+      "get": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "listMyRequests",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "request ls",
+        "summary": "The requests I raised",
+        "description": "The requests the caller raised in a collection, newest first, as a requester reads them. Needs REQUEST at the collection.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CollectionId"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalRequestPage"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "raiseRequest",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "request raise",
+        "summary": "Raise a request",
+        "description": "Raises a request of a kind the collection's catalogue offers, in the caller's name, held to the type's form as the portal narrows it. Needs REQUEST at the collection.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "collection_id",
+                  "entry_type",
+                  "title"
+                ],
+                "properties": {
+                  "collection_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "entry_type": {
+                    "type": "string",
+                    "description": "A key the catalogue offers."
+                  },
+                  "title": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "custom_fields": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "description": "The form's answers by field key."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Raised",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalRequest"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/requests/{itemId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ItemId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "readMyRequest",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "request show",
+        "summary": "One request I raised",
+        "description": "Where the request stands, the public replies - never an internal note - and how its SLA goals stand. A request somebody else raised is not found. Needs REQUEST at its collection.\n",
+        "responses": {
+          "200": {
+            "description": "The request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalRequestDetail"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/requests/{itemId}/comments": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ItemId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "commentOnMyRequest",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "request comment",
+        "summary": "Answer on a request I raised",
+        "description": "A public comment on the caller's own request; a reply names a public comment. Needs REQUEST at its collection.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "body"
+                ],
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "maxLength": 20000
+                  },
+                  "parent_comment_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Written",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
                 }
               }
             }
@@ -27187,6 +27420,193 @@
             "format": "date-time"
           }
         }
+      },
+      "RequestCatalogue": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "key",
+                "name",
+                "icon",
+                "form"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Empty on a system type nobody named."
+                },
+                "icon": {
+                  "type": "string"
+                },
+                "form": {
+                  "$ref": "#/components/schemas/EntryForm"
+                }
+              }
+            }
+          }
+        }
+      },
+      "PortalRequest": {
+        "type": "object",
+        "description": "A request as the person who raised it reads it - never the team's fields.",
+        "required": [
+          "id",
+          "number",
+          "collection_id",
+          "entry_type",
+          "title",
+          "notes",
+          "status",
+          "is_completed",
+          "completed_at",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "collection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "entry_type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_completed": {
+            "type": "boolean"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PortalRequestPage": {
+        "type": "object",
+        "required": [
+          "data",
+          "page_info"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortalRequest"
+            }
+          },
+          "page_info": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        }
+      },
+      "PortalRequestDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PortalRequest"
+          },
+          {
+            "type": "object",
+            "required": [
+              "comments",
+              "sla"
+            ],
+            "properties": {
+              "comments": {
+                "type": "array",
+                "description": "The public replies, oldest first; at most 200, the newest.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "author_id",
+                    "body",
+                    "created_at",
+                    "parent_comment_id",
+                    "mine"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "author_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "body": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "parent_comment_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    },
+                    "mine": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              },
+              "sla": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EntrySlaGoal"
+                }
+              }
+            }
+          }
+        ]
       },
       "EntrySlaList": {
         "type": "object",

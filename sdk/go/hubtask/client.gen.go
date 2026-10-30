@@ -14911,6 +14911,53 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
+// PortalRequest A request as the person who raised it reads it - never the team's fields.
+type PortalRequest struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	CompletedAt  *time.Time         `json:"completed_at"`
+	CreatedAt    time.Time          `json:"created_at"`
+	EntryType    string             `json:"entry_type"`
+	Id           openapi_types.UUID `json:"id"`
+	IsCompleted  bool               `json:"is_completed"`
+	Notes        *string            `json:"notes"`
+	Number       int64              `json:"number"`
+	Status       *string            `json:"status"`
+	Title        string             `json:"title"`
+	UpdatedAt    time.Time          `json:"updated_at"`
+}
+
+// PortalRequestDetail defines model for PortalRequestDetail.
+type PortalRequestDetail struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// Comments The public replies, oldest first; at most 200, the newest.
+	Comments []struct {
+		AuthorId        openapi_types.UUID  `json:"author_id"`
+		Body            *string             `json:"body"`
+		CreatedAt       time.Time           `json:"created_at"`
+		Id              openapi_types.UUID  `json:"id"`
+		Mine            bool                `json:"mine"`
+		ParentCommentId *openapi_types.UUID `json:"parent_comment_id"`
+	} `json:"comments"`
+	CompletedAt *time.Time         `json:"completed_at"`
+	CreatedAt   time.Time          `json:"created_at"`
+	EntryType   string             `json:"entry_type"`
+	Id          openapi_types.UUID `json:"id"`
+	IsCompleted bool               `json:"is_completed"`
+	Notes       *string            `json:"notes"`
+	Number      int64              `json:"number"`
+	Sla         []EntrySlaGoal     `json:"sla"`
+	Status      *string            `json:"status"`
+	Title       string             `json:"title"`
+	UpdatedAt   time.Time          `json:"updated_at"`
+}
+
+// PortalRequestPage defines model for PortalRequestPage.
+type PortalRequestPage struct {
+	Data     []PortalRequest `json:"data"`
+	PageInfo PageInfo        `json:"page_info"`
+}
+
 // Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the installation's, the workspace's or the caller's own - its `id`, the `name` given it and its `version`.
 type Preset struct {
 	// Id A saved preset's id. Absent on one of Hubtask's.
@@ -15391,6 +15438,19 @@ type ReminderUpdate struct {
 	Channels   *[]ReminderChannel    `json:"channels,omitempty"`
 	OffsetSpec *string               `json:"offset_spec,omitempty"`
 	Recipients *[]openapi_types.UUID `json:"recipients,omitempty"`
+}
+
+// RequestCatalogue defines model for RequestCatalogue.
+type RequestCatalogue struct {
+	Data []struct {
+		// Form A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them.
+		Form EntryForm `json:"form"`
+		Icon string    `json:"icon"`
+		Key  string    `json:"key"`
+
+		// Name Empty on a system type nobody named.
+		Name string `json:"name"`
+	} `json:"data"`
 }
 
 // ResealAccepted defines model for ResealAccepted.
@@ -19882,6 +19942,49 @@ type ResolveReferencesJSONBody struct {
 	References []Reference `json:"references"`
 }
 
+// ListRequestCatalogueParams defines parameters for ListRequestCatalogue.
+type ListRequestCatalogueParams struct {
+	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
+}
+
+// ListMyRequestsParams defines parameters for ListMyRequests.
+type ListMyRequestsParams struct {
+	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
+	Cursor       *Cursor      `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size         *PageSize    `form:"size,omitempty" json:"size,omitempty"`
+}
+
+// RaiseRequestJSONBody defines parameters for RaiseRequest.
+type RaiseRequestJSONBody struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// CustomFields The form's answers by field key.
+	CustomFields *map[string]interface{} `json:"custom_fields,omitempty"`
+
+	// EntryType A key the catalogue offers.
+	EntryType string  `json:"entry_type"`
+	Notes     *string `json:"notes,omitempty"`
+	Title     string  `json:"title"`
+}
+
+// RaiseRequestParams defines parameters for RaiseRequest.
+type RaiseRequestParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CommentOnMyRequestJSONBody defines parameters for CommentOnMyRequest.
+type CommentOnMyRequestJSONBody struct {
+	Body            string              `json:"body"`
+	ParentCommentId *openapi_types.UUID `json:"parent_comment_id,omitempty"`
+}
+
+// CommentOnMyRequestParams defines parameters for CommentOnMyRequest.
+type CommentOnMyRequestParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ListRetentionPoliciesParams defines parameters for ListRetentionPolicies.
 type ListRetentionPoliciesParams struct {
 	ContainerId *openapi_types.UUID `form:"container_id,omitempty" json:"container_id,omitempty"`
@@ -20733,6 +20836,12 @@ type OpenPrivateHubJSONRequestBody = PrivateHubAccessRequest
 
 // ResolveReferencesJSONRequestBody defines body for ResolveReferences for application/json ContentType.
 type ResolveReferencesJSONRequestBody ResolveReferencesJSONBody
+
+// RaiseRequestJSONRequestBody defines body for RaiseRequest for application/json ContentType.
+type RaiseRequestJSONRequestBody RaiseRequestJSONBody
+
+// CommentOnMyRequestJSONRequestBody defines body for CommentOnMyRequest for application/json ContentType.
+type CommentOnMyRequestJSONRequestBody CommentOnMyRequestJSONBody
 
 // StartRestoreJSONRequestBody defines body for StartRestore for application/json ContentType.
 type StartRestoreJSONRequestBody = RestoreRequest
@@ -26963,6 +27072,63 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /references:resolve (the `ResolveReferences` operationId).
 	ResolveReferences(ctx context.Context, body ResolveReferencesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListRequestCatalogue The kinds of request a service offers
+	//
+	// The portal's catalogue of a collection: each type whose form names the PORTAL channel and leaves it open, with its form as the portal shows it - the fields the portal hides taken out. Needs REQUEST at the collection.
+	//
+	// Corresponds with GET /request-catalogue (the `ListRequestCatalogue` operationId).
+	ListRequestCatalogue(ctx context.Context, params *ListRequestCatalogueParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListMyRequests The requests I raised
+	//
+	// The requests the caller raised in a collection, newest first, as a requester reads them. Needs REQUEST at the collection.
+	//
+	// Corresponds with GET /requests (the `ListMyRequests` operationId).
+	ListMyRequests(ctx context.Context, params *ListMyRequestsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RaiseRequestWithBody Raise a request
+	//
+	// Raises a request of a kind the collection's catalogue offers, in the caller's name, held to the type's form as the portal narrows it. Needs REQUEST at the collection.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /requests (the `RaiseRequest` operationId).
+	RaiseRequestWithBody(ctx context.Context, params *RaiseRequestParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RaiseRequest Raise a request
+	//
+	// Raises a request of a kind the collection's catalogue offers, in the caller's name, held to the type's form as the portal narrows it. Needs REQUEST at the collection.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /requests (the `RaiseRequest` operationId).
+	RaiseRequest(ctx context.Context, params *RaiseRequestParams, body RaiseRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadMyRequest One request I raised
+	//
+	// Where the request stands, the public replies - never an internal note - and how its SLA goals stand. A request somebody else raised is not found. Needs REQUEST at its collection.
+	//
+	// Corresponds with GET /requests/{itemId} (the `ReadMyRequest` operationId).
+	ReadMyRequest(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CommentOnMyRequestWithBody Answer on a request I raised
+	//
+	// A public comment on the caller's own request; a reply names a public comment. Needs REQUEST at its collection.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /requests/{itemId}/comments (the `CommentOnMyRequest` operationId).
+	CommentOnMyRequestWithBody(ctx context.Context, itemId ItemId, params *CommentOnMyRequestParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CommentOnMyRequest Answer on a request I raised
+	//
+	// A public comment on the caller's own request; a reply names a public comment. Needs REQUEST at its collection.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /requests/{itemId}/comments (the `CommentOnMyRequest` operationId).
+	CommentOnMyRequest(ctx context.Context, itemId ItemId, params *CommentOnMyRequestParams, body CommentOnMyRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StartRestoreWithBody Start a restore
 	//
@@ -40615,6 +40781,133 @@ func (c *Client) ResolveReferencesWithBody(ctx context.Context, contentType stri
 // Corresponds with POST /references:resolve (the `ResolveReferences` operationId).
 func (c *Client) ResolveReferences(ctx context.Context, body ResolveReferencesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewResolveReferencesRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListRequestCatalogue The kinds of request a service offers
+//
+// The portal's catalogue of a collection: each type whose form names the PORTAL channel and leaves it open, with its form as the portal shows it - the fields the portal hides taken out. Needs REQUEST at the collection.
+//
+// Corresponds with GET /request-catalogue (the `ListRequestCatalogue` operationId).
+func (c *Client) ListRequestCatalogue(ctx context.Context, params *ListRequestCatalogueParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListRequestCatalogueRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListMyRequests The requests I raised
+//
+// The requests the caller raised in a collection, newest first, as a requester reads them. Needs REQUEST at the collection.
+//
+// Corresponds with GET /requests (the `ListMyRequests` operationId).
+func (c *Client) ListMyRequests(ctx context.Context, params *ListMyRequestsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMyRequestsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RaiseRequestWithBody Raise a request
+//
+// Raises a request of a kind the collection's catalogue offers, in the caller's name, held to the type's form as the portal narrows it. Needs REQUEST at the collection.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /requests (the `RaiseRequest` operationId).
+func (c *Client) RaiseRequestWithBody(ctx context.Context, params *RaiseRequestParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRaiseRequestRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RaiseRequest Raise a request
+//
+// Raises a request of a kind the collection's catalogue offers, in the caller's name, held to the type's form as the portal narrows it. Needs REQUEST at the collection.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /requests (the `RaiseRequest` operationId).
+func (c *Client) RaiseRequest(ctx context.Context, params *RaiseRequestParams, body RaiseRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRaiseRequestRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadMyRequest One request I raised
+//
+// Where the request stands, the public replies - never an internal note - and how its SLA goals stand. A request somebody else raised is not found. Needs REQUEST at its collection.
+//
+// Corresponds with GET /requests/{itemId} (the `ReadMyRequest` operationId).
+func (c *Client) ReadMyRequest(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadMyRequestRequest(c.Server, itemId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CommentOnMyRequestWithBody Answer on a request I raised
+//
+// A public comment on the caller's own request; a reply names a public comment. Needs REQUEST at its collection.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /requests/{itemId}/comments (the `CommentOnMyRequest` operationId).
+func (c *Client) CommentOnMyRequestWithBody(ctx context.Context, itemId ItemId, params *CommentOnMyRequestParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCommentOnMyRequestRequestWithBody(c.Server, itemId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CommentOnMyRequest Answer on a request I raised
+//
+// A public comment on the caller's own request; a reply names a public comment. Needs REQUEST at its collection.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /requests/{itemId}/comments (the `CommentOnMyRequest` operationId).
+func (c *Client) CommentOnMyRequest(ctx context.Context, itemId ItemId, params *CommentOnMyRequestParams, body CommentOnMyRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCommentOnMyRequestRequest(c.Server, itemId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -63993,6 +64286,281 @@ func NewResolveReferencesRequestWithBody(server string, contentType string, body
 	return req, nil
 }
 
+// NewListRequestCatalogueRequest constructs an http.Request for the ListRequestCatalogue method
+func NewListRequestCatalogueRequest(server string, params *ListRequestCatalogueParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/request-catalogue")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "collection_id", params.CollectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListMyRequestsRequest constructs an http.Request for the ListMyRequests method
+func NewListMyRequestsRequest(server string, params *ListMyRequestsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/requests")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "collection_id", params.CollectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Size != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "size", *params.Size, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRaiseRequestRequest calls the generic RaiseRequest builder with application/json body
+func NewRaiseRequestRequest(server string, params *RaiseRequestParams, body RaiseRequestJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRaiseRequestRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewRaiseRequestRequestWithBody constructs an http.Request for the RaiseRequest method, with any body, and a specified content type
+func NewRaiseRequestRequestWithBody(server string, params *RaiseRequestParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/requests")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewReadMyRequestRequest constructs an http.Request for the ReadMyRequest method
+func NewReadMyRequestRequest(server string, itemId ItemId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/requests/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCommentOnMyRequestRequest calls the generic CommentOnMyRequest builder with application/json body
+func NewCommentOnMyRequestRequest(server string, itemId ItemId, params *CommentOnMyRequestParams, body CommentOnMyRequestJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCommentOnMyRequestRequestWithBody(server, itemId, params, "application/json", bodyReader)
+}
+
+// NewCommentOnMyRequestRequestWithBody constructs an http.Request for the CommentOnMyRequest method, with any body, and a specified content type
+func NewCommentOnMyRequestRequestWithBody(server string, itemId ItemId, params *CommentOnMyRequestParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/requests/%s/comments", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewStartRestoreRequest calls the generic StartRestore builder with application/json body
 func NewStartRestoreRequest(server string, body StartRestoreJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -74284,6 +74852,69 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /references:resolve (the `ResolveReferences` operationId).
 	ResolveReferencesWithResponse(ctx context.Context, body ResolveReferencesJSONRequestBody, reqEditors ...RequestEditorFn) (*ResolveReferencesResult, error)
+
+	// ListRequestCatalogueWithResponse The kinds of request a service offers
+	//
+	// The portal's catalogue of a collection: each type whose form names the PORTAL channel and leaves it open, with its form as the portal shows it - the fields the portal hides taken out. Needs REQUEST at the collection.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /request-catalogue (the `ListRequestCatalogue` operationId).
+	ListRequestCatalogueWithResponse(ctx context.Context, params *ListRequestCatalogueParams, reqEditors ...RequestEditorFn) (*ListRequestCatalogueResult, error)
+
+	// ListMyRequestsWithResponse The requests I raised
+	//
+	// The requests the caller raised in a collection, newest first, as a requester reads them. Needs REQUEST at the collection.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /requests (the `ListMyRequests` operationId).
+	ListMyRequestsWithResponse(ctx context.Context, params *ListMyRequestsParams, reqEditors ...RequestEditorFn) (*ListMyRequestsResult, error)
+
+	// RaiseRequestWithBodyWithResponse Raise a request
+	//
+	// Raises a request of a kind the collection's catalogue offers, in the caller's name, held to the type's form as the portal narrows it. Needs REQUEST at the collection.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /requests (the `RaiseRequest` operationId).
+	RaiseRequestWithBodyWithResponse(ctx context.Context, params *RaiseRequestParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RaiseRequestResult, error)
+
+	// RaiseRequestWithResponse Raise a request
+	//
+	// Raises a request of a kind the collection's catalogue offers, in the caller's name, held to the type's form as the portal narrows it. Needs REQUEST at the collection.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /requests (the `RaiseRequest` operationId).
+	RaiseRequestWithResponse(ctx context.Context, params *RaiseRequestParams, body RaiseRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*RaiseRequestResult, error)
+
+	// ReadMyRequestWithResponse One request I raised
+	//
+	// Where the request stands, the public replies - never an internal note - and how its SLA goals stand. A request somebody else raised is not found. Needs REQUEST at its collection.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /requests/{itemId} (the `ReadMyRequest` operationId).
+	ReadMyRequestWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ReadMyRequestResult, error)
+
+	// CommentOnMyRequestWithBodyWithResponse Answer on a request I raised
+	//
+	// A public comment on the caller's own request; a reply names a public comment. Needs REQUEST at its collection.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /requests/{itemId}/comments (the `CommentOnMyRequest` operationId).
+	CommentOnMyRequestWithBodyWithResponse(ctx context.Context, itemId ItemId, params *CommentOnMyRequestParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CommentOnMyRequestResult, error)
+
+	// CommentOnMyRequestWithResponse Answer on a request I raised
+	//
+	// A public comment on the caller's own request; a reply names a public comment. Needs REQUEST at its collection.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /requests/{itemId}/comments (the `CommentOnMyRequest` operationId).
+	CommentOnMyRequestWithResponse(ctx context.Context, itemId ItemId, params *CommentOnMyRequestParams, body CommentOnMyRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*CommentOnMyRequestResult, error)
 
 	// StartRestoreWithBodyWithResponse Start a restore
 	//
@@ -97127,6 +97758,246 @@ func (r ResolveReferencesResult) ContentType() string {
 	return ""
 }
 
+type ListRequestCatalogueResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *RequestCatalogue
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListRequestCatalogueResult) GetJSON200() *RequestCatalogue {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListRequestCatalogueResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListRequestCatalogueResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListRequestCatalogueResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListRequestCatalogueResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListRequestCatalogueResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListMyRequestsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PortalRequestPage
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListMyRequestsResult) GetJSON200() *PortalRequestPage {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListMyRequestsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListMyRequestsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListMyRequestsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListMyRequestsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListMyRequestsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RaiseRequestResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *PortalRequest
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r RaiseRequestResult) GetJSON201() *PortalRequest {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RaiseRequestResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RaiseRequestResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RaiseRequestResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RaiseRequestResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RaiseRequestResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadMyRequestResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PortalRequestDetail
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadMyRequestResult) GetJSON200() *PortalRequestDetail {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadMyRequestResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadMyRequestResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadMyRequestResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadMyRequestResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadMyRequestResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CommentOnMyRequestResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Comment
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CommentOnMyRequestResult) GetJSON201() *Comment {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CommentOnMyRequestResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CommentOnMyRequestResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CommentOnMyRequestResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CommentOnMyRequestResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CommentOnMyRequestResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type StartRestoreResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -111452,6 +112323,111 @@ func (c *ClientWithResponses) ResolveReferencesWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseResolveReferencesResult(rsp)
+}
+
+// ListRequestCatalogueWithResponse The kinds of request a service offers
+//
+// The portal's catalogue of a collection: each type whose form names the PORTAL channel and leaves it open, with its form as the portal shows it - the fields the portal hides taken out. Needs REQUEST at the collection.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /request-catalogue (the `ListRequestCatalogue` operationId).
+func (c *ClientWithResponses) ListRequestCatalogueWithResponse(ctx context.Context, params *ListRequestCatalogueParams, reqEditors ...RequestEditorFn) (*ListRequestCatalogueResult, error) {
+	rsp, err := c.ListRequestCatalogue(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListRequestCatalogueResult(rsp)
+}
+
+// ListMyRequestsWithResponse The requests I raised
+//
+// The requests the caller raised in a collection, newest first, as a requester reads them. Needs REQUEST at the collection.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /requests (the `ListMyRequests` operationId).
+func (c *ClientWithResponses) ListMyRequestsWithResponse(ctx context.Context, params *ListMyRequestsParams, reqEditors ...RequestEditorFn) (*ListMyRequestsResult, error) {
+	rsp, err := c.ListMyRequests(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListMyRequestsResult(rsp)
+}
+
+// RaiseRequestWithBodyWithResponse Raise a request
+//
+// Raises a request of a kind the collection's catalogue offers, in the caller's name, held to the type's form as the portal narrows it. Needs REQUEST at the collection.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /requests (the `RaiseRequest` operationId).
+func (c *ClientWithResponses) RaiseRequestWithBodyWithResponse(ctx context.Context, params *RaiseRequestParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RaiseRequestResult, error) {
+	rsp, err := c.RaiseRequestWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRaiseRequestResult(rsp)
+}
+
+// RaiseRequestWithResponse Raise a request
+//
+// Raises a request of a kind the collection's catalogue offers, in the caller's name, held to the type's form as the portal narrows it. Needs REQUEST at the collection.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /requests (the `RaiseRequest` operationId).
+func (c *ClientWithResponses) RaiseRequestWithResponse(ctx context.Context, params *RaiseRequestParams, body RaiseRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*RaiseRequestResult, error) {
+	rsp, err := c.RaiseRequest(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRaiseRequestResult(rsp)
+}
+
+// ReadMyRequestWithResponse One request I raised
+//
+// Where the request stands, the public replies - never an internal note - and how its SLA goals stand. A request somebody else raised is not found. Needs REQUEST at its collection.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /requests/{itemId} (the `ReadMyRequest` operationId).
+func (c *ClientWithResponses) ReadMyRequestWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ReadMyRequestResult, error) {
+	rsp, err := c.ReadMyRequest(ctx, itemId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadMyRequestResult(rsp)
+}
+
+// CommentOnMyRequestWithBodyWithResponse Answer on a request I raised
+//
+// A public comment on the caller's own request; a reply names a public comment. Needs REQUEST at its collection.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /requests/{itemId}/comments (the `CommentOnMyRequest` operationId).
+func (c *ClientWithResponses) CommentOnMyRequestWithBodyWithResponse(ctx context.Context, itemId ItemId, params *CommentOnMyRequestParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CommentOnMyRequestResult, error) {
+	rsp, err := c.CommentOnMyRequestWithBody(ctx, itemId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCommentOnMyRequestResult(rsp)
+}
+
+// CommentOnMyRequestWithResponse Answer on a request I raised
+//
+// A public comment on the caller's own request; a reply names a public comment. Needs REQUEST at its collection.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /requests/{itemId}/comments (the `CommentOnMyRequest` operationId).
+func (c *ClientWithResponses) CommentOnMyRequestWithResponse(ctx context.Context, itemId ItemId, params *CommentOnMyRequestParams, body CommentOnMyRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*CommentOnMyRequestResult, error) {
+	rsp, err := c.CommentOnMyRequest(ctx, itemId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCommentOnMyRequestResult(rsp)
 }
 
 // StartRestoreWithBodyWithResponse Start a restore
@@ -128844,6 +129820,171 @@ func ParseResolveReferencesResult(rsp *http.Response) (*ResolveReferencesResult,
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListRequestCatalogueResult parses an HTTP response from a ListRequestCatalogueWithResponse call
+func ParseListRequestCatalogueResult(rsp *http.Response) (*ListRequestCatalogueResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListRequestCatalogueResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest RequestCatalogue
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListMyRequestsResult parses an HTTP response from a ListMyRequestsWithResponse call
+func ParseListMyRequestsResult(rsp *http.Response) (*ListMyRequestsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListMyRequestsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PortalRequestPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRaiseRequestResult parses an HTTP response from a RaiseRequestWithResponse call
+func ParseRaiseRequestResult(rsp *http.Response) (*RaiseRequestResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RaiseRequestResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PortalRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadMyRequestResult parses an HTTP response from a ReadMyRequestWithResponse call
+func ParseReadMyRequestResult(rsp *http.Response) (*ReadMyRequestResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadMyRequestResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PortalRequestDetail
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCommentOnMyRequestResult parses an HTTP response from a CommentOnMyRequestWithResponse call
+func ParseCommentOnMyRequestResult(rsp *http.Response) (*CommentOnMyRequestResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CommentOnMyRequestResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Comment
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

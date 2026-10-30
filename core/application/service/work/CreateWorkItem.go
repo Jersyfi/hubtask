@@ -218,7 +218,7 @@ func (h CreateWorkItem) Execute(
 
 	// Before the transaction, deliberately: a refusal writes an audit entry, and an entry written
 	// inside this transaction would be rolled back together with the refusal (audit.md §7).
-	if err := h.Authorizer.Authorize(ctx, actor, access.Request{
+	request := access.Request{
 		Permission: service.PermissionWriteItems,
 		Path:       path,
 		Action:     ItemCreatedAction,
@@ -229,7 +229,13 @@ func (h CreateWorkItem) Execute(
 		// assigned, so the path ends at the container (access.ItemSubject).
 		TargetID: collectionID,
 		On:       access.ItemSubject{Does: service.ItemCreate},
-	}); err != nil {
+	}
+	if actor.Channel == string(domain.ChannelPortal) {
+		// A request raised through the portal asks REQUEST at the collection (UC-SVC-05); the
+		// portal's own use case is the one caller that sets this channel.
+		request.Permission, request.On = service.PermissionRequest, access.ItemSubject{}
+	}
+	if err := h.Authorizer.Authorize(ctx, actor, request); err != nil {
 		return domain.WorkItem{}, nil, err
 	}
 

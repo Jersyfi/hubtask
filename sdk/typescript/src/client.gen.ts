@@ -151,6 +151,31 @@ export class HubtaskClient {
     return this.call("GET", "/items/{itemId}/sla", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** The kinds of request a service offers */
+  listRequestCatalogue(options: CallOptions & { readonly query?: NonNullable<operations["listRequestCatalogue"]['parameters']['query']> } = {}): Promise<operations["listRequestCatalogue"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/request-catalogue", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The requests I raised */
+  listMyRequests(options: CallOptions & { readonly query?: NonNullable<operations["listMyRequests"]['parameters']['query']> } = {}): Promise<operations["listMyRequests"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/requests", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Raise a request */
+  raiseRequest(body: NonNullable<operations["raiseRequest"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["raiseRequest"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/requests", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** One request I raised */
+  readMyRequest(itemId: string, options: CallOptions = {}): Promise<operations["readMyRequest"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/requests/{itemId}", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Answer on a request I raised */
+  commentOnMyRequest(itemId: string, body: NonNullable<operations["commentOnMyRequest"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["commentOnMyRequest"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/requests/{itemId}/comments", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The configuration item classes */
   listCiClasses(options: CallOptions = {}): Promise<operations["listCiClasses"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/cmdb/classes", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

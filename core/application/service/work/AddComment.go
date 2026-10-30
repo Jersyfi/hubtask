@@ -120,7 +120,7 @@ func (h AddComment) Execute(
 	// WRITE_ITEMS is the permission a refusal names, not what decides: the entry named in On is
 	// judged by its COMMENT action, which the matrix gives a guest who holds no write right and a
 	// contributor only on what is assigned to them (domain-model.md §3.2, service.ItemAccessOf).
-	if err := w.Authorizer.Authorize(ctx, actor, access.Request{
+	request := access.Request{
 		Permission: service.PermissionWriteItems,
 		Path:       containerPath(collection),
 		Action:     CommentCreatedAction,
@@ -130,7 +130,17 @@ func (h AddComment) Execute(
 		// written on.
 		TargetID: cmd.ItemID,
 		On:       commenting(subject),
-	}); err != nil {
+	}
+	if actor.Channel == string(domain.ChannelPortal) {
+		// The requester answers on their own request through the portal (UC-SVC-05): REQUEST at
+		// the collection, a public comment, and only on what they raised.
+		if subject.CreatedBy != actor.AccountID {
+			return domain.Comment{}, appshared.ItemNotFound(cmd.ItemID)
+		}
+		request.Permission, request.On = service.PermissionRequest, access.ItemSubject{}
+		cmd.Internal = false
+	}
+	if err := w.Authorizer.Authorize(ctx, actor, request); err != nil {
 		return domain.Comment{}, err
 	}
 
@@ -161,6 +171,12 @@ func (h AddComment) Execute(
 		parent, err := w.parentOf(ctx, cmd.ParentCommentID, item.ID)
 		if err != nil {
 			return err
+		}
+		if parent != nil && parent.Internal && actor.Channel == string(domain.ChannelPortal) {
+			// A requester never reads an internal note, so it is not there to answer.
+			return shared.ErrNotFound.WithDetail("comments.parent_not_found").
+				WithParams(map[string]string{"parent_comment_id": parent.ID.String()}).
+				WithFields(shared.FieldError{Path: "/parent_comment_id", Code: "comments.parent_not_found"})
 		}
 
 		id := cmd.ID

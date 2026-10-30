@@ -1280,6 +1280,42 @@ class EntrySlaGoal(TypedDict, total=False):
     met_at: Required[str | None]
     breached_at: Required[str | None]
 
+class RequestCatalogue(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
+
+class PortalRequest(TypedDict, total=False):
+    """A request as the person who raised it reads it - never the team's fields."""
+    id: Required[str]
+    number: Required[int]
+    collection_id: Required[str]
+    entry_type: Required[str]
+    title: Required[str]
+    notes: Required[str | None]
+    status: Required[str | None]
+    is_completed: Required[bool]
+    completed_at: Required[str | None]
+    created_at: Required[str]
+    updated_at: Required[str]
+
+class PortalRequestPage(TypedDict, total=False):
+    data: Required[list["PortalRequest"]]
+    page_info: Required["PageInfo"]
+
+class PortalRequestDetail(TypedDict, total=False):
+    id: Required[str]
+    number: Required[int]
+    collection_id: Required[str]
+    entry_type: Required[str]
+    title: Required[str]
+    notes: Required[str | None]
+    status: Required[str | None]
+    is_completed: Required[bool]
+    completed_at: Required[str | None]
+    created_at: Required[str]
+    updated_at: Required[str]
+    comments: Required[list[dict[str, Any]]]
+    sla: Required[list["EntrySlaGoal"]]
+
 class EntrySlaList(TypedDict, total=False):
     data: Required[list["EntrySlaGoal"]]
 

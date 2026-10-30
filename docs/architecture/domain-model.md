@@ -717,6 +717,13 @@ deadline and a change's effectiveness check.
   breached -, the record the archive carries and a report counts; the timer is only its clock. A
   warning timer running out announces `item.sla_at_risk`, the goal's `item.sla_breached`, once each;
   an escalation is a rule on them.
+* **The portal** (UC-SVC-05): a requester holds `REQUEST` at a collection serving as a service. Its
+  catalogue is the top-level types the collection offers whose form names the `PORTAL` channel and
+  leaves it open (opt-in per type); a request is an entry raised through `CreateWorkItem` on the
+  `PORTAL` door, which asks `REQUEST` there instead of `WRITE_ITEMS`, and answered through
+  `AddComment` on the same door - public only, only on the requester's own entry. The portal's
+  reads answer the requester's own entries without the team's fields, internal notes or system
+  comments.
 
 ---
 

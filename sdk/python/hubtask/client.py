@@ -135,6 +135,26 @@ class Client:
         """How an entry's SLA goals stand"""
         return self._call("GET", "/items/{itemId}/sla", {"itemId": item_id}, None, {}, None, "none", None, "json")
 
+    def list_request_catalogue(self, *, query: dict[str, Any] | None = None) -> "RequestCatalogue":
+        """The kinds of request a service offers"""
+        return self._call("GET", "/request-catalogue", {}, query, {}, None, "none", None, "json")
+
+    def list_my_requests(self, *, query: dict[str, Any] | None = None) -> "PortalRequestPage":
+        """The requests I raised"""
+        return self._call("GET", "/requests", {}, query, {}, None, "none", None, "json")
+
+    def raise_request(self, body: dict[str, Any], *, idempotency_key: str | None = None) -> "PortalRequest":
+        """Raise a request"""
+        return self._call("POST", "/requests", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def read_my_request(self, item_id: str) -> "PortalRequestDetail":
+        """One request I raised"""
+        return self._call("GET", "/requests/{itemId}", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def comment_on_my_request(self, item_id: str, body: dict[str, Any], *, idempotency_key: str | None = None) -> "Comment":
+        """Answer on a request I raised"""
+        return self._call("POST", "/requests/{itemId}/comments", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
     def list_ci_classes(self) -> "CiClassList":
         """The configuration item classes"""
         return self._call("GET", "/cmdb/classes", {}, None, {}, None, "none", None, "json")

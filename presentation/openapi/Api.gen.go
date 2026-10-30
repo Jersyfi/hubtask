@@ -14905,6 +14905,53 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
+// PortalRequest A request as the person who raised it reads it - never the team's fields.
+type PortalRequest struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	CompletedAt  *time.Time         `json:"completed_at"`
+	CreatedAt    time.Time          `json:"created_at"`
+	EntryType    string             `json:"entry_type"`
+	Id           openapi_types.UUID `json:"id"`
+	IsCompleted  bool               `json:"is_completed"`
+	Notes        *string            `json:"notes"`
+	Number       int64              `json:"number"`
+	Status       *string            `json:"status"`
+	Title        string             `json:"title"`
+	UpdatedAt    time.Time          `json:"updated_at"`
+}
+
+// PortalRequestDetail defines model for PortalRequestDetail.
+type PortalRequestDetail struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// Comments The public replies, oldest first; at most 200, the newest.
+	Comments []struct {
+		AuthorId        openapi_types.UUID  `json:"author_id"`
+		Body            *string             `json:"body"`
+		CreatedAt       time.Time           `json:"created_at"`
+		Id              openapi_types.UUID  `json:"id"`
+		Mine            bool                `json:"mine"`
+		ParentCommentId *openapi_types.UUID `json:"parent_comment_id"`
+	} `json:"comments"`
+	CompletedAt *time.Time         `json:"completed_at"`
+	CreatedAt   time.Time          `json:"created_at"`
+	EntryType   string             `json:"entry_type"`
+	Id          openapi_types.UUID `json:"id"`
+	IsCompleted bool               `json:"is_completed"`
+	Notes       *string            `json:"notes"`
+	Number      int64              `json:"number"`
+	Sla         []EntrySlaGoal     `json:"sla"`
+	Status      *string            `json:"status"`
+	Title       string             `json:"title"`
+	UpdatedAt   time.Time          `json:"updated_at"`
+}
+
+// PortalRequestPage defines model for PortalRequestPage.
+type PortalRequestPage struct {
+	Data     []PortalRequest `json:"data"`
+	PageInfo PageInfo        `json:"page_info"`
+}
+
 // Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the installation's, the workspace's or the caller's own - its `id`, the `name` given it and its `version`.
 type Preset struct {
 	// Id A saved preset's id. Absent on one of Hubtask's.
@@ -15385,6 +15432,19 @@ type ReminderUpdate struct {
 	Channels   *[]ReminderChannel    `json:"channels,omitempty"`
 	OffsetSpec *string               `json:"offset_spec,omitempty"`
 	Recipients *[]openapi_types.UUID `json:"recipients,omitempty"`
+}
+
+// RequestCatalogue defines model for RequestCatalogue.
+type RequestCatalogue struct {
+	Data []struct {
+		// Form A type's one layout and logic. Fields are named by `title`, `notes`, `due_date`, `start_at` or `custom_fields.<key>`, in the order an editor shows them. A channel may only narrow the form: close itself for creating the type, hide fields and preset them.
+		Form EntryForm `json:"form"`
+		Icon string    `json:"icon"`
+		Key  string    `json:"key"`
+
+		// Name Empty on a system type nobody named.
+		Name string `json:"name"`
+	} `json:"data"`
 }
 
 // ResealAccepted defines model for ResealAccepted.
@@ -19876,6 +19936,49 @@ type ResolveReferencesJSONBody struct {
 	References []Reference `json:"references"`
 }
 
+// ListRequestCatalogueParams defines parameters for ListRequestCatalogue.
+type ListRequestCatalogueParams struct {
+	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
+}
+
+// ListMyRequestsParams defines parameters for ListMyRequests.
+type ListMyRequestsParams struct {
+	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
+	Cursor       *Cursor      `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size         *PageSize    `form:"size,omitempty" json:"size,omitempty"`
+}
+
+// RaiseRequestJSONBody defines parameters for RaiseRequest.
+type RaiseRequestJSONBody struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// CustomFields The form's answers by field key.
+	CustomFields *map[string]interface{} `json:"custom_fields,omitempty"`
+
+	// EntryType A key the catalogue offers.
+	EntryType string  `json:"entry_type"`
+	Notes     *string `json:"notes,omitempty"`
+	Title     string  `json:"title"`
+}
+
+// RaiseRequestParams defines parameters for RaiseRequest.
+type RaiseRequestParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CommentOnMyRequestJSONBody defines parameters for CommentOnMyRequest.
+type CommentOnMyRequestJSONBody struct {
+	Body            string              `json:"body"`
+	ParentCommentId *openapi_types.UUID `json:"parent_comment_id,omitempty"`
+}
+
+// CommentOnMyRequestParams defines parameters for CommentOnMyRequest.
+type CommentOnMyRequestParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ListRetentionPoliciesParams defines parameters for ListRetentionPolicies.
 type ListRetentionPoliciesParams struct {
 	ContainerId *openapi_types.UUID `form:"container_id,omitempty" json:"container_id,omitempty"`
@@ -20727,6 +20830,12 @@ type OpenPrivateHubJSONRequestBody = PrivateHubAccessRequest
 
 // ResolveReferencesJSONRequestBody defines body for ResolveReferences for application/json ContentType.
 type ResolveReferencesJSONRequestBody ResolveReferencesJSONBody
+
+// RaiseRequestJSONRequestBody defines body for RaiseRequest for application/json ContentType.
+type RaiseRequestJSONRequestBody RaiseRequestJSONBody
+
+// CommentOnMyRequestJSONRequestBody defines body for CommentOnMyRequest for application/json ContentType.
+type CommentOnMyRequestJSONRequestBody CommentOnMyRequestJSONBody
 
 // StartRestoreJSONRequestBody defines body for StartRestore for application/json ContentType.
 type StartRestoreJSONRequestBody = RestoreRequest
@@ -22167,6 +22276,21 @@ type ServerInterface interface {
 	// ResolveReferences Resolve references for the caller
 	// (POST /references:resolve)
 	ResolveReferences(w http.ResponseWriter, r *http.Request)
+	// ListRequestCatalogue The kinds of request a service offers
+	// (GET /request-catalogue)
+	ListRequestCatalogue(w http.ResponseWriter, r *http.Request, params ListRequestCatalogueParams)
+	// ListMyRequests The requests I raised
+	// (GET /requests)
+	ListMyRequests(w http.ResponseWriter, r *http.Request, params ListMyRequestsParams)
+	// RaiseRequest Raise a request
+	// (POST /requests)
+	RaiseRequest(w http.ResponseWriter, r *http.Request, params RaiseRequestParams)
+	// ReadMyRequest One request I raised
+	// (GET /requests/{itemId})
+	ReadMyRequest(w http.ResponseWriter, r *http.Request, itemId ItemId)
+	// CommentOnMyRequest Answer on a request I raised
+	// (POST /requests/{itemId}/comments)
+	CommentOnMyRequest(w http.ResponseWriter, r *http.Request, itemId ItemId, params CommentOnMyRequestParams)
 	// StartRestore Start a restore
 	// (POST /restores)
 	StartRestore(w http.ResponseWriter, r *http.Request)
@@ -37730,6 +37854,215 @@ func (siw *ServerInterfaceWrapper) ResolveReferences(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// ListRequestCatalogue operation middleware
+func (siw *ServerInterfaceWrapper) ListRequestCatalogue(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListRequestCatalogueParams
+
+	// ------------- Required query parameter "collection_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "collection_id", r.URL.Query(), &params.CollectionId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "collection_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListRequestCatalogue(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMyRequests operation middleware
+func (siw *ServerInterfaceWrapper) ListMyRequests(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListMyRequestsParams
+
+	// ------------- Required query parameter "collection_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "collection_id", r.URL.Query(), &params.CollectionId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "collection_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMyRequests(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RaiseRequest operation middleware
+func (siw *ServerInterfaceWrapper) RaiseRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RaiseRequestParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RaiseRequest(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadMyRequest operation middleware
+func (siw *ServerInterfaceWrapper) ReadMyRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadMyRequest(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CommentOnMyRequest operation middleware
+func (siw *ServerInterfaceWrapper) CommentOnMyRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CommentOnMyRequestParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CommentOnMyRequest(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // StartRestore operation middleware
 func (siw *ServerInterfaceWrapper) StartRestore(w http.ResponseWriter, r *http.Request) {
 
@@ -40406,6 +40739,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/sla-policies/{policyKey}", wrapper.DefineSlaPolicy)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sla-report", wrapper.ReportSla)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/sla", wrapper.ReadEntrySla)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/request-catalogue", wrapper.ListRequestCatalogue)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/requests", wrapper.ListMyRequests)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/requests", wrapper.RaiseRequest)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/requests/{itemId}", wrapper.ReadMyRequest)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/requests/{itemId}/comments", wrapper.CommentOnMyRequest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cmdb/classes", wrapper.ListCiClasses)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/cmdb/classes/{classKey}", wrapper.DefineCiClass)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cmdb/relation-types", wrapper.ListCiRelationTypes)

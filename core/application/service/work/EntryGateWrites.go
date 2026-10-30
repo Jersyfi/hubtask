@@ -188,3 +188,17 @@ func (g EntryGate) placing(
 	offer.ancestors = append([]domain.ItemType{parent.Type}, above[parent.ID]...)
 	return offer, nil
 }
+
+// OfferedTaskTypes answers the type keys a collection offers its top-level entries, inside the
+// caller's transaction; nil offers every type - also in a build without the structure (the
+// portal's catalogue, UC-SVC-05).
+func (g EntryGate) OfferedTaskTypes(ctx context.Context, collection domain.Container) ([]string, error) {
+	if !g.Wired() {
+		return nil, nil
+	}
+	offered, err := g.offeredIn(ctx, collection)
+	if err != nil {
+		return nil, err
+	}
+	return offered.EntryTypesOn(domain.ItemTask), nil
+}
