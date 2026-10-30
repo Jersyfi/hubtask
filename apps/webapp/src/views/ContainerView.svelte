@@ -866,6 +866,7 @@
       const base = container.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`;
       actions.push({ label: t('app.planning.title'), icon: 'calendar', onclick: () => onnavigate(`${base}/plan`) });
       if (container.type !== 'HUB') actions.push({ label: t('app.sprints.title'), icon: 'repeat', onclick: () => onnavigate(`/collections/${id}/sprints`) });
+      if (container.type === 'HUB') actions.push({ label: t('app.releases.title'), icon: 'tag', onclick: () => onnavigate(`/hubs/${id}/releases`) });
     }
     if (on.includes('TIME')) {
       const base = container.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`;

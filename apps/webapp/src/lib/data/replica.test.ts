@@ -475,6 +475,25 @@ test('a collection\'s sprints are answered from the copy', async () => {
   assert.deepEqual(active.data.map((row) => row.id), ['s-2']);
 });
 
+// UC-PLN-08 check 8: a hub's releases and a release with its entries are answered from the copy,
+// the latest day first, never another hub's.
+test('a hub\'s releases are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  const release = (id: string, fields: Record<string, unknown>) => storage.put('releases', id, record({ id, hub_id: HUB, ...fields }));
+  await release('r-1', { name: '2.3', release_on: '2026-10-01', state: 'RELEASED' });
+  await release('r-2', { name: '2.4', release_on: '2026-11-30', state: 'PLANNED' });
+  await release('r-other', { name: 'Elsewhere', release_on: '2026-12-30', state: 'PLANNED', hub_id: 'h-other' });
+  await storage.put('items', 'e-1', record({ id: 'e-1', title: 'Pay by card', is_completed: true, collection_id: COLLECTION, entry_type: 'story' }));
+  await storage.put('entry_types', 'story', record({ key: 'story', name: 'Story', level: 'TASK' }));
+  await storage.put('release_entries', 'e-1', record({ item_id: 'e-1', release_id: 'r-2', hub_id: HUB }));
+
+  const all = await storeFor({ path: `/hubs/${HUB}/releases` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(all.data.map((row) => row.id), ['r-2', 'r-1']);
+  const one = await storeFor({ path: '/releases/r-2' }, storage) as { entries: Record<string, unknown>[]; done_count: number };
+  assert.deepEqual(one.entries.map((e) => [e.title, e.type_name, e.done]), [['Pay by card', 'Story', true]]);
+  assert.equal(one.done_count, 1);
+});
+
 // A form drawn offline: the definitions in force are answered from the copy - the workspace's
 // alone without a collection, with a collection's own after them, never another collection's.
 test('the custom field definitions in force are answered from the copy', async () => {

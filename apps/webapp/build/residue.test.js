@@ -260,6 +260,7 @@ async function views() {
     ['hub-plan', await load('PlanView'), { planId: COLLECTION, onnavigate: noop }],
     ['collection-plan', await load('PlanView'), { planId: COLLECTION, onnavigate: noop }],
     ['collection-sprints', await load('SprintView'), { collectionId: COLLECTION, onnavigate: noop }],
+    ['hub-releases', await load('ReleaseView'), { hubId: COLLECTION, onnavigate: noop }],
     ['time', await load('TimeView'), { onnavigate: noop }],
     ['goals', await load('GoalsView'), { onnavigate: noop }],
     ['goal', await load('GoalView'), { goalId: ITEM, onnavigate: noop }],

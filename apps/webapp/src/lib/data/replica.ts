@@ -574,6 +574,42 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
     return { data: rows };
   }
 
+  // A hub's releases and a release read while the server is away (UC-PLN-08 check 8): the list in
+  // the server's order - the latest day first - and a release with the entries the copy holds of
+  // it, each with its title, its type's name and whether it is done.
+  match = /^\/hubs\/([^/:]+)\/releases$/.exec(pathname);
+  if (match?.[1]) {
+    const hubId = match[1];
+    const state = query.get('state');
+    const rows = (await documents(storage, 'releases'))
+      .filter((row) => row.hub_id === hubId && (!state || row.state === state))
+      .sort((a, b) => {
+        const x = String(a.release_on ?? '');
+        const y = String(b.release_on ?? '');
+        if (x !== y) return x < y ? 1 : -1;
+        return String(a.id) < String(b.id) ? -1 : 1;
+      });
+    return { data: rows };
+  }
+  match = /^\/releases\/([^/:]+)$/.exec(pathname);
+  if (match?.[1]) {
+    const releaseId = match[1];
+    const held = await one(storage, 'releases', releaseId);
+    if (!held) return undefined;
+    const names = new Map((await documents(storage, 'entry_types')).map((row) => [String(row.key), String(row.name ?? '')]));
+    const entries: Document[] = [];
+    for (const member of (await documents(storage, 'release_entries')).filter((row) => row.release_id === releaseId)) {
+      const item = await one(storage, 'items', String(member.item_id));
+      if (!item) continue;
+      entries.push({
+        item_id: item.id, title: item.title, type_name: names.get(String(item.entry_type ?? '')) ?? '',
+        done: item.is_completed === true, collection_id: item.collection_id, added_at: item.created_at,
+      });
+    }
+    const done = entries.filter((entry) => entry.done).length;
+    return { ...held, entries, done_count: done, open_count: entries.length - done };
+  }
+
   // A hub's boards and a board read while the server is away (UC-CNV-01 check 9): the list without
   // the objects, the last changed first, and a board with its objects, never writable - a board is
   // drawn on through its live document, which needs the server. The trash is the server's.

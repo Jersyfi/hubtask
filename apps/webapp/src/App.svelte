@@ -87,6 +87,7 @@
     WhiteboardsView: () => import('./views/WhiteboardsView.svelte'),
     PlanView: () => import('./views/PlanView.svelte'),
     SprintView: () => import('./views/SprintView.svelte'),
+    ReleaseView: () => import('./views/ReleaseView.svelte'),
     TimeView: () => import('./views/TimeView.svelte'),
     GoalsView: () => import('./views/GoalsView.svelte'),
     GoalView: () => import('./views/GoalView.svelte'),
@@ -480,6 +481,10 @@
   {:else if route.name === 'hub-workload' || route.name === 'collection-workload'}
     {#key route.path}
       <LazyView load={views.WorkloadView} props={{ planId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'hub-releases'}
+    {#key route.path}
+      <LazyView load={views.ReleaseView} props={{ hubId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'collection-sprints'}
     {#key route.path}
