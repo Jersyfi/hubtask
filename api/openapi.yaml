@@ -27548,6 +27548,16 @@ components:
             delivery log as `FILTER_FAILED`.
         scope:
           $ref: "#/components/schemas/WebhookScope"
+        format:
+          $ref: "#/components/schemas/WebhookFormat"
+        room:
+          type: [string, "null"]
+          description: The Matrix room the notices are sent into, for `MATRIX`; absent otherwise.
+        locale:
+          type: [string, "null"]
+          description: >
+            The language a chat room's sentence is written in; absent is the installation's
+            source language.
         state:
           type: string
           enum: [ACTIVE, PAUSED, DISABLED]
@@ -27579,6 +27589,28 @@ components:
           description: The condition an event must meet, as `WebhookSubscription.filter` says. Omitted or empty for none.
         scope:
           $ref: "#/components/schemas/WebhookScope"
+        format:
+          $ref: "#/components/schemas/WebhookFormat"
+        room:
+          type: string
+          maxLength: 255
+          description: >
+            The Matrix room identifier, `!opaque:server`, required for `MATRIX` and refused for
+            every other format with `webhooks.room_not_for_format`. An alias is refused with
+            `webhooks.room_malformed`: it would be looked up on every delivery.
+        locale:
+          type: string
+          maxLength: 16
+          description: >
+            The language of a chat room's sentence, such as `de`. Omitted is the installation's
+            source language; refused for `CLOUDEVENTS`, which has no sentence.
+        credential:
+          type: string
+          writeOnly: true
+          maxLength: 2000
+          description: >
+            The access token of the Matrix account that sends the notices, required for `MATRIX`
+            and refused for every other format. Stored sealed and never answered.
 
     WebhookSubscriptionUpdate:
       type: object
@@ -27601,6 +27633,21 @@ components:
             `DISABLED` is not settable by hand: it is what the system concludes from a run of
             failures. Pausing is how somebody stops deliveries deliberately, and the two say
             different things to whoever reads the list.
+
+    WebhookFormat:
+      type: string
+      enum: [CLOUDEVENTS, MATRIX, SLACK, MATTERMOST, TEAMS]
+      default: CLOUDEVENTS
+      description: >
+        What the target receives. `CLOUDEVENTS` is the signed CloudEvent. The others are a chat
+        room's: a sentence in the subscription's language with the entry's title and a link at
+        most - never a note or a comment - under the same types, condition, scope, retries and
+        switching off. `MATRIX` sends a notice into `room` through the homeserver at `target_url`
+        as the account whose `credential` it holds; `SLACK`, `MATTERMOST` and `TEAMS` post to the
+        room's incoming webhook, whose address is given as `target_url`, kept sealed - it admits
+        whoever holds it - and listed by its origin alone. A chat room is not signed and has no
+        secret to rotate; its target cannot be changed (`webhooks.target_fixed_for_chat`).
+        Fixed at creation.
 
     WebhookScope:
       type: object
@@ -27631,7 +27678,8 @@ components:
               type: string
               description: >
                 The signing secret, in clear, for the only time. Store it or rotate it: what is
-                kept is sealed under the installation's key, and no read answers it again.
+                kept is sealed under the installation's key, and no read answers it again. Empty
+                for a chat room, which is not signed.
 
     HttpRequestCall:
       type: object

@@ -3295,6 +3295,9 @@ class WebhookSubscription(TypedDict, total=False):
     event_types: Required[list[str]]
     filter: str | None
     scope: "WebhookScope"
+    format: "WebhookFormat"
+    room: str | None
+    locale: str | None
     state: Required[Literal["ACTIVE", "PAUSED", "DISABLED"]]
     failure_count: Required[int]
     last_error: str | None
@@ -3306,6 +3309,10 @@ class WebhookSubscriptionCreate(TypedDict, total=False):
     event_types: Required[list[str]]
     filter: str | None
     scope: "WebhookScope"
+    format: "WebhookFormat"
+    room: str
+    locale: str
+    credential: str
 
 class WebhookSubscriptionUpdate(TypedDict, total=False):
     """Every field optional; an omitted one is left alone."""
@@ -3314,6 +3321,8 @@ class WebhookSubscriptionUpdate(TypedDict, total=False):
     filter: str | None
     scope: "WebhookScope"
     state: Literal["ACTIVE", "PAUSED"] | None
+
+WebhookFormat = Literal["CLOUDEVENTS", "MATRIX", "SLACK", "MATTERMOST", "TEAMS"]
 
 class WebhookScope(TypedDict, total=False):
     """Where a subscription listens: the whole workspace, one hub - its collections included - or one collection. An entry's event belongs to its collection, a hub's or a collection's to itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches only a subscription of the whole workspace. Subscribing to a hub or a collection needs the automation permission there. On an update, `TENANT` widens a scoped subscription to the whole workspace again."""
@@ -3326,6 +3335,9 @@ class WebhookSubscriptionSecret(TypedDict, total=False):
     event_types: Required[list[str]]
     filter: str | None
     scope: "WebhookScope"
+    format: "WebhookFormat"
+    room: str | None
+    locale: str | None
     state: Required[Literal["ACTIVE", "PAUSED", "DISABLED"]]
     failure_count: Required[int]
     last_error: str | None

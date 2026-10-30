@@ -8740,6 +8740,33 @@ func (e WebhookDeliveryStatus) Valid() bool {
 	}
 }
 
+// Defines values for WebhookFormat.
+const (
+	WebhookFormatCLOUDEVENTS WebhookFormat = "CLOUDEVENTS"
+	WebhookFormatMATRIX      WebhookFormat = "MATRIX"
+	WebhookFormatMATTERMOST  WebhookFormat = "MATTERMOST"
+	WebhookFormatSLACK       WebhookFormat = "SLACK"
+	WebhookFormatTEAMS       WebhookFormat = "TEAMS"
+)
+
+// Valid indicates whether the value is a known member of the WebhookFormat enum.
+func (e WebhookFormat) Valid() bool {
+	switch e {
+	case WebhookFormatCLOUDEVENTS:
+		return true
+	case WebhookFormatMATRIX:
+		return true
+	case WebhookFormatMATTERMOST:
+		return true
+	case WebhookFormatSLACK:
+		return true
+	case WebhookFormatTEAMS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for WebhookScopeType.
 const (
 	WebhookScopeTypeCOLLECTION WebhookScopeType = "COLLECTION"
@@ -20797,6 +20824,9 @@ type WebhookDeliveryPage struct {
 	Page PageInfo          `json:"page"`
 }
 
+// WebhookFormat What the target receives. `CLOUDEVENTS` is the signed CloudEvent. The others are a chat room's: a sentence in the subscription's language with the entry's title and a link at most - never a note or a comment - under the same types, condition, scope, retries and switching off. `MATRIX` sends a notice into `room` through the homeserver at `target_url` as the account whose `credential` it holds; `SLACK`, `MATTERMOST` and `TEAMS` post to the room's incoming webhook, whose address is given as `target_url`, kept sealed - it admits whoever holds it - and listed by its origin alone. A chat room is not signed and has no secret to rotate; its target cannot be changed (`webhooks.target_fixed_for_chat`). Fixed at creation.
+type WebhookFormat string
+
 // WebhookScope Where a subscription listens: the whole workspace, one hub - its collections included - or one collection. An entry's event belongs to its collection, a hub's or a collection's to itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches only a subscription of the whole workspace. Subscribing to a hub or a collection needs the automation permission there. On an update, `TENANT` widens a scoped subscription to the whole workspace again.
 type WebhookScope struct {
 	// Id The hub or the collection. Absent for `TENANT`, and required for the others.
@@ -20830,11 +20860,20 @@ type WebhookSubscription struct {
 	FailureCount int `json:"failure_count"`
 
 	// Filter A condition in the automation's expression language (CEL) that an event must meet to be delivered: a boolean over `event` (its id, type, subject and moments), `data` (the CloudEvent's `data`), `actor` and `now`. Compiled when it is saved, with the rules' bounds; one that cannot be compiled is refused with `webhooks.filter_invalid`, naming where. An event whose condition cannot be evaluated is not sent, and appears in the delivery log as `FILTER_FAILED`.
-	Filter *string            `json:"filter,omitempty"`
+	Filter *string `json:"filter,omitempty"`
+
+	// Format What the target receives. `CLOUDEVENTS` is the signed CloudEvent. The others are a chat room's: a sentence in the subscription's language with the entry's title and a link at most - never a note or a comment - under the same types, condition, scope, retries and switching off. `MATRIX` sends a notice into `room` through the homeserver at `target_url` as the account whose `credential` it holds; `SLACK`, `MATTERMOST` and `TEAMS` post to the room's incoming webhook, whose address is given as `target_url`, kept sealed - it admits whoever holds it - and listed by its origin alone. A chat room is not signed and has no secret to rotate; its target cannot be changed (`webhooks.target_fixed_for_chat`). Fixed at creation.
+	Format *WebhookFormat     `json:"format,omitempty"`
 	Id     openapi_types.UUID `json:"id"`
 
 	// LastError A message code for the last failure, never a response body from the target.
 	LastError *string `json:"last_error,omitempty"`
+
+	// Locale The language a chat room's sentence is written in; absent is the installation's source language.
+	Locale *string `json:"locale,omitempty"`
+
+	// Room The Matrix room the notices are sent into, for `MATRIX`; absent otherwise.
+	Room *string `json:"room,omitempty"`
 
 	// Scope Where a subscription listens: the whole workspace, one hub - its collections included - or one collection. An entry's event belongs to its collection, a hub's or a collection's to itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches only a subscription of the whole workspace. Subscribing to a hub or a collection needs the automation permission there. On an update, `TENANT` widens a scoped subscription to the whole workspace again.
 	Scope *WebhookScope `json:"scope,omitempty"`
@@ -20852,10 +20891,21 @@ type WebhookSubscriptionState string
 
 // WebhookSubscriptionCreate defines model for WebhookSubscriptionCreate.
 type WebhookSubscriptionCreate struct {
+	// Credential The access token of the Matrix account that sends the notices, required for `MATRIX` and refused for every other format. Stored sealed and never answered.
+	Credential *string  `json:"credential,omitempty"`
 	EventTypes []string `json:"event_types"`
 
 	// Filter The condition an event must meet, as `WebhookSubscription.filter` says. Omitted or empty for none.
 	Filter *string `json:"filter,omitempty"`
+
+	// Format What the target receives. `CLOUDEVENTS` is the signed CloudEvent. The others are a chat room's: a sentence in the subscription's language with the entry's title and a link at most - never a note or a comment - under the same types, condition, scope, retries and switching off. `MATRIX` sends a notice into `room` through the homeserver at `target_url` as the account whose `credential` it holds; `SLACK`, `MATTERMOST` and `TEAMS` post to the room's incoming webhook, whose address is given as `target_url`, kept sealed - it admits whoever holds it - and listed by its origin alone. A chat room is not signed and has no secret to rotate; its target cannot be changed (`webhooks.target_fixed_for_chat`). Fixed at creation.
+	Format *WebhookFormat `json:"format,omitempty"`
+
+	// Locale The language of a chat room's sentence, such as `de`. Omitted is the installation's source language; refused for `CLOUDEVENTS`, which has no sentence.
+	Locale *string `json:"locale,omitempty"`
+
+	// Room The Matrix room identifier, `!opaque:server`, required for `MATRIX` and refused for every other format with `webhooks.room_not_for_format`. An alias is refused with `webhooks.room_malformed`: it would be looked up on every delivery.
+	Room *string `json:"room,omitempty"`
 
 	// Scope Where a subscription listens: the whole workspace, one hub - its collections included - or one collection. An entry's event belongs to its collection, a hub's or a collection's to itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches only a subscription of the whole workspace. Subscribing to a hub or a collection needs the automation permission there. On an update, `TENANT` widens a scoped subscription to the whole workspace again.
 	Scope     *WebhookScope `json:"scope,omitempty"`
@@ -20873,16 +20923,25 @@ type WebhookSubscriptionSecret struct {
 	FailureCount int `json:"failure_count"`
 
 	// Filter A condition in the automation's expression language (CEL) that an event must meet to be delivered: a boolean over `event` (its id, type, subject and moments), `data` (the CloudEvent's `data`), `actor` and `now`. Compiled when it is saved, with the rules' bounds; one that cannot be compiled is refused with `webhooks.filter_invalid`, naming where. An event whose condition cannot be evaluated is not sent, and appears in the delivery log as `FILTER_FAILED`.
-	Filter *string            `json:"filter,omitempty"`
+	Filter *string `json:"filter,omitempty"`
+
+	// Format What the target receives. `CLOUDEVENTS` is the signed CloudEvent. The others are a chat room's: a sentence in the subscription's language with the entry's title and a link at most - never a note or a comment - under the same types, condition, scope, retries and switching off. `MATRIX` sends a notice into `room` through the homeserver at `target_url` as the account whose `credential` it holds; `SLACK`, `MATTERMOST` and `TEAMS` post to the room's incoming webhook, whose address is given as `target_url`, kept sealed - it admits whoever holds it - and listed by its origin alone. A chat room is not signed and has no secret to rotate; its target cannot be changed (`webhooks.target_fixed_for_chat`). Fixed at creation.
+	Format *WebhookFormat     `json:"format,omitempty"`
 	Id     openapi_types.UUID `json:"id"`
 
 	// LastError A message code for the last failure, never a response body from the target.
 	LastError *string `json:"last_error,omitempty"`
 
+	// Locale The language a chat room's sentence is written in; absent is the installation's source language.
+	Locale *string `json:"locale,omitempty"`
+
+	// Room The Matrix room the notices are sent into, for `MATRIX`; absent otherwise.
+	Room *string `json:"room,omitempty"`
+
 	// Scope Where a subscription listens: the whole workspace, one hub - its collections included - or one collection. An entry's event belongs to its collection, a hub's or a collection's to itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches only a subscription of the whole workspace. Subscribing to a hub or a collection needs the automation permission there. On an update, `TENANT` widens a scoped subscription to the whole workspace again.
 	Scope *WebhookScope `json:"scope,omitempty"`
 
-	// Secret The signing secret, in clear, for the only time. Store it or rotate it: what is kept is sealed under the installation's key, and no read answers it again.
+	// Secret The signing secret, in clear, for the only time. Store it or rotate it: what is kept is sealed under the installation's key, and no read answers it again. Empty for a chat room, which is not signed.
 	Secret string `json:"secret"`
 
 	// State `DISABLED` is what sustained unreachability produces, with a notification to the owner. Re-enabling is an ordinary write and is audited as one.

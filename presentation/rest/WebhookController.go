@@ -34,6 +34,7 @@ func webhookSecretResponse(out usecase.Output) openapi.WebhookSubscriptionSecret
 	if filter := out.String("filter"); filter != "" {
 		answer.Filter = &filter
 	}
+	answer.Format, answer.Room, answer.Locale = chatResponse(out)
 	return answer
 }
 
@@ -54,7 +55,24 @@ func webhookResponse(out usecase.Output) openapi.WebhookSubscription {
 	if lastError := out.String("last_error"); lastError != "" {
 		subscription.LastError = &lastError
 	}
+	subscription.Format, subscription.Room, subscription.Locale = chatResponse(out)
 	return subscription
+}
+
+// chatResponse is a subscription's format and, for a chat room, its room and language.
+func chatResponse(out usecase.Output) (*openapi.WebhookFormat, *string, *string) {
+	format := openapi.WebhookFormat(out.String("format"))
+	if format == "" {
+		format = openapi.WebhookFormatCLOUDEVENTS
+	}
+	var room, locale *string
+	if value := out.String("room"); value != "" {
+		room = &value
+	}
+	if value := out.String("locale"); value != "" {
+		locale = &value
+	}
+	return &format, room, locale
 }
 
 // webhookScopeResponse is the projection's scope as the contract answers it.
