@@ -5,9 +5,9 @@ context: agent
 actors: [PE-member, PE-auditor, PE-integrator]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/application/service/suggestion/Provenance_test.go, test/integration/agent_repository_test.go]
+checked_by: [core/application/service/suggestion/Provenance_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts]
 ---
 
 # See where a value that came from AI came from
@@ -41,7 +41,3 @@ version, Ben accepted it; the notes are not marked.
   §2.1, AI-2); the mark is machine-readable.
 * Only an entry's provenance is read; a template's or a rule's marks are kept and read by no use
   case yet.
-
-## Today
-
-* Check 5: the entry's page does not show it (S-22).

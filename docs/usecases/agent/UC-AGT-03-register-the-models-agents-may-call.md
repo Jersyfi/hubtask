@@ -5,9 +5,9 @@ context: agent
 actors: [PE-admin, PE-auditor]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, test/integration/agent_repository_test.go]
+checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts]
 ---
 
 # Register the models agents may call, with the consent to send them material
@@ -43,7 +43,3 @@ new revision, and it acts again.
 
 * The model registry names models; calling one is the existing AI provider's (ai-first.md §2).
 * No residency check of a model's actual address; the region is what the registrant states.
-
-## Today
-
-* Check 7: the web app's agents screens are not built (S-22).

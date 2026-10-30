@@ -5,9 +5,9 @@ context: agent
 actors: [PE-admin, PE-member, PE-agent, PE-auditor]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, core/application/service/access/Delegation_test.go, core/application/service/agent/Runner_test.go, core/application/service/notification/RecordAgentNotice_test.go, test/integration/agent_repository_test.go]
+checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, core/application/service/access/Delegation_test.go, core/application/service/agent/Runner_test.go, core/application/service/notification/RecordAgentNotice_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts]
 ---
 
 # Hold every act of an agent to its policy, its budget and the person it acts for
@@ -56,7 +56,3 @@ incident the admin halts every agent of the workspace at once.
 * The traces of a run - prompts, tool calls, answers - are not kept: the ledger meters, it does not
   trace, and their retention is the owner's decision.
 * A held act waits until somebody decides it; it does not expire.
-
-## Today
-
-* Check 9: the web app's agents screens are not built (S-22).

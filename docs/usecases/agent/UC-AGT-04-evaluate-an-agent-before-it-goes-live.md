@@ -5,9 +5,9 @@ context: agent
 actors: [PE-admin, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, test/integration/agent_repository_test.go]
+checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts]
 ---
 
 # Evaluate an agent before it goes live
@@ -41,7 +41,3 @@ model changes, it must pass again.
 
 * The shipped agents do not run their set themselves yet; a run is recorded from their answers.
 * No accuracy, escalation or override rates measured in production.
-
-## Today
-
-* Check 6: the web app's agents screens are not built (S-22).

@@ -5,9 +5,9 @@ context: agent
 actors: [PE-admin, PE-member, PE-agent, PE-auditor]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, test/integration/agent_repository_test.go]
+checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts]
 ---
 
 # Register an agent and let it act only once a person approved it
@@ -50,7 +50,3 @@ does and puts it live. When it misbehaves, Ana pulls its switch and it stops mid
 * No agent decides about people: an agent of the high-risk class is not registered at all.
 * An agent's account holds roles and tokens as any service account; registering grants it none.
 * No agent-to-agent protocol and no orchestration of several agents.
-
-## Today
-
-* Check 9: the web app's agents screens are not built (S-22).
