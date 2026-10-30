@@ -4,9 +4,11 @@
 package knowledge
 
 import (
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -93,5 +95,29 @@ func TestADailyNoteIsForTheReadersToday(t *testing.T) {
 		if err != nil || DailyNoteTitle(day) != c.want {
 			t.Errorf("%q in %v: %v %v, want %s", c.raw, c.zone, DailyNoteTitle(day), err, c.want)
 		}
+	}
+}
+
+// UC-DOC-08 check 5: a public link is made for an open page and never for one behind a
+// restriction; the workspace's switch is off by default and a plan may lock it.
+func TestAPublicLinkIsNeverMadePastARestriction(t *testing.T) {
+	tenant, page, by := shared.ID("t"), shared.ID("p"), shared.ID("a")
+	now := time.Date(2026, 10, 30, 9, 0, 0, 0, time.UTC)
+	link, err := NewPublicLink(tenant, page, by, Readers{}, now)
+	if err != nil || link.PageID != page || link.CreatedBy != by || !link.CreatedAt.Equal(now) {
+		t.Fatalf("an open page's link: %+v, %v", link, err)
+	}
+	if _, err := NewPublicLink(tenant, page, by, Readers{Restricted: true, Accounts: []shared.ID{by}}, now); !errors.Is(err, shared.ErrConflict) {
+		t.Fatalf("a restricted page got a link: %v", err)
+	}
+	definition := PublicLinksDefinition()
+	if err := definition.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if PublicLinksOf(setting.Resolve(definition)) {
+		t.Fatal("public links are on by default")
+	}
+	if !definition.Lockable {
+		t.Fatal("a plan cannot lock public links")
 	}
 }
