@@ -403,3 +403,27 @@ func TestTheFeedCommandsRefuseWhatTheyCannotAct(t *testing.T) {
 		t.Error("a token without the scope minted a feed")
 	}
 }
+
+// A data feed is minted over a view the caller reads and says its kind; an unknown kind is refused
+// (UC-INT-15 check 1).
+func TestADataFeedIsMintedAndSaysItsKind(t *testing.T) {
+	h := newFeedHarness(t)
+	saved := h.withView(accountID, view.SharingPrivate)
+
+	out, err := h.create.Descriptor().Handler.Invoke(t.Context(), feedActor(),
+		usecase.Input{"view_id": saved.ID.String(), "kind": "DATA"})
+	if err != nil {
+		t.Fatalf("minting failed: %v", err)
+	}
+	if out["kind"] != "DATA" || out.String("token") == "" {
+		t.Errorf("minted %v", out)
+	}
+	calendar, err := h.create.Descriptor().Handler.Invoke(t.Context(), feedActor(), usecase.Input{"view_id": saved.ID.String()})
+	if err != nil || calendar["kind"] != "CALENDAR" {
+		t.Errorf("a feed of no kind asked came out %v, %v", calendar, err)
+	}
+	if _, err := h.create.Descriptor().Handler.Invoke(t.Context(), feedActor(),
+		usecase.Input{"view_id": saved.ID.String(), "kind": "SHEET"}); err == nil {
+		t.Error("an unknown kind was minted")
+	}
+}
