@@ -118,6 +118,19 @@ test('the time rows are drawn only where the time module is on', () => {
   assert.equal(rows(['TIME']).includes('time-settings'), true);
 });
 
+// UC-GOL-01 check 9, UC-INS-21 check 4: the goals, portfolios and dashboards are reached only
+// where the goals module is on, and the row stays current on each of their pages.
+test('the goals row is drawn only where the goals module is on', () => {
+  const menu = (modulesOn?: readonly string[]) =>
+    account({ isAdministrationReachable: false, isInstanceReachable: false, modulesOn }).map((destination) => destination.id);
+  assert.ok(!menu().includes('goals'));
+  assert.ok(!menu(['TIME']).includes('goals'));
+  assert.ok(menu(['GOALS']).includes('goals'));
+  for (const name of ['goals', 'goal', 'portfolio', 'dashboard']) {
+    assert.equal(currentDestination({ name, area: 'end-user' }), 'goals');
+  }
+});
+
 test('the instance row is offered only to an operator, and is absent rather than disabled', () => {
   // The level above the workspaces is drawn for an account in the operator register and for
   // nobody else. Absent, not greyed — somebody who is not an operator was never going to have it,
