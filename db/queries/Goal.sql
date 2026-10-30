@@ -178,25 +178,26 @@ ORDER BY created_at DESC, id DESC
 LIMIT sqlc.arg('max')::int;
 
 -- name: ListDashboards :many
-SELECT id, hub_id, owner_id, name, sharing, widgets, version
+SELECT id, hub_id, owner_id, name, sharing, group_ids, widgets, version
 FROM dashboard
 WHERE tenant_id = current_tenant_id()
 ORDER BY name COLLATE hubtask_name, id
 LIMIT sqlc.arg('max')::int;
 
 -- name: FindDashboard :one
-SELECT id, hub_id, owner_id, name, sharing, widgets, version
+SELECT id, hub_id, owner_id, name, sharing, group_ids, widgets, version
 FROM dashboard
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid;
 
 -- name: InsertDashboard :exec
-INSERT INTO dashboard (id, tenant_id, hub_id, owner_id, name, sharing, widgets, created_at, updated_at, updated_by, version)
+INSERT INTO dashboard (id, tenant_id, hub_id, owner_id, name, sharing, group_ids, widgets, created_at, updated_at, updated_by, version)
 VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.narg('hub_id'), sqlc.narg('owner_id'), sqlc.arg('name'),
-  sqlc.arg('sharing'), sqlc.arg('widgets')::jsonb, sqlc.arg('at'), sqlc.arg('at'), sqlc.narg('owner_id'), 1);
+  sqlc.arg('sharing'), coalesce(sqlc.arg('group_ids')::uuid[], '{}'), sqlc.arg('widgets')::jsonb, sqlc.arg('at'), sqlc.arg('at'), sqlc.narg('owner_id'), 1);
 
 -- name: UpdateDashboard :execrows
 UPDATE dashboard SET
-  name = sqlc.arg('name'), sharing = sqlc.arg('sharing'), widgets = sqlc.arg('widgets')::jsonb,
+  name = sqlc.arg('name'), sharing = sqlc.arg('sharing'), group_ids = coalesce(sqlc.arg('group_ids')::uuid[], '{}'),
+  widgets = sqlc.arg('widgets')::jsonb,
   updated_at = sqlc.arg('at'), updated_by = sqlc.narg('by'), version = version + 1
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid
   AND version = sqlc.arg('expected_version')::int;

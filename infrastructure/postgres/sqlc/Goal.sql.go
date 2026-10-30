@@ -126,19 +126,20 @@ func (q *Queries) DeletePortfolio(ctx context.Context, arg DeletePortfolioParams
 }
 
 const findDashboard = `-- name: FindDashboard :one
-SELECT id, hub_id, owner_id, name, sharing, widgets, version
+SELECT id, hub_id, owner_id, name, sharing, group_ids, widgets, version
 FROM dashboard
 WHERE tenant_id = current_tenant_id() AND id = $1::uuid
 `
 
 type FindDashboardRow struct {
-	ID      pgtype.UUID
-	HubID   pgtype.UUID
-	OwnerID pgtype.UUID
-	Name    string
-	Sharing string
-	Widgets []byte
-	Version int32
+	ID       pgtype.UUID
+	HubID    pgtype.UUID
+	OwnerID  pgtype.UUID
+	Name     string
+	Sharing  string
+	GroupIds []pgtype.UUID
+	Widgets  []byte
+	Version  int32
 }
 
 func (q *Queries) FindDashboard(ctx context.Context, id pgtype.UUID) (FindDashboardRow, error) {
@@ -150,6 +151,7 @@ func (q *Queries) FindDashboard(ctx context.Context, id pgtype.UUID) (FindDashbo
 		&i.OwnerID,
 		&i.Name,
 		&i.Sharing,
+		&i.GroupIds,
 		&i.Widgets,
 		&i.Version,
 	)
@@ -354,19 +356,20 @@ func (q *Queries) GradeGoal(ctx context.Context, arg GradeGoalParams) (int64, er
 }
 
 const insertDashboard = `-- name: InsertDashboard :exec
-INSERT INTO dashboard (id, tenant_id, hub_id, owner_id, name, sharing, widgets, created_at, updated_at, updated_by, version)
+INSERT INTO dashboard (id, tenant_id, hub_id, owner_id, name, sharing, group_ids, widgets, created_at, updated_at, updated_by, version)
 VALUES ($1, current_tenant_id(), $2, $3, $4,
-  $5, $6::jsonb, $7, $7, $3, 1)
+  $5, coalesce($6::uuid[], '{}'), $7::jsonb, $8, $8, $3, 1)
 `
 
 type InsertDashboardParams struct {
-	ID      pgtype.UUID
-	HubID   pgtype.UUID
-	OwnerID pgtype.UUID
-	Name    string
-	Sharing string
-	Widgets []byte
-	At      pgtype.Timestamptz
+	ID       pgtype.UUID
+	HubID    pgtype.UUID
+	OwnerID  pgtype.UUID
+	Name     string
+	Sharing  string
+	GroupIds []pgtype.UUID
+	Widgets  []byte
+	At       pgtype.Timestamptz
 }
 
 func (q *Queries) InsertDashboard(ctx context.Context, arg InsertDashboardParams) error {
@@ -376,6 +379,7 @@ func (q *Queries) InsertDashboard(ctx context.Context, arg InsertDashboardParams
 		arg.OwnerID,
 		arg.Name,
 		arg.Sharing,
+		arg.GroupIds,
 		arg.Widgets,
 		arg.At,
 	)
@@ -589,7 +593,7 @@ func (q *Queries) LinkGoalEntry(ctx context.Context, arg LinkGoalEntryParams) er
 }
 
 const listDashboards = `-- name: ListDashboards :many
-SELECT id, hub_id, owner_id, name, sharing, widgets, version
+SELECT id, hub_id, owner_id, name, sharing, group_ids, widgets, version
 FROM dashboard
 WHERE tenant_id = current_tenant_id()
 ORDER BY name COLLATE hubtask_name, id
@@ -597,13 +601,14 @@ LIMIT $1::int
 `
 
 type ListDashboardsRow struct {
-	ID      pgtype.UUID
-	HubID   pgtype.UUID
-	OwnerID pgtype.UUID
-	Name    string
-	Sharing string
-	Widgets []byte
-	Version int32
+	ID       pgtype.UUID
+	HubID    pgtype.UUID
+	OwnerID  pgtype.UUID
+	Name     string
+	Sharing  string
+	GroupIds []pgtype.UUID
+	Widgets  []byte
+	Version  int32
 }
 
 func (q *Queries) ListDashboards(ctx context.Context, max int32) ([]ListDashboardsRow, error) {
@@ -621,6 +626,7 @@ func (q *Queries) ListDashboards(ctx context.Context, max int32) ([]ListDashboar
 			&i.OwnerID,
 			&i.Name,
 			&i.Sharing,
+			&i.GroupIds,
 			&i.Widgets,
 			&i.Version,
 		); err != nil {
@@ -1123,15 +1129,17 @@ func (q *Queries) UnlinkGoalEntry(ctx context.Context, arg UnlinkGoalEntryParams
 
 const updateDashboard = `-- name: UpdateDashboard :execrows
 UPDATE dashboard SET
-  name = $1, sharing = $2, widgets = $3::jsonb,
-  updated_at = $4, updated_by = $5, version = version + 1
-WHERE tenant_id = current_tenant_id() AND id = $6::uuid
-  AND version = $7::int
+  name = $1, sharing = $2, group_ids = coalesce($3::uuid[], '{}'),
+  widgets = $4::jsonb,
+  updated_at = $5, updated_by = $6, version = version + 1
+WHERE tenant_id = current_tenant_id() AND id = $7::uuid
+  AND version = $8::int
 `
 
 type UpdateDashboardParams struct {
 	Name            string
 	Sharing         string
+	GroupIds        []pgtype.UUID
 	Widgets         []byte
 	At              pgtype.Timestamptz
 	By              pgtype.UUID
@@ -1143,6 +1151,7 @@ func (q *Queries) UpdateDashboard(ctx context.Context, arg UpdateDashboardParams
 	result, err := q.db.Exec(ctx, updateDashboard,
 		arg.Name,
 		arg.Sharing,
+		arg.GroupIds,
 		arg.Widgets,
 		arg.At,
 		arg.By,

@@ -37,7 +37,7 @@ func TestGoalsAndInsightStayInTheirWorkspace(t *testing.T) {
 		Items: []goal.PortfolioItem{{ContainerID: collection, Status: goal.StatusAtRisk}},
 	}
 	dashboard := goal.Dashboard{
-		ID: freshID(t), OwnerID: authorA, Name: "Team", Sharing: goal.SharingScope,
+		ID: freshID(t), OwnerID: authorA, Name: "Team", Sharing: goal.SharingGroups, GroupIDs: []shared.ID{freshID(t)},
 		Widgets: []goal.Widget{{ID: freshID(t), Title: "Open", Chart: goal.ChartNumber, Source: goal.WidgetQuery,
 			Query: map[string]any{"scope_container_id": collection.String()}, W: 6, H: 2}},
 	}
@@ -87,7 +87,8 @@ func TestGoalsAndInsightStayInTheirWorkspace(t *testing.T) {
 			t.Errorf("portfolio = %+v %v", p, err)
 		}
 		d, err := store.Dashboard(ctx, dashboard.ID)
-		if err != nil || len(d.Widgets) != 1 || d.Widgets[0].Query["scope_container_id"] != collection.String() {
+		if err != nil || len(d.Widgets) != 1 || d.Widgets[0].Query["scope_container_id"] != collection.String() ||
+			len(d.GroupIDs) != 1 || d.GroupIDs[0] != dashboard.GroupIDs[0] {
 			t.Errorf("dashboard = %+v %v", d, err)
 		}
 		return nil

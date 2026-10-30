@@ -1424,6 +1424,7 @@ type Dashboard struct {
 	UpdatedAt pgtype.Timestamptz
 	UpdatedBy pgtype.UUID
 	Version   int32
+	GroupIds  []pgtype.UUID
 }
 
 type DashboardDigest struct {

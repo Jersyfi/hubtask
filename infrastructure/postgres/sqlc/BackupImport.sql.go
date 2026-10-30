@@ -4780,14 +4780,14 @@ func (q *Queries) ImportCustomRoleGrant(ctx context.Context, payload []byte) (in
 }
 
 const importDashboard = `-- name: ImportDashboard :execrows
-INSERT INTO dashboard (id, tenant_id, hub_id, owner_id, name, sharing, widgets, created_at, updated_at, updated_by, version)
-SELECT r.id, r.tenant_id, r.hub_id, r.owner_id, r.name, r.sharing, r.widgets, r.created_at, r.updated_at, r.updated_by, r.version
+INSERT INTO dashboard (id, tenant_id, hub_id, owner_id, name, sharing, group_ids, widgets, created_at, updated_at, updated_by, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.owner_id, r.name, r.sharing, coalesce(r.group_ids, '{}'), r.widgets, r.created_at, r.updated_at, r.updated_by, r.version
 FROM jsonb_populate_record(
   NULL::dashboard,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (id) DO UPDATE SET
-  hub_id = EXCLUDED.hub_id, owner_id = EXCLUDED.owner_id, name = EXCLUDED.name, sharing = EXCLUDED.sharing, widgets = EXCLUDED.widgets, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
+  hub_id = EXCLUDED.hub_id, owner_id = EXCLUDED.owner_id, name = EXCLUDED.name, sharing = EXCLUDED.sharing, group_ids = EXCLUDED.group_ids, widgets = EXCLUDED.widgets, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
 WHERE $2::boolean
 `
 

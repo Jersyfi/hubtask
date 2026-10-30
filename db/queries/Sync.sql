@@ -471,7 +471,7 @@ LIMIT sqlc.arg('batch');
 -- name: SnapshotDashboards :many
 -- The workspace's dashboards as their widgets' queries, each filed under its hub; a private one
 -- reaches its owner alone.
-SELECT id, hub_id, owner_id, name, sharing, widgets, version
+SELECT id, hub_id, owner_id, name, sharing, group_ids, widgets, version
 FROM dashboard
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
 ORDER BY id

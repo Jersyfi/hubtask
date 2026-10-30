@@ -846,9 +846,13 @@ func dashboardOf(r sqlc.ListDashboardsRow) (domain.Dashboard, error) {
 	if err != nil {
 		return domain.Dashboard{}, err
 	}
+	groups, err := idsFrom(r.GroupIds)
+	if err != nil {
+		return domain.Dashboard{}, err
+	}
 	return domain.Dashboard{
 		ID: found[0], HubID: found[1], OwnerID: found[2], Name: r.Name, Sharing: domain.Sharing(r.Sharing),
-		Widgets: widgets, Version: int(r.Version),
+		GroupIDs: groups, Widgets: widgets, Version: int(r.Version),
 	}, nil
 }
 
@@ -908,9 +912,13 @@ func (GoalRepository) InsertDashboard(ctx context.Context, d domain.Dashboard, a
 	if err != nil {
 		return err
 	}
+	groups, err := uuidsOf(d.GroupIDs)
+	if err != nil {
+		return err
+	}
 	err = queries.InsertDashboard(ctx, sqlc.InsertDashboardParams{
-		ID: keys[0], HubID: keys[1], OwnerID: keys[2], Name: d.Name, Sharing: string(d.Sharing), Widgets: widgets,
-		At: timestampOf(at),
+		ID: keys[0], HubID: keys[1], OwnerID: keys[2], Name: d.Name, Sharing: string(d.Sharing), GroupIds: groups,
+		Widgets: widgets, At: timestampOf(at),
 	})
 	return wrapGoal(err, "writing a dashboard")
 }
@@ -929,9 +937,13 @@ func (GoalRepository) UpdateDashboard(ctx context.Context, d domain.Dashboard, e
 	if err != nil {
 		return err
 	}
+	groups, err := uuidsOf(d.GroupIDs)
+	if err != nil {
+		return err
+	}
 	//nolint:gosec // G115: a version is bounded by the row
 	affected, err := queries.UpdateDashboard(ctx, sqlc.UpdateDashboardParams{
-		Name: d.Name, Sharing: string(d.Sharing), Widgets: widgets, At: timestampOf(at), By: keys[1],
+		Name: d.Name, Sharing: string(d.Sharing), GroupIds: groups, Widgets: widgets, At: timestampOf(at), By: keys[1],
 		ID: keys[0], ExpectedVersion: int32(expected),
 	})
 	if err != nil {
