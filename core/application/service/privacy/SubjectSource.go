@@ -179,6 +179,8 @@ var notThePersons = map[string]string{
 	"plan_baseline_entry":     "an entry's dates as a baseline holds them, which name nobody; the baseline names who took it",
 	"sprint_entry":            "an entry's membership in a sprint, which names nobody; the sprint names who planned it",
 	"time_work_type":          "the workspace's kinds of work, which name nobody",
+	"portfolio_item":          "which hub or collection a portfolio holds with its dates and status, which names nobody; the portfolio names its owner",
+	"agent_action":            "the ledger of an agent's acts, which names no person; the agent names its owner and an act held for a person is in agent_request",
 	"satisfaction_rating":     "a score of a resolved request, which names nobody; the rater is who raised the entry, and their words are a comment of theirs",
 }
 
