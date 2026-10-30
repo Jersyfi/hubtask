@@ -12,13 +12,13 @@ import (
 )
 
 func TestParseKindReadsTheContractsEnumAndRefusesTheRest(t *testing.T) {
-	for _, value := range []string{"CSV", "TRELLO", "GOOGLE_TASKS", "MICROSOFT_TODO"} {
+	for _, value := range []string{"CSV", "TRELLO", "GOOGLE_TASKS", "MICROSOFT_TODO", "JIRA", "CONFLUENCE"} {
 		kind, err := importer.ParseKind(value)
 		if err != nil || string(kind) != value {
 			t.Errorf("%s: %v %v", value, kind, err)
 		}
 	}
-	for _, value := range []string{"", "csv", "JIRA"} {
+	for _, value := range []string{"", "csv", "jira", "SPREADSHEET"} {
 		_, err := importer.ParseKind(value)
 		var typed *shared.Error
 		if !errors.As(err, &typed) || typed.DetailCode != importer.CodeKindUnknown {
