@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/goal"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
@@ -38,9 +39,14 @@ func DashboardOutput(d domain.Dashboard) usecase.Output {
 		if w.Query != nil {
 			query = map[string]any(w.Query)
 		}
+		var compare any
+		if w.Compare != nil {
+			compare = usecase.Output{"first_title": w.Compare.FirstTitle, "title": w.Compare.Title, "query": map[string]any(w.Compare.Query)}
+		}
 		widgets = append(widgets, usecase.Output{
 			"id": w.ID.String(), "title": w.Title, "chart": string(w.Chart), "source": string(w.Source),
-			"view_id": idText(w.ViewID), "query": query, "goal_ids": goals, "x": w.X, "y": w.Y, "w": w.W, "h": w.H,
+			"view_id": idText(w.ViewID), "query": query, "goal_ids": goals, "compare": compare, "cumulative": w.Cumulative,
+			"x": w.X, "y": w.Y, "w": w.W, "h": w.H,
 		})
 	}
 	groups := make([]string, 0, len(d.GroupIDs))
@@ -202,8 +208,18 @@ func (s Steward) dashboardFields(in usecase.Input) (domain.Dashboard, error) {
 		if query, ok := doc["query"].(map[string]any); ok {
 			w.Query = query
 		}
+		if compare, ok := doc["compare"].(map[string]any); ok {
+			query, _ := compare["query"].(map[string]any)
+			w.Compare = &domain.Compare{FirstTitle: stringOf(compare["first_title"]), Title: stringOf(compare["title"]), Query: query}
+		}
+		w.Cumulative, _ = doc["cumulative"].(bool)
 		if w.Source == domain.WidgetQuery && w.Query != nil {
-			if _, _, err := work.ParseSummary(usecase.Input(w.Query)); err != nil {
+			if err := summaryFits(w.Query, w.Cumulative, at+"/query"); err != nil {
+				return domain.Dashboard{}, err
+			}
+		}
+		if w.Source != domain.WidgetGoals && w.Compare != nil && w.Compare.Query != nil {
+			if err := summaryFits(w.Compare.Query, w.Cumulative, at+"/compare/query"); err != nil {
 				return domain.Dashboard{}, err
 			}
 		}
@@ -212,11 +228,28 @@ func (s Steward) dashboardFields(in usecase.Input) (domain.Dashboard, error) {
 	return domain.CheckDashboard(d, s.Text)
 }
 
+// summaryFits holds a widget's summary document to POST /items:aggregate's grammar and a running
+// total to what adds up: a COUNT or a SUM, cut by period. A saved view's is the view's, and a
+// running total over one that does not add up is the reader's to judge.
+func summaryFits(query map[string]any, cumulative bool, at string) error {
+	_, aggregation, err := work.ParseSummary(usecase.Input(query))
+	if err != nil || !cumulative {
+		return err
+	}
+	if !aggregation.IsBucketed() {
+		return invalid(at, "dashboards.cumulative_periods")
+	}
+	if aggregation.Function != view.AggregateCount && aggregation.Function != view.AggregateSum {
+		return invalid(at, "dashboards.cumulative_function")
+	}
+	return nil
+}
+
 var dashboardInput = []usecase.Field{
 	{Name: "name", Kind: usecase.KindString, Required: true, Description: "The dashboard's name."},
 	{Name: "sharing", Kind: usecase.KindString, Enum: []string{"PRIVATE", "SCOPE", "GROUPS"}, Description: "PRIVATE, the default, for its owner alone; SCOPE for everybody who reads its place; GROUPS for the members of group_ids who read it - each then sees the numbers their own reading allows."},
 	{Name: "group_ids", Kind: usecase.KindList, Description: "For GROUPS: one to 20 groups whose members see it."},
-	{Name: "widgets", Kind: usecase.KindList, Description: "At most 24 tiles on a twelve-column grid: title, chart (NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS), source (VIEW with view_id, a saved summary view; QUERY with query, a POST /items:aggregate document; GOALS with goal_ids), x, y, w, h; id to keep one."},
+	{Name: "widgets", Kind: usecase.KindList, Description: "At most 24 tiles on a twelve-column grid: title, chart (NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS), source (VIEW with view_id, a saved summary view; QUERY with query, a POST /items:aggregate document; GOALS with goal_ids), x, y, w, h; id to keep one. A BAR, LINE or TABLE widget may carry compare (first_title, title, query: a second series, resolved beside created) and cumulative (each period as the running total up to it, over a COUNT or SUM by period; with compare also what is left between the two)."},
 }
 
 // ListDashboards answers the dashboards a reader sees: their own and the shared ones of places
@@ -496,7 +529,7 @@ func (s Steward) figures(ctx context.Context, actor appshared.ActorContext, d do
 	}
 	widgets := make([]usecase.Output, 0, len(d.Widgets))
 	for _, w := range d.Widgets {
-		row := usecase.Output{"id": w.ID.String(), "data": []usecase.Output{}, "truncated": false, "error": nil}
+		row := usecase.Output{"id": w.ID.String(), "data": []usecase.Output{}, "truncated": false, "error": nil, "compare": nil, "remaining": nil}
 		var (
 			out usecase.Output
 			err error
@@ -520,19 +553,98 @@ func (s Steward) figures(ctx context.Context, actor appshared.ActorContext, d do
 			}
 			out = usecase.Output{"data": data, "truncated": false}
 		}
-		if err != nil {
-			var typed *shared.Error
-			if errors.As(err, &typed) && typed.Category != shared.CategoryUnavailable && typed.Category != shared.CategoryInternal {
-				row["error"] = typed.DetailCode
-				widgets = append(widgets, row)
-				continue
-			}
+		if code, err := refusedCode(err); err != nil {
 			return nil, err
+		} else if code != "" {
+			row["error"] = code
+			widgets = append(widgets, row)
+			continue
 		}
 		row["data"], row["truncated"] = out["data"], out["truncated"]
+		if w.Source != domain.WidgetGoals {
+			if err := s.series(ctx, actor, w, row); err != nil {
+				return nil, err
+			}
+		}
 		widgets = append(widgets, row)
 	}
 	return usecase.Output{"dashboard_id": d.ID.String(), "computed_at": s.Clock.Now(), "widgets": widgets}, nil
+}
+
+// series adds a widget's second series and running totals to its row: each summary row's running
+// total, and with both, what is left between them - computed here, so every door draws one number.
+func (s Steward) series(ctx context.Context, actor appshared.ActorContext, w domain.Widget, row usecase.Output) error {
+	first, _ := row["data"].([]usecase.Output)
+	var second []usecase.Output
+	if w.Compare != nil {
+		out, err := s.run(ctx, actor, s.Summaries, usecase.Input(w.Compare.Query))
+		code, err := refusedCode(err)
+		if err != nil {
+			return err
+		}
+		compare := usecase.Output{"data": []usecase.Output{}, "truncated": false, "error": nil}
+		if code != "" {
+			compare["error"] = code
+		} else {
+			second, _ = out["data"].([]usecase.Output)
+			compare["data"], compare["truncated"] = out["data"], out["truncated"]
+		}
+		row["compare"] = compare
+	}
+	if !w.Cumulative {
+		return nil
+	}
+	a, b := points(first), points(second)
+	for i, total := range domain.RunningTotals(a) {
+		first[i]["running"] = total
+	}
+	for i, total := range domain.RunningTotals(b) {
+		second[i]["running"] = total
+	}
+	if w.Compare != nil && second != nil {
+		left := domain.Remaining(a, b)
+		remaining := make([]usecase.Output, 0, len(left))
+		for _, l := range left {
+			remaining = append(remaining, usecase.Output{"group": nullable(l.Group), "period": nullable(l.Period), "value": l.Value})
+		}
+		row["remaining"] = remaining
+	}
+	return nil
+}
+
+func points(rows []usecase.Output) []domain.Point {
+	out := make([]domain.Point, 0, len(rows))
+	for _, r := range rows {
+		p := domain.Point{Group: stringOf(r["group"]), Period: stringOf(r["period"])}
+		if count, ok := intOf(r["count"]); ok {
+			p.Count = int64(count)
+		}
+		if v, ok := r["value"].(string); ok {
+			p.Value = &v
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+func nullable(text string) any {
+	if text == "" {
+		return nil
+	}
+	return text
+}
+
+// refusedCode answers the code of a widget the reader cannot run, which draws in place; an error
+// that is not the reader's - unavailable, internal - fails the whole read.
+func refusedCode(err error) (string, error) {
+	if err == nil {
+		return "", nil
+	}
+	var typed *shared.Error
+	if errors.As(err, &typed) && typed.Category != shared.CategoryUnavailable && typed.Category != shared.CategoryInternal {
+		return typed.DetailCode, nil
+	}
+	return "", err
 }
 
 func (s Steward) run(ctx context.Context, actor appshared.ActorContext, handler usecase.Handler, in usecase.Input) (usecase.Output, error) {

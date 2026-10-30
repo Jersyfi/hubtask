@@ -770,3 +770,75 @@ func (m *memory) DeleteDashboard(_ context.Context, id shared.ID, _ int) error {
 	delete(m.dashboards, id)
 	return nil
 }
+
+// flowSummaries answers created and resolved entries by day, as two summaries would.
+type flowSummaries struct{}
+
+func (flowSummaries) Invoke(_ context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+	bucket, _ := in["aggregate"].(map[string]any)["bucket"].(map[string]any)
+	if bucket["field"] == "completed_at" {
+		if actor.AccountID == ben {
+			return nil, shared.ErrForbidden.WithDetail("access.denied")
+		}
+		return usecase.Output{"data": []usecase.Output{
+			{"period": "2026-10-02", "count": int64(1)}, {"period": "2026-10-03", "count": int64(4)},
+		}, "truncated": false}, nil
+	}
+	return usecase.Output{"data": []usecase.Output{
+		{"period": "2026-10-01", "count": int64(5)}, {"period": "2026-10-03", "count": int64(2)},
+	}, "truncated": false}, nil
+}
+
+// UC-GOL-04 check 15: created beside resolved as two series of one widget, each period as its
+// running total and what is left between them - a burndown -, the second series refused in place.
+func TestAWidgetDrawsCreatedBesideResolvedAndWhatIsLeft(t *testing.T) {
+	s, _, _, _ := newSteward(t)
+	s.Summaries = flowSummaries{}
+	byDay := func(field, function string) map[string]any {
+		return map[string]any{"scope_container_id": listA.String(), "aggregate": map[string]any{
+			"function": function, "bucket": map[string]any{"field": field, "period": "day"}}}
+	}
+	widget := func(chart string, cumulative bool, function string) map[string]any {
+		return map[string]any{"title": "Flow", "chart": chart, "source": "QUERY", "cumulative": cumulative,
+			"query": byDay("created_at", "COUNT"),
+			"compare": map[string]any{"first_title": "Created", "title": "Resolved", "query": byDay("completed_at", function)}}
+	}
+	if _, err := call(t, CreateDashboard{s}.Descriptor(), ana, usecase.Input{"name": "x", "widgets": []any{widget("PIE", false, "COUNT")}}); code(err) != "dashboards.series_chart" {
+		t.Fatalf("a pie of two series: %v", err)
+	}
+	average := widget("LINE", true, "COUNT")
+	average["query"] = map[string]any{"scope_container_id": listA.String(), "aggregate": map[string]any{
+		"function": "AVG", "field": "lead_time", "bucket": map[string]any{"field": "created_at", "period": "day"}}}
+	if _, err := call(t, CreateDashboard{s}.Descriptor(), ana, usecase.Input{"name": "x", "widgets": []any{average}}); code(err) != "dashboards.cumulative_function" {
+		t.Fatalf("a running average: %v", err)
+	}
+	unbucketed := widget("LINE", true, "COUNT")
+	unbucketed["compare"].(map[string]any)["query"] = map[string]any{"scope_container_id": listA.String(), "aggregate": map[string]any{"function": "COUNT"}}
+	if _, err := call(t, CreateDashboard{s}.Descriptor(), ana, usecase.Input{"name": "x", "widgets": []any{unbucketed}}); code(err) != "dashboards.cumulative_periods" {
+		t.Fatalf("a running total without periods: %v", err)
+	}
+	board := ok(t, CreateDashboard{s}.Descriptor(), ana, usecase.Input{"name": "Flow", "widgets": []any{widget("LINE", true, "COUNT")}})
+	stored := board["widgets"].([]usecase.Output)[0]
+	if stored["cumulative"] != true || stored["compare"].(usecase.Output)["title"] != "Resolved" {
+		t.Fatalf("the widget as stored: %v", stored)
+	}
+	row := ok(t, ReadDashboardFigures{s}.Descriptor(), ana, usecase.Input{"dashboard_id": board.String("id")})["widgets"].([]usecase.Output)[0]
+	first := row["data"].([]usecase.Output)
+	second := row["compare"].(usecase.Output)["data"].([]usecase.Output)
+	if first[0]["running"] != "5" || first[1]["running"] != "7" || second[0]["running"] != "1" || second[1]["running"] != "5" {
+		t.Fatalf("running totals %v / %v", first, second)
+	}
+	left := row["remaining"].([]usecase.Output)
+	if len(left) != 3 || left[0]["value"] != "5" || left[1]["value"] != "4" || left[2]["value"] != "2" || left[2]["period"] != "2026-10-03" {
+		t.Fatalf("what is left %v", left)
+	}
+	s.Store.(*memory).dashboards[shared.MustParseID(board.String("id"))] = func() domain.Dashboard {
+		d := s.Store.(*memory).dashboards[shared.MustParseID(board.String("id"))]
+		d.Sharing = domain.SharingScope
+		return d
+	}()
+	asBen := ok(t, ReadDashboardFigures{s}.Descriptor(), ben, usecase.Input{"dashboard_id": board.String("id")})["widgets"].([]usecase.Output)[0]
+	if asBen["error"] != nil || asBen["compare"].(usecase.Output)["error"] != "access.denied" || asBen["remaining"] != nil {
+		t.Fatalf("Ben's flow %v", asBen)
+	}
+}
