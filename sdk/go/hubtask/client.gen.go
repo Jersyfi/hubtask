@@ -12136,6 +12136,9 @@ type AutomationRule struct {
 	// InboundRotatedAt When an `INBOUND_WEBHOOK` rule's address was last minted, and absent for a rule that has none. The moment and nothing else: a prefix or a masked value beside it would be a credential whose guessing space has been narrowed for whoever reads the listing.
 	InboundRotatedAt *time.Time `json:"inbound_rotated_at,omitempty"`
 
+	// Key The rule's stable key where it lives, by which the configuration document names it: unique in its scope, drawn from the name when the writer named none, kept by a rename.
+	Key string `json:"key"`
+
 	// LastRun The rule's most recent run — when it started and how it ended — read beside the rule so that a list of rules says it without a page of runs per rule. Absent for a rule that never ran. Not part of the definition: a write ignores it.
 	LastRun *struct {
 		At time.Time `json:"at"`
@@ -12169,11 +12172,14 @@ type AutomationRuleOnError string
 
 // AutomationRuleCreate defines model for AutomationRuleCreate.
 type AutomationRuleCreate struct {
-	Actions    []RuleAction                 `json:"actions"`
-	Conditions *[]RuleCondition             `json:"conditions,omitempty"`
-	Name       string                       `json:"name"`
-	OnError    *AutomationRuleCreateOnError `json:"on_error,omitempty"`
-	RunAs      openapi_types.UUID           `json:"run_as"`
+	Actions    []RuleAction     `json:"actions"`
+	Conditions *[]RuleCondition `json:"conditions,omitempty"`
+
+	// Key The rule's stable key in its scope. Omitted draws one from the name; one the scope already holds is refused.
+	Key     *string                      `json:"key,omitempty"`
+	Name    string                       `json:"name"`
+	OnError *AutomationRuleCreateOnError `json:"on_error,omitempty"`
+	RunAs   openapi_types.UUID           `json:"run_as"`
 
 	// Scope Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections.
 	Scope RuleScope `json:"scope"`
@@ -14558,7 +14564,7 @@ type Container struct {
 	// Figure What counts in this collection, counted at the read for the reader (their day and week). On a collection's read only; absent on a hub, on a trashed collection, and where what counts is `NONE` or not yet counted by this server (`FLOW`).
 	Figure *CollectionFigure `json:"figure,omitempty"`
 
-	// Handle A collection's short name, null on a hub: the word a mail subject ("#einkauf"), a plus address and a ticket key ("EINKAUF-42") use for it. Given when the collection is made, derived from its name and unique in the workspace; a rename keeps it.
+	// Handle The hub's or collection's short name and stable key: the word a mail subject ("#einkauf"), a plus address and a ticket key ("EINKAUF-42") use for a collection, and the word a configuration document names a hub or a collection by. Given when the container is made, derived from its name and unique in the workspace; a rename keeps it. Mail is delivered to a collection's only.
 	Handle *string            `json:"handle,omitempty"`
 	Icon   *string            `json:"icon,omitempty"`
 	Id     openapi_types.UUID `json:"id"`
@@ -21097,6 +21103,9 @@ type SavedView struct {
 	Grouping  map[string]interface{} `json:"grouping"`
 	Id        openapi_types.UUID     `json:"id"`
 
+	// Key The view's stable key where it lives, by which the configuration document names it: unique in its scope, drawn from the name when the writer named none, kept by a rename.
+	Key string `json:"key"`
+
 	// Layout One of the declared set (/meta/capabilities, view_layouts). Stored and echoed, never consulted.
 	Layout  string             `json:"layout"`
 	Name    string             `json:"name"`
@@ -21128,8 +21137,11 @@ type SavedViewSharing string
 // SavedViewCreate defines model for SavedViewCreate.
 type SavedViewCreate struct {
 	Grouping *map[string]interface{} `json:"grouping,omitempty"`
-	Layout   string                  `json:"layout"`
-	Name     string                  `json:"name"`
+
+	// Key The view's stable key in its scope. Omitted draws one from the name; one the scope already holds is refused.
+	Key    *string `json:"key,omitempty"`
+	Layout string  `json:"layout"`
+	Name   string  `json:"name"`
 
 	// Query The query, anchored, in the use case's input shape - `scope_container_id`, not a nested `scope` object. See `SavedView.query`; both shapes are refused here rather than at the first export.
 	Query map[string]interface{} `json:"query"`

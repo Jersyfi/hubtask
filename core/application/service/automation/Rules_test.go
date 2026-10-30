@@ -56,6 +56,9 @@ func (s *ruleStore) Insert(_ context.Context, rule domain.Rule) error {
 	if s.insertErr != nil {
 		return s.insertErr
 	}
+	if rule.Key == "" {
+		rule.Key = "rule"
+	}
 	s.rows[rule.ID] = rule
 	s.order = append(s.order, rule.ID)
 	return nil

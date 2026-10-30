@@ -34,7 +34,7 @@ func (q *Queries) DeleteSavedView(ctx context.Context, arg DeleteSavedViewParams
 
 const findSavedView = `-- name: FindSavedView :one
 SELECT id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
-       visible_fields, sharing, created_at, version
+       visible_fields, sharing, created_at, version, key
 FROM saved_view
 WHERE id = $1
 `
@@ -56,22 +56,25 @@ func (q *Queries) FindSavedView(ctx context.Context, id pgtype.UUID) (SavedView,
 		&i.Sharing,
 		&i.CreatedAt,
 		&i.Version,
+		&i.Key,
 	)
 	return i, err
 }
 
-const insertSavedView = `-- name: InsertSavedView :exec
+const insertSavedView = `-- name: InsertSavedView :one
 
 INSERT INTO saved_view (
   id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
-  visible_fields, sharing, created_at, version
+  visible_fields, sharing, created_at, version, key
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4,
   normalize($5::text, NFC),
   $6, $7::jsonb, $8::jsonb,
-  $9::text[], $10, $11, 1
+  $9::text[], $10, $11, 1,
+  $12
 )
+RETURNING key
 `
 
 type InsertSavedViewParams struct {
@@ -86,6 +89,7 @@ type InsertSavedViewParams struct {
 	VisibleFields []string
 	Sharing       string
 	CreatedAt     pgtype.Timestamptz
+	Key           *string
 }
 
 // Saved views.
@@ -94,8 +98,10 @@ type InsertSavedViewParams struct {
 // the same grammar the query endpoint applies. Nothing here interprets it - or the layout, or the
 // visible fields: this table is a bookmark shelf, and what a bookmark opens into is decided by
 // whoever opens it, under their own authorisation.
-func (q *Queries) InsertSavedView(ctx context.Context, arg InsertSavedViewParams) error {
-	_, err := q.db.Exec(ctx, insertSavedView,
+// The key is the writer's, or drawn from the name by the store when it names none (migration
+// 0286); the statement answers the one stored.
+func (q *Queries) InsertSavedView(ctx context.Context, arg InsertSavedViewParams) (*string, error) {
+	row := q.db.QueryRow(ctx, insertSavedView,
 		arg.ID,
 		arg.ScopeType,
 		arg.ScopeID,
@@ -107,13 +113,16 @@ func (q *Queries) InsertSavedView(ctx context.Context, arg InsertSavedViewParams
 		arg.VisibleFields,
 		arg.Sharing,
 		arg.CreatedAt,
+		arg.Key,
 	)
-	return err
+	var key *string
+	err := row.Scan(&key)
+	return key, err
 }
 
 const listSavedViewsOwned = `-- name: ListSavedViewsOwned :many
 SELECT id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
-       visible_fields, sharing, created_at, version
+       visible_fields, sharing, created_at, version, key
 FROM saved_view
 WHERE owner_id = $1::uuid
 ORDER BY created_at, id
@@ -145,6 +154,7 @@ func (q *Queries) ListSavedViewsOwned(ctx context.Context, ownerID pgtype.UUID) 
 			&i.Sharing,
 			&i.CreatedAt,
 			&i.Version,
+			&i.Key,
 		); err != nil {
 			return nil, err
 		}
@@ -158,7 +168,7 @@ func (q *Queries) ListSavedViewsOwned(ctx context.Context, ownerID pgtype.UUID) 
 
 const listSavedViewsReachable = `-- name: ListSavedViewsReachable :many
 SELECT id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
-       visible_fields, sharing, created_at, version
+       visible_fields, sharing, created_at, version, key
 FROM saved_view
 WHERE owner_id = $1::uuid
    OR (sharing = 'SCOPE' AND (
@@ -201,6 +211,7 @@ func (q *Queries) ListSavedViewsReachable(ctx context.Context, arg ListSavedView
 			&i.Sharing,
 			&i.CreatedAt,
 			&i.Version,
+			&i.Key,
 		); err != nil {
 			return nil, err
 		}

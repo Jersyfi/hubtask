@@ -541,8 +541,9 @@ func containerOutput(container domain.Container) usecase.Output {
 		"version":    container.Version,
 		// Always present, so a client reads a hub's privacy off every response (ADR-0073 §1).
 		"private": container.Private,
-		// A collection's short name, always present and null on a hub (ADR-0094): the word a mail
-		// subject, a plus address and a ticket key use for it.
+		// The container's short name and stable key (ADR-0094, migration 0286): the word a mail
+		// subject, a plus address and a ticket key use for a collection, and the configuration
+		// document's name for a hub or a collection.
 		"handle": stringOrNil(container.Handle),
 	}
 	if !container.ParentID.IsZero() {

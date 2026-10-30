@@ -131,7 +131,11 @@ func (r AutomationRuleRepository) Insert(ctx context.Context, rule domain.Rule) 
 		return err
 	}
 
-	if err := queries.InsertAutomationRule(ctx, sqlc.InsertAutomationRuleParams{
+	var key *string
+	if rule.Key != "" {
+		key = &rule.Key
+	}
+	_, err = queries.InsertAutomationRule(ctx, sqlc.InsertAutomationRuleParams{
 		ID:         id,
 		ScopeType:  string(rule.Scope.Type),
 		ScopeID:    scopeID,
@@ -146,7 +150,12 @@ func (r AutomationRuleRepository) Insert(ctx context.Context, rule domain.Rule) 
 		CreatedBy:  createdBy,
 		CreatedAt:  timestampOf(rule.CreatedAt),
 		NextRunAt:  scheduleMoment(rule.NextRunAt),
-	}); err != nil {
+		Key:        key,
+	})
+	if err != nil {
+		if isUniqueViolation(err) {
+			return fieldConflict("/key", "automation.key_taken")
+		}
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("inserting automation rule %s: %w", rule.ID, err))
@@ -321,6 +330,10 @@ func (r AutomationRuleRepository) Update(
 		ExpectedVersion: int32(expectedVersion),
 	})
 	if err != nil {
+		if isUniqueViolation(err) {
+			// Moved to a scope that already holds the rule's key.
+			return fieldConflict("/scope", "automation.key_taken")
+		}
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("updating automation rule %s: %w", rule.ID, err))
@@ -736,6 +749,7 @@ func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 		CreatedAt:        timeFrom(row.CreatedAt),
 		UpdatedAt:        timeFrom(row.UpdatedAt),
 		Version:          int(row.Version),
+		Key:              stringFrom(row.Key),
 	}
 	for _, condition := range conditions {
 		rule.Conditions = append(rule.Conditions, domain.Condition{Expr: condition.Expr})

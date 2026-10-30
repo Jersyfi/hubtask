@@ -34,6 +34,8 @@ type SavedViews interface {
 	// the page (domain-model.md §3.2).
 	ListReachable(ctx context.Context, ownerID shared.ID, scopeIDs []shared.ID) ([]view.SavedView, error)
 
+	// Insert writes a new view under its own key, or one the store draws from its name (Find
+	// answers it); a key its scope already holds is a conflict.
 	Insert(ctx context.Context, saved view.SavedView) error
 
 	// SetAttributes writes the view's own fields whole, or reports a version conflict. The

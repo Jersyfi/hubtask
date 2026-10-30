@@ -9,26 +9,28 @@
 -- readable - a run log whose rule vanished would be a record of actions nobody can account for -
 -- and a deleted rule is nevertheless gone from every question anybody asks about rules.
 
--- name: InsertAutomationRule :exec
+-- name: InsertAutomationRule :one
 -- A rule is written switched off, which is why `enabled` is a parameter rather than the column's
 -- default: writing what a rule would do and letting it loose are two decisions, and the default
 -- says the opposite.
 INSERT INTO automation_rule (
   id, tenant_id, scope_type, scope_id, name, enabled, run_as,
   trigger, conditions, actions, throttle, on_error, created_by, created_at, updated_at, version,
-  next_run_at
+  next_run_at, key
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('scope_type'), sqlc.narg('scope_id'),
   sqlc.arg('name'), sqlc.arg('enabled'), sqlc.arg('run_as'),
   sqlc.arg('trigger'), sqlc.arg('conditions'), sqlc.arg('actions'), sqlc.arg('throttle'),
   sqlc.arg('on_error'), sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1,
-  sqlc.narg('next_run_at')
-);
+  sqlc.narg('next_run_at'), sqlc.narg('key')
+)
+-- The key is the writer's, or drawn from the name by the store (migration 0286).
+RETURNING key;
 
 -- name: FindAutomationRule :one
 SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at, findings, checked_at
+       next_run_at, inbound_rotated_at, findings, checked_at, key
 FROM automation_rule
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
@@ -40,7 +42,7 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- second place for the `deleted_at` guard to be forgotten.
 SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at, findings, checked_at
+       next_run_at, inbound_rotated_at, findings, checked_at, key
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND (sqlc.narg('enabled')::boolean IS NULL OR enabled = sqlc.narg('enabled')::boolean)
@@ -83,7 +85,7 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND version = sqlc.arg('expecte
 -- document so that the query does not have to know the action tree's shape.
 SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at, findings, checked_at
+       next_run_at, inbound_rotated_at, findings, checked_at, key
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND jsonb_path_exists(
@@ -269,7 +271,7 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND enabled = true;
 -- subscriber's, against what it can resolve, rather than a join this statement cannot make.
 SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at, findings, checked_at
+       next_run_at, inbound_rotated_at, findings, checked_at, key
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND enabled = true
@@ -290,7 +292,7 @@ ORDER BY id;
 -- overlap, and a lock here would be a second answer to a question the queue has answered.
 SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at, findings, checked_at
+       next_run_at, inbound_rotated_at, findings, checked_at, key
 FROM automation_rule
 WHERE deleted_at IS NULL AND enabled = true
   AND next_run_at IS NOT NULL AND next_run_at <= sqlc.arg('due')
@@ -324,7 +326,7 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- workspace half restored.
 SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at, findings, checked_at
+       next_run_at, inbound_rotated_at, findings, checked_at, key
 FROM automation_rule
 WHERE deleted_at IS NULL AND paused_for_deletion = true
 ORDER BY created_at, id;
@@ -391,7 +393,7 @@ SELECT min(fire_at)::timestamptz AS fire_at FROM rule_occurrence;
 -- producer's, against what it can resolve.
 SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at, findings, checked_at
+       next_run_at, inbound_rotated_at, findings, checked_at, key
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND enabled = true
@@ -421,7 +423,7 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- quote another tenant matches nothing.
 SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at, findings, checked_at
+       next_run_at, inbound_rotated_at, findings, checked_at, key
 FROM automation_rule
 WHERE inbound_token_hash = sqlc.arg('token_hash') AND deleted_at IS NULL;
 

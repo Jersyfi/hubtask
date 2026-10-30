@@ -48804,7 +48804,7 @@
               "null"
             ],
             "pattern": "^[a-z][a-z0-9]{1,19}$",
-            "description": "A collection's short name, null on a hub: the word a mail subject (\"#einkauf\"), a plus address and a ticket key (\"EINKAUF-42\") use for it. Given when the collection is made, derived from its name and unique in the workspace; a rename keeps it.\n"
+            "description": "The hub's or collection's short name and stable key: the word a mail subject (\"#einkauf\"), a plus address and a ticket key (\"EINKAUF-42\") use for a collection, and the word a configuration document names a hub or a collection by. Given when the container is made, derived from its name and unique in the workspace; a rename keeps it. Mail is delivered to a collection's only.\n"
           },
           "structure": {
             "$ref": "#/components/schemas/EffectiveStructure",
@@ -50123,6 +50123,7 @@
           "scope_type",
           "owner_id",
           "name",
+          "key",
           "layout",
           "query",
           "grouping",
@@ -50134,6 +50135,11 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,62}$",
+            "description": "The view's stable key where it lives, by which the configuration document names it: unique in its scope, drawn from the name when the writer named none, kept by a rename.\n"
           },
           "scope_type": {
             "type": "string",
@@ -50221,6 +50227,11 @@
           "query"
         ],
         "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,62}$",
+            "description": "The view's stable key in its scope. Omitted draws one from the name; one the scope already holds is refused.\n"
+          },
           "scope_type": {
             "type": "string",
             "enum": [
@@ -50937,6 +50948,7 @@
         "required": [
           "id",
           "name",
+          "key",
           "scope",
           "enabled",
           "run_as",
@@ -50957,6 +50969,11 @@
           },
           "name": {
             "type": "string"
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,62}$",
+            "description": "The rule's stable key where it lives, by which the configuration document names it: unique in its scope, drawn from the name when the writer named none, kept by a rename.\n"
           },
           "scope": {
             "$ref": "#/components/schemas/RuleScope"
@@ -51126,6 +51143,11 @@
           "name": {
             "type": "string",
             "maxLength": 200
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,62}$",
+            "description": "The rule's stable key in its scope. Omitted draws one from the name; one the scope already holds is refused.\n"
           },
           "scope": {
             "$ref": "#/components/schemas/RuleScope"

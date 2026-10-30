@@ -70,9 +70,11 @@ type CreateSavedViewCommand struct {
 	ScopeType view.ViewScope
 	ScopeID   shared.ID
 	Name      string
-	Layout    string
-	Query     map[string]any
-	Grouping  map[string]any
+	// Key names the view in its scope; empty asks the store to draw one from the name.
+	Key      string
+	Layout   string
+	Query    map[string]any
+	Grouping map[string]any
 	// VisibleFields distinguishes nil - not sent, stored empty - from an empty list a client
 	// chose, though the two store alike.
 	VisibleFields []string
@@ -125,7 +127,7 @@ func (h CreateSavedView) Execute(
 		built, err := view.NewSavedView(view.NewSavedViewInput{
 			ID: h.IDs.NewID(), TenantID: actor.TenantID,
 			ScopeType: cmd.ScopeType, ScopeID: scopeID, OwnerID: actor.AccountID,
-			Name: cmd.Name, Layout: cmd.Layout, Query: cmd.Query, Grouping: cmd.Grouping,
+			Name: cmd.Name, Key: cmd.Key, Layout: cmd.Layout, Query: cmd.Query, Grouping: cmd.Grouping,
 			VisibleFields: cmd.VisibleFields, Sharing: cmd.Sharing,
 			Now: now, Text: h.Text,
 		})
@@ -139,6 +141,12 @@ func (h CreateSavedView) Execute(
 		if err := h.Views.Insert(ctx, built); err != nil {
 			return err
 		}
+		// The key the store drew where the writer named none.
+		stored, err := h.Views.Find(ctx, built.ID)
+		if err != nil {
+			return err
+		}
+		built.Key = stored.Key
 		if err := recordViewAudit(ctx, h.Audit, actor, built, ViewCreatedAction, now); err != nil {
 			return err
 		}
@@ -443,6 +451,7 @@ func viewOutput(saved view.SavedView) usecase.Output {
 		"scope_id":   nil,
 		"owner_id":   saved.OwnerID.String(),
 		"name":       saved.Name,
+		"key":        saved.Key,
 		"layout":     string(saved.Layout),
 		"query":      saved.Query,
 		"grouping":   saved.Grouping,
@@ -488,6 +497,13 @@ func (h CreateSavedView) Descriptor() usecase.Descriptor {
 			{
 				Name: "name", Kind: usecase.KindString, Required: true,
 				Description: "The view's name: one line, at most 200 characters.",
+			},
+			{
+				Name: "key", Kind: usecase.KindString,
+				Description: "The view's stable key where it lives - lower case letters, digits and " +
+					"underscores, starting with a letter, at most 63 - by which the configuration " +
+					"document names it. Omitted draws one from the name; one its scope already " +
+					"holds is refused. A rename keeps it.",
 			},
 			{
 				Name: "layout", Kind: usecase.KindString, Required: true,
@@ -553,6 +569,7 @@ func (h CreateSavedView) invoke(
 		ScopeType: view.ViewScope(in.String("scope_type")),
 		ScopeID:   scopeID,
 		Name:      in.String("name"),
+		Key:       in.String("key"),
 		Layout:    in.String("layout"),
 		Sharing:   sharing,
 	}

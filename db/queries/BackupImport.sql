@@ -1034,7 +1034,8 @@ INSERT INTO saved_view (
   visible_fields,
   sharing,
   created_at,
-  version
+  version,
+  key
 )
 SELECT
   r.id,
@@ -1049,7 +1050,10 @@ SELECT
   r.visible_fields,
   r.sharing,
   r.created_at,
-  r.version
+  r.version,
+  -- The key travels with the row (migration 0286); an archive written before carries none,
+  -- and the store then draws one from the name.
+  r.key
 FROM jsonb_populate_record(
   NULL::saved_view,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -1066,7 +1070,8 @@ ON CONFLICT (id) DO UPDATE SET
   visible_fields = EXCLUDED.visible_fields,
   sharing = EXCLUDED.sharing,
   created_at = EXCLUDED.created_at,
-  version = EXCLUDED.version
+  version = EXCLUDED.version,
+  key = coalesce(EXCLUDED.key, saved_view.key)
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsSavedView :one
@@ -1248,7 +1253,8 @@ INSERT INTO automation_rule (
   -- Restored with the rule, so that a rule that comes back is the rule that went in. It fires
   -- nothing by itself: a restore seeds no poller, because nothing enumerates tenants, and
   -- backup-restore.md §8.4 is unambiguous that no rule acts because of a restore.
-  next_run_at
+  next_run_at,
+  key
 )
 SELECT
   r.id,
@@ -1269,7 +1275,9 @@ SELECT
   r.updated_at,
   r.deleted_at,
   r.version,
-  r.next_run_at
+  r.next_run_at,
+  -- The key travels with the row (migration 0286); an archive written before carries none.
+  r.key
 FROM jsonb_populate_record(
   NULL::automation_rule,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -1292,7 +1300,8 @@ ON CONFLICT (id) DO UPDATE SET
   updated_at = EXCLUDED.updated_at,
   deleted_at = EXCLUDED.deleted_at,
   version = EXCLUDED.version,
-  next_run_at = EXCLUDED.next_run_at
+  next_run_at = EXCLUDED.next_run_at,
+  key = coalesce(EXCLUDED.key, automation_rule.key)
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsAutomationRule :one

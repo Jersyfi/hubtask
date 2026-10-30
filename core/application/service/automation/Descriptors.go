@@ -39,6 +39,12 @@ func (h CreateRule) Descriptor() usecase.Descriptor {
 		Input: []usecase.Field{
 			{Name: "name", Kind: usecase.KindString, Required: true, Description: "What the rule is called."},
 			{
+				Name: "key", Kind: usecase.KindString,
+				Description: "The rule's stable key in its scope - lower case letters, digits and underscores, " +
+					"starting with a letter, at most 63 - by which the configuration document names it. Omitted " +
+					"draws one from the name; one its scope already holds is refused. A rename keeps it.",
+			},
+			{
 				Name: "scope", Kind: usecase.KindObject, Required: true,
 				Description: "Where it applies: {type: TENANT|HUB|COLLECTION, id}. Descendants are included.",
 			},
@@ -263,7 +269,7 @@ func (h CreateRule) invoke(
 	}
 
 	rule, err := h.Execute(ctx, actor, CreateRuleCommand{
-		Name: in.String("name"), Scope: scope, RunAs: runAs, Trigger: trigger,
+		Name: in.String("name"), Key: in.String("key"), Scope: scope, RunAs: runAs, Trigger: trigger,
 		Conditions: conditions, Actions: actions,
 		Throttle: throttleFrom(in["throttle"]), OnError: domain.OnError(in.String("on_error")),
 	})
@@ -445,6 +451,7 @@ func ruleOutput(rule domain.Rule) usecase.Output {
 	out := usecase.Output{
 		"id":            rule.ID.String(),
 		"name":          rule.Name,
+		"key":           rule.Key,
 		"scope":         scope,
 		"enabled":       rule.Enabled,
 		"run_as":        rule.RunAs.String(),

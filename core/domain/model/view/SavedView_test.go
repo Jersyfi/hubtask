@@ -356,3 +356,23 @@ func TestASummaryViewStoresItsAggregation(t *testing.T) {
 		})
 	}
 }
+
+// A view's key is the writer's or the store's; a malformed one is refused, never folded.
+func TestAViewKeyIsHeldToTheDocumentsShape(t *testing.T) {
+	in := viewInput()
+	in.Key = "due_this_week"
+	built, err := NewSavedView(in)
+	if err != nil || built.Key != "due_this_week" {
+		t.Fatalf("a valid key: %v, %q", err, built.Key)
+	}
+	in.Key = ""
+	if built, err = NewSavedView(in); err != nil || built.Key != "" {
+		t.Fatalf("no key leaves it to the store: %v, %q", err, built.Key)
+	}
+	in.Key = "Due-This-Week"
+	_, err = NewSavedView(in)
+	if refusal := shared.AsError(err); refusal == nil || refusal.DetailCode != "views.key_invalid" ||
+		len(refusal.Fields) != 1 || refusal.Fields[0].Path != "/key" {
+		t.Fatalf("a malformed key: %v", err)
+	}
+}

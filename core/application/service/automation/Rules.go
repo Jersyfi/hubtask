@@ -170,7 +170,9 @@ type DeleteRule struct{ Writer Writer }
 
 // CreateRuleCommand is a new rule.
 type CreateRuleCommand struct {
-	Name       string
+	Name string
+	// Key names the rule in its scope; empty asks the store to draw one from the name.
+	Key        string
 	Scope      domain.Scope
 	RunAs      shared.ID
 	Trigger    domain.Trigger
@@ -205,7 +207,7 @@ func (h CreateRule) Execute(
 	// and says nothing about who is asking, which is the right order: telling somebody they may not
 	// write a malformed rule tells them the wrong thing.
 	rule, err := domain.NewRule(domain.NewRuleInput{
-		ID: w.IDs.NewID(), TenantID: actor.TenantID, Name: cmd.Name, Scope: cmd.Scope,
+		ID: w.IDs.NewID(), TenantID: actor.TenantID, Name: cmd.Name, Key: cmd.Key, Scope: cmd.Scope,
 		RunAs: cmd.RunAs, Trigger: cmd.Trigger, Conditions: cmd.Conditions,
 		Actions: cmd.Actions, Throttle: cmd.Throttle, OnError: cmd.OnError,
 		CreatedBy: actor.AccountID, Now: w.Clock.Now(), Text: w.Text,
@@ -233,7 +235,13 @@ func (h CreateRule) Execute(
 	}
 
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		return w.Rules.Insert(ctx, rule)
+		if err := w.Rules.Insert(ctx, rule); err != nil {
+			return err
+		}
+		// The key the store drew where the writer named none.
+		stored, err := w.Rules.Find(ctx, rule.ID)
+		rule.Key = stored.Key
+		return err
 	})
 	if err != nil {
 		return domain.Rule{}, err
@@ -706,7 +714,7 @@ func merged(
 ) (domain.Rule, error) {
 	in := domain.NewRuleInput{
 		ID: current.ID, TenantID: current.TenantID,
-		Name: current.Name, Scope: current.Scope, RunAs: current.RunAs,
+		Name: current.Name, Key: current.Key, Scope: current.Scope, RunAs: current.RunAs,
 		Trigger: current.Trigger, Conditions: current.Conditions, Actions: current.Actions,
 		Throttle: current.Throttle, OnError: current.OnError,
 		CreatedBy: current.CreatedBy, Now: current.CreatedAt, Text: form,

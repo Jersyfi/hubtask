@@ -3440,6 +3440,7 @@ class DueDateInput(TypedDict, total=False):
 class SavedView(TypedDict, total=False):
     """A saved query with the layout it is drawn in. The server stores the query, validates it against the same catalogue as POST /items:query, and interprets neither the layout nor the visible fields - both are the client's vocabulary, echoed back exactly as stored."""
     id: Required[str]
+    key: Required[str]
     scope_type: Required[Literal["TENANT", "HUB", "COLLECTION", "ACCOUNT"]]
     scope_id: str | None
     owner_id: Required[str]
@@ -3453,6 +3454,7 @@ class SavedView(TypedDict, total=False):
     version: Required[int]
 
 class SavedViewCreate(TypedDict, total=False):
+    key: str
     scope_type: Required[Literal["TENANT", "HUB", "COLLECTION", "ACCOUNT"]]
     scope_id: str | None
     name: Required[str]
@@ -3613,6 +3615,7 @@ class RuleThrottle(TypedDict, total=False):
 class AutomationRule(TypedDict, total=False):
     id: Required[str]
     name: Required[str]
+    key: Required[str]
     scope: Required["RuleScope"]
     enabled: Required[bool]
     run_as: Required[str]
@@ -3644,6 +3647,7 @@ class RuleCondition(TypedDict, total=False):
 
 class AutomationRuleCreate(TypedDict, total=False):
     name: Required[str]
+    key: str
     scope: Required["RuleScope"]
     run_as: Required[str]
     trigger: Required["RuleTrigger"]

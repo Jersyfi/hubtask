@@ -70,6 +70,9 @@ func (s *savedViews) ListReachable(
 }
 
 func (s *savedViews) Insert(_ context.Context, saved view.SavedView) error {
+	if saved.Key == "" {
+		saved.Key = "view"
+	}
 	s.stored[saved.ID] = saved
 	return nil
 }

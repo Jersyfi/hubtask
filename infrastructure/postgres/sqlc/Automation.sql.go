@@ -38,7 +38,7 @@ func (q *Queries) ActingAccountExists(ctx context.Context, id pgtype.UUID) (bool
 const automationRulesSealedNotUnder = `-- name: AutomationRulesSealedNotUnder :many
 SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at, findings, checked_at
+       next_run_at, inbound_rotated_at, findings, checked_at, key
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND jsonb_path_exists(
@@ -70,6 +70,7 @@ type AutomationRulesSealedNotUnderRow struct {
 	InboundRotatedAt pgtype.Timestamptz
 	Findings         []byte
 	CheckedAt        pgtype.Timestamptz
+	Key              *string
 }
 
 // The rows a re-seal visits (ADR-0045): a rule with an HTTP_REQUEST action - at any depth of a
@@ -107,6 +108,7 @@ func (q *Queries) AutomationRulesSealedNotUnder(ctx context.Context, keyID strin
 			&i.InboundRotatedAt,
 			&i.Findings,
 			&i.CheckedAt,
+			&i.Key,
 		); err != nil {
 			return nil, err
 		}
@@ -320,7 +322,7 @@ const dueAutomationRules = `-- name: DueAutomationRules :many
 
 SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at, findings, checked_at
+       next_run_at, inbound_rotated_at, findings, checked_at, key
 FROM automation_rule
 WHERE deleted_at IS NULL AND enabled = true
   AND next_run_at IS NOT NULL AND next_run_at <= $1
@@ -356,6 +358,7 @@ type DueAutomationRulesRow struct {
 	InboundRotatedAt pgtype.Timestamptz
 	Findings         []byte
 	CheckedAt        pgtype.Timestamptz
+	Key              *string
 }
 
 // The SCHEDULE trigger (automation.md §1.1). The same three statements
@@ -399,6 +402,7 @@ func (q *Queries) DueAutomationRules(ctx context.Context, arg DueAutomationRules
 			&i.InboundRotatedAt,
 			&i.Findings,
 			&i.CheckedAt,
+			&i.Key,
 		); err != nil {
 			return nil, err
 		}
@@ -413,7 +417,7 @@ func (q *Queries) DueAutomationRules(ctx context.Context, arg DueAutomationRules
 const findAutomationRule = `-- name: FindAutomationRule :one
 SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at, findings, checked_at
+       next_run_at, inbound_rotated_at, findings, checked_at, key
 FROM automation_rule
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -441,6 +445,7 @@ type FindAutomationRuleRow struct {
 	InboundRotatedAt pgtype.Timestamptz
 	Findings         []byte
 	CheckedAt        pgtype.Timestamptz
+	Key              *string
 }
 
 func (q *Queries) FindAutomationRule(ctx context.Context, id pgtype.UUID) (FindAutomationRuleRow, error) {
@@ -469,6 +474,7 @@ func (q *Queries) FindAutomationRule(ctx context.Context, id pgtype.UUID) (FindA
 		&i.InboundRotatedAt,
 		&i.Findings,
 		&i.CheckedAt,
+		&i.Key,
 	)
 	return i, err
 }
@@ -476,7 +482,7 @@ func (q *Queries) FindAutomationRule(ctx context.Context, id pgtype.UUID) (FindA
 const findAutomationRuleByInboundToken = `-- name: FindAutomationRuleByInboundToken :one
 SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at, findings, checked_at
+       next_run_at, inbound_rotated_at, findings, checked_at, key
 FROM automation_rule
 WHERE inbound_token_hash = $1 AND deleted_at IS NULL
 `
@@ -504,6 +510,7 @@ type FindAutomationRuleByInboundTokenRow struct {
 	InboundRotatedAt pgtype.Timestamptz
 	Findings         []byte
 	CheckedAt        pgtype.Timestamptz
+	Key              *string
 }
 
 // What the unauthenticated route asks. The tenant is the transaction's, set from the tenant the
@@ -536,6 +543,7 @@ func (q *Queries) FindAutomationRuleByInboundToken(ctx context.Context, tokenHas
 		&i.InboundRotatedAt,
 		&i.Findings,
 		&i.CheckedAt,
+		&i.Key,
 	)
 	return i, err
 }
@@ -647,19 +655,20 @@ func (q *Queries) ForgetRuleOccurrencesOfItem(ctx context.Context, itemID pgtype
 	return err
 }
 
-const insertAutomationRule = `-- name: InsertAutomationRule :exec
+const insertAutomationRule = `-- name: InsertAutomationRule :one
 
 INSERT INTO automation_rule (
   id, tenant_id, scope_type, scope_id, name, enabled, run_as,
   trigger, conditions, actions, throttle, on_error, created_by, created_at, updated_at, version,
-  next_run_at
+  next_run_at, key
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   $7, $8, $9, $10,
   $11, $12, $13, $13, 1,
-  $14
+  $14, $15
 )
+RETURNING key
 `
 
 type InsertAutomationRuleParams struct {
@@ -677,6 +686,7 @@ type InsertAutomationRuleParams struct {
 	CreatedBy  pgtype.UUID
 	CreatedAt  pgtype.Timestamptz
 	NextRunAt  pgtype.Timestamptz
+	Key        *string
 }
 
 // The automation rules (automation.md §1). The table has carried the whole model since
@@ -692,8 +702,9 @@ type InsertAutomationRuleParams struct {
 // A rule is written switched off, which is why `enabled` is a parameter rather than the column's
 // default: writing what a rule would do and letting it loose are two decisions, and the default
 // says the opposite.
-func (q *Queries) InsertAutomationRule(ctx context.Context, arg InsertAutomationRuleParams) error {
-	_, err := q.db.Exec(ctx, insertAutomationRule,
+// The key is the writer's, or drawn from the name by the store (migration 0286).
+func (q *Queries) InsertAutomationRule(ctx context.Context, arg InsertAutomationRuleParams) (*string, error) {
+	row := q.db.QueryRow(ctx, insertAutomationRule,
 		arg.ID,
 		arg.ScopeType,
 		arg.ScopeID,
@@ -708,8 +719,11 @@ func (q *Queries) InsertAutomationRule(ctx context.Context, arg InsertAutomation
 		arg.CreatedBy,
 		arg.CreatedAt,
 		arg.NextRunAt,
+		arg.Key,
 	)
-	return err
+	var key *string
+	err := row.Scan(&key)
+	return key, err
 }
 
 const insertRuleRun = `-- name: InsertRuleRun :exec
@@ -821,7 +835,7 @@ func (q *Queries) LatestRuleRuns(ctx context.Context, ruleIds []pgtype.UUID) ([]
 const listAutomationRules = `-- name: ListAutomationRules :many
 SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at, findings, checked_at
+       next_run_at, inbound_rotated_at, findings, checked_at, key
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND ($1::boolean IS NULL OR enabled = $1::boolean)
@@ -859,6 +873,7 @@ type ListAutomationRulesRow struct {
 	InboundRotatedAt pgtype.Timestamptz
 	Findings         []byte
 	CheckedAt        pgtype.Timestamptz
+	Key              *string
 }
 
 // Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the creation order.
@@ -898,6 +913,7 @@ func (q *Queries) ListAutomationRules(ctx context.Context, arg ListAutomationRul
 			&i.InboundRotatedAt,
 			&i.Findings,
 			&i.CheckedAt,
+			&i.Key,
 		); err != nil {
 			return nil, err
 		}
@@ -913,7 +929,7 @@ const listPausedAutomationRules = `-- name: ListPausedAutomationRules :many
 
 SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at, findings, checked_at
+       next_run_at, inbound_rotated_at, findings, checked_at, key
 FROM automation_rule
 WHERE deleted_at IS NULL AND paused_for_deletion = true
 ORDER BY created_at, id
@@ -942,6 +958,7 @@ type ListPausedAutomationRulesRow struct {
 	InboundRotatedAt pgtype.Timestamptz
 	Findings         []byte
 	CheckedAt        pgtype.Timestamptz
+	Key              *string
 }
 
 // The rules a workspace's deletion request switched off (multi-tenancy.md §5), which a cancel
@@ -981,6 +998,7 @@ func (q *Queries) ListPausedAutomationRules(ctx context.Context) ([]ListPausedAu
 			&i.InboundRotatedAt,
 			&i.Findings,
 			&i.CheckedAt,
+			&i.Key,
 		); err != nil {
 			return nil, err
 		}
@@ -1180,7 +1198,7 @@ func (q *Queries) RewrapAutomationRuleActions(ctx context.Context, arg RewrapAut
 const rulesByTriggerKind = `-- name: RulesByTriggerKind :many
 SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at, findings, checked_at
+       next_run_at, inbound_rotated_at, findings, checked_at, key
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND enabled = true
@@ -1211,6 +1229,7 @@ type RulesByTriggerKindRow struct {
 	InboundRotatedAt pgtype.Timestamptz
 	Findings         []byte
 	CheckedAt        pgtype.Timestamptz
+	Key              *string
 }
 
 // The enabled rules of one trigger kind, which is what a producer that is not the event dispatcher
@@ -1248,6 +1267,7 @@ func (q *Queries) RulesByTriggerKind(ctx context.Context, kind string) ([]RulesB
 			&i.InboundRotatedAt,
 			&i.Findings,
 			&i.CheckedAt,
+			&i.Key,
 		); err != nil {
 			return nil, err
 		}
@@ -1262,7 +1282,7 @@ func (q *Queries) RulesByTriggerKind(ctx context.Context, kind string) ([]RulesB
 const rulesForEventType = `-- name: RulesForEventType :many
 SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
        throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
-       next_run_at, inbound_rotated_at, findings, checked_at
+       next_run_at, inbound_rotated_at, findings, checked_at, key
 FROM automation_rule
 WHERE deleted_at IS NULL
   AND enabled = true
@@ -1294,6 +1314,7 @@ type RulesForEventTypeRow struct {
 	InboundRotatedAt pgtype.Timestamptz
 	Findings         []byte
 	CheckedAt        pgtype.Timestamptz
+	Key              *string
 }
 
 // What the subscriber asks per event: the enabled rules whose trigger is this event type.
@@ -1336,6 +1357,7 @@ func (q *Queries) RulesForEventType(ctx context.Context, eventType string) ([]Ru
 			&i.InboundRotatedAt,
 			&i.Findings,
 			&i.CheckedAt,
+			&i.Key,
 		); err != nil {
 			return nil, err
 		}

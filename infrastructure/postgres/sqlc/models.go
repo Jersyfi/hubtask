@@ -824,6 +824,7 @@ type AutomationRule struct {
 	Findings          []byte
 	CheckedAt         pgtype.Timestamptz
 	PausedForDeletion bool
+	Key               *string
 }
 
 type BackupRun struct {
@@ -2810,6 +2811,7 @@ type SavedView struct {
 	Sharing       string
 	CreatedAt     pgtype.Timestamptz
 	Version       int32
+	Key           *string
 }
 
 type Session struct {

@@ -29828,9 +29828,11 @@ components:
           type: [string, "null"]
           pattern: "^[a-z][a-z0-9]{1,19}$"
           description: >
-            A collection's short name, null on a hub: the word a mail subject ("#einkauf"), a plus
-            address and a ticket key ("EINKAUF-42") use for it. Given when the collection is made,
-            derived from its name and unique in the workspace; a rename keeps it.
+            The hub's or collection's short name and stable key: the word a mail subject
+            ("#einkauf"), a plus address and a ticket key ("EINKAUF-42") use for a collection, and
+            the word a configuration document names a hub or a collection by. Given when the
+            container is made, derived from its name and unique in the workspace; a rename keeps
+            it. Mail is delivered to a collection's only.
         structure:
           $ref: "#/components/schemas/EffectiveStructure"
           description: >
@@ -30682,9 +30684,15 @@ components:
         A saved query with the layout it is drawn in. The server stores the query, validates it
         against the same catalogue as POST /items:query, and interprets neither the layout nor the
         visible fields - both are the client's vocabulary, echoed back exactly as stored.
-      required: [id, scope_type, owner_id, name, layout, query, grouping, visible_fields, sharing, version]
+      required: [id, scope_type, owner_id, name, key, layout, query, grouping, visible_fields, sharing, version]
       properties:
         id: { type: string, format: uuid }
+        key:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{0,62}$"
+          description: >
+            The view's stable key where it lives, by which the configuration document names it: unique
+            in its scope, drawn from the name when the writer named none, kept by a rename.
         scope_type:
           type: string
           enum: [TENANT, HUB, COLLECTION, ACCOUNT]
@@ -30741,6 +30749,12 @@ components:
       type: object
       required: [scope_type, name, layout, query]
       properties:
+        key:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{0,62}$"
+          description: >
+            The view's stable key in its scope. Omitted draws one from the name; one the scope
+            already holds is refused.
         scope_type:
           type: string
           enum: [TENANT, HUB, COLLECTION, ACCOUNT]
@@ -31276,11 +31290,17 @@ components:
     AutomationRule:
       type: object
       required:
-        [id, name, scope, enabled, run_as, trigger, conditions, actions, on_error,
+        [id, name, key, scope, enabled, run_as, trigger, conditions, actions, on_error,
          failure_count, created_by, created_at, updated_at, version]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
+        key:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{0,62}$"
+          description: >
+            The rule's stable key where it lives, by which the configuration document names it: unique
+            in its scope, drawn from the name when the writer named none, kept by a rename.
         scope: { $ref: "#/components/schemas/RuleScope" }
         enabled:
           type: boolean
@@ -31396,6 +31416,12 @@ components:
       required: [name, scope, run_as, trigger, actions]
       properties:
         name: { type: string, maxLength: 200 }
+        key:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{0,62}$"
+          description: >
+            The rule's stable key in its scope. Omitted draws one from the name; one the scope
+            already holds is refused.
         scope: { $ref: "#/components/schemas/RuleScope" }
         run_as: { type: string, format: uuid }
         trigger: { $ref: "#/components/schemas/RuleTrigger" }

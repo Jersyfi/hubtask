@@ -68,17 +68,7 @@ func (c BlockChange) Path() string { return c.Section + "." + c.Key }
 
 // ValidKey reports whether a block key is one the document can name: lower case, digits and
 // underscores, starting with a letter, at most 63.
-func ValidKey(key string) bool {
-	if key == "" || len(key) > 63 || key[0] < 'a' || key[0] > 'z' {
-		return false
-	}
-	for _, r := range key {
-		if (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '_' {
-			return false
-		}
-	}
-	return true
-}
+func ValidKey(key string) bool { return shared.ValidKey(key) }
 
 // Resolve is the document a desired one asks for, read in its mode against the one in force:
 // what a plan compares the current document with.

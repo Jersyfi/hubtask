@@ -5,21 +5,25 @@
 -- visible fields: this table is a bookmark shelf, and what a bookmark opens into is decided by
 -- whoever opens it, under their own authorisation.
 
--- name: InsertSavedView :exec
+-- name: InsertSavedView :one
+-- The key is the writer's, or drawn from the name by the store when it names none (migration
+-- 0286); the statement answers the one stored.
 INSERT INTO saved_view (
   id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
-  visible_fields, sharing, created_at, version
+  visible_fields, sharing, created_at, version, key
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('scope_type'), sqlc.narg('scope_id'),
   sqlc.arg('owner_id'),
   normalize(sqlc.arg('name')::text, NFC),
   sqlc.arg('layout'), sqlc.arg('query')::jsonb, sqlc.arg('grouping')::jsonb,
-  sqlc.arg('visible_fields')::text[], sqlc.arg('sharing'), sqlc.arg('created_at'), 1
-);
+  sqlc.arg('visible_fields')::text[], sqlc.arg('sharing'), sqlc.arg('created_at'), 1,
+  sqlc.narg('key')
+)
+RETURNING key;
 
 -- name: FindSavedView :one
 SELECT id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
-       visible_fields, sharing, created_at, version
+       visible_fields, sharing, created_at, version, key
 FROM saved_view
 WHERE id = $1;
 
@@ -28,7 +32,7 @@ WHERE id = $1;
 -- identifier, so the answer is stable without an updated_at this table deliberately does not
 -- carry.
 SELECT id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
-       visible_fields, sharing, created_at, version
+       visible_fields, sharing, created_at, version, key
 FROM saved_view
 WHERE owner_id = sqlc.arg('owner_id')::uuid
 ORDER BY created_at, id;
@@ -40,7 +44,7 @@ ORDER BY created_at, id;
 -- (one question about the container, ADR-0005); the array is its answer bound into the statement,
 -- never a filter after the page.
 SELECT id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
-       visible_fields, sharing, created_at, version
+       visible_fields, sharing, created_at, version, key
 FROM saved_view
 WHERE owner_id = sqlc.arg('owner_id')::uuid
    OR (sharing = 'SCOPE' AND (

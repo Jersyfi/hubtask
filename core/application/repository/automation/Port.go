@@ -42,6 +42,8 @@ type Query struct {
 // questions (ADR-0005, rule 2), so the rules stay where they can be tested without a database.
 type Rules interface {
 	// Insert writes a new rule, switched off.
+	// Insert writes a new rule under its own key, or one the store draws from its name (Find
+	// answers it); a key its scope already holds is a conflict.
 	Insert(ctx context.Context, rule domain.Rule) error
 
 	// Find returns one rule, or an error wrapping shared.ErrNotFound.

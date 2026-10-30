@@ -207,7 +207,10 @@ type Rule struct {
 	ID       shared.ID
 	TenantID shared.ID
 	Name     string
-	Scope    Scope
+	// Key names the rule in its scope - unique there, kept by a rename - so that the
+	// configuration document names it in every workspace alike (migration 0286).
+	Key   string
+	Scope Scope
 	// Enabled is false on a rule that has just been written. Writing what a rule would do and
 	// letting it loose on the workspace are two decisions, and a rule that acted the moment it was
 	// saved would give nobody the chance to read it back first.
@@ -304,9 +307,11 @@ type NewRuleInput struct {
 	ID       shared.ID
 	TenantID shared.ID
 	Name     string
-	Scope    Scope
-	RunAs    shared.ID
-	Trigger  Trigger
+	// Key is the writer's; empty asks the store to draw one from the name.
+	Key     string
+	Scope   Scope
+	RunAs   shared.ID
+	Trigger Trigger
 	// Conditions are checked for their shape here and compiled by the application layer, which is
 	// the only side that may hold an evaluator.
 	Conditions []Condition
@@ -330,6 +335,9 @@ func NewRule(in NewRuleInput) (Rule, error) {
 	name, err := RuleName(in.Name, in.Text)
 	if err != nil {
 		return Rule{}, err
+	}
+	if in.Key != "" && !shared.ValidKey(in.Key) {
+		return Rule{}, fieldError("/key", "automation.key_invalid")
 	}
 	scope, err := ValidScope(in.Scope)
 	if err != nil {
@@ -361,7 +369,7 @@ func NewRule(in NewRuleInput) (Rule, error) {
 
 	now := in.Now.UTC()
 	return Rule{
-		ID: in.ID, TenantID: in.TenantID, Name: name, Scope: scope,
+		ID: in.ID, TenantID: in.TenantID, Name: name, Key: in.Key, Scope: scope,
 		Enabled: false,
 		RunAs:   in.RunAs, Trigger: trigger, Conditions: conditions, Actions: actions,
 		Throttle: throttle, OnError: onError,

@@ -986,7 +986,8 @@ CREATE TABLE container (
   -- A private hub is reached only through a membership on it or below it (ADR-0073 §1, 0124).
   private      boolean NOT NULL DEFAULT false,
   -- A collection's short name and the count its entries' numbers come from (migration 0204,
-  -- ADR-0094): "einkauf", and EINKAUF-42 for its 42nd entry.
+  -- ADR-0094): "einkauf", and EINKAUF-42 for its 42nd entry. A hub's handle since 0286: its
+  -- stable key in the configuration document.
   handle       text CHECK (handle IS NULL OR handle ~ '^[a-z][a-z0-9]{1,19}$'),
   item_counter bigint NOT NULL DEFAULT 0,
   CHECK ((type = 'HUB') = (parent_id IS NULL)),
@@ -2256,9 +2257,14 @@ CREATE TABLE saved_view (
   visible_fields text[] NOT NULL DEFAULT '{}',
   sharing       text NOT NULL DEFAULT 'PRIVATE' CHECK (sharing IN ('PRIVATE','SCOPE','PUBLIC_LINK')),
   created_at    timestamptz NOT NULL DEFAULT now(),
-  version       integer NOT NULL DEFAULT 1
+  version       integer NOT NULL DEFAULT 1,
+  -- The view's stable key in its scope (migration 0286), as a rule's.
+  key           text CHECK (key IS NULL OR key ~ '^[a-z][a-z0-9_]{0,62}$')
 );
 CREATE UNIQUE INDEX saved_view_tenant_id_uq ON saved_view (tenant_id, id);
+CREATE UNIQUE INDEX saved_view_key_uq ON saved_view
+  (tenant_id, scope_type, coalesce(scope_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
+  WHERE key IS NOT NULL;
 
 CREATE TABLE template (
   id          uuid PRIMARY KEY,
@@ -2505,10 +2511,16 @@ CREATE TABLE automation_rule (
   -- Switched off by the workspace's deletion request (0130), so that a cancel switches exactly
   -- these back on.
   paused_for_deletion boolean NOT NULL DEFAULT false,
+  -- The rule's stable key in its scope (migration 0286): the configuration document's name for
+  -- it, drawn from the name by a trigger when the writer named none.
+  key         text CHECK (key IS NULL OR key ~ '^[a-z][a-z0-9_]{0,62}$'),
   CONSTRAINT automation_rule_run_as_fkey
     FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id) ON DELETE RESTRICT
 );
 CREATE UNIQUE INDEX automation_rule_tenant_id_uq ON automation_rule (tenant_id, id);
+CREATE UNIQUE INDEX automation_rule_key_uq ON automation_rule
+  (tenant_id, scope_type, coalesce(scope_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
+  WHERE key IS NOT NULL AND deleted_at IS NULL;
 CREATE INDEX rule_trigger_idx ON automation_rule (tenant_id, enabled)
   WHERE deleted_at IS NULL;
 -- What the dispatcher asks per event (migration 0053): the enabled rules whose trigger is
