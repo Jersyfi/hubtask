@@ -18,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/i18n"
@@ -74,6 +75,10 @@ const (
 	// An agent that did what its policy lets it do with its owner told (UC-AGT-02, NOTIFY).
 	subjectAgentNotice = "email.agent_notice.subject"
 	bodyAgentNotice    = "email.agent_notice.body"
+	// A person a whiteboard's comment named (UC-CNV-09): COMMENT's category, its own sentence - the
+	// subject is a board, not an entry.
+	subjectWhiteboardMention = "email.whiteboard_mention.subject"
+	bodyWhiteboardMention    = "email.whiteboard_mention.body"
 	// rolePrefix and placePrefix name a role and a kind of place in the catalogue.
 	rolePrefix  = "email.role."
 	placePrefix = "email.role_granted.place."
@@ -120,6 +125,9 @@ type DeliverNotification struct {
 	Pages PageReader
 	// Agents names the agent its owner is told of. Optional: nil leaves its name out.
 	Agents AgentReader
+	// Boards names the whiteboard a comment named the recipient on. Optional: nil leaves its title
+	// out.
+	Boards BoardReader
 	// Replies answers the address of the entry a message is about, so an answer by mail becomes a
 	// comment there (ADR-0092 decision 8). Optional: nil, or an installation without a receiving
 	// domain, sends no Reply-To.
@@ -180,6 +188,11 @@ type PageReader interface {
 // AgentReader answers an agent's name by its identifier - the agents' store.
 type AgentReader interface {
 	AgentName(ctx context.Context, id shared.ID) (string, error)
+}
+
+// BoardReader answers a whiteboard by its identifier - the whiteboard repository's Find.
+type BoardReader interface {
+	Find(ctx context.Context, id shared.ID) (whiteboard.Board, error)
 }
 
 // RedemptionMinter is the identity service's seam. The empty secret means the account is no
@@ -370,6 +383,15 @@ func (d DeliverNotification) load(
 				return err
 			}
 			loaded.title = page.Title
+		case !record.WhiteboardID.IsZero() && d.Boards != nil:
+			board, err := d.Boards.Find(ctx, record.WhiteboardID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			// A trashed board's title stays out: the link will say it is gone.
+			if board.DeletedAt == nil {
+				loaded.title = board.Title
+			}
 		case !record.AgentID.IsZero() && d.Agents != nil:
 			name, err := d.Agents.AgentName(ctx, record.AgentID)
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
@@ -478,6 +500,9 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 	if !loaded.record.AgentID.IsZero() {
 		subjectCode, bodyCode = subjectAgentNotice, bodyAgentNotice
 	}
+	if !loaded.record.WhiteboardID.IsZero() {
+		subjectCode, bodyCode = subjectWhiteboardMention, bodyWhiteboardMention
+	}
 
 	message := domain.Message{
 		SubjectCode: subjectCode,
@@ -567,6 +592,8 @@ func link(base string, record domain.Notification) string {
 		return base + "/pages/" + url.PathEscape(record.PageID.String())
 	case !record.AgentID.IsZero():
 		return base + "/administration/agents"
+	case !record.WhiteboardID.IsZero():
+		return base + "/whiteboards/" + url.PathEscape(record.WhiteboardID.String())
 	case !record.MembershipID.IsZero():
 		// The place the role is on; compose has the grant and names it.
 		return base

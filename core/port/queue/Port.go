@@ -128,6 +128,11 @@ const (
 	// know the record's agent. Its attempt budget is PageReviewAttempts.
 	KindAgentNoticeEmail Kind = "notification.agent_notice"
 
+	// KindWhiteboardMentionEmail tells a person a board's comment named them (UC-CNV-09), under its
+	// own kind for the same rolling update: a process of the previous release does not know the
+	// record's board. Its attempt budget is PageReviewAttempts.
+	KindWhiteboardMentionEmail Kind = "notification.whiteboard_mention"
+
 	// EmergencyAccessAttempts is that job's attempt budget: more than the default, because a
 	// rollout's old processes may claim and return it a few times before a new one runs it, and
 	// each claim spends an attempt.
