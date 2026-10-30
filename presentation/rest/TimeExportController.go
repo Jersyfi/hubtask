@@ -153,6 +153,8 @@ func timeRecordCell(value any) string {
 		return strconv.FormatBool(v)
 	case int:
 		return strconv.Itoa(v)
+	case int64:
+		return strconv.FormatInt(v, 10)
 	case float64:
 		return strconv.FormatFloat(v, 'f', -1, 64)
 	}

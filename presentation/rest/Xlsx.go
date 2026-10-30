@@ -79,6 +79,8 @@ func writeXlsx(w io.Writer, sheet string, header []string, rows func(yield func(
 				b.WriteString(`<c r="` + ref + `" t="b"><v>` + flag + `</v></c>`)
 			case int:
 				b.WriteString(`<c r="` + ref + `"><v>` + strconv.Itoa(v) + `</v></c>`)
+			case int64:
+				b.WriteString(`<c r="` + ref + `"><v>` + strconv.FormatInt(v, 10) + `</v></c>`)
 			case float64:
 				b.WriteString(`<c r="` + ref + `"><v>` + strconv.FormatFloat(v, 'f', -1, 64) + `</v></c>`)
 			case string:

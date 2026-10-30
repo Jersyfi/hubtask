@@ -138,3 +138,42 @@ func TestTheSpreadsheetColumnsAreLettered(t *testing.T) {
 		}
 	}
 }
+
+// UC-TIM-05 check 5: an export's costs - amounts in the minor unit - are numbers in the CSV file
+// and in the sheet, and an unpriced record's cost an empty cell.
+func TestTheTimeExportCarriesItsCostsInBothFiles(t *testing.T) {
+	priced := func() usecase.Output {
+		return usecase.Output{
+			"columns": []string{"minutes", "rate_minor", "currency", "cost_minor"},
+			"rows": []usecase.Output{
+				{"minutes": -30, "rate_minor": int64(6000), "currency": "EUR", "cost_minor": int64(-3000)},
+				{"minutes": 30, "rate_minor": nil, "currency": "", "cost_minor": nil},
+			},
+		}
+	}
+	lines, err := csv.NewReader(postTimeExport(t, &catalogue{out: priced()}, "text/csv").Body).ReadAll()
+	if err != nil || len(lines) != 3 {
+		t.Fatalf("csv = %v %v", lines, err)
+	}
+	if got := strings.Join(lines[1], ","); got != "-30,6000,EUR,-3000" {
+		t.Errorf("a priced row = %s", got)
+	}
+	if got := strings.Join(lines[2], ","); got != "30,,," {
+		t.Errorf("an unpriced row = %s", got)
+	}
+	body := postTimeExport(t, &catalogue{out: priced()}, xlsxType).Body.Bytes()
+	archive, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	if err != nil {
+		t.Fatalf("not a zip package: %v", err)
+	}
+	for _, f := range archive.File {
+		if f.Name != "xl/worksheets/sheet1.xml" {
+			continue
+		}
+		r, _ := f.Open()
+		sheet, _ := io.ReadAll(r)
+		if !strings.Contains(string(sheet), `<c r="D2"><v>-3000</v></c>`) || strings.Contains(string(sheet), `r="D3"`) {
+			t.Errorf("the sheet's costs:\n%s", sheet)
+		}
+	}
+}
