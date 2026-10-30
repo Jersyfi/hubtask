@@ -3307,6 +3307,30 @@ func run() error {
 		// media pipeline's server-side end, and what lands is an EMAIL entry.
 		controller.CmdbAlerts = intake.AlertIntake{Deliveries: connectors}
 		controller.CmdbInventory = intake.InventoryIntake{Deliveries: connectors}
+		// The SCIM door a directory provisions through (UC-ID-28): the group acts are the
+		// catalogue's own, wired as they are there.
+		controller.Directory = identity.Directory{
+			Accounts: accounts, Names: accounts, Links: postgres.NewDirectoryRepository(), Groups: groups,
+			Sessions: sessions, Owners: grants, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains, Text: forms,
+			Limit: quotaGuard,
+			CreateGroup: identity.CreateGroup{
+				Groups: groups, Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
+				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+			},
+			UpdateGroup: identity.UpdateGroup{
+				Groups: groups, Accounts: accounts, Grants: grants, Authorizer: authorizer, Revocations: revocations,
+				Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
+				Owners: grants, StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Platform: platformEvents,
+				Notices: customRoles,
+			},
+			DeleteGroup: identity.DeleteGroup{
+				Groups: groups, Grants: grants, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
+				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Owners: grants,
+				StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Platform: platformEvents,
+				Notices: customRoles,
+			},
+		}
 		controller.MailIntake = intake.MailIntake{
 			Deliveries: jumbleservice.IntakeMail{
 				Intake: jumbleIntake, Entries: postgres.NewJumbleRepository(cursors),
