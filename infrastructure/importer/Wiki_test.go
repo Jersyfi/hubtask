@@ -7,10 +7,12 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/importer"
+	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -76,6 +78,58 @@ func TestASpaceBecomesTheHubsPagesInTheirTree(t *testing.T) {
 	}
 	if len(result.Records["containers"]) != 0 || len(result.Records["work_items"]) != 0 {
 		t.Error("a wiki lands pages and nothing else")
+	}
+}
+
+// UC-IMP-05 check 1, the bound: a branch deeper than pages allow hangs its deeper pages at the
+// deepest level the tree has, under the last page that may still have children.
+func TestATreeDeeperThanPagesAllowHangsAtTheDeepestLevel(t *testing.T) {
+	var buffer bytes.Buffer
+	writer := zip.NewWriter(&buffer)
+	crumbs := ""
+	count := knowledge.MaxDepth + 2
+	for i := 1; i <= count; i++ {
+		title := fmt.Sprintf("Level %d", i)
+		file := fmt.Sprintf("Level_%d.html", i)
+		member, err := writer.Create("TEAM/" + file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := member.Write([]byte(wikiPageHTML(title, crumbs, "<p>"+title+"</p>", ""))); err != nil {
+			t.Fatal(err)
+		}
+		crumbs += `<li><span><a href="` + file + `">` + title + `</a></span></li>`
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Wiki{}.Convert(context.Background(), trackerSource(t, buffer.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pages := result.Records["pages"]
+	if len(pages) != count {
+		t.Fatalf("pages = %d, want %d", len(pages), count)
+	}
+	parentOf := map[any]any{}
+	for _, page := range pages {
+		parentOf[page.Data["id"]] = page.Data["parent_id"]
+	}
+	for _, page := range pages {
+		level := 1
+		for parent := page.Data["parent_id"]; parent != nil; parent = parentOf[parent] {
+			level++
+		}
+		if level > knowledge.MaxDepth {
+			t.Errorf("%v sits at level %d, deeper than %d", page.Data["title"], level, knowledge.MaxDepth)
+		}
+	}
+	lastParent := titled(pages, fmt.Sprintf("Level %d", knowledge.MaxDepth-1))["id"]
+	for i := knowledge.MaxDepth; i <= count; i++ {
+		if got := titled(pages, fmt.Sprintf("Level %d", i))["parent_id"]; got != lastParent {
+			t.Errorf("Level %d hangs under %v, want the deepest page that may have children", i, got)
+		}
 	}
 }
 
