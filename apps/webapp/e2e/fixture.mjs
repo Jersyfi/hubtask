@@ -1257,6 +1257,14 @@ export function fallback(route, request, path) {
   // Voice switched off and nothing named, as a workspace starts (ADR-0093).
   if (read === '/voice/settings' && request.method() === 'GET') return route.fulfill({ json: { enabled: false, aliases: [], installation_skill: false } });
   if (read === '/meta/health') return route.fulfill({ json: { status: 'ok', degraded_features: [] } });
+  // An entry's links from both ends: none, in the shape the section reads (`EntryLinks`).
+  if (/^\/items\/[^/]+\/links$/u.test(read) && request.method() === 'GET') {
+    return route.fulfill({ json: { links: [], backlinks: [], page_backlinks: [], whiteboard_backlinks: [] } });
+  }
+  // No forge named the entry, no file is linked on it, no value of it came from AI.
+  if (/^\/items\/[^/]+\/(code-links|file-links|provenance)$/u.test(read) && request.method() === 'GET') {
+    return route.fulfill({ json: { data: [] } });
+  }
   if (read === '/jumble/entries') return route.fulfill({ json: { data: [], next_cursor: null } });
   if (read === '/jumble/destinations') return route.fulfill({ json: { data: DESTINATIONS, page: { next_cursor: null, has_more: false } } });
 
