@@ -37,7 +37,13 @@
     type Subscription,
     type SubscriptionWithSecret,
   } from '../lib/data/webhooks.svelte.ts';
-  import { scopeChoiceOf, subscriptionBody } from '../lib/data/webhooks.ts';
+  import {
+    WEBHOOK_FORMATS,
+    isChat,
+    scopeChoiceOf,
+    subscriptionBody,
+    type WebhookFormat,
+  } from '../lib/data/webhooks.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { announcer } from '../lib/announce.svelte.ts';
@@ -67,6 +73,15 @@
   let draftTypes = $state<readonly string[]>([]);
   let draftCondition = $state('');
   let draftScope = $state('TENANT');
+  let draftFormat = $state<WebhookFormat>('CLOUDEVENTS');
+  let draftRoom = $state('');
+  let draftCredential = $state('');
+  let draftLocale = $state('');
+
+  // What a target receives (UC-INT-12), each with the words the target field needs for it.
+  const formats = $derived(
+    WEBHOOK_FORMATS.map((format) => ({ value: format, label: t(`app.webhooks.format_${format.toLowerCase()}`) })),
+  );
 
   let opened = $state('');
   let outcome = $state('');
@@ -191,18 +206,28 @@
     ]);
     if (!isComplete(missing)) return;
     await attempt(async () => {
-      secret = await webhooks.subscribe(
+      const created = await webhooks.subscribe(
         subscriptionBody({
           target_url: draftUrl,
           event_types: draftTypes,
           condition: draftCondition,
           scope: draftScope,
+          format: draftFormat,
+          room: draftRoom,
+          credential: draftCredential,
+          locale: draftLocale,
         }),
       );
+      // A chat room signs nothing, so there is no secret to show it once.
+      secret = created.secret ? created : undefined;
+      draftCredential = '';
+      draftRoom = '';
       draftUrl = '';
       draftTypes = [];
       draftCondition = '';
       draftScope = 'TENANT';
+      draftFormat = 'CLOUDEVENTS';
+      draftLocale = '';
     }, t('app.webhooks.subscribed_announced'));
   }
 
@@ -295,7 +320,13 @@
             <div class="row">
               <span class="mono target">{subscription.target_url}</span>
               <Badge tone={stateTone(subscription)}>{stateWord(subscription)}</Badge>
+              {#if isChat(subscription.format)}
+                <Badge>{t(`app.webhooks.format_${(subscription.format ?? '').toLowerCase()}`)}</Badge>
+              {/if}
             </div>
+            {#if subscription.room}
+              <p class="quiet small">{t('app.webhooks.room_named', { room: subscription.room })}</p>
+            {/if}
 
             <p class="quiet small">
               {t('app.webhooks.subscribed_since', { at: when(subscription.created_at) ?? '' })}
@@ -368,6 +399,7 @@
                   : t('app.webhooks.show_deliveries')}
               </Button>
               {#if mayAutomate}
+              {#if !isChat(subscription.format)}
               <Button
                 size="sm"
                 tone="secondary"
@@ -375,6 +407,7 @@
               >
                 {t('app.webhooks.rotate')}
               </Button>
+              {/if}
               <Button
                 size="sm"
                 tone="danger"
@@ -576,13 +609,52 @@
       <form class="panel" onsubmit={subscribe}>
         <Stack gap="150">
           <h2 class="section">{t('app.webhooks.add_title')}</h2>
+          <Select
+            label={t('app.webhooks.format')}
+            hint={t('app.webhooks.format_hint')}
+            error={failure?.fields.get('/format')}
+            bind:value={draftFormat}
+            options={formats}
+          />
           <Input
             label={t('app.webhooks.target_url')}
-            hint={t('app.webhooks.target_url_hint')}
+            hint={draftFormat === 'MATRIX'
+              ? t('app.webhooks.target_url_hint_matrix')
+              : isChat(draftFormat)
+                ? t('app.webhooks.target_url_hint_room')
+                : t('app.webhooks.target_url_hint')}
             bind:value={draftUrl}
             isRequired
-            error={missing.url && !draftUrl.trim() ? t(missing.url) : undefined}
+            error={missing.url && !draftUrl.trim() ? t(missing.url) : failure?.fields.get('/target_url')}
           />
+          {#if draftFormat === 'MATRIX'}
+            <Input
+              label={t('app.webhooks.room')}
+              hint={t('app.webhooks.room_hint')}
+              bind:value={draftRoom}
+              error={failure?.fields.get('/room')}
+              spellcheck="false"
+            />
+            <Input
+              type="password"
+              label={t('app.webhooks.credential')}
+              hint={t('app.webhooks.credential_hint')}
+              revealLabel={t('app.webhooks.reveal')}
+              hideLabel={t('app.webhooks.hide')}
+              bind:value={draftCredential}
+              error={failure?.fields.get('/credential')}
+              autocomplete="off"
+            />
+          {/if}
+          {#if isChat(draftFormat)}
+            <Input
+              label={t('app.webhooks.locale')}
+              hint={t('app.webhooks.locale_hint')}
+              bind:value={draftLocale}
+              error={failure?.fields.get('/locale')}
+              spellcheck="false"
+            />
+          {/if}
 
           <fieldset
             class="types"

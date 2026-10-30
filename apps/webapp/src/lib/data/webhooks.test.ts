@@ -43,3 +43,53 @@ test('a blank condition and the whole workspace are left out of the body', () =>
   assert.equal(narrowed.filter, 'data.title.startsWith("Ship")');
   assert.deepEqual(narrowed.scope, { type: 'HUB', id: HUB });
 });
+
+test('a chat room sends its format and language, and only a Matrix room its room and token', () => {
+  const matrix = subscriptionBody({
+    target_url: 'https://matrix.example.org',
+    event_types: ['de.hubtask.work.item.created.v1'],
+    condition: '',
+    scope: 'TENANT',
+    format: 'MATRIX',
+    room: ' !team:example.org ',
+    credential: ' syt_token ',
+    locale: ' de ',
+  });
+  assert.deepEqual(matrix, {
+    target_url: 'https://matrix.example.org',
+    event_types: ['de.hubtask.work.item.created.v1'],
+    format: 'MATRIX',
+    room: '!team:example.org',
+    credential: 'syt_token',
+    locale: 'de',
+  });
+
+  const slack = subscriptionBody({
+    target_url: 'https://chat.example.org/hooks/x',
+    event_types: ['de.hubtask.work.item.created.v1'],
+    condition: '',
+    scope: 'TENANT',
+    format: 'SLACK',
+    room: '!left:over',
+    credential: 'left over',
+    locale: '',
+  });
+  assert.deepEqual(slack, {
+    target_url: 'https://chat.example.org/hooks/x',
+    event_types: ['de.hubtask.work.item.created.v1'],
+    format: 'SLACK',
+  });
+
+  const cloudEvent = subscriptionBody({
+    target_url: 'https://example.org/hooks',
+    event_types: ['de.hubtask.work.item.created.v1'],
+    condition: '',
+    scope: 'TENANT',
+    format: 'CLOUDEVENTS',
+    locale: 'de',
+  });
+  assert.deepEqual(cloudEvent, {
+    target_url: 'https://example.org/hooks',
+    event_types: ['de.hubtask.work.item.created.v1'],
+  });
+});
