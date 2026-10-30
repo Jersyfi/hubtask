@@ -140,6 +140,7 @@ var generatedCommands = []door{
 			{Name: "agentId", Kind: "uuid", Help: "An agent", Required: true},
 		},
 		Body: []doorParam{
+			{Name: "collection_id", Kind: "uuid", Help: "The collection whose labels a ticket triage chooses from; without it no labels are answered", Required: false},
 			{Name: "hub_id", Kind: "uuid", Help: "The hub whose CIs a CI suggestion or a triage matches; required for those two", Required: false},
 		},
 		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},

@@ -23573,6 +23573,9 @@ type RecordAgentEvaluationJSONBody struct {
 
 // RunAgentEvaluationJSONBody defines parameters for RunAgentEvaluation.
 type RunAgentEvaluationJSONBody struct {
+	// CollectionId The collection whose labels a ticket triage chooses from; without it no labels are answered.
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+
 	// HubId The hub whose CIs a CI suggestion or a triage matches; required for those two.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 }

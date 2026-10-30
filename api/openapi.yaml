@@ -2127,7 +2127,9 @@ paths:
       summary: Have a shipped agent answer its own evaluation set
       description: >
         Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI
-        suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers
+        suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a
+        collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the
+        names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers
         are compared as a recorded run's are, and the run counts for the model's revision as it now stands.
         A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends.
         Needs MANAGE_MEMBERS at the workspace.
@@ -2140,6 +2142,7 @@ paths:
               additionalProperties: false
               properties:
                 hub_id: { type: string, format: uuid, description: "The hub whose CIs a CI suggestion or a triage matches; required for those two." }
+                collection_id: { type: string, format: uuid, description: "The collection whose labels a ticket triage chooses from; without it no labels are answered." }
       responses:
         "201":
           description: Run and recorded

@@ -23578,6 +23578,9 @@ type RecordAgentEvaluationJSONBody struct {
 
 // RunAgentEvaluationJSONBody defines parameters for RunAgentEvaluation.
 type RunAgentEvaluationJSONBody struct {
+	// CollectionId The collection whose labels a ticket triage chooses from; without it no labels are answered.
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+
 	// HubId The hub whose CIs a CI suggestion or a triage matches; required for those two.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 }
@@ -28870,7 +28873,7 @@ type ClientInterface interface {
 
 	// RunAgentEvaluationWithBody Have a shipped agent answer its own evaluation set
 	//
-	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -28879,7 +28882,7 @@ type ClientInterface interface {
 
 	// RunAgentEvaluation Have a shipped agent answer its own evaluation set
 	//
-	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -39939,7 +39942,7 @@ func (c *Client) RecordAgentEvaluation(ctx context.Context, agentId AgentId, bod
 
 // RunAgentEvaluationWithBody Have a shipped agent answer its own evaluation set
 //
-// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 //
 // Takes any type of body and a specified content type.
 //
@@ -39958,7 +39961,7 @@ func (c *Client) RunAgentEvaluationWithBody(ctx context.Context, agentId AgentId
 
 // RunAgentEvaluation Have a shipped agent answer its own evaluation set
 //
-// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -93413,7 +93416,7 @@ type ClientWithResponsesInterface interface {
 
 	// RunAgentEvaluationWithBodyWithResponse Have a shipped agent answer its own evaluation set
 	//
-	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -93422,7 +93425,7 @@ type ClientWithResponsesInterface interface {
 
 	// RunAgentEvaluationWithResponse Have a shipped agent answer its own evaluation set
 	//
-	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -140179,7 +140182,7 @@ func (c *ClientWithResponses) RecordAgentEvaluationWithResponse(ctx context.Cont
 
 // RunAgentEvaluationWithBodyWithResponse Have a shipped agent answer its own evaluation set
 //
-// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -140194,7 +140197,7 @@ func (c *ClientWithResponses) RunAgentEvaluationWithBodyWithResponse(ctx context
 
 // RunAgentEvaluationWithResponse Have a shipped agent answer its own evaluation set
 //
-// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
