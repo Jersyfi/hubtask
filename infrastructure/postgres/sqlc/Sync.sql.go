@@ -2085,6 +2085,61 @@ func (q *Queries) SnapshotEntryTypes(ctx context.Context, arg SnapshotEntryTypes
 	return items, nil
 }
 
+const snapshotFileLinks = `-- name: SnapshotFileLinks :many
+SELECT fl.id, fl.item_id, fl.provider, fl.address, fl.name, fl.added_by, fl.added_at, wi.collection_id
+FROM file_link fl
+JOIN work_item wi ON wi.tenant_id = fl.tenant_id AND wi.id = fl.item_id AND wi.deleted_at IS NULL
+WHERE fl.tenant_id = current_tenant_id() AND fl.id > $1
+ORDER BY fl.id
+LIMIT $2
+`
+
+type SnapshotFileLinksParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotFileLinksRow struct {
+	ID           pgtype.UUID
+	ItemID       pgtype.UUID
+	Provider     string
+	Address      string
+	Name         string
+	AddedBy      pgtype.UUID
+	AddedAt      pgtype.Timestamptz
+	CollectionID pgtype.UUID
+}
+
+// Every live entry's files in a store (migration 0276), with the entry's collection.
+func (q *Queries) SnapshotFileLinks(ctx context.Context, arg SnapshotFileLinksParams) ([]SnapshotFileLinksRow, error) {
+	rows, err := q.db.Query(ctx, snapshotFileLinks, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotFileLinksRow{}
+	for rows.Next() {
+		var i SnapshotFileLinksRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ItemID,
+			&i.Provider,
+			&i.Address,
+			&i.Name,
+			&i.AddedBy,
+			&i.AddedAt,
+			&i.CollectionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotGoalCheckIns = `-- name: SnapshotGoalCheckIns :many
 SELECT c.id, c.goal_id, c.author_id, c.status, c.confidence, c.note, c."values", c.created_at, g.hub_id
 FROM goal_check_in c

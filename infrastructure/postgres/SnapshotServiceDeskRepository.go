@@ -127,3 +127,28 @@ func (SnapshotRepository) CodeLinks(ctx context.Context, after shared.ID, batch 
 		return repository.CodeLinkOf{Link: link, CollectionID: collection}, nil
 	})
 }
+
+// FileLinks pages every live entry's file links with the entry's collection (UC-INT-14).
+func (SnapshotRepository) FileLinks(ctx context.Context, after shared.ID, batch int) ([]repository.FileLinkOf, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotFileLinks(ctx, sqlc.SnapshotFileLinksParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("file links", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotFileLinksRow) (repository.FileLinkOf, error) {
+		link := fileLinkOf(sqlc.ListFileLinksRow{
+			ID: row.ID, ItemID: row.ItemID, Provider: row.Provider, Address: row.Address, Name: row.Name,
+			AddedBy: row.AddedBy, AddedAt: row.AddedAt,
+		})
+		collection, err := idFrom(row.CollectionID)
+		if err != nil {
+			return repository.FileLinkOf{}, err
+		}
+		return repository.FileLinkOf{Link: link, CollectionID: collection}, nil
+	})
+}

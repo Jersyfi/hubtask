@@ -64,6 +64,7 @@ type snapshotStore struct {
 	slas        []repository.EntrySlaOf
 	ratings     []repository.RatingOf
 	codeLinks   []repository.CodeLinkOf
+	fileLinks   []repository.FileLinkOf
 	fields      []work.CustomFieldDefinition
 	timeRecords []timekeeping.Record
 	timers      []timekeeping.Timer

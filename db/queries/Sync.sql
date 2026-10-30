@@ -703,3 +703,12 @@ JOIN work_item wi ON wi.tenant_id = cl.tenant_id AND wi.id = cl.item_id AND wi.d
 WHERE cl.tenant_id = current_tenant_id() AND cl.id > sqlc.arg('after')
 ORDER BY cl.id
 LIMIT sqlc.arg('batch');
+
+-- name: SnapshotFileLinks :many
+-- Every live entry's files in a store (migration 0276), with the entry's collection.
+SELECT fl.id, fl.item_id, fl.provider, fl.address, fl.name, fl.added_by, fl.added_at, wi.collection_id
+FROM file_link fl
+JOIN work_item wi ON wi.tenant_id = fl.tenant_id AND wi.id = fl.item_id AND wi.deleted_at IS NULL
+WHERE fl.tenant_id = current_tenant_id() AND fl.id > sqlc.arg('after')
+ORDER BY fl.id
+LIMIT sqlc.arg('batch');

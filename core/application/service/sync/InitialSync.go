@@ -10,6 +10,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	agentservice "github.com/Jersyfi/hubtask/core/application/service/agent"
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
+	filelinkservice "github.com/Jersyfi/hubtask/core/application/service/filelink"
 	forgeservice "github.com/Jersyfi/hubtask/core/application/service/forge"
 	goalservice "github.com/Jersyfi/hubtask/core/application/service/goal"
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
@@ -49,7 +50,7 @@ var walkKinds = []string{
 	entityTimesheet, entityCapacities, entityAbsence, entityCostRates, entityBudget,
 	entityPortfolio,
 	entityAgentModel, entityAgent, entityAgentRequest, entityAgentCase, entityAgentRun,
-	entityApproval, entityEntrySla, entitySatisfaction, entityCodeLink,
+	entityApproval, entityEntrySla, entitySatisfaction, entityCodeLink, entityFileLink,
 }
 
 const (
@@ -148,6 +149,9 @@ const (
 	// entityCodeLink is an entry's commit, branch or pull request, filed under the entry's
 	// collection (UC-INT-13).
 	entityCodeLink = forgeservice.LinkEntity
+	// entityFileLink is an entry's file or folder in a store, filed under the entry's collection
+	// (UC-INT-14).
+	entityFileLink = filelinkservice.Entity
 	// kindSet is the walk's own name for the set element pass. Not an entity: its records are the
 	// entry's.
 	kindSet = "set"
@@ -952,6 +956,19 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 			rows = append(rows, walkRow{
 				entity: entitySatisfaction, entityID: r.Rating.ID, containerID: r.CollectionID,
 				payload: servicedeskservice.RatingRecord(r.Rating), key: r.Rating.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityFileLink:
+		links, err := p.Snapshot.FileLinks(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(links))
+		for _, l := range links {
+			rows = append(rows, walkRow{
+				entity: entityFileLink, entityID: l.Link.ID, containerID: l.CollectionID,
+				payload: filelinkservice.Output(l.Link, l.CollectionID), key: l.Link.ID.String(),
 			})
 		}
 		return rows, nil
