@@ -9,6 +9,11 @@
   // /items:aggregate` takes, and a token the installation does not know is refused by name before
   // anything is sent. The summary's function, measure, grouping and period are chosen beside it;
   // the server holds the document to its grammar on save (`work.ParseSummary`).
+  //
+  // What a summary counts is one of four sources (F-9): entries, the links between them, the time
+  // recorded on them, or the pages of the spaces in scope. Each source offers only what the
+  // grammar takes of it - links and pages are counted, time is summed by its minutes, and a page
+  // is no entry, so its summary has no line and no collection for a scope.
 
   import { untrack } from 'svelte';
   import { Button, CheckboxGroup, Inline, Input, Select, Stack } from '@hubtask/design-system/components';
@@ -37,8 +42,14 @@
   const CHARTS: readonly Chart[] = ['NUMBER', 'BAR', 'PIE', 'LINE', 'TABLE', 'MATRIX', 'PROGRESS'];
   const FUNCTIONS = ['COUNT', 'SUM', 'AVG', 'MIN', 'MAX'] as const;
   const PERIODS = ['', 'day', 'week', 'month'] as const;
+  const SOURCES = ['entries', 'links', 'time', 'pages'] as const;
+  type SummarySource = (typeof SOURCES)[number];
+  /** The groupings and stamps a source has of its own, beside an entry's. */
+  const OWN_GROUPS: Record<SummarySource, readonly string[]> = {
+    entries: [], links: ['link_type'], time: ['work_type', 'billable', 'person'], pages: ['owner', 'template', 'verification'],
+  };
 
-  type Aggregate = { function?: string; field?: string; group_by?: string; bucket?: { field?: string; period?: string } };
+  type Aggregate = { source?: string; function?: string; field?: string; group_by?: string; bucket?: { field?: string; period?: string } };
   // svelte-ignore state_referenced_locally
   const asked = (widget?.query ?? {}) as { scope?: { container_id?: string; workspace?: boolean }; filter?: unknown; include_archived?: boolean; aggregate?: Aggregate };
   /** A stored filter is kept as it is until the reader writes a line in its place. */
@@ -53,6 +64,7 @@
     viewId: widget?.view_id ?? '',
     scope: asked.scope?.container_id ?? '',
     line: '',
+    summarySource: (SOURCES as readonly string[]).includes(asked.aggregate?.source ?? '') ? (asked.aggregate?.source as SummarySource) : 'entries',
     fn: asked.aggregate?.function ?? 'COUNT',
     field: asked.aggregate?.field ?? '',
     groupBy: asked.aggregate?.group_by ?? '',
@@ -62,8 +74,28 @@
   });
 
   const reported = $derived(new Set(queryFields(manifest.value).map((field) => field.field)));
-  const groups = $derived(groupableFields(manifest.value));
-  const stamps = $derived(queryFields(manifest.value).filter((field) => field.kind === 'timestamp'));
+  const groups = $derived([
+    ...OWN_GROUPS[draft.summarySource],
+    ...(draft.summarySource === 'pages' ? [] : groupableFields(manifest.value).map((field) => field.field)),
+  ]);
+  const stamps = $derived(
+    draft.summarySource === 'pages'
+      ? ['created_at', 'updated_at']
+      : [...(draft.summarySource === 'time' ? ['day'] : []), ...queryFields(manifest.value).filter((field) => field.kind === 'timestamp').map((field) => field.field)],
+  );
+  const countedOnly = $derived(draft.summarySource === 'links' || draft.summarySource === 'pages');
+  const functions = $derived(countedOnly ? (['COUNT'] as const) : FUNCTIONS);
+
+  // A change of source keeps only what the new source takes.
+  $effect(() => {
+    const kept = { groups, stamps, countedOnly };
+    untrack(() => {
+      if (kept.countedOnly) draft.fn = 'COUNT';
+      if (draft.groupBy && !kept.groups.includes(draft.groupBy)) draft.groupBy = '';
+      if (!kept.stamps.includes(draft.bucketField)) draft.bucketField = kept.stamps[0] ?? 'created_at';
+      if (draft.summarySource === 'pages' && everyCollection.some((each) => each.id === draft.scope)) draft.scope = '';
+    });
+  });
 
   // Every collection the reader sees, for the line's `in:` and for the summary's scope.
   $effect(() => {
@@ -94,8 +126,8 @@
     if (draft.source === 'VIEW' && draft.viewId === '') return t('dashboards.view_required');
     if (draft.source === 'GOALS' && (draft.goalIds.length === 0 || draft.goalIds.length > 20)) return t('dashboards.goals_count');
     if (draft.source === 'QUERY') {
-      if (lineError) return lineError;
-      if (draft.fn !== 'COUNT' && draft.field.trim() === '') return t('app.dashboards.measure_needed');
+      if (lineError && draft.summarySource !== 'pages') return lineError;
+      if (draft.fn !== 'COUNT' && draft.summarySource !== 'time' && draft.field.trim() === '') return t('app.dashboards.measure_needed');
     }
     return undefined;
   });
@@ -116,12 +148,13 @@
     if (draft.source === 'GOALS') write.goal_ids = [...draft.goalIds];
     if (draft.source === 'QUERY') {
       const aggregate: Aggregate = { function: draft.fn };
-      if (draft.fn !== 'COUNT') aggregate.field = draft.field.trim();
+      if (draft.summarySource !== 'entries') aggregate.source = draft.summarySource;
+      if (draft.fn !== 'COUNT') aggregate.field = draft.summarySource === 'time' ? 'minutes' : draft.field.trim();
       if (draft.groupBy) aggregate.group_by = draft.groupBy;
       if (draft.period) aggregate.bucket = { field: draft.bucketField, period: draft.period };
       write.query = {
         scope: draft.scope ? { container_id: draft.scope } : { workspace: true },
-        ...(draft.line.trim() === '' && kept !== undefined
+        ...(draft.summarySource === 'pages' ? {} : draft.line.trim() === '' && kept !== undefined
           ? { filter: kept, ...(asked.include_archived ? { include_archived: true } : {}) }
           : { ...(compiled.filter ? { filter: compiled.filter } : {}), ...(compiled.includeArchived ? { include_archived: true } : {}) }),
         aggregate,
@@ -145,23 +178,27 @@
     <CheckboxGroup label={t('app.dashboards.goals')} hint={t('app.dashboards.goals_hint')} selected={draft.goalIds}
       options={goals.map((each) => ({ value: each.id, label: each.title }))} onChange={(next) => (draft.goalIds = [...next])} />
   {:else}
+    <Select label={t('app.dashboards.summary_source')} bind:value={draft.summarySource}
+      options={SOURCES.map((each) => ({ value: each, label: t(`app.dashboards.summary_source_${each}`) }))} />
     <Select label={t('app.dashboards.scope')} bind:value={draft.scope}
-      options={[{ value: '', label: t('app.dashboards.scope_workspace') }, ...containers.hubs.map((each) => ({ value: each.id, label: each.name })), ...everyCollection.map((each) => ({ value: each.id, label: each.name }))]} />
-    <Input label={t('app.dashboards.line')} hint={kept !== undefined && draft.line.trim() === '' ? t('app.dashboards.line_kept') : t('app.dashboards.line_hint')} bind:value={draft.line} error={lineError} spellcheck={false} />
+      options={[{ value: '', label: t('app.dashboards.scope_workspace') }, ...containers.hubs.map((each) => ({ value: each.id, label: each.name })), ...(draft.summarySource === 'pages' ? [] : everyCollection.map((each) => ({ value: each.id, label: each.name })))]} />
+    {#if draft.summarySource !== 'pages'}
+      <Input label={t('app.dashboards.line')} hint={kept !== undefined && draft.line.trim() === '' ? t('app.dashboards.line_kept') : t('app.dashboards.line_hint')} bind:value={draft.line} error={lineError} spellcheck={false} />
+    {/if}
     <Inline gap="100" isWrapping>
-      <Select label={t('app.dashboards.function')} bind:value={draft.fn} options={FUNCTIONS.map((each) => ({ value: each, label: t(`app.dashboards.fn_${each}`) }))} />
-      {#if draft.fn !== 'COUNT'}
+      <Select label={t('app.dashboards.function')} bind:value={draft.fn} options={functions.map((each) => ({ value: each, label: t(`app.dashboards.fn_${each}`) }))} />
+      {#if draft.fn !== 'COUNT' && draft.summarySource !== 'time'}
         <Input label={t('app.dashboards.measure')} hint={t('app.dashboards.measure_hint')} bind:value={draft.field} spellcheck={false} />
       {/if}
     </Inline>
     <Select label={t('app.dashboards.group_by')} bind:value={draft.groupBy}
-      options={[{ value: '', label: t('app.dashboards.no_grouping') }, ...groups.map((field) => ({ value: field.field, label: field.field }))]} />
+      options={[{ value: '', label: t('app.dashboards.no_grouping') }, ...groups.map((field) => ({ value: field, label: field }))]} />
     <Inline gap="100" isWrapping>
       <Select label={t('app.dashboards.period')} bind:value={draft.period}
         options={PERIODS.map((each) => ({ value: each, label: t(each === '' ? 'app.dashboards.no_period' : `app.dashboards.period_${each}`) }))} />
       {#if draft.period}
         <Select label={t('app.dashboards.period_field')} bind:value={draft.bucketField}
-          options={stamps.map((field) => ({ value: field.field, label: field.field }))} />
+          options={stamps.map((field) => ({ value: field, label: field }))} />
       {/if}
     </Inline>
   {/if}
