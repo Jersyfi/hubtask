@@ -172,7 +172,8 @@ func TestCustomFieldsBecomeFieldsWithTheirValues(t *testing.T) {
 			t.Errorf("value %s names no definition", key)
 		}
 	}
-	if result.Unmapped["fields"] != 1 {
+	// The one field of no kind is the sprint, which the sprints carry (UC-IMP-07).
+	if result.Unmapped["fields"] != 0 {
 		t.Errorf("unmapped = %v", result.Unmapped)
 	}
 	if n := len(result.Records["item_labels"]); n != 2 {

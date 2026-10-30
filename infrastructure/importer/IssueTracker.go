@@ -51,6 +51,9 @@ type trackerAnswer struct {
 	Issues []trackerIssue           `json:"issues"`
 	Names  map[string]string        `json:"names"`
 	Schema map[string]trackerSchema `json:"schema"`
+	// workflows and boards are what a ZIP carries beside the answers (IssueTrackerPlanning.go).
+	workflows []trackerWorkflow
+	boards    []trackerBoard
 }
 
 type trackerSchema struct {
@@ -237,6 +240,9 @@ func readTrackerZip(raw []byte) (trackerAnswer, map[string]file, error) {
 			continue
 		}
 		if strings.EqualFold(path.Ext(name), ".json") {
+			if merged.readPlanning(content) {
+				continue
+			}
 			page, err := parseAnswers(content)
 			if err != nil {
 				continue
@@ -331,7 +337,7 @@ func (r *trackerRun) project(key string, indexes []int) {
 
 	// The workflow: the statuses the issues are in, in the order of their categories. Into a
 	// collection that runs its own, the statuses are not carried - the completion is.
-	shape, statusKeys := r.workflowOf(indexes)
+	shape, statusKeys := r.workflowOf(key, indexes)
 	workflowKey := keyOf("imported_" + key)
 	if b.source.Into == nil && workflowKey != "" && len(shape.Statuses) > 0 {
 		b.workflow(workflowKey, project.Name, shape, collection)
@@ -348,6 +354,10 @@ func (r *trackerRun) project(key string, indexes []int) {
 	})
 	for _, index := range ordered {
 		r.issue(index, collection, statusKeys, refs)
+	}
+	r.sprints(key, indexes, collection)
+	if statusKeys != nil {
+		r.boardViews(key, collection)
 	}
 }
 
@@ -373,15 +383,20 @@ func categoryOf(key string) work.StatusCategory {
 	return work.CategoryTodo
 }
 
-// workflowOf answers the project's workflow - one status per status the issues are in, each
-// reachable from any other - and the status key per source status name.
-func (r *trackerRun) workflowOf(indexes []int) (work.WorkflowShape, map[string]string) {
+// workflowOf answers the project's workflow - one status per status the issues are in, in the
+// order of its board's columns or of their categories, its steps the tracker's transitions or,
+// without them, each status reachable from any other - and the status key per source status name.
+func (r *trackerRun) workflowOf(project string, indexes []int) (work.WorkflowShape, map[string]string) {
 	keys := map[string]string{}
+	idKeys := map[string]string{}
 	var statuses []work.WorkflowStatus
 	taken := map[string]bool{}
 	for _, index := range indexes {
 		status := r.status(index)
 		name := strings.TrimSpace(status.Name)
+		if known := keys[strings.ToLower(name)]; known != "" && status.ID != "" {
+			idKeys[status.ID] = known
+		}
 		if name == "" || keys[strings.ToLower(name)] != "" {
 			continue
 		}
@@ -391,6 +406,9 @@ func (r *trackerRun) workflowOf(indexes []int) (work.WorkflowShape, map[string]s
 		}
 		taken[key] = true
 		keys[strings.ToLower(name)] = key
+		if status.ID != "" {
+			idKeys[status.ID] = key
+		}
 		category := categoryOf(status.StatusCategory.Key)
 		token := map[work.StatusCategory]shared.LabelToken{
 			work.CategoryTodo: shared.LabelTokenSlate, work.CategoryInProgress: shared.LabelTokenBlue, work.CategoryDone: shared.LabelTokenGreen,
@@ -400,8 +418,19 @@ func (r *trackerRun) workflowOf(indexes []int) (work.WorkflowShape, map[string]s
 	if len(statuses) == 0 {
 		return work.WorkflowShape{}, nil
 	}
-	rank := map[work.StatusCategory]int{work.CategoryBacklog: 0, work.CategoryTodo: 1, work.CategoryInProgress: 2, work.CategoryDone: 3}
-	sort.SliceStable(statuses, func(i, j int) bool { return rank[statuses[i].Category] < rank[statuses[j].Category] })
+	// A workflow answer names the statuses by identifier as the issues do; its own names fill in a
+	// status the issues name by another identifier.
+	for _, workflow := range r.answer.workflows {
+		for _, status := range workflow.Statuses {
+			if key := keys[strings.ToLower(strings.TrimSpace(status.Name))]; key != "" && idKeys[status.ID] == "" {
+				idKeys[status.ID] = key
+			}
+		}
+	}
+	if !orderByBoard(statuses, r.boardsOf(project), idKeys) {
+		rank := map[work.StatusCategory]int{work.CategoryBacklog: 0, work.CategoryTodo: 1, work.CategoryInProgress: 2, work.CategoryDone: 3}
+		sort.SliceStable(statuses, func(i, j int) bool { return rank[statuses[i].Category] < rank[statuses[j].Category] })
+	}
 	if len(statuses) > work.MaxWorkflowStatuses {
 		r.unmapped["statuses"] += len(statuses) - work.MaxWorkflowStatuses
 		statuses = statuses[:work.MaxWorkflowStatuses]
@@ -411,6 +440,19 @@ func (r *trackerRun) workflowOf(indexes []int) (work.WorkflowShape, map[string]s
 		shape.Steps = append(shape.Steps, work.WorkflowStep{Key: clip("to_"+status.Key, 50), Name: status.Name, To: status.Key})
 	}
 	valid, err := work.NewWorkflowShape(shape, false, text.Forms{})
+	if steps, initial, ok := r.stepsOf(statuses, idKeys); ok && err == nil {
+		traced := shape
+		traced.Steps = steps
+		if initial != "" {
+			traced.Initial = initial
+		}
+		// A workflow the transitions leave unsound - a status nothing leads to - keeps every step.
+		if checked, failed := work.NewWorkflowShape(traced, false, text.Forms{}); failed == nil {
+			valid = checked
+		} else {
+			r.unmapped["transitions"] += len(steps)
+		}
+	}
 	if err != nil {
 		r.unmapped["workflows"]++
 		return work.WorkflowShape{}, nil
@@ -468,6 +510,9 @@ func (r *trackerRun) fieldsOf(indexes []int, collection shared.ID) ([]fieldDef, 
 	}
 	sort.Strings(custom)
 	for _, id := range custom {
+		if r.sprintField(id) {
+			continue
+		}
 		kind, read, ok := kindOf(r.answer.Schema[id])
 		if !ok {
 			if r.holdsValue(indexes, id) {
