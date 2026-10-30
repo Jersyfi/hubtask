@@ -10437,5 +10437,9 @@
   "app.roadmap.level_lane": "Hub",
   "app.roadmap.level_project": "Project",
   "app.roadmap.done": "Done",
-  "app.roadmap.milestone": "Milestone"
+  "app.roadmap.milestone": "Milestone",
+  "email.plan_exception.subject": "The plan of “{title}” is beyond its tolerance",
+  "email.plan_exception.subject.withheld": "A plan is beyond the tolerance you set",
+  "email.plan_exception.body": "The plan of “{title}” is expected to end later than its latest baseline by more than the time tolerance you set. Open the plan to see how far it slipped and decide what happens next.\n\n{link}",
+  "email.plan_exception.body.withheld": "A plan is expected to end later than its latest baseline by more than the time tolerance you set. Open the plan to see how far it slipped and decide what happens next.\n\n{link}"
 }

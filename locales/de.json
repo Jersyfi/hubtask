@@ -10434,5 +10434,9 @@
   "app.roadmap.level_lane": "Hub",
   "app.roadmap.level_project": "Projekt",
   "app.roadmap.done": "Erledigt",
-  "app.roadmap.milestone": "Meilenstein"
+  "app.roadmap.milestone": "Meilenstein",
+  "email.plan_exception.subject": "Der Plan von „{title}“ liegt außerhalb seiner Toleranz",
+  "email.plan_exception.subject.withheld": "Ein Plan liegt außerhalb der Toleranz, die du gesetzt hast",
+  "email.plan_exception.body": "Der Plan von „{title}“ endet voraussichtlich später als seine letzte Baseline, und zwar um mehr als die Zeittoleranz, die du gesetzt hast. Öffne den Plan, um zu sehen, wie weit er sich verschoben hat, und entscheide, wie es weitergeht.\n\n{link}",
+  "email.plan_exception.body.withheld": "Ein Plan endet voraussichtlich später als seine letzte Baseline, und zwar um mehr als die Zeittoleranz, die du gesetzt hast. Öffne den Plan, um zu sehen, wie weit er sich verschoben hat, und entscheide, wie es weitergeht.\n\n{link}"
 }

@@ -2032,6 +2032,7 @@ type Notification struct {
 	AgentID            pgtype.UUID
 	WhiteboardID       pgtype.UUID
 	ApprovalID         pgtype.UUID
+	BaselineID         pgtype.UUID
 }
 
 type NotificationPreference struct {

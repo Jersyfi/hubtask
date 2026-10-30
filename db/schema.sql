@@ -6750,4 +6750,15 @@ CREATE POLICY tenant_isolation ON release_entry
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON release_entry TO hubtask_app;
 
+-- A plan in exception told to whoever decided its tolerance, once per baseline (migration 0273).
+ALTER TABLE notification ADD COLUMN baseline_id uuid,
+  ADD CONSTRAINT notification_baseline_id_fkey
+    FOREIGN KEY (tenant_id, baseline_id) REFERENCES plan_baseline (tenant_id, id) ON DELETE CASCADE,
+  DROP CONSTRAINT notification_one_subject_check,
+  ADD CONSTRAINT notification_one_subject_check
+    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id, page_id, agent_id,
+      whiteboard_id, approval_id, baseline_id) <= 1);
+CREATE UNIQUE INDEX notification_baseline_once
+  ON notification (tenant_id, baseline_id, recipient_id, channel) WHERE baseline_id IS NOT NULL;
+
 COMMIT;

@@ -96,6 +96,10 @@ func (r NotificationRepository) Insert(
 	if err != nil {
 		return false, err
 	}
+	baselineID, err := optionalUUID(record.BaselineID)
+	if err != nil {
+		return false, err
+	}
 
 	written, err := queries.InsertNotification(ctx, sqlc.InsertNotificationParams{
 		ID:                 id,
@@ -114,6 +118,7 @@ func (r NotificationRepository) Insert(
 		AgentID:            agentID,
 		WhiteboardID:       boardID,
 		ApprovalID:         approvalID,
+		BaselineID:         baselineID,
 		ActorID:            actorID,
 		CreatedAt:          timestampOf(record.CreatedAt),
 	})
@@ -374,6 +379,10 @@ func notificationFrom(row sqlc.Notification) (domain.Notification, error) {
 	if err != nil {
 		return domain.Notification{}, err
 	}
+	baselineID, err := optionalID(row.BaselineID)
+	if err != nil {
+		return domain.Notification{}, err
+	}
 
 	var reason string
 	if row.Reason != nil {
@@ -397,6 +406,7 @@ func notificationFrom(row sqlc.Notification) (domain.Notification, error) {
 		AgentID:            agentID,
 		WhiteboardID:       boardID,
 		ApprovalID:         approvalID,
+		BaselineID:         baselineID,
 		ActorID:            actorID,
 		CreatedAt:          row.CreatedAt.Time.UTC(),
 		SentAt:             optionalTime(row.SentAt),

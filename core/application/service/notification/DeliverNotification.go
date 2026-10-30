@@ -18,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
+	"github.com/Jersyfi/hubtask/core/domain/model/planning"
 	"github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
@@ -89,6 +90,10 @@ const (
 	bodyApprovalReminder    = "email.approval_reminder.body"
 	subjectApprovalOverdue  = "email.approval_overdue.subject"
 	bodyApprovalOverdue     = "email.approval_overdue.body"
+	// A plan beyond its time tolerance, told to whoever decided it (standards.md P12): the subject
+	// is a baseline, its title the plan's place.
+	subjectPlanException = "email.plan_exception.subject"
+	bodyPlanException    = "email.plan_exception.body"
 	// rolePrefix and placePrefix name a role and a kind of place in the catalogue.
 	rolePrefix  = "email.role."
 	placePrefix = "email.role_granted.place."
@@ -141,6 +146,9 @@ type DeliverNotification struct {
 	// Approvals names the approval a message is about, and through it the entry. Optional: nil
 	// leaves the entry's title out.
 	Approvals ApprovalReader
+	// Baselines names the baseline a plan slipped from, and through it the plan; its place is read
+	// through Places. Optional: nil leaves the plan's name and its link out.
+	Baselines BaselineReader
 	// Replies answers the address of the entry a message is about, so an answer by mail becomes a
 	// comment there (ADR-0092 decision 8). Optional: nil, or an installation without a receiving
 	// domain, sends no Reply-To.
@@ -213,6 +221,11 @@ type ApprovalReader interface {
 	Find(ctx context.Context, id shared.ID) (servicedesk.Approval, error)
 }
 
+// BaselineReader answers a baseline by its identifier - the planning repository's Find.
+type BaselineReader interface {
+	Find(ctx context.Context, id shared.ID) (planning.Baseline, error)
+}
+
 // RedemptionMinter is the identity service's seam. The empty secret means the account is no
 // longer waiting, and the mail carries the plain link.
 type RedemptionMinter interface {
@@ -238,6 +251,8 @@ type subject struct {
 	grant identity.Grant
 	// approval is the approval the record names, zero for every other message.
 	approval servicedesk.Approval
+	// plan is the hub or collection a baseline's plan is, zero for every other message.
+	plan work.Container
 	// base is the workspace's address every link of the message names, read with the rest.
 	base string
 }
@@ -427,6 +442,20 @@ func (d DeliverNotification) load(
 					loaded.title = item.Title
 				}
 			}
+		case !record.BaselineID.IsZero() && d.Baselines != nil:
+			baseline, err := d.Baselines.Find(ctx, record.BaselineID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			if !baseline.PlanID.IsZero() && d.Places != nil {
+				place, err := d.Places.Find(ctx, baseline.PlanID)
+				if err != nil && !errors.Is(err, shared.ErrNotFound) {
+					return err
+				}
+				if place.DeletedAt == nil {
+					loaded.plan, loaded.title = place, place.Name
+				}
+			}
 		case !record.AgentID.IsZero() && d.Agents != nil:
 			name, err := d.Agents.AgentName(ctx, record.AgentID)
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
@@ -551,6 +580,10 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 		Link:        link(loaded.base, loaded.record),
 	}
 	message = message.WithTitle(loaded.title, loaded.decision)
+	if !loaded.record.BaselineID.IsZero() {
+		message.SubjectCode, message.BodyCode = subjectPlanException, bodyPlanException
+		message.Link = planLink(loaded.base, loaded.plan)
+	}
 	if isOverdue && loaded.base != "" {
 		// The person who asked decides nothing; the entry is where they look.
 		message.Link = strings.TrimSuffix(loaded.base, "/") + "/items/" + url.PathEscape(loaded.approval.ItemID.String())
@@ -583,6 +616,20 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 		message.BodyCode += withheldSuffix
 	}
 	return message
+}
+
+// planLink is the plan's screen, where the exception is drawn; the workspace when the plan is
+// gone or unread.
+func planLink(base string, plan work.Container) string {
+	base = strings.TrimSuffix(base, "/")
+	if base == "" || plan.ID.IsZero() {
+		return base
+	}
+	kind := "/collections/"
+	if plan.Type == work.ContainerHub {
+		kind = "/hubs/"
+	}
+	return base + kind + url.PathEscape(plan.ID.String()) + "/plan"
 }
 
 // approvalCodes is an approval message's pair: asked where a level began counting the recipient, a

@@ -139,6 +139,12 @@ const (
 	// attempt budget is PageReviewAttempts.
 	KindApprovalEmail Kind = "notification.approval"
 
+	// KindPlanExceptionEmail tells whoever decided a plan's time tolerance that the plan slipped
+	// past it (standards.md P12), under its own kind for the same rolling update: a process of the
+	// previous release does not know the record's baseline. Its attempt budget is
+	// PageReviewAttempts.
+	KindPlanExceptionEmail Kind = "notification.plan_exception"
+
 	// EmergencyAccessAttempts is that job's attempt budget: more than the default, because a
 	// rollout's old processes may claim and return it a few times before a new one runs it, and
 	// each claim spends an attempt.

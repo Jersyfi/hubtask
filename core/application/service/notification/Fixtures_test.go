@@ -61,6 +61,14 @@ func (s *notificationStore) Insert(_ context.Context, record domain.Notification
 		}
 		s.deduped[key] = true
 	}
+	if !record.BaselineID.IsZero() {
+		// The table's notification_baseline_once.
+		key := fmt.Sprintf("baseline|%s|%s|%s", record.BaselineID, record.RecipientID, record.Channel)
+		if s.deduped[key] {
+			return false, nil
+		}
+		s.deduped[key] = true
+	}
 	s.records[record.ID] = record
 	s.order = append(s.order, record.ID)
 	return true, nil
