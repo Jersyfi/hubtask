@@ -3062,6 +3062,73 @@ class ScimErrorBody(TypedDict, total=False):
     scimType: str
     detail: str
 
+class LdapDirectoryConfiguration(TypedDict, total=False):
+    url: Required[str]
+    bind_dn: Required[str]
+    bind_password: str
+    user_base: Required[str]
+    user_filter: str
+    group_base: str
+    group_filter: str
+    id_attribute: str
+    mail_attribute: str
+    name_attribute: str
+    group_name_attribute: str
+    member_attribute: str
+    run_as: Required[str]
+    every_minutes: int
+    enabled: bool
+
+class LdapDirectory(TypedDict, total=False):
+    url: Required[str]
+    bind_dn: Required[str]
+    has_password: Required[bool]
+    user_base: Required[str]
+    user_filter: Required[str]
+    group_base: str
+    group_filter: Required[str]
+    id_attribute: Required[str]
+    mail_attribute: Required[str]
+    name_attribute: Required[str]
+    group_name_attribute: Required[str]
+    member_attribute: Required[str]
+    run_as: Required[str]
+    every_minutes: Required[int]
+    enabled: Required[bool]
+    next_run_at: str
+    last_run_at: str
+    last_outcome: Literal["OK", "PARTIAL", "REFUSED", "FAILED"]
+    last_error: str
+    last_counts: "LdapSyncCounts"
+    failures: Required[int]
+    created_at: Required[str]
+    updated_at: Required[str]
+
+class LdapSyncRequest(TypedDict, total=False):
+    dry_run: bool
+    confirm_switch_off: int
+
+class LdapSyncRun(TypedDict, total=False):
+    outcome: Required[Literal["OK", "PARTIAL", "REFUSED", "FAILED"]]
+    error: str
+    dry_run: Required[bool]
+    counts: Required["LdapSyncCounts"]
+    switch_off_planned: Required[int]
+    switch_off_limit: Required[int]
+
+class LdapSyncCounts(TypedDict, total=False):
+    seen: Required[int]
+    provisioned: Required[int]
+    linked: Required[int]
+    renamed: Required[int]
+    switched_off: Required[int]
+    switched_on: Required[int]
+    kept: Required[int]
+    skipped: Required[int]
+    failed: Required[int]
+    groups_created: Required[int]
+    groups_changed: Required[int]
+
 class Group(TypedDict, total=False):
     id: Required[str]
     name: Required[str]

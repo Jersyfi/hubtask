@@ -15776,6 +15776,106 @@ paths:
         "4XX":
           $ref: "#/components/responses/ScimError"
 
+  /directory/ldap:
+    get:
+      tags: [identity]
+      operationId: showLdapDirectory
+      x-hubtask-rest: generated
+      summary: The workspace's LDAP directory and how its last synchronisation went
+      description: >
+        The directory the workspace's people and groups are synchronised from: where it is, what
+        is read, the service account the synchronisation acts as, when it runs, and the last run's
+        outcome and counts. The bind password is never answered. A workspace without one is
+        answered `404` (`directory.ldap_not_configured`).
+      responses:
+        "200":
+          description: The directory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LdapDirectory"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [identity]
+      operationId: configureLdapDirectory
+      x-hubtask-rest: generated
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      summary: Set the LDAP directory the workspace synchronises its people from
+      description: >
+        Set whole. The directory is bound to once, with the given or the sealed password, and the
+        people base searched, before anything is stored: a directory that cannot be read is refused
+        here (`directory.ldap_refused`, `directory.ldap_unreachable`), not an hour later. Only
+        `ldaps://` or `ldap://` with StartTLS - never an unencrypted bind. The password is sealed and
+        never answered; omitting it keeps the sealed one. The synchronisation acts as the named
+        service account, which needs `MANAGE_MEMBERS` on the workspace: every act is one an
+        administrator could take. Needs a fresh step-up. Auditable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LdapDirectoryConfiguration"
+      responses:
+        "200":
+          description: Configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LdapDirectory"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [identity]
+      operationId: removeLdapDirectory
+      x-hubtask-rest: generated
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      summary: Stop synchronising from the LDAP directory
+      description: >
+        The configuration and its sealed password go and no run follows. The people and groups it
+        provisioned stay as they are, with their roles. Needs a fresh step-up. Auditable.
+      responses:
+        "204":
+          description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /directory/ldap:sync:
+    post:
+      tags: [identity]
+      operationId: syncLdapDirectory
+      x-hubtask-rest: generated
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      summary: Synchronise from the LDAP directory now, or show what a run would do
+      description: >
+        Reads the directory and applies what changed: a new person is invited, a renamed one
+        renamed, one who left the directory switched off - never erased - and one who returned
+        switched on; groups follow their members. The workspace's owners are never switched off.
+
+        A run is refused, and changes nothing, when the directory answers nobody
+        (`directory.ldap_answer_empty`) or when it would switch off more than ten people and more
+        than a fifth of those the directory holds (`directory.ldap_switch_off_too_many`, with the
+        count in `params`). `confirm_switch_off` set to exactly that count lets the run through,
+        with a fresh step-up. `dry_run` reads and plans without changing anything.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LdapSyncRequest"
+      responses:
+        "200":
+          description: The run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LdapSyncRun"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /tenant/starter:close:
     post:
       tags: [meta]
@@ -29436,6 +29536,142 @@ components:
         status: { type: string }
         scimType: { type: string }
         detail: { type: string }
+
+    LdapDirectoryConfiguration:
+      type: object
+      required: [url, bind_dn, user_base, run_as]
+      properties:
+        url:
+          type: string
+          maxLength: 500
+          description: >
+            `ldaps://host[:port]`, or `ldap://host[:port]`, which is always upgraded with StartTLS.
+        bind_dn: { type: string, maxLength: 1000, description: The account the directory is read as. }
+        bind_password:
+          type: string
+          writeOnly: true
+          maxLength: 1000
+          description: Sealed and never answered. Required the first time; absent keeps the sealed one.
+        user_base: { type: string, maxLength: 1000, description: Where the people are searched, subtree. }
+        user_filter:
+          type: string
+          maxLength: 2000
+          description: Which entries are people. Absent is `(objectClass=person)`.
+        group_base:
+          type: string
+          maxLength: 1000
+          description: Where the groups are searched. Absent synchronises no groups.
+        group_filter:
+          type: string
+          maxLength: 2000
+          description: Which entries are groups. Absent is `(objectClass=groupOfNames)`.
+        id_attribute:
+          type: string
+          maxLength: 100
+          description: >
+            The attribute that never changes for a person or a group: `entryUUID` when absent,
+            `objectGUID` for Active Directory.
+        mail_attribute: { type: string, maxLength: 100, description: The address. Absent is `mail`. }
+        name_attribute: { type: string, maxLength: 100, description: The name shown. Absent is `displayName`. }
+        group_name_attribute: { type: string, maxLength: 100, description: A group's name. Absent is `cn`. }
+        member_attribute:
+          type: string
+          maxLength: 100
+          description: A group's members, as the people's names in the directory. Absent is `member`.
+        run_as:
+          type: string
+          format: uuid
+          description: The service account the synchronisation acts as; it needs `MANAGE_MEMBERS`.
+        every_minutes:
+          type: integer
+          minimum: 15
+          maximum: 1440
+          description: How often it runs. Absent is 60.
+        enabled: { type: boolean, description: Whether it runs on its own. Absent is true. }
+
+    LdapDirectory:
+      type: object
+      required: [url, bind_dn, user_base, user_filter, group_filter, id_attribute, mail_attribute,
+        name_attribute, group_name_attribute, member_attribute, run_as, every_minutes, enabled,
+        has_password, failures, created_at, updated_at]
+      properties:
+        url: { type: string }
+        bind_dn: { type: string }
+        has_password: { type: boolean, description: Whether a sealed password is held. }
+        user_base: { type: string }
+        user_filter: { type: string }
+        group_base: { type: string }
+        group_filter: { type: string }
+        id_attribute: { type: string }
+        mail_attribute: { type: string }
+        name_attribute: { type: string }
+        group_name_attribute: { type: string }
+        member_attribute: { type: string }
+        run_as: { type: string, format: uuid }
+        every_minutes: { type: integer }
+        enabled: { type: boolean }
+        next_run_at: { type: string, format: date-time }
+        last_run_at: { type: string, format: date-time }
+        last_outcome:
+          type: string
+          enum: [OK, PARTIAL, REFUSED, FAILED]
+          description: >
+            OK applied everything; PARTIAL applied all but what `counts.failed` and `counts.kept`
+            say; REFUSED changed nothing by the guard; FAILED could not read the directory.
+        last_error:
+          type: string
+          description: >
+            The last run's refusal or failure as a message code: directory.ldap_refused,
+            directory.ldap_unreachable, directory.ldap_answer_empty,
+            directory.ldap_switch_off_too_many, directory.ldap_answer_too_large,
+            directory.ldap_run_as_refused, or the first person's refusal.
+        last_counts: { $ref: "#/components/schemas/LdapSyncCounts" }
+        failures: { type: integer, description: Runs that failed one after another. }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    LdapSyncRequest:
+      type: object
+      properties:
+        dry_run: { type: boolean, description: Read and plan only. }
+        confirm_switch_off:
+          type: integer
+          minimum: 0
+          description: >
+            The number of people a refused run would switch off, given back to let it through;
+            needs a fresh step-up.
+
+    LdapSyncRun:
+      type: object
+      required: [outcome, dry_run, counts, switch_off_planned, switch_off_limit]
+      properties:
+        outcome: { type: string, enum: [OK, PARTIAL, REFUSED, FAILED] }
+        error: { type: string, description: As `LdapDirectory.last_error`. }
+        dry_run: { type: boolean }
+        counts: { $ref: "#/components/schemas/LdapSyncCounts" }
+        switch_off_planned: { type: integer, description: How many people the run switches off. }
+        switch_off_limit: { type: integer, description: How many it may switch off without a confirmation. }
+
+    LdapSyncCounts:
+      type: object
+      required: [seen, provisioned, linked, renamed, switched_off, switched_on, kept, skipped, failed,
+        groups_created, groups_changed]
+      properties:
+        seen: { type: integer, description: People the directory answered. }
+        provisioned: { type: integer, description: Invited as new. }
+        linked: { type: integer, description: Already here under their address, now kept by the directory. }
+        renamed: { type: integer }
+        switched_off: { type: integer }
+        switched_on: { type: integer }
+        kept:
+          type: integer
+          description: Not switched off because they hold OWNER or are under a restriction of processing.
+        skipped:
+          type: integer
+          description: Entries without an address, with an address another entry has, or held by another directory.
+        failed: { type: integer, description: Acts the workspace refused, the people limit among them. }
+        groups_created: { type: integer }
+        groups_changed: { type: integer }
 
     Group:
       type: object

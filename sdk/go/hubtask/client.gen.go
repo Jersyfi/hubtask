@@ -5731,6 +5731,54 @@ func (e KeyResultWriteSource) Valid() bool {
 	}
 }
 
+// Defines values for LdapDirectoryLastOutcome.
+const (
+	LdapDirectoryLastOutcomeFAILED  LdapDirectoryLastOutcome = "FAILED"
+	LdapDirectoryLastOutcomeOK      LdapDirectoryLastOutcome = "OK"
+	LdapDirectoryLastOutcomePARTIAL LdapDirectoryLastOutcome = "PARTIAL"
+	LdapDirectoryLastOutcomeREFUSED LdapDirectoryLastOutcome = "REFUSED"
+)
+
+// Valid indicates whether the value is a known member of the LdapDirectoryLastOutcome enum.
+func (e LdapDirectoryLastOutcome) Valid() bool {
+	switch e {
+	case LdapDirectoryLastOutcomeFAILED:
+		return true
+	case LdapDirectoryLastOutcomeOK:
+		return true
+	case LdapDirectoryLastOutcomePARTIAL:
+		return true
+	case LdapDirectoryLastOutcomeREFUSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LdapSyncRunOutcome.
+const (
+	LdapSyncRunOutcomeFAILED  LdapSyncRunOutcome = "FAILED"
+	LdapSyncRunOutcomeOK      LdapSyncRunOutcome = "OK"
+	LdapSyncRunOutcomePARTIAL LdapSyncRunOutcome = "PARTIAL"
+	LdapSyncRunOutcomeREFUSED LdapSyncRunOutcome = "REFUSED"
+)
+
+// Valid indicates whether the value is a known member of the LdapSyncRunOutcome enum.
+func (e LdapSyncRunOutcome) Valid() bool {
+	switch e {
+	case LdapSyncRunOutcomeFAILED:
+		return true
+	case LdapSyncRunOutcomeOK:
+		return true
+	case LdapSyncRunOutcomePARTIAL:
+		return true
+	case LdapSyncRunOutcomeREFUSED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for LegalHoldScopeKind.
 const (
 	LegalHoldScopeKindACCOUNT   LegalHoldScopeKind = "ACCOUNT"
@@ -17337,6 +17385,146 @@ type LabelUpdate struct {
 	Name        *string `json:"name,omitempty"`
 }
 
+// LdapDirectory defines model for LdapDirectory.
+type LdapDirectory struct {
+	BindDn       string    `json:"bind_dn"`
+	CreatedAt    time.Time `json:"created_at"`
+	Enabled      bool      `json:"enabled"`
+	EveryMinutes int       `json:"every_minutes"`
+
+	// Failures Runs that failed one after another.
+	Failures           int     `json:"failures"`
+	GroupBase          *string `json:"group_base,omitempty"`
+	GroupFilter        string  `json:"group_filter"`
+	GroupNameAttribute string  `json:"group_name_attribute"`
+
+	// HasPassword Whether a sealed password is held.
+	HasPassword bool            `json:"has_password"`
+	IdAttribute string          `json:"id_attribute"`
+	LastCounts  *LdapSyncCounts `json:"last_counts,omitempty"`
+
+	// LastError The last run's refusal or failure as a message code: directory.ldap_refused, directory.ldap_unreachable, directory.ldap_answer_empty, directory.ldap_switch_off_too_many, directory.ldap_answer_too_large, directory.ldap_run_as_refused, or the first person's refusal.
+	LastError *string `json:"last_error,omitempty"`
+
+	// LastOutcome OK applied everything; PARTIAL applied all but what `counts.failed` and `counts.kept` say; REFUSED changed nothing by the guard; FAILED could not read the directory.
+	LastOutcome     *LdapDirectoryLastOutcome `json:"last_outcome,omitempty"`
+	LastRunAt       *time.Time                `json:"last_run_at,omitempty"`
+	MailAttribute   string                    `json:"mail_attribute"`
+	MemberAttribute string                    `json:"member_attribute"`
+	NameAttribute   string                    `json:"name_attribute"`
+	NextRunAt       *time.Time                `json:"next_run_at,omitempty"`
+	RunAs           openapi_types.UUID        `json:"run_as"`
+	UpdatedAt       time.Time                 `json:"updated_at"`
+	Url             string                    `json:"url"`
+	UserBase        string                    `json:"user_base"`
+	UserFilter      string                    `json:"user_filter"`
+}
+
+// LdapDirectoryLastOutcome OK applied everything; PARTIAL applied all but what `counts.failed` and `counts.kept` say; REFUSED changed nothing by the guard; FAILED could not read the directory.
+type LdapDirectoryLastOutcome string
+
+// LdapDirectoryConfiguration defines model for LdapDirectoryConfiguration.
+type LdapDirectoryConfiguration struct {
+	// BindDn The account the directory is read as.
+	BindDn string `json:"bind_dn"`
+
+	// BindPassword Sealed and never answered. Required the first time; absent keeps the sealed one.
+	BindPassword *string `json:"bind_password,omitempty"`
+
+	// Enabled Whether it runs on its own. Absent is true.
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// EveryMinutes How often it runs. Absent is 60.
+	EveryMinutes *int `json:"every_minutes,omitempty"`
+
+	// GroupBase Where the groups are searched. Absent synchronises no groups.
+	GroupBase *string `json:"group_base,omitempty"`
+
+	// GroupFilter Which entries are groups. Absent is `(objectClass=groupOfNames)`.
+	GroupFilter *string `json:"group_filter,omitempty"`
+
+	// GroupNameAttribute A group's name. Absent is `cn`.
+	GroupNameAttribute *string `json:"group_name_attribute,omitempty"`
+
+	// IdAttribute The attribute that never changes for a person or a group: `entryUUID` when absent, `objectGUID` for Active Directory.
+	IdAttribute *string `json:"id_attribute,omitempty"`
+
+	// MailAttribute The address. Absent is `mail`.
+	MailAttribute *string `json:"mail_attribute,omitempty"`
+
+	// MemberAttribute A group's members, as the people's names in the directory. Absent is `member`.
+	MemberAttribute *string `json:"member_attribute,omitempty"`
+
+	// NameAttribute The name shown. Absent is `displayName`.
+	NameAttribute *string `json:"name_attribute,omitempty"`
+
+	// RunAs The service account the synchronisation acts as; it needs `MANAGE_MEMBERS`.
+	RunAs openapi_types.UUID `json:"run_as"`
+
+	// Url `ldaps://host[:port]`, or `ldap://host[:port]`, which is always upgraded with StartTLS.
+	Url string `json:"url"`
+
+	// UserBase Where the people are searched
+	UserBase string `json:"user_base"`
+
+	// UserFilter Which entries are people. Absent is `(objectClass=person)`.
+	UserFilter *string `json:"user_filter,omitempty"`
+}
+
+// LdapSyncCounts defines model for LdapSyncCounts.
+type LdapSyncCounts struct {
+	// Failed Acts the workspace refused
+	Failed        int `json:"failed"`
+	GroupsChanged int `json:"groups_changed"`
+	GroupsCreated int `json:"groups_created"`
+
+	// Kept Not switched off because they hold OWNER or are under a restriction of processing.
+	Kept int `json:"kept"`
+
+	// Linked Already here under their address
+	Linked int `json:"linked"`
+
+	// Provisioned Invited as new.
+	Provisioned int `json:"provisioned"`
+	Renamed     int `json:"renamed"`
+
+	// Seen People the directory answered.
+	Seen int `json:"seen"`
+
+	// Skipped Entries without an address, with an address another entry has, or held by another directory.
+	Skipped     int `json:"skipped"`
+	SwitchedOff int `json:"switched_off"`
+	SwitchedOn  int `json:"switched_on"`
+}
+
+// LdapSyncRequest defines model for LdapSyncRequest.
+type LdapSyncRequest struct {
+	// ConfirmSwitchOff The number of people a refused run would switch off, given back to let it through; needs a fresh step-up.
+	ConfirmSwitchOff *int `json:"confirm_switch_off,omitempty"`
+
+	// DryRun Read and plan only.
+	DryRun *bool `json:"dry_run,omitempty"`
+}
+
+// LdapSyncRun defines model for LdapSyncRun.
+type LdapSyncRun struct {
+	Counts LdapSyncCounts `json:"counts"`
+	DryRun bool           `json:"dry_run"`
+
+	// Error As `LdapDirectory.last_error`.
+	Error   *string            `json:"error,omitempty"`
+	Outcome LdapSyncRunOutcome `json:"outcome"`
+
+	// SwitchOffLimit How many it may switch off without a confirmation.
+	SwitchOffLimit int `json:"switch_off_limit"`
+
+	// SwitchOffPlanned How many people the run switches off.
+	SwitchOffPlanned int `json:"switch_off_planned"`
+}
+
+// LdapSyncRunOutcome defines model for LdapSyncRun.Outcome.
+type LdapSyncRunOutcome string
+
 // LegalHold An instruction not to delete something. The first thing every deletion path checks, and the one that overrides a workspace's own configured periods.
 type LegalHold struct {
 	Id       *openapi_types.UUID `json:"id,omitempty"`
@@ -25083,6 +25271,24 @@ type UpdateDashboardParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// RemoveLdapDirectoryParams defines parameters for RemoveLdapDirectory.
+type RemoveLdapDirectoryParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ConfigureLdapDirectoryParams defines parameters for ConfigureLdapDirectory.
+type ConfigureLdapDirectoryParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// SyncLdapDirectoryParams defines parameters for SyncLdapDirectory.
+type SyncLdapDirectoryParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ChangeEntryTypeParams defines parameters for ChangeEntryType.
 type ChangeEntryTypeParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -27207,6 +27413,12 @@ type UpdateDashboardJSONRequestBody = DashboardWrite
 
 // SetDashboardDigestJSONRequestBody defines body for SetDashboardDigest for application/json ContentType.
 type SetDashboardDigestJSONRequestBody = DashboardDigestWrite
+
+// ConfigureLdapDirectoryJSONRequestBody defines body for ConfigureLdapDirectory for application/json ContentType.
+type ConfigureLdapDirectoryJSONRequestBody = LdapDirectoryConfiguration
+
+// SyncLdapDirectoryJSONRequestBody defines body for SyncLdapDirectory for application/json ContentType.
+type SyncLdapDirectoryJSONRequestBody = LdapSyncRequest
 
 // CreateEntryTypeJSONRequestBody defines body for CreateEntryType for application/json ContentType.
 type CreateEntryTypeJSONRequestBody = EntryTypeCreate
@@ -32587,6 +32799,58 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /dashboards/{dashboardId}/figures (the `ReadDashboardFigures` operationId).
 	ReadDashboardFigures(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveLdapDirectory Stop synchronising from the LDAP directory
+	//
+	// The configuration and its sealed password go and no run follows. The people and groups it provisioned stay as they are, with their roles. Needs a fresh step-up. Auditable.
+	//
+	// Corresponds with DELETE /directory/ldap (the `RemoveLdapDirectory` operationId).
+	RemoveLdapDirectory(ctx context.Context, params *RemoveLdapDirectoryParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ShowLdapDirectory The workspace's LDAP directory and how its last synchronisation went
+	//
+	// The directory the workspace's people and groups are synchronised from: where it is, what is read, the service account the synchronisation acts as, when it runs, and the last run's outcome and counts. The bind password is never answered. A workspace without one is answered `404` (`directory.ldap_not_configured`).
+	//
+	// Corresponds with GET /directory/ldap (the `ShowLdapDirectory` operationId).
+	ShowLdapDirectory(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfigureLdapDirectoryWithBody Set the LDAP directory the workspace synchronises its people from
+	//
+	// Set whole. The directory is bound to once, with the given or the sealed password, and the people base searched, before anything is stored: a directory that cannot be read is refused here (`directory.ldap_refused`, `directory.ldap_unreachable`), not an hour later. Only `ldaps://` or `ldap://` with StartTLS - never an unencrypted bind. The password is sealed and never answered; omitting it keeps the sealed one. The synchronisation acts as the named service account, which needs `MANAGE_MEMBERS` on the workspace: every act is one an administrator could take. Needs a fresh step-up. Auditable.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /directory/ldap (the `ConfigureLdapDirectory` operationId).
+	ConfigureLdapDirectoryWithBody(ctx context.Context, params *ConfigureLdapDirectoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfigureLdapDirectory Set the LDAP directory the workspace synchronises its people from
+	//
+	// Set whole. The directory is bound to once, with the given or the sealed password, and the people base searched, before anything is stored: a directory that cannot be read is refused here (`directory.ldap_refused`, `directory.ldap_unreachable`), not an hour later. Only `ldaps://` or `ldap://` with StartTLS - never an unencrypted bind. The password is sealed and never answered; omitting it keeps the sealed one. The synchronisation acts as the named service account, which needs `MANAGE_MEMBERS` on the workspace: every act is one an administrator could take. Needs a fresh step-up. Auditable.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /directory/ldap (the `ConfigureLdapDirectory` operationId).
+	ConfigureLdapDirectory(ctx context.Context, params *ConfigureLdapDirectoryParams, body ConfigureLdapDirectoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SyncLdapDirectoryWithBody Synchronise from the LDAP directory now, or show what a run would do
+	//
+	// Reads the directory and applies what changed: a new person is invited, a renamed one renamed, one who left the directory switched off - never erased - and one who returned switched on; groups follow their members. The workspace's owners are never switched off.
+	// A run is refused, and changes nothing, when the directory answers nobody (`directory.ldap_answer_empty`) or when it would switch off more than ten people and more than a fifth of those the directory holds (`directory.ldap_switch_off_too_many`, with the count in `params`). `confirm_switch_off` set to exactly that count lets the run through, with a fresh step-up. `dry_run` reads and plans without changing anything.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /directory/ldap:sync (the `SyncLdapDirectory` operationId).
+	SyncLdapDirectoryWithBody(ctx context.Context, params *SyncLdapDirectoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SyncLdapDirectory Synchronise from the LDAP directory now, or show what a run would do
+	//
+	// Reads the directory and applies what changed: a new person is invited, a renamed one renamed, one who left the directory switched off - never erased - and one who returned switched on; groups follow their members. The workspace's owners are never switched off.
+	// A run is refused, and changes nothing, when the directory answers nobody (`directory.ldap_answer_empty`) or when it would switch off more than ten people and more than a fifth of those the directory holds (`directory.ldap_switch_off_too_many`, with the count in `params`). `confirm_switch_off` set to exactly that count lets the run through, with a fresh step-up. `dry_run` reads and plans without changing anything.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /directory/ldap:sync (the `SyncLdapDirectory` operationId).
+	SyncLdapDirectory(ctx context.Context, params *SyncLdapDirectoryParams, body SyncLdapDirectoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListEntryTypes The workspace's entry types
 	//
@@ -47171,6 +47435,118 @@ func (c *Client) SetDashboardDigest(ctx context.Context, dashboardId DashboardId
 // Corresponds with GET /dashboards/{dashboardId}/figures (the `ReadDashboardFigures` operationId).
 func (c *Client) ReadDashboardFigures(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadDashboardFiguresRequest(c.Server, dashboardId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveLdapDirectory Stop synchronising from the LDAP directory
+//
+// The configuration and its sealed password go and no run follows. The people and groups it provisioned stay as they are, with their roles. Needs a fresh step-up. Auditable.
+//
+// Corresponds with DELETE /directory/ldap (the `RemoveLdapDirectory` operationId).
+func (c *Client) RemoveLdapDirectory(ctx context.Context, params *RemoveLdapDirectoryParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveLdapDirectoryRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ShowLdapDirectory The workspace's LDAP directory and how its last synchronisation went
+//
+// The directory the workspace's people and groups are synchronised from: where it is, what is read, the service account the synchronisation acts as, when it runs, and the last run's outcome and counts. The bind password is never answered. A workspace without one is answered `404` (`directory.ldap_not_configured`).
+//
+// Corresponds with GET /directory/ldap (the `ShowLdapDirectory` operationId).
+func (c *Client) ShowLdapDirectory(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewShowLdapDirectoryRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfigureLdapDirectoryWithBody Set the LDAP directory the workspace synchronises its people from
+//
+// Set whole. The directory is bound to once, with the given or the sealed password, and the people base searched, before anything is stored: a directory that cannot be read is refused here (`directory.ldap_refused`, `directory.ldap_unreachable`), not an hour later. Only `ldaps://` or `ldap://` with StartTLS - never an unencrypted bind. The password is sealed and never answered; omitting it keeps the sealed one. The synchronisation acts as the named service account, which needs `MANAGE_MEMBERS` on the workspace: every act is one an administrator could take. Needs a fresh step-up. Auditable.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /directory/ldap (the `ConfigureLdapDirectory` operationId).
+func (c *Client) ConfigureLdapDirectoryWithBody(ctx context.Context, params *ConfigureLdapDirectoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureLdapDirectoryRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfigureLdapDirectory Set the LDAP directory the workspace synchronises its people from
+//
+// Set whole. The directory is bound to once, with the given or the sealed password, and the people base searched, before anything is stored: a directory that cannot be read is refused here (`directory.ldap_refused`, `directory.ldap_unreachable`), not an hour later. Only `ldaps://` or `ldap://` with StartTLS - never an unencrypted bind. The password is sealed and never answered; omitting it keeps the sealed one. The synchronisation acts as the named service account, which needs `MANAGE_MEMBERS` on the workspace: every act is one an administrator could take. Needs a fresh step-up. Auditable.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /directory/ldap (the `ConfigureLdapDirectory` operationId).
+func (c *Client) ConfigureLdapDirectory(ctx context.Context, params *ConfigureLdapDirectoryParams, body ConfigureLdapDirectoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureLdapDirectoryRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SyncLdapDirectoryWithBody Synchronise from the LDAP directory now, or show what a run would do
+//
+// Reads the directory and applies what changed: a new person is invited, a renamed one renamed, one who left the directory switched off - never erased - and one who returned switched on; groups follow their members. The workspace's owners are never switched off.
+// A run is refused, and changes nothing, when the directory answers nobody (`directory.ldap_answer_empty`) or when it would switch off more than ten people and more than a fifth of those the directory holds (`directory.ldap_switch_off_too_many`, with the count in `params`). `confirm_switch_off` set to exactly that count lets the run through, with a fresh step-up. `dry_run` reads and plans without changing anything.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /directory/ldap:sync (the `SyncLdapDirectory` operationId).
+func (c *Client) SyncLdapDirectoryWithBody(ctx context.Context, params *SyncLdapDirectoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSyncLdapDirectoryRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SyncLdapDirectory Synchronise from the LDAP directory now, or show what a run would do
+//
+// Reads the directory and applies what changed: a new person is invited, a renamed one renamed, one who left the directory switched off - never erased - and one who returned switched on; groups follow their members. The workspace's owners are never switched off.
+// A run is refused, and changes nothing, when the directory answers nobody (`directory.ldap_answer_empty`) or when it would switch off more than ten people and more than a fifth of those the directory holds (`directory.ldap_switch_off_too_many`, with the count in `params`). `confirm_switch_off` set to exactly that count lets the run through, with a fresh step-up. `dry_run` reads and plans without changing anything.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /directory/ldap:sync (the `SyncLdapDirectory` operationId).
+func (c *Client) SyncLdapDirectory(ctx context.Context, params *SyncLdapDirectoryParams, body SyncLdapDirectoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSyncLdapDirectoryRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -73655,6 +74031,185 @@ func NewReadDashboardFiguresRequest(server string, dashboardId DashboardId) (*ht
 	return req, nil
 }
 
+// NewRemoveLdapDirectoryRequest constructs an http.Request for the RemoveLdapDirectory method
+func NewRemoveLdapDirectoryRequest(server string, params *RemoveLdapDirectoryParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/directory/ldap")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewShowLdapDirectoryRequest constructs an http.Request for the ShowLdapDirectory method
+func NewShowLdapDirectoryRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/directory/ldap")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewConfigureLdapDirectoryRequest calls the generic ConfigureLdapDirectory builder with application/json body
+func NewConfigureLdapDirectoryRequest(server string, params *ConfigureLdapDirectoryParams, body ConfigureLdapDirectoryJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConfigureLdapDirectoryRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewConfigureLdapDirectoryRequestWithBody constructs an http.Request for the ConfigureLdapDirectory method, with any body, and a specified content type
+func NewConfigureLdapDirectoryRequestWithBody(server string, params *ConfigureLdapDirectoryParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/directory/ldap")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewSyncLdapDirectoryRequest calls the generic SyncLdapDirectory builder with application/json body
+func NewSyncLdapDirectoryRequest(server string, params *SyncLdapDirectoryParams, body SyncLdapDirectoryJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSyncLdapDirectoryRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewSyncLdapDirectoryRequestWithBody constructs an http.Request for the SyncLdapDirectory method, with any body, and a specified content type
+func NewSyncLdapDirectoryRequestWithBody(server string, params *SyncLdapDirectoryParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/directory/ldap:sync")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewListEntryTypesRequest constructs an http.Request for the ListEntryTypes method
 func NewListEntryTypesRequest(server string) (*http.Request, error) {
 	var err error
@@ -99775,6 +100330,62 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /dashboards/{dashboardId}/figures (the `ReadDashboardFigures` operationId).
 	ReadDashboardFiguresWithResponse(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*ReadDashboardFiguresResult, error)
 
+	// RemoveLdapDirectoryWithResponse Stop synchronising from the LDAP directory
+	//
+	// The configuration and its sealed password go and no run follows. The people and groups it provisioned stay as they are, with their roles. Needs a fresh step-up. Auditable.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /directory/ldap (the `RemoveLdapDirectory` operationId).
+	RemoveLdapDirectoryWithResponse(ctx context.Context, params *RemoveLdapDirectoryParams, reqEditors ...RequestEditorFn) (*RemoveLdapDirectoryResult, error)
+
+	// ShowLdapDirectoryWithResponse The workspace's LDAP directory and how its last synchronisation went
+	//
+	// The directory the workspace's people and groups are synchronised from: where it is, what is read, the service account the synchronisation acts as, when it runs, and the last run's outcome and counts. The bind password is never answered. A workspace without one is answered `404` (`directory.ldap_not_configured`).
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /directory/ldap (the `ShowLdapDirectory` operationId).
+	ShowLdapDirectoryWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ShowLdapDirectoryResult, error)
+
+	// ConfigureLdapDirectoryWithBodyWithResponse Set the LDAP directory the workspace synchronises its people from
+	//
+	// Set whole. The directory is bound to once, with the given or the sealed password, and the people base searched, before anything is stored: a directory that cannot be read is refused here (`directory.ldap_refused`, `directory.ldap_unreachable`), not an hour later. Only `ldaps://` or `ldap://` with StartTLS - never an unencrypted bind. The password is sealed and never answered; omitting it keeps the sealed one. The synchronisation acts as the named service account, which needs `MANAGE_MEMBERS` on the workspace: every act is one an administrator could take. Needs a fresh step-up. Auditable.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /directory/ldap (the `ConfigureLdapDirectory` operationId).
+	ConfigureLdapDirectoryWithBodyWithResponse(ctx context.Context, params *ConfigureLdapDirectoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureLdapDirectoryResult, error)
+
+	// ConfigureLdapDirectoryWithResponse Set the LDAP directory the workspace synchronises its people from
+	//
+	// Set whole. The directory is bound to once, with the given or the sealed password, and the people base searched, before anything is stored: a directory that cannot be read is refused here (`directory.ldap_refused`, `directory.ldap_unreachable`), not an hour later. Only `ldaps://` or `ldap://` with StartTLS - never an unencrypted bind. The password is sealed and never answered; omitting it keeps the sealed one. The synchronisation acts as the named service account, which needs `MANAGE_MEMBERS` on the workspace: every act is one an administrator could take. Needs a fresh step-up. Auditable.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /directory/ldap (the `ConfigureLdapDirectory` operationId).
+	ConfigureLdapDirectoryWithResponse(ctx context.Context, params *ConfigureLdapDirectoryParams, body ConfigureLdapDirectoryJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureLdapDirectoryResult, error)
+
+	// SyncLdapDirectoryWithBodyWithResponse Synchronise from the LDAP directory now, or show what a run would do
+	//
+	// Reads the directory and applies what changed: a new person is invited, a renamed one renamed, one who left the directory switched off - never erased - and one who returned switched on; groups follow their members. The workspace's owners are never switched off.
+	// A run is refused, and changes nothing, when the directory answers nobody (`directory.ldap_answer_empty`) or when it would switch off more than ten people and more than a fifth of those the directory holds (`directory.ldap_switch_off_too_many`, with the count in `params`). `confirm_switch_off` set to exactly that count lets the run through, with a fresh step-up. `dry_run` reads and plans without changing anything.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /directory/ldap:sync (the `SyncLdapDirectory` operationId).
+	SyncLdapDirectoryWithBodyWithResponse(ctx context.Context, params *SyncLdapDirectoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SyncLdapDirectoryResult, error)
+
+	// SyncLdapDirectoryWithResponse Synchronise from the LDAP directory now, or show what a run would do
+	//
+	// Reads the directory and applies what changed: a new person is invited, a renamed one renamed, one who left the directory switched off - never erased - and one who returned switched on; groups follow their members. The workspace's owners are never switched off.
+	// A run is refused, and changes nothing, when the directory answers nobody (`directory.ldap_answer_empty`) or when it would switch off more than ten people and more than a fifth of those the directory holds (`directory.ldap_switch_off_too_many`, with the count in `params`). `confirm_switch_off` set to exactly that count lets the run through, with a fresh step-up. `dry_run` reads and plans without changing anything.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /directory/ldap:sync (the `SyncLdapDirectory` operationId).
+	SyncLdapDirectoryWithResponse(ctx context.Context, params *SyncLdapDirectoryParams, body SyncLdapDirectoryJSONRequestBody, reqEditors ...RequestEditorFn) (*SyncLdapDirectoryResult, error)
+
 	// ListEntryTypesWithResponse The workspace's entry types
 	//
 	// Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
@@ -121018,6 +121629,191 @@ func (r ReadDashboardFiguresResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReadDashboardFiguresResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveLdapDirectoryResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveLdapDirectoryResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveLdapDirectoryResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveLdapDirectoryResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveLdapDirectoryResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveLdapDirectoryResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ShowLdapDirectoryResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *LdapDirectory
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ShowLdapDirectoryResult) GetJSON200() *LdapDirectory {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ShowLdapDirectoryResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ShowLdapDirectoryResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ShowLdapDirectoryResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ShowLdapDirectoryResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ShowLdapDirectoryResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ConfigureLdapDirectoryResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *LdapDirectory
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ConfigureLdapDirectoryResult) GetJSON200() *LdapDirectory {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ConfigureLdapDirectoryResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ConfigureLdapDirectoryResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConfigureLdapDirectoryResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConfigureLdapDirectoryResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConfigureLdapDirectoryResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SyncLdapDirectoryResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *LdapSyncRun
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SyncLdapDirectoryResult) GetJSON200() *LdapSyncRun {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SyncLdapDirectoryResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SyncLdapDirectoryResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SyncLdapDirectoryResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SyncLdapDirectoryResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SyncLdapDirectoryResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -150130,6 +150926,98 @@ func (c *ClientWithResponses) ReadDashboardFiguresWithResponse(ctx context.Conte
 	return ParseReadDashboardFiguresResult(rsp)
 }
 
+// RemoveLdapDirectoryWithResponse Stop synchronising from the LDAP directory
+//
+// The configuration and its sealed password go and no run follows. The people and groups it provisioned stay as they are, with their roles. Needs a fresh step-up. Auditable.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /directory/ldap (the `RemoveLdapDirectory` operationId).
+func (c *ClientWithResponses) RemoveLdapDirectoryWithResponse(ctx context.Context, params *RemoveLdapDirectoryParams, reqEditors ...RequestEditorFn) (*RemoveLdapDirectoryResult, error) {
+	rsp, err := c.RemoveLdapDirectory(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveLdapDirectoryResult(rsp)
+}
+
+// ShowLdapDirectoryWithResponse The workspace's LDAP directory and how its last synchronisation went
+//
+// The directory the workspace's people and groups are synchronised from: where it is, what is read, the service account the synchronisation acts as, when it runs, and the last run's outcome and counts. The bind password is never answered. A workspace without one is answered `404` (`directory.ldap_not_configured`).
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /directory/ldap (the `ShowLdapDirectory` operationId).
+func (c *ClientWithResponses) ShowLdapDirectoryWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ShowLdapDirectoryResult, error) {
+	rsp, err := c.ShowLdapDirectory(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseShowLdapDirectoryResult(rsp)
+}
+
+// ConfigureLdapDirectoryWithBodyWithResponse Set the LDAP directory the workspace synchronises its people from
+//
+// Set whole. The directory is bound to once, with the given or the sealed password, and the people base searched, before anything is stored: a directory that cannot be read is refused here (`directory.ldap_refused`, `directory.ldap_unreachable`), not an hour later. Only `ldaps://` or `ldap://` with StartTLS - never an unencrypted bind. The password is sealed and never answered; omitting it keeps the sealed one. The synchronisation acts as the named service account, which needs `MANAGE_MEMBERS` on the workspace: every act is one an administrator could take. Needs a fresh step-up. Auditable.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /directory/ldap (the `ConfigureLdapDirectory` operationId).
+func (c *ClientWithResponses) ConfigureLdapDirectoryWithBodyWithResponse(ctx context.Context, params *ConfigureLdapDirectoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureLdapDirectoryResult, error) {
+	rsp, err := c.ConfigureLdapDirectoryWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfigureLdapDirectoryResult(rsp)
+}
+
+// ConfigureLdapDirectoryWithResponse Set the LDAP directory the workspace synchronises its people from
+//
+// Set whole. The directory is bound to once, with the given or the sealed password, and the people base searched, before anything is stored: a directory that cannot be read is refused here (`directory.ldap_refused`, `directory.ldap_unreachable`), not an hour later. Only `ldaps://` or `ldap://` with StartTLS - never an unencrypted bind. The password is sealed and never answered; omitting it keeps the sealed one. The synchronisation acts as the named service account, which needs `MANAGE_MEMBERS` on the workspace: every act is one an administrator could take. Needs a fresh step-up. Auditable.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /directory/ldap (the `ConfigureLdapDirectory` operationId).
+func (c *ClientWithResponses) ConfigureLdapDirectoryWithResponse(ctx context.Context, params *ConfigureLdapDirectoryParams, body ConfigureLdapDirectoryJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureLdapDirectoryResult, error) {
+	rsp, err := c.ConfigureLdapDirectory(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfigureLdapDirectoryResult(rsp)
+}
+
+// SyncLdapDirectoryWithBodyWithResponse Synchronise from the LDAP directory now, or show what a run would do
+//
+// Reads the directory and applies what changed: a new person is invited, a renamed one renamed, one who left the directory switched off - never erased - and one who returned switched on; groups follow their members. The workspace's owners are never switched off.
+// A run is refused, and changes nothing, when the directory answers nobody (`directory.ldap_answer_empty`) or when it would switch off more than ten people and more than a fifth of those the directory holds (`directory.ldap_switch_off_too_many`, with the count in `params`). `confirm_switch_off` set to exactly that count lets the run through, with a fresh step-up. `dry_run` reads and plans without changing anything.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /directory/ldap:sync (the `SyncLdapDirectory` operationId).
+func (c *ClientWithResponses) SyncLdapDirectoryWithBodyWithResponse(ctx context.Context, params *SyncLdapDirectoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SyncLdapDirectoryResult, error) {
+	rsp, err := c.SyncLdapDirectoryWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSyncLdapDirectoryResult(rsp)
+}
+
+// SyncLdapDirectoryWithResponse Synchronise from the LDAP directory now, or show what a run would do
+//
+// Reads the directory and applies what changed: a new person is invited, a renamed one renamed, one who left the directory switched off - never erased - and one who returned switched on; groups follow their members. The workspace's owners are never switched off.
+// A run is refused, and changes nothing, when the directory answers nobody (`directory.ldap_answer_empty`) or when it would switch off more than ten people and more than a fifth of those the directory holds (`directory.ldap_switch_off_too_many`, with the count in `params`). `confirm_switch_off` set to exactly that count lets the run through, with a fresh step-up. `dry_run` reads and plans without changing anything.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /directory/ldap:sync (the `SyncLdapDirectory` operationId).
+func (c *ClientWithResponses) SyncLdapDirectoryWithResponse(ctx context.Context, params *SyncLdapDirectoryParams, body SyncLdapDirectoryJSONRequestBody, reqEditors ...RequestEditorFn) (*SyncLdapDirectoryResult, error) {
+	rsp, err := c.SyncLdapDirectory(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSyncLdapDirectoryResult(rsp)
+}
+
 // ListEntryTypesWithResponse The workspace's entry types
 //
 // Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
@@ -170874,6 +171762,134 @@ func ParseReadDashboardFiguresResult(rsp *http.Response) (*ReadDashboardFiguresR
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest DashboardFigures
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveLdapDirectoryResult parses an HTTP response from a RemoveLdapDirectoryWithResponse call
+func ParseRemoveLdapDirectoryResult(rsp *http.Response) (*RemoveLdapDirectoryResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveLdapDirectoryResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseShowLdapDirectoryResult parses an HTTP response from a ShowLdapDirectoryWithResponse call
+func ParseShowLdapDirectoryResult(rsp *http.Response) (*ShowLdapDirectoryResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ShowLdapDirectoryResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest LdapDirectory
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConfigureLdapDirectoryResult parses an HTTP response from a ConfigureLdapDirectoryWithResponse call
+func ParseConfigureLdapDirectoryResult(rsp *http.Response) (*ConfigureLdapDirectoryResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConfigureLdapDirectoryResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest LdapDirectory
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSyncLdapDirectoryResult parses an HTTP response from a SyncLdapDirectoryWithResponse call
+func ParseSyncLdapDirectoryResult(rsp *http.Response) (*SyncLdapDirectoryResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SyncLdapDirectoryResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest LdapSyncRun
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

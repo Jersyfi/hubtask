@@ -2359,6 +2359,22 @@ class Client:
         """Remove a provisioned group"""
         return self._call("DELETE", "/scim/v2/Groups/{scimGroupId}", {"scimGroupId": scim_group_id}, None, {}, None, "none", None, "void")
 
+    def show_ldap_directory(self) -> "LdapDirectory":
+        """The workspace's LDAP directory and how its last synchronisation went"""
+        return self._call("GET", "/directory/ldap", {}, None, {}, None, "none", None, "json")
+
+    def configure_ldap_directory(self, body: "LdapDirectoryConfiguration", *, step_up: str | None = None) -> "LdapDirectory":
+        """Set the LDAP directory the workspace synchronises its people from"""
+        return self._call("PUT", "/directory/ldap", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
+    def remove_ldap_directory(self, *, step_up: str | None = None) -> None:
+        """Stop synchronising from the LDAP directory"""
+        return self._call("DELETE", "/directory/ldap", {}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
+
+    def sync_ldap_directory(self, body: "LdapSyncRequest", *, step_up: str | None = None) -> "LdapSyncRun":
+        """Synchronise from the LDAP directory now, or show what a run would do"""
+        return self._call("POST", "/directory/ldap:sync", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
     def close_starter(self) -> None:
         """Answers the first start's question for good"""
         return self._call("POST", "/tenant/starter:close", {}, None, {}, None, "none", None, "void")

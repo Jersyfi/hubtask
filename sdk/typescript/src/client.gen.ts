@@ -2970,6 +2970,26 @@ export class HubtaskClient {
     return this.call("DELETE", "/scim/v2/Groups/{scimGroupId}", { "scimGroupId": scimGroupId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** The workspace's LDAP directory and how its last synchronisation went */
+  showLdapDirectory(options: CallOptions = {}): Promise<operations["showLdapDirectory"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/directory/ldap", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Set the LDAP directory the workspace synchronises its people from */
+  configureLdapDirectory(body: NonNullable<operations["configureLdapDirectory"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["configureLdapDirectory"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/directory/ldap", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Stop synchronising from the LDAP directory */
+  removeLdapDirectory(options: CallOptions & { readonly stepUp?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/directory/ldap", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Synchronise from the LDAP directory now, or show what a run would do */
+  syncLdapDirectory(body: NonNullable<operations["syncLdapDirectory"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["syncLdapDirectory"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/directory/ldap:sync", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Answers the first start's question for good */
   closeStarter(options: CallOptions = {}): Promise<void> {
     return this.call("POST", "/tenant/starter:close", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);

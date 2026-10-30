@@ -5725,6 +5725,54 @@ func (e KeyResultWriteSource) Valid() bool {
 	}
 }
 
+// Defines values for LdapDirectoryLastOutcome.
+const (
+	LdapDirectoryLastOutcomeFAILED  LdapDirectoryLastOutcome = "FAILED"
+	LdapDirectoryLastOutcomeOK      LdapDirectoryLastOutcome = "OK"
+	LdapDirectoryLastOutcomePARTIAL LdapDirectoryLastOutcome = "PARTIAL"
+	LdapDirectoryLastOutcomeREFUSED LdapDirectoryLastOutcome = "REFUSED"
+)
+
+// Valid indicates whether the value is a known member of the LdapDirectoryLastOutcome enum.
+func (e LdapDirectoryLastOutcome) Valid() bool {
+	switch e {
+	case LdapDirectoryLastOutcomeFAILED:
+		return true
+	case LdapDirectoryLastOutcomeOK:
+		return true
+	case LdapDirectoryLastOutcomePARTIAL:
+		return true
+	case LdapDirectoryLastOutcomeREFUSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LdapSyncRunOutcome.
+const (
+	LdapSyncRunOutcomeFAILED  LdapSyncRunOutcome = "FAILED"
+	LdapSyncRunOutcomeOK      LdapSyncRunOutcome = "OK"
+	LdapSyncRunOutcomePARTIAL LdapSyncRunOutcome = "PARTIAL"
+	LdapSyncRunOutcomeREFUSED LdapSyncRunOutcome = "REFUSED"
+)
+
+// Valid indicates whether the value is a known member of the LdapSyncRunOutcome enum.
+func (e LdapSyncRunOutcome) Valid() bool {
+	switch e {
+	case LdapSyncRunOutcomeFAILED:
+		return true
+	case LdapSyncRunOutcomeOK:
+		return true
+	case LdapSyncRunOutcomePARTIAL:
+		return true
+	case LdapSyncRunOutcomeREFUSED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for LegalHoldScopeKind.
 const (
 	LegalHoldScopeKindACCOUNT   LegalHoldScopeKind = "ACCOUNT"
@@ -17331,6 +17379,146 @@ type LabelUpdate struct {
 	Name        *string `json:"name,omitempty"`
 }
 
+// LdapDirectory defines model for LdapDirectory.
+type LdapDirectory struct {
+	BindDn       string    `json:"bind_dn"`
+	CreatedAt    time.Time `json:"created_at"`
+	Enabled      bool      `json:"enabled"`
+	EveryMinutes int       `json:"every_minutes"`
+
+	// Failures Runs that failed one after another.
+	Failures           int     `json:"failures"`
+	GroupBase          *string `json:"group_base,omitempty"`
+	GroupFilter        string  `json:"group_filter"`
+	GroupNameAttribute string  `json:"group_name_attribute"`
+
+	// HasPassword Whether a sealed password is held.
+	HasPassword bool            `json:"has_password"`
+	IdAttribute string          `json:"id_attribute"`
+	LastCounts  *LdapSyncCounts `json:"last_counts,omitempty"`
+
+	// LastError The last run's refusal or failure as a message code: directory.ldap_refused, directory.ldap_unreachable, directory.ldap_answer_empty, directory.ldap_switch_off_too_many, directory.ldap_answer_too_large, directory.ldap_run_as_refused, or the first person's refusal.
+	LastError *string `json:"last_error,omitempty"`
+
+	// LastOutcome OK applied everything; PARTIAL applied all but what `counts.failed` and `counts.kept` say; REFUSED changed nothing by the guard; FAILED could not read the directory.
+	LastOutcome     *LdapDirectoryLastOutcome `json:"last_outcome,omitempty"`
+	LastRunAt       *time.Time                `json:"last_run_at,omitempty"`
+	MailAttribute   string                    `json:"mail_attribute"`
+	MemberAttribute string                    `json:"member_attribute"`
+	NameAttribute   string                    `json:"name_attribute"`
+	NextRunAt       *time.Time                `json:"next_run_at,omitempty"`
+	RunAs           openapi_types.UUID        `json:"run_as"`
+	UpdatedAt       time.Time                 `json:"updated_at"`
+	Url             string                    `json:"url"`
+	UserBase        string                    `json:"user_base"`
+	UserFilter      string                    `json:"user_filter"`
+}
+
+// LdapDirectoryLastOutcome OK applied everything; PARTIAL applied all but what `counts.failed` and `counts.kept` say; REFUSED changed nothing by the guard; FAILED could not read the directory.
+type LdapDirectoryLastOutcome string
+
+// LdapDirectoryConfiguration defines model for LdapDirectoryConfiguration.
+type LdapDirectoryConfiguration struct {
+	// BindDn The account the directory is read as.
+	BindDn string `json:"bind_dn"`
+
+	// BindPassword Sealed and never answered. Required the first time; absent keeps the sealed one.
+	BindPassword *string `json:"bind_password,omitempty"`
+
+	// Enabled Whether it runs on its own. Absent is true.
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// EveryMinutes How often it runs. Absent is 60.
+	EveryMinutes *int `json:"every_minutes,omitempty"`
+
+	// GroupBase Where the groups are searched. Absent synchronises no groups.
+	GroupBase *string `json:"group_base,omitempty"`
+
+	// GroupFilter Which entries are groups. Absent is `(objectClass=groupOfNames)`.
+	GroupFilter *string `json:"group_filter,omitempty"`
+
+	// GroupNameAttribute A group's name. Absent is `cn`.
+	GroupNameAttribute *string `json:"group_name_attribute,omitempty"`
+
+	// IdAttribute The attribute that never changes for a person or a group: `entryUUID` when absent, `objectGUID` for Active Directory.
+	IdAttribute *string `json:"id_attribute,omitempty"`
+
+	// MailAttribute The address. Absent is `mail`.
+	MailAttribute *string `json:"mail_attribute,omitempty"`
+
+	// MemberAttribute A group's members, as the people's names in the directory. Absent is `member`.
+	MemberAttribute *string `json:"member_attribute,omitempty"`
+
+	// NameAttribute The name shown. Absent is `displayName`.
+	NameAttribute *string `json:"name_attribute,omitempty"`
+
+	// RunAs The service account the synchronisation acts as; it needs `MANAGE_MEMBERS`.
+	RunAs openapi_types.UUID `json:"run_as"`
+
+	// Url `ldaps://host[:port]`, or `ldap://host[:port]`, which is always upgraded with StartTLS.
+	Url string `json:"url"`
+
+	// UserBase Where the people are searched
+	UserBase string `json:"user_base"`
+
+	// UserFilter Which entries are people. Absent is `(objectClass=person)`.
+	UserFilter *string `json:"user_filter,omitempty"`
+}
+
+// LdapSyncCounts defines model for LdapSyncCounts.
+type LdapSyncCounts struct {
+	// Failed Acts the workspace refused
+	Failed        int `json:"failed"`
+	GroupsChanged int `json:"groups_changed"`
+	GroupsCreated int `json:"groups_created"`
+
+	// Kept Not switched off because they hold OWNER or are under a restriction of processing.
+	Kept int `json:"kept"`
+
+	// Linked Already here under their address
+	Linked int `json:"linked"`
+
+	// Provisioned Invited as new.
+	Provisioned int `json:"provisioned"`
+	Renamed     int `json:"renamed"`
+
+	// Seen People the directory answered.
+	Seen int `json:"seen"`
+
+	// Skipped Entries without an address, with an address another entry has, or held by another directory.
+	Skipped     int `json:"skipped"`
+	SwitchedOff int `json:"switched_off"`
+	SwitchedOn  int `json:"switched_on"`
+}
+
+// LdapSyncRequest defines model for LdapSyncRequest.
+type LdapSyncRequest struct {
+	// ConfirmSwitchOff The number of people a refused run would switch off, given back to let it through; needs a fresh step-up.
+	ConfirmSwitchOff *int `json:"confirm_switch_off,omitempty"`
+
+	// DryRun Read and plan only.
+	DryRun *bool `json:"dry_run,omitempty"`
+}
+
+// LdapSyncRun defines model for LdapSyncRun.
+type LdapSyncRun struct {
+	Counts LdapSyncCounts `json:"counts"`
+	DryRun bool           `json:"dry_run"`
+
+	// Error As `LdapDirectory.last_error`.
+	Error   *string            `json:"error,omitempty"`
+	Outcome LdapSyncRunOutcome `json:"outcome"`
+
+	// SwitchOffLimit How many it may switch off without a confirmation.
+	SwitchOffLimit int `json:"switch_off_limit"`
+
+	// SwitchOffPlanned How many people the run switches off.
+	SwitchOffPlanned int `json:"switch_off_planned"`
+}
+
+// LdapSyncRunOutcome defines model for LdapSyncRun.Outcome.
+type LdapSyncRunOutcome string
+
 // LegalHold An instruction not to delete something. The first thing every deletion path checks, and the one that overrides a workspace's own configured periods.
 type LegalHold struct {
 	Id       *openapi_types.UUID `json:"id,omitempty"`
@@ -25077,6 +25265,24 @@ type UpdateDashboardParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// RemoveLdapDirectoryParams defines parameters for RemoveLdapDirectory.
+type RemoveLdapDirectoryParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ConfigureLdapDirectoryParams defines parameters for ConfigureLdapDirectory.
+type ConfigureLdapDirectoryParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// SyncLdapDirectoryParams defines parameters for SyncLdapDirectory.
+type SyncLdapDirectoryParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ChangeEntryTypeParams defines parameters for ChangeEntryType.
 type ChangeEntryTypeParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -27202,6 +27408,12 @@ type UpdateDashboardJSONRequestBody = DashboardWrite
 // SetDashboardDigestJSONRequestBody defines body for SetDashboardDigest for application/json ContentType.
 type SetDashboardDigestJSONRequestBody = DashboardDigestWrite
 
+// ConfigureLdapDirectoryJSONRequestBody defines body for ConfigureLdapDirectory for application/json ContentType.
+type ConfigureLdapDirectoryJSONRequestBody = LdapDirectoryConfiguration
+
+// SyncLdapDirectoryJSONRequestBody defines body for SyncLdapDirectory for application/json ContentType.
+type SyncLdapDirectoryJSONRequestBody = LdapSyncRequest
+
 // CreateEntryTypeJSONRequestBody defines body for CreateEntryType for application/json ContentType.
 type CreateEntryTypeJSONRequestBody = EntryTypeCreate
 
@@ -29139,6 +29351,18 @@ type ServerInterface interface {
 	// ReadDashboardFigures A dashboard's numbers, for the caller
 	// (GET /dashboards/{dashboardId}/figures)
 	ReadDashboardFigures(w http.ResponseWriter, r *http.Request, dashboardId DashboardId)
+	// RemoveLdapDirectory Stop synchronising from the LDAP directory
+	// (DELETE /directory/ldap)
+	RemoveLdapDirectory(w http.ResponseWriter, r *http.Request, params RemoveLdapDirectoryParams)
+	// ShowLdapDirectory The workspace's LDAP directory and how its last synchronisation went
+	// (GET /directory/ldap)
+	ShowLdapDirectory(w http.ResponseWriter, r *http.Request)
+	// ConfigureLdapDirectory Set the LDAP directory the workspace synchronises its people from
+	// (PUT /directory/ldap)
+	ConfigureLdapDirectory(w http.ResponseWriter, r *http.Request, params ConfigureLdapDirectoryParams)
+	// SyncLdapDirectory Synchronise from the LDAP directory now, or show what a run would do
+	// (POST /directory/ldap:sync)
+	SyncLdapDirectory(w http.ResponseWriter, r *http.Request, params SyncLdapDirectoryParams)
 	// ListEntryTypes The workspace's entry types
 	// (GET /entry-types)
 	ListEntryTypes(w http.ResponseWriter, r *http.Request)
@@ -40467,6 +40691,143 @@ func (siw *ServerInterfaceWrapper) ReadDashboardFigures(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReadDashboardFigures(w, r, dashboardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveLdapDirectory operation middleware
+func (siw *ServerInterfaceWrapper) RemoveLdapDirectory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RemoveLdapDirectoryParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveLdapDirectory(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ShowLdapDirectory operation middleware
+func (siw *ServerInterfaceWrapper) ShowLdapDirectory(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ShowLdapDirectory(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfigureLdapDirectory operation middleware
+func (siw *ServerInterfaceWrapper) ConfigureLdapDirectory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ConfigureLdapDirectoryParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfigureLdapDirectory(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SyncLdapDirectory operation middleware
+func (siw *ServerInterfaceWrapper) SyncLdapDirectory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SyncLdapDirectoryParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SyncLdapDirectory(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -56580,6 +56941,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/scim/v2/Groups/{scimGroupId}", wrapper.GetScimGroup)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/scim/v2/Groups/{scimGroupId}", wrapper.PatchScimGroup)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/scim/v2/Groups/{scimGroupId}", wrapper.ReplaceScimGroup)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/directory/ldap", wrapper.RemoveLdapDirectory)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/directory/ldap", wrapper.ShowLdapDirectory)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/directory/ldap", wrapper.ConfigureLdapDirectory)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/directory/ldap:sync", wrapper.SyncLdapDirectory)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/starter:close", wrapper.CloseStarter)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant/structure", wrapper.SetWorkspaceStructure)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/structure:preview", wrapper.PreviewWorkspaceStructure)

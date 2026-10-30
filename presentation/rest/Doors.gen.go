@@ -98,6 +98,7 @@ var restDoors = map[string]restDoor{
 	"configureIdentityProvider":         {UseCase: "ConfigureIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"configureInstanceAiProvider":       {UseCase: "ConfigureInstanceAiProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"configureInstanceIdentityProvider": {UseCase: "ConfigureInstanceIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
+	"configureLdapDirectory":            {UseCase: "ConfigureLdapDirectory", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"every_minutes"}},
 	"confirmAddress":                    {UseCase: "ConfirmAddress", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header"}},
 	"confirmAuthenticatorReplacement":   {UseCase: "ConfirmAuthenticatorReplacement", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"confirmMediaUpload":                {UseCase: "ConfirmMediaUpload", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -509,6 +510,7 @@ var restDoors = map[string]restDoor{
 	"removeInstanceAiProvider":          {UseCase: "RemoveInstanceAiProvider", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeInstanceIdentityProvider":    {UseCase: "RemoveInstanceIdentityProvider", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeLabel":                       {UseCase: "RemoveLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"removeLdapDirectory":               {UseCase: "RemoveLdapDirectory", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeMailbox":                     {UseCase: "RemoveMailbox", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeMember":                      {UseCase: "RemoveMember", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeOperator":                    {UseCase: "RemoveOperator", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -609,6 +611,7 @@ var restDoors = map[string]restDoor{
 	"sharePage":                         {UseCase: "SharePage", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"shareSavedView":                    {UseCase: "ShareSavedView", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"showAlexaModel":                    {UseCase: "ShowAlexaModel", Status: 200, Query: []string{"locale"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"showLdapDirectory":                 {UseCase: "ShowLdapDirectory", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"showMailSettings":                  {UseCase: "ShowMailSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"showVoiceSettings":                 {UseCase: "ShowVoiceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"signIn":                            {UseCase: "SignIn", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"user_agent", "remote_addr", "tenant_header", "host"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
@@ -636,6 +639,7 @@ var restDoors = map[string]restDoor{
 	"suggestFromJumbleEntry":            {UseCase: "SuggestFromJumbleEntry", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"suspendAgent":                      {UseCase: "SuspendAgent", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"suspendTenant":                     {UseCase: "SuspendTenant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"syncLdapDirectory":                 {UseCase: "SyncLdapDirectory", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"confirm_switch_off"}},
 	"takeBackKudos":                     {UseCase: "TakeBackKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"takeBaseline":                      {UseCase: "TakeBaseline", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"takeStep":                          {UseCase: "TakeStep", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1221,6 +1225,13 @@ func (c *RestController) ConfigureInstanceAiProvider(w http.ResponseWriter, r *h
 func (c *RestController) ConfigureInstanceIdentityProvider(w http.ResponseWriter, r *http.Request, providerId openapi.ProviderId, params openapi.ConfigureInstanceIdentityProviderParams) {
 	var body openapi.ConfigureInstanceIdentityProviderJSONRequestBody
 	c.door(w, r, restDoors["configureInstanceIdentityProvider"], usecase.Input{"id": providerId.String()}, params, &body, answerBy(identityProviderResponse))
+}
+
+// ConfigureLdapDirectory answers PUT /directory/ldap by the generated mapping.
+func (c *RestController) ConfigureLdapDirectory(w http.ResponseWriter, r *http.Request, params openapi.ConfigureLdapDirectoryParams) {
+	var body openapi.ConfigureLdapDirectoryJSONRequestBody
+	var answer openapi.LdapDirectory
+	c.door(w, r, restDoors["configureLdapDirectory"], usecase.Input{}, params, &body, &answer)
 }
 
 // ConfirmAddress answers POST /auth/address:confirm by the generated mapping.
@@ -3620,6 +3631,11 @@ func (c *RestController) RemoveLabel(w http.ResponseWriter, r *http.Request, ite
 	c.door(w, r, restDoors["removeLabel"], usecase.Input{"item_id": itemId.String(), "label_id": labelId.String()}, nil, nil, answerBy(itemLabelsResponse))
 }
 
+// RemoveLdapDirectory answers DELETE /directory/ldap by the generated mapping.
+func (c *RestController) RemoveLdapDirectory(w http.ResponseWriter, r *http.Request, params openapi.RemoveLdapDirectoryParams) {
+	c.door(w, r, restDoors["removeLdapDirectory"], usecase.Input{}, params, nil, nil)
+}
+
 // RemoveMailbox answers DELETE /mail/mailboxes/{mailbox_id} by the generated mapping.
 func (c *RestController) RemoveMailbox(w http.ResponseWriter, r *http.Request, mailboxId openapi_types.UUID) {
 	c.door(w, r, restDoors["removeMailbox"], usecase.Input{"mailbox_id": mailboxId.String()}, nil, nil, nil)
@@ -4228,6 +4244,12 @@ func (c *RestController) ShowAlexaModel(w http.ResponseWriter, r *http.Request, 
 	c.door(w, r, restDoors["showAlexaModel"], usecase.Input{}, params, nil, answerBy(alexaModelOf))
 }
 
+// ShowLdapDirectory answers GET /directory/ldap by the generated mapping.
+func (c *RestController) ShowLdapDirectory(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.LdapDirectory
+	c.door(w, r, restDoors["showLdapDirectory"], usecase.Input{}, nil, nil, &answer)
+}
+
 // ShowMailSettings answers GET /mail/settings by the generated mapping.
 func (c *RestController) ShowMailSettings(w http.ResponseWriter, r *http.Request) {
 	var answer openapi.MailSettings
@@ -4390,6 +4412,13 @@ func (c *RestController) SuspendAgent(w http.ResponseWriter, r *http.Request, ag
 // SuspendTenant answers POST /admin/tenants/{tenantId}:suspend by the generated mapping.
 func (c *RestController) SuspendTenant(w http.ResponseWriter, r *http.Request, tenantId openapi.AdminTenantId) {
 	c.door(w, r, restDoors["suspendTenant"], usecase.Input{"tenant_id": tenantId.String()}, nil, nil, nil)
+}
+
+// SyncLdapDirectory answers POST /directory/ldap:sync by the generated mapping.
+func (c *RestController) SyncLdapDirectory(w http.ResponseWriter, r *http.Request, params openapi.SyncLdapDirectoryParams) {
+	var body openapi.SyncLdapDirectoryJSONRequestBody
+	var answer openapi.LdapSyncRun
+	c.door(w, r, restDoors["syncLdapDirectory"], usecase.Input{}, params, &body, &answer)
 }
 
 // TakeBackKudos answers DELETE /items/{itemId}/kudos by the generated mapping.

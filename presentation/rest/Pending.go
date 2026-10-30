@@ -2953,3 +2953,19 @@ func (pending) ReceiveSamlResponse(w http.ResponseWriter, r *http.Request) {
 func (pending) GetSamlMetadata(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
+
+func (pending) ShowLdapDirectory(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ConfigureLdapDirectory(w http.ResponseWriter, r *http.Request, _ openapi.ConfigureLdapDirectoryParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveLdapDirectory(w http.ResponseWriter, r *http.Request, _ openapi.RemoveLdapDirectoryParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SyncLdapDirectory(w http.ResponseWriter, r *http.Request, _ openapi.SyncLdapDirectoryParams) {
+	notAvailable(w, r)
+}

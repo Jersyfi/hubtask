@@ -2013,6 +2013,35 @@ type Label struct {
 	Version      int32
 }
 
+type LdapDirectory struct {
+	TenantID           pgtype.UUID
+	Url                string
+	BindDn             string
+	PasswordEnc        []byte
+	PasswordKeyID      string
+	UserBase           string
+	UserFilter         string
+	GroupBase          *string
+	GroupFilter        string
+	IDAttribute        string
+	MailAttribute      string
+	NameAttribute      string
+	GroupNameAttribute string
+	MemberAttribute    string
+	RunAs              pgtype.UUID
+	EveryMinutes       int32
+	Enabled            bool
+	NextRunAt          pgtype.Timestamptz
+	LastRunAt          pgtype.Timestamptz
+	LastOutcome        *string
+	LastError          *string
+	LastCounts         []byte
+	Failures           int32
+	CreatedAt          pgtype.Timestamptz
+	UpdatedAt          pgtype.Timestamptz
+	UpdatedBy          pgtype.UUID
+}
+
 type LegalHold struct {
 	ID             pgtype.UUID
 	TenantID       pgtype.UUID
