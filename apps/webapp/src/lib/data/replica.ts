@@ -452,6 +452,17 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
     return { data: rows };
   }
 
+  // An entry's commits, branches and pull requests while the server is away (UC-INT-13), the
+  // latest first as the server answers them.
+  match = /^\/items\/([^/]+)\/code-links$/.exec(pathname);
+  if (match?.[1]) {
+    const itemId = match[1];
+    const rows = (await documents(storage, 'code_links'))
+      .filter((row) => row.item_id === itemId)
+      .sort((a, b) => String(b.happened_at ?? '').localeCompare(String(a.happened_at ?? '')) || String(a.id).localeCompare(String(b.id)));
+    return { data: rows };
+  }
+
   // A hub's pages and a page read while the server is away (M3): the tree without the bodies, as
   // the server lists it, and a page with its breadcrumb walked up the copy. Nothing is writable
   // offline - a page is written through its live document, which needs the server.

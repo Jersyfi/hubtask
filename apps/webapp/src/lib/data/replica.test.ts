@@ -721,6 +721,16 @@ test('an entry\'s goals and approvals are answered from the copy', async () => {
   assert.equal((asked.data[1]!.decisions as unknown[]).length, 1);
 });
 
+// UC-INT-13 check 6: an entry's code read while the server is away, the latest first.
+test('an entry\'s code links are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  await storage.put('code_links', 'c-1', record({ id: 'c-1', item_id: 'i-1', kind: 'COMMIT', happened_at: '2026-10-01T08:00:00Z' }));
+  await storage.put('code_links', 'c-2', record({ id: 'c-2', item_id: 'i-1', kind: 'PULL_REQUEST', state: 'MERGED', happened_at: '2026-10-02T08:00:00Z' }));
+  await storage.put('code_links', 'c-3', record({ id: 'c-3', item_id: 'i-2', kind: 'BRANCH', happened_at: '2026-10-03T08:00:00Z' }));
+  const read = await storeFor({ path: '/items/i-1/code-links' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(read.data.map((row) => row.id), ['c-2', 'c-1']);
+});
+
 // UC-PLN-02 check 9: a plan read while the server is away answers the entries' own dates in the
 // reader's zone, their mode and milestone, and the dependencies between them with their kind and
 // lag - never another collection's entry, and nothing the server would propose.
