@@ -5168,6 +5168,9 @@ class PageCommentChange(TypedDict, total=False):
 class PageBacklinkList(TypedDict, total=False):
     data: Required[list[dict[str, Any]]]
 
+class PageMediaAttachment(TypedDict, total=False):
+    media_id: Required[str]
+
 class WhiteboardMediaPlacement(TypedDict, total=False):
     media_id: Required[str]
 

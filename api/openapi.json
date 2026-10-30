@@ -27071,6 +27071,48 @@
         }
       }
     },
+    "/pages/{pageId}/media": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PageId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "attachPageMedia",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "page attach",
+        "summary": "Attach an uploaded picture or file to a page",
+        "description": "Makes a confirmed upload one of the page's pictures and files, so that its body can draw it (an image of `hubtask:media/<id>` on a line of its own) and every reader of the page can read it. The file is one the caller uploaded, or one another page they may read already holds. Kept as long as the page; attaching it twice is once. Needs WRITE_ITEMS on the hub.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageMediaAttachment"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Attached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageMediaAttachment"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/pages/{pageId}/articles": {
       "parameters": [
         {
@@ -55394,6 +55436,19 @@
                 }
               }
             }
+          }
+        }
+      },
+      "PageMediaAttachment": {
+        "type": "object",
+        "required": [
+          "media_id"
+        ],
+        "properties": {
+          "media_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A confirmed upload."
           }
         }
       },

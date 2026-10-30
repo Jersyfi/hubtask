@@ -41,6 +41,7 @@ var restDoors = map[string]restDoor{
 	"askWorkspace":          {UseCase: "AskWorkspace", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"assignWorkItem":        {UseCase: "AssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"attachMedia":           {UseCase: "AttachMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"attachPageMedia":       {UseCase: "AttachPageMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"attachWhiteboardMedia": {UseCase: "AttachWhiteboardMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"authorizeMailbox":      {UseCase: "AuthorizeMailbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"port"}},
 	"autoAssignWorkItem":    {UseCase: "AutoAssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -793,6 +794,13 @@ func (c *RestController) AssignWorkItem(w http.ResponseWriter, r *http.Request, 
 // AttachMedia answers PUT /items/{itemId}/attachments/{mediaId} by the generated mapping.
 func (c *RestController) AttachMedia(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, mediaId openapi.MediaId) {
 	c.door(w, r, restDoors["attachMedia"], usecase.Input{"item_id": itemId.String(), "media_id": mediaId.String()}, nil, nil, answerBy(attachmentsResponse))
+}
+
+// AttachPageMedia answers POST /pages/{pageId}/media by the generated mapping.
+func (c *RestController) AttachPageMedia(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
+	var body openapi.AttachPageMediaJSONRequestBody
+	var answer openapi.PageMediaAttachment
+	c.door(w, r, restDoors["attachPageMedia"], usecase.Input{"page_id": pageId.String()}, nil, &body, &answer)
 }
 
 // AttachWhiteboardMedia answers POST /whiteboards/{whiteboardId}/media by the generated mapping.

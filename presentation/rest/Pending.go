@@ -2676,3 +2676,5 @@ func (pending) ReadArticle(w http.ResponseWriter, r *http.Request, _ openapi.Pag
 }
 
 func (pending) RateArticle(w http.ResponseWriter, r *http.Request, _ openapi.PageId) { notAvailable(w, r) }
+
+func (pending) AttachPageMedia(w http.ResponseWriter, r *http.Request, _ openapi.PageId) { notAvailable(w, r) }

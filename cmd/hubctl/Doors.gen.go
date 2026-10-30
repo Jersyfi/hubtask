@@ -927,6 +927,14 @@ var generatedCommands = []door{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"may_share", "page_id", "public_links_allowed", "restricted", "restricted_above"}},
+	{Group: "page", Verb: "attach", OperationID: "attachPageMedia", Method: "POST", Path: "/pages/{pageId}/media", Summary: "Attach an uploaded picture or file to a page",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "media_id", Kind: "uuid", Help: "A confirmed upload", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"media_id"}},
 	{Group: "page", Verb: "backlinks", OperationID: "listPageBacklinks", Method: "GET", Path: "/pages/{pageId}/backlinks", Summary: "What links to a page",
 		PathParams: []doorParam{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},

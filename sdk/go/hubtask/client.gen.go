@@ -16988,6 +16988,12 @@ type PageList struct {
 	Data []Page `json:"data"`
 }
 
+// PageMediaAttachment defines model for PageMediaAttachment.
+type PageMediaAttachment struct {
+	// MediaId A confirmed upload.
+	MediaId openapi_types.UUID `json:"media_id"`
+}
+
 // PageMove defines model for PageMove.
 type PageMove struct {
 	// AfterId The sibling it follows; absent to place it first.
@@ -25206,6 +25212,9 @@ type PublishPageToPortalJSONRequestBody PublishPageToPortalJSONBody
 // AddPageCommentJSONRequestBody defines body for AddPageComment for application/json ContentType.
 type AddPageCommentJSONRequestBody = PageCommentCreate
 
+// AttachPageMediaJSONRequestBody defines body for AttachPageMedia for application/json ContentType.
+type AttachPageMediaJSONRequestBody = PageMediaAttachment
+
 // SharePageJSONRequestBody defines body for SharePage for application/json ContentType.
 type SharePageJSONRequestBody = PageShareCreate
 
@@ -32399,6 +32408,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
 	AddPageComment(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AttachPageMediaWithBody Attach an uploaded picture or file to a page
+	//
+	// Makes a confirmed upload one of the page's pictures and files, so that its body can draw it (an image of `hubtask:media/<id>` on a line of its own) and every reader of the page can read it. The file is one the caller uploaded, or one another page they may read already holds. Kept as long as the page; attaching it twice is once. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /pages/{pageId}/media (the `AttachPageMedia` operationId).
+	AttachPageMediaWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AttachPageMedia Attach an uploaded picture or file to a page
+	//
+	// Makes a confirmed upload one of the page's pictures and files, so that its body can draw it (an image of `hubtask:media/<id>` on a line of its own) and every reader of the page can read it. The file is one the caller uploaded, or one another page they may read already holds. Kept as long as the page; attaching it twice is once. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /pages/{pageId}/media (the `AttachPageMedia` operationId).
+	AttachPageMedia(ctx context.Context, pageId PageId, body AttachPageMediaJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeletePagePublicLink Take a page's public link away
 	//
@@ -48617,6 +48644,44 @@ func (c *Client) AddPageCommentWithBody(ctx context.Context, pageId PageId, cont
 // Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
 func (c *Client) AddPageComment(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewAddPageCommentRequest(c.Server, pageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AttachPageMediaWithBody Attach an uploaded picture or file to a page
+//
+// Makes a confirmed upload one of the page's pictures and files, so that its body can draw it (an image of `hubtask:media/<id>` on a line of its own) and every reader of the page can read it. The file is one the caller uploaded, or one another page they may read already holds. Kept as long as the page; attaching it twice is once. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /pages/{pageId}/media (the `AttachPageMedia` operationId).
+func (c *Client) AttachPageMediaWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAttachPageMediaRequestWithBody(c.Server, pageId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AttachPageMedia Attach an uploaded picture or file to a page
+//
+// Makes a confirmed upload one of the page's pictures and files, so that its body can draw it (an image of `hubtask:media/<id>` on a line of its own) and every reader of the page can read it. The file is one the caller uploaded, or one another page they may read already holds. Kept as long as the page; attaching it twice is once. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /pages/{pageId}/media (the `AttachPageMedia` operationId).
+func (c *Client) AttachPageMedia(ctx context.Context, pageId PageId, body AttachPageMediaJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAttachPageMediaRequest(c.Server, pageId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -77202,6 +77267,53 @@ func NewAddPageCommentRequestWithBody(server string, pageId PageId, contentType 
 	return req, nil
 }
 
+// NewAttachPageMediaRequest calls the generic AttachPageMedia builder with application/json body
+func NewAttachPageMediaRequest(server string, pageId PageId, body AttachPageMediaJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAttachPageMediaRequestWithBody(server, pageId, "application/json", bodyReader)
+}
+
+// NewAttachPageMediaRequestWithBody constructs an http.Request for the AttachPageMedia method, with any body, and a specified content type
+func NewAttachPageMediaRequestWithBody(server string, pageId PageId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/media", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewDeletePagePublicLinkRequest constructs an http.Request for the DeletePagePublicLink method
 func NewDeletePagePublicLinkRequest(server string, pageId PageId) (*http.Request, error) {
 	var err error
@@ -93417,6 +93529,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
 	AddPageCommentWithResponse(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*AddPageCommentResult, error)
+
+	// AttachPageMediaWithBodyWithResponse Attach an uploaded picture or file to a page
+	//
+	// Makes a confirmed upload one of the page's pictures and files, so that its body can draw it (an image of `hubtask:media/<id>` on a line of its own) and every reader of the page can read it. The file is one the caller uploaded, or one another page they may read already holds. Kept as long as the page; attaching it twice is once. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}/media (the `AttachPageMedia` operationId).
+	AttachPageMediaWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AttachPageMediaResult, error)
+
+	// AttachPageMediaWithResponse Attach an uploaded picture or file to a page
+	//
+	// Makes a confirmed upload one of the page's pictures and files, so that its body can draw it (an image of `hubtask:media/<id>` on a line of its own) and every reader of the page can read it. The file is one the caller uploaded, or one another page they may read already holds. Kept as long as the page; attaching it twice is once. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}/media (the `AttachPageMedia` operationId).
+	AttachPageMediaWithResponse(ctx context.Context, pageId PageId, body AttachPageMediaJSONRequestBody, reqEditors ...RequestEditorFn) (*AttachPageMediaResult, error)
 
 	// DeletePagePublicLinkWithResponse Take a page's public link away
 	//
@@ -120050,6 +120180,54 @@ func (r AddPageCommentResult) ContentType() string {
 	return ""
 }
 
+type AttachPageMediaResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageMediaAttachment
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AttachPageMediaResult) GetJSON200() *PageMediaAttachment {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AttachPageMediaResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AttachPageMediaResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AttachPageMediaResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AttachPageMediaResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AttachPageMediaResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type DeletePagePublicLinkResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -140720,6 +140898,36 @@ func (c *ClientWithResponses) AddPageCommentWithResponse(ctx context.Context, pa
 		return nil, err
 	}
 	return ParseAddPageCommentResult(rsp)
+}
+
+// AttachPageMediaWithBodyWithResponse Attach an uploaded picture or file to a page
+//
+// Makes a confirmed upload one of the page's pictures and files, so that its body can draw it (an image of `hubtask:media/<id>` on a line of its own) and every reader of the page can read it. The file is one the caller uploaded, or one another page they may read already holds. Kept as long as the page; attaching it twice is once. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}/media (the `AttachPageMedia` operationId).
+func (c *ClientWithResponses) AttachPageMediaWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AttachPageMediaResult, error) {
+	rsp, err := c.AttachPageMediaWithBody(ctx, pageId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAttachPageMediaResult(rsp)
+}
+
+// AttachPageMediaWithResponse Attach an uploaded picture or file to a page
+//
+// Makes a confirmed upload one of the page's pictures and files, so that its body can draw it (an image of `hubtask:media/<id>` on a line of its own) and every reader of the page can read it. The file is one the caller uploaded, or one another page they may read already holds. Kept as long as the page; attaching it twice is once. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}/media (the `AttachPageMedia` operationId).
+func (c *ClientWithResponses) AttachPageMediaWithResponse(ctx context.Context, pageId PageId, body AttachPageMediaJSONRequestBody, reqEditors ...RequestEditorFn) (*AttachPageMediaResult, error) {
+	rsp, err := c.AttachPageMedia(ctx, pageId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAttachPageMediaResult(rsp)
 }
 
 // DeletePagePublicLinkWithResponse Take a page's public link away
@@ -162266,6 +162474,39 @@ func ParseAddPageCommentResult(rsp *http.Response) (*AddPageCommentResult, error
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAttachPageMediaResult parses an HTTP response from a AttachPageMediaWithResponse call
+func ParseAttachPageMediaResult(rsp *http.Response) (*AttachPageMediaResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AttachPageMediaResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageMediaAttachment
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

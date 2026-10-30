@@ -16983,6 +16983,12 @@ type PageList struct {
 	Data []Page `json:"data"`
 }
 
+// PageMediaAttachment defines model for PageMediaAttachment.
+type PageMediaAttachment struct {
+	// MediaId A confirmed upload.
+	MediaId openapi_types.UUID `json:"media_id"`
+}
+
 // PageMove defines model for PageMove.
 type PageMove struct {
 	// AfterId The sibling it follows; absent to place it first.
@@ -25201,6 +25207,9 @@ type PublishPageToPortalJSONRequestBody PublishPageToPortalJSONBody
 // AddPageCommentJSONRequestBody defines body for AddPageComment for application/json ContentType.
 type AddPageCommentJSONRequestBody = PageCommentCreate
 
+// AttachPageMediaJSONRequestBody defines body for AttachPageMedia for application/json ContentType.
+type AttachPageMediaJSONRequestBody = PageMediaAttachment
+
 // SharePageJSONRequestBody defines body for SharePage for application/json ContentType.
 type SharePageJSONRequestBody = PageShareCreate
 
@@ -27351,6 +27360,9 @@ type ServerInterface interface {
 	// AddPageComment Comment on a page
 	// (POST /pages/{pageId}/comments)
 	AddPageComment(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// AttachPageMedia Attach an uploaded picture or file to a page
+	// (POST /pages/{pageId}/media)
+	AttachPageMedia(w http.ResponseWriter, r *http.Request, pageId PageId)
 	// DeletePagePublicLink Take a page's public link away
 	// (DELETE /pages/{pageId}/public-link)
 	DeletePagePublicLink(w http.ResponseWriter, r *http.Request, pageId PageId)
@@ -44537,6 +44549,32 @@ func (siw *ServerInterfaceWrapper) AddPageComment(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// AttachPageMedia operation middleware
+func (siw *ServerInterfaceWrapper) AttachPageMedia(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AttachPageMedia(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DeletePagePublicLink operation middleware
 func (siw *ServerInterfaceWrapper) DeletePagePublicLink(w http.ResponseWriter, r *http.Request) {
 
@@ -51522,6 +51560,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/shares/{accountId}", wrapper.UnsharePage)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/public-link", wrapper.DeletePagePublicLink)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/public-link", wrapper.CreatePagePublicLink)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/media", wrapper.AttachPageMedia)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/articles", wrapper.PublishPageToPortal)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/articles/{collectionId}", wrapper.UnpublishPageFromPortal)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:public-links", wrapper.ReadPublicLinksPolicy)

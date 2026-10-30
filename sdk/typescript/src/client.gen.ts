@@ -3456,6 +3456,11 @@ export class HubtaskClient {
     return this.call("DELETE", "/pages/{pageId}/public-link", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** Attach an uploaded picture or file to a page */
+  attachPageMedia(pageId: string, body: NonNullable<operations["attachPageMedia"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["attachPageMedia"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/pages/{pageId}/media", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Publish a page to a service's portal */
   publishPageToPortal(pageId: string, body: NonNullable<operations["publishPageToPortal"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["publishPageToPortal"]['responses'][201]['content']["application/json"]> {
     return this.call("POST", "/pages/{pageId}/articles", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);

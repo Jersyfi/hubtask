@@ -2751,6 +2751,10 @@ class Client:
         """Take a page's public link away"""
         return self._call("DELETE", "/pages/{pageId}/public-link", {"pageId": page_id}, None, {}, None, "none", None, "void")
 
+    def attach_page_media(self, page_id: str, body: "PageMediaAttachment") -> "PageMediaAttachment":
+        """Attach an uploaded picture or file to a page"""
+        return self._call("POST", "/pages/{pageId}/media", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
     def publish_page_to_portal(self, page_id: str, body: dict[str, Any]) -> "PageArticle":
         """Publish a page to a service's portal"""
         return self._call("POST", "/pages/{pageId}/articles", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
