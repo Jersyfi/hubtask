@@ -142,7 +142,7 @@
     </ul>
     <Inline gap="150" align="center">
       {#if hubId}
-        <ViewSectionsAsFile sections={['modules', 'structure', 'scheme']} {hubId} />
+        <ViewSectionsAsFile sections={['modules', 'structure', 'scheme', 'business_calendars']} {hubId} />
       {:else}
         <ViewAsFile values={shown} {place} />
       {/if}

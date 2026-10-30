@@ -15,6 +15,7 @@
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import ViewSectionsAsFile from '../settings/ViewSectionsAsFile.svelte';
   import { WEEKDAYS, formOf, holidaysOf, hoursOf, hubCalendarRows, type HubCalendarRow } from './desk.ts';
 
   interface Props {
@@ -124,6 +125,7 @@
       </li>
     {/each}
   </ul>
+  {#if mayShape}<div><ViewSectionsAsFile sections={['business_calendars']} {hubId} /></div>{/if}
 </Stack>
 
 <style>
