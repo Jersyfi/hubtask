@@ -8810,6 +8810,9 @@ paths:
     post:
       tags: [backup]
       operationId: startRestore
+      x-hubtask-rest: generated
+      x-hubtask-rest-flatten: { selection: { container_ids: selection_container_ids, item_ids: selection_item_ids } }
+      x-hubtask-rest-answer: acceptedRestore
       summary: Start a restore
       description: |
         A dry run (`dry_run: true`) with a report by default. Destructive modes

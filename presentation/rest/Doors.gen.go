@@ -648,6 +648,7 @@ var restDoors = map[string]restDoor{
 	"startPasskeyStepUp":                {UseCase: "StartPasskeyStepUp", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"host"}},
 	"startProviderConnect":              {UseCase: "StartProviderConnect", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"startProviderStepUp":               {UseCase: "StartProviderStepUp", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"startRestore":                      {UseCase: "StartRestore", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Flatten: map[string]map[string]string{"selection": {"container_ids": "selection_container_ids", "item_ids": "selection_item_ids"}}},
 	"startSprint":                       {UseCase: "StartSprint", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"startTimer":                        {UseCase: "StartTimer", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"startViewAs":                       {UseCase: "StartViewAs", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -4501,6 +4502,12 @@ func (c *RestController) StartProviderConnect(w http.ResponseWriter, r *http.Req
 func (c *RestController) StartProviderStepUp(w http.ResponseWriter, r *http.Request) {
 	var answer openapi.ProviderStepUpAuthorization
 	c.door(w, r, restDoors["startProviderStepUp"], usecase.Input{}, nil, nil, &answer)
+}
+
+// StartRestore answers POST /restores by the generated mapping.
+func (c *RestController) StartRestore(w http.ResponseWriter, r *http.Request) {
+	var body openapi.StartRestoreJSONRequestBody
+	c.door(w, r, restDoors["startRestore"], usecase.Input{}, nil, &body, answerBy(acceptedRestore))
 }
 
 // StartSprint answers POST /sprints/{sprintId}:start by the generated mapping.

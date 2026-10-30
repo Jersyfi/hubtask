@@ -637,6 +637,11 @@ func (h StartRestore) Descriptor() usecase.Descriptor {
 					"authentication: the token POST /auth/step-up answered, consumed by this " +
 					"one restore.",
 			},
+			{
+				Name: "decryption_passphrase", Kind: usecase.KindString,
+				Description: "Not served by this build: a passphrase is refused rather than " +
+					"ignored. The archive's key is the installation's.",
+			},
 		},
 		StepUp: "the destructive modes (REPLACE_TENANT, INSTANCE)",
 		Audit: usecase.AuditDeclaration{
@@ -650,6 +655,13 @@ func (h StartRestore) Descriptor() usecase.Descriptor {
 func (h StartRestore) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
+	if in.String("decryption_passphrase") != "" {
+		return nil, shared.ErrValidation.
+			WithDetail("backup.encryption_passphrase_not_available").
+			WithFields(shared.FieldError{
+				Path: "/decryption_passphrase", Code: "backup.encryption_passphrase_not_available",
+			})
+	}
 	targetID, err := in.ID("target_id")
 	if err != nil {
 		return nil, err

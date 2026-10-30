@@ -14486,6 +14486,14 @@
           "backup"
         ],
         "operationId": "startRestore",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-flatten": {
+          "selection": {
+            "container_ids": "selection_container_ids",
+            "item_ids": "selection_item_ids"
+          }
+        },
+        "x-hubtask-rest-answer": "acceptedRestore",
         "summary": "Start a restore",
         "description": "A dry run (`dry_run: true`) with a report by default. Destructive modes\n(`REPLACE_TENANT`, `INSTANCE`) additionally require step-up authentication and the\ntenant name typed into `confirmation`. `NEW_TENANT` and `INSTANCE` create a workspace or\ncross all of them, so they are the installation operator's: the credential needs the\n`admin:tenants` scope as well, and is refused with `access.insufficient_scope` without it.\nA restore fires no automation, sends no notifications, and restores no tokens.\n",
         "requestBody": {
