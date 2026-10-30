@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { BaselineComparison, PlanSchedule, PlanScheduleEntry } from '@hubtask/sync-engine';
 
-import { dependencyDrawn, ganttRows, inTreeOrder, lagOf, proposedMoves } from './planning.ts';
+import { PLAN_CSV_HEADS, dependencyDrawn, ganttRows, inTreeOrder, lagOf, planCsvRows, projectFormatOf, proposedMoves } from './planning.ts';
 
 const entry = (id: string, more: Partial<PlanScheduleEntry> = {}): PlanScheduleEntry => ({
   item_id: id, title: id, parent_id: null, collection_id: 'c', start: '2026-11-02', finish: '2026-11-04',
@@ -90,4 +90,34 @@ test('a lag is a whole number of working days within the bound', () => {
 test('a dependency drawn makes the row let go over wait for the bar it began on', () => {
   assert.deepEqual(dependencyDrawn('design', 'build'), { sourceId: 'build', targetId: 'design', type: 'depends_on' });
   assert.equal(dependencyDrawn('design', 'design'), undefined);
+});
+
+// UC-PLN-09 check 6: the plan saved as a table the import reads back - the outline as its level,
+// a milestone marked, and what each row waits on by the row's number with its kind and lag.
+test('the plan as a CSV keeps the outline, the milestones and the predecessors', () => {
+  const plan = schedule([
+    entry('phase', { summary: true, finish: '2026-11-20' }),
+    entry('design', { parent_id: 'phase' }),
+    entry('build', { parent_id: 'phase', critical: true }),
+    entry('launch', { milestone: true, start: '2026-11-20', finish: '2026-11-20' }),
+  ]);
+  plan.dependencies = [
+    { link_id: 'l1', type: 'blocks', predecessor_id: 'design', successor_id: 'build', dependency_kind: 'SS', lag_days: 2 },
+    { link_id: 'l2', type: 'blocks', predecessor_id: 'build', successor_id: 'launch', dependency_kind: 'FS', lag_days: 0 },
+    { link_id: 'l3', type: 'blocks', predecessor_id: 'design', successor_id: 'launch', dependency_kind: 'FF', lag_days: -1 },
+  ];
+  const rows = planCsvRows(ganttRows(plan, undefined, (instant) => instant.slice(0, 10)), plan);
+  assert.equal(PLAN_CSV_HEADS.length, rows[0]?.length);
+  assert.deepEqual(rows.map((row) => [row[0], row[4], row[5], row[6]]), [
+    [1, 1, '', ''], [2, 2, '', ''], [3, 2, '', '2SS+2d'], [4, 1, 'yes', '3;2FF-1d'],
+  ]);
+  assert.equal(rows[3]?.[2], '', 'a milestone has no start');
+  assert.equal(rows[2]?.[9], 'yes');
+});
+
+test("a project file's format is its name's, else its first character's", () => {
+  assert.equal(projectFormatOf('plan.XML', ''), 'MSPROJECT_XML');
+  assert.equal(projectFormatOf('plan.csv', '<x'), 'CSV');
+  assert.equal(projectFormatOf('plan', '  <?xml'), 'MSPROJECT_XML');
+  assert.equal(projectFormatOf('plan', 'ID,Name'), 'CSV');
 });

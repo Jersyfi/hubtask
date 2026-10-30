@@ -31,7 +31,7 @@
   import { engine } from '../lib/data/engine.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import {
-    baselinesPath, dependencyDrawn, ganttRows, lagOf, planning, proposedMoves, schedulePath, tolerancePath,
+    PLAN_CSV_HEADS, baselinesPath, dependencyDrawn, ganttRows, lagOf, planCsvRows, planning, proposedMoves, schedulePath, tolerancePath,
   } from '../lib/data/planning.svelte.ts';
   import { anchorOf, draggedTo, gridOf, scaleOf, windowOf, type Scale } from '../lib/data/schedule.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
@@ -44,6 +44,10 @@
   import { firstWeekdayOf } from '../lib/i18n/week.ts';
   import { dateIn, instantOf, todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { platform } from '../lib/platform/index.ts';
+  import { csvOf } from '../lib/data/goals.ts';
+  import PlanImport from '../lib/planning/PlanImport.svelte';
+  import { drawPlan, pngOf, printPicture } from '../lib/planning/planPicture.ts';
 
   interface Props {
     /** The hub or collection the plan is. */
@@ -256,6 +260,30 @@
   }
 
   let isTaking = $state(false);
+  let isImporting = $state(false);
+
+  /**
+   * The plan saved as the reader sees it (UC-PLN-09 check 6): a CSV the import reads back, a PNG
+   * of the chart, or the chart printed - which the browser saves as PDF.
+   */
+  async function exportAs(id: string) {
+    if (id === 'import') {
+      isImporting = true;
+      return;
+    }
+    if (!schedule) return;
+    const name = `plan-${place?.handle ?? planId}`;
+    const title = place ? t('app.planning.title_of', { place: place.name }) : t('app.planning.title');
+    if (id === 'csv') {
+      platform.saveFile(new Blob([csvOf([...PLAN_CSV_HEADS], planCsvRows(rows, schedule))], { type: 'text/csv;charset=utf-8' }), `${name}.csv`);
+    } else if (id === 'png') {
+      platform.saveFile(await pngOf(drawPlan(rows, title)), `${name}.png`);
+    } else if (id === 'pdf') {
+      printPicture(drawPlan(rows, title), title);
+      return;
+    } else return;
+    toast.show({ text: t('app.planning.exported'), tone: 'success' });
+  }
   let baselineName = $state('');
   function take() {
     const name = baselineName.trim();
@@ -308,6 +336,16 @@
         }
       : undefined}
     secondary={mayWrite ? [{ label: t('app.planning.take_baseline'), icon: 'flag', onclick: () => (isTaking = true) }] : []}
+    menu={{
+      label: t('app.planning.more'),
+      items: [
+        { id: 'csv', label: t('app.planning.export_csv'), icon: 'file-text' },
+        { id: 'png', label: t('app.planning.export_png'), icon: 'image' },
+        { id: 'pdf', label: t('app.planning.export_pdf'), icon: 'file-text' },
+        ...(mayWrite && place?.type === 'COLLECTION' ? [{ id: 'import', label: t('app.planning.import'), icon: 'cloud-upload' as const, hasSeparatorBefore: true }] : []),
+      ],
+      onselect: (id: string) => void exportAs(id),
+    }}
   />
 
   {#if refusal}
@@ -527,6 +565,12 @@
     {/if}
   {/if}
 </Stack>
+
+{#if isImporting}
+  <Dialog bind:isOpen={isImporting} title={t('app.planning.import')} dismissLabel={t('app.links.cancel')}>
+    <PlanImport collectionId={planId} {zone} ondone={() => (isImporting = false)} />
+  </Dialog>
+{/if}
 
 {#if isTaking}
   <Dialog bind:isOpen={isTaking} title={t('app.planning.take_baseline')} dismissLabel={t('app.links.cancel')}>

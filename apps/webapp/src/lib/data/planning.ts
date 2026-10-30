@@ -116,3 +116,43 @@ export function dependencyDrawn(from: string, to: string): { sourceId: string; t
   if (from === to) return undefined;
   return { sourceId: to, targetId: from, type: 'depends_on' };
 }
+
+/**
+ * The plan as a table to save (UC-PLN-09 check 6): one row per entry in the tree's order, its depth
+ * as the outline level, its dates, duration, float and marks, and what it waits on in the
+ * notation a project tool reads back (`3SS+2`), keyed by the row's number - so the file comes
+ * back in through the import.
+ */
+export function planCsvRows(rows: readonly GanttRow[], schedule: PlanSchedule): (string | number)[][] {
+  const number = new Map(rows.map((row, at) => [row.id, at + 1]));
+  const waits = new Map<string, string[]>();
+  for (const each of schedule.dependencies) {
+    const from = number.get(each.predecessor_id);
+    if (from === undefined) continue;
+    const lag = each.lag_days === 0 ? '' : each.lag_days > 0 ? `+${each.lag_days}d` : `${each.lag_days}d`;
+    const kind = each.dependency_kind === 'FS' && lag === '' ? '' : each.dependency_kind;
+    waits.set(each.successor_id, [...(waits.get(each.successor_id) ?? []), `${from}${kind}${lag}`]);
+  }
+  return rows.map((row, at) => [
+    at + 1,
+    row.title,
+    row.kind === 'milestone' ? '' : row.start,
+    row.due,
+    row.depth + 1,
+    row.kind === 'milestone' ? 'yes' : '',
+    (waits.get(row.id) ?? []).join(';'),
+    row.entry.duration_days,
+    row.entry.total_float_days,
+    row.isCritical ? 'yes' : '',
+  ]);
+}
+
+/** The columns `planCsvRows` fills, in its order; the first seven are the ones the import reads. */
+export const PLAN_CSV_HEADS = ['ID', 'Name', 'Start', 'Finish', 'Outline Level', 'Milestone', 'Predecessors', 'Duration', 'Total Float', 'Critical'] as const;
+
+/** A project file's format from its name, else from its first character. */
+export function projectFormatOf(fileName: string, content: string): 'MSPROJECT_XML' | 'CSV' {
+  if (/\.xml$/iu.test(fileName)) return 'MSPROJECT_XML';
+  if (/\.csv$/iu.test(fileName)) return 'CSV';
+  return content.trimStart().startsWith('<') ? 'MSPROJECT_XML' : 'CSV';
+}
