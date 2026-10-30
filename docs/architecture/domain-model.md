@@ -760,6 +760,17 @@ deadline and a change's effectiveness check.
   `MANAGE_MEMBERS`) at the workspace or at the hub or collection of the entries; nobody approves
   their own week. `Actuals` adds everybody's minutes to an entry's estimate in hours, rolled up its
   parents.
+* **Resources and costs** (`core/domain/model/timekeeping`, M7; in the domain only, not stored yet):
+  a **`Capacity`** is a person's minutes per weekday from a day on, until their next; an
+  **`Absence`** is a span of days, whole or half, of `LEAVE`, `TRAINING` or `OTHER` - no illness as
+  a kind, because a calendar the team shares must not show a health reason (GDPR Art. 9). Public
+  holidays are the business calendar's, recorded once for everybody. `Available` is a day's
+  capacity less holidays and absences; `Workload` spreads each open entry's remaining estimate over
+  its scheduled days a person can work and marks a week over or under allocated; `SumByWeek` is
+  the same per team, naming nobody. A **`CostRate`** prices an hour of a person or of a role in one
+  ISO 4217 currency over a validity without overlaps, a person's before their role's; a
+  **`Budget`** of a hub or collection holds minutes, money or both, and `BurnOf` counts recorded
+  time against it, leaving minutes whose rate is in another currency unpriced (no exchange rates).
 * **The portal** (UC-SVC-05): a requester holds `REQUEST` at a collection serving as a service. Its
   catalogue is the top-level types the collection offers whose form names the `PORTAL` channel and
   leaves it open (opt-in per type); a request is an entry raised through `CreateWorkItem` on the

@@ -4,8 +4,9 @@
 // Package timekeeping is the time module's domain (M7): the time a person records where the work
 // is, by hand or with a timer; the week it falls in, handed in, approved and then locked; a
 // workspace's kinds of work; its locked period and whether a lead sees a person's minutes or only
-// a team's; and the sums a report, an export and an entry's estimate against its actuals are made
-// of.
+// a team's; the sums a report, an export and an entry's estimate against its actuals are made of;
+// and the resources beside the time - a person's capacity and absences and the workload their
+// entries ask of it, the cost rates of people and roles, and a budget's burn.
 //
 // A record is personal data about the person who worked (UC-TIM-01): it is theirs to write while
 // its week is open, it is never changed once approved - a correction is a new, signed record in an
