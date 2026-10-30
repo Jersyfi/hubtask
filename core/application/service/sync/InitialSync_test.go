@@ -14,6 +14,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
+	"github.com/Jersyfi/hubtask/core/domain/model/agent"
 	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	"github.com/Jersyfi/hubtask/core/domain/model/goal"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
@@ -62,6 +63,11 @@ type snapshotStore struct {
 	rates       []timekeeping.CostRate
 	budgets     []timekeeping.Budget
 	portfolios  []goal.Portfolio
+	models      []agent.Model
+	agents      []agent.Agent
+	held        []repository.HeldActOf
+	cases       []agent.Case
+	runs        []repository.RunOf
 	// groups are the groups the reader is in.
 	groups map[shared.ID]bool
 	// reads counts the pages asked for, so a test can say how much of the store a walk touched.

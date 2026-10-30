@@ -87,7 +87,7 @@ A **null cursor is the initial synchronisation**: the current state, one kind at
 (containers, buckets, labels, entries, set elements, comments, reminders, recurrence rules,
 templates, entry types, link types, workflows, custom roles, links, the reader's own role grants,
 pages, configuration items, their relations, the CMDB's catalogue, entry schedules, goal periods,
-goals, check-ins, dashboards, sprints, entries' open sprints and estimates, custom field definitions, the reader's own time records, running timer, weeks and capacities, the kinds of work, the time policy, the absences, the cost rates and the budgets, portfolios), paged by identifier, each row
+goals, check-ins, dashboards, sprints, entries' open sprints and estimates, custom field definitions, the reader's own time records, running timer, weeks and capacities, the kinds of work, the time policy, the absences, the cost rates and the budgets, portfolios, the agents' models, agents, held acts, evaluation cases and runs), paged by identifier, each row
 judged by the same permission as a delta record, with the log position taken *before* the first
 page so a change landing mid-walk is the first delta's. Entry types, link types and workflows are
 the workspace's vocabulary and reach every member; a custom role reaches whoever may read at the
@@ -141,7 +141,13 @@ portfolio (`portfolio`) is filed under no container and reaches whoever may read
 as `ListPortfolios` answers it; its record names each project by its container, and the walk and
 the stream keep of them only those the reader may read - each judged as a change filed under it -,
 so one record is narrowed per reader. Its names, counts and budgets are read for the reader online
-or from the reader's own copy of the containers. A
+or from the reader's own copy of the containers. The registry's rows - `agent_model`, `agent`,
+`agent_request` (a held act), `agent_eval_case`, `agent_eval_run` - are filed under no container;
+an agent, a held act and a run reach the agent's owner, whom a held act's and a run's record name as
+`owner_id`, and every row reaches whoever administers agents (`MANAGE_MEMBERS` at the workspace), as
+the registry's lists answer. An agent's record says whether its approval covers its model's revision
+when it was written; a changed model records its agents again. The ledger, the jobs and the
+spending are read online. A
 mid-walk page cursor names the kind and key it resumes after; the pull continues it, the stream
 refuses it.
 

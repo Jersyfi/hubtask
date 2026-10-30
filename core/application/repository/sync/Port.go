@@ -14,6 +14,7 @@ import (
 	"time"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/agent"
 	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	"github.com/Jersyfi/hubtask/core/domain/model/goal"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
@@ -199,6 +200,13 @@ type Snapshot interface {
 	Dashboards(ctx context.Context, after shared.ID, batch int) ([]goal.Dashboard, error)
 	// Portfolios pages the workspace's portfolios with every project; the walk narrows them.
 	Portfolios(ctx context.Context, after shared.ID, batch int) ([]goal.Portfolio, error)
+	// AgentModels, Agents, AgentRequests, AgentCases and AgentRuns page the registry (M9); a held
+	// act and a run carry their agent's owner, whom they reach.
+	AgentModels(ctx context.Context, after shared.ID, batch int) ([]agent.Model, error)
+	Agents(ctx context.Context, after shared.ID, batch int) ([]agent.Agent, error)
+	AgentRequests(ctx context.Context, after shared.ID, batch int) ([]HeldActOf, error)
+	AgentCases(ctx context.Context, after shared.ID, batch int) ([]agent.Case, error)
+	AgentRuns(ctx context.Context, after shared.ID, batch int) ([]RunOf, error)
 	// CIRelations pages the relations between them.
 	CIRelations(ctx context.Context, after shared.ID, batch int) ([]cmdb.Relation, error)
 	// CmdbCatalogue reads the workspace's own classes and relation types.
@@ -223,6 +231,18 @@ type SprintEntryOf struct {
 	SprintID     shared.ID
 	CollectionID shared.ID
 	Committed    bool
+}
+
+// HeldActOf is a held act with its agent's owner.
+type HeldActOf struct {
+	Request agent.Request
+	OwnerID shared.ID
+}
+
+// RunOf is an evaluation run with its agent's owner.
+type RunOf struct {
+	Run     agent.Run
+	OwnerID shared.ID
 }
 
 // EstimateOf is an entry's estimate with its collection.

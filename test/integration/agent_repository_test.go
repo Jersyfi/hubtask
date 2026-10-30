@@ -161,3 +161,90 @@ func TestAgentsStayInTheirWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// The walk's registry rows stay in their workspace, a held act and a run with their agent's owner
+// (offline-sync.md §3.1).
+func TestTheRegistryWalkStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	store := postgres.NewAgentRepository()
+	snapshot := postgres.NewSnapshotRepository()
+	now := time.Date(2026, 11, 3, 17, 0, 0, 0, time.UTC)
+	model := agent.Model{
+		ID: freshID(t), Key: "walked-" + freshID(t).String()[:8], Name: "Walked", Source: agent.SourceOwn, Model: "m",
+		Region: agent.RegionSelfHosted, ConsentBy: authorA, ConsentAt: now,
+	}
+	a := agent.Agent{
+		ID: freshID(t), AccountID: freshID(t), Name: "Walked", Purpose: "Sorts tickets", Kind: agent.KindTicketTriage,
+		OwnerID: authorA, RiskClass: agent.RiskMinimal, Scopes: []string{"items:read"}, ModelID: model.ID,
+		Policy: agent.DefaultPolicy(), Budget: agent.DefaultBudget(), Status: agent.StatusDraft, CreatedBy: authorA,
+		CreatedAt: now,
+	}
+	request := agent.Request{ID: freshID(t), AgentID: a.ID, UseCase: "UpdateWorkItem", Class: agent.ClassReversible, Input: map[string]any{}, CreatedAt: now}
+	evalCase := agent.Case{ID: freshID(t), AgentID: a.ID, Title: "Printer", Expected: map[string]any{}, CreatedBy: authorA, CreatedAt: now}
+	run := agent.Run{ID: freshID(t), AgentID: a.ID, ModelRevision: 1, Cases: 1, Passed: 1, By: authorA, At: now}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := store.InsertModel(ctx, model, now); err != nil {
+			return err
+		}
+		if err := store.InsertAgent(ctx, a); err != nil {
+			return err
+		}
+		if err := store.InsertRequest(ctx, request); err != nil {
+			return err
+		}
+		if err := store.InsertCase(ctx, evalCase); err != nil {
+			return err
+		}
+		return store.InsertRun(ctx, run)
+	}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	type seen struct{ model, agent, request, evalCase, run bool }
+	walked := func(tenant shared.ID) (s seen) {
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			models, err := snapshot.AgentModels(ctx, "", 5000)
+			if err != nil {
+				return err
+			}
+			for _, m := range models {
+				s.model = s.model || m.ID == model.ID
+			}
+			agents, err := snapshot.Agents(ctx, "", 5000)
+			if err != nil {
+				return err
+			}
+			for _, x := range agents {
+				s.agent = s.agent || x.ID == a.ID
+			}
+			held, err := snapshot.AgentRequests(ctx, "", 5000)
+			if err != nil {
+				return err
+			}
+			for _, h := range held {
+				s.request = s.request || (h.Request.ID == request.ID && h.OwnerID == authorA)
+			}
+			cases, err := snapshot.AgentCases(ctx, "", 5000)
+			if err != nil {
+				return err
+			}
+			for _, c := range cases {
+				s.evalCase = s.evalCase || c.ID == evalCase.ID
+			}
+			runs, err := snapshot.AgentRuns(ctx, "", 5000)
+			for _, r := range runs {
+				s.run = s.run || (r.Run.ID == run.ID && r.OwnerID == authorA)
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	if got := walked(tenantA); got != (seen{true, true, true, true, true}) {
+		t.Errorf("the workspace's walk = %+v, want every row, a held act and a run with the owner", got)
+	}
+	if got := walked(tenantB); got != (seen{}) {
+		t.Errorf("the workspace next door walked %+v", got)
+	}
+}

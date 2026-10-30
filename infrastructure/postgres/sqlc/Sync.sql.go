@@ -614,6 +614,335 @@ func (q *Queries) RevokeSessionsOfStaleDevices(ctx context.Context, arg RevokeSe
 	return result.RowsAffected(), nil
 }
 
+const snapshotAgentCases = `-- name: SnapshotAgentCases :many
+SELECT id, agent_id, title, notes, expected, created_by, created_at
+FROM agent_eval_case
+WHERE tenant_id = current_tenant_id() AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotAgentCasesParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotAgentCasesRow struct {
+	ID        pgtype.UUID
+	AgentID   pgtype.UUID
+	Title     string
+	Notes     string
+	Expected  []byte
+	CreatedBy pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+// The evaluation cases (migration 0251), paged by identifier.
+func (q *Queries) SnapshotAgentCases(ctx context.Context, arg SnapshotAgentCasesParams) ([]SnapshotAgentCasesRow, error) {
+	rows, err := q.db.Query(ctx, snapshotAgentCases, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotAgentCasesRow{}
+	for rows.Next() {
+		var i SnapshotAgentCasesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AgentID,
+			&i.Title,
+			&i.Notes,
+			&i.Expected,
+			&i.CreatedBy,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotAgentModels = `-- name: SnapshotAgentModels :many
+SELECT id, key, name, source, offered_id, model, region, retention_days, consent_by, consent_at,
+       revision, retired, updated_at, version
+FROM agent_model
+WHERE tenant_id = current_tenant_id() AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotAgentModelsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotAgentModelsRow struct {
+	ID            pgtype.UUID
+	Key           string
+	Name          string
+	Source        string
+	OfferedID     pgtype.UUID
+	Model         string
+	Region        string
+	RetentionDays *int32
+	ConsentBy     pgtype.UUID
+	ConsentAt     pgtype.Timestamptz
+	Revision      int32
+	Retired       bool
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
+}
+
+// The registry's models (migration 0251), paged by identifier.
+func (q *Queries) SnapshotAgentModels(ctx context.Context, arg SnapshotAgentModelsParams) ([]SnapshotAgentModelsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotAgentModels, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotAgentModelsRow{}
+	for rows.Next() {
+		var i SnapshotAgentModelsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.Name,
+			&i.Source,
+			&i.OfferedID,
+			&i.Model,
+			&i.Region,
+			&i.RetentionDays,
+			&i.ConsentBy,
+			&i.ConsentAt,
+			&i.Revision,
+			&i.Retired,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotAgentRequests = `-- name: SnapshotAgentRequests :many
+SELECT r.id, r.agent_id, r.use_case, r.class, r.input, r.status, r.decided_by, r.decided_at, r.code,
+       r.created_at, r.version, a.owner_id
+FROM agent_request r
+JOIN agent a ON a.tenant_id = r.tenant_id AND a.id = r.agent_id
+WHERE r.tenant_id = current_tenant_id() AND r.id > $1
+ORDER BY r.id
+LIMIT $2
+`
+
+type SnapshotAgentRequestsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotAgentRequestsRow struct {
+	ID        pgtype.UUID
+	AgentID   pgtype.UUID
+	UseCase   string
+	Class     string
+	Input     []byte
+	Status    string
+	DecidedBy pgtype.UUID
+	DecidedAt pgtype.Timestamptz
+	Code      string
+	CreatedAt pgtype.Timestamptz
+	Version   int32
+	OwnerID   pgtype.UUID
+}
+
+// The held acts (migration 0251) with their agent's owner, paged by identifier.
+func (q *Queries) SnapshotAgentRequests(ctx context.Context, arg SnapshotAgentRequestsParams) ([]SnapshotAgentRequestsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotAgentRequests, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotAgentRequestsRow{}
+	for rows.Next() {
+		var i SnapshotAgentRequestsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AgentID,
+			&i.UseCase,
+			&i.Class,
+			&i.Input,
+			&i.Status,
+			&i.DecidedBy,
+			&i.DecidedAt,
+			&i.Code,
+			&i.CreatedAt,
+			&i.Version,
+			&i.OwnerID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotAgentRuns = `-- name: SnapshotAgentRuns :many
+SELECT r.id, r.agent_id, r.model_revision, r.cases, r.passed, r.run_by, r.at, a.owner_id
+FROM agent_eval_run r
+JOIN agent a ON a.tenant_id = r.tenant_id AND a.id = r.agent_id
+WHERE r.tenant_id = current_tenant_id() AND r.id > $1
+ORDER BY r.id
+LIMIT $2
+`
+
+type SnapshotAgentRunsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotAgentRunsRow struct {
+	ID            pgtype.UUID
+	AgentID       pgtype.UUID
+	ModelRevision int32
+	Cases         int32
+	Passed        int32
+	RunBy         pgtype.UUID
+	At            pgtype.Timestamptz
+	OwnerID       pgtype.UUID
+}
+
+// The evaluation runs (migration 0251) with their agent's owner, paged by identifier.
+func (q *Queries) SnapshotAgentRuns(ctx context.Context, arg SnapshotAgentRunsParams) ([]SnapshotAgentRunsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotAgentRuns, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotAgentRunsRow{}
+	for rows.Next() {
+		var i SnapshotAgentRunsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AgentID,
+			&i.ModelRevision,
+			&i.Cases,
+			&i.Passed,
+			&i.RunBy,
+			&i.At,
+			&i.OwnerID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotAgents = `-- name: SnapshotAgents :many
+SELECT id, account_id, name, purpose, kind, owner_id, risk_class, scopes, model_id, policy_reversible,
+       policy_irreversible, tokens_per_day, actions_per_hour, concurrent_runs, min_accuracy, status,
+       approved_by, approved_at, approved_model_revision, suspended_by, suspended_at, created_by,
+       created_at, updated_at, version
+FROM agent
+WHERE tenant_id = current_tenant_id() AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotAgentsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotAgentsRow struct {
+	ID                    pgtype.UUID
+	AccountID             pgtype.UUID
+	Name                  string
+	Purpose               string
+	Kind                  string
+	OwnerID               pgtype.UUID
+	RiskClass             string
+	Scopes                []string
+	ModelID               pgtype.UUID
+	PolicyReversible      string
+	PolicyIrreversible    string
+	TokensPerDay          int64
+	ActionsPerHour        int32
+	ConcurrentRuns        int32
+	MinAccuracy           int16
+	Status                string
+	ApprovedBy            pgtype.UUID
+	ApprovedAt            pgtype.Timestamptz
+	ApprovedModelRevision int32
+	SuspendedBy           pgtype.UUID
+	SuspendedAt           pgtype.Timestamptz
+	CreatedBy             pgtype.UUID
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	Version               int32
+}
+
+// The registry's agents (migration 0251), paged by identifier.
+func (q *Queries) SnapshotAgents(ctx context.Context, arg SnapshotAgentsParams) ([]SnapshotAgentsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotAgents, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotAgentsRow{}
+	for rows.Next() {
+		var i SnapshotAgentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Name,
+			&i.Purpose,
+			&i.Kind,
+			&i.OwnerID,
+			&i.RiskClass,
+			&i.Scopes,
+			&i.ModelID,
+			&i.PolicyReversible,
+			&i.PolicyIrreversible,
+			&i.TokensPerDay,
+			&i.ActionsPerHour,
+			&i.ConcurrentRuns,
+			&i.MinAccuracy,
+			&i.Status,
+			&i.ApprovedBy,
+			&i.ApprovedAt,
+			&i.ApprovedModelRevision,
+			&i.SuspendedBy,
+			&i.SuspendedAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotBuckets = `-- name: SnapshotBuckets :many
 SELECT
   id, tenant_id, collection_id, name, order_key, wip_limit, is_done_bucket, color_token,

@@ -98,7 +98,9 @@ type authorizer struct {
 	allowed   map[shared.ID]bool
 	workspace bool
 	// costs answers MANAGE_COSTS by the path's last scope, the workspace under the empty one.
-	costs     map[shared.ID]bool
+	costs map[shared.ID]bool
+	// members answers MANAGE_MEMBERS at the workspace: administering agents.
+	members   bool
 	questions int
 	err       error
 }
@@ -113,6 +115,9 @@ func (a *authorizer) Permits(
 	// The container is the last scope of the path, which is what ContainerScopes builds; a path
 	// that ends at the tenant is the workspace-wide question.
 	last := request.Path[len(request.Path)-1]
+	if request.Permission == service.PermissionManageMembers {
+		return a.members, nil
+	}
 	if request.Permission == service.PermissionManageCosts {
 		if last.Type == identity.ScopeTenant {
 			return a.costs[""], nil

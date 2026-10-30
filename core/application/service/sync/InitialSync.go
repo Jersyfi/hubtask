@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
+	agentservice "github.com/Jersyfi/hubtask/core/application/service/agent"
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
 	goalservice "github.com/Jersyfi/hubtask/core/application/service/goal"
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
@@ -43,6 +44,7 @@ var walkKinds = []string{
 	entityTimeRecord, entityTimer, entityWorkTypes, entityTimePolicy,
 	entityTimesheet, entityCapacities, entityAbsence, entityCostRates, entityBudget,
 	entityPortfolio,
+	entityAgentModel, entityAgent, entityAgentRequest, entityAgentCase, entityAgentRun,
 }
 
 const (
@@ -88,6 +90,13 @@ const (
 	entityDashboard   = goalservice.DashboardEntity
 	// entityPortfolio is workspace-wide, its projects narrowed to the reader's (UC-GOL-03).
 	entityPortfolio = goalservice.PortfolioEntity
+	// The registry's rows (M9), under no container: an agent, a held act and a run for the agent's
+	// owner and whoever administers agents, a model and a case for the administrators alone.
+	entityAgentModel   = agentservice.ModelEntity
+	entityAgent        = agentservice.AgentEntity
+	entityAgentRequest = agentservice.RequestEntity
+	entityAgentCase    = agentservice.CaseEntity
+	entityAgentRun     = agentservice.RunEntity
 	// entitySprint is a sprint, entitySprintEntry an entry's open sprint and entityEstimate an
 	// entry's estimate, each filed under the collection (M2); walked last, for the schedule's
 	// reason.
@@ -173,7 +182,7 @@ func (p PullChanges) walk(
 				}
 				continue
 			}
-			if costs, err := p.Stream.mayReadCosts(ctx, actor, row.entity, seen, costed); err != nil || !costs {
+			if beyond, err := p.Stream.mayReadBeyond(ctx, actor, row.entity, seen, row.payload, costed); err != nil || !beyond {
 				if err != nil {
 					return Batch{}, err
 				}
@@ -383,6 +392,73 @@ func (p PullChanges) timeResources(ctx context.Context, actor appshared.ActorCon
 		rows := make([]walkRow, 0, len(list))
 		for _, b := range list {
 			rows = append(rows, walkRow{entity: entityBudget, entityID: b.PlanID, containerID: b.PlanID, payload: timeservice.BudgetRecord(b), key: b.PlanID.String()})
+		}
+		return rows, nil
+	}
+}
+
+// maxModelsKnown bounds the models an agent page reads its model's revision from.
+const maxModelsKnown = 1000
+
+// registry pages the agents' kinds; who may hold each is decided where every row is judged.
+func (p PullChanges) registry(ctx context.Context, kind string, after shared.ID, batch int) ([]walkRow, error) {
+	switch kind {
+	case entityAgentModel:
+		models, err := p.Snapshot.AgentModels(ctx, after, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(models))
+		for _, m := range models {
+			rows = append(rows, walkRow{entity: kind, entityID: m.ID, payload: agentservice.ModelOutput(m), key: m.ID.String()})
+		}
+		return rows, nil
+	case entityAgent:
+		agents, err := p.Snapshot.Agents(ctx, after, batch)
+		if err != nil || len(agents) == 0 {
+			return nil, err
+		}
+		models, err := p.Snapshot.AgentModels(ctx, "", maxModelsKnown)
+		if err != nil {
+			return nil, err
+		}
+		revisions := make(map[shared.ID]int, len(models))
+		for _, m := range models {
+			revisions[m.ID] = m.Revision
+		}
+		rows := make([]walkRow, 0, len(agents))
+		for _, a := range agents {
+			rows = append(rows, walkRow{entity: kind, entityID: a.ID, payload: agentservice.AgentOutput(a, revisions[a.ModelID]), key: a.ID.String()})
+		}
+		return rows, nil
+	case entityAgentRequest:
+		held, err := p.Snapshot.AgentRequests(ctx, after, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(held))
+		for _, h := range held {
+			rows = append(rows, walkRow{entity: kind, entityID: h.Request.ID, payload: agentservice.RequestRecord(h.Request, h.OwnerID), key: h.Request.ID.String()})
+		}
+		return rows, nil
+	case entityAgentCase:
+		cases, err := p.Snapshot.AgentCases(ctx, after, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(cases))
+		for _, c := range cases {
+			rows = append(rows, walkRow{entity: kind, entityID: c.ID, payload: agentservice.CaseOutput(c), key: c.ID.String()})
+		}
+		return rows, nil
+	default:
+		runs, err := p.Snapshot.AgentRuns(ctx, after, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(runs))
+		for _, r := range runs {
+			rows = append(rows, walkRow{entity: kind, entityID: r.Run.ID, payload: agentservice.RunRecord(r.Run, r.OwnerID), key: r.Run.ID.String()})
 		}
 		return rows, nil
 	}
@@ -643,6 +719,8 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 			})
 		}
 		return rows, nil
+	case entityAgentModel, entityAgent, entityAgentRequest, entityAgentCase, entityAgentRun:
+		return p.registry(ctx, kind, afterID, batch)
 	case entityPortfolio:
 		portfolios, err := p.Snapshot.Portfolios(ctx, afterID, batch)
 		if err != nil {

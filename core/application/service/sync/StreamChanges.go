@@ -313,11 +313,11 @@ func (s StreamChanges) page(
 		if !other {
 			continue
 		}
-		costs, err := s.mayReadCosts(ctx, actor, entry.Entity, seen, costed)
+		beyond, err := s.mayReadBeyond(ctx, actor, entry.Entity, seen, entry.Payload, costed)
 		if err != nil {
 			return Batch{}, err
 		}
-		if !costs {
+		if !beyond {
 			continue
 		}
 		if entry.Payload, err = s.narrowed(ctx, actor, &lens, entry.Entity, seen, entry.Payload, resolved); err != nil {
@@ -475,6 +475,9 @@ func (s StreamChanges) mayReadWorkspaceWide(
 		// What every member fills a time record in with, and the shared calendar ListAbsences
 		// answers every member.
 		return visibility{allowed: true}, nil
+	case entityAgentModel, entityAgent, entityAgentRequest, entityAgentCase, entityAgentRun:
+		// Decided per record by mayReadBeyond: the owner, or whoever administers agents.
+		return visibility{allowed: true}, nil
 	case entityCostRates:
 		// What ListCostRates answers: MANAGE_COSTS at the workspace.
 		allowed, err := s.Authorizer.Permits(ctx, actor.ForACopy(), timeservice.CostsRequest([]identity.Scope{identity.TenantScope()}))
@@ -564,12 +567,28 @@ func heldByOne(entity string) bool {
 	return false
 }
 
-// mayReadCosts decides a budget beyond reading its plan: what ReadBudget asks, MANAGE_COSTS
-// there, remembered per plan for the rest of the page. A record of anything else passes.
-func (s StreamChanges) mayReadCosts(
-	ctx context.Context, actor appshared.ActorContext, entity string, seen visibility, costed map[shared.ID]bool,
+// administersAgents is the key the page remembers whether the reader administers agents under.
+const administersAgents = shared.ID("agents")
+
+// mayReadBeyond decides what reading a record's place does not: a budget by what ReadBudget asks,
+// MANAGE_COSTS at its plan, and the registry's rows by what their lists answer - an agent, a held
+// act and a run to the agent's owner, every row to whoever administers agents (MANAGE_MEMBERS at
+// the workspace) -, each answer remembered for the rest of the page. A record of anything else
+// passes.
+func (s StreamChanges) mayReadBeyond(
+	ctx context.Context, actor appshared.ActorContext, entity string, seen visibility, payload map[string]any,
+	costed map[shared.ID]bool,
 ) (bool, error) {
-	if entity != entityBudget {
+	switch entity {
+	case entityAgent, entityAgentRequest, entityAgentRun:
+		if owner, _ := payload["owner_id"].(string); owner != "" && shared.ID(owner) == actor.AccountID {
+			return true, nil
+		}
+		return s.administers(ctx, actor, costed)
+	case entityAgentModel, entityAgentCase:
+		return s.administers(ctx, actor, costed)
+	case entityBudget:
+	default:
 		return true, nil
 	}
 	if seen.container.ID.IsZero() {
@@ -583,6 +602,21 @@ func (s StreamChanges) mayReadCosts(
 		return false, err
 	}
 	costed[seen.container.ID] = allowed
+	return allowed, nil
+}
+
+// administers answers whether the reader administers agents, once a page.
+func (s StreamChanges) administers(ctx context.Context, actor appshared.ActorContext, decided map[shared.ID]bool) (bool, error) {
+	if allowed, known := decided[administersAgents]; known {
+		return allowed, nil
+	}
+	allowed, err := s.Authorizer.Permits(ctx, actor.ForACopy(), access.Request{
+		Permission: service.PermissionManageMembers, Path: []identity.Scope{identity.TenantScope()},
+	})
+	if err != nil {
+		return false, err
+	}
+	decided[administersAgents] = allowed
 	return allowed, nil
 }
 

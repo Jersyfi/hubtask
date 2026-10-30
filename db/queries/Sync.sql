@@ -559,3 +559,50 @@ FROM portfolio
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
 ORDER BY id
 LIMIT sqlc.arg('batch');
+
+-- name: SnapshotAgentModels :many
+-- The registry's models (migration 0251), paged by identifier.
+SELECT id, key, name, source, offered_id, model, region, retention_days, consent_by, consent_at,
+       revision, retired, updated_at, version
+FROM agent_model
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotAgents :many
+-- The registry's agents (migration 0251), paged by identifier.
+SELECT id, account_id, name, purpose, kind, owner_id, risk_class, scopes, model_id, policy_reversible,
+       policy_irreversible, tokens_per_day, actions_per_hour, concurrent_runs, min_accuracy, status,
+       approved_by, approved_at, approved_model_revision, suspended_by, suspended_at, created_by,
+       created_at, updated_at, version
+FROM agent
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotAgentRequests :many
+-- The held acts (migration 0251) with their agent's owner, paged by identifier.
+SELECT r.id, r.agent_id, r.use_case, r.class, r.input, r.status, r.decided_by, r.decided_at, r.code,
+       r.created_at, r.version, a.owner_id
+FROM agent_request r
+JOIN agent a ON a.tenant_id = r.tenant_id AND a.id = r.agent_id
+WHERE r.tenant_id = current_tenant_id() AND r.id > sqlc.arg('after')
+ORDER BY r.id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotAgentCases :many
+-- The evaluation cases (migration 0251), paged by identifier.
+SELECT id, agent_id, title, notes, expected, created_by, created_at
+FROM agent_eval_case
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotAgentRuns :many
+-- The evaluation runs (migration 0251) with their agent's owner, paged by identifier.
+SELECT r.id, r.agent_id, r.model_revision, r.cases, r.passed, r.run_by, r.at, a.owner_id
+FROM agent_eval_run r
+JOIN agent a ON a.tenant_id = r.tenant_id AND a.id = r.agent_id
+WHERE r.tenant_id = current_tenant_id() AND r.id > sqlc.arg('after')
+ORDER BY r.id
+LIMIT sqlc.arg('batch');

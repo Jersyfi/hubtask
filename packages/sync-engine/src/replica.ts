@@ -99,6 +99,16 @@ export function collectionOf(entity: string): string {
       return 'dashboards';
     case 'portfolio':
       return 'portfolios';
+    case 'agent':
+      return 'agents';
+    case 'agent_model':
+      return 'agent_models';
+    case 'agent_request':
+      return 'agent_requests';
+    case 'agent_eval_case':
+      return 'agent_cases';
+    case 'agent_eval_run':
+      return 'agent_runs';
     case 'role_grant':
       return 'role_grants';
     case 'page':
