@@ -56,6 +56,7 @@ var restDoors = map[string]restDoor{
 	"changeLinkType":                    {UseCase: "ChangeLinkType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"changePageComment":                 {UseCase: "ChangePageComment", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"changePassword":                    {UseCase: "ChangePassword", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"changePlan":                        {UseCase: "ChangePlan", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"changePreset":                      {UseCase: "ChangePreset", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"changeRole":                        {UseCase: "ChangeRole", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"checkInGoal":                       {UseCase: "CheckInGoal", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"confidence"}},
@@ -111,6 +112,7 @@ var restDoors = map[string]restDoor{
 	"createLinkType":                    {UseCase: "CreateLinkType", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"createManagedAccount":              {UseCase: "CreateManagedAccount", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "/accounts/{account.id}", NullClears: false, Integers: []string(nil), ShownOnce: "start_password"},
 	"createPage":                        {UseCase: "CreatePage", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/pages/{id}", NullClears: false, Integers: []string(nil)},
+	"createPlan":                        {UseCase: "CreatePlan", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createPlatformSubscription":        {UseCase: "CreatePlatformSubscription", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createPortfolio":                   {UseCase: "CreatePortfolio", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createReminder":                    {UseCase: "CreateReminder", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -349,6 +351,7 @@ var restDoors = map[string]restDoor{
 	"placeLegalHold":                    {UseCase: "PlaceLegalHold", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Flatten: map[string]map[string]string{"scope": {"id": "scope_id", "kind": "scope"}}},
 	"planConfig":                        {UseCase: "PlanConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
 	"planConfigTemplate":                {UseCase: "PlanConfigTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"version"}},
+	"previewContainerStructure":         {UseCase: "PreviewContainerStructure", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"previewCustomFieldReach":           {UseCase: "PreviewCustomFieldReach", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"previewErasure":                    {UseCase: "PreviewErasure", Status: 200, Query: []string{"mode"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"previewModuleReach":                {UseCase: "PreviewModuleReach", Status: 200, Query: []string{"hub_id", "switch"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -504,6 +507,7 @@ var restDoors = map[string]restDoor{
 	"setCiConnectorCredential":          {UseCase: "SetCiConnectorCredential", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setCollectionHandle":               {UseCase: "SetCollectionHandle", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ReadOnly: []string{"collection_id"}},
 	"setConfigPolicy":                   {UseCase: "SetConfigPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setContainerStructure":             {UseCase: "SetContainerStructure", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setCostRate":                       {UseCase: "SetCostRate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"hour_minor"}},
 	"setCover":                          {UseCase: "SetCover", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setCustomField":                    {UseCase: "SetCustomField", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -868,6 +872,12 @@ func (c *RestController) ChangePassword(w http.ResponseWriter, r *http.Request, 
 	c.door(w, r, restDoors["changePassword"], usecase.Input{}, params, &body, nil)
 }
 
+// ChangePlan answers PUT /admin/plans/{planName} by the generated mapping.
+func (c *RestController) ChangePlan(w http.ResponseWriter, r *http.Request, planName string, params openapi.ChangePlanParams) {
+	var body openapi.ChangePlanJSONRequestBody
+	c.door(w, r, restDoors["changePlan"], usecase.Input{"name": planName}, params, &body, answerBy(planResponse))
+}
+
 // ChangePreset answers PATCH /presets/{presetId} by the generated mapping.
 func (c *RestController) ChangePreset(w http.ResponseWriter, r *http.Request, presetId openapi.PresetId, params openapi.ChangePresetParams) {
 	var body openapi.ChangePresetJSONRequestBody
@@ -1207,6 +1217,12 @@ func (c *RestController) CreatePage(w http.ResponseWriter, r *http.Request, hubI
 	var body openapi.CreatePageJSONRequestBody
 	var answer openapi.Page
 	c.door(w, r, restDoors["createPage"], usecase.Input{"hub_id": hubId.String()}, nil, &body, &answer)
+}
+
+// CreatePlan answers POST /admin/plans by the generated mapping.
+func (c *RestController) CreatePlan(w http.ResponseWriter, r *http.Request, params openapi.CreatePlanParams) {
+	var body openapi.CreatePlanJSONRequestBody
+	c.door(w, r, restDoors["createPlan"], usecase.Input{}, params, &body, answerBy(planResponse))
 }
 
 // CreatePlatformSubscription answers POST /admin/subscriptions by the generated mapping.
@@ -2561,6 +2577,13 @@ func (c *RestController) PlanConfigTemplate(w http.ResponseWriter, r *http.Reque
 	c.door(w, r, restDoors["planConfigTemplate"], usecase.Input{"key": key}, nil, &body, &answer)
 }
 
+// PreviewContainerStructure answers POST /containers/{containerId}/structure:preview by the generated mapping.
+func (c *RestController) PreviewContainerStructure(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId) {
+	var body openapi.PreviewContainerStructureJSONRequestBody
+	var answer openapi.StructurePreview
+	c.door(w, r, restDoors["previewContainerStructure"], usecase.Input{"container_id": containerId.String()}, nil, &body, &answer)
+}
+
 // PreviewCustomFieldReach answers GET /custom-fields/{fieldId}/reach by the generated mapping.
 func (c *RestController) PreviewCustomFieldReach(w http.ResponseWriter, r *http.Request, fieldId openapi.CustomFieldId) {
 	var answer openapi.CustomFieldReach
@@ -3471,6 +3494,12 @@ func (c *RestController) SetConfigPolicy(w http.ResponseWriter, r *http.Request)
 	var body openapi.SetConfigPolicyJSONRequestBody
 	var answer openapi.ConfigPolicy
 	c.door(w, r, restDoors["setConfigPolicy"], usecase.Input{}, nil, &body, &answer)
+}
+
+// SetContainerStructure answers PATCH /containers/{containerId}/structure by the generated mapping.
+func (c *RestController) SetContainerStructure(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId, params openapi.SetContainerStructureParams) {
+	var body openapi.SetContainerStructureJSONRequestBody
+	c.door(w, r, restDoors["setContainerStructure"], usecase.Input{"container_id": containerId.String()}, params, &body, answerBy(containerStructureResponse))
 }
 
 // SetCostRate answers POST /cost-rates by the generated mapping.

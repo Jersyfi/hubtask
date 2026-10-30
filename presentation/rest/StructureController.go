@@ -15,46 +15,11 @@ import (
 
 // The structure use cases: presets and the settings of hubs, collections and the workspace.
 const (
-	setContainerStructureUseCase     = "SetContainerStructure"
-	previewContainerStructureUseCase = "PreviewContainerStructure"
-	setWorkspaceStructureUseCase     = "SetWorkspaceStructure"
+	setWorkspaceStructureUseCase = "SetWorkspaceStructure"
 )
 
-// SetContainerStructure answers PATCH /containers/{containerId}/structure.
-//
-// The body is decoded into the generated type first, so an unknown key is refused here as on every
-// other route; the settings then travel to the catalogue in the contract's words, the same document
-// an MCP client sends.
-func (c *RestController) SetContainerStructure(
-	w http.ResponseWriter, r *http.Request,
-	containerID openapi.ContainerId, params openapi.SetContainerStructureParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.StructureChange
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	in, err := structureChangeInput(body)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	in["container_id"] = containerID.String()
-	if version, ok := versionFromIfMatch(params.IfMatch); ok {
-		in["expected_version"] = version
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), setContainerStructureUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
+// containerStructureResponse maps a container after a structure change, with what a lock kept and the levels clipped.
+func containerStructureResponse(out usecase.Output) openapi.Container {
 	answer := containerResponse(out)
 	if kept, held := out["kept_by_lock"].([]any); held {
 		keys := make([]string, 0, len(kept))
@@ -74,42 +39,7 @@ func (c *RestController) SetContainerStructure(
 		}
 		answer.ClippedByLevels = &settings
 	}
-	w.Header().Set("ETag", etag(out.Int("version")))
-	writeJSON(w, r, http.StatusOK, answer)
-}
-
-// PreviewContainerStructure answers POST /containers/{containerId}/structure:preview: what the
-// change in the body would stop showing, decided as PATCH .../structure would decide it.
-func (c *RestController) PreviewContainerStructure(
-	w http.ResponseWriter, r *http.Request, containerID openapi.ContainerId,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.StructureChange
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	in, err := structureChangeInput(body)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	in["container_id"] = containerID.String()
-	out, err := c.UseCases.Invoke(r.Context(), previewContainerStructureUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	var preview openapi.StructurePreview
-	if err := throughJSON(out, &preview); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, preview)
+	return answer
 }
 
 // structureChangeInput is a structure change as the catalogue reads it: the preset, the settings as
@@ -208,16 +138,6 @@ func (c *RestController) SetWorkspaceStructure(
 	}
 	w.Header().Set("ETag", etag(out.Int("version")))
 	writeJSON(w, r, http.StatusOK, answer)
-}
-
-func writePreset(w http.ResponseWriter, r *http.Request, status int, out usecase.Output) {
-	var preset openapi.Preset
-	if err := throughJSON(out, &preset); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-	w.Header().Set("ETag", etag(out.Int("version")))
-	writeJSON(w, r, status, preset)
 }
 
 func throughJSON(value any, target any) error {

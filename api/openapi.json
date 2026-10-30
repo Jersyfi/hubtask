@@ -15007,6 +15007,8 @@
           "admin"
         ],
         "operationId": "createPlan",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "planResponse",
         "summary": "Create a plan",
         "description": "A short name that never changes and is never reused, even after the plan is removed - it is what a provider's platform maps its products to. A value is refused where the installation locks it (`admin.plan_under_installation_lock`) or where it is looser than the installation's (`admin.plan_looser_than_installation`); a plan takes no localisation (`admin.plan_localisation`). Idempotent under `Idempotency-Key`.\n",
         "parameters": [
@@ -15099,6 +15101,11 @@
           "admin"
         ],
         "operationId": "changePlan",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "planName": "name"
+        },
+        "x-hubtask-rest-answer": "planResponse",
         "summary": "Replace a plan's values",
         "description": "A `PUT`, as the installation's level is: a value the body does not name is no longer decided by the plan. With `If-Match`, a save made on a plan somebody else changed since it was read is refused with `version_conflict`. The change applies to every workspace on the plan at its next request; nothing is copied into a workspace.\n",
         "parameters": [
@@ -22446,6 +22453,8 @@
           "containers"
         ],
         "operationId": "setContainerStructure",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "containerStructureResponse",
         "description": "Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed; `narrowing: FLATTEN` moves the entries the change hides by level to the top level instead. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.\n",
         "parameters": [
           {
@@ -22497,6 +22506,7 @@
           "containers"
         ],
         "operationId": "previewContainerStructure",
+        "x-hubtask-rest": "generated",
         "x-hubtask-cli": "container structure preview",
         "description": "Answers what a change of a hub's or collection's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself. For a hub, the counts are over every collection that follows it, and `keeping` names the collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown, and the change can be made at once. Takes the body `PATCH /containers/{containerId}/structure` takes, and is refused as it would be.\n",
         "requestBody": {

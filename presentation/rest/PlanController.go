@@ -4,91 +4,13 @@
 package rest
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The plans (multi-tenancy.md §4.2): their values in the installation level's own shape both ways.
-const (
-	createPlanUseCase = "CreatePlan"
-	changePlanUseCase = "ChangePlan"
-)
-
-// CreatePlan answers POST /admin/plans.
-func (c *RestController) CreatePlan(w http.ResponseWriter, r *http.Request, _ openapi.CreatePlanParams) {
-	var body openapi.PlanCreate
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-	in := planValuesInput(body.DisplayName, body.SignIn, body.Legal, body.Quotas, body.Ai, body.LeftOut)
-	in["name"] = body.Name
-	c.answerPlan(w, r, http.StatusCreated, createPlanUseCase, in)
-}
-
-// ChangePlan answers PUT /admin/plans/{planName}.
-func (c *RestController) ChangePlan(
-	w http.ResponseWriter, r *http.Request, planName string, params openapi.ChangePlanParams,
-) {
-	var body openapi.PlanChange
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-	in := planValuesInput(body.DisplayName, body.SignIn, body.Legal, body.Quotas, body.Ai, body.LeftOut)
-	in["name"] = planName
-	if version, ok := versionFromIfMatch(params.IfMatch); ok {
-		in["expected_version"] = version
-	}
-	c.answerPlan(w, r, http.StatusOK, changePlanUseCase, in)
-}
-
-// answerPlan invokes a use case that answers one plan, and writes it with its version as the tag.
-func (c *RestController) answerPlan(
-	w http.ResponseWriter, r *http.Request, status int, name string, in usecase.Input,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), name, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	answer := planResponse(out)
-	w.Header().Set("ETag", etag(answer.Version))
-	writeJSON(w, r, status, answer)
-}
-
-func planValuesInput(
-	displayName string,
-	signIn, legal, quotas, ai *map[string]openapi.InstanceSetting,
-	leftOut *[]openapi.PlanFeature,
-) usecase.Input {
-	in := usecase.Input{"display_name": displayName}
-	for area, sent := range map[string]*map[string]openapi.InstanceSetting{
-		"sign_in": signIn, "legal": legal, "quotas": quotas, "ai": ai,
-	} {
-		if sent != nil {
-			in[area] = instanceSettingMap(*sent)
-		}
-	}
-	if leftOut != nil {
-		features := make([]any, 0, len(*leftOut))
-		for _, feature := range *leftOut {
-			features = append(features, string(feature))
-		}
-		in["left_out"] = features
-	}
-	return in
-}
-
+// planResponse maps a plan (multi-tenancy.md §4.2): its values in the installation level's own shape.
 func planResponse(out usecase.Output) openapi.Plan {
 	answer := openapi.Plan{
 		Name: out.String("name"), DisplayName: out.String("display_name"),
