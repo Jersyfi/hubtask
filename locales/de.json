@@ -9460,6 +9460,7 @@
   "app.time.withheld": "{groups} Gruppen mit weniger als drei Personen sind ausgelassen ({minutes}), damit niemand benannt wird.",
   "app.time.export": "Als CSV exportieren",
   "app.time.export_spreadsheet": "Als Tabelle exportieren",
+  "app.time.export_with_costs": "Mit Kosten",
   "app.time.exported": "Zeit exportiert.",
   "app.time.export_truncated": "Der Export enthält die ersten 50000 Einträge. Wähle weniger Tage für den Rest.",
   "app.time.start": "Timer starten",

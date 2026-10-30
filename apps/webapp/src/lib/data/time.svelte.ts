@@ -57,6 +57,12 @@ export interface ReportRequest {
   to: string;
   mine?: boolean;
   group_by?: string[];
+  /** Also each record's rate and cost (UC-TIM-05 check 5); only for whoever manages costs. */
+  costs?: boolean;
+}
+
+function exportBody(request: ReportRequest): Record<string, unknown> {
+  return { from: request.from, to: request.to, mine: request.mine, ...(request.costs ? { costs: true } : {}) };
 }
 
 class Time {
@@ -137,7 +143,7 @@ class Time {
 
   /** The rows of an export: a write, because the export is recorded in the audit trail. */
   export(request: ReportRequest): Promise<TimeExport> {
-    return engine.mutate<TimeExport>('POST', '/time-records:export', { from: request.from, to: request.to, mine: request.mine }, { invalidates: [] });
+    return engine.mutate<TimeExport>('POST', '/time-records:export', exportBody(request), { invalidates: [] });
   }
 
   /**
@@ -145,7 +151,7 @@ class Time {
    * for the format, and the cells keep their types there (minutes as numbers, a text never a formula).
    */
   exportSpreadsheet(request: ReportRequest): Promise<TransportDocument> {
-    return engine.document('/time-records:export', { from: request.from, to: request.to, mine: request.mine }, {
+    return engine.document('/time-records:export', exportBody(request), {
       timeoutMs: 120_000, accept: SPREADSHEET,
     });
   }

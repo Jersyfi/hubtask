@@ -27,6 +27,7 @@
   import type { PlacedTimeRecord, TimeReport, Timesheet, TimesheetList, TimesheetWeek, WorkTypeList } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
+  import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
@@ -259,7 +260,9 @@
 
   // --- Report -------------------------------------------------------------------------------------
 
-  const report = $state({ from: '', to: '', mine: true, first: 'ENTRY', second: '' });
+  const report = $state({ from: '', to: '', mine: true, first: 'ENTRY', second: '', costs: false });
+  // Costs are MANAGE_COSTS's (UC-TIM-05 check 5, UC-TIM-08 check 1): not offered to anybody else.
+  const mayCost = $derived(holdsHere('MANAGE_COSTS') === true || holdsHere('MANAGE_MEMBERS') === true);
   $effect(() => {
     if (report.from === '') untrack(() => { report.from = `${today.slice(0, 8)}01`; report.to = today; });
   });
@@ -300,7 +303,7 @@
   async function exportRecords() {
     isExporting = true;
     await act(async () => {
-      const rows = await time.export({ from: report.from, to: report.to, mine: report.mine });
+      const rows = await time.export({ from: report.from, to: report.to, mine: report.mine, costs: mayCost && report.costs });
       platform.saveFile(new Blob([exportCsv(rows)], { type: 'text/csv;charset=utf-8' }), `time-${report.from}-${report.to}.csv`);
       if (rows.truncated) toast.show({ text: t('app.time.export_truncated'), tone: 'warning' });
     }, t('app.time.exported'));
@@ -310,7 +313,7 @@
   async function exportSpreadsheet() {
     isExportingSheet = true;
     await act(async () => {
-      const file = await time.exportSpreadsheet({ from: report.from, to: report.to, mine: report.mine });
+      const file = await time.exportSpreadsheet({ from: report.from, to: report.to, mine: report.mine, costs: mayCost && report.costs });
       platform.saveFile(file.body, `time-${report.from}-${report.to}.xlsx`);
       if (file.headers.get('export-truncated') === 'true') toast.show({ text: t('app.time.export_truncated'), tone: 'warning' });
     }, t('app.time.exported'));
@@ -477,6 +480,7 @@
         <Select label={t('app.time.group_by')} size="sm" bind:value={report.first} options={dimensionOptions} />
         <Select label={t('app.time.then_by')} size="sm" bind:value={report.second} options={[{ value: '', label: t('app.time.none') }, ...dimensionOptions]} />
         <Switch label={t('app.time.mine_only')} bind:checked={report.mine} />
+        {#if mayCost}<Switch label={t('app.time.export_with_costs')} bind:checked={report.costs} />{/if}
         <Button size="sm" tone="secondary" icon="file-text" isBusy={isExporting} busyLabel={t('app.time.export')} onclick={() => void exportRecords()}>{t('app.time.export')}</Button>
         <Button size="sm" tone="secondary" icon="file-text" isBusy={isExportingSheet} busyLabel={t('app.time.export_spreadsheet')} onclick={() => void exportSpreadsheet()}>{t('app.time.export_spreadsheet')}</Button>
       </div>
