@@ -195,6 +195,7 @@ export type {
   EntryScheduling,
   PlanBaseline,
   PlanBaselineList,
+  PlanTolerance,
   BaselineVariance,
   BaselineComparison,
   Sprint,

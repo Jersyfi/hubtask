@@ -8,6 +8,7 @@
  */
 
 import type {
+  PlanTolerance,
   BaselineComparison, EntryLink, EntryScheduling, PlanBaseline, PlanMoves, WorkItem,
 } from '@hubtask/sync-engine';
 
@@ -20,6 +21,7 @@ export * from './planning.ts';
 export const schedulePath = (planId: string, zone: string) => `/plans/${planId}/schedule?zone=${encodeURIComponent(zone)}`;
 export const baselinesPath = (planId: string) => `/plans/${planId}/baselines`;
 export const baselinePath = (baselineId: string) => `/baselines/${baselineId}`;
+export const tolerancePath = (planId: string, zone: string) => `/plans/${planId}/tolerance?zone=${encodeURIComponent(zone)}`;
 
 class Planning {
   /** Applies the moves accepted, all or none (check 4); the plan is scheduled again by the server. */
@@ -78,6 +80,13 @@ class Planning {
 
   async deleteBaseline(planId: string, baselineId: string): Promise<void> {
     await engine.mutate<void>('DELETE', baselinePath(baselineId), undefined, { invalidates: [baselinesPath(planId), baselinePath(baselineId)] });
+  }
+
+  /** Sets the plan's time tolerance, locked for the collections below, or - null - leaves it to the level above. */
+  setTolerance(planId: string, zone: string, days: number | null, lock: boolean): Promise<PlanTolerance> {
+    return engine.mutate<PlanTolerance>('PUT', `/plans/${planId}/tolerance`, { time_tolerance_days: days, lock }, {
+      invalidates: [tolerancePath(planId, zone)],
+    });
   }
 
   /** A baseline beside today's plan. */

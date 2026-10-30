@@ -50,7 +50,7 @@ func (s *settingStore) Remove(_ context.Context, place settingrepo.Place, key se
 	return false, nil
 }
 
-// UC-PLN-04 checks 7 and 8: a hub's tolerance reaches its collections and, locked, is not changed
+// UC-PLN-04 checks 5 and 6: a hub's tolerance reaches its collections and, locked, is not changed
 // there; a plan whose forecast end slips past its latest baseline's by more than the tolerance is
 // in exception, and the exception is recorded.
 func TestAPlanBeyondItsToleranceIsInException(t *testing.T) {

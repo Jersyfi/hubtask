@@ -22,7 +22,7 @@
     Banner, Button, Checkbox, Dialog, Inline, Input, PageHeader, Select, Skeleton, Stack, Table, Timeline,
     type Column, type TimelineCarry, type TimelineDependency, type TimelineLink,
   } from '@hubtask/design-system/components';
-  import type { BaselineComparison, PlanBaselineList, PlanSchedule } from '@hubtask/sync-engine';
+  import type { BaselineComparison, PlanBaselineList, PlanSchedule, PlanTolerance } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { holds, roleOrder } from '../lib/data/capability.svelte.ts';
@@ -31,7 +31,7 @@
   import { engine } from '../lib/data/engine.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import {
-    baselinesPath, dependencyDrawn, ganttRows, lagOf, planning, proposedMoves, schedulePath,
+    baselinesPath, dependencyDrawn, ganttRows, lagOf, planning, proposedMoves, schedulePath, tolerancePath,
   } from '../lib/data/planning.svelte.ts';
   import { anchorOf, draggedTo, gridOf, scaleOf, windowOf, type Scale } from '../lib/data/schedule.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
@@ -92,6 +92,28 @@
       return () => stops.forEach((stop) => stop());
     });
   });
+
+  // The plan's time tolerance and its standing against the latest baseline (standards.md P12):
+  // beyond it the plan is in exception, drawn as a danger banner every reader sees.
+  let tolerance = $state<PlanTolerance | undefined>(undefined);
+  $effect(() => {
+    const path = tolerancePath(planId, zone);
+    return untrack(() => engine.subscribe<PlanTolerance>({ path }, (next) => { if (next.status === 'ready') tolerance = next.data; }));
+  });
+  const mayShape = $derived(holds(people.roleOf(rolePath, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted');
+  const lockedAbove = $derived(!!tolerance?.locked_by && tolerance.locked_by !== (place?.type === 'HUB' ? 'HUB' : 'COLLECTION'));
+  let toleranceDraft = $state('');
+  let toleranceLock = $state(false);
+  async function saveTolerance(inherit: boolean) {
+    const days = inherit || toleranceDraft.trim() === '' ? null : Number(toleranceDraft);
+    if (days !== null && (!Number.isInteger(days) || days < 0 || days > 365)) return;
+    try {
+      await planning.setTolerance(planId, zone, days, toleranceLock);
+      toast.show({ text: t('app.planning.tolerance_saved'), tone: 'success' });
+    } catch (error) {
+      refusal = renderProblem(error as never, messages).message;
+    }
+  }
 
   let baselineId = $state('');
   let comparison = $state<BaselineComparison | undefined>(undefined);
@@ -297,6 +319,32 @@
       {schedule.finish ? t('app.planning.ends_on', { date: dayLabel(schedule.finish) }) : t('app.planning.no_dates')}
     </p>
 
+    {#if tolerance?.exception?.exceeded}
+      <Banner tone="danger" title={t('app.planning.tolerance')}>
+        {t('app.planning.exception', { slip: String(tolerance.exception.slip_days), agreed: dayLabel(tolerance.exception.agreed_finish), tolerance: String(tolerance.exception.tolerance_days) })}
+      </Banner>
+    {:else if tolerance?.exception}
+      <p class="quiet">{t('app.planning.within_tolerance', { forecast: dayLabel(tolerance.exception.forecast_finish), agreed: dayLabel(tolerance.exception.agreed_finish) })}</p>
+    {/if}
+    {#if tolerance}
+      <section class="tolerance" aria-label={t('app.planning.tolerance')}>
+        <p class="quiet">
+          {t('app.planning.tolerance')}:
+          {tolerance.time_tolerance_days === null ? t('app.planning.tolerance_none') : t('app.planning.tolerance_days', { days: String(tolerance.time_tolerance_days) })}
+          {#if tolerance.time_tolerance_days !== null} · {t('app.planning.tolerance_from', { level: t(`app.planning.tolerance_level_${tolerance.source}`) })}{/if}
+          {#if tolerance.locked_by} · {t('app.planning.tolerance_locked', { level: t(`app.planning.tolerance_level_${tolerance.locked_by}`) })}{/if}
+        </p>
+        {#if mayShape && !lockedAbove}
+          <Inline gap="100" align="end">
+            <Input label={t('app.planning.tolerance')} size="sm" type="number" min="0" max="365" bind:value={toleranceDraft} />
+            {#if place?.type === 'HUB'}<Checkbox label={t('app.planning.tolerance_lock')} bind:checked={toleranceLock} />{/if}
+            <Button size="sm" onclick={() => void saveTolerance(false)}>{t('app.planning.tolerance_set')}</Button>
+            <Button size="sm" tone="subtle" onclick={() => void saveTolerance(true)}>{t('app.planning.tolerance_inherit')}</Button>
+          </Inline>
+        {/if}
+      </section>
+    {/if}
+
     {#if proposed.length > 0}
       <Banner tone="info" title={t('app.planning.proposes', { count: String(proposed.length) })}>
         {t('app.planning.proposes_hint')}
@@ -495,6 +543,7 @@
   .window { min-width: 0; }
   .block { display: flex; flex-direction: column; gap: var(--sp-100); }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
+  .tolerance { display: flex; flex-direction: column; gap: var(--sp-050); }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
   .plain { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-050); }

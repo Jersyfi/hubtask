@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/planning/Schedule_test.go, core/application/service/planning/Planner_test.go, test/integration/planning_repository_test.go]
+checked_by: [core/domain/model/planning/Schedule_test.go, core/application/service/planning/Planner_test.go, test/integration/planning_repository_test.go, core/domain/model/planning/Tolerance_test.go, core/application/service/planning/Tolerances_test.go]
 ---
 
 # Keep the agreed plan and compare it with today
@@ -35,6 +35,13 @@ The comparison shows all three.
    each was taken, and how many entries it holds.
 4. A baseline stays in its workspace: the workspace next door neither reads nor deletes it, and it
    is in the workspace's archive.
+5. Whoever may shape a hub or a collection sets its time tolerance, 0 to 365 calendar days; a
+   hub's reaches its collections, and a hub that locked it refuses a collection's own; without
+   days the tolerance is left to the level above.
+6. Reading a plan's tolerance answers its days, the level they come from and the level that
+   locked them; once the forecast end lies past the latest baseline's by more than the tolerance,
+   the plan is in exception: the *Plan* screen shows it to every reader and the exception is in the
+   audit trail (`plan_tolerance.exceeded`).
 
 ## Where it ends
 

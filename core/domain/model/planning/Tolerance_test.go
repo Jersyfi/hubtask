@@ -10,7 +10,7 @@ import (
 )
 
 // A plan is in exception once its forecast end slips past the agreed one by more than its
-// tolerance (UC-PLN-04 check 7, standards.md P12).
+// tolerance (UC-PLN-04 check 6, standards.md P12).
 func TestAPlanIsInExceptionBeyondItsTolerance(t *testing.T) {
 	agreed := DayFrom(2026, 12, 1)
 	for _, tc := range []struct {
