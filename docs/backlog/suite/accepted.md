@@ -39,3 +39,47 @@ the licence gate, and merging each pull request.
 **Cyber Resilience Act role:** the project stays without a paid edition (ADR-0080), so it acts as an
 open-source steward; providers who sell it are manufacturers themselves and receive from the
 project what they need (SBOM, advisories, support period, CVD) — F-13.
+
+## The owner's answers — 2026-10-30
+
+The workers collected what they could not decide themselves. The owner accepted every proposal
+below as a whole ("Accept all", 2026-10-30). Each item is built in the step that owns it; the
+pull request names them.
+
+**A. New dependencies.** SAML (XML signature verification) and an LDAP client: yes, MIT/BSD
+libraries that pass the licence gate. A spreadsheet library for XLSX export: yes. A PDF renderer:
+not now — reports by mail send CSV and a link. An external search index: no — PostgreSQL search
+behind the existing search port. A Go CRDT library: no — clients merge (Yjs); the server keeps the
+update log. `@marcbachmann/cel-js` 8.0.0 (MIT) for the browser evaluator: confirmed, its licence
+joins `THIRD-PARTY-LICENSES.md`.
+
+**B. Irrecoverable deletion and retention.**
+- A hub's or workspace's purge erases the live documents of its pages and boards.
+- Page versions: named versions and the newest version of each day are kept; others go after
+  90 days. Trashed pages are purged after the trash period (30 days) with their live documents.
+- A live document's update history: 30 days (`DOCUMENT_HISTORY`); the document itself stays.
+- Agents: the action ledger (`agent_action`) 13 months; held requests, jobs and run traces 90 days.
+- Erasing a person pseudonymises approved time records, capacities, absences and own cost rates
+  (the sums are kept); nothing of them is deleted.
+- Requesters without an account (mail, public forms): a data-catalogue entry, deletion 24 months
+  after the last contact, and an erasure path.
+- CIs and connectors are switched off, never deleted; baselines go with their plan (as built).
+
+**C. Use cases.** A use case file for the configuration document (hub scope, sandbox, reach,
+previews); a check naming the aggregation in UC-WRK-17; UC-ID-26 check 5 names READ at the place;
+UC-DOC-11, UC-DOC-12, UC-AGT-07 and UC-AST-01 check 9 as written; UC-AGT-02's correction.
+
+**D. Product.**
+- Stable keys for hubs and collections, so rules and saved views become sections of the
+  configuration document.
+- The installation shows plan and history; applying stays the instance file's (ADR-0070 §5).
+- An *organisation* for the portal: a group of requesters assigned by email domain.
+- *View as*: a read-only, audited, online-only view of the person's screens.
+- `agents.registered_only`: a workspace setting refusing unregistered agents on MCP, off by default.
+- The remaining hand-written REST operations and `hubctl` commands move to the generated doors
+  before the suite's pull request.
+- SHOULD connectors (Snipe-IT, Jamf, cloud and others) come in the following release.
+- Capacity runs: 10⁶ entries on the owner's workstation, 10⁷ on the integration server.
+
+**E. The workers' smaller choices** recorded in the pull request notes are accepted; the owner may
+still overrule each on the pull request.
