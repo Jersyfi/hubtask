@@ -492,6 +492,17 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `filelink.links_read` | ListEntryFileLinks | `work_item` | INFO | When refused |
 | `filelink.unlinked` | UnlinkEntryFile | `file_link` | INFO | Every time |
 
+## Filestore
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `filestore.browsed` | BrowseFileStore | `file_store_connection` | INFO | When refused |
+| `filestore.connected` | CompleteFileStoreConnection | `file_store_connection` | INFO | Every time |
+| `filestore.connection_started` | ConnectFileStore | `file_store_connection` | INFO | Every time |
+| `filestore.disconnected` | DisconnectFileStore | `file_store_connection` | INFO | Every time |
+| `filestore.listed` | ListFileStoreConnections | `file_store_connection` | INFO | When refused |
+| `filestore.shared` | ShareFileStoreItem | `file_store_connection` | INFO | Every time |
+
 ## Forge
 
 | Action | Use case | Target | Severity | Recorded |

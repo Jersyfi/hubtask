@@ -1411,6 +1411,8 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"calendar_push":               "a calendar push's grant is sealed under one installation's key and opens nowhere else; restored elsewhere it would write nothing - its owner connects the feed again",
 	"calendar_push_event":         "what a push wrote at the provider, which only that push's grant reaches; a push connected again writes its feed anew",
 	"calendar_push_authorization": "a connection waiting ten minutes for a provider's answer; the browser that would bring it is gone by the time anything is restored",
+	"file_store_connection":       "a file store connection's grant is sealed under one installation's key and opens nowhere else; restored elsewhere it would sign in to nothing - its owner connects the store again",
+	"file_store_authorization":    "a connection waiting ten minutes for a store's answer; the browser that would bring it is gone by the time anything is restored",
 	"voice_setting":               "the voice settings name a skill registered with Amazon for one installation's endpoint; restored elsewhere they would answer a skill that does not call there - they are set again on the page",
 	"voice_alias":                 "the spoken names go with the voice settings and name places by identifier; they are set again with them",
 	// §8.4, the automation half. A restored run log would describe runs of a period that is being

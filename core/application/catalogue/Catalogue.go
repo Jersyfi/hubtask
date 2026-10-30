@@ -31,6 +31,7 @@ import (
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
 	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
 	filelinkservice "github.com/Jersyfi/hubtask/core/application/service/filelink"
+	filestoreservice "github.com/Jersyfi/hubtask/core/application/service/filestore"
 	forgeservice "github.com/Jersyfi/hubtask/core/application/service/forge"
 	goalservice "github.com/Jersyfi/hubtask/core/application/service/goal"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
@@ -354,6 +355,12 @@ func Descriptors() []usecase.Descriptor {
 		calendarpushservice.AuthorizeCalendarPush{}.Descriptor(),
 		calendarpushservice.CompleteCalendarPushAuthorization{}.Descriptor(),
 		calendarpushservice.DisconnectCalendarPush{}.Descriptor(),
+		filestoreservice.ListFileStoreConnections{}.Descriptor(),
+		filestoreservice.ConnectFileStore{}.Descriptor(),
+		filestoreservice.CompleteFileStoreConnection{}.Descriptor(),
+		filestoreservice.DisconnectFileStore{}.Descriptor(),
+		filestoreservice.BrowseFileStore{}.Descriptor(),
+		filestoreservice.ShareFileStoreItem{}.Descriptor(),
 		cmdbservice.ListCiConnectors{}.Descriptor(),
 		cmdbservice.DefineCiConnector{}.Descriptor(),
 		cmdbservice.SetCiConnectorCredential{}.Descriptor(),

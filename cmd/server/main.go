@@ -47,6 +47,7 @@ import (
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
 	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
 	filelinkservice "github.com/Jersyfi/hubtask/core/application/service/filelink"
+	filestoreservice "github.com/Jersyfi/hubtask/core/application/service/filestore"
 	forgeservice "github.com/Jersyfi/hubtask/core/application/service/forge"
 	goalservice "github.com/Jersyfi/hubtask/core/application/service/goal"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
@@ -107,6 +108,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/automation"
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
 	calendarpushadapter "github.com/Jersyfi/hubtask/infrastructure/calendarpush"
+	filestoreadapter "github.com/Jersyfi/hubtask/infrastructure/filestore"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	connectoradapter "github.com/Jersyfi/hubtask/infrastructure/connector"
 	"github.com/Jersyfi/hubtask/infrastructure/crypto"
@@ -2004,6 +2006,14 @@ func run() error {
 		Addresses:   workspaceAddress(cfg), Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids,
 	}
+	// A person's own file store for *Link a file* (UC-INT-17): a Nextcloud by its login flow, needing
+	// no app; Microsoft by the mailboxes' app with a consent to read files alone.
+	fileStores := filestoreservice.Connections{
+		Store: postgres.NewFileStoreConnectionRepository(), Files: filestoreadapter.Store{Client: outboundClient},
+		Authorizer: mailboxadapter.OAuth{Client: outboundClient}, Encryptor: encryptor, Entropy: clockadapter.CryptoRandom{},
+		Apps: fileStoreApps(cfg.Mail.OAuth), RedirectURL: strings.TrimSuffix(cfg.BaseURL, "/") + "/profile/files",
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
 	// The agents' desk; Sources is ReadAiSource's own use case, run as the registering person.
 	agentDesk := agentservice.Desk{
 		Store: agentStore, Catalogue: agentCatalogue, Authorizer: authorizer,
@@ -2286,6 +2296,12 @@ func run() error {
 		calendarpushservice.AuthorizeCalendarPush{Pushes: calendarPushes}.Descriptor(),
 		calendarpushservice.CompleteCalendarPushAuthorization{Pushes: calendarPushes}.Descriptor(),
 		calendarpushservice.DisconnectCalendarPush{Pushes: calendarPushes}.Descriptor(),
+		filestoreservice.ListFileStoreConnections{Connections: fileStores}.Descriptor(),
+		filestoreservice.ConnectFileStore{Connections: fileStores}.Descriptor(),
+		filestoreservice.CompleteFileStoreConnection{Connections: fileStores}.Descriptor(),
+		filestoreservice.DisconnectFileStore{Connections: fileStores}.Descriptor(),
+		filestoreservice.BrowseFileStore{Connections: fileStores}.Descriptor(),
+		filestoreservice.ShareFileStoreItem{Connections: fileStores}.Descriptor(),
 		cmdbservice.ListCiConnectors{Connectors: connectors}.Descriptor(),
 		cmdbservice.DefineCiConnector{Connectors: connectors}.Descriptor(),
 		cmdbservice.SetCiConnectorCredential{Connectors: connectors}.Descriptor(),
@@ -5824,12 +5840,20 @@ func wayInNoticesFor(cfg envport.Config, jobs notification.Queue) identity.WayIn
 	return notification.RecordWayInChanged{Jobs: jobs}
 }
 
-// mailOAuthApps hands the installation's mailbox OAuth apps to the mail service.
 // calendarPushApps are the mailboxes' installation apps, offered to a calendar push.
 func calendarPushApps(configured map[string]envport.OAuthApp) map[string]calendarpushservice.App {
 	apps := make(map[string]calendarpushservice.App, len(configured))
 	for provider, app := range configured {
 		apps[provider] = calendarpushservice.App{ClientID: app.ClientID, ClientSecret: app.ClientSecret}
+	}
+	return apps
+}
+
+// fileStoreApps are the mailboxes' installation apps, offered to a file store connection.
+func fileStoreApps(configured map[string]envport.OAuthApp) map[string]filestoreservice.App {
+	apps := make(map[string]filestoreservice.App, len(configured))
+	for provider, app := range configured {
+		apps[provider] = filestoreservice.App{ClientID: app.ClientID, ClientSecret: app.ClientSecret}
 	}
 	return apps
 }
@@ -5842,6 +5866,7 @@ func (p pushedFeedRows) ExecuteFeed(ctx context.Context, tenantID, feedID shared
 	return calendarpushservice.FeedRows{Items: exported.Items, TimeZone: exported.TimeZone}, err
 }
 
+// mailOAuthApps hands the installation's mailbox OAuth apps to the mail service.
 func mailOAuthApps(configured map[string]envport.OAuthApp) map[string]mailservice.App {
 	apps := make(map[string]mailservice.App, len(configured))
 	for provider, app := range configured {
