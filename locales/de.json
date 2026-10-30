@@ -3074,6 +3074,8 @@
   "app.agents.evaluated": "Der Agent hat seinen Satz beantwortet; der Lauf ist festgehalten.",
   "app.agents.evaluation_hub": "Gegen die CIs von",
   "app.agents.evaluation_hub_needed": "Wählen Sie den Hub, dessen CIs er abgleicht.",
+  "app.agents.evaluation_collection": "Labels aus",
+  "app.agents.evaluation_no_labels": "Keine Labels",
   "app.agents.passed_of": "{passed} von {cases}",
   "app.agents.percent": "{value} %",
   "app.agents.request_status_label": "Anzeigen",

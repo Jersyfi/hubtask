@@ -85,9 +85,21 @@
 
   const answersItself = $derived(selfEvaluation(agent.kind));
   let evaluationHub = $state('');
+  // A triage's labels are chosen from one collection's; none chosen answers no labels.
+  let evaluationCollection = $state('');
+  const labelsFrom = $derived(agent.kind === 'TICKET_TRIAGE' && evaluationHub !== '');
+  const collectionOptions = $derived<SelectOption[]>([
+    { value: '', label: t('app.agents.evaluation_no_labels') },
+    ...containers.collectionsOf(evaluationHub).map((each) => ({ value: each.id, label: each.name })),
+  ]);
+  $effect(() => {
+    if (labelsFrom) return containers.openLevel(evaluationHub);
+  });
 
   function evaluate() {
-    void act(() => agents.evaluate(id, answersItself === 'hub' ? evaluationHub : undefined), t('app.agents.evaluated'));
+    const hub = answersItself === 'hub' ? evaluationHub : undefined;
+    const collection = labelsFrom && evaluationCollection !== '' ? evaluationCollection : undefined;
+    void act(() => agents.evaluate(id, hub, collection), t('app.agents.evaluated'));
   }
 
   // --- A case ----------------------------------------------------------------------------------
@@ -240,7 +252,21 @@
         {#if viewer.administers && answersItself}
           <div class="line">
             {#if answersItself === 'hub'}
-              <Select label={t('app.agents.evaluation_hub')} size="sm" options={hubOptions} bind:value={evaluationHub} />
+              <Select
+                label={t('app.agents.evaluation_hub')}
+                size="sm"
+                options={hubOptions}
+                bind:value={evaluationHub}
+                onchange={() => (evaluationCollection = '')}
+              />
+            {/if}
+            {#if labelsFrom}
+              <Select
+                label={t('app.agents.evaluation_collection')}
+                size="sm"
+                options={collectionOptions}
+                bind:value={evaluationCollection}
+              />
             {/if}
             <Button
               icon="play"

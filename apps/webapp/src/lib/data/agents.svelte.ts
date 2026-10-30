@@ -84,9 +84,13 @@ class Agents {
     });
   }
 
-  /** A shipped agent answers its own set; a CI suggestion and a triage match the hub named. */
-  evaluate(agentId: string, hubId?: string): Promise<AgentRun> {
-    return engine.mutate<AgentRun>('POST', `${agentEvaluationsPath(agentId)}:run`, hubId ? { hub_id: hubId } : {}, {
+  /**
+   * A shipped agent answers its own set; a CI suggestion and a triage match the hub named, and a
+   * triage given a collection labels its cases from that collection's labels.
+   */
+  evaluate(agentId: string, hubId?: string, collectionId?: string): Promise<AgentRun> {
+    const body = { ...(hubId ? { hub_id: hubId } : {}), ...(collectionId ? { collection_id: collectionId } : {}) };
+    return engine.mutate<AgentRun>('POST', `${agentEvaluationsPath(agentId)}:run`, body, {
       idempotencyKey: crypto.randomUUID(),
       invalidates: [agentEvaluationsPath(agentId)],
     });
