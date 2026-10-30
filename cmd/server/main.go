@@ -1851,11 +1851,16 @@ func run() error {
 		},
 	}
 	// The service desk's calendars and SLA policies (M5); the clocks run on the durable timers.
+	// Every approval, SLA record and rating written reaches the change log through its store, so
+	// that a device reads them while the server is away (offline-sync.md §3.1).
 	serviceDeskStore := postgres.NewServiceDeskRepository()
+	deskAnnouncer := servicedeskservice.Announcer{Changes: changes, HLC: hybrid, Items: items}
+	slaRecords := deskAnnouncer.Records(serviceDeskStore.Records())
+	deskApprovals := deskAnnouncer.Approvals(serviceDeskStore.Approvals())
 	serviceDesk := servicedeskservice.Desk{
 		Calendars: serviceDeskStore.Calendars(), Policies: serviceDeskStore.Policies(),
-		Records: serviceDeskStore.Records(), Replies: serviceDeskStore.Replies(),
-		Ratings: serviceDeskStore.Ratings(), Authorizer: authorizer, Audit: auditSink,
+		Records: slaRecords, Replies: serviceDeskStore.Replies(),
+		Ratings: deskAnnouncer.Ratings(serviceDeskStore.Ratings()), Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 	// The requester portal (UC-SVC-05): it raises and answers through the entry use cases in the
@@ -1874,7 +1879,7 @@ func run() error {
 		Jobs: jobs, Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 	}
 	stepApprovals := servicedeskservice.Approvals{
-		Store: serviceDeskStore.Approvals(), Items: items, Containers: containers, Groups: groups,
+		Store: deskApprovals, Items: items, Containers: containers, Groups: groups,
 		Roles: authorizer, Steps: approvalSteps, Desk: serviceDesk, Timers: reviewClocks, Notify: approvalMail,
 	}
 	// The planning module (M2): a plan is a hub or a collection, read for whoever may see its
@@ -3942,7 +3947,7 @@ func run() error {
 			// entry, in the dispatcher's transaction; never on a replay.
 			servicedeskservice.SlaClocks{
 				Calendars: serviceDeskStore.Calendars(), Policies: serviceDeskStore.Policies(),
-				Records: serviceDeskStore.Records(), Items: items, IDs: ids,
+				Records: slaRecords, Items: items, IDs: ids,
 				Timers: calendarservice.Clocks{Timers: postgres.NewTimerRepository(), Jobs: jobs, IDs: ids},
 			},
 			// The check a deletion seeds (ADR-0060): one job per workspace, never the check itself
@@ -4419,10 +4424,10 @@ func run() error {
 			BatchSize: calendarservice.DefaultTimerBatch,
 			Elapsed: map[calendardomain.Purpose]calendarservice.TimerElapsed{
 				calendardomain.PurposeSLA: servicedeskservice.SlaElapsed{
-					Records: serviceDeskStore.Records(), Items: items, Events: outbox, IDs: ids,
+					Records: slaRecords, Items: items, Events: outbox, IDs: ids,
 				},
 				calendardomain.PurposeApproval: servicedeskservice.ApprovalElapsed{
-					Store: serviceDeskStore.Approvals(), Notify: approvalMail,
+					Store: deskApprovals, Notify: approvalMail,
 				},
 				calendardomain.PurposePageReview: knowledgeservice.PageReviewElapsed{
 					Pages: postgres.NewPageRepository(), Timers: reviewClocks, Clock: clockadapter.System{},
