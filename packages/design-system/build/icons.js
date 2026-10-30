@@ -131,6 +131,7 @@ export const DECLARED = {
     'user-minus', // remove a member, unassign
     'columns-3', // a bucket
     'folder-plus', // a hub or collection
+    'folder', // a folder in a file store
     'layout-template', // a template
     'skip-forward', // skip an occurrence
     'sliders-horizontal', // a custom field
