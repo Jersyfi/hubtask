@@ -1807,6 +1807,96 @@ func (q *Queries) ExportCmdbSources(ctx context.Context, arg ExportCmdbSourcesPa
 	return items, nil
 }
 
+const exportCodeHooks = `-- name: ExportCodeHooks :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM code_hook x
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportCodeHooksParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportCodeHooksRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportCodeHooks(ctx context.Context, arg ExportCodeHooksParams) ([]ExportCodeHooksRow, error) {
+	rows, err := q.db.Query(ctx, exportCodeHooks, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportCodeHooksRow{}
+	for rows.Next() {
+		var i ExportCodeHooksRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportCodeLinks = `-- name: ExportCodeLinks :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM code_link x
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportCodeLinksParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportCodeLinksRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportCodeLinks(ctx context.Context, arg ExportCodeLinksParams) ([]ExportCodeLinksRow, error) {
+	rows, err := q.db.Query(ctx, exportCodeLinks, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportCodeLinksRow{}
+	for rows.Next() {
+		var i ExportCodeLinksRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportComments = `-- name: ExportComments :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

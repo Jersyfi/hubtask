@@ -1182,6 +1182,24 @@ var entities = []Entity{
 		Unique:     []UniqueField{{Field: "goal", Rule: UniqueSkip, Within: []string{"item_id"}}},
 		References: []Reference{{Field: "item_id", Table: "work_item"}},
 	},
+	// A hub's forge hooks and an entry's code links (migration 0275). The hook's secret is not a
+	// column: it is derived from the installation key and the salt, so a restore on another
+	// installation answers its forge only once the secret is drawn again.
+	{
+		Name: "code_hooks", Table: "code_hook", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+			{Field: "run_as", Table: "account"},
+		},
+	},
+	{
+		Name: "code_links", Table: "code_link", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "item_id", Table: "work_item"},
+			{Field: "hub_id", Table: "container"},
+			{Field: "hook_id", Table: "code_hook"},
+		},
+	},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a
@@ -1365,6 +1383,7 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"page_reference":       "the references a page's body holds, rebuilt by the trigger as each page is restored",
 	"whiteboard_reference": "the references a board's scene holds, rebuilt by the trigger as each board is restored",
 	"cmdb_intake_seen":     "the signatures of the last minutes' alert deliveries, kept only to refuse a replay",
+	"code_delivery_seen":   "the digests of the last days' forge deliveries, kept only to refuse a repeat",
 	// Written by the trigger of migration 0211 from the entry's custom fields, which the archive
 	// carries: the restore's write of each entry rebuilds it.
 	"entry_field_value": "a typed projection of the custom fields the entries carry, rebuilt by the trigger as each entry is restored",

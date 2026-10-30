@@ -942,6 +942,28 @@ var importers = map[string]importer{
 			return queries.ClearCmdbSoftwareAlias(ctx)
 		},
 	},
+	"code_hook": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportCodeHook(ctx, sqlc.ImportCodeHookParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsCodeHook(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearCodeHook(ctx)
+		},
+	},
+	"code_link": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportCodeLink(ctx, sqlc.ImportCodeLinkParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsCodeLink(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearCodeLink(ctx)
+		},
+	},
 	"cmdb_alert": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportCmdbAlert(ctx, sqlc.ImportCmdbAlertParams{Payload: payload, Overwrite: overwrite})

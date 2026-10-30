@@ -141,7 +141,9 @@ var subjectColumns = map[string][]string{
 	"cmdb_asset":          {"assigned_to", "updated_by"},
 	"cmdb_software_alias": {"updated_by"},
 	// The connectors that run with their rights (M6).
-	"cmdb_connector":  {"run_as"},
+	"cmdb_connector": {"run_as"},
+	// The forge hooks that write as the person who defined them (UC-INT-13).
+	"code_hook":       {"run_as"},
 	"config_revision": {"actor_id", "proposed_by"},
 	"config_proposal": {"proposed_by", "decided_by"},
 	"config_template": {"created_by"},
@@ -205,6 +207,7 @@ var notThePersons = map[string]string{
 	"plan_baseline_entry":     "an entry's dates as a baseline holds them, which name nobody; the baseline names who took it",
 	"sprint_entry":            "an entry's membership in a sprint, which names nobody; the sprint names who planned it",
 	"release_entry":           "an entry's membership in a release, which names nobody; the release names who planned it",
+	"code_link":               "a forge's commit, branch or pull request on an entry; its author is the forge's account name, never a person of the workspace",
 	"time_work_type":          "the workspace's kinds of work, which name nobody",
 	"portfolio_item":          "which hub or collection a portfolio holds with its dates and status, which names nobody; the portfolio names its owner",
 	"agent_action":            "the ledger of an agent's acts, which names no person; the agent names its owner and an act held for a person is in agent_request",

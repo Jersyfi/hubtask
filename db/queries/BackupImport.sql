@@ -3663,3 +3663,42 @@ SELECT EXISTS (
 
 -- name: ClearReleaseEntry :execrows
 DELETE FROM release_entry;
+
+-- name: ImportCodeHook :execrows
+INSERT INTO code_hook (id, tenant_id, hub_id, kind, name, enabled, salt, run_as, created_at, updated_at, last_delivery_at)
+SELECT r.id, r.tenant_id, r.hub_id, r.kind, r.name, r.enabled, r.salt, r.run_as, r.created_at, r.updated_at,
+  r.last_delivery_at
+FROM jsonb_populate_record(
+  NULL::code_hook,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, enabled = EXCLUDED.enabled, salt = EXCLUDED.salt, run_as = EXCLUDED.run_as,
+  updated_at = EXCLUDED.updated_at, last_delivery_at = EXCLUDED.last_delivery_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCodeHook :one
+SELECT EXISTS (SELECT 1 FROM code_hook WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCodeHook :execrows
+DELETE FROM code_hook;
+
+-- name: ImportCodeLink :execrows
+INSERT INTO code_link (id, tenant_id, item_id, hub_id, hook_id, kind, repository, ref, title, url, author, state,
+  happened_at, updated_at)
+SELECT r.id, r.tenant_id, r.item_id, r.hub_id, r.hook_id, r.kind, r.repository, r.ref, r.title, r.url, r.author,
+  r.state, r.happened_at, r.updated_at
+FROM jsonb_populate_record(
+  NULL::code_link,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  title = EXCLUDED.title, url = EXCLUDED.url, author = EXCLUDED.author, state = EXCLUDED.state,
+  happened_at = EXCLUDED.happened_at, updated_at = EXCLUDED.updated_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCodeLink :one
+SELECT EXISTS (SELECT 1 FROM code_link WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCodeLink :execrows
+DELETE FROM code_link;

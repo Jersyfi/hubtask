@@ -239,6 +239,8 @@ re-mints identities must rewrite exactly these).
 | 121 | `config_hub_template_uses` | `config_hub_template_use` | `hub_id`, `template_key` | `hub_id`→containers (the hub template part a hub took and that part then, the base of the hub's three-way upgrade, migration 0271) |
 | 122 | `releases` | `release` | `id` | `hub_id`→containers, `notes_page_id`→pages, `created_by`→accounts (a version a hub ships, its day, and once out the page its notes went to, migration 0272) |
 | 123 | `release_entries` | `release_entry` | `release_id`, `entry_id` | `release_id`→releases, `entry_id`→work_items (an entry in a release; one release per entry) |
+| 124 | `code_hooks` | `code_hook` | `id` | `hub_id`→containers, `run_as`→accounts (a forge's hook into a hub, migration 0275; its secret is derived from the installation key and the salt and is no column, so a restore on another installation draws it again) |
+| 125 | `code_links` | `code_link` | `id` | `item_id`→work_items, `hub_id`→containers, `hook_id`→code_hooks (an entry's commit, branch or pull request as its forge last told it) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a
@@ -292,7 +294,7 @@ reasoning is backup-restore.md §8.4):
   flows, OAuth clients/grants/codes, sign-in provider configurations and linked external
   identities, the workspace's host names, calendar feed token hashes, the jumble intake credential,
   device registrations, the digests of the CMDB's alert deliveries that refuse a replay
-  (`cmdb_intake_seen`). A copy of a credential is a credential.
+  (`cmdb_intake_seen`) and of the forge deliveries that refuse a repeat (`code_delivery_seen`). A copy of a credential is a credential.
 * **Live plumbing**: the outbox and event consumptions, notification rows, webhook deliveries,
   rule runs and occurrences, durable timers (migration 0229; a clock towards the source system's
   future), idempotency keys, the synchronisation's change log, operation log,

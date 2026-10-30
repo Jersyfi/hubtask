@@ -471,6 +471,30 @@ func (q *Queries) ClearCmdbSource(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearCodeHook = `-- name: ClearCodeHook :execrows
+DELETE FROM code_hook
+`
+
+func (q *Queries) ClearCodeHook(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCodeHook)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearCodeLink = `-- name: ClearCodeLink :execrows
+DELETE FROM code_link
+`
+
+func (q *Queries) ClearCodeLink(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCodeLink)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearComment = `-- name: ClearComment :execrows
 DELETE FROM comment
 `
@@ -1916,6 +1940,28 @@ SELECT EXISTS (SELECT 1 FROM cmdb_source WHERE id = ($1::jsonb->>'id')::uuid) AS
 
 func (q *Queries) HoldsCmdbSource(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsCmdbSource, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsCodeHook = `-- name: HoldsCodeHook :one
+SELECT EXISTS (SELECT 1 FROM code_hook WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsCodeHook(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCodeHook, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsCodeLink = `-- name: HoldsCodeLink :one
+SELECT EXISTS (SELECT 1 FROM code_link WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsCodeLink(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCodeLink, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -4283,6 +4329,61 @@ type ImportCmdbSourceParams struct {
 
 func (q *Queries) ImportCmdbSource(ctx context.Context, arg ImportCmdbSourceParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importCmdbSource, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importCodeHook = `-- name: ImportCodeHook :execrows
+INSERT INTO code_hook (id, tenant_id, hub_id, kind, name, enabled, salt, run_as, created_at, updated_at, last_delivery_at)
+SELECT r.id, r.tenant_id, r.hub_id, r.kind, r.name, r.enabled, r.salt, r.run_as, r.created_at, r.updated_at,
+  r.last_delivery_at
+FROM jsonb_populate_record(
+  NULL::code_hook,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, enabled = EXCLUDED.enabled, salt = EXCLUDED.salt, run_as = EXCLUDED.run_as,
+  updated_at = EXCLUDED.updated_at, last_delivery_at = EXCLUDED.last_delivery_at
+WHERE $2::boolean
+`
+
+type ImportCodeHookParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportCodeHook(ctx context.Context, arg ImportCodeHookParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importCodeHook, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importCodeLink = `-- name: ImportCodeLink :execrows
+INSERT INTO code_link (id, tenant_id, item_id, hub_id, hook_id, kind, repository, ref, title, url, author, state,
+  happened_at, updated_at)
+SELECT r.id, r.tenant_id, r.item_id, r.hub_id, r.hook_id, r.kind, r.repository, r.ref, r.title, r.url, r.author,
+  r.state, r.happened_at, r.updated_at
+FROM jsonb_populate_record(
+  NULL::code_link,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  title = EXCLUDED.title, url = EXCLUDED.url, author = EXCLUDED.author, state = EXCLUDED.state,
+  happened_at = EXCLUDED.happened_at, updated_at = EXCLUDED.updated_at
+WHERE $2::boolean
+`
+
+type ImportCodeLinkParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportCodeLink(ctx context.Context, arg ImportCodeLinkParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importCodeLink, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}
