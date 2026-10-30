@@ -3,7 +3,7 @@
 
 /**
  * The service desk's paths and writes for the team (UC-SVC-01 to 07): business calendars, SLA
- * policies, canned replies and the report at the workspace, an entry's SLA goals, a reply filled
+ * policies, canned replies and the report at the workspace, a hub's own calendars, an entry's SLA goals, a reply filled
  * for an entry, and a macro pressed on one. A definition is a whole replacement under its key.
  */
 
@@ -16,6 +16,7 @@ import { engine } from './engine.ts';
 export const calendarsPath = '/business-calendars';
 export const policiesPath = '/sla-policies';
 export const repliesPath = '/reply-templates';
+export const hubCalendarsPath = (hubId: string) => `/hubs/${hubId}/business-calendars`;
 export const entrySlaPath = (itemId: string) => `/items/${itemId}/sla`;
 export const slaReportPath = (from: string, to: string) => `/sla-report?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
 
@@ -26,6 +27,15 @@ class Desk {
 
   deleteCalendar(key: string): Promise<unknown> {
     return engine.mutate('DELETE', `${calendarsPath}/${key}`, undefined, { invalidates: [calendarsPath] });
+  }
+
+  /** A hub's own version of the workspace calendar of the key (UC-SVC-01 check 5). */
+  defineHubCalendar(hubId: string, key: string, body: BusinessCalendarDefine): Promise<BusinessCalendar> {
+    return engine.mutate<BusinessCalendar>('PUT', `${hubCalendarsPath(hubId)}/${key}`, body, { invalidates: [hubCalendarsPath(hubId)] });
+  }
+
+  deleteHubCalendar(hubId: string, key: string): Promise<unknown> {
+    return engine.mutate('DELETE', `${hubCalendarsPath(hubId)}/${key}`, undefined, { invalidates: [hubCalendarsPath(hubId)] });
   }
 
   definePolicy(key: string, body: SlaPolicyDefine): Promise<SlaPolicy> {

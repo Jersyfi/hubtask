@@ -72,3 +72,18 @@ export function reportRows(report: SlaReport): ReportRow[] {
     return { ...row, metShare: decided === 0 ? undefined : Math.round((row.met / decided) * 100) };
   });
 }
+
+/** A workspace calendar beside the hub's own version of it, if the hub keeps one (UC-SVC-01 check 5). */
+export interface HubCalendarRow {
+  key: string;
+  workspace: BusinessCalendar;
+  own: BusinessCalendar | undefined;
+}
+
+/** The workspace's calendars by key, each with the hub's own version where it keeps one. */
+export function hubCalendarRows(workspace: readonly BusinessCalendar[], own: readonly BusinessCalendar[]): HubCalendarRow[] {
+  const byKey = new Map(own.map((row) => [row.key, row]));
+  return [...workspace]
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map((row) => ({ key: row.key, workspace: row, own: byKey.get(row.key) }));
+}

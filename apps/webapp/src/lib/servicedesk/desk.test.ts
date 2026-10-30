@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { byPriorityOf, byPriorityText, formOf, holidaysOf, hoursOf, reportRows } from './desk.ts';
+import { byPriorityOf, byPriorityText, formOf, holidaysOf, hoursOf, hubCalendarRows, reportRows } from './desk.ts';
 
 test('a calendar is written from its days and one span, and read back the same (UC-SVC-01 check 1)', () => {
   const hours = hoursOf(['FRIDAY', 'MONDAY'], '08:00', '18:00');
@@ -32,4 +32,14 @@ test('the report counts each policy’s goals by standing and the share met (UC-
   });
   assert.deepEqual(rows[0], { policy: 'incidents', goal: 'RESOLUTION', met: 3, breached: 1, running: 2, paused: 0, metShare: 75 });
   assert.equal(rows[1]?.metShare, undefined);
+});
+
+test('a hub\'s own calendar stands beside the workspace\'s of its key (UC-SVC-01 check 5)', () => {
+  const office = { key: 'office', name: 'Office', zone: 'Europe/Berlin', hours: hoursOf(['MONDAY'], '08:00', '18:00'), holidays: [], version: 1 };
+  const night = { ...office, key: 'night', name: 'Night' };
+  const ownOffice = { ...office, name: 'Office (Munich)', hub_id: 'h-1', holidays: ['2026-11-01'] };
+  const rows = hubCalendarRows([office, night], [ownOffice]);
+  assert.deepEqual(rows.map((row) => row.key), ['night', 'office']);
+  assert.equal(rows[0]!.own, undefined);
+  assert.equal(rows[1]!.own?.name, 'Office (Munich)');
 });

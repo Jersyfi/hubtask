@@ -133,6 +133,7 @@
     PoliciesDialog: () => import('../lib/workspace/PoliciesDialog.svelte'),
     HandleField: () => import('../lib/mail/HandleField.svelte'),
     ContainerEditDialog: () => import('../lib/workspace/ContainerEditDialog.svelte'),
+    HubCalendars: () => import('../lib/servicedesk/HubCalendars.svelte'),
   };
 
   interface Props {
@@ -1229,6 +1230,9 @@
         {#snippet modulesTab()}
           <LazyView load={settingsParts.ModuleSwitches} props={{ hubId: container.id }} />
         {/snippet}
+        {#snippet calendarsTab()}
+          <LazyView load={settingsParts.HubCalendars} props={{ hubId: container.id, mayShape }} />
+        {/snippet}
         {#snippet peopleTab()}
           <MembersDialog isEmbedded isOpen title={t('app.people.title')} scope={memberScope} path={memberPath} />
         {/snippet}
@@ -1252,6 +1256,10 @@
                 ]
               : [
                   { id: 'modules', label: t('app.modules.title'), body: modulesTab },
+                  // A hub's own working hours, where the service desk is on (UC-SVC-01 check 5).
+                  ...(manifest.value?.modules_on?.includes('SERVICE_DESK')
+                    ? [{ id: 'calendars', label: t('app.desk.hub_section'), body: calendarsTab }]
+                    : []),
                   { id: 'people', label: t('app.structure.tab_people'), body: peopleTab },
                 ],
           }}
