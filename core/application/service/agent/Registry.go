@@ -20,6 +20,7 @@ import (
 	"time"
 
 	agentrepo "github.com/Jersyfi/hubtask/core/application/repository/agent"
+	settingrepo "github.com/Jersyfi/hubtask/core/application/repository/setting"
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -105,6 +106,8 @@ type Desk struct {
 	// registry's rows; nil records nothing.
 	Changes changelog.ChangeLog
 	HLC     clock.HLCSource
+	// Settings holds the workspace's agent policy (agents.registered_only); nil leaves it off.
+	Settings settingrepo.Settings
 }
 
 // Notices writes the owner's notice inside the gate's transaction.

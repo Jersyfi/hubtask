@@ -21658,6 +21658,20 @@ type WorkspaceDefaultWeekStart string
 // WorkspaceStatus The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
 type WorkspaceStatus string
 
+// WorkspaceAgentPolicy The workspace's agent policy, keyed by the settings catalogue's key.
+type WorkspaceAgentPolicy struct {
+	AgentsRegisteredOnly struct {
+		// LockedBy The level that locked it
+		LockedBy *string `json:"locked_by,omitempty"`
+
+		// Source The level whose value is in force.
+		Source string `json:"source"`
+
+		// Value Whether MCP takes registered agents only.
+		Value bool `json:"value"`
+	} `json:"agents.registered_only"`
+}
+
 // WorkspaceHost One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish.
 type WorkspaceHost struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -22262,6 +22276,11 @@ type ReadAgentMeteringParams struct {
 
 	// Days How many days back; 30 without.
 	Days *int `form:"days,omitempty" json:"days,omitempty"`
+}
+
+// SetAgentPolicyJSONBody defines parameters for SetAgentPolicy.
+type SetAgentPolicyJSONBody struct {
+	RegisteredOnly bool `json:"registered_only"`
 }
 
 // AskWorkspaceParams defines parameters for AskWorkspace.
@@ -24458,6 +24477,9 @@ type StartAgentJobJSONRequestBody StartAgentJobJSONBody
 
 // SetAgentHaltJSONRequestBody defines body for SetAgentHalt for application/json ContentType.
 type SetAgentHaltJSONRequestBody SetAgentHaltJSONBody
+
+// SetAgentPolicyJSONRequestBody defines body for SetAgentPolicy for application/json ContentType.
+type SetAgentPolicyJSONRequestBody SetAgentPolicyJSONBody
 
 // SetAiArrivalProposalsJSONRequestBody defines body for SetAiArrivalProposals for application/json ContentType.
 type SetAiArrivalProposalsJSONRequestBody = AiArrivalProposalsChoice
@@ -27346,6 +27368,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /agents:metering (the `ReadAgentMetering` operationId).
 	ReadAgentMetering(ctx context.Context, params *ReadAgentMeteringParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadAgentPolicy Whether MCP takes registered agents only
+	//
+	// The workspace's agent policy, its value, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Corresponds with GET /agents:policy (the `ReadAgentPolicy` operationId).
+	ReadAgentPolicy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetAgentPolicyWithBody Take registered agents only on MCP, or not
+	//
+	// On, an act through MCP by a caller no registered agent names - a person's own token, a service account - is refused with `agents.registration_required` and recorded; every other door is untouched. Off by default; the installation or a plan may switch it on and lock it, and the workspace may then not switch it off (`setting.locked`). Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /agents:policy (the `SetAgentPolicy` operationId).
+	SetAgentPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetAgentPolicy Take registered agents only on MCP, or not
+	//
+	// On, an act through MCP by a caller no registered agent names - a person's own token, a service account - is refused with `agents.registration_required` and recorded; every other door is untouched. Off by default; the installation or a plan may switch it on and lock it, and the workspace may then not switch it off (`setting.locked`). Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /agents:policy (the `SetAgentPolicy` operationId).
+	SetAgentPolicy(ctx context.Context, body SetAgentPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetAiArrivalProposalsWithBody Whether AI prepares a proposal for each new jumble entry
 	//
@@ -37774,6 +37821,61 @@ func (c *Client) SetAgentHalt(ctx context.Context, body SetAgentHaltJSONRequestB
 // Corresponds with GET /agents:metering (the `ReadAgentMetering` operationId).
 func (c *Client) ReadAgentMetering(ctx context.Context, params *ReadAgentMeteringParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadAgentMeteringRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadAgentPolicy Whether MCP takes registered agents only
+//
+// The workspace's agent policy, its value, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+//
+// Corresponds with GET /agents:policy (the `ReadAgentPolicy` operationId).
+func (c *Client) ReadAgentPolicy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadAgentPolicyRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetAgentPolicyWithBody Take registered agents only on MCP, or not
+//
+// On, an act through MCP by a caller no registered agent names - a person's own token, a service account - is refused with `agents.registration_required` and recorded; every other door is untouched. Off by default; the installation or a plan may switch it on and lock it, and the workspace may then not switch it off (`setting.locked`). Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /agents:policy (the `SetAgentPolicy` operationId).
+func (c *Client) SetAgentPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetAgentPolicyRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetAgentPolicy Take registered agents only on MCP, or not
+//
+// On, an act through MCP by a caller no registered agent names - a person's own token, a service account - is refused with `agents.registration_required` and recorded; every other door is untouched. Off by default; the installation or a plan may switch it on and lock it, and the workspace may then not switch it off (`setting.locked`). Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /agents:policy (the `SetAgentPolicy` operationId).
+func (c *Client) SetAgentPolicy(ctx context.Context, body SetAgentPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetAgentPolicyRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -58151,6 +58253,73 @@ func NewReadAgentMeteringRequest(server string, params *ReadAgentMeteringParams)
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewReadAgentPolicyRequest constructs an http.Request for the ReadAgentPolicy method
+func NewReadAgentPolicyRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents:policy")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetAgentPolicyRequest calls the generic SetAgentPolicy builder with application/json body
+func NewSetAgentPolicyRequest(server string, body SetAgentPolicyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetAgentPolicyRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetAgentPolicyRequestWithBody constructs an http.Request for the SetAgentPolicy method, with any body, and a specified content type
+func NewSetAgentPolicyRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/agents:policy")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -86464,6 +86633,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /agents:metering (the `ReadAgentMetering` operationId).
 	ReadAgentMeteringWithResponse(ctx context.Context, params *ReadAgentMeteringParams, reqEditors ...RequestEditorFn) (*ReadAgentMeteringResult, error)
 
+	// ReadAgentPolicyWithResponse Whether MCP takes registered agents only
+	//
+	// The workspace's agent policy, its value, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /agents:policy (the `ReadAgentPolicy` operationId).
+	ReadAgentPolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadAgentPolicyResult, error)
+
+	// SetAgentPolicyWithBodyWithResponse Take registered agents only on MCP, or not
+	//
+	// On, an act through MCP by a caller no registered agent names - a person's own token, a service account - is refused with `agents.registration_required` and recorded; every other door is untouched. Off by default; the installation or a plan may switch it on and lock it, and the workspace may then not switch it off (`setting.locked`). Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /agents:policy (the `SetAgentPolicy` operationId).
+	SetAgentPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetAgentPolicyResult, error)
+
+	// SetAgentPolicyWithResponse Take registered agents only on MCP, or not
+	//
+	// On, an act through MCP by a caller no registered agent names - a person's own token, a service account - is refused with `agents.registration_required` and recorded; every other door is untouched. Off by default; the installation or a plan may switch it on and lock it, and the workspace may then not switch it off (`setting.locked`). Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /agents:policy (the `SetAgentPolicy` operationId).
+	SetAgentPolicyWithResponse(ctx context.Context, body SetAgentPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetAgentPolicyResult, error)
+
 	// SetAiArrivalProposalsWithBodyWithResponse Whether AI prepares a proposal for each new jumble entry
 	//
 	// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
@@ -99539,6 +99735,102 @@ func (r ReadAgentMeteringResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReadAgentMeteringResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadAgentPolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkspaceAgentPolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadAgentPolicyResult) GetJSON200() *WorkspaceAgentPolicy {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadAgentPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadAgentPolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadAgentPolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadAgentPolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadAgentPolicyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetAgentPolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkspaceAgentPolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetAgentPolicyResult) GetJSON200() *WorkspaceAgentPolicy {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetAgentPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetAgentPolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetAgentPolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetAgentPolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetAgentPolicyResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -129302,6 +129594,51 @@ func (c *ClientWithResponses) ReadAgentMeteringWithResponse(ctx context.Context,
 	return ParseReadAgentMeteringResult(rsp)
 }
 
+// ReadAgentPolicyWithResponse Whether MCP takes registered agents only
+//
+// The workspace's agent policy, its value, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /agents:policy (the `ReadAgentPolicy` operationId).
+func (c *ClientWithResponses) ReadAgentPolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadAgentPolicyResult, error) {
+	rsp, err := c.ReadAgentPolicy(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadAgentPolicyResult(rsp)
+}
+
+// SetAgentPolicyWithBodyWithResponse Take registered agents only on MCP, or not
+//
+// On, an act through MCP by a caller no registered agent names - a person's own token, a service account - is refused with `agents.registration_required` and recorded; every other door is untouched. Off by default; the installation or a plan may switch it on and lock it, and the workspace may then not switch it off (`setting.locked`). Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /agents:policy (the `SetAgentPolicy` operationId).
+func (c *ClientWithResponses) SetAgentPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetAgentPolicyResult, error) {
+	rsp, err := c.SetAgentPolicyWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetAgentPolicyResult(rsp)
+}
+
+// SetAgentPolicyWithResponse Take registered agents only on MCP, or not
+//
+// On, an act through MCP by a caller no registered agent names - a person's own token, a service account - is refused with `agents.registration_required` and recorded; every other door is untouched. Off by default; the installation or a plan may switch it on and lock it, and the workspace may then not switch it off (`setting.locked`). Needs MANAGE_MEMBERS at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /agents:policy (the `SetAgentPolicy` operationId).
+func (c *ClientWithResponses) SetAgentPolicyWithResponse(ctx context.Context, body SetAgentPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetAgentPolicyResult, error) {
+	rsp, err := c.SetAgentPolicy(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetAgentPolicyResult(rsp)
+}
+
 // SetAiArrivalProposalsWithBodyWithResponse Whether AI prepares a proposal for each new jumble entry
 //
 // `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
@@ -145784,6 +146121,72 @@ func ParseReadAgentMeteringResult(rsp *http.Response) (*ReadAgentMeteringResult,
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest AgentMeteringList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadAgentPolicyResult parses an HTTP response from a ReadAgentPolicyWithResponse call
+func ParseReadAgentPolicyResult(rsp *http.Response) (*ReadAgentPolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadAgentPolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkspaceAgentPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetAgentPolicyResult parses an HTTP response from a SetAgentPolicyWithResponse call
+func ParseSetAgentPolicyResult(rsp *http.Response) (*SetAgentPolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetAgentPolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkspaceAgentPolicy
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

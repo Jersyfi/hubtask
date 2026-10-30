@@ -335,6 +335,14 @@ class Client:
         """Halt or release every agent of the workspace"""
         return self._call("PUT", "/agents:halt", {}, None, {}, body, "json", "application/json", "json")
 
+    def read_agent_policy(self) -> "WorkspaceAgentPolicy":
+        """Whether MCP takes registered agents only"""
+        return self._call("GET", "/agents:policy", {}, None, {}, None, "none", None, "json")
+
+    def set_agent_policy(self, body: dict[str, Any]) -> "WorkspaceAgentPolicy":
+        """Take registered agents only on MCP, or not"""
+        return self._call("PUT", "/agents:policy", {}, None, {}, body, "json", "application/json", "json")
+
     def read_agent_metering(self, *, query: dict[str, Any] | None = None) -> "AgentMeteringList":
         """What the workspace's agents did and spent per day"""
         return self._call("GET", "/agents:metering", {}, query, {}, None, "none", None, "json")

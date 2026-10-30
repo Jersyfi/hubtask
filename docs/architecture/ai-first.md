@@ -71,7 +71,10 @@ remains fully functional (QS-09). Which AI features exist and how a person uses 
   as them. A registered model is the consent to send it material; a changed one stops its agents
   until they are approved again. An agent with an evaluation bar goes live only once a run on its
   model passed it. A caller that is no registered agent - a person's own token over MCP among them -
-  is held to the guardrails above as before.
+  is held to the guardrails above as before - unless the workspace switched `agents.registered_only`
+  on (off by default; the installation or a plan may lock it on): then MCP refuses it with
+  `agents.registration_required` and records `agent.unregistered_refused`, and every other door is
+  untouched (UC-AGT-02 check 10).
 * **A shipped agent proposes; a person applies** (G11, UC-AGT-07): ticket triage, CI suggestion,
   duplicate review and knowledge draft run as jobs on their own account through the gate, which
   holds every write a shipped agent attempts whatever its policy says; the triage's labels are a

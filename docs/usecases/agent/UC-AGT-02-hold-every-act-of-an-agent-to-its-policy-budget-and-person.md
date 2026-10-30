@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, core/application/service/access/Delegation_test.go, core/application/service/agent/Runner_test.go, core/application/service/notification/RecordAgentNotice_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts]
+checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, core/application/service/access/Delegation_test.go, core/application/service/agent/Runner_test.go, core/application/service/agent/Policy_test.go, core/application/service/notification/RecordAgentNotice_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts]
 ---
 
 # Hold every act of an agent to its policy, its budget and the person it acts for
@@ -48,6 +48,11 @@ incident the admin halts every agent of the workspace at once.
    run spent - and never its input or answer; the metering sums them per agent and day.
 9. The web app shows an agent's requests with what they would change for approval, its ledger and
    the metering.
+10. With the workspace's `agents.registered_only` switched on (*Agents → Policy*, off by default; the
+    installation or a plan may lock it on), an act through MCP by a caller no registered agent
+    names - a person's own token, a service account - is refused with
+    `agents.registration_required` and recorded as `agent.unregistered_refused`; REST, `hubctl` and
+    a rule's action are untouched.
 
 ## Where it ends
 

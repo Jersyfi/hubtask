@@ -5,6 +5,7 @@ package setting
 
 import (
 	"github.com/Jersyfi/hubtask/core/application/service/quota"
+	"github.com/Jersyfi/hubtask/core/domain/model/agent"
 	"github.com/Jersyfi/hubtask/core/domain/model/config"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
@@ -41,5 +42,6 @@ func Catalogue() (domain.Catalogue, error) {
 	}
 	definitions = append(definitions, module.Definitions()...)
 	definitions = append(definitions, config.AgentApplyDefinition())
+	definitions = append(definitions, agent.RegisteredOnlyDefinition())
 	return domain.NewCatalogue(definitions...)
 }

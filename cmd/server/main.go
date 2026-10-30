@@ -1915,7 +1915,7 @@ func run() error {
 		Store: agentStore, Catalogue: agentCatalogue, Authorizer: authorizer,
 		Sources: integrationservice.ReadAiSource{Writer: aiSourceWriter}.Descriptor().Handler,
 		Audit:   auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
-		Queue: jobs, Changes: changes, HLC: hybrid,
+		Queue: jobs, Changes: changes, HLC: hybrid, Settings: postgres.SettingRepository{},
 		// An act run with its owner told tells them, once an hour (NOTIFY).
 		Notices: notification.RecordAgentNotice{
 			Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
@@ -1938,6 +1938,8 @@ func run() error {
 		agentservice.SuspendAgent{Desk: agentDesk}.Descriptor(),
 		agentservice.RetireAgent{Desk: agentDesk}.Descriptor(),
 		agentservice.SetAgentHalt{Desk: agentDesk}.Descriptor(),
+		agentservice.ReadAgentPolicy{Desk: agentDesk}.Descriptor(),
+		agentservice.SetAgentPolicy{Desk: agentDesk}.Descriptor(),
 		agentservice.ReadAgentHalt{Desk: agentDesk}.Descriptor(),
 		agentservice.ListAgentRequests{Desk: agentDesk}.Descriptor(),
 		agentservice.DecideAgentRequest{Desk: agentDesk}.Descriptor(),

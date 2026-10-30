@@ -1401,6 +1401,52 @@ paths:
               schema: { $ref: "#/components/schemas/AgentHalt" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /agents:policy:
+    get:
+      tags: [agents]
+      operationId: readAgentPolicy
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent policy"
+      summary: Whether MCP takes registered agents only
+      description: The workspace's agent policy, its value, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+      responses:
+        "200":
+          description: The policy
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkspaceAgentPolicy" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [agents]
+      operationId: setAgentPolicy
+      x-hubtask-rest: generated
+      x-hubtask-cli: "agent policy set"
+      summary: Take registered agents only on MCP, or not
+      description: >
+        On, an act through MCP by a caller no registered agent names - a person's own token, a
+        service account - is refused with `agents.registration_required` and recorded; every other
+        door is untouched. Off by default; the installation or a plan may switch it on and lock it,
+        and the workspace may then not switch it off (`setting.locked`). Needs MANAGE_MEMBERS at the
+        workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [registered_only]
+              properties:
+                registered_only: { type: boolean }
+      responses:
+        "200":
+          description: Set
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkspaceAgentPolicy" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /agents:metering:
     get:
       tags: [agents]
@@ -23540,6 +23586,18 @@ components:
             actions_per_hour: { type: integer, minimum: 0 }
             concurrent_runs: { type: integer, minimum: 0 }
         min_accuracy: { type: integer, minimum: 0, maximum: 100 }
+    WorkspaceAgentPolicy:
+      type: object
+      description: The workspace's agent policy, keyed by the settings catalogue's key.
+      required: [agents.registered_only]
+      properties:
+        agents.registered_only:
+          type: object
+          required: [value, source]
+          properties:
+            value: { type: boolean, description: Whether MCP takes registered agents only. }
+            source: { type: string, description: The level whose value is in force. }
+            locked_by: { type: string, description: The level that locked it, where one did. }
     AgentHalt:
       type: object
       required: [halted, set_by, set_at]

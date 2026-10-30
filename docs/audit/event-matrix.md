@@ -92,6 +92,13 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `agent_model.read` | ListAgentModels | `agent_model` | INFO | When refused |
 | `agent_model.registered` | RegisterAgentModel | `agent_model` | NOTICE | Every time |
 
+## Agent_policy
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `agent_policy.read` | ReadAgentPolicy | `agent_policy` | INFO | When refused |
+| `agent_policy.set` | SetAgentPolicy | `agent_policy` | NOTICE | Every time |
+
 ## Ai
 
 | Action | Use case | Target | Severity | Recorded |

@@ -903,6 +903,8 @@ export type Agent = components['schemas']['Agent'];
 export type AgentList = components['schemas']['AgentList'];
 export type AgentWrite = components['schemas']['AgentWrite'];
 export type AgentHalt = components['schemas']['AgentHalt'];
+/** Whether MCP takes registered agents only (`agents.registered_only`, UC-AGT-02). */
+export type WorkspaceAgentPolicy = components['schemas']['WorkspaceAgentPolicy'];
 export type AgentModel = components['schemas']['AgentModel'];
 export type AgentModelList = components['schemas']['AgentModelList'];
 export type AgentModelCreate = components['schemas']['AgentModelCreate'];

@@ -316,6 +316,7 @@ var restDoors = map[string]restDoor{
 	"readAgent":                         {UseCase: "ReadAgent", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readAgentHalt":                     {UseCase: "ReadAgentHalt", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readAgentMetering":                 {UseCase: "ReadAgentMetering", Status: 200, Query: []string{"agent_id", "days"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"days"}},
+	"readAgentPolicy":                   {UseCase: "ReadAgentPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readAiBudgetState":                 {UseCase: "ReadAiBudgetState", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readAiProvider":                    {UseCase: "ReadAiProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readAiSource":                      {UseCase: "ReadAiSource", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -430,6 +431,7 @@ var restDoors = map[string]restDoor{
 	"searchPages":                       {UseCase: "SearchPages", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
 	"sendWebhook":                       {UseCase: "SendWebhook", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setAgentHalt":                      {UseCase: "SetAgentHalt", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setAgentPolicy":                    {UseCase: "SetAgentPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setAiArrivalProposals":             {UseCase: "SetAiArrivalProposals", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setAiPersonOptOut":                 {UseCase: "SetAiPersonOptOut", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setBudget":                         {UseCase: "SetBudget", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"amount_minor", "expected_version", "minutes"}},
@@ -2289,6 +2291,12 @@ func (c *RestController) ReadAgentMetering(w http.ResponseWriter, r *http.Reques
 	c.door(w, r, restDoors["readAgentMetering"], usecase.Input{}, params, nil, &answer)
 }
 
+// ReadAgentPolicy answers GET /agents:policy by the generated mapping.
+func (c *RestController) ReadAgentPolicy(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.WorkspaceAgentPolicy
+	c.door(w, r, restDoors["readAgentPolicy"], usecase.Input{}, nil, nil, &answer)
+}
+
 // ReadAiBudgetState answers GET /ai-budget-state by the generated mapping.
 func (c *RestController) ReadAiBudgetState(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["readAiBudgetState"], usecase.Input{}, nil, nil, answerBy(aiBudgetStateResponse))
@@ -2939,6 +2947,13 @@ func (c *RestController) SetAgentHalt(w http.ResponseWriter, r *http.Request) {
 	var body openapi.SetAgentHaltJSONRequestBody
 	var answer openapi.AgentHalt
 	c.door(w, r, restDoors["setAgentHalt"], usecase.Input{}, nil, &body, &answer)
+}
+
+// SetAgentPolicy answers PUT /agents:policy by the generated mapping.
+func (c *RestController) SetAgentPolicy(w http.ResponseWriter, r *http.Request) {
+	var body openapi.SetAgentPolicyJSONRequestBody
+	var answer openapi.WorkspaceAgentPolicy
+	c.door(w, r, restDoors["setAgentPolicy"], usecase.Input{}, nil, &body, &answer)
 }
 
 // SetAiArrivalProposals answers PUT /ai-arrival-proposals by the generated mapping.

@@ -177,6 +177,13 @@ var generatedCommands = []door{
 			{Name: "days", Kind: "integer", Help: "How many days back; 30 without", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"agent_id", "allowed", "day", "held", "refused"}},
+	{Group: "agent", Verb: "policy", OperationID: "readAgentPolicy", Method: "GET", Path: "/agents:policy", Summary: "Whether MCP takes registered agents only",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "agent", Verb: "policy set", OperationID: "setAgentPolicy", Method: "PUT", Path: "/agents:policy", Summary: "Take registered agents only on MCP, or not",
+		Body: []doorParam{
+			{Name: "registered_only", Kind: "boolean", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
 	{Group: "agent", Verb: "requests", OperationID: "listAgentRequests", Method: "GET", Path: "/agent-requests", Summary: "The acts agents attempted that wait for a person",
 		Query: []doorParam{
 			{Name: "agent_id", Kind: "uuid", Help: "Only this agent's", Required: false},

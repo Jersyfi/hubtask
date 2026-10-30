@@ -14,6 +14,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/agent"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/audit"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
 // Gate holds every act of a registered agent to its governance (UC-AGT-02): on the registry
@@ -43,7 +46,13 @@ func (g Gate) Wrap(observe usecase.Middleware) usecase.Middleware {
 		class := ClassOf(descriptor)
 		name := descriptor.Name
 		handler := usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
-			if admitted(ctx) || !mayBeAgent(actor) {
+			if admitted(ctx) {
+				return next.Invoke(ctx, actor, in)
+			}
+			if !mayBeAgent(actor) {
+				if err := g.refuseUnregistered(ctx, actor, name); err != nil {
+					return nil, err
+				}
 				return next.Invoke(ctx, actor, in)
 			}
 			a, found, err := g.agentOf(ctx, actor)
@@ -51,6 +60,9 @@ func (g Gate) Wrap(observe usecase.Middleware) usecase.Middleware {
 				return nil, err
 			}
 			if !found {
+				if err := g.refuseUnregistered(ctx, actor, name); err != nil {
+					return nil, err
+				}
 				return next.Invoke(ctx, actor, in)
 			}
 			if slices.Contains(whileNotLive, name) && a.Status != domain.StatusRetired {
@@ -74,6 +86,36 @@ func (g Gate) Wrap(observe usecase.Middleware) usecase.Middleware {
 		}
 		return observe(descriptor, handler)
 	}
+}
+
+// refuseUnregistered refuses an act through MCP by a caller no agent names - a person's own token,
+// an unregistered service account - where the workspace takes registered agents only
+// (agents.registered_only, UC-AGT-02). Every other door, and every workspace that left it off, is
+// untouched. The refusal is in the trail, as every refusal of the authoriser is.
+func (g Gate) refuseUnregistered(ctx context.Context, actor appshared.ActorContext, name string) error {
+	if actor.Channel != string(work.ChannelMCP) || !actor.IsAuthenticated() || actor.TenantID.IsZero() {
+		return nil
+	}
+	var on bool
+	err := g.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		r, err := g.Desk.registeredOnly(ctx, actor.TenantID)
+		on = domain.RegisteredOnlyOf(r)
+		return err
+	})
+	if err != nil || !on {
+		return err
+	}
+	if g.Desk.Audit != nil {
+		_ = g.Desk.Audit.Append(ctx, audit.Entry{
+			TenantID: actor.TenantID, OccurredAt: g.Desk.Clock.Now(), Action: UnregisteredRefusedAction,
+			Outcome: audit.OutcomeDenied, Severity: audit.SeverityNotice,
+			ActorKind: actor.Kind, ActorID: actor.AccountID, ActorLabel: actor.AccountName,
+			TargetType: policyTarget, TargetID: actor.TenantID,
+			Context: audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+			Changes: audit.Changes(open("use_case", name)),
+		})
+	}
+	return shared.ErrForbidden.WithDetail("agents.registration_required")
 }
 
 // ClassOf is the class of an act (G3): a read; an act that cannot be taken back - destructive, or

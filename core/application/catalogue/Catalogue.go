@@ -234,6 +234,8 @@ func Descriptors() []usecase.Descriptor {
 		agentservice.SuspendAgent{}.Descriptor(),
 		agentservice.RetireAgent{}.Descriptor(),
 		agentservice.SetAgentHalt{}.Descriptor(),
+		agentservice.ReadAgentPolicy{}.Descriptor(),
+		agentservice.SetAgentPolicy{}.Descriptor(),
 		agentservice.ReadAgentHalt{}.Descriptor(),
 		agentservice.ListAgentRequests{}.Descriptor(),
 		agentservice.DecideAgentRequest{}.Descriptor(),

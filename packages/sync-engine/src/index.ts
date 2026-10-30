@@ -472,6 +472,7 @@ export type {
   AgentList,
   AgentWrite,
   AgentHalt,
+  WorkspaceAgentPolicy,
   AgentModel,
   AgentModelList,
   AgentModelCreate,

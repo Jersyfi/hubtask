@@ -1626,6 +1626,10 @@ class AgentWrite(TypedDict, total=False):
     budget: dict[str, Any]
     min_accuracy: int
 
+WorkspaceAgentPolicy = TypedDict("WorkspaceAgentPolicy", {
+    "agents.registered_only": Required[dict[str, Any]],
+}, total=False)
+
 class AgentHalt(TypedDict, total=False):
     halted: Required[bool]
     set_by: Required[str | None]

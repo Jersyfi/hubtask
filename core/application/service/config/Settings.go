@@ -45,7 +45,35 @@ func settingAreas() []settingArea {
 	return []settingArea{
 		{read: ReadWorkspaceName, prefixes: []string{signInPrefix, legalPrefix, localisationKey}, rows: workspaceSettingRows, write: workspaceSettingOp},
 		{read: "ReadAiSource", prefixes: []string{aiPrefix}, rows: aiSettingRows, write: aiSettingOp},
+		{read: "ReadAgentPolicy", prefixes: []string{agentPolicyPrefix}, rows: agentPolicyRows, write: agentPolicyOp},
 	}
+}
+
+// agentPolicyPrefix is the agents' policy: whether MCP takes registered agents only.
+const agentPolicyPrefix = "agents."
+
+// agentPolicyRows reads ReadAgentPolicy's answer, which is keyed by the catalogue's keys already.
+func agentPolicyRows(answer map[string]any) map[string]map[string]any {
+	out := map[string]map[string]any{}
+	for key, cell := range answer {
+		switch row := cell.(type) {
+		case usecase.Output:
+			out[key] = row
+		case map[string]any:
+			out[key] = row
+		}
+	}
+	return out
+}
+
+// agentPolicyOp switches the policy; the switch has no "inherit" of its own, as agent_apply has none.
+func agentPolicyOp(change domain.BlockChange, _ map[string]any) (operation, error) {
+	if change.Op != domain.OpChange {
+		return operation{}, shared.ErrValidation.WithDetail("config.not_removable").
+			WithFields(domain.Refusal("config.not_removable", change.Path(), nil))
+	}
+	on, _ := change.After[settingValueField].(bool)
+	return operation{UseCase: "SetAgentPolicy", Path: change.Path(), Input: usecase.Input{"registered_only": on}}, nil
 }
 
 // ReadWorkspaceName is the workspace's read, shared by the structure section and the settings.

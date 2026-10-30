@@ -21653,6 +21653,20 @@ type WorkspaceDefaultWeekStart string
 // WorkspaceStatus The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
 type WorkspaceStatus string
 
+// WorkspaceAgentPolicy The workspace's agent policy, keyed by the settings catalogue's key.
+type WorkspaceAgentPolicy struct {
+	AgentsRegisteredOnly struct {
+		// LockedBy The level that locked it
+		LockedBy *string `json:"locked_by,omitempty"`
+
+		// Source The level whose value is in force.
+		Source string `json:"source"`
+
+		// Value Whether MCP takes registered agents only.
+		Value bool `json:"value"`
+	} `json:"agents.registered_only"`
+}
+
 // WorkspaceHost One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish.
 type WorkspaceHost struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -22257,6 +22271,11 @@ type ReadAgentMeteringParams struct {
 
 	// Days How many days back; 30 without.
 	Days *int `form:"days,omitempty" json:"days,omitempty"`
+}
+
+// SetAgentPolicyJSONBody defines parameters for SetAgentPolicy.
+type SetAgentPolicyJSONBody struct {
+	RegisteredOnly bool `json:"registered_only"`
 }
 
 // AskWorkspaceParams defines parameters for AskWorkspace.
@@ -24454,6 +24473,9 @@ type StartAgentJobJSONRequestBody StartAgentJobJSONBody
 // SetAgentHaltJSONRequestBody defines body for SetAgentHalt for application/json ContentType.
 type SetAgentHaltJSONRequestBody SetAgentHaltJSONBody
 
+// SetAgentPolicyJSONRequestBody defines body for SetAgentPolicy for application/json ContentType.
+type SetAgentPolicyJSONRequestBody SetAgentPolicyJSONBody
+
 // SetAiArrivalProposalsJSONRequestBody defines body for SetAiArrivalProposals for application/json ContentType.
 type SetAiArrivalProposalsJSONRequestBody = AiArrivalProposalsChoice
 
@@ -25980,6 +26002,12 @@ type ServerInterface interface {
 	// ReadAgentMetering What the workspace's agents did and spent per day
 	// (GET /agents:metering)
 	ReadAgentMetering(w http.ResponseWriter, r *http.Request, params ReadAgentMeteringParams)
+	// ReadAgentPolicy Whether MCP takes registered agents only
+	// (GET /agents:policy)
+	ReadAgentPolicy(w http.ResponseWriter, r *http.Request)
+	// SetAgentPolicy Take registered agents only on MCP, or not
+	// (PUT /agents:policy)
+	SetAgentPolicy(w http.ResponseWriter, r *http.Request)
 	// SetAiArrivalProposals Whether AI prepares a proposal for each new jumble entry
 	// (PUT /ai-arrival-proposals)
 	SetAiArrivalProposals(w http.ResponseWriter, r *http.Request)
@@ -31088,6 +31116,34 @@ func (siw *ServerInterfaceWrapper) ReadAgentMetering(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReadAgentMetering(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadAgentPolicy operation middleware
+func (siw *ServerInterfaceWrapper) ReadAgentPolicy(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadAgentPolicy(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetAgentPolicy operation middleware
+func (siw *ServerInterfaceWrapper) SetAgentPolicy(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetAgentPolicy(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -50166,6 +50222,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/agents", wrapper.RegisterAgent)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agents:halt", wrapper.ReadAgentHalt)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/agents:halt", wrapper.SetAgentHalt)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agents:policy", wrapper.ReadAgentPolicy)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/agents:policy", wrapper.SetAgentPolicy)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agents:metering", wrapper.ReadAgentMetering)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/agents/{agentId}", wrapper.ReadAgent)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/agents/{agentId}", wrapper.ChangeAgent)

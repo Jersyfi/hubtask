@@ -2617,6 +2617,8 @@ func (pending) DeleteScimGroup(w http.ResponseWriter, r *http.Request, _ openapi
 	notAvailable(w, r)
 }
 
-func (pending) GetViewAs(w http.ResponseWriter, r *http.Request)   { notAvailable(w, r) }
-func (pending) StartViewAs(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
-func (pending) EndViewAs(w http.ResponseWriter, r *http.Request)   { notAvailable(w, r) }
+func (pending) GetViewAs(w http.ResponseWriter, r *http.Request)       { notAvailable(w, r) }
+func (pending) StartViewAs(w http.ResponseWriter, r *http.Request)     { notAvailable(w, r) }
+func (pending) EndViewAs(w http.ResponseWriter, r *http.Request)       { notAvailable(w, r) }
+func (pending) ReadAgentPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) SetAgentPolicy(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }

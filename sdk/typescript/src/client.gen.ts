@@ -401,6 +401,16 @@ export class HubtaskClient {
     return this.call("PUT", "/agents:halt", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Whether MCP takes registered agents only */
+  readAgentPolicy(options: CallOptions = {}): Promise<operations["readAgentPolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/agents:policy", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Take registered agents only on MCP, or not */
+  setAgentPolicy(body: NonNullable<operations["setAgentPolicy"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setAgentPolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/agents:policy", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** What the workspace's agents did and spent per day */
   readAgentMetering(options: CallOptions & { readonly query?: NonNullable<operations["readAgentMetering"]['parameters']['query']> } = {}): Promise<operations["readAgentMetering"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/agents:metering", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
