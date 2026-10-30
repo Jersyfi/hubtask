@@ -76,6 +76,7 @@ without a row here, a row without a mark, and a mark for a preset the server doe
 |---|---|
 | [cel.dev/cel-go](https://pkg.go.dev/cel.dev/cel-go?tab=licenses) | Apache-2.0 |
 | [cel.dev/expr](https://pkg.go.dev/cel.dev/expr?tab=licenses) | Apache-2.0 |
+| [github.com/Azure/go-ntlmssp](https://pkg.go.dev/github.com/Azure/go-ntlmssp?tab=licenses) | MIT |
 | [github.com/antlr4-go/antlr/v4](https://pkg.go.dev/github.com/antlr4-go/antlr/v4?tab=licenses) | BSD-3-Clause |
 | [github.com/apapsch/go-jsonmerge/v2](https://pkg.go.dev/github.com/apapsch/go-jsonmerge/v2?tab=licenses) | MIT |
 | [github.com/beevik/etree](https://pkg.go.dev/github.com/beevik/etree?tab=licenses) | BSD-2-Clause |
@@ -84,8 +85,10 @@ without a row here, a row without a mark, and a mark for a preset the server doe
 | [github.com/cespare/xxhash/v2](https://pkg.go.dev/github.com/cespare/xxhash/v2?tab=licenses) | MIT |
 | [github.com/coder/websocket](https://pkg.go.dev/github.com/coder/websocket?tab=licenses) | ISC |
 | [github.com/coreos/go-oidc/v3/oidc](https://pkg.go.dev/github.com/coreos/go-oidc/v3/oidc?tab=licenses) | Apache-2.0 |
+| [github.com/go-asn1-ber/asn1-ber](https://pkg.go.dev/github.com/go-asn1-ber/asn1-ber?tab=licenses) | MIT |
 | [github.com/go-jose/go-jose/v4](https://pkg.go.dev/github.com/go-jose/go-jose/v4?tab=licenses) | Apache-2.0 |
 | [github.com/go-jose/go-jose/v4/json](https://pkg.go.dev/github.com/go-jose/go-jose/v4/json?tab=licenses) | BSD-3-Clause |
+| [github.com/go-ldap/ldap/v3](https://pkg.go.dev/github.com/go-ldap/ldap/v3?tab=licenses) | MIT |
 | [github.com/go-logr/logr](https://pkg.go.dev/github.com/go-logr/logr?tab=licenses) | Apache-2.0 |
 | [github.com/go-logr/stdr](https://pkg.go.dev/github.com/go-logr/stdr?tab=licenses) | Apache-2.0 |
 | [github.com/google/uuid](https://pkg.go.dev/github.com/google/uuid?tab=licenses) | BSD-3-Clause |
