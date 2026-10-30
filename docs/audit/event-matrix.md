@@ -487,9 +487,9 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
-| `forge.hook_changed` | UpdateCodeHook | `code_hook` | NOTICE | When refused |
-| `forge.hook_created` | CreateCodeHook | `code_hook` | NOTICE | When refused |
-| `forge.hook_secret_rotated` | RotateCodeHookSecret | `code_hook` | NOTICE | When refused |
+| `forge.hook_changed` | UpdateCodeHook | `code_hook` | NOTICE | Every time |
+| `forge.hook_created` | CreateCodeHook | `code_hook` | NOTICE | Every time |
+| `forge.hook_secret_rotated` | RotateCodeHookSecret | `code_hook` | NOTICE | Every time |
 | `forge.hooks_read` | ListCodeHooks | `code_hook` | INFO | When refused |
 | `forge.links_read` | ListEntryCodeLinks | `work_item` | INFO | When refused |
 

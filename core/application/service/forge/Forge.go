@@ -129,7 +129,7 @@ func entryPath(s workrepo.EntrySummary) []identity.Scope {
 	if !s.HubID.IsZero() {
 		path = append(path, identity.HubScope(s.HubID))
 	}
-	return append(path, identity.CollectionScope(s.CollectionID), identity.ItemScope(s.ID))
+	return append(path, identity.CollectionScope(s.CollectionID))
 }
 
 func (f Forge) authorizeHub(ctx context.Context, actor appshared.ActorContext, hubID shared.ID, write bool, action audit.Action, id shared.ID) error {
@@ -282,7 +282,7 @@ func (h CreateCodeHook) Descriptor() usecase.Descriptor {
 			{Name: "kind", Kind: usecase.KindString, Required: true, Enum: kindNames(), Description: "The forge."},
 			{Name: "name", Kind: usecase.KindString, Required: true, Description: "What the hook is called, at most 80 characters."},
 		},
-		Audit:    usecase.AuditDeclaration{Action: HookCreatedAction, TargetType: hookTarget, Severity: audit.SeverityNotice},
+		Audit:    usecase.AuditDeclaration{Required: true, Action: HookCreatedAction, TargetType: hookTarget, Severity: audit.SeverityNotice},
 		Activity: usecase.ActivityDeclaration{Exempt: exemptReason},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			hub, err := in.ID("hub_id")
@@ -350,7 +350,7 @@ func (h UpdateCodeHook) Descriptor() usecase.Descriptor {
 			{Name: "name", Kind: usecase.KindString, Description: "A new name."},
 			{Name: "enabled", Kind: usecase.KindBool, Description: "Whether deliveries are taken."},
 		},
-		Audit:    usecase.AuditDeclaration{Action: HookChangedAction, TargetType: hookTarget, Severity: audit.SeverityNotice},
+		Audit:    usecase.AuditDeclaration{Required: true, Action: HookChangedAction, TargetType: hookTarget, Severity: audit.SeverityNotice},
 		Activity: usecase.ActivityDeclaration{Exempt: exemptReason},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			id, err := in.ID("hook_id")
@@ -400,7 +400,7 @@ func (h RotateCodeHookSecret) Descriptor() usecase.Descriptor {
 			"forge's webhook is given the new one straight after.",
 		SideEffects: "Replaces the hook's secret.", TokenScope: hooksWrite,
 		Input:    []usecase.Field{hookInput()},
-		Audit:    usecase.AuditDeclaration{Action: HookRotatedAction, TargetType: hookTarget, Severity: audit.SeverityNotice},
+		Audit:    usecase.AuditDeclaration{Required: true, Action: HookRotatedAction, TargetType: hookTarget, Severity: audit.SeverityNotice},
 		Activity: usecase.ActivityDeclaration{Exempt: exemptReason},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			id, err := in.ID("hook_id")
@@ -469,6 +469,7 @@ func (h ListEntryCodeLinks) Descriptor() usecase.Descriptor {
 			if err := f.Authorizer.Authorize(ctx, actor, access.Request{
 				Permission: service.PermissionRead, Path: entryPath(summaries[0]), Action: LinksReadAction,
 				TokenScope: linksRead, TargetType: itemTarget, TargetID: item,
+				On: access.ItemSubject{Does: service.ItemRead, ID: item},
 			}); err != nil {
 				return nil, err
 			}
