@@ -927,6 +927,67 @@ var entities = []Entity{
 			{Field: "account_id", Table: "account"},
 		},
 	},
+	// The governed agents (migration 0251): the models registered for them, the agents with their
+	// policy and budget, the workspace's kill switch, the acts held for a person, the ledger of
+	// acts, the evaluation sets and runs - and the provenance of accepted AI values (AI-2).
+	{
+		Name: "agent_models", Table: "agent_model", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: false,
+		Unique:     []UniqueField{{Field: "key", Rule: UniqueSkip}},
+		References: []Reference{{Field: "consent_by", Table: "account", Clearable: true}},
+	},
+	{
+		Name: "agents", Table: "agent", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: false,
+		Unique: []UniqueField{{Field: "account_id", Rule: UniqueSkip}},
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "owner_id", Table: "account"},
+			{Field: "model_id", Table: "agent_model"},
+			{Field: "approved_by", Table: "account", Clearable: true},
+			{Field: "suspended_by", Table: "account", Clearable: true},
+			{Field: "created_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "agent_halts", Table: "agent_halt", Whole: true, Unmarked: true, Later: true,
+		Keys:       []string{"id"},
+		References: []Reference{{Field: "set_by", Table: "account", Clearable: true}},
+	},
+	{
+		Name: "agent_requests", Table: "agent_request", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "agent_id", Table: "agent"},
+			{Field: "decided_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "agent_actions", Table: "agent_action", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{{Field: "agent_id", Table: "agent"}},
+	},
+	{
+		Name: "agent_eval_cases", Table: "agent_eval_case", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "agent_id", Table: "agent"},
+			{Field: "created_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "agent_eval_runs", Table: "agent_eval_run", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "agent_id", Table: "agent"},
+			{Field: "run_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "ai_provenance", Table: "ai_provenance", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{{Field: "accepted_by", Table: "account", Clearable: true}},
+	},
 	{
 		Name: "satisfaction_ratings", Table: "satisfaction_rating", Whole: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,

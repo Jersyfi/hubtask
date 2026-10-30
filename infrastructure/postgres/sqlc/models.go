@@ -430,10 +430,131 @@ type ActivityEntry struct {
 	CausationID   pgtype.UUID
 }
 
+type Agent struct {
+	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
+	AccountID             pgtype.UUID
+	Name                  string
+	Purpose               string
+	Kind                  string
+	OwnerID               pgtype.UUID
+	RiskClass             string
+	Scopes                []string
+	ModelID               pgtype.UUID
+	PolicyReversible      string
+	PolicyIrreversible    string
+	TokensPerDay          int64
+	ActionsPerHour        int32
+	ConcurrentRuns        int32
+	MinAccuracy           int16
+	Status                string
+	ApprovedBy            pgtype.UUID
+	ApprovedAt            pgtype.Timestamptz
+	ApprovedModelRevision int32
+	SuspendedBy           pgtype.UUID
+	SuspendedAt           pgtype.Timestamptz
+	CreatedBy             pgtype.UUID
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	Version               int32
+}
+
+type AgentAction struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AgentID   pgtype.UUID
+	UseCase   string
+	Class     string
+	Decision  string
+	Code      string
+	Tokens    int64
+	RequestID pgtype.UUID
+	At        pgtype.Timestamptz
+}
+
+type AgentEvalCase struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AgentID   pgtype.UUID
+	Title     string
+	Notes     string
+	Expected  []byte
+	CreatedBy pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+type AgentEvalRun struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	AgentID       pgtype.UUID
+	ModelRevision int32
+	Cases         int32
+	Passed        int32
+	RunBy         pgtype.UUID
+	At            pgtype.Timestamptz
+}
+
+type AgentHalt struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	Halted   bool
+	SetBy    pgtype.UUID
+	SetAt    pgtype.Timestamptz
+}
+
+type AgentModel struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	Key           string
+	Name          string
+	Source        string
+	OfferedID     pgtype.UUID
+	Model         string
+	Region        string
+	RetentionDays *int32
+	ConsentBy     pgtype.UUID
+	ConsentAt     pgtype.Timestamptz
+	Revision      int32
+	Retired       bool
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
+}
+
+type AgentRequest struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AgentID   pgtype.UUID
+	UseCase   string
+	Class     string
+	Input     []byte
+	Status    string
+	DecidedBy pgtype.UUID
+	DecidedAt pgtype.Timestamptz
+	Code      string
+	CreatedAt pgtype.Timestamptz
+	Version   int32
+}
+
 type AiObjectionNotice struct {
 	TenantID  pgtype.UUID
 	AccountID pgtype.UUID
 	NoticedAt pgtype.Timestamptz
+}
+
+type AiProvenance struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	TargetType    string
+	TargetID      pgtype.UUID
+	Fields        []string
+	SuggestionID  pgtype.UUID
+	AgentID       pgtype.UUID
+	Model         string
+	PromptID      string
+	PromptVersion string
+	AcceptedBy    pgtype.UUID
+	AcceptedAt    pgtype.Timestamptz
 }
 
 type AiProvider struct {

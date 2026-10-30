@@ -1343,3 +1343,107 @@ FROM (
   WHERE s.key_1 > sqlc.arg('after_id')::uuid
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportAgentModels :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM agent_model x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportAgents :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM agent x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportAgentHalts :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM agent_halt x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportAgentRequests :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM agent_request x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportAgentActions :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM agent_action x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportAgentEvalCases :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM agent_eval_case x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportAgentEvalRuns :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM agent_eval_run x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportAiProvenance :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM ai_provenance x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;

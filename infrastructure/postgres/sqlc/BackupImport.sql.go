@@ -63,6 +63,102 @@ func (q *Queries) ClearActivityEntry(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearAgent = `-- name: ClearAgent :execrows
+DELETE FROM agent
+`
+
+func (q *Queries) ClearAgent(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearAgent)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearAgentAction = `-- name: ClearAgentAction :execrows
+DELETE FROM agent_action
+`
+
+func (q *Queries) ClearAgentAction(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearAgentAction)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearAgentEvalCase = `-- name: ClearAgentEvalCase :execrows
+DELETE FROM agent_eval_case
+`
+
+func (q *Queries) ClearAgentEvalCase(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearAgentEvalCase)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearAgentEvalRun = `-- name: ClearAgentEvalRun :execrows
+DELETE FROM agent_eval_run
+`
+
+func (q *Queries) ClearAgentEvalRun(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearAgentEvalRun)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearAgentHalt = `-- name: ClearAgentHalt :execrows
+DELETE FROM agent_halt
+`
+
+func (q *Queries) ClearAgentHalt(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearAgentHalt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearAgentModel = `-- name: ClearAgentModel :execrows
+DELETE FROM agent_model
+`
+
+func (q *Queries) ClearAgentModel(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearAgentModel)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearAgentRequest = `-- name: ClearAgentRequest :execrows
+DELETE FROM agent_request
+`
+
+func (q *Queries) ClearAgentRequest(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearAgentRequest)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearAiProvenanceMark = `-- name: ClearAiProvenanceMark :execrows
+DELETE FROM ai_provenance
+`
+
+func (q *Queries) ClearAiProvenanceMark(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearAiProvenanceMark)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearAutoAssignPolicy = `-- name: ClearAutoAssignPolicy :execrows
 DELETE FROM auto_assign_policy
 `
@@ -1182,6 +1278,94 @@ SELECT EXISTS (SELECT 1 FROM activity_entry WHERE id = ($1::jsonb->>'id')::uuid)
 
 func (q *Queries) HoldsActivityEntry(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsActivityEntry, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsAgent = `-- name: HoldsAgent :one
+SELECT EXISTS (SELECT 1 FROM agent WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsAgent(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsAgent, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsAgentAction = `-- name: HoldsAgentAction :one
+SELECT EXISTS (SELECT 1 FROM agent_action WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsAgentAction(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsAgentAction, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsAgentEvalCase = `-- name: HoldsAgentEvalCase :one
+SELECT EXISTS (SELECT 1 FROM agent_eval_case WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsAgentEvalCase(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsAgentEvalCase, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsAgentEvalRun = `-- name: HoldsAgentEvalRun :one
+SELECT EXISTS (SELECT 1 FROM agent_eval_run WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsAgentEvalRun(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsAgentEvalRun, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsAgentHalt = `-- name: HoldsAgentHalt :one
+SELECT EXISTS (SELECT 1 FROM agent_halt) AS held
+`
+
+func (q *Queries) HoldsAgentHalt(ctx context.Context) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsAgentHalt)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsAgentModel = `-- name: HoldsAgentModel :one
+SELECT EXISTS (SELECT 1 FROM agent_model WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsAgentModel(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsAgentModel, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsAgentRequest = `-- name: HoldsAgentRequest :one
+SELECT EXISTS (SELECT 1 FROM agent_request WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsAgentRequest(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsAgentRequest, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsAiProvenanceMark = `-- name: HoldsAiProvenanceMark :one
+SELECT EXISTS (SELECT 1 FROM ai_provenance WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsAiProvenanceMark(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsAiProvenanceMark, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -2464,6 +2648,206 @@ type ImportActivityEntryParams struct {
 // they are the key now.
 func (q *Queries) ImportActivityEntry(ctx context.Context, arg ImportActivityEntryParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importActivityEntry, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importAgent = `-- name: ImportAgent :execrows
+INSERT INTO agent (id, tenant_id, account_id, name, purpose, kind, owner_id, risk_class, scopes, model_id, policy_reversible, policy_irreversible, tokens_per_day, actions_per_hour, concurrent_runs, min_accuracy, status, approved_by, approved_at, approved_model_revision, suspended_by, suspended_at, created_by, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.account_id, r.name, r.purpose, r.kind, r.owner_id, r.risk_class, r.scopes, r.model_id, r.policy_reversible, r.policy_irreversible, r.tokens_per_day, r.actions_per_hour, r.concurrent_runs, r.min_accuracy, r.status, r.approved_by, r.approved_at, r.approved_model_revision, r.suspended_by, r.suspended_at, r.created_by, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::agent,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  account_id = EXCLUDED.account_id, name = EXCLUDED.name, purpose = EXCLUDED.purpose, kind = EXCLUDED.kind, owner_id = EXCLUDED.owner_id, risk_class = EXCLUDED.risk_class, scopes = EXCLUDED.scopes, model_id = EXCLUDED.model_id, policy_reversible = EXCLUDED.policy_reversible, policy_irreversible = EXCLUDED.policy_irreversible, tokens_per_day = EXCLUDED.tokens_per_day, actions_per_hour = EXCLUDED.actions_per_hour, concurrent_runs = EXCLUDED.concurrent_runs, min_accuracy = EXCLUDED.min_accuracy, status = EXCLUDED.status, approved_by = EXCLUDED.approved_by, approved_at = EXCLUDED.approved_at, approved_model_revision = EXCLUDED.approved_model_revision, suspended_by = EXCLUDED.suspended_by, suspended_at = EXCLUDED.suspended_at, created_by = EXCLUDED.created_by, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportAgentParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportAgent(ctx context.Context, arg ImportAgentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importAgent, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importAgentAction = `-- name: ImportAgentAction :execrows
+INSERT INTO agent_action (id, tenant_id, agent_id, use_case, class, decision, code, tokens, request_id, at)
+SELECT r.id, r.tenant_id, r.agent_id, r.use_case, r.class, r.decision, r.code, r.tokens, r.request_id, r.at
+FROM jsonb_populate_record(
+  NULL::agent_action,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  agent_id = EXCLUDED.agent_id, use_case = EXCLUDED.use_case, class = EXCLUDED.class, decision = EXCLUDED.decision, code = EXCLUDED.code, tokens = EXCLUDED.tokens, request_id = EXCLUDED.request_id, at = EXCLUDED.at
+WHERE $2::boolean
+`
+
+type ImportAgentActionParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportAgentAction(ctx context.Context, arg ImportAgentActionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importAgentAction, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importAgentEvalCase = `-- name: ImportAgentEvalCase :execrows
+INSERT INTO agent_eval_case (id, tenant_id, agent_id, title, notes, expected, created_by, created_at)
+SELECT r.id, r.tenant_id, r.agent_id, r.title, r.notes, r.expected, r.created_by, r.created_at
+FROM jsonb_populate_record(
+  NULL::agent_eval_case,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  agent_id = EXCLUDED.agent_id, title = EXCLUDED.title, notes = EXCLUDED.notes, expected = EXCLUDED.expected, created_by = EXCLUDED.created_by, created_at = EXCLUDED.created_at
+WHERE $2::boolean
+`
+
+type ImportAgentEvalCaseParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportAgentEvalCase(ctx context.Context, arg ImportAgentEvalCaseParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importAgentEvalCase, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importAgentEvalRun = `-- name: ImportAgentEvalRun :execrows
+INSERT INTO agent_eval_run (id, tenant_id, agent_id, model_revision, cases, passed, run_by, at)
+SELECT r.id, r.tenant_id, r.agent_id, r.model_revision, r.cases, r.passed, r.run_by, r.at
+FROM jsonb_populate_record(
+  NULL::agent_eval_run,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  agent_id = EXCLUDED.agent_id, model_revision = EXCLUDED.model_revision, cases = EXCLUDED.cases, passed = EXCLUDED.passed, run_by = EXCLUDED.run_by, at = EXCLUDED.at
+WHERE $2::boolean
+`
+
+type ImportAgentEvalRunParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportAgentEvalRun(ctx context.Context, arg ImportAgentEvalRunParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importAgentEvalRun, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importAgentHalt = `-- name: ImportAgentHalt :execrows
+INSERT INTO agent_halt (id, tenant_id, halted, set_by, set_at)
+SELECT r.id, r.tenant_id, r.halted, r.set_by, r.set_at
+FROM jsonb_populate_record(
+  NULL::agent_halt,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id) DO UPDATE SET
+  id = EXCLUDED.id, halted = EXCLUDED.halted, set_by = EXCLUDED.set_by, set_at = EXCLUDED.set_at
+WHERE $2::boolean
+`
+
+type ImportAgentHaltParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportAgentHalt(ctx context.Context, arg ImportAgentHaltParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importAgentHalt, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importAgentModel = `-- name: ImportAgentModel :execrows
+INSERT INTO agent_model (id, tenant_id, key, name, source, offered_id, model, region, retention_days, consent_by, consent_at, revision, retired, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.name, r.source, r.offered_id, r.model, r.region, r.retention_days, r.consent_by, r.consent_at, r.revision, r.retired, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::agent_model,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  key = EXCLUDED.key, name = EXCLUDED.name, source = EXCLUDED.source, offered_id = EXCLUDED.offered_id, model = EXCLUDED.model, region = EXCLUDED.region, retention_days = EXCLUDED.retention_days, consent_by = EXCLUDED.consent_by, consent_at = EXCLUDED.consent_at, revision = EXCLUDED.revision, retired = EXCLUDED.retired, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportAgentModelParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportAgentModel(ctx context.Context, arg ImportAgentModelParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importAgentModel, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importAgentRequest = `-- name: ImportAgentRequest :execrows
+INSERT INTO agent_request (id, tenant_id, agent_id, use_case, class, input, status, decided_by, decided_at, code, created_at, version)
+SELECT r.id, r.tenant_id, r.agent_id, r.use_case, r.class, r.input, r.status, r.decided_by, r.decided_at, r.code, r.created_at, r.version
+FROM jsonb_populate_record(
+  NULL::agent_request,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  agent_id = EXCLUDED.agent_id, use_case = EXCLUDED.use_case, class = EXCLUDED.class, input = EXCLUDED.input, status = EXCLUDED.status, decided_by = EXCLUDED.decided_by, decided_at = EXCLUDED.decided_at, code = EXCLUDED.code, created_at = EXCLUDED.created_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportAgentRequestParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportAgentRequest(ctx context.Context, arg ImportAgentRequestParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importAgentRequest, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importAiProvenanceMark = `-- name: ImportAiProvenanceMark :execrows
+INSERT INTO ai_provenance (id, tenant_id, target_type, target_id, fields, suggestion_id, agent_id, model, prompt_id, prompt_version, accepted_by, accepted_at)
+SELECT r.id, r.tenant_id, r.target_type, r.target_id, r.fields, r.suggestion_id, r.agent_id, r.model, r.prompt_id, r.prompt_version, r.accepted_by, r.accepted_at
+FROM jsonb_populate_record(
+  NULL::ai_provenance,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  target_type = EXCLUDED.target_type, target_id = EXCLUDED.target_id, fields = EXCLUDED.fields, suggestion_id = EXCLUDED.suggestion_id, agent_id = EXCLUDED.agent_id, model = EXCLUDED.model, prompt_id = EXCLUDED.prompt_id, prompt_version = EXCLUDED.prompt_version, accepted_by = EXCLUDED.accepted_by, accepted_at = EXCLUDED.accepted_at
+WHERE $2::boolean
+`
+
+type ImportAiProvenanceMarkParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportAiProvenanceMark(ctx context.Context, arg ImportAiProvenanceMarkParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importAiProvenanceMark, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

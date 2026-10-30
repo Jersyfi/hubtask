@@ -209,6 +209,14 @@ re-mints identities must rewrite exactly these).
 | 91 | `portfolio_updates` | `portfolio_update` | `id` | `portfolio_id`→portfolios, `author_id`→accounts (a status update) |
 | 92 | `dashboards` | `dashboard` | `id` | `hub_id`→containers, `owner_id`, `updated_by`→accounts (widgets as their queries; no number is stored) |
 | 93 | `dashboard_digests` | `dashboard_digest` | `id` | `dashboard_id`→dashboards, `account_id`→accounts (a person's digest of a dashboard by mail: cadence, weekday, hour, zone and next moment; no number is stored; migration 0249) |
+| 94 | `agent_models` | `agent_model` | `id` | `consent_by`→accounts (a model registered for agents: source, model, region, the provider's retention, the consent and its revision; migration 0251) |
+| 95 | `agents` | `agent` | `id` | `account_id`, `owner_id`, `approved_by`, `suspended_by`, `created_by`→accounts, `model_id`→agent models (purpose, kind, risk class, scopes, policy, budget, lifecycle) |
+| 96 | `agent_halts` | `agent_halt` | `id` | `set_by`→accounts (the workspace's kill switch for every agent) |
+| 97 | `agent_requests` | `agent_request` | `id` | `agent_id`→agents, `decided_by`→accounts (an act held for a person's approval, with its input) |
+| 98 | `agent_actions` | `agent_action` | `id` | `agent_id`→agents (the ledger: use case, class, decision, code, tokens; never an input or an answer) |
+| 99 | `agent_eval_cases` | `agent_eval_case` | `id` | `agent_id`→agents, `created_by`→accounts (a golden case: words and the expected answer) |
+| 100 | `agent_eval_runs` | `agent_eval_run` | `id` | `agent_id`→agents, `run_by`→accounts (an evaluation's counts on a model revision) |
+| 101 | `ai_provenance` | `ai_provenance` | `id` | `accepted_by`→accounts (an accepted AI value's mark: object, field names, suggestion, agent, model, prompt, who accepted when - AI-2) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

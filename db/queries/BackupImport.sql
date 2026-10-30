@@ -3067,3 +3067,139 @@ SELECT EXISTS (SELECT 1 FROM dashboard_digest WHERE id = (sqlc.arg('payload')::j
 
 -- name: ClearDashboardDigest :execrows
 DELETE FROM dashboard_digest;
+
+-- name: ImportAgentModel :execrows
+INSERT INTO agent_model (id, tenant_id, key, name, source, offered_id, model, region, retention_days, consent_by, consent_at, revision, retired, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.key, r.name, r.source, r.offered_id, r.model, r.region, r.retention_days, r.consent_by, r.consent_at, r.revision, r.retired, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::agent_model,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  key = EXCLUDED.key, name = EXCLUDED.name, source = EXCLUDED.source, offered_id = EXCLUDED.offered_id, model = EXCLUDED.model, region = EXCLUDED.region, retention_days = EXCLUDED.retention_days, consent_by = EXCLUDED.consent_by, consent_at = EXCLUDED.consent_at, revision = EXCLUDED.revision, retired = EXCLUDED.retired, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsAgentModel :one
+SELECT EXISTS (SELECT 1 FROM agent_model WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearAgentModel :execrows
+DELETE FROM agent_model;
+
+-- name: ImportAgent :execrows
+INSERT INTO agent (id, tenant_id, account_id, name, purpose, kind, owner_id, risk_class, scopes, model_id, policy_reversible, policy_irreversible, tokens_per_day, actions_per_hour, concurrent_runs, min_accuracy, status, approved_by, approved_at, approved_model_revision, suspended_by, suspended_at, created_by, created_at, updated_at, version)
+SELECT r.id, r.tenant_id, r.account_id, r.name, r.purpose, r.kind, r.owner_id, r.risk_class, r.scopes, r.model_id, r.policy_reversible, r.policy_irreversible, r.tokens_per_day, r.actions_per_hour, r.concurrent_runs, r.min_accuracy, r.status, r.approved_by, r.approved_at, r.approved_model_revision, r.suspended_by, r.suspended_at, r.created_by, r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::agent,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  account_id = EXCLUDED.account_id, name = EXCLUDED.name, purpose = EXCLUDED.purpose, kind = EXCLUDED.kind, owner_id = EXCLUDED.owner_id, risk_class = EXCLUDED.risk_class, scopes = EXCLUDED.scopes, model_id = EXCLUDED.model_id, policy_reversible = EXCLUDED.policy_reversible, policy_irreversible = EXCLUDED.policy_irreversible, tokens_per_day = EXCLUDED.tokens_per_day, actions_per_hour = EXCLUDED.actions_per_hour, concurrent_runs = EXCLUDED.concurrent_runs, min_accuracy = EXCLUDED.min_accuracy, status = EXCLUDED.status, approved_by = EXCLUDED.approved_by, approved_at = EXCLUDED.approved_at, approved_model_revision = EXCLUDED.approved_model_revision, suspended_by = EXCLUDED.suspended_by, suspended_at = EXCLUDED.suspended_at, created_by = EXCLUDED.created_by, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsAgent :one
+SELECT EXISTS (SELECT 1 FROM agent WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearAgent :execrows
+DELETE FROM agent;
+
+-- name: ImportAgentHalt :execrows
+INSERT INTO agent_halt (id, tenant_id, halted, set_by, set_at)
+SELECT r.id, r.tenant_id, r.halted, r.set_by, r.set_at
+FROM jsonb_populate_record(
+  NULL::agent_halt,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id) DO UPDATE SET
+  id = EXCLUDED.id, halted = EXCLUDED.halted, set_by = EXCLUDED.set_by, set_at = EXCLUDED.set_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsAgentHalt :one
+SELECT EXISTS (SELECT 1 FROM agent_halt) AS held;
+
+-- name: ClearAgentHalt :execrows
+DELETE FROM agent_halt;
+
+-- name: ImportAgentRequest :execrows
+INSERT INTO agent_request (id, tenant_id, agent_id, use_case, class, input, status, decided_by, decided_at, code, created_at, version)
+SELECT r.id, r.tenant_id, r.agent_id, r.use_case, r.class, r.input, r.status, r.decided_by, r.decided_at, r.code, r.created_at, r.version
+FROM jsonb_populate_record(
+  NULL::agent_request,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  agent_id = EXCLUDED.agent_id, use_case = EXCLUDED.use_case, class = EXCLUDED.class, input = EXCLUDED.input, status = EXCLUDED.status, decided_by = EXCLUDED.decided_by, decided_at = EXCLUDED.decided_at, code = EXCLUDED.code, created_at = EXCLUDED.created_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsAgentRequest :one
+SELECT EXISTS (SELECT 1 FROM agent_request WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearAgentRequest :execrows
+DELETE FROM agent_request;
+
+-- name: ImportAgentAction :execrows
+INSERT INTO agent_action (id, tenant_id, agent_id, use_case, class, decision, code, tokens, request_id, at)
+SELECT r.id, r.tenant_id, r.agent_id, r.use_case, r.class, r.decision, r.code, r.tokens, r.request_id, r.at
+FROM jsonb_populate_record(
+  NULL::agent_action,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  agent_id = EXCLUDED.agent_id, use_case = EXCLUDED.use_case, class = EXCLUDED.class, decision = EXCLUDED.decision, code = EXCLUDED.code, tokens = EXCLUDED.tokens, request_id = EXCLUDED.request_id, at = EXCLUDED.at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsAgentAction :one
+SELECT EXISTS (SELECT 1 FROM agent_action WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearAgentAction :execrows
+DELETE FROM agent_action;
+
+-- name: ImportAgentEvalCase :execrows
+INSERT INTO agent_eval_case (id, tenant_id, agent_id, title, notes, expected, created_by, created_at)
+SELECT r.id, r.tenant_id, r.agent_id, r.title, r.notes, r.expected, r.created_by, r.created_at
+FROM jsonb_populate_record(
+  NULL::agent_eval_case,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  agent_id = EXCLUDED.agent_id, title = EXCLUDED.title, notes = EXCLUDED.notes, expected = EXCLUDED.expected, created_by = EXCLUDED.created_by, created_at = EXCLUDED.created_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsAgentEvalCase :one
+SELECT EXISTS (SELECT 1 FROM agent_eval_case WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearAgentEvalCase :execrows
+DELETE FROM agent_eval_case;
+
+-- name: ImportAgentEvalRun :execrows
+INSERT INTO agent_eval_run (id, tenant_id, agent_id, model_revision, cases, passed, run_by, at)
+SELECT r.id, r.tenant_id, r.agent_id, r.model_revision, r.cases, r.passed, r.run_by, r.at
+FROM jsonb_populate_record(
+  NULL::agent_eval_run,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  agent_id = EXCLUDED.agent_id, model_revision = EXCLUDED.model_revision, cases = EXCLUDED.cases, passed = EXCLUDED.passed, run_by = EXCLUDED.run_by, at = EXCLUDED.at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsAgentEvalRun :one
+SELECT EXISTS (SELECT 1 FROM agent_eval_run WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearAgentEvalRun :execrows
+DELETE FROM agent_eval_run;
+
+-- name: ImportAiProvenanceMark :execrows
+INSERT INTO ai_provenance (id, tenant_id, target_type, target_id, fields, suggestion_id, agent_id, model, prompt_id, prompt_version, accepted_by, accepted_at)
+SELECT r.id, r.tenant_id, r.target_type, r.target_id, r.fields, r.suggestion_id, r.agent_id, r.model, r.prompt_id, r.prompt_version, r.accepted_by, r.accepted_at
+FROM jsonb_populate_record(
+  NULL::ai_provenance,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  target_type = EXCLUDED.target_type, target_id = EXCLUDED.target_id, fields = EXCLUDED.fields, suggestion_id = EXCLUDED.suggestion_id, agent_id = EXCLUDED.agent_id, model = EXCLUDED.model, prompt_id = EXCLUDED.prompt_id, prompt_version = EXCLUDED.prompt_version, accepted_by = EXCLUDED.accepted_by, accepted_at = EXCLUDED.accepted_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsAiProvenanceMark :one
+SELECT EXISTS (SELECT 1 FROM ai_provenance WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearAiProvenanceMark :execrows
+DELETE FROM ai_provenance;

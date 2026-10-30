@@ -90,6 +90,15 @@ var subjectColumns = map[string][]string{
 	"portfolio_update": {"author_id"},
 	"dashboard":        {"owner_id", "updated_by"},
 	"dashboard_digest": {"account_id"},
+	// The agents they own, approved or stopped, the acts they decided, the cases they wrote and the
+	// AI values they accepted (M9).
+	"agent_model":     {"consent_by"},
+	"agent":           {"owner_id", "approved_by", "suspended_by", "created_by"},
+	"agent_halt":      {"set_by"},
+	"agent_request":   {"decided_by"},
+	"agent_eval_case": {"created_by"},
+	"agent_eval_run":  {"run_by"},
+	"ai_provenance":   {"accepted_by"},
 	"entry_estimate":   {"updated_by"},
 	// The pages they wrote, own or checked, their versions and their comments (M3).
 	"page":         {"created_by", "updated_by", "owner_id", "verified_by"},
