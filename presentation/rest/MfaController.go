@@ -18,8 +18,6 @@ const (
 	completeSignInUseCase = "CompleteSignIn"
 	completeLinkUseCase   = "CompleteLink"
 	agreeToTermsUseCase   = "AgreeToTerms"
-	enrollTotpUseCase     = "EnrollTotp"
-	confirmTotpUseCase    = "ConfirmTotp"
 )
 
 // CompleteSignIn answers POST /auth/sessions:verify. Written out for SignIn's reason: the route
@@ -119,81 +117,18 @@ func (c *RestController) AgreeToTerms(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
 }
 
-// EnrollTotp answers POST /auth/mfa/totp:enroll. Public for the enforcement flow; a signed-in
-// caller's bearer was verified by the middleware exactly as on any public route.
-func (c *RestController) EnrollTotp(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.TotpEnrollmentStart
-	if r.ContentLength != 0 {
-		if err := decodeJSON(r, &body); err != nil {
-			WriteProblem(w, err, requestID)
-			return
-		}
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), enrollTotpUseCase, actorOf(r), usecase.Input{
-		"pending_token": optionalStringField(body.PendingToken),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	codes := make([]string, 0)
-	if raw, ok := out["recovery_codes"].([]any); ok {
-		for _, code := range raw {
-			if text, ok := code.(string); ok {
-				codes = append(codes, text)
-			}
-		}
-	}
-	// The single showing (T-18): these three exist in this response and nowhere else.
-	writeJSON(w, r, http.StatusCreated, openapi.TotpEnrollment{
-		Secret:        out.String("secret"),
-		OtpauthUri:    out.String("otpauth_uri"),
-		RecoveryCodes: codes,
-	})
-}
-
-// ConfirmTotp answers POST /auth/mfa/totp:confirm.
-func (c *RestController) ConfirmTotp(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.TotpConfirmation
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), confirmTotpUseCase, actorOf(r), usecase.Input{
-		"code":          body.Code,
-		"pending_token": optionalStringField(body.PendingToken),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
+// totpConfirmedResponse maps an armed authenticator: the session pair, or the change step the sign-in still owes standing where the pair would.
+func totpConfirmedResponse(out usecase.Output) openapi.TotpConfirmed {
 	confirmed := openapi.TotpConfirmed{Armed: true}
 	if tokens, ok := out["tokens"].(usecase.Output); ok {
 		pair := sessionTokensResponse(tokens)
 		confirmed.Tokens = &pair
 	}
 	if challenge, ok := out["challenge"].(usecase.Output); ok {
-		// The change step the sign-in still owes, standing where the pair would.
 		owed := mfaChallengeResponse(challenge)
 		confirmed.Challenge = &owed
 	}
-	writeJSON(w, r, http.StatusOK, confirmed)
+	return confirmed
 }
 
 // mfaChallengeResponse maps the 202 projection onto the contract's shape.
@@ -250,43 +185,6 @@ func mfaChallengeResponse(out usecase.Output) openapi.MfaChallenge {
 }
 
 const stepUpUseCase = "StepUp"
-
-// StepUp answers POST /auth/step-up. Written out for DisableTotp's reason.
-func (c *RestController) StepUp(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.StepUpRequest
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), stepUpUseCase, actorOf(r), usecase.Input{
-		"password":           optionalStringField(body.Password),
-		"code":               optionalStringField(body.Code),
-		"recovery_code":      optionalStringField(body.RecoveryCode),
-		"state":              optionalStringField(body.State),
-		"authorization_code": optionalStringField(body.AuthorizationCode),
-		"raw_id":             optionalStringField(body.RawId),
-		"client_data_json":   optionalStringField(body.ClientDataJson),
-		"authenticator_data": optionalStringField(body.AuthenticatorData),
-		"signature":          optionalStringField(body.Signature),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	// The single showing of the proof (T-18's discipline).
-	writeJSON(w, r, http.StatusCreated, openapi.StepUpGrant{
-		StepUpToken: out.String("step_up_token"),
-		ExpiresAt:   timeValue(out["expires_at"]),
-		Method:      openapi.StepUpGrantMethod(out.String("method")),
-	})
-}
 
 const startPasskeyStepUpUseCase = "StartPasskeyStepUp"
 

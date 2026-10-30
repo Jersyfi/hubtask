@@ -12,12 +12,10 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The plans (multi-tenancy.md §4.2): five handlers over five use cases, the values in the
-// installation level's own shape both ways.
+// The plans (multi-tenancy.md §4.2): their values in the installation level's own shape both ways.
 const (
 	createPlanUseCase = "CreatePlan"
 	changePlanUseCase = "ChangePlan"
-	moveTenantPlanUse = "MoveTenantPlan"
 )
 
 // CreatePlan answers POST /admin/plans.
@@ -132,43 +130,15 @@ func int64Of(value any) int64 {
 	return 0
 }
 
-// MoveTenantPlan answers POST /admin/tenants/{tenantId}:move-plan. A POST so that the replay guard
-// keeps its answer under an idempotency key, as it does for every control-plane act.
-func (c *RestController) MoveTenantPlan(
-	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId, _ openapi.MoveTenantPlanParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.TenantPlanMove
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	in := usecase.Input{"tenant_id": tenantID.String()}
-	if body.Plan != nil {
-		in["plan"] = *body.Plan
-	}
-	if body.ExpectedVersion != nil {
-		in["expected_version"] = *body.ExpectedVersion
-	}
-	if body.DryRun != nil {
-		in["dry_run"] = *body.DryRun
-	}
-	out, err := c.UseCases.Invoke(r.Context(), moveTenantPlanUse, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
+// tenantPlanMovedResponse maps a plan move: the workspace as it stands and what the move leaves resting.
+func tenantPlanMovedResponse(out usecase.Output) openapi.TenantPlanMoved {
 	tenant, _ := out["tenant"].(usecase.Output)
-	writeJSON(w, r, http.StatusOK, openapi.TenantPlanMoved{
+	return openapi.TenantPlanMoved{
 		Tenant:          adminTenantResponse(tenant),
 		FeaturesResting: featuresOf(out["features_resting"]),
 		ExceptionsKept:  stringsOf(out["exceptions_kept"]),
 		LimitsExceeded:  limitsExceededOf(out["limits_exceeded"]),
-	})
+	}
 }
 
 func limitsExceededOf(value any) *[]openapi.LimitExceeded {
@@ -192,36 +162,6 @@ func featuresOf(value any) []openapi.PlanFeature {
 		}
 	}
 	return features
-}
-
-// UpdateTenant answers PATCH /admin/tenants/{tenantId}: a platform's reference, set or cleared.
-func (c *RestController) UpdateTenant(
-	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId, params openapi.UpdateTenantParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.TenantUpdate
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	in := usecase.Input{"tenant_id": tenantID.String(), "external_reference": optionalStringField(body.ExternalReference)}
-	if version, ok := versionFromIfMatch(params.IfMatch); ok {
-		in["expected_version"] = version
-	}
-	out, err := c.UseCases.Invoke(r.Context(), "UpdateTenant", actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	answer := adminTenantResponse(out)
-	if answer.Version != nil {
-		w.Header().Set("ETag", etag(*answer.Version))
-	}
-	writeJSON(w, r, http.StatusOK, answer)
 }
 
 // QueryTenants answers POST /admin/tenants:query.

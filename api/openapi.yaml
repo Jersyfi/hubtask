@@ -8749,6 +8749,8 @@ paths:
     post:
       tags: [auth]
       operationId: enrollTotp
+      x-hubtask-rest: generated
+      x-hubtask-rest-shown-once: secret
       security: []
       summary: Begin TOTP enrolment
       description: >
@@ -8782,6 +8784,8 @@ paths:
     post:
       tags: [auth]
       operationId: confirmTotp
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: totpConfirmedResponse
       security: []
       summary: Confirm enrolment with a first valid code
       description: >
@@ -8810,6 +8814,8 @@ paths:
     post:
       tags: [auth]
       operationId: stepUp
+      x-hubtask-rest: generated
+      x-hubtask-rest-shown-once: step_up_token
       summary: Prove yourself again, for the irreversible
       description: >
         A fresh re-authentication on the current session, with whatever the account holds: the
@@ -9492,6 +9498,8 @@ paths:
     patch:
       tags: [admin]
       operationId: updateTenant
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: adminTenantResponse
       summary: Set or clear the platform's reference on a workspace
       description: >
         The reference a purchase platform keeps for the workspace - its customer or subscription
@@ -10211,6 +10219,8 @@ paths:
     post:
       tags: [admin]
       operationId: moveTenantPlan
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: tenantPlanMovedResponse
       summary: Put a workspace on another plan
       description: >
         Applies at the workspace's next request, with no job. `plan: null` takes the workspace
