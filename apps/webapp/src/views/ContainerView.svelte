@@ -870,6 +870,11 @@
       actions.push({ label: t('app.actuals.title'), icon: 'clock', onclick: () => onnavigate(`${base}/actuals`) });
       actions.push({ label: t('app.workload.title'), icon: 'users', onclick: () => onnavigate(`${base}/workload`) });
     }
+    // A collection's requester portal, where the service desk is on (UC-SVC-05): the address its
+    // requesters are given, opened here to see what they see.
+    if (container.type !== 'HUB' && on.includes('SERVICE_DESK')) {
+      actions.push({ label: t('app.desk.portal'), icon: 'inbox', onclick: () => onnavigate(`/portal/${id}`) });
+    }
     if (container.type !== 'HUB') return actions;
     if (on.includes('GOALS')) {
       actions.push({ label: t('app.goals.hub_goals'), icon: 'flag', onclick: () => onnavigate(`/goals?hub=${id}`) });

@@ -87,6 +87,8 @@ export const ROUTES: readonly Route[] = [
   { name: 'link-types', pattern: '/administration/link-types', area: 'administration' },
   // The time policy and the kinds of work, where the time module is on (UC-TIM-03 check 4).
   { name: 'time-settings', pattern: '/administration/time', area: 'administration' },
+  // The service desk's calendars, SLA policies, canned replies and report (M5, UC-SVC-01, 02, 06).
+  { name: 'service-desk', pattern: '/administration/service-desk', area: 'administration' },
   { name: 'cmdb', pattern: '/administration/configuration-items', area: 'administration' },
   { name: 'changes', pattern: '/administration/changes', area: 'administration' },
   // The workflow designer, where the workflows module is on (UC-FLW-02 check 2).

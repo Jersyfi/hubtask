@@ -226,6 +226,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       // Links are the core's, not a module's (UC-PLN-01 check 5): the row is there in every workspace.
       { id: 'link-types', icon: 'link', code: 'app.link_types.title', path: '/administration/link-types', routes: ['link-types'] },
       { id: 'time-settings', icon: 'clock', code: 'app.time_settings.title', path: '/administration/time', routes: ['time-settings'], module: 'TIME' },
+      { id: 'service-desk', icon: 'inbox', code: 'app.desk.title', path: '/administration/service-desk', routes: ['service-desk'], module: 'SERVICE_DESK' },
       { id: 'cmdb', icon: 'shield', code: 'app.cmdb_admin.title', path: '/administration/configuration-items', routes: ['cmdb'], module: 'ASSETS' },
       // The editor's two routes are the rules' row as well: a reader inside a rule is inside
       // automation, and a column that marked nothing current there would say they are nowhere.

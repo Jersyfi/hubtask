@@ -66,6 +66,7 @@ test('the administration area is exactly these screens, by name', () => {
     'rules',
     'runs',
     'service-accounts',
+    'service-desk',
     'sign-in-settings',
     'time-settings',
     'voice',
