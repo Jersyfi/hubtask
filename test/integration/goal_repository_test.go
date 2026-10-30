@@ -128,7 +128,7 @@ func TestGoalsAndInsightStayInTheirWorkspace(t *testing.T) {
 }
 
 // A person's digest of a dashboard is kept once per dashboard and person, replaced by a second
-// write, and stays in its workspace (migration 0249, UC-GOL-04 check 10).
+// write, and stays in its workspace (migration 0249, UC-GOL-04 check 9).
 func TestADashboardDigestStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

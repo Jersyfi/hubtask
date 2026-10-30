@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-13, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts]
+checked_by: [core/domain/model/goal/Goal_test.go, core/domain/model/goal/Digest_test.go, core/application/service/goal/Goal_test.go, core/application/service/goal/Digests_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts]
 ---
 
 # Put the numbers I watch on a dashboard
@@ -39,9 +39,15 @@ says he may not see it. Ana's own dashboard *Mine* is hers alone.
 7. REST, MCP and hubctl keep dashboards and read their figures alike.
 8. The web app draws a dashboard's widgets with design-system colours and a table beside each chart,
    and edits them on the grid.
+9. A reader has a dashboard they see sent to them by mail, every day or on one weekday at an hour of
+   their zone; a second choice replaces the first, and a dashboard they do not see takes none.
+10. The mail carries a link and the total of each number widget computed as the subscriber when it
+    is sent - a widget they cannot compute says so -, names neither the dashboard nor a widget
+    where their mail lets no title travel; nothing is sent of a dashboard gone or no longer seen,
+    and the schedule ends with the subscriber's account.
 
 ## Where it ends
 
-* No scheduled report by mail and no PDF yet.
+* The mail carries no attachment - no CSV and no PDF (the mail port has none by design).
 * No wallboard mode, no historical snapshots, no read API for BI tools.
 * No numbers across workspaces (P-01).

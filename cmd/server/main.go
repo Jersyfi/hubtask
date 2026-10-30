@@ -4330,7 +4330,7 @@ func run() error {
 			},
 			Fallback: cfg.Retention.Interval,
 		},
-		queueport.KindCmdbConnectorPull:    worker.CmdbConnectorPull{Connectors: connectors},
+		queueport.KindCmdbConnectorPull: worker.CmdbConnectorPull{Connectors: connectors},
 		// A dashboard's digest by mail, computed as its subscriber (UC-GOL-04).
 		queueport.KindDashboardDigest: worker.DashboardDigest{Digests: goalservice.DashboardDigests{
 			Steward: steward, Accounts: accounts, Preferences: notificationPreferences,

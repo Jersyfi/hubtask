@@ -133,7 +133,7 @@ func digestWidgets() []any {
 	}
 }
 
-// UC-GOL-04 check 10: a person subscribes to a dashboard they see, at an hour of their zone; the
+// UC-GOL-04 check 9: a person subscribes to a dashboard they see, at an hour of their zone; the
 // write schedules its mail, and a dashboard they do not see takes no digest.
 func TestADigestIsSetForADashboardTheSubscriberSees(t *testing.T) {
 	s, store, _, _ := newSteward(t)
@@ -171,7 +171,7 @@ func TestADigestIsSetForADashboardTheSubscriberSees(t *testing.T) {
 	}
 }
 
-// UC-GOL-04 check 11: the mail carries a link and the totals of the NUMBER widgets, computed as
+// UC-GOL-04 check 10: the mail carries a link and the totals of the NUMBER widgets, computed as
 // the subscriber - a widget they cannot compute says so -, names nothing where no title may
 // travel, and waits until it is owed.
 func TestADigestMailsTheSubscribersOwnTotals(t *testing.T) {
@@ -232,5 +232,9 @@ func TestADigestMailsTheSubscribersOwnTotals(t *testing.T) {
 	runner.Steward.Clock = later{store.digests[id].NextAt}
 	if _, err := runner.RunScheduled(context.Background(), tenantID, id); err != nil || len(box.sent) != 2 {
 		t.Fatalf("a digest of a dashboard gone was sent: %v %v", box.sent, err)
+	}
+	runner.Accounts = people{}
+	if next, err := runner.RunScheduled(context.Background(), tenantID, id); err != nil || !next.IsZero() {
+		t.Fatalf("the schedule outlived its subscriber: %v %v", next, err)
 	}
 }
