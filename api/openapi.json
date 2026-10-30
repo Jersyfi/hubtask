@@ -18029,6 +18029,7 @@
           "admin"
         ],
         "operationId": "replaceLegalHolds",
+        "x-hubtask-rest": "generated",
         "summary": "Place the legal holds of a rewound period again",
         "description": "After a point-in-time recovery of the installation, before traffic is admitted, the operator places again the legal holds the rewind removed from this workspace. Each hold keeps its identifier, scope, reason, placer and moment; one released in the rewound period is placed in force all the same, and its owner releases it again. A hold the workspace already has is left as it is, so a second run changes nothing. A hold whose target the recovery removed is placed and reported. Demands `admin:tenants`. Each hold placed writes `lifecycle.hold_replaced` into the workspace's trail.\n",
         "requestBody": {
@@ -18072,6 +18073,7 @@
           "admin"
         ],
         "operationId": "reapplyErasures",
+        "x-hubtask-rest": "generated",
         "summary": "Carry out again the erasures of a rewound period",
         "description": "After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.\n",
         "requestBody": {

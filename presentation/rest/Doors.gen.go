@@ -506,6 +506,7 @@ var restDoors = map[string]restDoor{
 	"readWorkload":                      {UseCase: "ReadWorkload", Status: 200, Query: []string{"calendar", "from", "weeks", "zone"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"weeks"}},
 	"readWorkspace":                     {UseCase: "ReadWorkspace", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readWorkspaceTolerance":            {UseCase: "ReadWorkspaceTolerance", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"reapplyErasures":                   {UseCase: "ReapplyErasures", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reconcileCis":                      {UseCase: "ReconcileCis", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"recordAbsence":                     {UseCase: "RecordAbsence", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"recordAgentEvaluation":             {UseCase: "RecordAgentEvaluation", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -550,6 +551,7 @@ var restDoors = map[string]restDoor{
 	"reorderBucket":                     {UseCase: "ReorderBucket", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reorderContainer":                  {UseCase: "ReorderContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reorderWorkItem":                   {UseCase: "ReorderWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"replaceLegalHolds":                 {UseCase: "ReplaceLegalHolds", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"replayRuleRun":                     {UseCase: "ReplayRuleRun", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"replayWebhookDelivery":             {UseCase: "ReplayWebhookDelivery", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reportPortfolioStatus":             {UseCase: "ReportPortfolioStatus", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3897,6 +3899,13 @@ func (c *RestController) ReadWorkspaceTolerance(w http.ResponseWriter, r *http.R
 	c.door(w, r, restDoors["readWorkspaceTolerance"], usecase.Input{}, nil, nil, &answer)
 }
 
+// ReapplyErasures answers POST /admin/tenants/{tenantId}:reapply-erasures by the generated mapping.
+func (c *RestController) ReapplyErasures(w http.ResponseWriter, r *http.Request, tenantId openapi.AdminTenantId, params openapi.ReapplyErasuresParams) {
+	var body openapi.ReapplyErasuresJSONRequestBody
+	var answer openapi.ErasureReapplyResult
+	c.door(w, r, restDoors["reapplyErasures"], usecase.Input{"tenant_id": tenantId.String()}, params, &body, &answer)
+}
+
 // ReceiveSamlResponse answers POST /auth/saml:acs by the adapter in SAML, which holds the connection.
 func (c *RestController) ReceiveSamlResponse(w http.ResponseWriter, r *http.Request) {
 	if c.SAML == nil {
@@ -4157,6 +4166,13 @@ func (c *RestController) ReorderContainer(w http.ResponseWriter, r *http.Request
 func (c *RestController) ReorderWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.ReorderWorkItemParams) {
 	var body openapi.ReorderWorkItemJSONRequestBody
 	c.door(w, r, restDoors["reorderWorkItem"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(workItemResponse))
+}
+
+// ReplaceLegalHolds answers POST /admin/tenants/{tenantId}:replace-legal-holds by the generated mapping.
+func (c *RestController) ReplaceLegalHolds(w http.ResponseWriter, r *http.Request, tenantId openapi.AdminTenantId) {
+	var body openapi.ReplaceLegalHoldsJSONRequestBody
+	var answer openapi.LegalHoldReplaceResult
+	c.door(w, r, restDoors["replaceLegalHolds"], usecase.Input{"tenant_id": tenantId.String()}, nil, &body, &answer)
 }
 
 // ReplaceScimGroup answers PUT /scim/v2/Groups/{scimGroupId} by the adapter in Scim, which holds the connection.

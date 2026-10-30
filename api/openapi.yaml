@@ -11838,6 +11838,7 @@ paths:
     post:
       tags: [admin]
       operationId: replaceLegalHolds
+      x-hubtask-rest: generated
       summary: Place the legal holds of a rewound period again
       description: >
         After a point-in-time recovery of the installation, before traffic is admitted, the
@@ -11870,6 +11871,7 @@ paths:
     post:
       tags: [admin]
       operationId: reapplyErasures
+      x-hubtask-rest: generated
       summary: Carry out again the erasures of a rewound period
       description: >
         After a point-in-time recovery of the installation, once the legal holds of the rewound
