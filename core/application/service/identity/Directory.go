@@ -22,7 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// A directory provisions people and groups over SCIM 2.0 (UC-ID-28, identity.md §26). It acts
+// A directory provisions people and groups over SCIM 2.0 (UC-ID-28, identity.md §24). It acts
 // through a service account's token, and every act is the one an administrator could take: the
 // same permission, the same people limit, the same group rules - the group acts go through
 // CreateGroup, UpdateGroup and DeleteGroup themselves. What is the directory's own is decided here:

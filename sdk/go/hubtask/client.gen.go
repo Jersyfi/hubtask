@@ -33059,7 +33059,7 @@ type ClientInterface interface {
 
 	// DeleteScimUser Deprovision a person
 	//
-	// The person is switched off and their sessions end; the account, its authorship and its trail stay - a directory never erases anybody's data (an erasure is the workspace's own, UC-PRV). Provisioning the address again switches the account on.
+	// The person is switched off and their sessions end; the account, its authorship and its trail stay - a directory never erases anybody's data; an erasure is the workspace's own. Provisioning the address again switches the account on.
 	//
 	// Corresponds with DELETE /scim/v2/Users/{scimUserId} (the `DeleteScimUser` operationId).
 	DeleteScimUser(ctx context.Context, scimUserId ScimUserId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -50054,7 +50054,7 @@ func (c *Client) CreateScimUserWithApplicationScimPlusJSONBody(ctx context.Conte
 
 // DeleteScimUser Deprovision a person
 //
-// The person is switched off and their sessions end; the account, its authorship and its trail stay - a directory never erases anybody's data (an erasure is the workspace's own, UC-PRV). Provisioning the address again switches the account on.
+// The person is switched off and their sessions end; the account, its authorship and its trail stay - a directory never erases anybody's data; an erasure is the workspace's own. Provisioning the address again switches the account on.
 //
 // Corresponds with DELETE /scim/v2/Users/{scimUserId} (the `DeleteScimUser` operationId).
 func (c *Client) DeleteScimUser(ctx context.Context, scimUserId ScimUserId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -92520,7 +92520,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteScimUserWithResponse Deprovision a person
 	//
-	// The person is switched off and their sessions end; the account, its authorship and its trail stay - a directory never erases anybody's data (an erasure is the workspace's own, UC-PRV). Provisioning the address again switches the account on.
+	// The person is switched off and their sessions end; the account, its authorship and its trail stay - a directory never erases anybody's data; an erasure is the workspace's own. Provisioning the address again switches the account on.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -139139,7 +139139,7 @@ func (c *ClientWithResponses) CreateScimUserWithApplicationScimPlusJSONBodyWithR
 
 // DeleteScimUserWithResponse Deprovision a person
 //
-// The person is switched off and their sessions end; the account, its authorship and its trail stay - a directory never erases anybody's data (an erasure is the workspace's own, UC-PRV). Provisioning the address again switches the account on.
+// The person is switched off and their sessions end; the account, its authorship and its trail stay - a directory never erases anybody's data; an erasure is the workspace's own. Provisioning the address again switches the account on.
 //
 // Returns a wrapper object for the known response body format(s).
 //

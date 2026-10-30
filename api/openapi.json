@@ -19329,7 +19329,7 @@
         ],
         "operationId": "deleteScimUser",
         "summary": "Deprovision a person",
-        "description": "The person is switched off and their sessions end; the account, its authorship and its trail stay - a directory never erases anybody's data (an erasure is the workspace's own, UC-PRV). Provisioning the address again switches the account on.\n",
+        "description": "The person is switched off and their sessions end; the account, its authorship and its trail stay - a directory never erases anybody's data; an erasure is the workspace's own. Provisioning the address again switches the account on.\n",
         "responses": {
           "204": {
             "description": "Deprovisioned"

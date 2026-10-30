@@ -12,7 +12,7 @@ import (
 )
 
 // A directory - Entra ID, Okta, Keycloak, Google - provisions the workspace's people and groups
-// over SCIM 2.0 (UC-ID-28, identity.md §26). What it may do is what an administrator may: invite a
+// over SCIM 2.0 (UC-ID-28, identity.md §24). What it may do is what an administrator may: invite a
 // person, switch one off and on, keep groups. What it may not is decided here, because it holds
 // for every door a directory could come through.
 
@@ -78,7 +78,7 @@ func DirectoryStatus(current AccountStatus, active bool) (AccountStatus, bool, e
 }
 
 // SameAddress reports whether a directory's `userName` names the address the account signs in
-// with. The address is the person's way in, so a directory does not change it (identity.md §26):
+// with. The address is the person's way in, so a directory does not change it (identity.md §24):
 // a different one is refused rather than written.
 func (a Account) SameAddress(lookup string) bool {
 	return a.Email != "" && strings.EqualFold(a.Email, lookup)

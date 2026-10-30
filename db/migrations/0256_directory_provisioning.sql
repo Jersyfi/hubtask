@@ -1,4 +1,4 @@
--- A directory provisions people and groups over SCIM 2.0 (UC-ID-28, identity.md §26): the
+-- A directory provisions people and groups over SCIM 2.0 (UC-ID-28, identity.md §24): the
 -- identifier the directory knows a person or a group by, beside the workspace's own. Unique per
 -- workspace, so the directory finds again what it created; nullable, because everybody invited by
 -- hand or made by a provider's first arrival has none.
