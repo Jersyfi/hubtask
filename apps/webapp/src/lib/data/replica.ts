@@ -708,6 +708,32 @@ async function cmdbFor(pathname: string, query: URLSearchParams, storage: Storag
     return { data: rows, next: null };
   }
 
+  // A hub's groups and asset register, and a CI's asset, as the copy holds them (UC-AST-11 check 4,
+  // UC-AST-12 check 4) in the server's order. A group's member count needs the filter run over the
+  // whole inventory, so it is left out rather than guessed; an asset the copy lacks is unknown.
+  match = /^\/hubs\/([^/:]+)\/(ci-groups|assets)$/.exec(pathname);
+  if (match?.[1]) {
+    const hubId = match[1];
+    if (match[2] === 'ci-groups') {
+      const rows = (await documents(storage, 'ci_groups')).filter((g) => g.hub_id === hubId)
+        .sort((a, b) => (String(a.key) < String(b.key) ? -1 : String(a.key) > String(b.key) ? 1 : 0));
+      return { data: rows };
+    }
+    const wanted = query.get('state');
+    const cis = new Map((await documents(storage, 'cis')).map((ci) => [String(ci.id), ci]));
+    const rows = (await documents(storage, 'ci_assets'))
+      .filter((a) => a.hub_id === hubId && (!wanted || a.state === wanted))
+      .sort((a, b) => (String(a.ci_id) < String(b.ci_id) ? -1 : String(a.ci_id) > String(b.ci_id) ? 1 : 0))
+      .map((a) => ({ ...a, name: cis.get(String(a.ci_id))?.name, class: cis.get(String(a.ci_id))?.class }));
+    return { data: rows };
+  }
+
+  match = /^\/cis\/([^/:]+)\/asset$/.exec(pathname);
+  if (match?.[1]) {
+    const id = match[1];
+    return (await documents(storage, 'ci_assets')).find((a) => a.ci_id === id);
+  }
+
   match = /^\/cis\/([^/:]+)(\/impact)?$/.exec(pathname);
   if (match?.[1]) {
     const id = match[1];

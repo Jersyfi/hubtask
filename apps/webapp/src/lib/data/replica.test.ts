@@ -437,6 +437,29 @@ test('a hub\'s configuration items, a CI and its impact are answered from the co
   assert.equal(await storeFor({ path: '/cis/ci-9' }, storage), undefined);
 });
 
+// UC-AST-11 check 4 and UC-AST-12 check 4 offline: a hub's groups by key and its asset register
+// by CI, narrowed to a state and named by its CIs, and a CI's asset; never another hub's.
+test('a hub\'s CI groups, its asset register and a CI\'s asset are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  await storage.put('cis', 'ci-1', record({ id: 'ci-1', hub_id: HUB, class: 'server', name: 'web1' }));
+  await storage.put('ci_groups', 'g-2', record({ id: 'g-2', hub_id: HUB, key: 'web', name: 'Web' }));
+  await storage.put('ci_groups', 'g-1', record({ id: 'g-1', hub_id: HUB, key: 'db', name: 'Databases' }));
+  await storage.put('ci_groups', 'g-3', record({ id: 'g-3', hub_id: 'h-2', key: 'all', name: 'Elsewhere' }));
+  await storage.put('ci_assets', 'ci-2', record({ ci_id: 'ci-2', hub_id: HUB, state: 'IN_STOCK' }));
+  await storage.put('ci_assets', 'ci-1', record({ ci_id: 'ci-1', hub_id: HUB, state: 'DEPLOYED' }));
+  await storage.put('ci_assets', 'ci-4', record({ ci_id: 'ci-4', hub_id: 'h-2', state: 'DEPLOYED' }));
+
+  const groups = await storeFor({ path: `/hubs/${HUB}/ci-groups` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(groups.data.map((row) => row.key), ['db', 'web']);
+  const register = await storeFor({ path: `/hubs/${HUB}/assets` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(register.data.map((row) => [row.ci_id, row.name]), [['ci-1', 'web1'], ['ci-2', undefined]]);
+  const deployed = await storeFor({ path: `/hubs/${HUB}/assets?state=DEPLOYED` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(deployed.data.map((row) => row.ci_id), ['ci-1']);
+  const asset = await storeFor({ path: '/cis/ci-2/asset' }, storage) as Record<string, unknown>;
+  assert.equal(asset.state, 'IN_STOCK');
+  assert.equal(await storeFor({ path: '/cis/ci-9/asset' }, storage), undefined);
+});
+
 // UC-PLN-06 offline: a collection's sprints are answered from the copy, the latest start first,
 // narrowed to a state when one is asked for, and never another collection's.
 test('a collection\'s sprints are answered from the copy', async () => {
