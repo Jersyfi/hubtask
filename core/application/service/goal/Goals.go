@@ -144,6 +144,9 @@ func (h DefineGoalPeriod) Descriptor() usecase.Descriptor {
 				if p, err = s.Store.Period(ctx, p.ID); err != nil {
 					return err
 				}
+				if err := s.changed(ctx, actor, PeriodEntity, p.ID, "", PeriodOutput(p)); err != nil {
+					return err
+				}
 				return s.record(ctx, actor, PeriodDefinedAction, periodTarget, p.ID, now)
 			})
 			if err != nil {
@@ -231,6 +234,16 @@ func (h CloseGoalPeriod) Descriptor() usecase.Descriptor {
 					return err
 				}
 				if period, err = s.Store.Period(ctx, id); err != nil {
+					return err
+				}
+				if err := s.changed(ctx, actor, PeriodEntity, id, "", PeriodOutput(period)); err != nil {
+					return err
+				}
+				graded := make([]shared.ID, 0, len(grades))
+				for goalID := range grades {
+					graded = append(graded, goalID)
+				}
+				if err := s.goalsChanged(ctx, actor, graded...); err != nil {
 					return err
 				}
 				return s.record(ctx, actor, PeriodClosedAction, periodTarget, id, now)
@@ -582,6 +595,9 @@ func (h CreateGoal) Descriptor() usecase.Descriptor {
 				if err := s.Store.InsertGoal(ctx, g, actor.AccountID, now); err != nil {
 					return err
 				}
+				if err := s.goalsChanged(ctx, actor, id); err != nil {
+					return err
+				}
 				return s.record(ctx, actor, GoalCreatedAction, goalTarget, id, now)
 			}); err != nil {
 				return nil, err
@@ -664,6 +680,9 @@ func (h UpdateGoal) Descriptor() usecase.Descriptor {
 				if err := s.Store.UpdateGoal(ctx, g, expected, actor.AccountID, now); err != nil {
 					return err
 				}
+				if err := s.goalsChanged(ctx, actor, id); err != nil {
+					return err
+				}
 				return s.record(ctx, actor, GoalUpdatedAction, goalTarget, id, now)
 			}); err != nil {
 				return nil, err
@@ -704,7 +723,22 @@ func (h DeleteGoal) Descriptor() usecase.Descriptor {
 			}
 			now := s.Clock.Now()
 			if err := s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				// The goals under it move to its parent: each is recorded as it now stands.
+				children, err := s.Store.Goals(ctx, goalrepo.GoalFilter{ParentID: id, Max: maxGoals})
+				if err != nil {
+					return err
+				}
 				if err := s.Store.DeleteGoal(ctx, g, expected); err != nil {
+					return err
+				}
+				if err := s.changed(ctx, actor, GoalEntity, id, g.HubID, nil); err != nil {
+					return err
+				}
+				moved := make([]shared.ID, 0, len(children))
+				for _, c := range children {
+					moved = append(moved, c.ID)
+				}
+				if err := s.goalsChanged(ctx, actor, moved...); err != nil {
 					return err
 				}
 				return s.record(ctx, actor, GoalDeletedAction, goalTarget, id, now)
@@ -976,6 +1010,12 @@ func (h CheckInGoal) Descriptor() usecase.Descriptor {
 					return err
 				}
 				if err := s.Store.UpdateGoal(ctx, g, expected, actor.AccountID, now); err != nil {
+					return err
+				}
+				if err := s.changed(ctx, actor, CheckInEntity, c.ID, g.HubID, CheckInRecord(c)); err != nil {
+					return err
+				}
+				if err := s.goalsChanged(ctx, actor, id); err != nil {
 					return err
 				}
 				return s.record(ctx, actor, GoalCheckedInAction, goalTarget, id, now,

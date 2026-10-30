@@ -19,6 +19,7 @@ import (
 	"time"
 
 	goalrepo "github.com/Jersyfi/hubtask/core/application/repository/goal"
+	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -105,7 +106,11 @@ type Steward struct {
 	// (UC-GOL-03); nil rolls up none.
 	Budgets usecase.Handler
 	// Jobs schedules a dashboard digest's mail; nil schedules none.
-	Jobs       Enqueuer
+	Jobs Enqueuer
+	// Changes and HLC tell offline devices of periods, goals, check-ins and dashboards; a nil
+	// Changes records nothing.
+	Changes    changelog.ChangeLog
+	HLC        clock.HLCSource
 	Authorizer Authorizer
 	Reader     Reader
 	Audit      audit.Sink

@@ -1874,7 +1874,7 @@ func run() error {
 		}.Descriptor().Handler,
 		Budgets:    timeservice.ReadBudget{Keeper: keeper}.Descriptor().Handler,
 		Authorizer: authorizer, Reader: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, Text: forms, Jobs: jobs,
+		Clock: clockadapter.System{}, IDs: ids, Text: forms, Jobs: jobs, Changes: changes, HLC: hybrid,
 	}
 	// The assets and configuration module (M6): a hub's CIs, judged at the hub; every write of a CI
 	// goes through the inventory's reconciliation.

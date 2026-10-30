@@ -283,6 +283,9 @@ func (h CreateDashboard) Descriptor() usecase.Descriptor {
 				if err := s.Store.InsertDashboard(ctx, d, now); err != nil {
 					return err
 				}
+				if err := s.changed(ctx, actor, DashboardEntity, d.ID, d.HubID, DashboardOutput(d)); err != nil {
+					return err
+				}
 				return s.record(ctx, actor, DashboardCreatedAction, dashboardTarget, d.ID, now)
 			}); err != nil {
 				return nil, err
@@ -339,6 +342,11 @@ func (h UpdateDashboard) Descriptor() usecase.Descriptor {
 				if err := s.Store.UpdateDashboard(ctx, next, expected, actor.AccountID, now); err != nil {
 					return err
 				}
+				saved := next
+				saved.Version = expected + 1
+				if err := s.changed(ctx, actor, DashboardEntity, id, saved.HubID, DashboardOutput(saved)); err != nil {
+					return err
+				}
 				return s.record(ctx, actor, DashboardUpdatedAction, dashboardTarget, id, now)
 			}); err != nil {
 				return nil, err
@@ -384,6 +392,9 @@ func (h DeleteDashboard) Descriptor() usecase.Descriptor {
 			now := s.Clock.Now()
 			if err := s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 				if err := s.Store.DeleteDashboard(ctx, id, expected); err != nil {
+					return err
+				}
+				if err := s.changed(ctx, actor, DashboardEntity, id, current.HubID, nil); err != nil {
 					return err
 				}
 				return s.record(ctx, actor, DashboardDeletedAction, dashboardTarget, id, now)
