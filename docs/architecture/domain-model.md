@@ -820,7 +820,11 @@ a plan): one per page, only the token's hash kept, never for a page behind a res
 the person who made it at every opening. An `Article` publishes a page to one service's portal
 (UC-DOC-13): a collection's requesters, holding REQUEST there and reading no hub, are offered it
 while they type and open it - counted -, and rate it once each; never a page behind a
-restriction. A
+restriction. A page holds its pictures and files (`page_media`, UC-DOC-14) as a board does: an
+upload is attached before the body draws it as an image of `hubtask:media/<id>` on a line of its
+own, judged at the page - the writer's own upload, or one a page they may read holds -, read by
+whoever reads one of the pages holding it, and kept as long as the page, whatever the body does
+with it. A
 person's `personal_space` is a private hub of their own made on first use, and a page with
 `daily_for` is its note of a day, one per day (UC-DOC-07).
 

@@ -29,16 +29,18 @@ page reference that follows the page wherever it moves.
    its title, its last change and a first version; a tree deeper than pages allow hangs at the
    deepest level.
 2. A page's content becomes its Markdown body — headings, paragraphs, lists, tables, code, emphasis
-   and outside links — and a link to another page of the space becomes a page reference;
-   attachments and pictures are counted in the report.
+   and outside links — and a link to another page of the space becomes a page reference; a file
+   no page of the export holds and a picture from outside the export are counted in the report.
 3. The same space imported twice creates nothing the second time; a file that is no export is
    refused with `imports.file_not_kind`.
 4. A wiki lands in the hub: named with a collection it is refused with
    `imports.kind_takes_no_collection`, and a collection's *Import…* does not offer it.
+5. A page's attachments become its pictures and files (UC-DOC-14) with their bytes and the names
+   the export gives them: a picture is drawn where it stood, a file the page lists and does not
+   draw follows its content as a card.
 
 ## Where it ends
 
-* Attachments and pictures are not carried: pages have no attachments yet (counted, the suite
-  plan's S-23 row).
+* An attachment's earlier versions are not carried, only the one the export holds.
 * The HTML export carries no history and no comments: each page starts with one version.
 * Confluence's XML export, Notion, Markdown and DOCX files are other converters.
