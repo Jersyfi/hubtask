@@ -121,6 +121,16 @@ export class HubtaskClient {
     return this.call("POST", "/plans/{planId}/schedule:apply", { "planId": planId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** A plan's time tolerance and its standing */
+  readPlanTolerance(planId: string, options: CallOptions & { readonly query?: NonNullable<operations["readPlanTolerance"]['parameters']['query']> } = {}): Promise<operations["readPlanTolerance"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/plans/{planId}/tolerance", { "planId": planId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Set a plan's time tolerance */
+  setPlanTolerance(planId: string, body: NonNullable<operations["setPlanTolerance"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setPlanTolerance"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/plans/{planId}/tolerance", { "planId": planId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** A plan's baselines */
   listBaselines(planId: string, options: CallOptions = {}): Promise<operations["listBaselines"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/plans/{planId}/baselines", { "planId": planId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

@@ -443,6 +443,7 @@ var restDoors = map[string]restDoor{
 	"readPersonalSpace":                 {UseCase: "ReadPersonalSpace", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPlan":                          {UseCase: "ReadPlan", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPlanSchedule":                  {UseCase: "ReadPlanSchedule", Status: 200, Query: []string{"calendar", "zone"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readPlanTolerance":                 {UseCase: "ReadPlanTolerance", Status: 200, Query: []string{"calendar", "zone"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPlatformSubscription":          {UseCase: "ReadPlatformSubscription", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPortfolio":                     {UseCase: "ReadPortfolio", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPublicLinksPolicy":             {UseCase: "ReadPublicLinksPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -576,6 +577,7 @@ var restDoors = map[string]restDoor{
 	"setOwnAiBudget":                    {UseCase: "SetOwnAiBudget", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"own_tokens_per_day"}},
 	"setOwnAvatar":                      {UseCase: "SetOwnAvatar", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setPasswordAndSignIn":              {UseCase: "SetPasswordAndSignIn", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
+	"setPlanTolerance":                  {UseCase: "SetPlanTolerance", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"time_tolerance_days"}},
 	"setPublicLinksPolicy":              {UseCase: "SetPublicLinksPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setRecurrence":                     {UseCase: "SetRecurrence", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"horizon_days", "max_count"}},
 	"setTimePolicy":                     {UseCase: "SetTimePolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version"}},
@@ -3196,6 +3198,12 @@ func (c *RestController) ReadPlanSchedule(w http.ResponseWriter, r *http.Request
 	c.door(w, r, restDoors["readPlanSchedule"], usecase.Input{"plan_id": planId.String()}, params, nil, &answer)
 }
 
+// ReadPlanTolerance answers GET /plans/{planId}/tolerance by the generated mapping.
+func (c *RestController) ReadPlanTolerance(w http.ResponseWriter, r *http.Request, planId openapi.PlanId, params openapi.ReadPlanToleranceParams) {
+	var answer openapi.PlanTolerance
+	c.door(w, r, restDoors["readPlanTolerance"], usecase.Input{"plan_id": planId.String()}, params, nil, &answer)
+}
+
 // ReadPlatformSubscription answers GET /admin/subscriptions/{subscriptionId} by the generated mapping.
 func (c *RestController) ReadPlatformSubscription(w http.ResponseWriter, r *http.Request, subscriptionId openapi_types.UUID) {
 	var answer openapi.PlatformSubscription
@@ -3989,6 +3997,13 @@ func (c *RestController) SetOwnAvatar(w http.ResponseWriter, r *http.Request) {
 func (c *RestController) SetPasswordAndSignIn(w http.ResponseWriter, r *http.Request) {
 	var body openapi.SetPasswordAndSignInJSONRequestBody
 	c.door(w, r, restDoors["setPasswordAndSignIn"], usecase.Input{}, nil, &body, answerBy(sessionTokensResponse))
+}
+
+// SetPlanTolerance answers PUT /plans/{planId}/tolerance by the generated mapping.
+func (c *RestController) SetPlanTolerance(w http.ResponseWriter, r *http.Request, planId openapi.PlanId) {
+	var body openapi.SetPlanToleranceJSONRequestBody
+	var answer openapi.PlanTolerance
+	c.door(w, r, restDoors["setPlanTolerance"], usecase.Input{"plan_id": planId.String()}, nil, &body, &answer)
 }
 
 // SetPublicLinksPolicy answers PUT /pages:public-links by the generated mapping.

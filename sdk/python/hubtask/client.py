@@ -111,6 +111,14 @@ class Client:
         """Apply the moves a person accepted"""
         return self._call("POST", "/plans/{planId}/schedule:apply", {"planId": plan_id}, None, {}, body, "json", "application/json", "json")
 
+    def read_plan_tolerance(self, plan_id: str, *, query: dict[str, Any] | None = None) -> "PlanTolerance":
+        """A plan's time tolerance and its standing"""
+        return self._call("GET", "/plans/{planId}/tolerance", {"planId": plan_id}, query, {}, None, "none", None, "json")
+
+    def set_plan_tolerance(self, plan_id: str, body: dict[str, Any]) -> "PlanTolerance":
+        """Set a plan's time tolerance"""
+        return self._call("PUT", "/plans/{planId}/tolerance", {"planId": plan_id}, None, {}, body, "json", "application/json", "json")
+
     def list_baselines(self, plan_id: str) -> "PlanBaselineList":
         """A plan's baselines"""
         return self._call("GET", "/plans/{planId}/baselines", {"planId": plan_id}, None, {}, None, "none", None, "json")

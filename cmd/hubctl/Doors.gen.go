@@ -1405,6 +1405,24 @@ var generatedCommands = []door{
 			{Name: "minutes", Kind: "integer", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"version"}},
+	{Group: "plan", Verb: "tolerance", OperationID: "readPlanTolerance", Method: "GET", Path: "/plans/{planId}/tolerance", Summary: "A plan's time tolerance and its standing",
+		PathParams: []doorParam{
+			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "calendar", Kind: "string", Help: "A business calendar's key", Required: false},
+			{Name: "zone", Kind: "string", Help: "An IANA time zone, when no calendar names one; UTC without", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"baseline_id", "locked_by", "source", "time_tolerance_days"}},
+	{Group: "plan", Verb: "tolerance set", OperationID: "setPlanTolerance", Method: "PUT", Path: "/plans/{planId}/tolerance", Summary: "Set a plan's time tolerance",
+		PathParams: []doorParam{
+			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "lock", Kind: "boolean", Help: "", Required: false},
+			{Name: "time_tolerance_days", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"baseline_id", "locked_by", "source", "time_tolerance_days"}},
 	{Group: "plan", Verb: "workload", OperationID: "readWorkload", Method: "GET", Path: "/plans/{planId}/workload", Summary: "Who has room in a plan",
 		PathParams: []doorParam{
 			{Name: "planId", Kind: "uuid", Help: "The hub or collection the plan is", Required: true},

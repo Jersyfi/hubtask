@@ -756,6 +756,13 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `plan_baseline.read` | ListBaselines | `plan_baseline` | INFO | When refused |
 | `plan_baseline.taken` | TakeBaseline | `plan_baseline` | INFO | Every time |
 
+## Plan_tolerance
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `plan_tolerance.exceeded` | ReadPlanTolerance | `plan_tolerance` | INFO | Every time |
+| `plan_tolerance.set` | SetPlanTolerance | `plan_tolerance` | INFO | Every time |
+
 ## Portfolio
 
 | Action | Use case | Target | Severity | Recorded |

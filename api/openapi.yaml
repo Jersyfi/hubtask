@@ -154,6 +154,58 @@ paths:
               schema: { $ref: "#/components/schemas/PlanMoves" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /plans/{planId}/tolerance:
+    parameters:
+      - $ref: "#/components/parameters/PlanId"
+    get:
+      tags: [planning]
+      operationId: readPlanTolerance
+      x-hubtask-rest: generated
+      x-hubtask-cli: "plan tolerance"
+      summary: A plan's time tolerance and its standing
+      description: >
+        The days the forecast end may slip, the level they come from and the level that locked
+        them, and - when the plan keeps a baseline - how far the forecast end lies past the latest
+        baseline's and whether that is beyond the tolerance: the plan is then in exception, which
+        is recorded. Needs READ at the plan.
+      parameters:
+        - { name: calendar, in: query, schema: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }, description: "A business calendar's key." }
+        - { name: zone, in: query, schema: { type: string }, description: "An IANA time zone, when no calendar names one; UTC without." }
+      responses:
+        "200":
+          description: The tolerance
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlanTolerance" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [planning]
+      operationId: setPlanTolerance
+      x-hubtask-rest: generated
+      x-hubtask-cli: "plan tolerance set"
+      summary: Set a plan's time tolerance
+      description: >
+        A hub's or a collection's time tolerance in calendar days, 0 to 365, locked for the
+        collections below when asked; without days it is left to the level above. A level above
+        that locked it refuses. Needs STRUCTURE at the plan.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                time_tolerance_days: { type: [integer, "null"], minimum: 0, maximum: 365 }
+                lock: { type: boolean }
+      responses:
+        "200":
+          description: The tolerance
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlanTolerance" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /plans/{planId}/baselines:
     parameters:
       - $ref: "#/components/parameters/PlanId"
@@ -24794,6 +24846,24 @@ components:
         started_at: { type: [string, "null"], format: date-time }
         closed_at: { type: [string, "null"], format: date-time }
         version: { type: integer }
+
+    PlanTolerance:
+      type: object
+      required: [time_tolerance_days, source, locked_by, baseline_id, exception]
+      properties:
+        time_tolerance_days: { type: [integer, "null"], description: "The days the forecast end may slip; null without a tolerance." }
+        source: { type: string, description: "The level the tolerance comes from: DEFAULT, HUB or COLLECTION." }
+        locked_by: { type: [string, "null"], description: "The level that locked it." }
+        baseline_id: { type: [string, "null"], format: uuid, description: "The latest baseline the plan is measured against." }
+        exception:
+          type: [object, "null"]
+          required: [agreed_finish, forecast_finish, slip_days, tolerance_days, exceeded]
+          properties:
+            agreed_finish: { type: string, format: date }
+            forecast_finish: { type: string, format: date }
+            slip_days: { type: integer }
+            tolerance_days: { type: integer }
+            exceeded: { type: boolean }
 
     Release:
       type: object

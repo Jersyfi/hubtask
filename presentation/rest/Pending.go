@@ -2823,3 +2823,9 @@ func (pending) AddReleaseEntries(w http.ResponseWriter, r *http.Request, _ opena
 func (pending) RemoveReleaseEntries(w http.ResponseWriter, r *http.Request, _ openapi.ReleaseId) {
 	notAvailable(w, r)
 }
+func (pending) ReadPlanTolerance(w http.ResponseWriter, r *http.Request, _ openapi.PlanId, _ openapi.ReadPlanToleranceParams) {
+	notAvailable(w, r)
+}
+func (pending) SetPlanTolerance(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}

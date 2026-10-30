@@ -18534,6 +18534,28 @@ type PlanScheduleEntry struct {
 // PlanScheduleEntryMode defines model for PlanScheduleEntry.Mode.
 type PlanScheduleEntryMode string
 
+// PlanTolerance defines model for PlanTolerance.
+type PlanTolerance struct {
+	// BaselineId The latest baseline the plan is measured against.
+	BaselineId *openapi_types.UUID `json:"baseline_id"`
+	Exception  *struct {
+		AgreedFinish   openapi_types.Date `json:"agreed_finish"`
+		Exceeded       bool               `json:"exceeded"`
+		ForecastFinish openapi_types.Date `json:"forecast_finish"`
+		SlipDays       int                `json:"slip_days"`
+		ToleranceDays  int                `json:"tolerance_days"`
+	} `json:"exception"`
+
+	// LockedBy The level that locked it.
+	LockedBy *string `json:"locked_by"`
+
+	// Source The level the tolerance comes from: DEFAULT, HUB or COLLECTION.
+	Source string `json:"source"`
+
+	// TimeToleranceDays The days the forecast end may slip; null without a tolerance.
+	TimeToleranceDays *int `json:"time_tolerance_days"`
+}
+
 // PlatformDelivery One event sent to one subscription, across its attempts.
 type PlatformDelivery struct {
 	// Attempt How many attempts were made, a redelivery's counting on.
@@ -24934,6 +24956,21 @@ type ApplyPlanScheduleJSONBody struct {
 	Zone     *string              `json:"zone,omitempty"`
 }
 
+// ReadPlanToleranceParams defines parameters for ReadPlanTolerance.
+type ReadPlanToleranceParams struct {
+	// Calendar A business calendar's key.
+	Calendar *string `form:"calendar,omitempty" json:"calendar,omitempty"`
+
+	// Zone An IANA time zone, when no calendar names one; UTC without.
+	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
+}
+
+// SetPlanToleranceJSONBody defines parameters for SetPlanTolerance.
+type SetPlanToleranceJSONBody struct {
+	Lock              *bool `json:"lock,omitempty"`
+	TimeToleranceDays *int  `json:"time_tolerance_days,omitempty"`
+}
+
 // ReadWorkloadParams defines parameters for ReadWorkload.
 type ReadWorkloadParams struct {
 	// From A day of the first week.
@@ -26376,6 +26413,9 @@ type SetBudgetJSONRequestBody SetBudgetJSONBody
 
 // ApplyPlanScheduleJSONRequestBody defines body for ApplyPlanSchedule for application/json ContentType.
 type ApplyPlanScheduleJSONRequestBody ApplyPlanScheduleJSONBody
+
+// SetPlanToleranceJSONRequestBody defines body for SetPlanTolerance for application/json ContentType.
+type SetPlanToleranceJSONRequestBody SetPlanToleranceJSONBody
 
 // CreatePortfolioJSONRequestBody defines body for CreatePortfolio for application/json ContentType.
 type CreatePortfolioJSONRequestBody = PortfolioWrite
@@ -34185,6 +34225,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /plans/{planId}/schedule:apply (the `ApplyPlanSchedule` operationId).
 	ApplyPlanSchedule(ctx context.Context, planId PlanId, body ApplyPlanScheduleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadPlanTolerance A plan's time tolerance and its standing
+	//
+	// The days the forecast end may slip, the level they come from and the level that locked them, and - when the plan keeps a baseline - how far the forecast end lies past the latest baseline's and whether that is beyond the tolerance: the plan is then in exception, which is recorded. Needs READ at the plan.
+	//
+	// Corresponds with GET /plans/{planId}/tolerance (the `ReadPlanTolerance` operationId).
+	ReadPlanTolerance(ctx context.Context, planId PlanId, params *ReadPlanToleranceParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPlanToleranceWithBody Set a plan's time tolerance
+	//
+	// A hub's or a collection's time tolerance in calendar days, 0 to 365, locked for the collections below when asked; without days it is left to the level above. A level above that locked it refuses. Needs STRUCTURE at the plan.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /plans/{planId}/tolerance (the `SetPlanTolerance` operationId).
+	SetPlanToleranceWithBody(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPlanTolerance Set a plan's time tolerance
+	//
+	// A hub's or a collection's time tolerance in calendar days, 0 to 365, locked for the collections below when asked; without days it is left to the level above. A level above that locked it refuses. Needs STRUCTURE at the plan.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /plans/{planId}/tolerance (the `SetPlanTolerance` operationId).
+	SetPlanTolerance(ctx context.Context, planId PlanId, body SetPlanToleranceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadWorkload Who has room in a plan
 	//
@@ -51660,6 +51725,61 @@ func (c *Client) ApplyPlanScheduleWithBody(ctx context.Context, planId PlanId, c
 // Corresponds with POST /plans/{planId}/schedule:apply (the `ApplyPlanSchedule` operationId).
 func (c *Client) ApplyPlanSchedule(ctx context.Context, planId PlanId, body ApplyPlanScheduleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewApplyPlanScheduleRequest(c.Server, planId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadPlanTolerance A plan's time tolerance and its standing
+//
+// The days the forecast end may slip, the level they come from and the level that locked them, and - when the plan keeps a baseline - how far the forecast end lies past the latest baseline's and whether that is beyond the tolerance: the plan is then in exception, which is recorded. Needs READ at the plan.
+//
+// Corresponds with GET /plans/{planId}/tolerance (the `ReadPlanTolerance` operationId).
+func (c *Client) ReadPlanTolerance(ctx context.Context, planId PlanId, params *ReadPlanToleranceParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPlanToleranceRequest(c.Server, planId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPlanToleranceWithBody Set a plan's time tolerance
+//
+// A hub's or a collection's time tolerance in calendar days, 0 to 365, locked for the collections below when asked; without days it is left to the level above. A level above that locked it refuses. Needs STRUCTURE at the plan.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /plans/{planId}/tolerance (the `SetPlanTolerance` operationId).
+func (c *Client) SetPlanToleranceWithBody(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPlanToleranceRequestWithBody(c.Server, planId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPlanTolerance Set a plan's time tolerance
+//
+// A hub's or a collection's time tolerance in calendar days, 0 to 365, locked for the collections below when asked; without days it is left to the level above. A level above that locked it refuses. Needs STRUCTURE at the plan.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /plans/{planId}/tolerance (the `SetPlanTolerance` operationId).
+func (c *Client) SetPlanTolerance(ctx context.Context, planId PlanId, body SetPlanToleranceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPlanToleranceRequest(c.Server, planId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -82449,6 +82569,126 @@ func NewApplyPlanScheduleRequestWithBody(server string, planId PlanId, contentTy
 	return req, nil
 }
 
+// NewReadPlanToleranceRequest constructs an http.Request for the ReadPlanTolerance method
+func NewReadPlanToleranceRequest(server string, planId PlanId, params *ReadPlanToleranceParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planId", planId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/plans/%s/tolerance", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Calendar != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "calendar", *params.Calendar, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Zone != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "zone", *params.Zone, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetPlanToleranceRequest calls the generic SetPlanTolerance builder with application/json body
+func NewSetPlanToleranceRequest(server string, planId PlanId, body SetPlanToleranceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetPlanToleranceRequestWithBody(server, planId, "application/json", bodyReader)
+}
+
+// NewSetPlanToleranceRequestWithBody constructs an http.Request for the SetPlanTolerance method, with any body, and a specified content type
+func NewSetPlanToleranceRequestWithBody(server string, planId PlanId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planId", planId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/plans/%s/tolerance", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewReadWorkloadRequest constructs an http.Request for the ReadWorkload method
 func NewReadWorkloadRequest(server string, planId PlanId, params *ReadWorkloadParams) (*http.Request, error) {
 	var err error
@@ -98743,6 +98983,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /plans/{planId}/schedule:apply (the `ApplyPlanSchedule` operationId).
 	ApplyPlanScheduleWithResponse(ctx context.Context, planId PlanId, body ApplyPlanScheduleJSONRequestBody, reqEditors ...RequestEditorFn) (*ApplyPlanScheduleResult, error)
+
+	// ReadPlanToleranceWithResponse A plan's time tolerance and its standing
+	//
+	// The days the forecast end may slip, the level they come from and the level that locked them, and - when the plan keeps a baseline - how far the forecast end lies past the latest baseline's and whether that is beyond the tolerance: the plan is then in exception, which is recorded. Needs READ at the plan.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /plans/{planId}/tolerance (the `ReadPlanTolerance` operationId).
+	ReadPlanToleranceWithResponse(ctx context.Context, planId PlanId, params *ReadPlanToleranceParams, reqEditors ...RequestEditorFn) (*ReadPlanToleranceResult, error)
+
+	// SetPlanToleranceWithBodyWithResponse Set a plan's time tolerance
+	//
+	// A hub's or a collection's time tolerance in calendar days, 0 to 365, locked for the collections below when asked; without days it is left to the level above. A level above that locked it refuses. Needs STRUCTURE at the plan.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /plans/{planId}/tolerance (the `SetPlanTolerance` operationId).
+	SetPlanToleranceWithBodyWithResponse(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPlanToleranceResult, error)
+
+	// SetPlanToleranceWithResponse Set a plan's time tolerance
+	//
+	// A hub's or a collection's time tolerance in calendar days, 0 to 365, locked for the collections below when asked; without days it is left to the level above. A level above that locked it refuses. Needs STRUCTURE at the plan.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /plans/{planId}/tolerance (the `SetPlanTolerance` operationId).
+	SetPlanToleranceWithResponse(ctx context.Context, planId PlanId, body SetPlanToleranceJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPlanToleranceResult, error)
 
 	// ReadWorkloadWithResponse Who has room in a plan
 	//
@@ -127862,6 +128129,102 @@ func (r ApplyPlanScheduleResult) ContentType() string {
 	return ""
 }
 
+type ReadPlanToleranceResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PlanTolerance
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPlanToleranceResult) GetJSON200() *PlanTolerance {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPlanToleranceResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPlanToleranceResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPlanToleranceResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPlanToleranceResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPlanToleranceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetPlanToleranceResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PlanTolerance
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetPlanToleranceResult) GetJSON200() *PlanTolerance {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetPlanToleranceResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetPlanToleranceResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetPlanToleranceResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetPlanToleranceResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetPlanToleranceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadWorkloadResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -149033,6 +149396,51 @@ func (c *ClientWithResponses) ApplyPlanScheduleWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseApplyPlanScheduleResult(rsp)
+}
+
+// ReadPlanToleranceWithResponse A plan's time tolerance and its standing
+//
+// The days the forecast end may slip, the level they come from and the level that locked them, and - when the plan keeps a baseline - how far the forecast end lies past the latest baseline's and whether that is beyond the tolerance: the plan is then in exception, which is recorded. Needs READ at the plan.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /plans/{planId}/tolerance (the `ReadPlanTolerance` operationId).
+func (c *ClientWithResponses) ReadPlanToleranceWithResponse(ctx context.Context, planId PlanId, params *ReadPlanToleranceParams, reqEditors ...RequestEditorFn) (*ReadPlanToleranceResult, error) {
+	rsp, err := c.ReadPlanTolerance(ctx, planId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPlanToleranceResult(rsp)
+}
+
+// SetPlanToleranceWithBodyWithResponse Set a plan's time tolerance
+//
+// A hub's or a collection's time tolerance in calendar days, 0 to 365, locked for the collections below when asked; without days it is left to the level above. A level above that locked it refuses. Needs STRUCTURE at the plan.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /plans/{planId}/tolerance (the `SetPlanTolerance` operationId).
+func (c *ClientWithResponses) SetPlanToleranceWithBodyWithResponse(ctx context.Context, planId PlanId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPlanToleranceResult, error) {
+	rsp, err := c.SetPlanToleranceWithBody(ctx, planId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPlanToleranceResult(rsp)
+}
+
+// SetPlanToleranceWithResponse Set a plan's time tolerance
+//
+// A hub's or a collection's time tolerance in calendar days, 0 to 365, locked for the collections below when asked; without days it is left to the level above. A level above that locked it refuses. Needs STRUCTURE at the plan.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /plans/{planId}/tolerance (the `SetPlanTolerance` operationId).
+func (c *ClientWithResponses) SetPlanToleranceWithResponse(ctx context.Context, planId PlanId, body SetPlanToleranceJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPlanToleranceResult, error) {
+	rsp, err := c.SetPlanTolerance(ctx, planId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPlanToleranceResult(rsp)
 }
 
 // ReadWorkloadWithResponse Who has room in a plan
@@ -172120,6 +172528,72 @@ func ParseApplyPlanScheduleResult(rsp *http.Response) (*ApplyPlanScheduleResult,
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest PlanMoves
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadPlanToleranceResult parses an HTTP response from a ReadPlanToleranceWithResponse call
+func ParseReadPlanToleranceResult(rsp *http.Response) (*ReadPlanToleranceResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPlanToleranceResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PlanTolerance
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetPlanToleranceResult parses an HTTP response from a SetPlanToleranceWithResponse call
+func ParseSetPlanToleranceResult(rsp *http.Response) (*SetPlanToleranceResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetPlanToleranceResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PlanTolerance
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

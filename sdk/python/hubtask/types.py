@@ -1323,6 +1323,13 @@ class Sprint(TypedDict, total=False):
     closed_at: Required[str | None]
     version: Required[int]
 
+class PlanTolerance(TypedDict, total=False):
+    time_tolerance_days: Required[int | None]
+    source: Required[str]
+    locked_by: Required[str | None]
+    baseline_id: Required[str | None]
+    exception: Required[dict[str, Any] | None]
+
 class Release(TypedDict, total=False):
     id: Required[str]
     hub_id: Required[str]

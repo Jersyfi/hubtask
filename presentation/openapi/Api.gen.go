@@ -18529,6 +18529,28 @@ type PlanScheduleEntry struct {
 // PlanScheduleEntryMode defines model for PlanScheduleEntry.Mode.
 type PlanScheduleEntryMode string
 
+// PlanTolerance defines model for PlanTolerance.
+type PlanTolerance struct {
+	// BaselineId The latest baseline the plan is measured against.
+	BaselineId *openapi_types.UUID `json:"baseline_id"`
+	Exception  *struct {
+		AgreedFinish   openapi_types.Date `json:"agreed_finish"`
+		Exceeded       bool               `json:"exceeded"`
+		ForecastFinish openapi_types.Date `json:"forecast_finish"`
+		SlipDays       int                `json:"slip_days"`
+		ToleranceDays  int                `json:"tolerance_days"`
+	} `json:"exception"`
+
+	// LockedBy The level that locked it.
+	LockedBy *string `json:"locked_by"`
+
+	// Source The level the tolerance comes from: DEFAULT, HUB or COLLECTION.
+	Source string `json:"source"`
+
+	// TimeToleranceDays The days the forecast end may slip; null without a tolerance.
+	TimeToleranceDays *int `json:"time_tolerance_days"`
+}
+
 // PlatformDelivery One event sent to one subscription, across its attempts.
 type PlatformDelivery struct {
 	// Attempt How many attempts were made, a redelivery's counting on.
@@ -24929,6 +24951,21 @@ type ApplyPlanScheduleJSONBody struct {
 	Zone     *string              `json:"zone,omitempty"`
 }
 
+// ReadPlanToleranceParams defines parameters for ReadPlanTolerance.
+type ReadPlanToleranceParams struct {
+	// Calendar A business calendar's key.
+	Calendar *string `form:"calendar,omitempty" json:"calendar,omitempty"`
+
+	// Zone An IANA time zone, when no calendar names one; UTC without.
+	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
+}
+
+// SetPlanToleranceJSONBody defines parameters for SetPlanTolerance.
+type SetPlanToleranceJSONBody struct {
+	Lock              *bool `json:"lock,omitempty"`
+	TimeToleranceDays *int  `json:"time_tolerance_days,omitempty"`
+}
+
 // ReadWorkloadParams defines parameters for ReadWorkload.
 type ReadWorkloadParams struct {
 	// From A day of the first week.
@@ -26371,6 +26408,9 @@ type SetBudgetJSONRequestBody SetBudgetJSONBody
 
 // ApplyPlanScheduleJSONRequestBody defines body for ApplyPlanSchedule for application/json ContentType.
 type ApplyPlanScheduleJSONRequestBody ApplyPlanScheduleJSONBody
+
+// SetPlanToleranceJSONRequestBody defines body for SetPlanTolerance for application/json ContentType.
+type SetPlanToleranceJSONRequestBody SetPlanToleranceJSONBody
 
 // CreatePortfolioJSONRequestBody defines body for CreatePortfolio for application/json ContentType.
 type CreatePortfolioJSONRequestBody = PortfolioWrite
@@ -28675,6 +28715,12 @@ type ServerInterface interface {
 	// ApplyPlanSchedule Apply the moves a person accepted
 	// (POST /plans/{planId}/schedule:apply)
 	ApplyPlanSchedule(w http.ResponseWriter, r *http.Request, planId PlanId)
+	// ReadPlanTolerance A plan's time tolerance and its standing
+	// (GET /plans/{planId}/tolerance)
+	ReadPlanTolerance(w http.ResponseWriter, r *http.Request, planId PlanId, params ReadPlanToleranceParams)
+	// SetPlanTolerance Set a plan's time tolerance
+	// (PUT /plans/{planId}/tolerance)
+	SetPlanTolerance(w http.ResponseWriter, r *http.Request, planId PlanId)
 	// ReadWorkload Who has room in a plan
 	// (GET /plans/{planId}/workload)
 	ReadWorkload(w http.ResponseWriter, r *http.Request, planId PlanId, params ReadWorkloadParams)
@@ -47604,6 +47650,87 @@ func (siw *ServerInterfaceWrapper) ApplyPlanSchedule(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// ReadPlanTolerance operation middleware
+func (siw *ServerInterfaceWrapper) ReadPlanTolerance(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planId" -------------
+	var planId PlanId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planId", r.PathValue("planId"), &planId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReadPlanToleranceParams
+
+	// ------------- Optional query parameter "calendar" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "calendar", r.URL.Query(), &params.Calendar, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "calendar"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "calendar", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "zone" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "zone", r.URL.Query(), &params.Zone, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "zone"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "zone", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPlanTolerance(w, r, planId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetPlanTolerance operation middleware
+func (siw *ServerInterfaceWrapper) SetPlanTolerance(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planId" -------------
+	var planId PlanId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planId", r.PathValue("planId"), &planId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetPlanTolerance(w, r, planId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadWorkload operation middleware
 func (siw *ServerInterfaceWrapper) ReadWorkload(w http.ResponseWriter, r *http.Request) {
 
@@ -53522,6 +53649,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans/{planId}/schedule", wrapper.ReadPlanSchedule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/plans/{planId}/schedule:apply", wrapper.ApplyPlanSchedule)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans/{planId}/tolerance", wrapper.ReadPlanTolerance)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/plans/{planId}/tolerance", wrapper.SetPlanTolerance)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plans/{planId}/baselines", wrapper.ListBaselines)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/plans/{planId}/baselines", wrapper.TakeBaseline)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/baselines/{baselineId}", wrapper.DeleteBaseline)
