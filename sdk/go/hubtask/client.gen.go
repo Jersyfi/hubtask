@@ -18999,7 +18999,7 @@ type SavedViewUpdate struct {
 	VisibleFields *[]string               `json:"visible_fields,omitempty"`
 }
 
-// ScimErrorBody A SCIM error (RFC 7644 §3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
+// ScimErrorBody A SCIM error (RFC 7644 section 3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
 type ScimErrorBody struct {
 	Detail   *string  `json:"detail,omitempty"`
 	Schemas  []string `json:"schemas"`
@@ -19007,7 +19007,7 @@ type ScimErrorBody struct {
 	Status   string   `json:"status"`
 }
 
-// ScimGroup A SCIM group (RFC 7643 §4.2) with its members by the users' `id`.
+// ScimGroup A SCIM group (RFC 7643 section 4.2) with its members by the users' `id`.
 type ScimGroup struct {
 	DisplayName *string `json:"displayName,omitempty"`
 	ExternalId  *string `json:"externalId,omitempty"`
@@ -19021,7 +19021,7 @@ type ScimGroup struct {
 	AdditionalProperties map[string]interface{}  `json:"-"`
 }
 
-// ScimListResponse A SCIM list response (RFC 7644 §3.4.2).
+// ScimListResponse A SCIM list response (RFC 7644 section 3.4.2).
 type ScimListResponse struct {
 	Resources    []ScimResource `json:"Resources"`
 	ItemsPerPage *int           `json:"itemsPerPage,omitempty"`
@@ -19030,7 +19030,7 @@ type ScimListResponse struct {
 	TotalResults int            `json:"totalResults"`
 }
 
-// ScimPatch A SCIM PATCH request (RFC 7644 §3.5.2).
+// ScimPatch A SCIM PATCH request (RFC 7644 section 3.5.2).
 type ScimPatch struct {
 	Operations []struct {
 		Op    string      `json:"op"`
@@ -19040,13 +19040,13 @@ type ScimPatch struct {
 	Schemas *[]string `json:"schemas,omitempty"`
 }
 
-// ScimResource A SCIM 2.0 resource (RFC 7643 §3), its `schemas` naming what it is.
+// ScimResource A SCIM 2.0 resource (RFC 7643 section 3), its `schemas` naming what it is.
 type ScimResource struct {
 	Schemas              []string               `json:"schemas"`
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
-// ScimUser A SCIM user (RFC 7643 §4.1) as this service keeps it: `userName` the address, `name` and `displayName` the name shown, `emails` the address again, `active`, `externalId`.
+// ScimUser A SCIM user (RFC 7643 section 4.1) as this service keeps it: `userName` the address, `name` and `displayName` the name shown, `emails` the address again, `active`, `externalId`.
 type ScimUser struct {
 	Active      *bool   `json:"active,omitempty"`
 	DisplayName *string `json:"displayName,omitempty"`
@@ -21922,7 +21922,7 @@ type WeekOfTimesheet = openapi_types.Date
 // WhiteboardId defines model for WhiteboardId.
 type WhiteboardId = openapi_types.UUID
 
-// ScimError A SCIM error (RFC 7644 §3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
+// ScimError A SCIM error (RFC 7644 section 3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
 type ScimError = ScimErrorBody
 
 // ExplainAccessParams defines parameters for ExplainAccess.
@@ -33063,28 +33063,28 @@ type ClientInterface interface {
 
 	// ListScimResourceTypes The SCIM resource types served
 	//
-	// The `User` and `Group` resource types (RFC 7643 §6), as a list response.
+	// The `User` and `Group` resource types (RFC 7643 section 6), as a list response.
 	//
 	// Corresponds with GET /scim/v2/ResourceTypes (the `ListScimResourceTypes` operationId).
 	ListScimResourceTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListScimSchemas The SCIM schemas served
 	//
-	// The core `User` and `Group` schemas (RFC 7643 §7) with the attributes this service keeps.
+	// The core `User` and `Group` schemas (RFC 7643 section 7) with the attributes this service keeps.
 	//
 	// Corresponds with GET /scim/v2/Schemas (the `ListScimSchemas` operationId).
 	ListScimSchemas(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetScimServiceProviderConfig What this SCIM service supports
 	//
-	// The SCIM 2.0 service provider configuration (RFC 7643 §5) a directory reads before it provisions: PATCH and filtering supported, bulk, sorting and password changes not, and the bearer token of a service account as the one way to authenticate.
+	// The SCIM 2.0 service provider configuration (RFC 7643 section 5) a directory reads before it provisions: PATCH and filtering supported, bulk, sorting and password changes not, and the bearer token of a service account as the one way to authenticate.
 	//
 	// Corresponds with GET /scim/v2/ServiceProviderConfig (the `GetScimServiceProviderConfig` operationId).
 	GetScimServiceProviderConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListScimUsers The people a directory provisions
 	//
-	// The workspace's people as SCIM users (RFC 7644 §3.4.2): `userName` is the address, `externalId` the directory's own identifier, `active` whether the person may act. A filter names one attribute with `eq` - `userName`, `externalId`, `id` or `emails.value`; any other is refused `400 invalidFilter`. Paged by `startIndex` (from 1) and `count` (at most 200). Authenticated by the bearer token of a service account that may manage members.
+	// The workspace's people as SCIM users (RFC 7644 section 3.4.2): `userName` is the address, `externalId` the directory's own identifier, `active` whether the person may act. A filter names one attribute with `eq` - `userName`, `externalId`, `id` or `emails.value`; any other is refused `400 invalidFilter`. Paged by `startIndex` (from 1) and `count` (at most 200). Authenticated by the bearer token of a service account that may manage members.
 	//
 	// Corresponds with GET /scim/v2/Users (the `ListScimUsers` operationId).
 	ListScimUsers(ctx context.Context, params *ListScimUsersParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -33130,7 +33130,7 @@ type ClientInterface interface {
 
 	// PatchScimUserWithBody Change a provisioned person
 	//
-	// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+	// SCIM PATCH operations (RFC 7644 section 3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -33139,7 +33139,7 @@ type ClientInterface interface {
 
 	// PatchScimUser Change a provisioned person
 	//
-	// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+	// SCIM PATCH operations (RFC 7644 section 3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -33148,7 +33148,7 @@ type ClientInterface interface {
 
 	// PatchScimUserWithApplicationScimPlusJSONBody Change a provisioned person
 	//
-	// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+	// SCIM PATCH operations (RFC 7644 section 3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
 	//
 	// Takes a body of the `application/scim+json` content type.
 	//
@@ -49988,7 +49988,7 @@ func (c *Client) ReplaceScimGroupWithApplicationScimPlusJSONBody(ctx context.Con
 
 // ListScimResourceTypes The SCIM resource types served
 //
-// The `User` and `Group` resource types (RFC 7643 §6), as a list response.
+// The `User` and `Group` resource types (RFC 7643 section 6), as a list response.
 //
 // Corresponds with GET /scim/v2/ResourceTypes (the `ListScimResourceTypes` operationId).
 func (c *Client) ListScimResourceTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -50005,7 +50005,7 @@ func (c *Client) ListScimResourceTypes(ctx context.Context, reqEditors ...Reques
 
 // ListScimSchemas The SCIM schemas served
 //
-// The core `User` and `Group` schemas (RFC 7643 §7) with the attributes this service keeps.
+// The core `User` and `Group` schemas (RFC 7643 section 7) with the attributes this service keeps.
 //
 // Corresponds with GET /scim/v2/Schemas (the `ListScimSchemas` operationId).
 func (c *Client) ListScimSchemas(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -50022,7 +50022,7 @@ func (c *Client) ListScimSchemas(ctx context.Context, reqEditors ...RequestEdito
 
 // GetScimServiceProviderConfig What this SCIM service supports
 //
-// The SCIM 2.0 service provider configuration (RFC 7643 §5) a directory reads before it provisions: PATCH and filtering supported, bulk, sorting and password changes not, and the bearer token of a service account as the one way to authenticate.
+// The SCIM 2.0 service provider configuration (RFC 7643 section 5) a directory reads before it provisions: PATCH and filtering supported, bulk, sorting and password changes not, and the bearer token of a service account as the one way to authenticate.
 //
 // Corresponds with GET /scim/v2/ServiceProviderConfig (the `GetScimServiceProviderConfig` operationId).
 func (c *Client) GetScimServiceProviderConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -50039,7 +50039,7 @@ func (c *Client) GetScimServiceProviderConfig(ctx context.Context, reqEditors ..
 
 // ListScimUsers The people a directory provisions
 //
-// The workspace's people as SCIM users (RFC 7644 §3.4.2): `userName` is the address, `externalId` the directory's own identifier, `active` whether the person may act. A filter names one attribute with `eq` - `userName`, `externalId`, `id` or `emails.value`; any other is refused `400 invalidFilter`. Paged by `startIndex` (from 1) and `count` (at most 200). Authenticated by the bearer token of a service account that may manage members.
+// The workspace's people as SCIM users (RFC 7644 section 3.4.2): `userName` is the address, `externalId` the directory's own identifier, `active` whether the person may act. A filter names one attribute with `eq` - `userName`, `externalId`, `id` or `emails.value`; any other is refused `400 invalidFilter`. Paged by `startIndex` (from 1) and `count` (at most 200). Authenticated by the bearer token of a service account that may manage members.
 //
 // Corresponds with GET /scim/v2/Users (the `ListScimUsers` operationId).
 func (c *Client) ListScimUsers(ctx context.Context, params *ListScimUsersParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -50145,7 +50145,7 @@ func (c *Client) GetScimUser(ctx context.Context, scimUserId ScimUserId, reqEdit
 
 // PatchScimUserWithBody Change a provisioned person
 //
-// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+// SCIM PATCH operations (RFC 7644 section 3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
 //
 // Takes any type of body and a specified content type.
 //
@@ -50164,7 +50164,7 @@ func (c *Client) PatchScimUserWithBody(ctx context.Context, scimUserId ScimUserI
 
 // PatchScimUser Change a provisioned person
 //
-// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+// SCIM PATCH operations (RFC 7644 section 3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -50183,7 +50183,7 @@ func (c *Client) PatchScimUser(ctx context.Context, scimUserId ScimUserId, body 
 
 // PatchScimUserWithApplicationScimPlusJSONBody Change a provisioned person
 //
-// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+// SCIM PATCH operations (RFC 7644 section 3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
 //
 // Takes a body of the `application/scim+json` content type.
 //
@@ -92516,7 +92516,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListScimResourceTypesWithResponse The SCIM resource types served
 	//
-	// The `User` and `Group` resource types (RFC 7643 §6), as a list response.
+	// The `User` and `Group` resource types (RFC 7643 section 6), as a list response.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -92525,7 +92525,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListScimSchemasWithResponse The SCIM schemas served
 	//
-	// The core `User` and `Group` schemas (RFC 7643 §7) with the attributes this service keeps.
+	// The core `User` and `Group` schemas (RFC 7643 section 7) with the attributes this service keeps.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -92534,7 +92534,7 @@ type ClientWithResponsesInterface interface {
 
 	// GetScimServiceProviderConfigWithResponse What this SCIM service supports
 	//
-	// The SCIM 2.0 service provider configuration (RFC 7643 §5) a directory reads before it provisions: PATCH and filtering supported, bulk, sorting and password changes not, and the bearer token of a service account as the one way to authenticate.
+	// The SCIM 2.0 service provider configuration (RFC 7643 section 5) a directory reads before it provisions: PATCH and filtering supported, bulk, sorting and password changes not, and the bearer token of a service account as the one way to authenticate.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -92543,7 +92543,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListScimUsersWithResponse The people a directory provisions
 	//
-	// The workspace's people as SCIM users (RFC 7644 §3.4.2): `userName` is the address, `externalId` the directory's own identifier, `active` whether the person may act. A filter names one attribute with `eq` - `userName`, `externalId`, `id` or `emails.value`; any other is refused `400 invalidFilter`. Paged by `startIndex` (from 1) and `count` (at most 200). Authenticated by the bearer token of a service account that may manage members.
+	// The workspace's people as SCIM users (RFC 7644 section 3.4.2): `userName` is the address, `externalId` the directory's own identifier, `active` whether the person may act. A filter names one attribute with `eq` - `userName`, `externalId`, `id` or `emails.value`; any other is refused `400 invalidFilter`. Paged by `startIndex` (from 1) and `count` (at most 200). Authenticated by the bearer token of a service account that may manage members.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -92595,7 +92595,7 @@ type ClientWithResponsesInterface interface {
 
 	// PatchScimUserWithBodyWithResponse Change a provisioned person
 	//
-	// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+	// SCIM PATCH operations (RFC 7644 section 3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -92604,7 +92604,7 @@ type ClientWithResponsesInterface interface {
 
 	// PatchScimUserWithResponse Change a provisioned person
 	//
-	// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+	// SCIM PATCH operations (RFC 7644 section 3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -92613,7 +92613,7 @@ type ClientWithResponsesInterface interface {
 
 	// PatchScimUserWithApplicationScimPlusJSONBodyWithResponse Change a provisioned person
 	//
-	// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+	// SCIM PATCH operations (RFC 7644 section 3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
 	//
 	// Takes a body of the `application/scim+json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -139093,7 +139093,7 @@ func (c *ClientWithResponses) ReplaceScimGroupWithApplicationScimPlusJSONBodyWit
 
 // ListScimResourceTypesWithResponse The SCIM resource types served
 //
-// The `User` and `Group` resource types (RFC 7643 §6), as a list response.
+// The `User` and `Group` resource types (RFC 7643 section 6), as a list response.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -139108,7 +139108,7 @@ func (c *ClientWithResponses) ListScimResourceTypesWithResponse(ctx context.Cont
 
 // ListScimSchemasWithResponse The SCIM schemas served
 //
-// The core `User` and `Group` schemas (RFC 7643 §7) with the attributes this service keeps.
+// The core `User` and `Group` schemas (RFC 7643 section 7) with the attributes this service keeps.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -139123,7 +139123,7 @@ func (c *ClientWithResponses) ListScimSchemasWithResponse(ctx context.Context, r
 
 // GetScimServiceProviderConfigWithResponse What this SCIM service supports
 //
-// The SCIM 2.0 service provider configuration (RFC 7643 §5) a directory reads before it provisions: PATCH and filtering supported, bulk, sorting and password changes not, and the bearer token of a service account as the one way to authenticate.
+// The SCIM 2.0 service provider configuration (RFC 7643 section 5) a directory reads before it provisions: PATCH and filtering supported, bulk, sorting and password changes not, and the bearer token of a service account as the one way to authenticate.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -139138,7 +139138,7 @@ func (c *ClientWithResponses) GetScimServiceProviderConfigWithResponse(ctx conte
 
 // ListScimUsersWithResponse The people a directory provisions
 //
-// The workspace's people as SCIM users (RFC 7644 §3.4.2): `userName` is the address, `externalId` the directory's own identifier, `active` whether the person may act. A filter names one attribute with `eq` - `userName`, `externalId`, `id` or `emails.value`; any other is refused `400 invalidFilter`. Paged by `startIndex` (from 1) and `count` (at most 200). Authenticated by the bearer token of a service account that may manage members.
+// The workspace's people as SCIM users (RFC 7644 section 3.4.2): `userName` is the address, `externalId` the directory's own identifier, `active` whether the person may act. A filter names one attribute with `eq` - `userName`, `externalId`, `id` or `emails.value`; any other is refused `400 invalidFilter`. Paged by `startIndex` (from 1) and `count` (at most 200). Authenticated by the bearer token of a service account that may manage members.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -139226,7 +139226,7 @@ func (c *ClientWithResponses) GetScimUserWithResponse(ctx context.Context, scimU
 
 // PatchScimUserWithBodyWithResponse Change a provisioned person
 //
-// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+// SCIM PATCH operations (RFC 7644 section 3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -139241,7 +139241,7 @@ func (c *ClientWithResponses) PatchScimUserWithBodyWithResponse(ctx context.Cont
 
 // PatchScimUserWithResponse Change a provisioned person
 //
-// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+// SCIM PATCH operations (RFC 7644 section 3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -139256,7 +139256,7 @@ func (c *ClientWithResponses) PatchScimUserWithResponse(ctx context.Context, sci
 
 // PatchScimUserWithApplicationScimPlusJSONBodyWithResponse Change a provisioned person
 //
-// SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
+// SCIM PATCH operations (RFC 7644 section 3.5.2) on `active`, `displayName`, `name` and `externalId`, with or without a path, as the large directories send them (a boolean as the string "False" included). The same limits as a replacement.
 //
 // Takes a body of the `application/scim+json` content type, and returns a wrapper object for the known response body format(s).
 //

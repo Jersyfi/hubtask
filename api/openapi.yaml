@@ -13314,7 +13314,7 @@ paths:
       operationId: getScimServiceProviderConfig
       summary: What this SCIM service supports
       description: >
-        The SCIM 2.0 service provider configuration (RFC 7643 §5) a directory reads before it
+        The SCIM 2.0 service provider configuration (RFC 7643 section 5) a directory reads before it
         provisions: PATCH and filtering supported, bulk, sorting and password changes not, and the
         bearer token of a service account as the one way to authenticate.
       responses:
@@ -13330,7 +13330,7 @@ paths:
       tags: [identity]
       operationId: listScimResourceTypes
       summary: The SCIM resource types served
-      description: The `User` and `Group` resource types (RFC 7643 §6), as a list response.
+      description: The `User` and `Group` resource types (RFC 7643 section 6), as a list response.
       responses:
         "200":
           description: The resource types
@@ -13344,7 +13344,7 @@ paths:
       tags: [identity]
       operationId: listScimSchemas
       summary: The SCIM schemas served
-      description: The core `User` and `Group` schemas (RFC 7643 §7) with the attributes this service keeps.
+      description: The core `User` and `Group` schemas (RFC 7643 section 7) with the attributes this service keeps.
       responses:
         "200":
           description: The schemas
@@ -13359,7 +13359,7 @@ paths:
       operationId: listScimUsers
       summary: The people a directory provisions
       description: >
-        The workspace's people as SCIM users (RFC 7644 §3.4.2): `userName` is the address,
+        The workspace's people as SCIM users (RFC 7644 section 3.4.2): `userName` is the address,
         `externalId` the directory's own identifier, `active` whether the person may act. A filter
         names one attribute with `eq` - `userName`, `externalId`, `id` or `emails.value`; any other
         is refused `400 invalidFilter`. Paged by `startIndex` (from 1) and `count` (at most 200).
@@ -13445,7 +13445,7 @@ paths:
       operationId: patchScimUser
       summary: Change a provisioned person
       description: >
-        SCIM PATCH operations (RFC 7644 §3.5.2) on `active`, `displayName`, `name` and
+        SCIM PATCH operations (RFC 7644 section 3.5.2) on `active`, `displayName`, `name` and
         `externalId`, with or without a path, as the large directories send them (a boolean as the
         string "False" included). The same limits as a replacement.
       requestBody:
@@ -18901,7 +18901,7 @@ components:
 
   responses:
     ScimError:
-      description: A SCIM error (RFC 7644 §3.12)
+      description: A SCIM error (RFC 7644 section 3.12)
       content:
         application/scim+json:
           schema:
@@ -26249,7 +26249,7 @@ components:
 
     ScimResource:
       type: object
-      description: A SCIM 2.0 resource (RFC 7643 §3), its `schemas` naming what it is.
+      description: A SCIM 2.0 resource (RFC 7643 section 3), its `schemas` naming what it is.
       required: [schemas]
       properties:
         schemas: { type: array, items: { type: string } }
@@ -26257,7 +26257,7 @@ components:
 
     ScimListResponse:
       type: object
-      description: A SCIM list response (RFC 7644 §3.4.2).
+      description: A SCIM list response (RFC 7644 section 3.4.2).
       required: [schemas, totalResults, Resources]
       properties:
         schemas: { type: array, items: { type: string } }
@@ -26269,7 +26269,7 @@ components:
     ScimUser:
       type: object
       description: >
-        A SCIM user (RFC 7643 §4.1) as this service keeps it: `userName` the address, `name` and
+        A SCIM user (RFC 7643 section 4.1) as this service keeps it: `userName` the address, `name` and
         `displayName` the name shown, `emails` the address again, `active`, `externalId`.
       properties:
         schemas: { type: array, items: { type: string } }
@@ -26297,7 +26297,7 @@ components:
 
     ScimGroup:
       type: object
-      description: A SCIM group (RFC 7643 §4.2) with its members by the users' `id`.
+      description: A SCIM group (RFC 7643 section 4.2) with its members by the users' `id`.
       properties:
         schemas: { type: array, items: { type: string } }
         id: { type: string }
@@ -26315,7 +26315,7 @@ components:
 
     ScimPatch:
       type: object
-      description: A SCIM PATCH request (RFC 7644 §3.5.2).
+      description: A SCIM PATCH request (RFC 7644 section 3.5.2).
       required: [Operations]
       properties:
         schemas: { type: array, items: { type: string } }
@@ -26333,7 +26333,7 @@ components:
     ScimErrorBody:
       type: object
       description: >
-        A SCIM error (RFC 7644 §3.12): the status, a `scimType` where the RFC names one, and as
+        A SCIM error (RFC 7644 section 3.12): the status, a `scimType` where the RFC names one, and as
         `detail` the message code - never a sentence.
       required: [schemas, status]
       properties:

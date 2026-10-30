@@ -2887,11 +2887,11 @@ class MfaDisable(TypedDict, total=False):
     password: str
 
 class ScimResource(TypedDict, total=False):
-    """A SCIM 2.0 resource (RFC 7643 §3), its `schemas` naming what it is."""
+    """A SCIM 2.0 resource (RFC 7643 section 3), its `schemas` naming what it is."""
     schemas: Required[list[str]]
 
 class ScimListResponse(TypedDict, total=False):
-    """A SCIM list response (RFC 7644 §3.4.2)."""
+    """A SCIM list response (RFC 7644 section 3.4.2)."""
     schemas: Required[list[str]]
     totalResults: Required[int]
     startIndex: int
@@ -2899,7 +2899,7 @@ class ScimListResponse(TypedDict, total=False):
     Resources: Required[list["ScimResource"]]
 
 class ScimUser(TypedDict, total=False):
-    """A SCIM user (RFC 7643 §4.1) as this service keeps it: `userName` the address, `name` and `displayName` the name shown, `emails` the address again, `active`, `externalId`."""
+    """A SCIM user (RFC 7643 section 4.1) as this service keeps it: `userName` the address, `name` and `displayName` the name shown, `emails` the address again, `active`, `externalId`."""
     schemas: list[str]
     id: str
     externalId: str
@@ -2911,7 +2911,7 @@ class ScimUser(TypedDict, total=False):
     meta: dict[str, Any]
 
 class ScimGroup(TypedDict, total=False):
-    """A SCIM group (RFC 7643 §4.2) with its members by the users' `id`."""
+    """A SCIM group (RFC 7643 section 4.2) with its members by the users' `id`."""
     schemas: list[str]
     id: str
     externalId: str
@@ -2920,12 +2920,12 @@ class ScimGroup(TypedDict, total=False):
     meta: dict[str, Any]
 
 class ScimPatch(TypedDict, total=False):
-    """A SCIM PATCH request (RFC 7644 §3.5.2)."""
+    """A SCIM PATCH request (RFC 7644 section 3.5.2)."""
     schemas: list[str]
     Operations: Required[list[dict[str, Any]]]
 
 class ScimErrorBody(TypedDict, total=False):
-    """A SCIM error (RFC 7644 §3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence."""
+    """A SCIM error (RFC 7644 section 3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence."""
     schemas: Required[list[str]]
     status: Required[str]
     scimType: str

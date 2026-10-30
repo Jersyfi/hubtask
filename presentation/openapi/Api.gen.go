@@ -18994,7 +18994,7 @@ type SavedViewUpdate struct {
 	VisibleFields *[]string               `json:"visible_fields,omitempty"`
 }
 
-// ScimErrorBody A SCIM error (RFC 7644 §3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
+// ScimErrorBody A SCIM error (RFC 7644 section 3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
 type ScimErrorBody struct {
 	Detail   *string  `json:"detail,omitempty"`
 	Schemas  []string `json:"schemas"`
@@ -19002,7 +19002,7 @@ type ScimErrorBody struct {
 	Status   string   `json:"status"`
 }
 
-// ScimGroup A SCIM group (RFC 7643 §4.2) with its members by the users' `id`.
+// ScimGroup A SCIM group (RFC 7643 section 4.2) with its members by the users' `id`.
 type ScimGroup struct {
 	DisplayName *string `json:"displayName,omitempty"`
 	ExternalId  *string `json:"externalId,omitempty"`
@@ -19016,7 +19016,7 @@ type ScimGroup struct {
 	AdditionalProperties map[string]interface{}  `json:"-"`
 }
 
-// ScimListResponse A SCIM list response (RFC 7644 §3.4.2).
+// ScimListResponse A SCIM list response (RFC 7644 section 3.4.2).
 type ScimListResponse struct {
 	Resources    []ScimResource `json:"Resources"`
 	ItemsPerPage *int           `json:"itemsPerPage,omitempty"`
@@ -19025,7 +19025,7 @@ type ScimListResponse struct {
 	TotalResults int            `json:"totalResults"`
 }
 
-// ScimPatch A SCIM PATCH request (RFC 7644 §3.5.2).
+// ScimPatch A SCIM PATCH request (RFC 7644 section 3.5.2).
 type ScimPatch struct {
 	Operations []struct {
 		Op    string      `json:"op"`
@@ -19035,13 +19035,13 @@ type ScimPatch struct {
 	Schemas *[]string `json:"schemas,omitempty"`
 }
 
-// ScimResource A SCIM 2.0 resource (RFC 7643 §3), its `schemas` naming what it is.
+// ScimResource A SCIM 2.0 resource (RFC 7643 section 3), its `schemas` naming what it is.
 type ScimResource struct {
 	Schemas              []string               `json:"schemas"`
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
-// ScimUser A SCIM user (RFC 7643 §4.1) as this service keeps it: `userName` the address, `name` and `displayName` the name shown, `emails` the address again, `active`, `externalId`.
+// ScimUser A SCIM user (RFC 7643 section 4.1) as this service keeps it: `userName` the address, `name` and `displayName` the name shown, `emails` the address again, `active`, `externalId`.
 type ScimUser struct {
 	Active      *bool   `json:"active,omitempty"`
 	DisplayName *string `json:"displayName,omitempty"`
@@ -21917,7 +21917,7 @@ type WeekOfTimesheet = openapi_types.Date
 // WhiteboardId defines model for WhiteboardId.
 type WhiteboardId = openapi_types.UUID
 
-// ScimError A SCIM error (RFC 7644 §3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
+// ScimError A SCIM error (RFC 7644 section 3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
 type ScimError = ScimErrorBody
 
 // ExplainAccessParams defines parameters for ExplainAccess.
