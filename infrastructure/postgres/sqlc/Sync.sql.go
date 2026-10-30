@@ -1066,6 +1066,57 @@ func (q *Queries) SnapshotDashboards(ctx context.Context, arg SnapshotDashboards
 	return items, nil
 }
 
+const snapshotEntryEstimates = `-- name: SnapshotEntryEstimates :many
+SELECT ee.entry_id, ee.unit, ee.value, ee.size, ee.version, wi.collection_id
+FROM entry_estimate ee
+JOIN work_item wi ON wi.tenant_id = ee.tenant_id AND wi.id = ee.entry_id AND wi.deleted_at IS NULL
+WHERE ee.tenant_id = current_tenant_id() AND ee.entry_id > $1
+ORDER BY ee.entry_id
+LIMIT $2
+`
+
+type SnapshotEntryEstimatesParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotEntryEstimatesRow struct {
+	EntryID      pgtype.UUID
+	Unit         string
+	Value        float64
+	Size         *string
+	Version      int32
+	CollectionID pgtype.UUID
+}
+
+// Every live entry's estimate, with its collection.
+func (q *Queries) SnapshotEntryEstimates(ctx context.Context, arg SnapshotEntryEstimatesParams) ([]SnapshotEntryEstimatesRow, error) {
+	rows, err := q.db.Query(ctx, snapshotEntryEstimates, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotEntryEstimatesRow{}
+	for rows.Next() {
+		var i SnapshotEntryEstimatesRow
+		if err := rows.Scan(
+			&i.EntryID,
+			&i.Unit,
+			&i.Value,
+			&i.Size,
+			&i.Version,
+			&i.CollectionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotEntryLinks = `-- name: SnapshotEntryLinks :many
 SELECT l.id, l.tenant_id, l.link_type, l.source_id, l.target_id, l.created_by, l.created_at,
   l.dependency_kind, l.lag_days,
@@ -1824,6 +1875,132 @@ func (q *Queries) SnapshotSetElements(ctx context.Context, arg SnapshotSetElemen
 			&i.AddTag,
 			&i.RemoveTag,
 			&i.CollectionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotSprintEntries = `-- name: SnapshotSprintEntries :many
+SELECT se.entry_id, se.sprint_id, se.committed, s.collection_id
+FROM sprint_entry se
+JOIN sprint s ON s.tenant_id = se.tenant_id AND s.id = se.sprint_id
+JOIN work_item wi ON wi.tenant_id = se.tenant_id AND wi.id = se.entry_id AND wi.deleted_at IS NULL
+WHERE se.tenant_id = current_tenant_id() AND se.removed_at IS NULL AND se.outcome IS NULL
+  AND se.entry_id > $1
+ORDER BY se.entry_id
+LIMIT $2
+`
+
+type SnapshotSprintEntriesParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotSprintEntriesRow struct {
+	EntryID      pgtype.UUID
+	SprintID     pgtype.UUID
+	Committed    bool
+	CollectionID pgtype.UUID
+}
+
+// Every live entry's open sprint, by the entry, with the sprint's collection; a past membership
+// is the sprint's history and stays online.
+func (q *Queries) SnapshotSprintEntries(ctx context.Context, arg SnapshotSprintEntriesParams) ([]SnapshotSprintEntriesRow, error) {
+	rows, err := q.db.Query(ctx, snapshotSprintEntries, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotSprintEntriesRow{}
+	for rows.Next() {
+		var i SnapshotSprintEntriesRow
+		if err := rows.Scan(
+			&i.EntryID,
+			&i.SprintID,
+			&i.Committed,
+			&i.CollectionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const snapshotSprints = `-- name: SnapshotSprints :many
+SELECT id, collection_id, name, goal, start_on, end_on, state, unit, committed_value,
+  committed_count, completed_value, completed_count, started_at, closed_at, created_at,
+  created_by, updated_at, version
+FROM sprint
+WHERE tenant_id = current_tenant_id() AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotSprintsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotSprintsRow struct {
+	ID             pgtype.UUID
+	CollectionID   pgtype.UUID
+	Name           string
+	Goal           string
+	StartOn        pgtype.Date
+	EndOn          pgtype.Date
+	State          string
+	Unit           string
+	CommittedValue float64
+	CommittedCount int32
+	CompletedValue float64
+	CompletedCount int32
+	StartedAt      pgtype.Timestamptz
+	ClosedAt       pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	CreatedBy      pgtype.UUID
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
+}
+
+// The workspace's sprints (migration 0245), each filed under its collection.
+func (q *Queries) SnapshotSprints(ctx context.Context, arg SnapshotSprintsParams) ([]SnapshotSprintsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotSprints, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotSprintsRow{}
+	for rows.Next() {
+		var i SnapshotSprintsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CollectionID,
+			&i.Name,
+			&i.Goal,
+			&i.StartOn,
+			&i.EndOn,
+			&i.State,
+			&i.Unit,
+			&i.CommittedValue,
+			&i.CommittedCount,
+			&i.CompletedValue,
+			&i.CompletedCount,
+			&i.StartedAt,
+			&i.ClosedAt,
+			&i.CreatedAt,
+			&i.CreatedBy,
+			&i.UpdatedAt,
+			&i.Version,
 		); err != nil {
 			return nil, err
 		}

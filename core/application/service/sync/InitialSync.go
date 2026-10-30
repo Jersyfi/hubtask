@@ -38,6 +38,7 @@ var walkKinds = []string{
 	entityLinkType, entityWorkflow, entityCustomRole, entityEntryLink, entityRoleGrant, entityPage,
 	entityCI, entityCIRelation, entityCICatalogue, entityEntrySchedule,
 	entityGoalPeriod, entityGoal, entityGoalCheckIn, entityDashboard,
+	entitySprint, entitySprintEntry, entityEstimate,
 }
 
 const (
@@ -81,6 +82,12 @@ const (
 	entityGoal        = goalservice.GoalEntity
 	entityGoalCheckIn = goalservice.CheckInEntity
 	entityDashboard   = goalservice.DashboardEntity
+	// entitySprint is a sprint, entitySprintEntry an entry's open sprint and entityEstimate an
+	// entry's estimate, each filed under the collection (M2); walked last, for the schedule's
+	// reason.
+	entitySprint      = planningservice.SprintEntity
+	entitySprintEntry = planningservice.SprintEntryEntity
+	entityEstimate    = planningservice.EstimateEntity
 	// kindSet is the walk's own name for the set element pass. Not an entity: its records are the
 	// entry's.
 	kindSet = "set"
@@ -511,6 +518,46 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 				entity: entityEntrySchedule, entityID: s.EntryID, containerID: s.CollectionID,
 				payload: planningservice.ScheduleRecord(s.EntryID, s.CollectionID, planning.Mode(s.Mode), s.Milestone, s.Version),
 				key:     s.EntryID.String(),
+			})
+		}
+		return rows, nil
+	case entitySprint:
+		sprints, err := p.Snapshot.Sprints(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(sprints))
+		for _, s := range sprints {
+			rows = append(rows, walkRow{
+				entity: entitySprint, entityID: s.ID, containerID: s.CollectionID,
+				payload: planningservice.SprintOutput(s), key: s.ID.String(),
+			})
+		}
+		return rows, nil
+	case entitySprintEntry:
+		members, err := p.Snapshot.SprintEntries(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(members))
+		for _, m := range members {
+			rows = append(rows, walkRow{
+				entity: entitySprintEntry, entityID: m.EntryID, containerID: m.CollectionID,
+				payload: planningservice.MembershipRecord(m.EntryID, m.SprintID, m.CollectionID, m.Committed),
+				key:     m.EntryID.String(),
+			})
+		}
+		return rows, nil
+	case entityEstimate:
+		estimates, err := p.Snapshot.EntryEstimates(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(estimates))
+		for _, e := range estimates {
+			rows = append(rows, walkRow{
+				entity: entityEstimate, entityID: e.Estimate.EntryID, containerID: e.CollectionID,
+				payload: planningservice.EstimateRecord(e.Estimate, e.CollectionID), key: e.Estimate.EntryID.String(),
 			})
 		}
 		return rows, nil

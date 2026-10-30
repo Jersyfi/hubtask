@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	"github.com/Jersyfi/hubtask/core/domain/model/goal"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
+	"github.com/Jersyfi/hubtask/core/domain/model/planning"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -47,6 +48,9 @@ type snapshotStore struct {
 	goals       []goal.Goal
 	checkIns    []repository.GoalCheckIn
 	dashboards  []goal.Dashboard
+	sprints     []planning.Sprint
+	members     []repository.SprintEntryOf
+	estimates   []repository.EstimateOf
 	// groups are the groups the reader is in.
 	groups map[shared.ID]bool
 	// reads counts the pages asked for, so a test can say how much of the store a walk touched.

@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	"github.com/Jersyfi/hubtask/core/domain/model/goal"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
+	"github.com/Jersyfi/hubtask/core/domain/model/planning"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	syncdomain "github.com/Jersyfi/hubtask/core/domain/model/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -161,6 +162,11 @@ type Snapshot interface {
 	// EntrySchedules pages every live entry's stored scheduling mode and milestone mark, with
 	// its collection (M2). An entry without a row is MANUAL and no milestone, and is not paged.
 	EntrySchedules(ctx context.Context, after shared.ID, batch int) ([]ScheduleOf, error)
+	// Sprints pages the workspace's sprints; SprintEntries every live entry's open sprint, by the
+	// entry; EntryEstimates every live entry's estimate (M2).
+	Sprints(ctx context.Context, after shared.ID, batch int) ([]planning.Sprint, error)
+	SprintEntries(ctx context.Context, after shared.ID, batch int) ([]SprintEntryOf, error)
+	EntryEstimates(ctx context.Context, after shared.ID, batch int) ([]EstimateOf, error)
 	// CustomRoles pages the workspace's own roles (UC-ID-26).
 	CustomRoles(ctx context.Context, after shared.ID, batch int) ([]identityrepo.CustomRoleRow, error)
 	// Pages pages the workspace's living pages with their bodies, for reading offline (M3).
@@ -190,6 +196,20 @@ type ScheduleOf struct {
 	Mode         string
 	Milestone    bool
 	Version      int
+}
+
+// SprintEntryOf is an entry's open membership of a sprint, with the sprint's collection.
+type SprintEntryOf struct {
+	EntryID      shared.ID
+	SprintID     shared.ID
+	CollectionID shared.ID
+	Committed    bool
+}
+
+// EstimateOf is an entry's estimate with its collection.
+type EstimateOf struct {
+	Estimate     planning.Estimate
+	CollectionID shared.ID
 }
 
 // GoalCheckIn is a check-in with the hub of its goal, which decides who is told of it.

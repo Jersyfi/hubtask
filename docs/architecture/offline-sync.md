@@ -87,7 +87,7 @@ A **null cursor is the initial synchronisation**: the current state, one kind at
 (containers, buckets, labels, entries, set elements, comments, reminders, recurrence rules,
 templates, entry types, link types, workflows, custom roles, links, the reader's own role grants,
 pages, configuration items, their relations, the CMDB's catalogue, entry schedules, goal periods,
-goals, check-ins and dashboards), paged by identifier, each row
+goals, check-ins, dashboards, sprints, entries' open sprints and estimates), paged by identifier, each row
 judged by the same permission as a delta record, with the log position taken *before* the first
 page so a change landing mid-walk is the first delta's. Entry types, link types and workflows are
 the workspace's vocabulary and reach every member; a custom role reaches whoever may read at the
@@ -114,7 +114,14 @@ only. Portfolios are not in the replica yet: their projects narrow per reader. A
 and lag (`dependency_kind`, `lag_days`) in the walk as in the delta, and setting them records the
 link again. An entry's scheduling mode and milestone mark (`entry_schedule`, by the entry's
 identifier) are filed under its collection and walked last; an entry without one is MANUAL and no
-milestone. Both are written online only: the plan is scheduled by the server. A
+milestone. Both are written online only: the plan is scheduled by the server. A sprint
+(`sprint`), an entry's open membership of one (`sprint_entry`, by the entry's identifier - one
+open sprint per entry) and an entry's estimate (`entry_estimate`, by the entry's identifier) are
+filed under the collection; every write records them - a start each member as committed, a close
+a carried entry in the next sprint and the others as removed, a planned sprint's deletion its
+entries as removed. A past membership, the burndown and the velocity are the server's, asked for
+online; while it is away the web app answers a collection's sprints from the copy. All three are
+written online only. A
 mid-walk page cursor names the kind and key it resumes after; the pull continues it, the stream
 refuses it.
 

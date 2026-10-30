@@ -112,3 +112,67 @@ func TestASprintStaysInItsWorkspace(t *testing.T) {
 		t.Errorf("the other workspace deleted the sprint: %v", err)
 	}
 }
+
+// The walk's sprints, open memberships and estimates stay in their workspace (offline-sync.md
+// §3.1): the workspace next door walks none of them.
+func TestTheSprintWalkStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	sprints := postgres.NewPlanningRepository().Sprints()
+	snapshot := postgres.NewSnapshotRepository()
+	_, collection, tasks := seedPlan(ctx, t, tenantA)
+	now := time.Date(2026, 11, 1, 8, 0, 0, 0, time.UTC)
+	start := planning.DayFrom(2026, time.November, 2)
+	sprint, err := planning.NewSprint(planning.NewSprintInput{
+		ID: freshID(t), TenantID: tenantA, CollectionID: collection, CreatedBy: authorA, Now: now,
+		Fields: planning.SprintFields{Name: "Walked", StartOn: start, EndOn: start + 13},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	estimate, _ := planning.NewEstimate(tasks[0], planning.Points, 3, "")
+	estimate.UpdatedAt = now
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := sprints.Insert(ctx, sprint); err != nil {
+			return err
+		}
+		if err := sprints.Add(ctx, sprint.ID, tasks[0], now, false); err != nil {
+			return err
+		}
+		return sprints.SetEstimate(ctx, estimate)
+	}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	walked := func(tenant shared.ID) (sprintSeen, memberSeen, estimateSeen bool) {
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			all, err := snapshot.Sprints(ctx, "", 5000)
+			if err != nil {
+				return err
+			}
+			for _, s := range all {
+				sprintSeen = sprintSeen || s.ID == sprint.ID
+			}
+			members, err := snapshot.SprintEntries(ctx, "", 5000)
+			if err != nil {
+				return err
+			}
+			for _, m := range members {
+				memberSeen = memberSeen || (m.EntryID == tasks[0] && m.SprintID == sprint.ID && m.CollectionID == collection)
+			}
+			estimates, err := snapshot.EntryEstimates(ctx, "", 5000)
+			for _, e := range estimates {
+				estimateSeen = estimateSeen || (e.Estimate.EntryID == tasks[0] && e.Estimate.Value == 3 && e.CollectionID == collection)
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	if s, m, e := walked(tenantA); !s || !m || !e {
+		t.Errorf("the workspace's walk: sprint %v, membership %v, estimate %v; want all three", s, m, e)
+	}
+	if s, m, e := walked(tenantB); s || m || e {
+		t.Errorf("the workspace next door walked: sprint %v, membership %v, estimate %v", s, m, e)
+	}
+}

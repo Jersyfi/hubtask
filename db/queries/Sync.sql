@@ -474,3 +474,34 @@ FROM dashboard
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
 ORDER BY id
 LIMIT sqlc.arg('batch');
+
+-- name: SnapshotSprints :many
+-- The workspace's sprints (migration 0245), each filed under its collection.
+SELECT id, collection_id, name, goal, start_on, end_on, state, unit, committed_value,
+  committed_count, completed_value, completed_count, started_at, closed_at, created_at,
+  created_by, updated_at, version
+FROM sprint
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotSprintEntries :many
+-- Every live entry's open sprint, by the entry, with the sprint's collection; a past membership
+-- is the sprint's history and stays online.
+SELECT se.entry_id, se.sprint_id, se.committed, s.collection_id
+FROM sprint_entry se
+JOIN sprint s ON s.tenant_id = se.tenant_id AND s.id = se.sprint_id
+JOIN work_item wi ON wi.tenant_id = se.tenant_id AND wi.id = se.entry_id AND wi.deleted_at IS NULL
+WHERE se.tenant_id = current_tenant_id() AND se.removed_at IS NULL AND se.outcome IS NULL
+  AND se.entry_id > sqlc.arg('after')
+ORDER BY se.entry_id
+LIMIT sqlc.arg('batch');
+
+-- name: SnapshotEntryEstimates :many
+-- Every live entry's estimate, with its collection.
+SELECT ee.entry_id, ee.unit, ee.value, ee.size, ee.version, wi.collection_id
+FROM entry_estimate ee
+JOIN work_item wi ON wi.tenant_id = ee.tenant_id AND wi.id = ee.entry_id AND wi.deleted_at IS NULL
+WHERE ee.tenant_id = current_tenant_id() AND ee.entry_id > sqlc.arg('after')
+ORDER BY ee.entry_id
+LIMIT sqlc.arg('batch');
