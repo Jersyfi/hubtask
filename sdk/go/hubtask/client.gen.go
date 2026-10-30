@@ -30373,7 +30373,7 @@ type ClientInterface interface {
 
 	// ExportTimeRecordsWithBody Hand time records to accounting
 	//
-	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail.
+	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); `Export-Truncated` says the file holds only the first 50000.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -30382,7 +30382,7 @@ type ClientInterface interface {
 
 	// ExportTimeRecords Hand time records to accounting
 	//
-	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail.
+	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); `Export-Truncated` says the file holds only the first 50000.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -46312,7 +46312,7 @@ func (c *Client) CorrectTimeRecord(ctx context.Context, recordId TimeRecordId, b
 
 // ExportTimeRecordsWithBody Hand time records to accounting
 //
-// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail.
+// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); `Export-Truncated` says the file holds only the first 50000.
 //
 // Takes any type of body and a specified content type.
 //
@@ -46331,7 +46331,7 @@ func (c *Client) ExportTimeRecordsWithBody(ctx context.Context, contentType stri
 
 // ExportTimeRecords Hand time records to accounting
 //
-// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail.
+// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); `Export-Truncated` says the file holds only the first 50000.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -83799,7 +83799,7 @@ type ClientWithResponsesInterface interface {
 
 	// ExportTimeRecordsWithBodyWithResponse Hand time records to accounting
 	//
-	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail.
+	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); `Export-Truncated` says the file holds only the first 50000.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -83808,7 +83808,7 @@ type ClientWithResponsesInterface interface {
 
 	// ExportTimeRecordsWithResponse Hand time records to accounting
 	//
-	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail.
+	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); `Export-Truncated` says the file holds only the first 50000.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -110762,6 +110762,11 @@ func (r CorrectTimeRecordResult) ContentType() string {
 	return ""
 }
 
+// ExportTimeRecordsResult200Headers the declared response headers of an HTTP 200 response for ExportTimeRecords
+type ExportTimeRecordsResult200Headers struct {
+	ExportTruncated *bool
+}
+
 type ExportTimeRecordsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -110769,6 +110774,8 @@ type ExportTimeRecordsResult struct {
 	JSON200 *TimeExport
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *ExportTimeRecordsResult200Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -125992,7 +125999,7 @@ func (c *ClientWithResponses) CorrectTimeRecordWithResponse(ctx context.Context,
 
 // ExportTimeRecordsWithBodyWithResponse Hand time records to accounting
 //
-// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail.
+// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); `Export-Truncated` says the file holds only the first 50000.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -126007,7 +126014,7 @@ func (c *ClientWithResponses) ExportTimeRecordsWithBodyWithResponse(ctx context.
 
 // ExportTimeRecordsWithResponse Hand time records to accounting
 //
-// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail.
+// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); `Export-Truncated` says the file holds only the first 50000.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -145867,6 +145874,22 @@ func ParseExportTimeRecordsResult(rsp *http.Response) (*ExportTimeRecordsResult,
 		}
 		response.ApplicationproblemJSON4XX = &dest
 
+	case rsp.StatusCode == 200:
+		// Content-type (text/csv) unsupported
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers ExportTimeRecordsResult200Headers
+		if values := rsp.Header.Values("Export-Truncated"); len(values) > 0 {
+			var value bool
+			if err := runtime.BindStyledParameterWithOptions("simple", "Export-Truncated", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ExportTruncated = &value
+		}
+		response.Headers200 = &headers
 	}
 
 	return response, nil

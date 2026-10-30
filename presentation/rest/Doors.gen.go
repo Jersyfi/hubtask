@@ -147,7 +147,6 @@ var restDoors = map[string]restDoor{
 	"explainConfig":                     {UseCase: "ExplainConfig", Status: 200, Query: []string{"hub_id", "key"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"exportConfig":                      {UseCase: "ExportConfig", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "hash", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"exportPage":                        {UseCase: "ExportPage", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"exportTimeRecords":                 {UseCase: "ExportTimeRecords", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"exportWhiteboard":                  {UseCase: "ExportWhiteboard", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"forgetSyncDevice":                  {UseCase: "ForgetSyncDevice", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getAccount":                        {UseCase: "GetAccount", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1248,13 +1247,6 @@ func (c *RestController) ExportPage(w http.ResponseWriter, r *http.Request, page
 	var body openapi.ExportPageJSONRequestBody
 	var answer openapi.PageExport
 	c.door(w, r, restDoors["exportPage"], usecase.Input{"page_id": pageId.String()}, nil, &body, &answer)
-}
-
-// ExportTimeRecords answers POST /time-records:export by the generated mapping.
-func (c *RestController) ExportTimeRecords(w http.ResponseWriter, r *http.Request) {
-	var body openapi.ExportTimeRecordsJSONRequestBody
-	var answer openapi.TimeExport
-	c.door(w, r, restDoors["exportTimeRecords"], usecase.Input{}, nil, &body, &answer)
 }
 
 // ExportWhiteboard answers POST /whiteboards/{whiteboardId}:export by the generated mapping.

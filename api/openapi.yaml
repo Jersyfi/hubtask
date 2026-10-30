@@ -789,14 +789,15 @@ paths:
     post:
       tags: [time]
       operationId: exportTimeRecords
-      x-hubtask-rest: generated
       x-hubtask-cli: "time export"
       summary: Hand time records to accounting
       description: >
         At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no
         invoice is made: the caller's own with `mine`, else also other people's where the caller
         approves time; where the workspace shows only sums, the caller's own only. The export is
-        recorded in the audit trail.
+        recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come
+        as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula
+        prefixed with a quote mark); `Export-Truncated` says the file holds only the first 50000.
       requestBody:
         required: true
         content:
@@ -816,9 +817,15 @@ paths:
       responses:
         "200":
           description: The rows
+          headers:
+            Export-Truncated:
+              description: Present and true on a CSV file that holds only the first 50000 records.
+              schema: { type: boolean }
           content:
             application/json:
               schema: { $ref: "#/components/schemas/TimeExport" }
+            text/csv:
+              schema: { type: string }
         "4XX":
           $ref: "#/components/responses/Problem"
   /timer:
