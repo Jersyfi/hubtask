@@ -4,7 +4,11 @@
 package rest
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/csv"
+	"encoding/xml"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -76,5 +80,61 @@ func TestTheTimeExportIsACSVFileWhenAskedForOne(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), `"rows"`) {
 		t.Errorf("the JSON answer = %s", recorder.Body)
+	}
+}
+
+// UC-TIM-05: asked as a spreadsheet, the export is one sheet a spreadsheet opens - its parts, the
+// header row, the minutes as a number, billable as a boolean and the note as a text, never a formula.
+func TestTheTimeExportIsASpreadsheetWhenAskedForOne(t *testing.T) {
+	recorder := postTimeExport(t, &catalogue{out: exportedTime()}, xlsxType)
+	if recorder.Code != http.StatusOK || recorder.Header().Get("Content-Type") != xlsxType {
+		t.Fatalf("status %d %s: %s", recorder.Code, recorder.Header().Get("Content-Type"), recorder.Body)
+	}
+	if recorder.Header().Get(exportTruncatedHeader) != "true" {
+		t.Error("a truncated file does not say so")
+	}
+	body := recorder.Body.Bytes()
+	archive, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	if err != nil {
+		t.Fatalf("not a zip package: %v", err)
+	}
+	parts := map[string]string{}
+	for _, f := range archive.File {
+		r, err := f.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		content, _ := io.ReadAll(r)
+		parts[f.Name] = string(content)
+	}
+	for _, name := range []string{"[Content_Types].xml", "_rels/.rels", "xl/workbook.xml", "xl/_rels/workbook.xml.rels", "xl/worksheets/sheet1.xml"} {
+		if parts[name] == "" {
+			t.Errorf("the package has no %s", name)
+		}
+	}
+	sheet := parts["xl/worksheets/sheet1.xml"]
+	var parsed struct{}
+	if err := xml.Unmarshal([]byte(sheet), &parsed); err != nil {
+		t.Fatalf("the sheet is not XML: %v", err)
+	}
+	for _, want := range []string{
+		`<c r="A1" t="inlineStr"><is><t xml:space="preserve">record_id</t></is></c>`,
+		`<c r="C2"><v>90</v></c>`, `<c r="D2"><v>1.5</v></c>`, `<c r="E2" t="b"><v>1</v></c>`,
+		`<c r="G2" t="inlineStr"><is><t xml:space="preserve">=HYPERLINK(&#34;x&#34;)</t></is></c>`,
+	} {
+		if !strings.Contains(sheet, want) {
+			t.Errorf("the sheet lacks %s:\n%s", want, sheet)
+		}
+	}
+	if strings.Contains(sheet, "<f>") {
+		t.Error("the sheet carries a formula")
+	}
+}
+
+func TestTheSpreadsheetColumnsAreLettered(t *testing.T) {
+	for i, want := range map[int]string{0: "A", 25: "Z", 26: "AA", 27: "AB", 701: "ZZ", 702: "AAA"} {
+		if got := xlsxColumn(i); got != want {
+			t.Errorf("column %d is %s, want %s", i, got, want)
+		}
 	}
 }

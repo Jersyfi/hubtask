@@ -2046,7 +2046,10 @@ paths:
         approves time; where the workspace shows only sums, the caller's own only. The export is
         recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come
         as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula
-        prefixed with a quote mark); `Export-Truncated` says the file holds only the first 50000.
+        prefixed with a quote mark); asked with `Accept:
+        application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a
+        spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula).
+        `Export-Truncated` says the file holds only the first 50000.
       requestBody:
         required: true
         content:
@@ -2068,13 +2071,15 @@ paths:
           description: The rows
           headers:
             Export-Truncated:
-              description: Present and true on a CSV file that holds only the first 50000 records.
+              description: Present and true on a CSV or spreadsheet file that holds only the first 50000 records.
               schema: { type: boolean }
           content:
             application/json:
               schema: { $ref: "#/components/schemas/TimeExport" }
             text/csv:
               schema: { type: string }
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, format: binary }
         "4XX":
           $ref: "#/components/responses/Problem"
   /timer:

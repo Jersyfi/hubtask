@@ -39,6 +39,10 @@ func (c *RestController) ExportTimeRecords(w http.ResponseWriter, r *http.Reques
 	if !ok {
 		return
 	}
+	if acceptsXlsx(r) {
+		writeTimeXlsx(w, r, out)
+		return
+	}
 	if !acceptsCSV(r) {
 		var answer openapi.TimeExport
 		if err := remarshal(out, &answer); err != nil {
@@ -76,6 +80,48 @@ func (c *RestController) ExportTimeRecords(w http.ResponseWriter, r *http.Reques
 	if err := writer.Error(); err != nil {
 		reportExportFailure(r, err)
 	}
+}
+
+// writeTimeXlsx answers the same columns and rows as one sheet (UC-TIM-05): minutes and booleans
+// keep their type, a text is never a formula.
+func writeTimeXlsx(w http.ResponseWriter, r *http.Request, out usecase.Output) {
+	columns, _ := out["columns"].([]string)
+	rows, _ := out["rows"].([]usecase.Output)
+	if truncated, _ := out["truncated"].(bool); truncated {
+		w.Header().Set(exportTruncatedHeader, "true")
+	}
+	w.Header().Set("Content-Type", xlsxType)
+	w.Header().Set("Content-Disposition", `attachment; filename="hubtask-time.xlsx"`)
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusOK)
+	err := writeXlsx(w, "Time", columns, func(yield func([]any) error) error {
+		cells := make([]any, len(columns))
+		for _, row := range rows {
+			for i, column := range columns {
+				cells[i] = row[column]
+			}
+			if err := yield(cells); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		reportExportFailure(r, err)
+	}
+}
+
+// acceptsXlsx reports whether the request asks for a spreadsheet before CSV or JSON.
+func acceptsXlsx(r *http.Request) bool {
+	for _, part := range strings.Split(r.Header.Get("Accept"), ",") {
+		switch strings.TrimSpace(strings.SplitN(part, ";", 2)[0]) {
+		case xlsxType:
+			return true
+		case "text/csv", "application/json", "*/*", "application/*":
+			return false
+		}
+	}
+	return false
 }
 
 // acceptsCSV reports whether the request asks for a CSV file before JSON.
