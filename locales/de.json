@@ -9666,7 +9666,7 @@
   "agents.account_taken": "Dieses Konto handelt schon als ein anderer Agent.",
   "agents.account_unreadable": "Das Konto des Agenten konnte nicht gelesen werden.",
   "agents.act_never": "Diese Art von Handlung ({class}) darf der Agent nie.",
-  "agents.agent_activates_not": "Ein Agent schaltet keinen Agenten scharf.",
+  "agents.agent_activates_not": "Ein Agent schaltet keinen Agenten frei.",
   "agents.agent_approves_not": "Ein Agent gibt keinen Agenten frei.",
   "agents.agent_decides_not": "Ein Agent entscheidet nicht, worauf ein Agent wartet.",
   "agents.agent_starts_not": "Ein Agent startet keinen Auftrag eines Agenten.",
