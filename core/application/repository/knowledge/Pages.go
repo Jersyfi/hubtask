@@ -63,6 +63,15 @@ type VersionRow struct {
 	CreatedAt time.Time
 }
 
+// PageSearcher is the search port for pages (F-9), as TextSearcher is for entries: its own port so
+// an external index can answer a search without becoming the store of pages. It answers candidates
+// in the spaces it is handed - which spaces the reader may read stays with the use case (rule 2) -
+// and for the one workspace the transaction is bound to.
+type PageSearcher interface {
+	// Search answers the pages of the spaces named that a text finds, best first.
+	Search(ctx context.Context, text string, hubIDs []shared.ID, limit int) ([]Hit, error)
+}
+
 // Pages stores pages, their versions and their comments.
 type Pages interface {
 	Insert(ctx context.Context, page knowledge.Page) error
@@ -88,8 +97,7 @@ type Pages interface {
 	// trashed at that moment. Each answers how many pages it touched.
 	Trash(ctx context.Context, id, by shared.ID, at time.Time) (int, error)
 	Restore(ctx context.Context, id, by shared.ID, trashedAt, at time.Time) (int, error)
-	// Search answers the pages of the spaces named that a text finds, best first.
-	Search(ctx context.Context, text string, hubIDs []shared.ID, limit int) ([]Hit, error)
+	PageSearcher
 	// Summaries answers the pages among the identifiers that are not trashed.
 	Summaries(ctx context.Context, ids []shared.ID) ([]Summary, error)
 	// Backlinks answers the texts pointing at an object, at most limit.

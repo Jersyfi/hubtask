@@ -1972,7 +1972,7 @@ func run() error {
 		knowledgeservice.ListPageComments{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ChangePageComment{Space: pageSpace}.Descriptor(),
 		knowledgeservice.DeletePageComment{Space: pageSpace}.Descriptor(),
-		knowledgeservice.SearchPages{Space: pageSpace}.Descriptor(),
+		knowledgeservice.SearchPages{Space: pageSpace, Searcher: pageSpace.Pages}.Descriptor(),
 		knowledgeservice.ListPageBacklinks{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ExportPage{Space: pageSpace}.Descriptor(),
 		whiteboardservice.CreateWhiteboard{Studio: boardStudio}.Descriptor(),

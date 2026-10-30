@@ -62,7 +62,11 @@ func (s Space) readableHubs(ctx context.Context, actor appshared.ActorContext, h
 }
 
 // SearchPages finds pages by their words in the spaces the reader may read (UC-DOC-01).
-type SearchPages struct{ Space Space }
+type SearchPages struct {
+	Space Space
+	// Searcher is the search port; unwired, the page store answers as the PostgreSQL index.
+	Searcher repository.PageSearcher
+}
 
 // Execute searches.
 func (h SearchPages) Execute(ctx context.Context, actor appshared.ActorContext, text string, hubID shared.ID, limit int) ([]repository.Hit, error) {
@@ -106,7 +110,11 @@ func (h SearchPages) Execute(ctx context.Context, actor appshared.ActorContext, 
 	var hits []repository.Hit
 	err = h.Space.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		hits, err = h.Space.Pages.Search(ctx, text, readable, limit)
+		searcher := h.Searcher
+		if searcher == nil {
+			searcher = h.Space.Pages
+		}
+		hits, err = searcher.Search(ctx, text, readable, limit)
 		return err
 	})
 	return hits, err
