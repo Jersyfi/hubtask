@@ -3411,6 +3411,41 @@ export class HubtaskClient {
     return this.call("POST", "/pages:search", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Restrict who reads a page */
+  restrictPage(pageId: string, body: NonNullable<operations["restrictPage"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["restrictPage"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/pages/{pageId}:restrict", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Who reads a page beyond its hub */
+  readPageAccess(pageId: string, options: CallOptions = {}): Promise<operations["readPageAccess"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/pages/{pageId}/access", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Share a page with one person, read-only */
+  sharePage(pageId: string, body: NonNullable<operations["sharePage"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["sharePage"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/pages/{pageId}/shares", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Take a page's share away */
+  unsharePage(pageId: string, accountId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/pages/{pageId}/shares/{accountId}", { "pageId": pageId, "accountId": accountId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** The pages shared with me */
+  listSharedPages(options: CallOptions = {}): Promise<operations["listSharedPages"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/pages:shared", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** My own notes' space */
+  readPersonalSpace(options: CallOptions = {}): Promise<operations["readPersonalSpace"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/pages:personal", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Open my note of a day */
+  openDailyNote(body: NonNullable<operations["openDailyNote"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["openDailyNote"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/pages:today", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** A hub's whiteboards */
   listWhiteboards(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listWhiteboards"]['parameters']['query']> } = {}): Promise<operations["listWhiteboards"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/whiteboards", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

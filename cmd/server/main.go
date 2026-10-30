@@ -83,6 +83,7 @@ import (
 	realtimedomain "github.com/Jersyfi/hubtask/core/domain/model/realtime"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	whiteboarddomain "github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
+	domainwork "github.com/Jersyfi/hubtask/core/domain/model/work"
 	providerport "github.com/Jersyfi/hubtask/core/port/ai"
 	clockport "github.com/Jersyfi/hubtask/core/port/clock"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
@@ -1817,10 +1818,14 @@ func run() error {
 	reviewClocks := calendarservice.Clocks{
 		Timers: postgres.NewTimerRepository(), Jobs: jobs, Clock: clockadapter.System{}, IDs: ids,
 	}
+	// A personal space is a private hub made through CreateContainer in the registry (UC-DOC-07),
+	// so it is made, announced and owned as any hub is.
+	personalHubs := &deferredCatalogue{}
 	pageSpace := knowledgeservice.Space{
 		Pages: postgres.NewPageRepository(), Containers: containers, Entries: entryLinks,
 		Authorizer: authorizer, Reader: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Text: forms, Reviews: reviewClocks, Changes: changes, HLC: hybrid,
+		PersonalHubs: privateHubMaker{catalogue: personalHubs}, Words: renderer,
 	}
 	// The whiteboard module's boards (M4): a hub's boards, judged at the hub as its pages are.
 	boardStudio := whiteboardservice.Studio{
@@ -1975,6 +1980,13 @@ func run() error {
 		knowledgeservice.SearchPages{Space: pageSpace, Searcher: pageSpace.Pages}.Descriptor(),
 		knowledgeservice.ListPageBacklinks{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ExportPage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.RestrictPage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReadPageAccess{Space: pageSpace}.Descriptor(),
+		knowledgeservice.SharePage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.UnsharePage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListSharedPages{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReadPersonalSpace{Space: pageSpace}.Descriptor(),
+		knowledgeservice.OpenDailyNote{Space: pageSpace}.Descriptor(),
 		whiteboardservice.CreateWhiteboard{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.ReadWhiteboard{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.ListWhiteboards{Studio: boardStudio}.Descriptor(),
@@ -3264,6 +3276,7 @@ func run() error {
 	alertEntries.catalogue = useCases
 	agentCatalogue.catalogue = useCases
 	portalEntries.catalogue = useCases
+	personalHubs.catalogue = useCases
 	planMoves.catalogue = useCases
 	suggestionCatalogue.catalogue = useCases
 
@@ -5200,6 +5213,20 @@ func (r cloudEventRendering) Render(envelope event.Envelope) map[string]any {
 // wiring. The use case declares a narrow port (`work.Catalogue`) and knows nothing about how the
 // thing behind it came to exist.
 type deferredCatalogue struct{ catalogue *usecase.Registry }
+
+// privateHubMaker makes a person's private hub through CreateContainer in the registry.
+type privateHubMaker struct{ catalogue *deferredCatalogue }
+
+func (m privateHubMaker) MakePrivateHub(ctx context.Context, actor appshared.ActorContext, name string) (shared.ID, error) {
+	out, err := m.catalogue.Invoke(ctx, work.CreateContainerName, actor, usecase.Input{
+		"type": string(domainwork.ContainerHub), "name": name, "private": true,
+	})
+	if err != nil {
+		return "", err
+	}
+	id, _ := out["id"].(string)
+	return shared.ParseID(id)
+}
 
 func (d *deferredCatalogue) Invoke(
 	ctx context.Context, name string, actor appshared.ActorContext, in usecase.Input,

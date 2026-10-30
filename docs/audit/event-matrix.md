@@ -635,18 +635,25 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `page.changed` | UpdatePage | `page` | INFO | Every time |
 | `page.created` | CreatePage | `page` | INFO | Every time |
+| `page.created` | OpenDailyNote | `page` | INFO | When refused |
 | `page.exported` | ExportPage | `page` | INFO | Every time |
 | `page.moved` | MovePage | `page` | INFO | Every time |
 | `page.read` | ListPageBacklinks | `page` | INFO | When refused |
 | `page.read` | ListPageComments | `page_comment` | INFO | When refused |
 | `page.read` | ListPageVersions | `page` | INFO | When refused |
 | `page.read` | ListPages | `page` | INFO | When refused |
+| `page.read` | ListSharedPages | `page` | INFO | When refused |
 | `page.read` | ListTrashedPages | `page` | INFO | When refused |
 | `page.read` | ReadPage | `page` | INFO | When refused |
+| `page.read` | ReadPageAccess | `page` | INFO | When refused |
 | `page.read` | ReadPageVersion | `page` | INFO | When refused |
+| `page.read` | ReadPersonalSpace | `page` | INFO | When refused |
 | `page.read` | SearchPages | `page` | INFO | When refused |
 | `page.restored` | RestorePage | `page` | INFO | Every time |
+| `page.restricted` | RestrictPage | `page` | INFO | Every time |
+| `page.shared` | SharePage | `page` | INFO | Every time |
 | `page.trashed` | TrashPage | `page` | INFO | Every time |
+| `page.unshared` | UnsharePage | `page` | INFO | Every time |
 | `page.verified` | VerifyPage | `page` | INFO | Every time |
 | `page.version_named` | NamePageVersion | `page` | INFO | Every time |
 | `page.version_restored` | RestorePageVersion | `page` | INFO | Every time |

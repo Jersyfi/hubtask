@@ -4960,6 +4960,8 @@ class Page(TypedDict, total=False):
     verified_by: Required[str | None]
     due_for_review: Required[bool]
     archived: Required[bool]
+    restricted: Required[bool]
+    daily_for: Required[str | None]
     trashed_at: Required[str | None]
     created_by: Required[str]
     created_at: Required[str]
@@ -4984,6 +4986,8 @@ class PageRead(TypedDict, total=False):
     verified_by: Required[str | None]
     due_for_review: Required[bool]
     archived: Required[bool]
+    restricted: Required[bool]
+    daily_for: Required[str | None]
     trashed_at: Required[str | None]
     created_by: Required[str]
     created_at: Required[str]
@@ -4992,6 +4996,7 @@ class PageRead(TypedDict, total=False):
     version: Required[int]
     ancestors: Required[list[dict[str, Any]]]
     writable: Required[bool]
+    shared: Required[bool]
 
 class PageList(TypedDict, total=False):
     data: Required[list["Page"]]
@@ -5021,6 +5026,37 @@ class PageMove(TypedDict, total=False):
 class PageVerify(TypedDict, total=False):
     verified_until: str
     owner_id: str
+
+class PageRestrict(TypedDict, total=False):
+    account_ids: list[str]
+    lift: bool
+
+class PageAccess(TypedDict, total=False):
+    page_id: Required[str]
+    restricted: Required[bool]
+    restricted_to: Required[list[str]]
+    restricted_above: Required[bool]
+    readers: Required[list[str] | None]
+    shares: Required[list["PageShare"]]
+    may_share: Required[bool]
+
+class PageShareCreate(TypedDict, total=False):
+    account_id: Required[str]
+
+class PageShare(TypedDict, total=False):
+    page_id: str
+    account_id: Required[str]
+    granted_by: Required[str | None]
+    granted_at: Required[str]
+
+class SharedPageList(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
+
+class PersonalSpace(TypedDict, total=False):
+    hub_id: Required[str | None]
+
+class DailyNoteOpen(TypedDict, total=False):
+    day: str
 
 class PageTrashed(TypedDict, total=False):
     trashed: Required[int]

@@ -18566,6 +18566,181 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /pages/{pageId}:restrict:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    post:
+      tags: [pages]
+      operationId: restrictPage
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page restrict"
+      summary: Restrict who reads a page
+      description: >
+        Narrows who of the hub's readers may read the page and the pages under it to the people
+        named - the caller always among them, else `pages.restriction_excludes_you` - or, with
+        `lift`, takes the page's own restriction away. A restriction never widens: a page under
+        several is read only by the people every one names, and a page one is kept from is not
+        found. Needs WRITE_ITEMS on the hub; somebody with MANAGE_MEMBERS there may lift a
+        restriction that shuts them out. Offline copies drop a restricted page.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PageRestrict"
+      responses:
+        "200":
+          description: Restricted or lifted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Page"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /pages/{pageId}/access:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    get:
+      tags: [pages]
+      operationId: readPageAccess
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page access"
+      summary: Who reads a page beyond its hub
+      description: >
+        The people the page's own restriction names, whether a page above restricts it too, the
+        people it then admits, the people it is shared with, and whether the caller may share it.
+        Needs READ on the hub and to be admitted by the page's restrictions.
+      responses:
+        "200":
+          description: The access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageAccess"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /pages/{pageId}/shares:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    post:
+      tags: [pages]
+      operationId: sharePage
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page share"
+      summary: Share a page with one person, read-only
+      description: >
+        Shares the page read-only with one person of the workspace beside the hub's memberships -
+        a guest, or somebody outside the hub. The page alone opens, not the pages under it, its
+        comments or its history. A restricted page is shared only with somebody it admits
+        (`pages.share_restricted`). Sharing twice changes nothing. Needs MANAGE_MEMBERS on the hub.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PageShareCreate"
+      responses:
+        "201":
+          description: Shared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageShare"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /pages/{pageId}/shares/{accountId}:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+      - name: accountId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [pages]
+      operationId: unsharePage
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page unshare"
+      summary: Take a page's share away
+      description: >
+        Takes the page's share with one person away. Needs MANAGE_MEMBERS on the hub, except for
+        the person it was shared with, who may leave their own.
+      responses:
+        "204":
+          description: Taken away
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /pages:shared:
+    get:
+      tags: [pages]
+      operationId: listSharedPages
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page shared"
+      summary: The pages shared with me
+      description: >
+        The pages shared with the caller, newest share first: what a guest outside every hub
+        starts from.
+      responses:
+        "200":
+          description: The pages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharedPageList"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /pages:personal:
+    get:
+      tags: [pages]
+      operationId: readPersonalSpace
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page personal"
+      summary: My own notes' space
+      description: >
+        The private hub that is the caller's own notes, or null when it has not been made yet; the
+        first daily note makes it.
+      responses:
+        "200":
+          description: The space
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PersonalSpace"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /pages:today:
+    post:
+      tags: [pages]
+      operationId: openDailyNote
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page today"
+      summary: Open my note of a day
+      description: >
+        Opens the caller's note of a day in their personal space - a private hub only they read -
+        today in their time zone unless a day is named. The space and the note are made on first
+        use; the note is titled with its date. Refused with `containers.private_hubs_off` where the
+        workspace allows no private hubs.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DailyNoteOpen"
+      responses:
+        "200":
+          description: The note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Page"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /hubs/{hubId}/whiteboards:
     parameters:
       - name: hubId
@@ -32979,8 +33154,8 @@ components:
         mention, an image of one (`![](…)`) a card or a live view. The body is left out of a tree's
         rows.
       required: [id, hub_id, parent_id, title, icon, position, template, content_language, owner_id,
-        verified_until, verified_at, verified_by, due_for_review, archived, trashed_at, created_by,
-        created_at, updated_by, updated_at, version]
+        verified_until, verified_at, verified_by, due_for_review, archived, restricted, daily_for,
+        trashed_at, created_by, created_at, updated_by, updated_at, version]
       properties:
         id: { type: string, format: uuid }
         hub_id: { type: string, format: uuid, description: "The hub whose space the page is in." }
@@ -32997,6 +33172,8 @@ components:
         verified_by: { type: [string, "null"], format: uuid }
         due_for_review: { type: boolean, description: "Its verification has run out." }
         archived: { type: boolean }
+        restricted: { type: boolean, description: "The page names who of the hub's readers may read it." }
+        daily_for: { type: [string, "null"], format: date, description: "The day a daily note of a personal space is for." }
         trashed_at: { type: [string, "null"], format: date-time }
         created_by: { type: string, format: uuid }
         created_at: { type: string, format: date-time }
@@ -33009,7 +33186,7 @@ components:
       allOf:
         - $ref: "#/components/schemas/Page"
         - type: object
-          required: [body, ancestors, writable]
+          required: [body, ancestors, writable, shared]
           properties:
             ancestors:
               type: array
@@ -33021,6 +33198,7 @@ components:
                   id: { type: string, format: uuid }
                   title: { type: string }
             writable: { type: boolean }
+            shared: { type: boolean, description: "Read by a share alone: without the pages above it, never written." }
 
     PageList:
       type: object
@@ -33064,6 +33242,77 @@ components:
       properties:
         verified_until: { type: string, format: date-time, description: "Absent takes the verification away." }
         owner_id: { type: string, format: uuid }
+
+    PageRestrict:
+      type: object
+      properties:
+        account_ids:
+          type: array
+          maxItems: 100
+          description: The people who may read the page; the caller must be among them.
+          items: { type: string, format: uuid }
+        lift: { type: boolean, description: "Take the page's own restriction away." }
+
+    PageAccess:
+      type: object
+      required: [page_id, restricted, restricted_to, restricted_above, readers, shares, may_share]
+      properties:
+        page_id: { type: string, format: uuid }
+        restricted: { type: boolean, description: "The page itself is restricted." }
+        restricted_to:
+          type: array
+          description: The people the page's own restriction names.
+          items: { type: string, format: uuid }
+        restricted_above: { type: boolean, description: "A page above restricts it." }
+        readers:
+          type: [array, "null"]
+          description: The people every restriction on the way up names; null for an unrestricted page.
+          items: { type: string, format: uuid }
+        shares:
+          type: array
+          items: { $ref: "#/components/schemas/PageShare" }
+        may_share: { type: boolean }
+
+    PageShareCreate:
+      type: object
+      required: [account_id]
+      properties:
+        account_id: { type: string, format: uuid }
+
+    PageShare:
+      type: object
+      required: [account_id, granted_by, granted_at]
+      properties:
+        page_id: { type: string, format: uuid }
+        account_id: { type: string, format: uuid }
+        granted_by: { type: [string, "null"], format: uuid }
+        granted_at: { type: string, format: date-time }
+
+    SharedPageList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [id, hub_id, title, icon]
+            properties:
+              id: { type: string, format: uuid }
+              hub_id: { type: string, format: uuid }
+              title: { type: string }
+              icon: { type: [string, "null"] }
+
+    PersonalSpace:
+      type: object
+      required: [hub_id]
+      properties:
+        hub_id: { type: [string, "null"], format: uuid, description: "The private hub; null until the first daily note." }
+
+    DailyNoteOpen:
+      type: object
+      properties:
+        day: { type: string, format: date, description: "The day; absent for today in the caller's time zone." }
 
     PageTrashed:
       type: object

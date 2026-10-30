@@ -899,6 +899,11 @@ var generatedCommands = []door{
 			{Name: "switch", Kind: "string", Help: "OFF, the default, or INHERIT to leave the module to the level above", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"hub_id", "module", "on", "people"}},
+	{Group: "page", Verb: "access", OperationID: "readPageAccess", Method: "GET", Path: "/pages/{pageId}/access", Summary: "Who reads a page beyond its hub",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"may_share", "page_id", "restricted", "restricted_above"}},
 	{Group: "page", Verb: "backlinks", OperationID: "listPageBacklinks", Method: "GET", Path: "/pages/{pageId}/backlinks", Summary: "What links to a page",
 		PathParams: []doorParam{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
@@ -981,11 +986,22 @@ var generatedCommands = []door{
 			{Name: "parent_id", Kind: "uuid", Help: "The page it moves under; absent for the top of the space", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
+	{Group: "page", Verb: "personal", OperationID: "readPersonalSpace", Method: "GET", Path: "/pages:personal", Summary: "My own notes' space",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"hub_id"}},
 	{Group: "page", Verb: "restore", OperationID: "restorePage", Method: "POST", Path: "/pages/{pageId}:restore", Summary: "Bring a page back from the trash",
 		PathParams: []doorParam{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
+	{Group: "page", Verb: "restrict", OperationID: "restrictPage", Method: "POST", Path: "/pages/{pageId}:restrict", Summary: "Restrict who reads a page",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "account_ids", Kind: "strings", Help: "The people who may read the page; the caller must be among them", Required: false},
+			{Name: "lift", Kind: "boolean", Help: "Take the page's own restriction away", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
 	{Group: "page", Verb: "rm", OperationID: "trashPage", Method: "DELETE", Path: "/pages/{pageId}", Summary: "Put a page in the trash",
 		PathParams: []doorParam{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
@@ -1011,11 +1027,32 @@ var generatedCommands = []door{
 			{Name: "title", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
+	{Group: "page", Verb: "share", OperationID: "sharePage", Method: "POST", Path: "/pages/{pageId}/shares", Summary: "Share a page with one person, read-only",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "account_id", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"account_id", "granted_at", "granted_by", "page_id"}},
+	{Group: "page", Verb: "shared", OperationID: "listSharedPages", Method: "GET", Path: "/pages:shared", Summary: "The pages shared with me",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title"}},
+	{Group: "page", Verb: "today", OperationID: "openDailyNote", Method: "POST", Path: "/pages:today", Summary: "Open my note of a day",
+		Body: []doorParam{
+			{Name: "day", Kind: "string", Help: "The day; absent for today in the caller's time zone", Required: false},
+		},
+		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
 	{Group: "page", Verb: "trash", OperationID: "listTrashedPages", Method: "GET", Path: "/hubs/{hubId}/trashed-pages", Summary: "A hub's trashed pages",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title", "version"}},
+	{Group: "page", Verb: "unshare", OperationID: "unsharePage", Method: "DELETE", Path: "/pages/{pageId}/shares/{accountId}", Summary: "Take a page's share away",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+			{Name: "accountId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "page", Verb: "verify", OperationID: "verifyPage", Method: "POST", Path: "/pages/{pageId}:verify", Summary: "Mark a page as checked",
 		PathParams: []doorParam{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},

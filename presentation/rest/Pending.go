@@ -2622,3 +2622,25 @@ func (pending) StartViewAs(w http.ResponseWriter, r *http.Request)     { notAvai
 func (pending) EndViewAs(w http.ResponseWriter, r *http.Request)       { notAvailable(w, r) }
 func (pending) ReadAgentPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 func (pending) SetAgentPolicy(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
+
+func (pending) RestrictPage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPageAccess(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) SharePage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) UnsharePage(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListSharedPages(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ReadPersonalSpace(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) OpenDailyNote(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

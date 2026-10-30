@@ -2715,6 +2715,34 @@ class Client:
         """Find pages by their words"""
         return self._call("POST", "/pages:search", {}, None, {}, body, "json", "application/json", "json")
 
+    def restrict_page(self, page_id: str, body: "PageRestrict") -> "Page":
+        """Restrict who reads a page"""
+        return self._call("POST", "/pages/{pageId}:restrict", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_page_access(self, page_id: str) -> "PageAccess":
+        """Who reads a page beyond its hub"""
+        return self._call("GET", "/pages/{pageId}/access", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def share_page(self, page_id: str, body: "PageShareCreate") -> "PageShare":
+        """Share a page with one person, read-only"""
+        return self._call("POST", "/pages/{pageId}/shares", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def unshare_page(self, page_id: str, account_id: str) -> None:
+        """Take a page's share away"""
+        return self._call("DELETE", "/pages/{pageId}/shares/{accountId}", {"pageId": page_id, "accountId": account_id}, None, {}, None, "none", None, "void")
+
+    def list_shared_pages(self) -> "SharedPageList":
+        """The pages shared with me"""
+        return self._call("GET", "/pages:shared", {}, None, {}, None, "none", None, "json")
+
+    def read_personal_space(self) -> "PersonalSpace":
+        """My own notes' space"""
+        return self._call("GET", "/pages:personal", {}, None, {}, None, "none", None, "json")
+
+    def open_daily_note(self, body: "DailyNoteOpen") -> "Page":
+        """Open my note of a day"""
+        return self._call("POST", "/pages:today", {}, None, {}, body, "json", "application/json", "json")
+
     def list_whiteboards(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "WhiteboardList":
         """A hub's whiteboards"""
         return self._call("GET", "/hubs/{hubId}/whiteboards", {"hubId": hub_id}, query, {}, None, "none", None, "json")

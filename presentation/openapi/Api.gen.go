@@ -13363,6 +13363,12 @@ type CustomRoleGrantCreate struct {
 // CustomRoleGrantCreateScopeType defines model for CustomRoleGrantCreate.ScopeType.
 type CustomRoleGrantCreateScopeType string
 
+// DailyNoteOpen defines model for DailyNoteOpen.
+type DailyNoteOpen struct {
+	// Day The day; absent for today in the caller's time zone.
+	Day *openapi_types.Date `json:"day,omitempty"`
+}
+
 // Dashboard defines model for Dashboard.
 type Dashboard struct {
 	HubId   openapi_types.UUID `json:"hub_id"`
@@ -16715,6 +16721,9 @@ type Page struct {
 	CreatedAt       time.Time          `json:"created_at"`
 	CreatedBy       openapi_types.UUID `json:"created_by"`
 
+	// DailyFor The day a daily note of a personal space is for.
+	DailyFor *openapi_types.Date `json:"daily_for"`
+
 	// DueForReview Its verification has run out.
 	DueForReview bool `json:"due_for_review"`
 
@@ -16732,6 +16741,9 @@ type Page struct {
 	// Position Its place among its siblings: they sort by this, as text.
 	Position string `json:"position"`
 
+	// Restricted The page names who of the hub's readers may read it.
+	Restricted bool `json:"restricted"`
+
 	// Template Offered as a template of the space.
 	Template   bool                `json:"template"`
 	Title      string              `json:"title"`
@@ -16746,6 +16758,25 @@ type Page struct {
 
 	// Version The optimistic lock.
 	Version int `json:"version"`
+}
+
+// PageAccess defines model for PageAccess.
+type PageAccess struct {
+	MayShare bool               `json:"may_share"`
+	PageId   openapi_types.UUID `json:"page_id"`
+
+	// Readers The people every restriction on the way up names; null for an unrestricted page.
+	Readers *[]openapi_types.UUID `json:"readers"`
+
+	// Restricted The page itself is restricted.
+	Restricted bool `json:"restricted"`
+
+	// RestrictedAbove A page above restricts it.
+	RestrictedAbove bool `json:"restricted_above"`
+
+	// RestrictedTo The people the page's own restriction names.
+	RestrictedTo []openapi_types.UUID `json:"restricted_to"`
+	Shares       []PageShare          `json:"shares"`
 }
 
 // PageBacklinkList defines model for PageBacklinkList.
@@ -16926,6 +16957,9 @@ type PageRead struct {
 	CreatedAt       time.Time          `json:"created_at"`
 	CreatedBy       openapi_types.UUID `json:"created_by"`
 
+	// DailyFor The day a daily note of a personal space is for.
+	DailyFor *openapi_types.Date `json:"daily_for"`
+
 	// DueForReview Its verification has run out.
 	DueForReview bool `json:"due_for_review"`
 
@@ -16942,6 +16976,12 @@ type PageRead struct {
 
 	// Position Its place among its siblings: they sort by this, as text.
 	Position string `json:"position"`
+
+	// Restricted The page names who of the hub's readers may read it.
+	Restricted bool `json:"restricted"`
+
+	// Shared Read by a share alone: without the pages above it, never written.
+	Shared bool `json:"shared"`
 
 	// Template Offered as a template of the space.
 	Template   bool                `json:"template"`
@@ -16960,6 +17000,15 @@ type PageRead struct {
 	Writable bool `json:"writable"`
 }
 
+// PageRestrict defines model for PageRestrict.
+type PageRestrict struct {
+	// AccountIds The people who may read the page; the caller must be among them.
+	AccountIds *[]openapi_types.UUID `json:"account_ids,omitempty"`
+
+	// Lift Take the page's own restriction away.
+	Lift *bool `json:"lift,omitempty"`
+}
+
 // PageSearch defines model for PageSearch.
 type PageSearch struct {
 	// HubId One hub's space; absent for every readable space.
@@ -16968,6 +17017,19 @@ type PageSearch struct {
 
 	// Text What to look for, in web search syntax.
 	Text string `json:"text"`
+}
+
+// PageShare defines model for PageShare.
+type PageShare struct {
+	AccountId openapi_types.UUID  `json:"account_id"`
+	GrantedAt time.Time           `json:"granted_at"`
+	GrantedBy *openapi_types.UUID `json:"granted_by"`
+	PageId    *openapi_types.UUID `json:"page_id,omitempty"`
+}
+
+// PageShareCreate defines model for PageShareCreate.
+type PageShareCreate struct {
+	AccountId openapi_types.UUID `json:"account_id"`
 }
 
 // PageTrashed defines model for PageTrashed.
@@ -17435,6 +17497,12 @@ type PermissionEntry struct {
 
 // PermissionEntryKind defines model for PermissionEntry.Kind.
 type PermissionEntryKind string
+
+// PersonalSpace defines model for PersonalSpace.
+type PersonalSpace struct {
+	// HubId The private hub; null until the first daily note.
+	HubId *openapi_types.UUID `json:"hub_id"`
+}
 
 // PlacedTimeRecord defines model for PlacedTimeRecord.
 type PlacedTimeRecord struct {
@@ -19206,6 +19274,16 @@ type SettingSource string
 type SettingsCatalogue struct {
 	// Settings Every setting, in the order a settings screen draws them.
 	Settings []SettingDefinition `json:"settings"`
+}
+
+// SharedPageList defines model for SharedPageList.
+type SharedPageList struct {
+	Data []struct {
+		HubId openapi_types.UUID `json:"hub_id"`
+		Icon  *string            `json:"icon"`
+		Id    openapi_types.UUID `json:"id"`
+		Title string             `json:"title"`
+	} `json:"data"`
 }
 
 // ShippedRole defines model for ShippedRole.
@@ -25010,6 +25088,9 @@ type UpdatePageApplicationMergePatchPlusJSONRequestBody = PageChange
 // AddPageCommentJSONRequestBody defines body for AddPageComment for application/json ContentType.
 type AddPageCommentJSONRequestBody = PageCommentCreate
 
+// SharePageJSONRequestBody defines body for SharePage for application/json ContentType.
+type SharePageJSONRequestBody = PageShareCreate
+
 // NamePageVersionApplicationMergePatchPlusJSONRequestBody defines body for NamePageVersion for application/merge-patch+json ContentType.
 type NamePageVersionApplicationMergePatchPlusJSONRequestBody = PageVersionName
 
@@ -25019,11 +25100,17 @@ type ExportPageJSONRequestBody = PageExportRequest
 // MovePageJSONRequestBody defines body for MovePage for application/json ContentType.
 type MovePageJSONRequestBody = PageMove
 
+// RestrictPageJSONRequestBody defines body for RestrictPage for application/json ContentType.
+type RestrictPageJSONRequestBody = PageRestrict
+
 // VerifyPageJSONRequestBody defines body for VerifyPage for application/json ContentType.
 type VerifyPageJSONRequestBody = PageVerify
 
 // SearchPagesJSONRequestBody defines body for SearchPages for application/json ContentType.
 type SearchPagesJSONRequestBody = PageSearch
+
+// OpenDailyNoteJSONRequestBody defines body for OpenDailyNote for application/json ContentType.
+type OpenDailyNoteJSONRequestBody = DailyNoteOpen
 
 // TakeBaselineJSONRequestBody defines body for TakeBaseline for application/json ContentType.
 type TakeBaselineJSONRequestBody TakeBaselineJSONBody
@@ -27121,6 +27208,9 @@ type ServerInterface interface {
 	// UpdatePage Change a page
 	// (PATCH /pages/{pageId})
 	UpdatePage(w http.ResponseWriter, r *http.Request, pageId PageId, params UpdatePageParams)
+	// ReadPageAccess Who reads a page beyond its hub
+	// (GET /pages/{pageId}/access)
+	ReadPageAccess(w http.ResponseWriter, r *http.Request, pageId PageId)
 	// ListPageBacklinks What links to a page
 	// (GET /pages/{pageId}/backlinks)
 	ListPageBacklinks(w http.ResponseWriter, r *http.Request, pageId PageId)
@@ -27130,6 +27220,12 @@ type ServerInterface interface {
 	// AddPageComment Comment on a page
 	// (POST /pages/{pageId}/comments)
 	AddPageComment(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// SharePage Share a page with one person, read-only
+	// (POST /pages/{pageId}/shares)
+	SharePage(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// UnsharePage Take a page's share away
+	// (DELETE /pages/{pageId}/shares/{accountId})
+	UnsharePage(w http.ResponseWriter, r *http.Request, pageId PageId, accountId openapi_types.UUID)
 	// ListPageVersions A page's history
 	// (GET /pages/{pageId}/versions)
 	ListPageVersions(w http.ResponseWriter, r *http.Request, pageId PageId, params ListPageVersionsParams)
@@ -27151,12 +27247,24 @@ type ServerInterface interface {
 	// RestorePage Bring a page back from the trash
 	// (POST /pages/{pageId}:restore)
 	RestorePage(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// RestrictPage Restrict who reads a page
+	// (POST /pages/{pageId}:restrict)
+	RestrictPage(w http.ResponseWriter, r *http.Request, pageId PageId)
 	// VerifyPage Mark a page as checked
 	// (POST /pages/{pageId}:verify)
 	VerifyPage(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// ReadPersonalSpace My own notes' space
+	// (GET /pages:personal)
+	ReadPersonalSpace(w http.ResponseWriter, r *http.Request)
 	// SearchPages Find pages by their words
 	// (POST /pages:search)
 	SearchPages(w http.ResponseWriter, r *http.Request)
+	// ListSharedPages The pages shared with me
+	// (GET /pages:shared)
+	ListSharedPages(w http.ResponseWriter, r *http.Request)
+	// OpenDailyNote Open my note of a day
+	// (POST /pages:today)
+	OpenDailyNote(w http.ResponseWriter, r *http.Request)
 	// ReadEstimatesVsActuals Estimates against the time recorded
 	// (GET /plans/{planId}/actuals)
 	ReadEstimatesVsActuals(w http.ResponseWriter, r *http.Request, planId PlanId)
@@ -44004,6 +44112,32 @@ func (siw *ServerInterfaceWrapper) UpdatePage(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// ReadPageAccess operation middleware
+func (siw *ServerInterfaceWrapper) ReadPageAccess(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPageAccess(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPageBacklinks operation middleware
 func (siw *ServerInterfaceWrapper) ListPageBacklinks(w http.ResponseWriter, r *http.Request) {
 
@@ -44073,6 +44207,67 @@ func (siw *ServerInterfaceWrapper) AddPageComment(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AddPageComment(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SharePage operation middleware
+func (siw *ServerInterfaceWrapper) SharePage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SharePage(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnsharePage operation middleware
+func (siw *ServerInterfaceWrapper) UnsharePage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnsharePage(w, r, pageId, accountId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -44368,6 +44563,32 @@ func (siw *ServerInterfaceWrapper) RestorePage(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// RestrictPage operation middleware
+func (siw *ServerInterfaceWrapper) RestrictPage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestrictPage(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // VerifyPage operation middleware
 func (siw *ServerInterfaceWrapper) VerifyPage(w http.ResponseWriter, r *http.Request) {
 
@@ -44394,11 +44615,53 @@ func (siw *ServerInterfaceWrapper) VerifyPage(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// ReadPersonalSpace operation middleware
+func (siw *ServerInterfaceWrapper) ReadPersonalSpace(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPersonalSpace(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SearchPages operation middleware
 func (siw *ServerInterfaceWrapper) SearchPages(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SearchPages(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSharedPages operation middleware
+func (siw *ServerInterfaceWrapper) ListSharedPages(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSharedPages(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OpenDailyNote operation middleware
+func (siw *ServerInterfaceWrapper) OpenDailyNote(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OpenDailyNote(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -50823,6 +51086,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/backlinks", wrapper.ListPageBacklinks)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}:export", wrapper.ExportPage)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages:search", wrapper.SearchPages)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}:restrict", wrapper.RestrictPage)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/access", wrapper.ReadPageAccess)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/shares", wrapper.SharePage)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/shares/{accountId}", wrapper.UnsharePage)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:shared", wrapper.ListSharedPages)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:personal", wrapper.ReadPersonalSpace)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages:today", wrapper.OpenDailyNote)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/whiteboards", wrapper.ListWhiteboards)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/whiteboards", wrapper.CreateWhiteboard)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/whiteboards/{whiteboardId}", wrapper.TrashWhiteboard)

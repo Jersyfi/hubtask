@@ -320,6 +320,7 @@ var restDoors = map[string]restDoor{
 	"listSavedViews":                    {UseCase: "ListSavedViews", Status: 200, Query: []string{"container_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listServiceAccounts":               {UseCase: "ListServiceAccounts", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listSessions":                      {UseCase: "ListSessions", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listSharedPages":                   {UseCase: "ListSharedPages", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listSlaPolicies":                   {UseCase: "ListSlaPolicies", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listSprints":                       {UseCase: "ListSprints", Status: 200, Query: []string{"state"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listSuggestions":                   {UseCase: "ListSuggestions", Status: 200, Query: []string{"cursor", "size", "status", "target_id", "target_type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}, QueryAs: map[string]string{"size": "page_size"}},
@@ -347,6 +348,7 @@ var restDoors = map[string]restDoor{
 	"namePageVersion":                   {UseCase: "NamePageVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"nameWhiteboardVersion":             {UseCase: "NameWhiteboardVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"offerIdentityProvider":             {UseCase: "OfferIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"openDailyNote":                     {UseCase: "OpenDailyNote", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"openPrivateHub":                    {UseCase: "OpenPrivateHub", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"openTenantPassword":                {UseCase: "OpenTenantPassword", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"hours"}},
 	"placeLegalHold":                    {UseCase: "PlaceLegalHold", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Flatten: map[string]map[string]string{"scope": {"id": "scope_id", "kind": "scope"}}},
@@ -398,7 +400,9 @@ var restDoors = map[string]restDoor{
 	"readOauthClient":                   {UseCase: "ReadOauthClient", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readOwnAiPosition":                 {UseCase: "ReadOwnAiPosition", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPage":                          {UseCase: "ReadPage", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readPageAccess":                    {UseCase: "ReadPageAccess", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPageVersion":                   {UseCase: "ReadPageVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readPersonalSpace":                 {UseCase: "ReadPersonalSpace", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPlan":                          {UseCase: "ReadPlan", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPlanSchedule":                  {UseCase: "ReadPlanSchedule", Status: 200, Query: []string{"calendar", "zone"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readPlatformSubscription":          {UseCase: "ReadPlatformSubscription", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -475,6 +479,7 @@ var restDoors = map[string]restDoor{
 	"restorePageVersion":                {UseCase: "RestorePageVersion", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"restoreWhiteboard":                 {UseCase: "RestoreWhiteboard", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"restoreWorkItem":                   {UseCase: "RestoreWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"restrictPage":                      {UseCase: "RestrictPage", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"restrictProcessing":                {UseCase: "RestrictProcessing", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"resumeTenant":                      {UseCase: "ResumeTenant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"retainItem":                        {UseCase: "RetainItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -530,6 +535,7 @@ var restDoors = map[string]restDoor{
 	"setTimePolicy":                     {UseCase: "SetTimePolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version"}},
 	"setUpInstallation":                 {UseCase: "SetUpInstallation", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil), Request: []string{"user_agent", "remote_addr"}},
 	"setWorkflowScheme":                 {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"sharePage":                         {UseCase: "SharePage", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"shareSavedView":                    {UseCase: "ShareSavedView", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"showAlexaModel":                    {UseCase: "ShowAlexaModel", Status: 200, Query: []string{"locale"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"showMailSettings":                  {UseCase: "ShowMailSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -575,6 +581,7 @@ var restDoors = map[string]restDoor{
 	"unlinkEntries":                     {UseCase: "UnlinkEntries", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unlinkGoalEntry":                   {UseCase: "UnlinkGoalEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"unrelateCis":                       {UseCase: "UnrelateCis", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"unsharePage":                       {UseCase: "UnsharePage", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateAbsence":                     {UseCase: "UpdateAbsence", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version"}},
 	"updateBackupSchedule":              {UseCase: "UpdateBackupSchedule", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"updateCi":                          {UseCase: "UpdateCi", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -2394,6 +2401,12 @@ func (c *RestController) ListSessions(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["listSessions"], usecase.Input{}, nil, nil, answerRows(sessionResponse))
 }
 
+// ListSharedPages answers GET /pages:shared by the generated mapping.
+func (c *RestController) ListSharedPages(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.SharedPageList
+	c.door(w, r, restDoors["listSharedPages"], usecase.Input{}, nil, nil, &answer)
+}
+
 // ListSlaPolicies answers GET /sla-policies by the generated mapping.
 func (c *RestController) ListSlaPolicies(w http.ResponseWriter, r *http.Request) {
 	var answer openapi.SlaPolicyList
@@ -2552,6 +2565,13 @@ func (c *RestController) NameWhiteboardVersion(w http.ResponseWriter, r *http.Re
 func (c *RestController) OfferIdentityProvider(w http.ResponseWriter, r *http.Request, providerId openapi.ProviderId, params openapi.OfferIdentityProviderParams) {
 	var body openapi.OfferIdentityProviderJSONRequestBody
 	c.door(w, r, restDoors["offerIdentityProvider"], usecase.Input{"id": providerId.String()}, params, &body, answerBy(identityProviderResponse))
+}
+
+// OpenDailyNote answers POST /pages:today by the generated mapping.
+func (c *RestController) OpenDailyNote(w http.ResponseWriter, r *http.Request) {
+	var body openapi.OpenDailyNoteJSONRequestBody
+	var answer openapi.Page
+	c.door(w, r, restDoors["openDailyNote"], usecase.Input{}, nil, &body, &answer)
 }
 
 // OpenPrivateHub answers POST /private-hubs/{hubId}/accesses by the generated mapping.
@@ -2860,10 +2880,22 @@ func (c *RestController) ReadPage(w http.ResponseWriter, r *http.Request, pageId
 	c.door(w, r, restDoors["readPage"], usecase.Input{"page_id": pageId.String()}, nil, nil, &answer)
 }
 
+// ReadPageAccess answers GET /pages/{pageId}/access by the generated mapping.
+func (c *RestController) ReadPageAccess(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
+	var answer openapi.PageAccess
+	c.door(w, r, restDoors["readPageAccess"], usecase.Input{"page_id": pageId.String()}, nil, nil, &answer)
+}
+
 // ReadPageVersion answers GET /pages/{pageId}/versions/{seq} by the generated mapping.
 func (c *RestController) ReadPageVersion(w http.ResponseWriter, r *http.Request, pageId openapi.PageId, seq int) {
 	var answer openapi.PageVersionRead
 	c.door(w, r, restDoors["readPageVersion"], usecase.Input{"page_id": pageId.String(), "seq": seq}, nil, nil, &answer)
+}
+
+// ReadPersonalSpace answers GET /pages:personal by the generated mapping.
+func (c *RestController) ReadPersonalSpace(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.PersonalSpace
+	c.door(w, r, restDoors["readPersonalSpace"], usecase.Input{}, nil, nil, &answer)
 }
 
 // ReadPlan answers GET /admin/plans/{planName} by the generated mapping.
@@ -3305,6 +3337,13 @@ func (c *RestController) RestoreWorkItem(w http.ResponseWriter, r *http.Request,
 	c.door(w, r, restDoors["restoreWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
 }
 
+// RestrictPage answers POST /pages/{pageId}:restrict by the generated mapping.
+func (c *RestController) RestrictPage(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
+	var body openapi.RestrictPageJSONRequestBody
+	var answer openapi.Page
+	c.door(w, r, restDoors["restrictPage"], usecase.Input{"page_id": pageId.String()}, nil, &body, &answer)
+}
+
 // RestrictProcessing answers POST /accounts/{accountId}:restrict by the generated mapping.
 func (c *RestController) RestrictProcessing(w http.ResponseWriter, r *http.Request, accountId openapi.AccountId) {
 	var body openapi.RestrictProcessingJSONRequestBody
@@ -3646,6 +3685,13 @@ func (c *RestController) SetWorkflowScheme(w http.ResponseWriter, r *http.Reques
 	c.door(w, r, restDoors["setWorkflowScheme"], usecase.Input{}, nil, &body, &answer)
 }
 
+// SharePage answers POST /pages/{pageId}/shares by the generated mapping.
+func (c *RestController) SharePage(w http.ResponseWriter, r *http.Request, pageId openapi.PageId) {
+	var body openapi.SharePageJSONRequestBody
+	var answer openapi.PageShare
+	c.door(w, r, restDoors["sharePage"], usecase.Input{"page_id": pageId.String()}, nil, &body, &answer)
+}
+
 // ShareSavedView answers POST /views/{viewId}:share by the generated mapping.
 func (c *RestController) ShareSavedView(w http.ResponseWriter, r *http.Request, viewId openapi.ViewId, params openapi.ShareSavedViewParams) {
 	var body openapi.ShareSavedViewJSONRequestBody
@@ -3907,6 +3953,11 @@ func (c *RestController) UnlinkGoalEntry(w http.ResponseWriter, r *http.Request,
 func (c *RestController) UnrelateCis(w http.ResponseWriter, r *http.Request, relationId openapi_types.UUID) {
 	var answer openapi.CiRelationRemoved
 	c.door(w, r, restDoors["unrelateCis"], usecase.Input{"relation_id": relationId.String()}, nil, nil, &answer)
+}
+
+// UnsharePage answers DELETE /pages/{pageId}/shares/{accountId} by the generated mapping.
+func (c *RestController) UnsharePage(w http.ResponseWriter, r *http.Request, pageId openapi.PageId, accountId openapi_types.UUID) {
+	c.door(w, r, restDoors["unsharePage"], usecase.Input{"page_id": pageId.String(), "account_id": accountId.String()}, nil, nil, nil)
 }
 
 // UpdateAbsence answers PATCH /time-absences/{absenceId} by the generated mapping.

@@ -13368,6 +13368,12 @@ type CustomRoleGrantCreate struct {
 // CustomRoleGrantCreateScopeType defines model for CustomRoleGrantCreate.ScopeType.
 type CustomRoleGrantCreateScopeType string
 
+// DailyNoteOpen defines model for DailyNoteOpen.
+type DailyNoteOpen struct {
+	// Day The day; absent for today in the caller's time zone.
+	Day *openapi_types.Date `json:"day,omitempty"`
+}
+
 // Dashboard defines model for Dashboard.
 type Dashboard struct {
 	HubId   openapi_types.UUID `json:"hub_id"`
@@ -16720,6 +16726,9 @@ type Page struct {
 	CreatedAt       time.Time          `json:"created_at"`
 	CreatedBy       openapi_types.UUID `json:"created_by"`
 
+	// DailyFor The day a daily note of a personal space is for.
+	DailyFor *openapi_types.Date `json:"daily_for"`
+
 	// DueForReview Its verification has run out.
 	DueForReview bool `json:"due_for_review"`
 
@@ -16737,6 +16746,9 @@ type Page struct {
 	// Position Its place among its siblings: they sort by this, as text.
 	Position string `json:"position"`
 
+	// Restricted The page names who of the hub's readers may read it.
+	Restricted bool `json:"restricted"`
+
 	// Template Offered as a template of the space.
 	Template   bool                `json:"template"`
 	Title      string              `json:"title"`
@@ -16751,6 +16763,25 @@ type Page struct {
 
 	// Version The optimistic lock.
 	Version int `json:"version"`
+}
+
+// PageAccess defines model for PageAccess.
+type PageAccess struct {
+	MayShare bool               `json:"may_share"`
+	PageId   openapi_types.UUID `json:"page_id"`
+
+	// Readers The people every restriction on the way up names; null for an unrestricted page.
+	Readers *[]openapi_types.UUID `json:"readers"`
+
+	// Restricted The page itself is restricted.
+	Restricted bool `json:"restricted"`
+
+	// RestrictedAbove A page above restricts it.
+	RestrictedAbove bool `json:"restricted_above"`
+
+	// RestrictedTo The people the page's own restriction names.
+	RestrictedTo []openapi_types.UUID `json:"restricted_to"`
+	Shares       []PageShare          `json:"shares"`
 }
 
 // PageBacklinkList defines model for PageBacklinkList.
@@ -16931,6 +16962,9 @@ type PageRead struct {
 	CreatedAt       time.Time          `json:"created_at"`
 	CreatedBy       openapi_types.UUID `json:"created_by"`
 
+	// DailyFor The day a daily note of a personal space is for.
+	DailyFor *openapi_types.Date `json:"daily_for"`
+
 	// DueForReview Its verification has run out.
 	DueForReview bool `json:"due_for_review"`
 
@@ -16947,6 +16981,12 @@ type PageRead struct {
 
 	// Position Its place among its siblings: they sort by this, as text.
 	Position string `json:"position"`
+
+	// Restricted The page names who of the hub's readers may read it.
+	Restricted bool `json:"restricted"`
+
+	// Shared Read by a share alone: without the pages above it, never written.
+	Shared bool `json:"shared"`
 
 	// Template Offered as a template of the space.
 	Template   bool                `json:"template"`
@@ -16965,6 +17005,15 @@ type PageRead struct {
 	Writable bool `json:"writable"`
 }
 
+// PageRestrict defines model for PageRestrict.
+type PageRestrict struct {
+	// AccountIds The people who may read the page; the caller must be among them.
+	AccountIds *[]openapi_types.UUID `json:"account_ids,omitempty"`
+
+	// Lift Take the page's own restriction away.
+	Lift *bool `json:"lift,omitempty"`
+}
+
 // PageSearch defines model for PageSearch.
 type PageSearch struct {
 	// HubId One hub's space; absent for every readable space.
@@ -16973,6 +17022,19 @@ type PageSearch struct {
 
 	// Text What to look for, in web search syntax.
 	Text string `json:"text"`
+}
+
+// PageShare defines model for PageShare.
+type PageShare struct {
+	AccountId openapi_types.UUID  `json:"account_id"`
+	GrantedAt time.Time           `json:"granted_at"`
+	GrantedBy *openapi_types.UUID `json:"granted_by"`
+	PageId    *openapi_types.UUID `json:"page_id,omitempty"`
+}
+
+// PageShareCreate defines model for PageShareCreate.
+type PageShareCreate struct {
+	AccountId openapi_types.UUID `json:"account_id"`
 }
 
 // PageTrashed defines model for PageTrashed.
@@ -17440,6 +17502,12 @@ type PermissionEntry struct {
 
 // PermissionEntryKind defines model for PermissionEntry.Kind.
 type PermissionEntryKind string
+
+// PersonalSpace defines model for PersonalSpace.
+type PersonalSpace struct {
+	// HubId The private hub; null until the first daily note.
+	HubId *openapi_types.UUID `json:"hub_id"`
+}
 
 // PlacedTimeRecord defines model for PlacedTimeRecord.
 type PlacedTimeRecord struct {
@@ -19211,6 +19279,16 @@ type SettingSource string
 type SettingsCatalogue struct {
 	// Settings Every setting, in the order a settings screen draws them.
 	Settings []SettingDefinition `json:"settings"`
+}
+
+// SharedPageList defines model for SharedPageList.
+type SharedPageList struct {
+	Data []struct {
+		HubId openapi_types.UUID `json:"hub_id"`
+		Icon  *string            `json:"icon"`
+		Id    openapi_types.UUID `json:"id"`
+		Title string             `json:"title"`
+	} `json:"data"`
 }
 
 // ShippedRole defines model for ShippedRole.
@@ -25015,6 +25093,9 @@ type UpdatePageApplicationMergePatchPlusJSONRequestBody = PageChange
 // AddPageCommentJSONRequestBody defines body for AddPageComment for application/json ContentType.
 type AddPageCommentJSONRequestBody = PageCommentCreate
 
+// SharePageJSONRequestBody defines body for SharePage for application/json ContentType.
+type SharePageJSONRequestBody = PageShareCreate
+
 // NamePageVersionApplicationMergePatchPlusJSONRequestBody defines body for NamePageVersion for application/merge-patch+json ContentType.
 type NamePageVersionApplicationMergePatchPlusJSONRequestBody = PageVersionName
 
@@ -25024,11 +25105,17 @@ type ExportPageJSONRequestBody = PageExportRequest
 // MovePageJSONRequestBody defines body for MovePage for application/json ContentType.
 type MovePageJSONRequestBody = PageMove
 
+// RestrictPageJSONRequestBody defines body for RestrictPage for application/json ContentType.
+type RestrictPageJSONRequestBody = PageRestrict
+
 // VerifyPageJSONRequestBody defines body for VerifyPage for application/json ContentType.
 type VerifyPageJSONRequestBody = PageVerify
 
 // SearchPagesJSONRequestBody defines body for SearchPages for application/json ContentType.
 type SearchPagesJSONRequestBody = PageSearch
+
+// OpenDailyNoteJSONRequestBody defines body for OpenDailyNote for application/json ContentType.
+type OpenDailyNoteJSONRequestBody = DailyNoteOpen
 
 // TakeBaselineJSONRequestBody defines body for TakeBaseline for application/json ContentType.
 type TakeBaselineJSONRequestBody TakeBaselineJSONBody
@@ -32101,6 +32188,13 @@ type ClientInterface interface {
 	// Corresponds with PATCH /pages/{pageId} (the `UpdatePage` operationId).
 	UpdatePageWithApplicationMergePatchPlusJSONBody(ctx context.Context, pageId PageId, params *UpdatePageParams, body UpdatePageApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ReadPageAccess Who reads a page beyond its hub
+	//
+	// The people the page's own restriction names, whether a page above restricts it too, the people it then admits, the people it is shared with, and whether the caller may share it. Needs READ on the hub and to be admitted by the page's restrictions.
+	//
+	// Corresponds with GET /pages/{pageId}/access (the `ReadPageAccess` operationId).
+	ReadPageAccess(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListPageBacklinks What links to a page
 	//
 	// The pages, entries' notes and comments that mention the page, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
@@ -32132,6 +32226,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
 	AddPageComment(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SharePageWithBody Share a page with one person, read-only
+	//
+	// Shares the page read-only with one person of the workspace beside the hub's memberships - a guest, or somebody outside the hub. The page alone opens, not the pages under it, its comments or its history. A restricted page is shared only with somebody it admits (`pages.share_restricted`). Sharing twice changes nothing. Needs MANAGE_MEMBERS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /pages/{pageId}/shares (the `SharePage` operationId).
+	SharePageWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SharePage Share a page with one person, read-only
+	//
+	// Shares the page read-only with one person of the workspace beside the hub's memberships - a guest, or somebody outside the hub. The page alone opens, not the pages under it, its comments or its history. A restricted page is shared only with somebody it admits (`pages.share_restricted`). Sharing twice changes nothing. Needs MANAGE_MEMBERS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /pages/{pageId}/shares (the `SharePage` operationId).
+	SharePage(ctx context.Context, pageId PageId, body SharePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UnsharePage Take a page's share away
+	//
+	// Takes the page's share with one person away. Needs MANAGE_MEMBERS on the hub, except for the person it was shared with, who may leave their own.
+	//
+	// Corresponds with DELETE /pages/{pageId}/shares/{accountId} (the `UnsharePage` operationId).
+	UnsharePage(ctx context.Context, pageId PageId, accountId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPageVersions A page's history
 	//
@@ -32215,6 +32334,24 @@ type ClientInterface interface {
 	// Corresponds with POST /pages/{pageId}:restore (the `RestorePage` operationId).
 	RestorePage(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RestrictPageWithBody Restrict who reads a page
+	//
+	// Narrows who of the hub's readers may read the page and the pages under it to the people named - the caller always among them, else `pages.restriction_excludes_you` - or, with `lift`, takes the page's own restriction away. A restriction never widens: a page under several is read only by the people every one names, and a page one is kept from is not found. Needs WRITE_ITEMS on the hub; somebody with MANAGE_MEMBERS there may lift a restriction that shuts them out. Offline copies drop a restricted page.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /pages/{pageId}:restrict (the `RestrictPage` operationId).
+	RestrictPageWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RestrictPage Restrict who reads a page
+	//
+	// Narrows who of the hub's readers may read the page and the pages under it to the people named - the caller always among them, else `pages.restriction_excludes_you` - or, with `lift`, takes the page's own restriction away. A restriction never widens: a page under several is read only by the people every one names, and a page one is kept from is not found. Needs WRITE_ITEMS on the hub; somebody with MANAGE_MEMBERS there may lift a restriction that shuts them out. Offline copies drop a restricted page.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /pages/{pageId}:restrict (the `RestrictPage` operationId).
+	RestrictPage(ctx context.Context, pageId PageId, body RestrictPageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// VerifyPageWithBody Mark a page as checked
 	//
 	// Marks the page as checked and right until a date, by the caller, and names who answers for it; from that date the page is due for review. Without a date the verification is taken away. A date in the past is refused with `pages.verified_until_past`. Needs WRITE_ITEMS on the hub.
@@ -32233,6 +32370,13 @@ type ClientInterface interface {
 	// Corresponds with POST /pages/{pageId}:verify (the `VerifyPage` operationId).
 	VerifyPage(ctx context.Context, pageId PageId, body VerifyPageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ReadPersonalSpace My own notes' space
+	//
+	// The private hub that is the caller's own notes, or null when it has not been made yet; the first daily note makes it.
+	//
+	// Corresponds with GET /pages:personal (the `ReadPersonalSpace` operationId).
+	ReadPersonalSpace(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// SearchPagesWithBody Find pages by their words
 	//
 	// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
@@ -32250,6 +32394,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /pages:search (the `SearchPages` operationId).
 	SearchPages(ctx context.Context, body SearchPagesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListSharedPages The pages shared with me
+	//
+	// The pages shared with the caller, newest share first: what a guest outside every hub starts from.
+	//
+	// Corresponds with GET /pages:shared (the `ListSharedPages` operationId).
+	ListSharedPages(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// OpenDailyNoteWithBody Open my note of a day
+	//
+	// Opens the caller's note of a day in their personal space - a private hub only they read - today in their time zone unless a day is named. The space and the note are made on first use; the note is titled with its date. Refused with `containers.private_hubs_off` where the workspace allows no private hubs.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /pages:today (the `OpenDailyNote` operationId).
+	OpenDailyNoteWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// OpenDailyNote Open my note of a day
+	//
+	// Opens the caller's note of a day in their personal space - a private hub only they read - today in their time zone unless a day is named. The space and the note are made on first use; the note is titled with its date. Refused with `containers.private_hubs_off` where the workspace allows no private hubs.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /pages:today (the `OpenDailyNote` operationId).
+	OpenDailyNote(ctx context.Context, body OpenDailyNoteJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadEstimatesVsActuals Estimates against the time recorded
 	//
@@ -48023,6 +48192,23 @@ func (c *Client) UpdatePageWithApplicationMergePatchPlusJSONBody(ctx context.Con
 	return c.Client.Do(req)
 }
 
+// ReadPageAccess Who reads a page beyond its hub
+//
+// The people the page's own restriction names, whether a page above restricts it too, the people it then admits, the people it is shared with, and whether the caller may share it. Needs READ on the hub and to be admitted by the page's restrictions.
+//
+// Corresponds with GET /pages/{pageId}/access (the `ReadPageAccess` operationId).
+func (c *Client) ReadPageAccess(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPageAccessRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListPageBacklinks What links to a page
 //
 // The pages, entries' notes and comments that mention the page, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
@@ -48085,6 +48271,61 @@ func (c *Client) AddPageCommentWithBody(ctx context.Context, pageId PageId, cont
 // Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
 func (c *Client) AddPageComment(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewAddPageCommentRequest(c.Server, pageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SharePageWithBody Share a page with one person, read-only
+//
+// Shares the page read-only with one person of the workspace beside the hub's memberships - a guest, or somebody outside the hub. The page alone opens, not the pages under it, its comments or its history. A restricted page is shared only with somebody it admits (`pages.share_restricted`). Sharing twice changes nothing. Needs MANAGE_MEMBERS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /pages/{pageId}/shares (the `SharePage` operationId).
+func (c *Client) SharePageWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSharePageRequestWithBody(c.Server, pageId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SharePage Share a page with one person, read-only
+//
+// Shares the page read-only with one person of the workspace beside the hub's memberships - a guest, or somebody outside the hub. The page alone opens, not the pages under it, its comments or its history. A restricted page is shared only with somebody it admits (`pages.share_restricted`). Sharing twice changes nothing. Needs MANAGE_MEMBERS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /pages/{pageId}/shares (the `SharePage` operationId).
+func (c *Client) SharePage(ctx context.Context, pageId PageId, body SharePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSharePageRequest(c.Server, pageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UnsharePage Take a page's share away
+//
+// Takes the page's share with one person away. Needs MANAGE_MEMBERS on the hub, except for the person it was shared with, who may leave their own.
+//
+// Corresponds with DELETE /pages/{pageId}/shares/{accountId} (the `UnsharePage` operationId).
+func (c *Client) UnsharePage(ctx context.Context, pageId PageId, accountId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUnsharePageRequest(c.Server, pageId, accountId)
 	if err != nil {
 		return nil, err
 	}
@@ -48277,6 +48518,44 @@ func (c *Client) RestorePage(ctx context.Context, pageId PageId, reqEditors ...R
 	return c.Client.Do(req)
 }
 
+// RestrictPageWithBody Restrict who reads a page
+//
+// Narrows who of the hub's readers may read the page and the pages under it to the people named - the caller always among them, else `pages.restriction_excludes_you` - or, with `lift`, takes the page's own restriction away. A restriction never widens: a page under several is read only by the people every one names, and a page one is kept from is not found. Needs WRITE_ITEMS on the hub; somebody with MANAGE_MEMBERS there may lift a restriction that shuts them out. Offline copies drop a restricted page.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /pages/{pageId}:restrict (the `RestrictPage` operationId).
+func (c *Client) RestrictPageWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRestrictPageRequestWithBody(c.Server, pageId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RestrictPage Restrict who reads a page
+//
+// Narrows who of the hub's readers may read the page and the pages under it to the people named - the caller always among them, else `pages.restriction_excludes_you` - or, with `lift`, takes the page's own restriction away. A restriction never widens: a page under several is read only by the people every one names, and a page one is kept from is not found. Needs WRITE_ITEMS on the hub; somebody with MANAGE_MEMBERS there may lift a restriction that shuts them out. Offline copies drop a restricted page.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /pages/{pageId}:restrict (the `RestrictPage` operationId).
+func (c *Client) RestrictPage(ctx context.Context, pageId PageId, body RestrictPageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRestrictPageRequest(c.Server, pageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // VerifyPageWithBody Mark a page as checked
 //
 // Marks the page as checked and right until a date, by the caller, and names who answers for it; from that date the page is due for review. Without a date the verification is taken away. A date in the past is refused with `pages.verified_until_past`. Needs WRITE_ITEMS on the hub.
@@ -48315,6 +48594,23 @@ func (c *Client) VerifyPage(ctx context.Context, pageId PageId, body VerifyPageJ
 	return c.Client.Do(req)
 }
 
+// ReadPersonalSpace My own notes' space
+//
+// The private hub that is the caller's own notes, or null when it has not been made yet; the first daily note makes it.
+//
+// Corresponds with GET /pages:personal (the `ReadPersonalSpace` operationId).
+func (c *Client) ReadPersonalSpace(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPersonalSpaceRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // SearchPagesWithBody Find pages by their words
 //
 // Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
@@ -48343,6 +48639,61 @@ func (c *Client) SearchPagesWithBody(ctx context.Context, contentType string, bo
 // Corresponds with POST /pages:search (the `SearchPages` operationId).
 func (c *Client) SearchPages(ctx context.Context, body SearchPagesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSearchPagesRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListSharedPages The pages shared with me
+//
+// The pages shared with the caller, newest share first: what a guest outside every hub starts from.
+//
+// Corresponds with GET /pages:shared (the `ListSharedPages` operationId).
+func (c *Client) ListSharedPages(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSharedPagesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// OpenDailyNoteWithBody Open my note of a day
+//
+// Opens the caller's note of a day in their personal space - a private hub only they read - today in their time zone unless a day is named. The space and the note are made on first use; the note is titled with its date. Refused with `containers.private_hubs_off` where the workspace allows no private hubs.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /pages:today (the `OpenDailyNote` operationId).
+func (c *Client) OpenDailyNoteWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewOpenDailyNoteRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// OpenDailyNote Open my note of a day
+//
+// Opens the caller's note of a day in their personal space - a private hub only they read - today in their time zone unless a day is named. The space and the note are made on first use; the note is titled with its date. Refused with `containers.private_hubs_off` where the workspace allows no private hubs.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /pages:today (the `OpenDailyNote` operationId).
+func (c *Client) OpenDailyNote(ctx context.Context, body OpenDailyNoteJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewOpenDailyNoteRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -75996,6 +76347,40 @@ func NewUpdatePageRequestWithBody(server string, pageId PageId, params *UpdatePa
 	return req, nil
 }
 
+// NewReadPageAccessRequest constructs an http.Request for the ReadPageAccess method
+func NewReadPageAccessRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/access", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListPageBacklinksRequest constructs an http.Request for the ListPageBacklinks method
 func NewListPageBacklinksRequest(server string, pageId PageId) (*http.Request, error) {
 	var err error
@@ -76107,6 +76492,94 @@ func NewAddPageCommentRequestWithBody(server string, pageId PageId, contentType 
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSharePageRequest calls the generic SharePage builder with application/json body
+func NewSharePageRequest(server string, pageId PageId, body SharePageJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSharePageRequestWithBody(server, pageId, "application/json", bodyReader)
+}
+
+// NewSharePageRequestWithBody constructs an http.Request for the SharePage method, with any body, and a specified content type
+func NewSharePageRequestWithBody(server string, pageId PageId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/shares", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewUnsharePageRequest constructs an http.Request for the UnsharePage method
+func NewUnsharePageRequest(server string, pageId PageId, accountId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "accountId", accountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/shares/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -76478,6 +76951,53 @@ func NewRestorePageRequest(server string, pageId PageId) (*http.Request, error) 
 	return req, nil
 }
 
+// NewRestrictPageRequest calls the generic RestrictPage builder with application/json body
+func NewRestrictPageRequest(server string, pageId PageId, body RestrictPageJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRestrictPageRequestWithBody(server, pageId, "application/json", bodyReader)
+}
+
+// NewRestrictPageRequestWithBody constructs an http.Request for the RestrictPage method, with any body, and a specified content type
+func NewRestrictPageRequestWithBody(server string, pageId PageId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s:restrict", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewVerifyPageRequest calls the generic VerifyPage builder with application/json body
 func NewVerifyPageRequest(server string, pageId PageId, body VerifyPageJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -76525,6 +77045,33 @@ func NewVerifyPageRequestWithBody(server string, pageId PageId, contentType stri
 	return req, nil
 }
 
+// NewReadPersonalSpaceRequest constructs an http.Request for the ReadPersonalSpace method
+func NewReadPersonalSpaceRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages:personal")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewSearchPagesRequest calls the generic SearchPages builder with application/json body
 func NewSearchPagesRequest(server string, body SearchPagesJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -76546,6 +77093,73 @@ func NewSearchPagesRequestWithBody(server string, contentType string, body io.Re
 	}
 
 	operationPath := fmt.Sprintf("/pages:search")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListSharedPagesRequest constructs an http.Request for the ListSharedPages method
+func NewListSharedPagesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages:shared")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewOpenDailyNoteRequest calls the generic OpenDailyNote builder with application/json body
+func NewOpenDailyNoteRequest(server string, body OpenDailyNoteJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewOpenDailyNoteRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewOpenDailyNoteRequestWithBody constructs an http.Request for the OpenDailyNote method, with any body, and a specified content type
+func NewOpenDailyNoteRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages:today")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -91821,6 +92435,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /pages/{pageId} (the `UpdatePage` operationId).
 	UpdatePageWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, pageId PageId, params *UpdatePageParams, body UpdatePageApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdatePageResult, error)
 
+	// ReadPageAccessWithResponse Who reads a page beyond its hub
+	//
+	// The people the page's own restriction names, whether a page above restricts it too, the people it then admits, the people it is shared with, and whether the caller may share it. Needs READ on the hub and to be admitted by the page's restrictions.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /pages/{pageId}/access (the `ReadPageAccess` operationId).
+	ReadPageAccessWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ReadPageAccessResult, error)
+
 	// ListPageBacklinksWithResponse What links to a page
 	//
 	// The pages, entries' notes and comments that mention the page, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
@@ -91856,6 +92479,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
 	AddPageCommentWithResponse(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*AddPageCommentResult, error)
+
+	// SharePageWithBodyWithResponse Share a page with one person, read-only
+	//
+	// Shares the page read-only with one person of the workspace beside the hub's memberships - a guest, or somebody outside the hub. The page alone opens, not the pages under it, its comments or its history. A restricted page is shared only with somebody it admits (`pages.share_restricted`). Sharing twice changes nothing. Needs MANAGE_MEMBERS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}/shares (the `SharePage` operationId).
+	SharePageWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SharePageResult, error)
+
+	// SharePageWithResponse Share a page with one person, read-only
+	//
+	// Shares the page read-only with one person of the workspace beside the hub's memberships - a guest, or somebody outside the hub. The page alone opens, not the pages under it, its comments or its history. A restricted page is shared only with somebody it admits (`pages.share_restricted`). Sharing twice changes nothing. Needs MANAGE_MEMBERS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}/shares (the `SharePage` operationId).
+	SharePageWithResponse(ctx context.Context, pageId PageId, body SharePageJSONRequestBody, reqEditors ...RequestEditorFn) (*SharePageResult, error)
+
+	// UnsharePageWithResponse Take a page's share away
+	//
+	// Takes the page's share with one person away. Needs MANAGE_MEMBERS on the hub, except for the person it was shared with, who may leave their own.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /pages/{pageId}/shares/{accountId} (the `UnsharePage` operationId).
+	UnsharePageWithResponse(ctx context.Context, pageId PageId, accountId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnsharePageResult, error)
 
 	// ListPageVersionsWithResponse A page's history
 	//
@@ -91947,6 +92597,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /pages/{pageId}:restore (the `RestorePage` operationId).
 	RestorePageWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*RestorePageResult, error)
 
+	// RestrictPageWithBodyWithResponse Restrict who reads a page
+	//
+	// Narrows who of the hub's readers may read the page and the pages under it to the people named - the caller always among them, else `pages.restriction_excludes_you` - or, with `lift`, takes the page's own restriction away. A restriction never widens: a page under several is read only by the people every one names, and a page one is kept from is not found. Needs WRITE_ITEMS on the hub; somebody with MANAGE_MEMBERS there may lift a restriction that shuts them out. Offline copies drop a restricted page.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}:restrict (the `RestrictPage` operationId).
+	RestrictPageWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RestrictPageResult, error)
+
+	// RestrictPageWithResponse Restrict who reads a page
+	//
+	// Narrows who of the hub's readers may read the page and the pages under it to the people named - the caller always among them, else `pages.restriction_excludes_you` - or, with `lift`, takes the page's own restriction away. A restriction never widens: a page under several is read only by the people every one names, and a page one is kept from is not found. Needs WRITE_ITEMS on the hub; somebody with MANAGE_MEMBERS there may lift a restriction that shuts them out. Offline copies drop a restricted page.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}:restrict (the `RestrictPage` operationId).
+	RestrictPageWithResponse(ctx context.Context, pageId PageId, body RestrictPageJSONRequestBody, reqEditors ...RequestEditorFn) (*RestrictPageResult, error)
+
 	// VerifyPageWithBodyWithResponse Mark a page as checked
 	//
 	// Marks the page as checked and right until a date, by the caller, and names who answers for it; from that date the page is due for review. Without a date the verification is taken away. A date in the past is refused with `pages.verified_until_past`. Needs WRITE_ITEMS on the hub.
@@ -91965,6 +92633,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /pages/{pageId}:verify (the `VerifyPage` operationId).
 	VerifyPageWithResponse(ctx context.Context, pageId PageId, body VerifyPageJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyPageResult, error)
 
+	// ReadPersonalSpaceWithResponse My own notes' space
+	//
+	// The private hub that is the caller's own notes, or null when it has not been made yet; the first daily note makes it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /pages:personal (the `ReadPersonalSpace` operationId).
+	ReadPersonalSpaceWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadPersonalSpaceResult, error)
+
 	// SearchPagesWithBodyWithResponse Find pages by their words
 	//
 	// Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
@@ -91982,6 +92659,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /pages:search (the `SearchPages` operationId).
 	SearchPagesWithResponse(ctx context.Context, body SearchPagesJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchPagesResult, error)
+
+	// ListSharedPagesWithResponse The pages shared with me
+	//
+	// The pages shared with the caller, newest share first: what a guest outside every hub starts from.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /pages:shared (the `ListSharedPages` operationId).
+	ListSharedPagesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListSharedPagesResult, error)
+
+	// OpenDailyNoteWithBodyWithResponse Open my note of a day
+	//
+	// Opens the caller's note of a day in their personal space - a private hub only they read - today in their time zone unless a day is named. The space and the note are made on first use; the note is titled with its date. Refused with `containers.private_hubs_off` where the workspace allows no private hubs.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages:today (the `OpenDailyNote` operationId).
+	OpenDailyNoteWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*OpenDailyNoteResult, error)
+
+	// OpenDailyNoteWithResponse Open my note of a day
+	//
+	// Opens the caller's note of a day in their personal space - a private hub only they read - today in their time zone unless a day is named. The space and the note are made on first use; the note is titled with its date. Refused with `containers.private_hubs_off` where the workspace allows no private hubs.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages:today (the `OpenDailyNote` operationId).
+	OpenDailyNoteWithResponse(ctx context.Context, body OpenDailyNoteJSONRequestBody, reqEditors ...RequestEditorFn) (*OpenDailyNoteResult, error)
 
 	// ReadEstimatesVsActualsWithResponse Estimates against the time recorded
 	//
@@ -117929,6 +118633,54 @@ func (r UpdatePageResult) ContentType() string {
 	return ""
 }
 
+type ReadPageAccessResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PageAccess
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPageAccessResult) GetJSON200() *PageAccess {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPageAccessResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPageAccessResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPageAccessResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPageAccessResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPageAccessResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListPageBacklinksResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -118067,6 +118819,95 @@ func (r AddPageCommentResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r AddPageCommentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SharePageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *PageShare
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r SharePageResult) GetJSON201() *PageShare {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SharePageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SharePageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SharePageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SharePageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SharePageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UnsharePageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UnsharePageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UnsharePageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UnsharePageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UnsharePageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UnsharePageResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -118409,6 +119250,54 @@ func (r RestorePageResult) ContentType() string {
 	return ""
 }
 
+type RestrictPageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Page
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RestrictPageResult) GetJSON200() *Page {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RestrictPageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RestrictPageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RestrictPageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RestrictPageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RestrictPageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type VerifyPageResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -118457,6 +119346,54 @@ func (r VerifyPageResult) ContentType() string {
 	return ""
 }
 
+type ReadPersonalSpaceResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PersonalSpace
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPersonalSpaceResult) GetJSON200() *PersonalSpace {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPersonalSpaceResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPersonalSpaceResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPersonalSpaceResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPersonalSpaceResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPersonalSpaceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type SearchPagesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -118499,6 +119436,102 @@ func (r SearchPagesResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SearchPagesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListSharedPagesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SharedPageList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListSharedPagesResult) GetJSON200() *SharedPageList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListSharedPagesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListSharedPagesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSharedPagesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSharedPagesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListSharedPagesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type OpenDailyNoteResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Page
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r OpenDailyNoteResult) GetJSON200() *Page {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r OpenDailyNoteResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r OpenDailyNoteResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r OpenDailyNoteResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r OpenDailyNoteResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r OpenDailyNoteResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -138058,6 +139091,21 @@ func (c *ClientWithResponses) UpdatePageWithApplicationMergePatchPlusJSONBodyWit
 	return ParseUpdatePageResult(rsp)
 }
 
+// ReadPageAccessWithResponse Who reads a page beyond its hub
+//
+// The people the page's own restriction names, whether a page above restricts it too, the people it then admits, the people it is shared with, and whether the caller may share it. Needs READ on the hub and to be admitted by the page's restrictions.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /pages/{pageId}/access (the `ReadPageAccess` operationId).
+func (c *ClientWithResponses) ReadPageAccessWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ReadPageAccessResult, error) {
+	rsp, err := c.ReadPageAccess(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPageAccessResult(rsp)
+}
+
 // ListPageBacklinksWithResponse What links to a page
 //
 // The pages, entries' notes and comments that mention the page, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
@@ -138116,6 +139164,51 @@ func (c *ClientWithResponses) AddPageCommentWithResponse(ctx context.Context, pa
 		return nil, err
 	}
 	return ParseAddPageCommentResult(rsp)
+}
+
+// SharePageWithBodyWithResponse Share a page with one person, read-only
+//
+// Shares the page read-only with one person of the workspace beside the hub's memberships - a guest, or somebody outside the hub. The page alone opens, not the pages under it, its comments or its history. A restricted page is shared only with somebody it admits (`pages.share_restricted`). Sharing twice changes nothing. Needs MANAGE_MEMBERS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}/shares (the `SharePage` operationId).
+func (c *ClientWithResponses) SharePageWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SharePageResult, error) {
+	rsp, err := c.SharePageWithBody(ctx, pageId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSharePageResult(rsp)
+}
+
+// SharePageWithResponse Share a page with one person, read-only
+//
+// Shares the page read-only with one person of the workspace beside the hub's memberships - a guest, or somebody outside the hub. The page alone opens, not the pages under it, its comments or its history. A restricted page is shared only with somebody it admits (`pages.share_restricted`). Sharing twice changes nothing. Needs MANAGE_MEMBERS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}/shares (the `SharePage` operationId).
+func (c *ClientWithResponses) SharePageWithResponse(ctx context.Context, pageId PageId, body SharePageJSONRequestBody, reqEditors ...RequestEditorFn) (*SharePageResult, error) {
+	rsp, err := c.SharePage(ctx, pageId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSharePageResult(rsp)
+}
+
+// UnsharePageWithResponse Take a page's share away
+//
+// Takes the page's share with one person away. Needs MANAGE_MEMBERS on the hub, except for the person it was shared with, who may leave their own.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /pages/{pageId}/shares/{accountId} (the `UnsharePage` operationId).
+func (c *ClientWithResponses) UnsharePageWithResponse(ctx context.Context, pageId PageId, accountId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnsharePageResult, error) {
+	rsp, err := c.UnsharePage(ctx, pageId, accountId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUnsharePageResult(rsp)
 }
 
 // ListPageVersionsWithResponse A page's history
@@ -138268,6 +139361,36 @@ func (c *ClientWithResponses) RestorePageWithResponse(ctx context.Context, pageI
 	return ParseRestorePageResult(rsp)
 }
 
+// RestrictPageWithBodyWithResponse Restrict who reads a page
+//
+// Narrows who of the hub's readers may read the page and the pages under it to the people named - the caller always among them, else `pages.restriction_excludes_you` - or, with `lift`, takes the page's own restriction away. A restriction never widens: a page under several is read only by the people every one names, and a page one is kept from is not found. Needs WRITE_ITEMS on the hub; somebody with MANAGE_MEMBERS there may lift a restriction that shuts them out. Offline copies drop a restricted page.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}:restrict (the `RestrictPage` operationId).
+func (c *ClientWithResponses) RestrictPageWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RestrictPageResult, error) {
+	rsp, err := c.RestrictPageWithBody(ctx, pageId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRestrictPageResult(rsp)
+}
+
+// RestrictPageWithResponse Restrict who reads a page
+//
+// Narrows who of the hub's readers may read the page and the pages under it to the people named - the caller always among them, else `pages.restriction_excludes_you` - or, with `lift`, takes the page's own restriction away. A restriction never widens: a page under several is read only by the people every one names, and a page one is kept from is not found. Needs WRITE_ITEMS on the hub; somebody with MANAGE_MEMBERS there may lift a restriction that shuts them out. Offline copies drop a restricted page.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}:restrict (the `RestrictPage` operationId).
+func (c *ClientWithResponses) RestrictPageWithResponse(ctx context.Context, pageId PageId, body RestrictPageJSONRequestBody, reqEditors ...RequestEditorFn) (*RestrictPageResult, error) {
+	rsp, err := c.RestrictPage(ctx, pageId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRestrictPageResult(rsp)
+}
+
 // VerifyPageWithBodyWithResponse Mark a page as checked
 //
 // Marks the page as checked and right until a date, by the caller, and names who answers for it; from that date the page is due for review. Without a date the verification is taken away. A date in the past is refused with `pages.verified_until_past`. Needs WRITE_ITEMS on the hub.
@@ -138298,6 +139421,21 @@ func (c *ClientWithResponses) VerifyPageWithResponse(ctx context.Context, pageId
 	return ParseVerifyPageResult(rsp)
 }
 
+// ReadPersonalSpaceWithResponse My own notes' space
+//
+// The private hub that is the caller's own notes, or null when it has not been made yet; the first daily note makes it.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /pages:personal (the `ReadPersonalSpace` operationId).
+func (c *ClientWithResponses) ReadPersonalSpaceWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadPersonalSpaceResult, error) {
+	rsp, err := c.ReadPersonalSpace(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPersonalSpaceResult(rsp)
+}
+
 // SearchPagesWithBodyWithResponse Find pages by their words
 //
 // Pages whose title or body holds the words, stemmed in each page's language, in one hub's space or in every space the reader may read, best first, each with the passage that matched. Archived and trashed pages are left out. A `POST` because what somebody looks for is their content.
@@ -138326,6 +139464,51 @@ func (c *ClientWithResponses) SearchPagesWithResponse(ctx context.Context, body 
 		return nil, err
 	}
 	return ParseSearchPagesResult(rsp)
+}
+
+// ListSharedPagesWithResponse The pages shared with me
+//
+// The pages shared with the caller, newest share first: what a guest outside every hub starts from.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /pages:shared (the `ListSharedPages` operationId).
+func (c *ClientWithResponses) ListSharedPagesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListSharedPagesResult, error) {
+	rsp, err := c.ListSharedPages(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSharedPagesResult(rsp)
+}
+
+// OpenDailyNoteWithBodyWithResponse Open my note of a day
+//
+// Opens the caller's note of a day in their personal space - a private hub only they read - today in their time zone unless a day is named. The space and the note are made on first use; the note is titled with its date. Refused with `containers.private_hubs_off` where the workspace allows no private hubs.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages:today (the `OpenDailyNote` operationId).
+func (c *ClientWithResponses) OpenDailyNoteWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*OpenDailyNoteResult, error) {
+	rsp, err := c.OpenDailyNoteWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseOpenDailyNoteResult(rsp)
+}
+
+// OpenDailyNoteWithResponse Open my note of a day
+//
+// Opens the caller's note of a day in their personal space - a private hub only they read - today in their time zone unless a day is named. The space and the note are made on first use; the note is titled with its date. Refused with `containers.private_hubs_off` where the workspace allows no private hubs.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages:today (the `OpenDailyNote` operationId).
+func (c *ClientWithResponses) OpenDailyNoteWithResponse(ctx context.Context, body OpenDailyNoteJSONRequestBody, reqEditors ...RequestEditorFn) (*OpenDailyNoteResult, error) {
+	rsp, err := c.OpenDailyNote(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseOpenDailyNoteResult(rsp)
 }
 
 // ReadEstimatesVsActualsWithResponse Estimates against the time recorded
@@ -159157,6 +160340,39 @@ func ParseUpdatePageResult(rsp *http.Response) (*UpdatePageResult, error) {
 	return response, nil
 }
 
+// ParseReadPageAccessResult parses an HTTP response from a ReadPageAccessWithResponse call
+func ParseReadPageAccessResult(rsp *http.Response) (*ReadPageAccessResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPageAccessResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PageAccess
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListPageBacklinksResult parses an HTTP response from a ListPageBacklinksWithResponse call
 func ParseListPageBacklinksResult(rsp *http.Response) (*ListPageBacklinksResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -159243,6 +160459,68 @@ func ParseAddPageCommentResult(rsp *http.Response) (*AddPageCommentResult, error
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSharePageResult parses an HTTP response from a SharePageWithResponse call
+func ParseSharePageResult(rsp *http.Response) (*SharePageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SharePageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PageShare
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUnsharePageResult parses an HTTP response from a UnsharePageWithResponse call
+func ParseUnsharePageResult(rsp *http.Response) (*UnsharePageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UnsharePageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -159487,6 +160765,39 @@ func ParseRestorePageResult(rsp *http.Response) (*RestorePageResult, error) {
 	return response, nil
 }
 
+// ParseRestrictPageResult parses an HTTP response from a RestrictPageWithResponse call
+func ParseRestrictPageResult(rsp *http.Response) (*RestrictPageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RestrictPageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Page
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseVerifyPageResult parses an HTTP response from a VerifyPageWithResponse call
 func ParseVerifyPageResult(rsp *http.Response) (*VerifyPageResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -159520,6 +160831,39 @@ func ParseVerifyPageResult(rsp *http.Response) (*VerifyPageResult, error) {
 	return response, nil
 }
 
+// ParseReadPersonalSpaceResult parses an HTTP response from a ReadPersonalSpaceWithResponse call
+func ParseReadPersonalSpaceResult(rsp *http.Response) (*ReadPersonalSpaceResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPersonalSpaceResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PersonalSpace
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseSearchPagesResult parses an HTTP response from a SearchPagesWithResponse call
 func ParseSearchPagesResult(rsp *http.Response) (*SearchPagesResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -159536,6 +160880,72 @@ func ParseSearchPagesResult(rsp *http.Response) (*SearchPagesResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest PageHitList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListSharedPagesResult parses an HTTP response from a ListSharedPagesWithResponse call
+func ParseListSharedPagesResult(rsp *http.Response) (*ListSharedPagesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSharedPagesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SharedPageList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseOpenDailyNoteResult parses an HTTP response from a OpenDailyNoteWithResponse call
+func ParseOpenDailyNoteResult(rsp *http.Response) (*OpenDailyNoteResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &OpenDailyNoteResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Page
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
