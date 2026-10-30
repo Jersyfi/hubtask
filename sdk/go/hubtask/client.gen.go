@@ -1152,6 +1152,72 @@ func (e AiTranslationSource) Valid() bool {
 	}
 }
 
+// Defines values for ApprovalDecisionsVerdict.
+const (
+	ApprovalDecisionsVerdictAPPROVE ApprovalDecisionsVerdict = "APPROVE"
+	ApprovalDecisionsVerdictDECLINE ApprovalDecisionsVerdict = "DECLINE"
+)
+
+// Valid indicates whether the value is a known member of the ApprovalDecisionsVerdict enum.
+func (e ApprovalDecisionsVerdict) Valid() bool {
+	switch e {
+	case ApprovalDecisionsVerdictAPPROVE:
+		return true
+	case ApprovalDecisionsVerdictDECLINE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApprovalLevelsRule.
+const (
+	ApprovalLevelsRuleALL      ApprovalLevelsRule = "ALL"
+	ApprovalLevelsRuleANY      ApprovalLevelsRule = "ANY"
+	ApprovalLevelsRuleMAJORITY ApprovalLevelsRule = "MAJORITY"
+	ApprovalLevelsRuleNOF      ApprovalLevelsRule = "N_OF"
+)
+
+// Valid indicates whether the value is a known member of the ApprovalLevelsRule enum.
+func (e ApprovalLevelsRule) Valid() bool {
+	switch e {
+	case ApprovalLevelsRuleALL:
+		return true
+	case ApprovalLevelsRuleANY:
+		return true
+	case ApprovalLevelsRuleMAJORITY:
+		return true
+	case ApprovalLevelsRuleNOF:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApprovalState.
+const (
+	ApprovalStateAPPROVED  ApprovalState = "APPROVED"
+	ApprovalStateDECLINED  ApprovalState = "DECLINED"
+	ApprovalStatePENDING   ApprovalState = "PENDING"
+	ApprovalStateWITHDRAWN ApprovalState = "WITHDRAWN"
+)
+
+// Valid indicates whether the value is a known member of the ApprovalState enum.
+func (e ApprovalState) Valid() bool {
+	switch e {
+	case ApprovalStateAPPROVED:
+		return true
+	case ApprovalStateDECLINED:
+		return true
+	case ApprovalStatePENDING:
+		return true
+	case ApprovalStateWITHDRAWN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditActorType.
 const (
 	AuditActorTypeAIAGENT        AuditActorType = "AI_AGENT"
@@ -2930,16 +2996,16 @@ func (e ConfigChangeOp) Valid() bool {
 
 // Defines values for ConfigDecisionDecision.
 const (
-	APPLY   ConfigDecisionDecision = "APPLY"
-	DECLINE ConfigDecisionDecision = "DECLINE"
+	ConfigDecisionDecisionAPPLY   ConfigDecisionDecision = "APPLY"
+	ConfigDecisionDecisionDECLINE ConfigDecisionDecision = "DECLINE"
 )
 
 // Valid indicates whether the value is a known member of the ConfigDecisionDecision enum.
 func (e ConfigDecisionDecision) Valid() bool {
 	switch e {
-	case APPLY:
+	case ConfigDecisionDecisionAPPLY:
 		return true
-	case DECLINE:
+	case ConfigDecisionDecisionDECLINE:
 		return true
 	default:
 		return false
@@ -9633,6 +9699,24 @@ func (e ListAgentRequestsParamsStatus) Valid() bool {
 	}
 }
 
+// Defines values for DecideApprovalJSONBodyVerdict.
+const (
+	DecideApprovalJSONBodyVerdictAPPROVE DecideApprovalJSONBodyVerdict = "APPROVE"
+	DecideApprovalJSONBodyVerdictDECLINE DecideApprovalJSONBodyVerdict = "DECLINE"
+)
+
+// Valid indicates whether the value is a known member of the DecideApprovalJSONBodyVerdict enum.
+func (e DecideApprovalJSONBodyVerdict) Valid() bool {
+	switch e {
+	case DecideApprovalJSONBodyVerdictAPPROVE:
+		return true
+	case DecideApprovalJSONBodyVerdictDECLINE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListAuditEntriesParamsOutcome.
 const (
 	ListAuditEntriesParamsOutcomeDENIED  ListAuditEntriesParamsOutcome = "DENIED"
@@ -11182,6 +11266,76 @@ type AiTranslation struct {
 
 // AiTranslationSource defines model for AiTranslation.Source.
 type AiTranslationSource string
+
+// Approval A workflow step waiting for people's yes on one entry.
+type Approval struct {
+	CurrentLevel int        `json:"current_level"`
+	DecidedAt    *time.Time `json:"decided_at"`
+	Decisions    []struct {
+		ApproverId  openapi_types.UUID       `json:"approver_id"`
+		DecidedAt   time.Time                `json:"decided_at"`
+		ItemVersion int                      `json:"item_version"`
+		Level       int                      `json:"level"`
+		OnBehalfOf  *openapi_types.UUID      `json:"on_behalf_of"`
+		Reason      string                   `json:"reason"`
+		Verdict     ApprovalDecisionsVerdict `json:"verdict"`
+	} `json:"decisions"`
+
+	// DueAt When the current level is overdue; null without a limit.
+	DueAt  *time.Time         `json:"due_at"`
+	Id     openapi_types.UUID `json:"id"`
+	ItemId openapi_types.UUID `json:"item_id"`
+
+	// ItemNumber On the caller's own list only.
+	ItemNumber *int64 `json:"item_number,omitempty"`
+
+	// ItemTitle On the caller's own list only.
+	ItemTitle *string `json:"item_title,omitempty"`
+
+	// ItemVersion The entry's version when the approval was asked.
+	ItemVersion int `json:"item_version"`
+	Levels      []struct {
+		// Approvers The people counted when the approval opened.
+		Approvers []openapi_types.UUID `json:"approvers"`
+		Count     int                  `json:"count"`
+
+		// Needed How many yeses pass the level.
+		Needed int                `json:"needed"`
+		Roles  []string           `json:"roles"`
+		Rule   ApprovalLevelsRule `json:"rule"`
+	} `json:"levels"`
+	MayDecide bool `json:"may_decide"`
+
+	// OnBehalfOf On the caller's own list: the person away they decide for.
+	OnBehalfOf  *openapi_types.UUID `json:"on_behalf_of,omitempty"`
+	RequestedAt time.Time           `json:"requested_at"`
+	RequestedBy openapi_types.UUID  `json:"requested_by"`
+	State       ApprovalState       `json:"state"`
+	Step        string              `json:"step"`
+	Version     int                 `json:"version"`
+	Workflow    string              `json:"workflow"`
+}
+
+// ApprovalDecisionsVerdict defines model for Approval.Decisions.Verdict.
+type ApprovalDecisionsVerdict string
+
+// ApprovalLevelsRule defines model for Approval.Levels.Rule.
+type ApprovalLevelsRule string
+
+// ApprovalState defines model for Approval.State.
+type ApprovalState string
+
+// ApprovalDelegation defines model for ApprovalDelegation.
+type ApprovalDelegation struct {
+	DelegateId openapi_types.UUID `json:"delegate_id"`
+	From       time.Time          `json:"from"`
+	Until      time.Time          `json:"until"`
+}
+
+// ApprovalList defines model for ApprovalList.
+type ApprovalList struct {
+	Data []Approval `json:"data"`
+}
 
 // Article defines model for Article.
 type Article struct {
@@ -23138,6 +23292,22 @@ type SetAgentPolicyJSONBody struct {
 	RegisteredOnly bool `json:"registered_only"`
 }
 
+// SetApprovalDelegationJSONBody defines parameters for SetApprovalDelegation.
+type SetApprovalDelegationJSONBody struct {
+	DelegateId openapi_types.UUID `json:"delegate_id"`
+	From       time.Time          `json:"from"`
+	Until      time.Time          `json:"until"`
+}
+
+// DecideApprovalJSONBody defines parameters for DecideApproval.
+type DecideApprovalJSONBody struct {
+	Reason  *string                       `json:"reason,omitempty"`
+	Verdict DecideApprovalJSONBodyVerdict `json:"verdict"`
+}
+
+// DecideApprovalJSONBodyVerdict defines parameters for DecideApproval.
+type DecideApprovalJSONBodyVerdict string
+
 // SuggestArticlesParams defines parameters for SuggestArticles.
 type SuggestArticlesParams struct {
 	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
@@ -25433,6 +25603,12 @@ type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 
 // ChooseAiSourceJSONRequestBody defines body for ChooseAiSource for application/json ContentType.
 type ChooseAiSourceJSONRequestBody = AiSourceChoice
+
+// SetApprovalDelegationJSONRequestBody defines body for SetApprovalDelegation for application/json ContentType.
+type SetApprovalDelegationJSONRequestBody SetApprovalDelegationJSONBody
+
+// DecideApprovalJSONRequestBody defines body for DecideApproval for application/json ContentType.
+type DecideApprovalJSONRequestBody DecideApprovalJSONBody
 
 // RateArticleJSONRequestBody defines body for RateArticle for application/json ContentType.
 type RateArticleJSONRequestBody RateArticleJSONBody
@@ -28500,6 +28676,59 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /ai-source (the `ChooseAiSource` operationId).
 	ChooseAiSource(ctx context.Context, body ChooseAiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// EndApprovalDelegation Decide my approvals myself again
+	//
+	// Corresponds with DELETE /approval-delegation (the `EndApprovalDelegation` operationId).
+	EndApprovalDelegation(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadApprovalDelegation Who decides my approvals while I am away
+	//
+	// Corresponds with GET /approval-delegation (the `ReadApprovalDelegation` operationId).
+	ReadApprovalDelegation(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetApprovalDelegationWithBody Hand my approvals to somebody while I am away
+	//
+	// From one moment to another of at most a year, never to oneself; replaces an earlier delegation. The trail names both the delegate and the person they decided for.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /approval-delegation (the `SetApprovalDelegation` operationId).
+	SetApprovalDelegationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetApprovalDelegation Hand my approvals to somebody while I am away
+	//
+	// From one moment to another of at most a year, never to oneself; replaces an earlier delegation. The trail names both the delegate and the person they decided for.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /approval-delegation (the `SetApprovalDelegation` operationId).
+	SetApprovalDelegation(ctx context.Context, body SetApprovalDelegationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListMyApprovals The approvals waiting for me
+	//
+	// Oldest first: those whose current level counts the caller or names a role they hold there, and those of a person away whose approvals they decide - each with the entry's title and number.
+	//
+	// Corresponds with GET /approvals (the `ListMyApprovals` operationId).
+	ListMyApprovals(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DecideApprovalWithBody Approve or decline
+	//
+	// At the approval's current level, as an approver counted there, holding its role, or deciding for a counted person who is away. A decline needs a reason (`approvals.reason_required`); a second answer is `approvals.already_decided`. The last yes takes the step; a decline moves the entry to the step's decline status where it names one. An approval the caller may not decide is not found.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /approvals/{approvalId}:decide (the `DecideApproval` operationId).
+	DecideApprovalWithBody(ctx context.Context, approvalId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DecideApproval Approve or decline
+	//
+	// At the approval's current level, as an approver counted there, holding its role, or deciding for a counted person who is away. A decline needs a reason (`approvals.reason_required`); a second answer is `approvals.already_decided`. The last yes takes the step; a decline moves the entry to the step's decline status where it names one. An approval the caller may not decide is not found.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /approvals/{approvalId}:decide (the `DecideApproval` operationId).
+	DecideApproval(ctx context.Context, approvalId openapi_types.UUID, body DecideApprovalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SuggestArticles The articles a service's portal offers for what a requester types
 	//
@@ -31833,6 +32062,13 @@ type ClientInterface interface {
 	//
 	// The entry's own history, newest first: who did what, and when. It is the product's record and not the audit trail - it is readable by whoever may read the entry, and it is deleted with the entry. Each step carries a message code rather than a sentence, and the client renders it. For an activity the history is compact: the code, the actor and the time, without the fields that moved.
 	ListActivity(ctx context.Context, itemId ItemId, params *ListActivityParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadEntryApprovals An entry's approvals and their trail
+	//
+	// Newest first, each with its levels, the people counted, where it stands and who decided, for whom, when, why and on which version of the entry. Needs READ on the entry.
+	//
+	// Corresponds with GET /items/{itemId}/approvals (the `ReadEntryApprovals` operationId).
+	ReadEntryApprovals(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListAttachments performs a GET /items/{itemId}/attachments (the `ListAttachments` operationId) request.
 	//
@@ -39592,6 +39828,129 @@ func (c *Client) ChooseAiSource(ctx context.Context, body ChooseAiSourceJSONRequ
 	return c.Client.Do(req)
 }
 
+// EndApprovalDelegation Decide my approvals myself again
+//
+// Corresponds with DELETE /approval-delegation (the `EndApprovalDelegation` operationId).
+func (c *Client) EndApprovalDelegation(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewEndApprovalDelegationRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadApprovalDelegation Who decides my approvals while I am away
+//
+// Corresponds with GET /approval-delegation (the `ReadApprovalDelegation` operationId).
+func (c *Client) ReadApprovalDelegation(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadApprovalDelegationRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetApprovalDelegationWithBody Hand my approvals to somebody while I am away
+//
+// From one moment to another of at most a year, never to oneself; replaces an earlier delegation. The trail names both the delegate and the person they decided for.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /approval-delegation (the `SetApprovalDelegation` operationId).
+func (c *Client) SetApprovalDelegationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetApprovalDelegationRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetApprovalDelegation Hand my approvals to somebody while I am away
+//
+// From one moment to another of at most a year, never to oneself; replaces an earlier delegation. The trail names both the delegate and the person they decided for.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /approval-delegation (the `SetApprovalDelegation` operationId).
+func (c *Client) SetApprovalDelegation(ctx context.Context, body SetApprovalDelegationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetApprovalDelegationRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListMyApprovals The approvals waiting for me
+//
+// Oldest first: those whose current level counts the caller or names a role they hold there, and those of a person away whose approvals they decide - each with the entry's title and number.
+//
+// Corresponds with GET /approvals (the `ListMyApprovals` operationId).
+func (c *Client) ListMyApprovals(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMyApprovalsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DecideApprovalWithBody Approve or decline
+//
+// At the approval's current level, as an approver counted there, holding its role, or deciding for a counted person who is away. A decline needs a reason (`approvals.reason_required`); a second answer is `approvals.already_decided`. The last yes takes the step; a decline moves the entry to the step's decline status where it names one. An approval the caller may not decide is not found.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /approvals/{approvalId}:decide (the `DecideApproval` operationId).
+func (c *Client) DecideApprovalWithBody(ctx context.Context, approvalId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDecideApprovalRequestWithBody(c.Server, approvalId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DecideApproval Approve or decline
+//
+// At the approval's current level, as an approver counted there, holding its role, or deciding for a counted person who is away. A decline needs a reason (`approvals.reason_required`); a second answer is `approvals.already_decided`. The last yes takes the step; a decline moves the entry to the step's decline status where it names one. An approval the caller may not decide is not found.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /approvals/{approvalId}:decide (the `DecideApproval` operationId).
+func (c *Client) DecideApproval(ctx context.Context, approvalId openapi_types.UUID, body DecideApprovalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDecideApprovalRequest(c.Server, approvalId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // SuggestArticles The articles a service's portal offers for what a requester types
 //
 // At most ten articles published to the service's portal that the words find, best first - or, without words, the most read: offered while a request is typed, so that a question answered already need not be asked. Only live pages, never one behind a restriction. Needs REQUEST at the collection.
@@ -46715,6 +47074,23 @@ func (c *Client) UpdateWorkItemWithApplicationMergePatchPlusJSONBody(ctx context
 // The entry's own history, newest first: who did what, and when. It is the product's record and not the audit trail - it is readable by whoever may read the entry, and it is deleted with the entry. Each step carries a message code rather than a sentence, and the client renders it. For an activity the history is compact: the code, the actor and the time, without the fields that moved.
 func (c *Client) ListActivity(ctx context.Context, itemId ItemId, params *ListActivityParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListActivityRequest(c.Server, itemId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadEntryApprovals An entry's approvals and their trail
+//
+// Newest first, each with its levels, the people counted, where it stands and who decided, for whom, when, why and on which version of the entry. Needs READ on the entry.
+//
+// Corresponds with GET /items/{itemId}/approvals (the `ReadEntryApprovals` operationId).
+func (c *Client) ReadEntryApprovals(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadEntryApprovalsRequest(c.Server, itemId)
 	if err != nil {
 		return nil, err
 	}
@@ -61103,6 +61479,174 @@ func NewChooseAiSourceRequestWithBody(server string, contentType string, body io
 	return req, nil
 }
 
+// NewEndApprovalDelegationRequest constructs an http.Request for the EndApprovalDelegation method
+func NewEndApprovalDelegationRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/approval-delegation")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadApprovalDelegationRequest constructs an http.Request for the ReadApprovalDelegation method
+func NewReadApprovalDelegationRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/approval-delegation")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetApprovalDelegationRequest calls the generic SetApprovalDelegation builder with application/json body
+func NewSetApprovalDelegationRequest(server string, body SetApprovalDelegationJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetApprovalDelegationRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetApprovalDelegationRequestWithBody constructs an http.Request for the SetApprovalDelegation method, with any body, and a specified content type
+func NewSetApprovalDelegationRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/approval-delegation")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListMyApprovalsRequest constructs an http.Request for the ListMyApprovals method
+func NewListMyApprovalsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/approvals")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDecideApprovalRequest calls the generic DecideApproval builder with application/json body
+func NewDecideApprovalRequest(server string, approvalId openapi_types.UUID, body DecideApprovalJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDecideApprovalRequestWithBody(server, approvalId, "application/json", bodyReader)
+}
+
+// NewDecideApprovalRequestWithBody constructs an http.Request for the DecideApproval method, with any body, and a specified content type
+func NewDecideApprovalRequestWithBody(server string, approvalId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "approvalId", approvalId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/approvals/%s:decide", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewSuggestArticlesRequest constructs an http.Request for the SuggestArticles method
 func NewSuggestArticlesRequest(server string, params *SuggestArticlesParams) (*http.Request, error) {
 	var err error
@@ -73490,6 +74034,40 @@ func NewListActivityRequest(server string, itemId ItemId, params *ListActivityPa
 			rawQueryFragments = append(rawQueryFragments, encoded)
 		}
 		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadEntryApprovalsRequest constructs an http.Request for the ReadEntryApprovals method
+func NewReadEntryApprovalsRequest(server string, itemId ItemId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/approvals", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -91125,6 +91703,65 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /ai-source (the `ChooseAiSource` operationId).
 	ChooseAiSourceWithResponse(ctx context.Context, body ChooseAiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*ChooseAiSourceResult, error)
 
+	// EndApprovalDelegationWithResponse Decide my approvals myself again
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /approval-delegation (the `EndApprovalDelegation` operationId).
+	EndApprovalDelegationWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*EndApprovalDelegationResult, error)
+
+	// ReadApprovalDelegationWithResponse Who decides my approvals while I am away
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /approval-delegation (the `ReadApprovalDelegation` operationId).
+	ReadApprovalDelegationWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadApprovalDelegationResult, error)
+
+	// SetApprovalDelegationWithBodyWithResponse Hand my approvals to somebody while I am away
+	//
+	// From one moment to another of at most a year, never to oneself; replaces an earlier delegation. The trail names both the delegate and the person they decided for.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /approval-delegation (the `SetApprovalDelegation` operationId).
+	SetApprovalDelegationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetApprovalDelegationResult, error)
+
+	// SetApprovalDelegationWithResponse Hand my approvals to somebody while I am away
+	//
+	// From one moment to another of at most a year, never to oneself; replaces an earlier delegation. The trail names both the delegate and the person they decided for.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /approval-delegation (the `SetApprovalDelegation` operationId).
+	SetApprovalDelegationWithResponse(ctx context.Context, body SetApprovalDelegationJSONRequestBody, reqEditors ...RequestEditorFn) (*SetApprovalDelegationResult, error)
+
+	// ListMyApprovalsWithResponse The approvals waiting for me
+	//
+	// Oldest first: those whose current level counts the caller or names a role they hold there, and those of a person away whose approvals they decide - each with the entry's title and number.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /approvals (the `ListMyApprovals` operationId).
+	ListMyApprovalsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMyApprovalsResult, error)
+
+	// DecideApprovalWithBodyWithResponse Approve or decline
+	//
+	// At the approval's current level, as an approver counted there, holding its role, or deciding for a counted person who is away. A decline needs a reason (`approvals.reason_required`); a second answer is `approvals.already_decided`. The last yes takes the step; a decline moves the entry to the step's decline status where it names one. An approval the caller may not decide is not found.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /approvals/{approvalId}:decide (the `DecideApproval` operationId).
+	DecideApprovalWithBodyWithResponse(ctx context.Context, approvalId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DecideApprovalResult, error)
+
+	// DecideApprovalWithResponse Approve or decline
+	//
+	// At the approval's current level, as an approver counted there, holding its role, or deciding for a counted person who is away. A decline needs a reason (`approvals.reason_required`); a second answer is `approvals.already_decided`. The last yes takes the step; a decline moves the entry to the step's decline status where it names one. An approval the caller may not decide is not found.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /approvals/{approvalId}:decide (the `DecideApproval` operationId).
+	DecideApprovalWithResponse(ctx context.Context, approvalId openapi_types.UUID, body DecideApprovalJSONRequestBody, reqEditors ...RequestEditorFn) (*DecideApprovalResult, error)
+
 	// SuggestArticlesWithResponse The articles a service's portal offers for what a requester types
 	//
 	// At most ten articles published to the service's portal that the words find, best first - or, without words, the most read: offered while a request is typed, so that a question answered already need not be asked. Only live pages, never one behind a restriction. Needs REQUEST at the collection.
@@ -94753,6 +95390,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	ListActivityWithResponse(ctx context.Context, itemId ItemId, params *ListActivityParams, reqEditors ...RequestEditorFn) (*ListActivityResult, error)
+
+	// ReadEntryApprovalsWithResponse An entry's approvals and their trail
+	//
+	// Newest first, each with its levels, the people counted, where it stands and who decided, for whom, when, why and on which version of the entry. Needs READ on the entry.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /items/{itemId}/approvals (the `ReadEntryApprovals` operationId).
+	ReadEntryApprovalsWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ReadEntryApprovalsResult, error)
 
 	// ListAttachmentsWithResponse performs a GET /items/{itemId}/attachments (the `ListAttachments` operationId) request.
 	//
@@ -105095,6 +105741,243 @@ func (r ChooseAiSourceResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ChooseAiSourceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type EndApprovalDelegationResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r EndApprovalDelegationResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r EndApprovalDelegationResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r EndApprovalDelegationResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r EndApprovalDelegationResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r EndApprovalDelegationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadApprovalDelegationResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Delegation *ApprovalDelegation `json:"delegation"`
+	}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadApprovalDelegationResult) GetJSON200() *struct {
+	Delegation *ApprovalDelegation `json:"delegation"`
+} {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadApprovalDelegationResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadApprovalDelegationResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadApprovalDelegationResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadApprovalDelegationResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadApprovalDelegationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetApprovalDelegationResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ApprovalDelegation
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetApprovalDelegationResult) GetJSON200() *ApprovalDelegation {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetApprovalDelegationResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetApprovalDelegationResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetApprovalDelegationResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetApprovalDelegationResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetApprovalDelegationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListMyApprovalsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ApprovalList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListMyApprovalsResult) GetJSON200() *ApprovalList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListMyApprovalsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListMyApprovalsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListMyApprovalsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListMyApprovalsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListMyApprovalsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DecideApprovalResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Approval
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DecideApprovalResult) GetJSON200() *Approval {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DecideApprovalResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DecideApprovalResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DecideApprovalResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DecideApprovalResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DecideApprovalResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -117550,6 +118433,54 @@ func (r ListActivityResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListActivityResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadEntryApprovalsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ApprovalList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadEntryApprovalsResult) GetJSON200() *ApprovalList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadEntryApprovalsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadEntryApprovalsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadEntryApprovalsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadEntryApprovalsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadEntryApprovalsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -136682,6 +137613,107 @@ func (c *ClientWithResponses) ChooseAiSourceWithResponse(ctx context.Context, bo
 	return ParseChooseAiSourceResult(rsp)
 }
 
+// EndApprovalDelegationWithResponse Decide my approvals myself again
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /approval-delegation (the `EndApprovalDelegation` operationId).
+func (c *ClientWithResponses) EndApprovalDelegationWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*EndApprovalDelegationResult, error) {
+	rsp, err := c.EndApprovalDelegation(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseEndApprovalDelegationResult(rsp)
+}
+
+// ReadApprovalDelegationWithResponse Who decides my approvals while I am away
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /approval-delegation (the `ReadApprovalDelegation` operationId).
+func (c *ClientWithResponses) ReadApprovalDelegationWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadApprovalDelegationResult, error) {
+	rsp, err := c.ReadApprovalDelegation(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadApprovalDelegationResult(rsp)
+}
+
+// SetApprovalDelegationWithBodyWithResponse Hand my approvals to somebody while I am away
+//
+// From one moment to another of at most a year, never to oneself; replaces an earlier delegation. The trail names both the delegate and the person they decided for.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /approval-delegation (the `SetApprovalDelegation` operationId).
+func (c *ClientWithResponses) SetApprovalDelegationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetApprovalDelegationResult, error) {
+	rsp, err := c.SetApprovalDelegationWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetApprovalDelegationResult(rsp)
+}
+
+// SetApprovalDelegationWithResponse Hand my approvals to somebody while I am away
+//
+// From one moment to another of at most a year, never to oneself; replaces an earlier delegation. The trail names both the delegate and the person they decided for.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /approval-delegation (the `SetApprovalDelegation` operationId).
+func (c *ClientWithResponses) SetApprovalDelegationWithResponse(ctx context.Context, body SetApprovalDelegationJSONRequestBody, reqEditors ...RequestEditorFn) (*SetApprovalDelegationResult, error) {
+	rsp, err := c.SetApprovalDelegation(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetApprovalDelegationResult(rsp)
+}
+
+// ListMyApprovalsWithResponse The approvals waiting for me
+//
+// Oldest first: those whose current level counts the caller or names a role they hold there, and those of a person away whose approvals they decide - each with the entry's title and number.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /approvals (the `ListMyApprovals` operationId).
+func (c *ClientWithResponses) ListMyApprovalsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMyApprovalsResult, error) {
+	rsp, err := c.ListMyApprovals(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListMyApprovalsResult(rsp)
+}
+
+// DecideApprovalWithBodyWithResponse Approve or decline
+//
+// At the approval's current level, as an approver counted there, holding its role, or deciding for a counted person who is away. A decline needs a reason (`approvals.reason_required`); a second answer is `approvals.already_decided`. The last yes takes the step; a decline moves the entry to the step's decline status where it names one. An approval the caller may not decide is not found.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /approvals/{approvalId}:decide (the `DecideApproval` operationId).
+func (c *ClientWithResponses) DecideApprovalWithBodyWithResponse(ctx context.Context, approvalId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DecideApprovalResult, error) {
+	rsp, err := c.DecideApprovalWithBody(ctx, approvalId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDecideApprovalResult(rsp)
+}
+
+// DecideApprovalWithResponse Approve or decline
+//
+// At the approval's current level, as an approver counted there, holding its role, or deciding for a counted person who is away. A decline needs a reason (`approvals.reason_required`); a second answer is `approvals.already_decided`. The last yes takes the step; a decline moves the entry to the step's decline status where it names one. An approval the caller may not decide is not found.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /approvals/{approvalId}:decide (the `DecideApproval` operationId).
+func (c *ClientWithResponses) DecideApprovalWithResponse(ctx context.Context, approvalId openapi_types.UUID, body DecideApprovalJSONRequestBody, reqEditors ...RequestEditorFn) (*DecideApprovalResult, error) {
+	rsp, err := c.DecideApproval(ctx, approvalId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDecideApprovalResult(rsp)
+}
+
 // SuggestArticlesWithResponse The articles a service's portal offers for what a requester types
 //
 // At most ten articles published to the service's portal that the words find, best first - or, without words, the most read: offered while a request is typed, so that a question answered already need not be asked. Only live pages, never one behind a restriction. Needs REQUEST at the collection.
@@ -142589,6 +143621,21 @@ func (c *ClientWithResponses) ListActivityWithResponse(ctx context.Context, item
 		return nil, err
 	}
 	return ParseListActivityResult(rsp)
+}
+
+// ReadEntryApprovalsWithResponse An entry's approvals and their trail
+//
+// Newest first, each with its levels, the people counted, where it stands and who decided, for whom, when, why and on which version of the entry. Needs READ on the entry.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /items/{itemId}/approvals (the `ReadEntryApprovals` operationId).
+func (c *ClientWithResponses) ReadEntryApprovalsWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ReadEntryApprovalsResult, error) {
+	rsp, err := c.ReadEntryApprovals(ctx, itemId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadEntryApprovalsResult(rsp)
 }
 
 // ListAttachmentsWithResponse performs a GET /items/{itemId}/attachments (the `ListAttachments` operationId) request.
@@ -154172,6 +155219,169 @@ func ParseChooseAiSourceResult(rsp *http.Response) (*ChooseAiSourceResult, error
 	return response, nil
 }
 
+// ParseEndApprovalDelegationResult parses an HTTP response from a EndApprovalDelegationWithResponse call
+func ParseEndApprovalDelegationResult(rsp *http.Response) (*EndApprovalDelegationResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &EndApprovalDelegationResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadApprovalDelegationResult parses an HTTP response from a ReadApprovalDelegationWithResponse call
+func ParseReadApprovalDelegationResult(rsp *http.Response) (*ReadApprovalDelegationResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadApprovalDelegationResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Delegation *ApprovalDelegation `json:"delegation"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetApprovalDelegationResult parses an HTTP response from a SetApprovalDelegationWithResponse call
+func ParseSetApprovalDelegationResult(rsp *http.Response) (*SetApprovalDelegationResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetApprovalDelegationResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApprovalDelegation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListMyApprovalsResult parses an HTTP response from a ListMyApprovalsWithResponse call
+func ParseListMyApprovalsResult(rsp *http.Response) (*ListMyApprovalsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListMyApprovalsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApprovalList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDecideApprovalResult parses an HTTP response from a DecideApprovalWithResponse call
+func ParseDecideApprovalResult(rsp *http.Response) (*DecideApprovalResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DecideApprovalResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Approval
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseSuggestArticlesResult parses an HTTP response from a SuggestArticlesWithResponse call
 func ParseSuggestArticlesResult(rsp *http.Response) (*SuggestArticlesResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -162976,6 +164186,39 @@ func ParseListActivityResult(rsp *http.Response) (*ListActivityResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest ActivityPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadEntryApprovalsResult parses an HTTP response from a ReadEntryApprovalsWithResponse call
+func ParseReadEntryApprovalsResult(rsp *http.Response) (*ReadEntryApprovalsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadEntryApprovalsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApprovalList
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

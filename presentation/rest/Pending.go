@@ -2178,6 +2178,16 @@ func (pending) RenderReplyTemplate(w http.ResponseWriter, r *http.Request, _ ope
 func (pending) RateMyRequest(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }
+func (pending) ListMyApprovals(w http.ResponseWriter, r *http.Request)        { notAvailable(w, r) }
+func (pending) ReadApprovalDelegation(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) SetApprovalDelegation(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
+func (pending) EndApprovalDelegation(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
+func (pending) DecideApproval(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+func (pending) ReadEntryApprovals(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
 func (pending) ReadPlanSchedule(w http.ResponseWriter, r *http.Request, _ openapi.PlanId, _ openapi.ReadPlanScheduleParams) {
 	notAvailable(w, r)
 }

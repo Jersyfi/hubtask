@@ -1147,6 +1147,72 @@ func (e AiTranslationSource) Valid() bool {
 	}
 }
 
+// Defines values for ApprovalDecisionsVerdict.
+const (
+	ApprovalDecisionsVerdictAPPROVE ApprovalDecisionsVerdict = "APPROVE"
+	ApprovalDecisionsVerdictDECLINE ApprovalDecisionsVerdict = "DECLINE"
+)
+
+// Valid indicates whether the value is a known member of the ApprovalDecisionsVerdict enum.
+func (e ApprovalDecisionsVerdict) Valid() bool {
+	switch e {
+	case ApprovalDecisionsVerdictAPPROVE:
+		return true
+	case ApprovalDecisionsVerdictDECLINE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApprovalLevelsRule.
+const (
+	ApprovalLevelsRuleALL      ApprovalLevelsRule = "ALL"
+	ApprovalLevelsRuleANY      ApprovalLevelsRule = "ANY"
+	ApprovalLevelsRuleMAJORITY ApprovalLevelsRule = "MAJORITY"
+	ApprovalLevelsRuleNOF      ApprovalLevelsRule = "N_OF"
+)
+
+// Valid indicates whether the value is a known member of the ApprovalLevelsRule enum.
+func (e ApprovalLevelsRule) Valid() bool {
+	switch e {
+	case ApprovalLevelsRuleALL:
+		return true
+	case ApprovalLevelsRuleANY:
+		return true
+	case ApprovalLevelsRuleMAJORITY:
+		return true
+	case ApprovalLevelsRuleNOF:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApprovalState.
+const (
+	ApprovalStateAPPROVED  ApprovalState = "APPROVED"
+	ApprovalStateDECLINED  ApprovalState = "DECLINED"
+	ApprovalStatePENDING   ApprovalState = "PENDING"
+	ApprovalStateWITHDRAWN ApprovalState = "WITHDRAWN"
+)
+
+// Valid indicates whether the value is a known member of the ApprovalState enum.
+func (e ApprovalState) Valid() bool {
+	switch e {
+	case ApprovalStateAPPROVED:
+		return true
+	case ApprovalStateDECLINED:
+		return true
+	case ApprovalStatePENDING:
+		return true
+	case ApprovalStateWITHDRAWN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditActorType.
 const (
 	AuditActorTypeAIAGENT        AuditActorType = "AI_AGENT"
@@ -2925,16 +2991,16 @@ func (e ConfigChangeOp) Valid() bool {
 
 // Defines values for ConfigDecisionDecision.
 const (
-	APPLY   ConfigDecisionDecision = "APPLY"
-	DECLINE ConfigDecisionDecision = "DECLINE"
+	ConfigDecisionDecisionAPPLY   ConfigDecisionDecision = "APPLY"
+	ConfigDecisionDecisionDECLINE ConfigDecisionDecision = "DECLINE"
 )
 
 // Valid indicates whether the value is a known member of the ConfigDecisionDecision enum.
 func (e ConfigDecisionDecision) Valid() bool {
 	switch e {
-	case APPLY:
+	case ConfigDecisionDecisionAPPLY:
 		return true
-	case DECLINE:
+	case ConfigDecisionDecisionDECLINE:
 		return true
 	default:
 		return false
@@ -9628,6 +9694,24 @@ func (e ListAgentRequestsParamsStatus) Valid() bool {
 	}
 }
 
+// Defines values for DecideApprovalJSONBodyVerdict.
+const (
+	DecideApprovalJSONBodyVerdictAPPROVE DecideApprovalJSONBodyVerdict = "APPROVE"
+	DecideApprovalJSONBodyVerdictDECLINE DecideApprovalJSONBodyVerdict = "DECLINE"
+)
+
+// Valid indicates whether the value is a known member of the DecideApprovalJSONBodyVerdict enum.
+func (e DecideApprovalJSONBodyVerdict) Valid() bool {
+	switch e {
+	case DecideApprovalJSONBodyVerdictAPPROVE:
+		return true
+	case DecideApprovalJSONBodyVerdictDECLINE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListAuditEntriesParamsOutcome.
 const (
 	ListAuditEntriesParamsOutcomeDENIED  ListAuditEntriesParamsOutcome = "DENIED"
@@ -11177,6 +11261,76 @@ type AiTranslation struct {
 
 // AiTranslationSource defines model for AiTranslation.Source.
 type AiTranslationSource string
+
+// Approval A workflow step waiting for people's yes on one entry.
+type Approval struct {
+	CurrentLevel int        `json:"current_level"`
+	DecidedAt    *time.Time `json:"decided_at"`
+	Decisions    []struct {
+		ApproverId  openapi_types.UUID       `json:"approver_id"`
+		DecidedAt   time.Time                `json:"decided_at"`
+		ItemVersion int                      `json:"item_version"`
+		Level       int                      `json:"level"`
+		OnBehalfOf  *openapi_types.UUID      `json:"on_behalf_of"`
+		Reason      string                   `json:"reason"`
+		Verdict     ApprovalDecisionsVerdict `json:"verdict"`
+	} `json:"decisions"`
+
+	// DueAt When the current level is overdue; null without a limit.
+	DueAt  *time.Time         `json:"due_at"`
+	Id     openapi_types.UUID `json:"id"`
+	ItemId openapi_types.UUID `json:"item_id"`
+
+	// ItemNumber On the caller's own list only.
+	ItemNumber *int64 `json:"item_number,omitempty"`
+
+	// ItemTitle On the caller's own list only.
+	ItemTitle *string `json:"item_title,omitempty"`
+
+	// ItemVersion The entry's version when the approval was asked.
+	ItemVersion int `json:"item_version"`
+	Levels      []struct {
+		// Approvers The people counted when the approval opened.
+		Approvers []openapi_types.UUID `json:"approvers"`
+		Count     int                  `json:"count"`
+
+		// Needed How many yeses pass the level.
+		Needed int                `json:"needed"`
+		Roles  []string           `json:"roles"`
+		Rule   ApprovalLevelsRule `json:"rule"`
+	} `json:"levels"`
+	MayDecide bool `json:"may_decide"`
+
+	// OnBehalfOf On the caller's own list: the person away they decide for.
+	OnBehalfOf  *openapi_types.UUID `json:"on_behalf_of,omitempty"`
+	RequestedAt time.Time           `json:"requested_at"`
+	RequestedBy openapi_types.UUID  `json:"requested_by"`
+	State       ApprovalState       `json:"state"`
+	Step        string              `json:"step"`
+	Version     int                 `json:"version"`
+	Workflow    string              `json:"workflow"`
+}
+
+// ApprovalDecisionsVerdict defines model for Approval.Decisions.Verdict.
+type ApprovalDecisionsVerdict string
+
+// ApprovalLevelsRule defines model for Approval.Levels.Rule.
+type ApprovalLevelsRule string
+
+// ApprovalState defines model for Approval.State.
+type ApprovalState string
+
+// ApprovalDelegation defines model for ApprovalDelegation.
+type ApprovalDelegation struct {
+	DelegateId openapi_types.UUID `json:"delegate_id"`
+	From       time.Time          `json:"from"`
+	Until      time.Time          `json:"until"`
+}
+
+// ApprovalList defines model for ApprovalList.
+type ApprovalList struct {
+	Data []Approval `json:"data"`
+}
 
 // Article defines model for Article.
 type Article struct {
@@ -23133,6 +23287,22 @@ type SetAgentPolicyJSONBody struct {
 	RegisteredOnly bool `json:"registered_only"`
 }
 
+// SetApprovalDelegationJSONBody defines parameters for SetApprovalDelegation.
+type SetApprovalDelegationJSONBody struct {
+	DelegateId openapi_types.UUID `json:"delegate_id"`
+	From       time.Time          `json:"from"`
+	Until      time.Time          `json:"until"`
+}
+
+// DecideApprovalJSONBody defines parameters for DecideApproval.
+type DecideApprovalJSONBody struct {
+	Reason  *string                       `json:"reason,omitempty"`
+	Verdict DecideApprovalJSONBodyVerdict `json:"verdict"`
+}
+
+// DecideApprovalJSONBodyVerdict defines parameters for DecideApproval.
+type DecideApprovalJSONBodyVerdict string
+
 // SuggestArticlesParams defines parameters for SuggestArticles.
 type SuggestArticlesParams struct {
 	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
@@ -25429,6 +25599,12 @@ type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 // ChooseAiSourceJSONRequestBody defines body for ChooseAiSource for application/json ContentType.
 type ChooseAiSourceJSONRequestBody = AiSourceChoice
 
+// SetApprovalDelegationJSONRequestBody defines body for SetApprovalDelegation for application/json ContentType.
+type SetApprovalDelegationJSONRequestBody SetApprovalDelegationJSONBody
+
+// DecideApprovalJSONRequestBody defines body for DecideApproval for application/json ContentType.
+type DecideApprovalJSONRequestBody DecideApprovalJSONBody
+
 // RateArticleJSONRequestBody defines body for RateArticle for application/json ContentType.
 type RateArticleJSONRequestBody RateArticleJSONBody
 
@@ -27018,6 +27194,21 @@ type ServerInterface interface {
 	// ChooseAiSource Choose which AI answers this workspace
 	// (PUT /ai-source)
 	ChooseAiSource(w http.ResponseWriter, r *http.Request)
+	// EndApprovalDelegation Decide my approvals myself again
+	// (DELETE /approval-delegation)
+	EndApprovalDelegation(w http.ResponseWriter, r *http.Request)
+	// ReadApprovalDelegation Who decides my approvals while I am away
+	// (GET /approval-delegation)
+	ReadApprovalDelegation(w http.ResponseWriter, r *http.Request)
+	// SetApprovalDelegation Hand my approvals to somebody while I am away
+	// (PUT /approval-delegation)
+	SetApprovalDelegation(w http.ResponseWriter, r *http.Request)
+	// ListMyApprovals The approvals waiting for me
+	// (GET /approvals)
+	ListMyApprovals(w http.ResponseWriter, r *http.Request)
+	// DecideApproval Approve or decline
+	// (POST /approvals/{approvalId}:decide)
+	DecideApproval(w http.ResponseWriter, r *http.Request, approvalId openapi_types.UUID)
 	// SuggestArticles The articles a service's portal offers for what a requester types
 	// (GET /articles)
 	SuggestArticles(w http.ResponseWriter, r *http.Request, params SuggestArticlesParams)
@@ -27783,6 +27974,9 @@ type ServerInterface interface {
 
 	// (GET /items/{itemId}/activity)
 	ListActivity(w http.ResponseWriter, r *http.Request, itemId ItemId, params ListActivityParams)
+	// ReadEntryApprovals An entry's approvals and their trail
+	// (GET /items/{itemId}/approvals)
+	ReadEntryApprovals(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
 	// (GET /items/{itemId}/attachments)
 	ListAttachments(w http.ResponseWriter, r *http.Request, itemId ItemId, params ListAttachmentsParams)
@@ -32379,6 +32573,88 @@ func (siw *ServerInterfaceWrapper) ChooseAiSource(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ChooseAiSource(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EndApprovalDelegation operation middleware
+func (siw *ServerInterfaceWrapper) EndApprovalDelegation(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EndApprovalDelegation(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadApprovalDelegation operation middleware
+func (siw *ServerInterfaceWrapper) ReadApprovalDelegation(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadApprovalDelegation(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetApprovalDelegation operation middleware
+func (siw *ServerInterfaceWrapper) SetApprovalDelegation(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetApprovalDelegation(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMyApprovals operation middleware
+func (siw *ServerInterfaceWrapper) ListMyApprovals(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMyApprovals(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DecideApproval operation middleware
+func (siw *ServerInterfaceWrapper) DecideApproval(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "approvalId" -------------
+	var approvalId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "approvalId", r.PathValue("approvalId"), &approvalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "approvalId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DecideApproval(w, r, approvalId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -41195,6 +41471,32 @@ func (siw *ServerInterfaceWrapper) ListActivity(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListActivity(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadEntryApprovals operation middleware
+func (siw *ServerInterfaceWrapper) ReadEntryApprovals(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadEntryApprovals(w, r, itemId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -52721,6 +53023,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/reply-templates/{templateKey}", wrapper.DeleteReplyTemplate)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/reply-templates/{templateKey}", wrapper.DefineReplyTemplate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/reply-templates/{templateKey}", wrapper.RenderReplyTemplate)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/approvals", wrapper.ListMyApprovals)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/approvals/{approvalId}:decide", wrapper.DecideApproval)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/approvals", wrapper.ReadEntryApprovals)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/approval-delegation", wrapper.EndApprovalDelegation)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/approval-delegation", wrapper.ReadApprovalDelegation)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/approval-delegation", wrapper.SetApprovalDelegation)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/request-catalogue", wrapper.ListRequestCatalogue)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/articles", wrapper.SuggestArticles)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/articles/{pageId}", wrapper.ReadArticle)

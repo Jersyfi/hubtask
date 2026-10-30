@@ -2008,6 +2008,36 @@ class EntrySlaGoal(TypedDict, total=False):
     met_at: Required[str | None]
     breached_at: Required[str | None]
 
+class Approval(TypedDict, total=False):
+    """A workflow step waiting for people's yes on one entry."""
+    id: Required[str]
+    item_id: Required[str]
+    item_title: str
+    item_number: int
+    on_behalf_of: str | None
+    workflow: Required[str]
+    step: Required[str]
+    item_version: Required[int]
+    state: Required[Literal["PENDING", "APPROVED", "DECLINED", "WITHDRAWN"]]
+    current_level: Required[int]
+    levels: Required[list[dict[str, Any]]]
+    decisions: Required[list[dict[str, Any]]]
+    requested_by: Required[str]
+    requested_at: Required[str]
+    decided_at: Required[str | None]
+    due_at: Required[str | None]
+    may_decide: Required[bool]
+    version: Required[int]
+
+class ApprovalList(TypedDict, total=False):
+    data: Required[list["Approval"]]
+
+ApprovalDelegation = TypedDict("ApprovalDelegation", {
+    "delegate_id": Required[str],
+    "from": Required[str],
+    "until": Required[str],
+}, total=False)
+
 class RequestCatalogue(TypedDict, total=False):
     data: Required[list[dict[str, Any]]]
 

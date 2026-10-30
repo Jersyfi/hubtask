@@ -5666,6 +5666,243 @@
         }
       }
     },
+    "/approvals": {
+      "get": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "listMyApprovals",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "approval mine",
+        "summary": "The approvals waiting for me",
+        "description": "Oldest first: those whose current level counts the caller or names a role they hold there, and those of a person away whose approvals they decide - each with the entry's title and number.\n",
+        "responses": {
+          "200": {
+            "description": "The approvals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/approvals/{approvalId}:decide": {
+      "parameters": [
+        {
+          "name": "approvalId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "decideApproval",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "approval decide",
+        "summary": "Approve or decline",
+        "description": "At the approval's current level, as an approver counted there, holding its role, or deciding for a counted person who is away. A decline needs a reason (`approvals.reason_required`); a second answer is `approvals.already_decided`. The last yes takes the step; a decline moves the entry to the step's decline status where it names one. An approval the caller may not decide is not found.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "verdict"
+                ],
+                "properties": {
+                  "verdict": {
+                    "type": "string",
+                    "enum": [
+                      "APPROVE",
+                      "DECLINE"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The approval as it now stands",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Approval"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/items/{itemId}/approvals": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ItemId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "readEntryApprovals",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "approval ls",
+        "summary": "An entry's approvals and their trail",
+        "description": "Newest first, each with its levels, the people counted, where it stands and who decided, for whom, when, why and on which version of the entry. Needs READ on the entry.\n",
+        "responses": {
+          "200": {
+            "description": "The approvals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/approval-delegation": {
+      "get": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "readApprovalDelegation",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "approval delegation",
+        "summary": "Who decides my approvals while I am away",
+        "responses": {
+          "200": {
+            "description": "The delegation, or null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "delegation"
+                  ],
+                  "properties": {
+                    "delegation": {
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/ApprovalDelegation"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "setApprovalDelegation",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "approval delegate",
+        "summary": "Hand my approvals to somebody while I am away",
+        "description": "From one moment to another of at most a year, never to oneself; replaces an earlier delegation. The trail names both the delegate and the person they decided for.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "delegate_id",
+                  "from",
+                  "until"
+                ],
+                "properties": {
+                  "delegate_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "from": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "until": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The delegation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalDelegation"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "endApprovalDelegation",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "approval undelegate",
+        "summary": "Decide my approvals myself again",
+        "responses": {
+          "204": {
+            "description": "Ended"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/request-catalogue": {
       "get": {
         "tags": [
@@ -39850,6 +40087,234 @@
               "string",
               "null"
             ],
+            "format": "date-time"
+          }
+        }
+      },
+      "Approval": {
+        "type": "object",
+        "description": "A workflow step waiting for people's yes on one entry.",
+        "required": [
+          "id",
+          "item_id",
+          "workflow",
+          "step",
+          "item_version",
+          "state",
+          "current_level",
+          "levels",
+          "decisions",
+          "requested_by",
+          "requested_at",
+          "decided_at",
+          "due_at",
+          "may_decide",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "item_title": {
+            "type": "string",
+            "description": "On the caller's own list only."
+          },
+          "item_number": {
+            "type": "integer",
+            "format": "int64",
+            "description": "On the caller's own list only."
+          },
+          "on_behalf_of": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "On the caller's own list: the person away they decide for."
+          },
+          "workflow": {
+            "type": "string"
+          },
+          "step": {
+            "type": "string"
+          },
+          "item_version": {
+            "type": "integer",
+            "description": "The entry's version when the approval was asked."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "DECLINED",
+              "WITHDRAWN"
+            ]
+          },
+          "current_level": {
+            "type": "integer"
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "rule",
+                "count",
+                "approvers",
+                "roles",
+                "needed"
+              ],
+              "properties": {
+                "rule": {
+                  "type": "string",
+                  "enum": [
+                    "ANY",
+                    "ALL",
+                    "N_OF",
+                    "MAJORITY"
+                  ]
+                },
+                "count": {
+                  "type": "integer"
+                },
+                "approvers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "description": "The people counted when the approval opened."
+                },
+                "roles": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "needed": {
+                  "type": "integer",
+                  "description": "How many yeses pass the level."
+                }
+              }
+            }
+          },
+          "decisions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "level",
+                "approver_id",
+                "on_behalf_of",
+                "verdict",
+                "reason",
+                "item_version",
+                "decided_at"
+              ],
+              "properties": {
+                "level": {
+                  "type": "integer"
+                },
+                "approver_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "on_behalf_of": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "verdict": {
+                  "type": "string",
+                  "enum": [
+                    "APPROVE",
+                    "DECLINE"
+                  ]
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "item_version": {
+                  "type": "integer"
+                },
+                "decided_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "requested_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decided_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "due_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the current level is overdue; null without a limit."
+          },
+          "may_decide": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "ApprovalList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Approval"
+            }
+          }
+        }
+      },
+      "ApprovalDelegation": {
+        "type": "object",
+        "required": [
+          "delegate_id",
+          "from",
+          "until"
+        ],
+        "properties": {
+          "delegate_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "until": {
+            "type": "string",
             "format": "date-time"
           }
         }

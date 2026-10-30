@@ -756,6 +756,36 @@ export class HubtaskClient {
     return this.call("GET", "/items/{itemId}/reply-templates/{templateKey}", { "itemId": itemId, "templateKey": templateKey }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** The approvals waiting for me */
+  listMyApprovals(options: CallOptions = {}): Promise<operations["listMyApprovals"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/approvals", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Approve or decline */
+  decideApproval(approvalId: string, body: NonNullable<operations["decideApproval"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["decideApproval"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/approvals/{approvalId}:decide", { "approvalId": approvalId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** An entry's approvals and their trail */
+  readEntryApprovals(itemId: string, options: CallOptions = {}): Promise<operations["readEntryApprovals"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/items/{itemId}/approvals", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Who decides my approvals while I am away */
+  readApprovalDelegation(options: CallOptions = {}): Promise<operations["readApprovalDelegation"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/approval-delegation", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Hand my approvals to somebody while I am away */
+  setApprovalDelegation(body: NonNullable<operations["setApprovalDelegation"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setApprovalDelegation"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/approval-delegation", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Decide my approvals myself again */
+  endApprovalDelegation(options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/approval-delegation", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** The kinds of request a service offers */
   listRequestCatalogue(options: CallOptions & { readonly query?: NonNullable<operations["listRequestCatalogue"]['parameters']['query']> } = {}): Promise<operations["listRequestCatalogue"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/request-catalogue", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

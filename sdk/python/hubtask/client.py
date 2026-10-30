@@ -619,6 +619,30 @@ class Client:
         """A canned reply filled for an entry"""
         return self._call("GET", "/items/{itemId}/reply-templates/{templateKey}", {"itemId": item_id, "templateKey": template_key}, None, {}, None, "none", None, "json")
 
+    def list_my_approvals(self) -> "ApprovalList":
+        """The approvals waiting for me"""
+        return self._call("GET", "/approvals", {}, None, {}, None, "none", None, "json")
+
+    def decide_approval(self, approval_id: str, body: dict[str, Any]) -> "Approval":
+        """Approve or decline"""
+        return self._call("POST", "/approvals/{approvalId}:decide", {"approvalId": approval_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_entry_approvals(self, item_id: str) -> "ApprovalList":
+        """An entry's approvals and their trail"""
+        return self._call("GET", "/items/{itemId}/approvals", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def read_approval_delegation(self) -> dict[str, Any]:
+        """Who decides my approvals while I am away"""
+        return self._call("GET", "/approval-delegation", {}, None, {}, None, "none", None, "json")
+
+    def set_approval_delegation(self, body: dict[str, Any]) -> "ApprovalDelegation":
+        """Hand my approvals to somebody while I am away"""
+        return self._call("PUT", "/approval-delegation", {}, None, {}, body, "json", "application/json", "json")
+
+    def end_approval_delegation(self) -> None:
+        """Decide my approvals myself again"""
+        return self._call("DELETE", "/approval-delegation", {}, None, {}, None, "none", None, "void")
+
     def list_request_catalogue(self, *, query: dict[str, Any] | None = None) -> "RequestCatalogue":
         """The kinds of request a service offers"""
         return self._call("GET", "/request-catalogue", {}, query, {}, None, "none", None, "json")
