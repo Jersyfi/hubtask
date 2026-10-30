@@ -78,6 +78,10 @@
     PlanView: () => import('./views/PlanView.svelte'),
     SprintView: () => import('./views/SprintView.svelte'),
     TimeView: () => import('./views/TimeView.svelte'),
+    GoalsView: () => import('./views/GoalsView.svelte'),
+    GoalView: () => import('./views/GoalView.svelte'),
+    PortfolioView: () => import('./views/PortfolioView.svelte'),
+    DashboardView: () => import('./views/DashboardView.svelte'),
     ActualsView: () => import('./views/ActualsView.svelte'),
     WorkloadView: () => import('./views/WorkloadView.svelte'),
     TimeSettingsView: () => import('./views/TimeSettingsView.svelte'),
@@ -418,6 +422,20 @@
     {/key}
   {:else if route.name === 'time'}
     <LazyView load={views.TimeView} props={{ tab: route.query['tab'], week: route.query['week'], onnavigate: (path: string) => router.replace(path) }} />
+  {:else if route.name === 'goals'}
+    <LazyView load={views.GoalsView} props={{ tab: route.query['tab'], period: route.query['period'], hub: route.query['hub'], onnavigate: (path: string) => router.replace(path) }} />
+  {:else if route.name === 'goal'}
+    {#key route.path}
+      <LazyView load={views.GoalView} props={{ goalId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'portfolio'}
+    {#key route.path}
+      <LazyView load={views.PortfolioView} props={{ portfolioId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'dashboard'}
+    {#key route.path}
+      <LazyView load={views.DashboardView} props={{ dashboardId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
   {:else if route.name === 'hub-actuals' || route.name === 'collection-actuals'}
     {#key route.path}
       <LazyView load={views.ActualsView} props={{ planId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />

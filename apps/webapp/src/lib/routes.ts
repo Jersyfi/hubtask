@@ -120,6 +120,12 @@ export const ROUTES: readonly Route[] = [
   // The reader's time (M7): their week, the weeks waiting for their decision, and the report, as
   // tabs (`?tab=`). End-user: recording one's own time is the work, not its administration.
   { name: 'time', pattern: '/time' },
+  // Goals, portfolios and dashboards (M8): a period's goals, the portfolios and the dashboards as
+  // tabs (`?tab=`, `?period=`, `?hub=`), and one of each by itself.
+  { name: 'goals', pattern: '/goals' },
+  { name: 'goal', pattern: '/goals/:id' },
+  { name: 'portfolio', pattern: '/portfolios/:id' },
+  { name: 'dashboard', pattern: '/dashboards/:id' },
   { name: 'trash', pattern: '/trash' },
   { name: 'archive', pattern: '/archive' },
   // The address the board's cards and the search results link to. An entry is

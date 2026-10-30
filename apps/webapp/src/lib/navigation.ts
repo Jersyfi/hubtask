@@ -94,6 +94,10 @@ export const DESTINATIONS: readonly Destination[] = [
   // behind the avatar, because it is about the reader rather than a place of the workspace; drawn
   // only where the time module is on.
   { id: 'time', group: 'account', icon: 'clock', code: 'app.nav.time', target: { kind: 'route', path: '/time' }, routes: ['time'], module: 'TIME' },
+  // Goals, portfolios and dashboards (M8): the workspace's view of whether the work adds up. Behind
+  // the avatar beside the reader's time rather than in the primary group, whose three spaces are
+  // the work itself; drawn only where the goals module is on.
+  { id: 'goals', group: 'account', icon: 'flag', code: 'app.nav.goals', target: { kind: 'route', path: '/goals' }, routes: ['goals', 'goal', 'portfolio', 'dashboard'], module: 'GOALS' },
   { id: 'administration', group: 'account', icon: 'settings', code: 'app.nav.administration', target: { kind: 'route', path: '/administration' }, routes: ['administration'], area: 'administration' },
   // The level above the workspaces (ADR-0070 §5). Drawn only for an account in the operator
   // register, which the manifest answers — never compiled in, and **absent** rather than disabled

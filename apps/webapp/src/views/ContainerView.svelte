@@ -871,6 +871,10 @@
       actions.push({ label: t('app.workload.title'), icon: 'users', onclick: () => onnavigate(`${base}/workload`) });
     }
     if (container.type !== 'HUB') return actions;
+    if (on.includes('GOALS')) {
+      actions.push({ label: t('app.goals.hub_goals'), icon: 'flag', onclick: () => onnavigate(`/goals?hub=${id}`) });
+      actions.push({ label: t('app.dashboards.hub_dashboards'), icon: 'gauge', onclick: () => onnavigate(`/goals?tab=dashboards&hub=${id}`) });
+    }
     if (on.includes('KNOWLEDGE')) actions.push({ label: t('app.pages.title'), icon: 'book-open', onclick: () => onnavigate(`/hubs/${id}/pages`) });
     if (on.includes('WHITEBOARD')) actions.push({ label: t('app.whiteboards.title'), icon: 'layout-template', onclick: () => onnavigate(`/hubs/${id}/whiteboards`) });
     if (on.includes('ASSETS')) actions.push({ label: t('app.assets.title'), icon: 'shield', onclick: () => onnavigate(`/hubs/${id}/assets`) });
