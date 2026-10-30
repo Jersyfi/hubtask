@@ -327,7 +327,7 @@ func TestAGroupStandsForAServiceInTheServiceMap(t *testing.T) {
 	f, _ := assuredFixture()
 	out, err := call(t, DefineCiGroup{Inventory: f.inv}.Descriptor(), as(anna), usecase.Input{
 		"hub_id": hub.String(), "key": "booking_vms", "name": "Booking machines",
-		"filter": map[string]any{"classes": []any{"virtual_machine"}, "attributes": map[string]any{"app": "Booking"}},
+		"filter":     map[string]any{"classes": []any{"virtual_machine"}, "attributes": map[string]any{"app": "Booking"}},
 		"service_id": booking.String(),
 	})
 	if err != nil || out["members"] != 1 {
