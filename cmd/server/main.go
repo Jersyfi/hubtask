@@ -1865,6 +1865,13 @@ func run() error {
 		Entries: portalEntries, Items: items, Containers: containers, Comments: postgres.NewCommentRepository(cursors),
 		EntryTypes: entryTypes, Fields: customFields, Gate: entryGate, Desk: serviceDesk,
 	}
+	// Approvals (UC-APR-01 to 03): a step waiting for people's yes; the decision takes the step
+	// through TakeStep in the registry.
+	approvalSteps := &deferredCatalogue{}
+	stepApprovals := servicedeskservice.Approvals{
+		Store: serviceDeskStore.Approvals(), Items: items, Containers: containers, Groups: groups,
+		Roles: authorizer, Steps: approvalSteps, Desk: serviceDesk,
+	}
 	// The planning module (M2): a plan is a hub or a collection, read for whoever may see its
 	// entries; an accepted move goes through UpdateWorkItem in the registry.
 	planMoves := &deferredCatalogue{}
@@ -2053,6 +2060,12 @@ func run() error {
 		servicedeskservice.ReadMyRequest{Portal: requestPortal}.Descriptor(),
 		servicedeskservice.CommentOnMyRequest{Portal: requestPortal}.Descriptor(),
 		servicedeskservice.RateMyRequest{Portal: requestPortal}.Descriptor(),
+		servicedeskservice.DecideApproval{Approvals: stepApprovals}.Descriptor(),
+		servicedeskservice.ListMyApprovals{Approvals: stepApprovals}.Descriptor(),
+		servicedeskservice.ReadEntryApprovals{Approvals: stepApprovals}.Descriptor(),
+		servicedeskservice.SetApprovalDelegation{Approvals: stepApprovals}.Descriptor(),
+		servicedeskservice.ReadApprovalDelegation{Approvals: stepApprovals}.Descriptor(),
+		servicedeskservice.EndApprovalDelegation{Approvals: stepApprovals}.Descriptor(),
 		planningservice.ReadPlanSchedule{Planner: planner}.Descriptor(),
 		planningservice.ApplyPlanSchedule{Planner: planner}.Descriptor(),
 		planningservice.SetDependencyTiming{Planner: planner}.Descriptor(),
@@ -2240,7 +2253,7 @@ func run() error {
 		workflowservice.PreviewWorkflowScheme{Desk: workflowDesk}.Descriptor(),
 		workflowservice.SetWorkflowScheme{Desk: workflowDesk}.Descriptor(),
 		workflowservice.TryWorkflowStep{Desk: workflowDesk}.Descriptor(),
-		work.TakeStep{Completion: completion, Rules: stepRules}.Descriptor(),
+		work.TakeStep{Completion: completion, Rules: stepRules, Approvals: stepApprovals}.Descriptor(),
 		work.ListEntrySteps{Completion: completion}.Descriptor(),
 		work.SetItemEntryType{
 			Gate:  entryGate,
@@ -3331,6 +3344,7 @@ func run() error {
 	alertEntries.catalogue = useCases
 	agentCatalogue.catalogue = useCases
 	portalEntries.catalogue = useCases
+	approvalSteps.catalogue = useCases
 	personalHubs.catalogue = useCases
 	planMoves.catalogue = useCases
 	suggestionCatalogue.catalogue = useCases

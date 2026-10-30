@@ -252,6 +252,33 @@ var generatedCommands = []door{
 			{Name: "source", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "key", "name", "version"}},
+	{Group: "approval", Verb: "decide", OperationID: "decideApproval", Method: "POST", Path: "/approvals/{approvalId}:decide", Summary: "Approve or decline",
+		PathParams: []doorParam{
+			{Name: "approvalId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "reason", Kind: "string", Help: "", Required: false},
+			{Name: "verdict", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "state", "version"}},
+	{Group: "approval", Verb: "delegate", OperationID: "setApprovalDelegation", Method: "PUT", Path: "/approval-delegation", Summary: "Hand my approvals to somebody while I am away",
+		Body: []doorParam{
+			{Name: "delegate_id", Kind: "uuid", Help: "", Required: true},
+			{Name: "from", Kind: "string", Help: "", Required: true},
+			{Name: "until", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"delegate_id", "from", "until"}},
+	{Group: "approval", Verb: "delegation", OperationID: "readApprovalDelegation", Method: "GET", Path: "/approval-delegation", Summary: "Who decides my approvals while I am away",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "approval", Verb: "ls", OperationID: "readEntryApprovals", Method: "GET", Path: "/items/{itemId}/approvals", Summary: "An entry's approvals and their trail",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "state", "version"}},
+	{Group: "approval", Verb: "mine", OperationID: "listMyApprovals", Method: "GET", Path: "/approvals", Summary: "The approvals waiting for me",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "state", "version"}},
+	{Group: "approval", Verb: "undelegate", OperationID: "endApprovalDelegation", Method: "DELETE", Path: "/approval-delegation", Summary: "Decide my approvals myself again",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "article", Verb: "rate", OperationID: "rateArticle", Method: "POST", Path: "/articles/{pageId}:rate", Summary: "Say whether an article helped",
 		PathParams: []doorParam{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},

@@ -132,6 +132,17 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `ai.template_asked` | AiGenerateTemplate | `ai_suggestion` | NOTICE | Every time |
 | `ai.translation_asked` | AiTranslate | `item` | NOTICE | Every time |
 
+## Approval
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `approval.decided` | DecideApproval | `approval` | INFO | Every time |
+| `approval.delegation_ended` | EndApprovalDelegation | `approval_delegation` | INFO | Every time |
+| `approval.delegation_read` | ReadApprovalDelegation | `approval_delegation` | INFO | When refused |
+| `approval.delegation_set` | SetApprovalDelegation | `approval_delegation` | INFO | Every time |
+| `approval.read` | ListMyApprovals | `approval` | INFO | When refused |
+| `approval.read` | ReadEntryApprovals | `approval` | INFO | When refused |
+
 ## Audit of the audit
 
 | Action | Use case | Target | Severity | Recorded |

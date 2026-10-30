@@ -394,8 +394,10 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 // another person's, and the shared calendar of absences every member reads (UC-TIM-06, 07). The
 // two of a view as somebody that ask none are a session's own: reading and ending its view (UC-ID-29).
 // The three of a person's notes are their own: the pages shared with them, their personal space and
-// its daily note (UC-DOC-07, UC-DOC-08).
-const undeclaredPermissionsAtMost = 181
+// its daily note (UC-DOC-07, UC-DOC-08). The five of approvals are a person's own or decided per
+// approval: deciding one the reader is an approver of, their waiting list, and their delegation
+// set, read and ended (UC-APR-02, UC-APR-03).
+const undeclaredPermissionsAtMost = 186
 
 func TestTheDeclaredPermissionsOnlyGrow(t *testing.T) {
 	undeclared := 0
