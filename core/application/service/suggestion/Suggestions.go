@@ -669,7 +669,7 @@ var draftableActions = map[string]draftable{
 	},
 	"ADD_COMMENT": {
 		Fields: map[string]fieldUse{"body": useText},
-		Never:  []string{"parent_comment_id"},
+		Never:  []string{"parent_comment_id", "internal"},
 	},
 	"CONVERT_JUMBLE_ENTRY": {
 		Fields: map[string]fieldUse{"collection_id": useCollection, "type": useItemType, "title": useText},
