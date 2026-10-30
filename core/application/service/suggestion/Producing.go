@@ -657,6 +657,7 @@ func (h Produce) ask(
 		Provenance: domain.Provenance{
 			Model: answer.Model, PromptID: answer.PromptID,
 			PromptVersion: answer.PromptVersion, ProducedAt: answer.ProducedAt,
+			AgentID: actor.AsAgent,
 		},
 		InputDigest:  material.Digest,
 		DroppedNodes: dropped,

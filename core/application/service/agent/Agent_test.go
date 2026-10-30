@@ -411,7 +411,7 @@ func TestTheGateHoldsAnAgentToItsGovernance(t *testing.T) {
 	if _, err := run(read, usecase.Input{}); err != nil {
 		t.Fatalf("a live agent's read: %v", err)
 	}
-	if seen.OnBehalfOf != ana || seen.Kind != appshared.ActorAIAgent || slices.Contains(seen.Scopes, "members:write") {
+	if seen.OnBehalfOf != ana || seen.AsAgent != a.ID || seen.Kind != appshared.ActorAIAgent || slices.Contains(seen.Scopes, "members:write") {
 		t.Fatalf("the read ran as %+v", seen)
 	}
 	_, err := run(write, usecase.Input{"item_id": "x", "title": "New", "step_up_token": "secret"})

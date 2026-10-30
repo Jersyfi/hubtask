@@ -45,3 +45,30 @@ func TestAcceptingMarksTheValuesThatCameFromAI(t *testing.T) {
 		t.Fatalf("mark = %+v", m)
 	}
 }
+
+// UC-AGT-05 check 1: a value an agent proposed and a person accepted is marked with that agent;
+// one a person asked for names none.
+func TestAcceptingNamesTheAgentThatAsked(t *testing.T) {
+	triage := shared.MustParseID("0192f000-0000-7000-8000-0000000000ab")
+	for _, tc := range []struct {
+		name  string
+		asked shared.ID
+	}{{"an agent asked", triage}, {"a person asked", ""}} {
+		t.Run(tc.name, func(t *testing.T) {
+			cases, world := newWorld()
+			written := &marks{}
+			cases.Marks, cases.IDs = written, markIDs{}
+			stored := proposal()
+			stored.Payload = map[string]any{"title": "Printer down"}
+			stored.AgentID = tc.asked
+			world.store.proposals[proposalID] = stored
+
+			if _, err := (AcceptSuggestion{Cases: cases}).Execute(context.Background(), person(), proposalID, nil); err != nil {
+				t.Fatalf("accepting: %v", err)
+			}
+			if len(written.written) != 1 || written.written[0].AgentID != tc.asked {
+				t.Fatalf("marks = %+v, want agent %q", written.written, tc.asked)
+			}
+		})
+	}
+}

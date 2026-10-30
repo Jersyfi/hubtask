@@ -80,6 +80,9 @@ type ActorContext struct {
 	// else (M9, G2): the authoriser then asks what it asks of the actor of that person too, so an
 	// agent never does what the person it acts for may not. Empty for every other actor.
 	OnBehalfOf shared.ID
+	// AsAgent is the registered agent acting, set beside OnBehalfOf by the agents' gate and nowhere
+	// else, so what it proposes names it (UC-AGT-05 check 1). Empty for every other actor.
+	AsAgent shared.ID
 	// Channel is the door the act arrived through, as a type's form narrows it (work.FormChannel):
 	// set by the adapter - MCP, the sync service, mail intake, import - and empty for the REST
 	// door, which the web app and hubctl share.

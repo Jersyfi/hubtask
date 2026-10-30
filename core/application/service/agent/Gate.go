@@ -115,6 +115,7 @@ func (g Gate) agentOf(ctx context.Context, actor appshared.ActorContext) (domain
 func (g Gate) narrowed(actor appshared.ActorContext, a domain.Agent) appshared.ActorContext {
 	actor.Scopes = a.Narrow(actor.Scopes)
 	actor.OnBehalfOf = a.OwnerID
+	actor.AsAgent = a.ID
 	actor.Kind = appshared.ActorAIAgent
 	actor.Present = false
 	return actor

@@ -606,7 +606,7 @@ func (c Cases) mark(
 			continue
 		}
 		m, err := agentdomain.NewMark(agentdomain.Mark{
-			ID: c.IDs.NewID(), TargetType: target.kind, TargetID: target.id, Fields: fields, SuggestionID: proposal.ID,
+			ID: c.IDs.NewID(), TargetType: target.kind, TargetID: target.id, Fields: fields, SuggestionID: proposal.ID, AgentID: proposal.AgentID,
 			Model: model, PromptID: proposal.PromptID, PromptVersion: proposal.PromptVersion,
 			AcceptedBy: actor.AccountID, AcceptedAt: c.Clock.Now(),
 		})
