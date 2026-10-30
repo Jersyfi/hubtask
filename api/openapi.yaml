@@ -2412,7 +2412,10 @@ paths:
         prefixed with a quote mark); asked with `Accept:
         application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a
         spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula).
-        `Export-Truncated` says the file holds only the first 50000.
+        `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs
+        the right to manage costs at the workspace, every record also carries the hourly rate
+        that prices it and its cost, in that rate's currency's minor unit - empty where no rate
+        prices it, never converted.
       requestBody:
         required: true
         content:
@@ -2429,6 +2432,7 @@ paths:
                 hub_id: { type: string, format: uuid }
                 billable: { type: boolean }
                 entry_id: { type: string, format: uuid }
+                costs: { type: boolean }
       responses:
         "200":
           description: The rows
@@ -25141,6 +25145,9 @@ components:
               source: { type: string }
               corrects: { type: [string, "null"], format: uuid }
               note: { type: string }
+              rate_minor: { type: [integer, "null"], format: int64 }
+              currency: { type: string }
+              cost_minor: { type: [integer, "null"], format: int64 }
         truncated: { type: boolean }
 
     TimeTimer:

@@ -21548,6 +21548,8 @@ type TimeExport struct {
 		Billable     bool                `json:"billable"`
 		CollectionId *openapi_types.UUID `json:"collection_id"`
 		Corrects     *openapi_types.UUID `json:"corrects"`
+		CostMinor    *int64              `json:"cost_minor,omitempty"`
+		Currency     *string             `json:"currency,omitempty"`
 		Day          openapi_types.Date  `json:"day"`
 		EntryId      *openapi_types.UUID `json:"entry_id"`
 		EntryTitle   string              `json:"entry_title"`
@@ -21555,6 +21557,7 @@ type TimeExport struct {
 		HubId        *openapi_types.UUID `json:"hub_id"`
 		Minutes      int                 `json:"minutes"`
 		Note         string              `json:"note"`
+		RateMinor    *int64              `json:"rate_minor,omitempty"`
 		RecordId     openapi_types.UUID  `json:"record_id"`
 		Source       string              `json:"source"`
 		WorkType     string              `json:"work_type"`
@@ -25601,6 +25604,7 @@ type ExportTimeRecordsJSONBody struct {
 	AccountId    *openapi_types.UUID `json:"account_id,omitempty"`
 	Billable     *bool               `json:"billable,omitempty"`
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+	Costs        *bool               `json:"costs,omitempty"`
 	EntryId      *openapi_types.UUID `json:"entry_id,omitempty"`
 	From         openapi_types.Date  `json:"from"`
 	HubId        *openapi_types.UUID `json:"hub_id,omitempty"`

@@ -21553,6 +21553,8 @@ type TimeExport struct {
 		Billable     bool                `json:"billable"`
 		CollectionId *openapi_types.UUID `json:"collection_id"`
 		Corrects     *openapi_types.UUID `json:"corrects"`
+		CostMinor    *int64              `json:"cost_minor,omitempty"`
+		Currency     *string             `json:"currency,omitempty"`
 		Day          openapi_types.Date  `json:"day"`
 		EntryId      *openapi_types.UUID `json:"entry_id"`
 		EntryTitle   string              `json:"entry_title"`
@@ -21560,6 +21562,7 @@ type TimeExport struct {
 		HubId        *openapi_types.UUID `json:"hub_id"`
 		Minutes      int                 `json:"minutes"`
 		Note         string              `json:"note"`
+		RateMinor    *int64              `json:"rate_minor,omitempty"`
 		RecordId     openapi_types.UUID  `json:"record_id"`
 		Source       string              `json:"source"`
 		WorkType     string              `json:"work_type"`
@@ -25606,6 +25609,7 @@ type ExportTimeRecordsJSONBody struct {
 	AccountId    *openapi_types.UUID `json:"account_id,omitempty"`
 	Billable     *bool               `json:"billable,omitempty"`
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+	Costs        *bool               `json:"costs,omitempty"`
 	EntryId      *openapi_types.UUID `json:"entry_id,omitempty"`
 	From         openapi_types.Date  `json:"from"`
 	HubId        *openapi_types.UUID `json:"hub_id,omitempty"`
@@ -36317,7 +36321,7 @@ type ClientInterface interface {
 
 	// ExportTimeRecordsWithBody Hand time records to accounting
 	//
-	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000.
+	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -36326,7 +36330,7 @@ type ClientInterface interface {
 
 	// ExportTimeRecords Hand time records to accounting
 	//
-	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000.
+	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -55886,7 +55890,7 @@ func (c *Client) CorrectTimeRecord(ctx context.Context, recordId TimeRecordId, b
 
 // ExportTimeRecordsWithBody Hand time records to accounting
 //
-// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000.
+// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.
 //
 // Takes any type of body and a specified content type.
 //
@@ -55905,7 +55909,7 @@ func (c *Client) ExportTimeRecordsWithBody(ctx context.Context, contentType stri
 
 // ExportTimeRecords Hand time records to accounting
 //
-// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000.
+// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -101564,7 +101568,7 @@ type ClientWithResponsesInterface interface {
 
 	// ExportTimeRecordsWithBodyWithResponse Hand time records to accounting
 	//
-	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000.
+	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -101573,7 +101577,7 @@ type ClientWithResponsesInterface interface {
 
 	// ExportTimeRecordsWithResponse Hand time records to accounting
 	//
-	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000.
+	// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -153430,7 +153434,7 @@ func (c *ClientWithResponses) CorrectTimeRecordWithResponse(ctx context.Context,
 
 // ExportTimeRecordsWithBodyWithResponse Hand time records to accounting
 //
-// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000.
+// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -153445,7 +153449,7 @@ func (c *ClientWithResponses) ExportTimeRecordsWithBodyWithResponse(ctx context.
 
 // ExportTimeRecordsWithResponse Hand time records to accounting
 //
-// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000.
+// At most 50000 records in fixed columns, for a payroll-free hand-over to accounting - no invoice is made: the caller's own with `mine`, else also other people's where the caller approves time; where the workspace shows only sums, the caller's own only. The export is recorded in the audit trail. Asked with `Accept: text/csv`, the same columns and rows come as a CSV file (RFC 4180, a header line first, a cell a spreadsheet would read as a formula prefixed with a quote mark); asked with `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, as one sheet of a spreadsheet (minutes as numbers, `billable` as a boolean, a text never a formula). `Export-Truncated` says the file holds only the first 50000. With `costs`, which needs the right to manage costs at the workspace, every record also carries the hourly rate that prices it and its cost, in that rate's currency's minor unit - empty where no rate prices it, never converted.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

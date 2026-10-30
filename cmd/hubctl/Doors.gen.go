@@ -1819,6 +1819,7 @@ var generatedCommands = []door{
 			{Name: "account_id", Kind: "uuid", Help: "", Required: false},
 			{Name: "billable", Kind: "boolean", Help: "", Required: false},
 			{Name: "collection_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "costs", Kind: "boolean", Help: "", Required: false},
 			{Name: "entry_id", Kind: "uuid", Help: "", Required: false},
 			{Name: "from", Kind: "string", Help: "", Required: true},
 			{Name: "hub_id", Kind: "uuid", Help: "", Required: false},
