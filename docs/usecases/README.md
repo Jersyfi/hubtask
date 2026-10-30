@@ -196,6 +196,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-ID-25](./identity/UC-ID-25-switch-between-my-workspaces.md) | Switch between my workspaces on this device | identity |
 | [UC-ID-26](./identity/UC-ID-26-define-our-own-roles.md) | Define our own roles from the permissions Hubtask knows | identity |
 | [UC-ID-27](./identity/UC-ID-27-hide-a-field-from-those-who-must-not-see-it.md) | Hide a field from those who must not see it | identity |
+| [UC-ID-28](./identity/UC-ID-28-provision-people-from-our-directory.md) | Provision people and groups from our directory | identity |
 | [UC-INS-01](./admin/UC-INS-01-start-a-fresh-installation.md) | Start a fresh installation and create my workspace in the browser | admin |
 | [UC-INS-02](./admin/UC-INS-02-bring-an-installation-up-from-a-file.md) | Bring an installation up from a file, operators included | admin |
 | [UC-INS-03](./admin/UC-INS-03-get-back-into-a-locked-installation.md) | Get back into an installation nobody can run | admin |

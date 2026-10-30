@@ -1051,3 +1051,36 @@ A credential that once answered with UV and later without is held to the ceremon
   with the account (`CASCADE`) where it is deleted, with its tokens where it is anonymised.
 * The data catalogue names the table, its personal data (the name, the last use) and its legal basis
   in the task that creates it.
+
+---
+
+## 24. Provisioning from a directory (SCIM 2.0)
+
+A company's directory - Entra ID, Okta, Keycloak, Google - provisions the workspace's people and
+groups over SCIM 2.0 (RFC 7643, RFC 7644) at `/api/v1/scim/v2` ([UC-ID-28](../usecases/identity/UC-ID-28-provision-people-from-our-directory.md)).
+
+* **The credential** is a service account's token (§13, UC-ID-17) with `members:read` and
+  `members:write`. The directory acts as that account: every act is authorised as
+  `MANAGE_MEMBERS` at the workspace, the same question an administrator's invitation asks, and
+  nothing a directory does widens what that account may.
+* **A person** is an account under the address `userName` names (or the primary address). A new
+  one is INVITED, without a password and without a mail: the first sign-in through the
+  workspace's provider activates it as an invitation is accepted (§10.4, the second proof
+  included). The people limit counts it.
+* **`active`** moves a person between ACTIVE or INVITED and DISABLED (`DirectoryStatus`). Switching
+  off ends their sessions; their content, authorship and trail stay - a directory never erases. A
+  restricted account (Art. 18) is not switched off (`directory.restricted_kept`), because switching
+  it on again would lift the restriction; an account holding `OWNER` on the workspace is not
+  switched off at all (`directory.owner_kept`), which also keeps the last owner. Provisioning a
+  switched-off address again switches the same account on.
+* **The address** is the person's way in and is not the directory's to change
+  (`directory.address_immutable`, SCIM `mutability`).
+* **`externalId`** is kept on `account.external_id` and `account_group.external_id` (migration
+  0256), unique in the workspace; it travels in the archive with its row and is cleared by an
+  anonymising erasure.
+* **Groups** are created, changed and deleted through `CreateGroup`, `UpdateGroup` and
+  `DeleteGroup` themselves: the ceiling of every role a group holds applies, and a group holding
+  `OWNER` - whose member change needs a person's step-up - is refused to a directory.
+* **Not served:** bulk, sorting, ETags, password changes; a filter is one `eq`. The service is not
+  a catalogue use case: SCIM's resource semantics are its door's own, and the acts behind it are on
+  every door already as invitations and groups. SAML and LDAP wait (§21).
