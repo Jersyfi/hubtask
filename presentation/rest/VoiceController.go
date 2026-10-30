@@ -22,7 +22,6 @@ import (
 
 const (
 	saveVoiceSettingsUseCase = "SaveVoiceSettings"
-	tryVoiceSentenceUseCase  = "TryVoiceSentence"
 	showAlexaModelUseCase    = "ShowAlexaModel"
 )
 
@@ -61,30 +60,6 @@ func (c *RestController) SaveVoiceSettings(w http.ResponseWriter, r *http.Reques
 	}, func(out usecase.Output) {
 		writeJSON(w, r, http.StatusOK, voiceSettingsResponse(out))
 	})
-}
-
-// TryVoiceSentence answers POST /voice:try.
-func (c *RestController) TryVoiceSentence(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.VoiceTry
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	input := usecase.Input{"sentence": body.Sentence}
-	if body.Locale != nil {
-		input["locale"] = *body.Locale
-	}
-	out, err := c.UseCases.Invoke(r.Context(), tryVoiceSentenceUseCase, actorOf(r), input)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, interpretationResponse(out))
 }
 
 // ShowAlexaModel answers GET /voice/alexa/model.

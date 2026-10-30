@@ -18,7 +18,6 @@ const (
 	setContainerStructureUseCase     = "SetContainerStructure"
 	previewContainerStructureUseCase = "PreviewContainerStructure"
 	setWorkspaceStructureUseCase     = "SetWorkspaceStructure"
-	savePresetUseCase                = "SavePreset"
 	changePresetUseCase              = "ChangePreset"
 )
 
@@ -210,31 +209,6 @@ func (c *RestController) SetWorkspaceStructure(
 	}
 	w.Header().Set("ETag", etag(out.Int("version")))
 	writeJSON(w, r, http.StatusOK, answer)
-}
-
-// throughJSON maps a catalogue output onto a generated schema by its JSON spelling. Used for the
-// structure documents, whose output is already in the contract's words: a field-by-field copy
-// would be a second spelling of eight settings to keep in step.
-// SavePreset answers POST /presets.
-func (c *RestController) SavePreset(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.PresetCreate
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), savePresetUseCase, actorOf(r), usecase.Input{
-		"name": body.Name, "origin": string(body.Origin), "container_id": body.ContainerId.String(),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writePreset(w, r, http.StatusCreated, out)
 }
 
 // ChangePreset answers PATCH /presets/{presetId}.

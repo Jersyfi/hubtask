@@ -8927,6 +8927,8 @@
           "voice"
         ],
         "operationId": "tryVoiceSentence",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "interpretationResponse",
         "summary": "What a spoken sentence would do",
         "description": "Reads a sentence as a voice assistant would hand it over and answers what it would add where - the things with their amounts and the place - without adding anything.\n",
         "requestBody": {
@@ -10894,6 +10896,8 @@
           "backup"
         ],
         "operationId": "listBackupsAtTarget",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "backupArchiveResponse",
         "summary": "List the backups present at the target",
         "description": "Reads the manifests **at the target**, not from the database. That means the listing\nworks even after a total loss, as long as the target credentials are known.\n\nIt answers the workspace's own archives. A credential carrying `admin:tenants` - the\ninstallation operator's - also sees archives of workspaces this installation does not\nhold, such as an export written by another installation, which a `NEW_TENANT` restore\ntakes; never an archive of another workspace that exists here.\n",
         "parameters": [
@@ -11081,6 +11085,8 @@
           "backup"
         ],
         "operationId": "startBackup",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "acceptedJob",
         "summary": "Start a backup immediately",
         "description": "The run is a job: this answers a `JobRef` whose `result_url` is the backup run, and the\nrun's id is also the archive's id in the manifest at the target. One identifier for both,\nso that a caller who has a run has an archive and needs no mapping in between.\n",
         "requestBody": {
@@ -12594,6 +12600,8 @@
           "auth"
         ],
         "operationId": "listSessions",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "sessionResponse",
         "summary": "The caller's active sessions",
         "description": "One's own sessions, newest first: where each was opened (the user agent and the IP class recorded at sign-in - a hint for recognising one's own devices, never a precise address), when it was created, when it last acted, and which one is answering this very call. Never anybody else's, whatever the role: a session is the person's, and an administrator who suspects one acts by disabling the account, not by reading its sessions. Only open sessions are listed - those the next request accepts: one ended, run out, past the workspace's maximum age or idle time, or opened before it required a new password from everyone is absent.\n",
         "responses": {
@@ -16076,6 +16084,11 @@
           "admin"
         ],
         "operationId": "cancelInstanceIdentityProviderWithdrawal",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "identityProviderResponse",
+        "x-hubtask-rest-path": {
+          "providerId": "id"
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"
@@ -16979,6 +16992,8 @@
           "auth"
         ],
         "operationId": "listIdentityProviderPresets",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "identityProviderPresetResponse",
         "summary": "The providers Hubtask has a preset for, and what registering takes",
         "description": "Three rows and this installation's own callback address, which is the value every registration form at every provider asks for. `instructions` and `particular` are message codes rendered with `redirect_uri`; `provisioning` is the modes the preset permits, so a screen offers only what would be accepted rather than three of which two are refused.\nBehind the same permission as reading the providers. There is no reason for a signed-out visitor to read registration instructions.\n",
         "responses": {
@@ -17863,6 +17878,8 @@
           "ai"
         ],
         "operationId": "setOwnAiBudget",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "quotaStandingResponse",
         "summary": "Set the daily budget of this workspace's own AI model",
         "description": "How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.\n",
         "requestBody": {
@@ -18394,6 +18411,8 @@
           "privacy"
         ],
         "operationId": "previewErasure",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "erasurePreviewResponse",
         "summary": "What legal holds would keep from an erasure",
         "description": "A legal hold wins over an erasure as far as it reaches: what a hold covers is kept, the\nrest is erased, and the case closes as partly completed. This answers, before the erasure\nis started, what each hold in force would keep of this case's person - so the confirmation\ncan say so. A hold on the person or on the whole workspace keeps the account itself; under\nany other hold it is anonymised as usual.\n\n`mode` is the mode the preview is for, the case's own when left out, and `ANONYMIZE` when\nthe case names none. Refused for a case that is not an erasure and for a closed one. A case\nof `INSTALLATION` scope needs the `admin:tenants` scope. The hold's reason is not part of\nthe answer; the holds list carries it for those who may read it.\n",
         "parameters": [
@@ -21824,6 +21843,7 @@
           "containers"
         ],
         "operationId": "savePreset",
+        "x-hubtask-rest": "generated",
         "summary": "Saves a hub's or collection's structure as a preset",
         "description": "Saves the eight settings in force on `container_id` under a name - its categories left out, which name one collection's labels - as the caller's own preset (`OWN`) or as the workspace's (`WORKSPACE`). An own preset is offered to the caller alone; a workspace preset to everyone in the workspace and needs the right to change the workspace's shape. Reading the container needs `READ` on it. Beyond the bound of its origin it is refused with `presets.limit_reached`.\n",
         "requestBody": {

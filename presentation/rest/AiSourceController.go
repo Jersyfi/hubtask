@@ -4,46 +4,17 @@
 package rest
 
 import (
-	"net/http"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
 // Which AI answers a workspace (ADR-0072 §2, §3), over REST.
 
-const (
-	setOwnAiBudgetUseCase = "SetOwnAiBudget"
-)
-
-// SetOwnAiBudget answers PUT /ai-budget: the workspace's own budget for its own model, and the two
-// AI standings after it. A null leaves the field out of the input, which is "no budget".
-func (c *RestController) SetOwnAiBudget(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.OwnAiBudget
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	in := usecase.Input{}
-	if body.OwnTokensPerDay != nil {
-		in["own_tokens_per_day"] = *body.OwnTokensPerDay
-	}
-	out, err := c.UseCases.Invoke(r.Context(), setOwnAiBudgetUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, quotaStandingsResponse(out))
-}
+const ()
 
 // aiSourceResponse maps the use case's answer. An offered model carries what the use case gives
 // it - name, processor, jurisdiction - and this mapper has no field for anything more.

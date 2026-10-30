@@ -18,7 +18,6 @@ import (
 const (
 	signInUseCase         = "SignIn"
 	refreshSessionUseCase = "RefreshSession"
-	listSessionsUseCase   = "ListSessions"
 	// revokeOtherSessionsUseCase is *Sign out everywhere else* (UC-ID-06 check 4).
 	revokeOtherSessionsUseCase = "RevokeOtherSessions"
 	redeemInvitationUseCase    = "RedeemInvitation"
@@ -117,32 +116,6 @@ func (c *RestController) RefreshSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, r, http.StatusOK, sessionTokensResponse(out))
-}
-
-// ListSessions answers GET /auth/sessions.
-//
-// Written out rather than through the identity helper, for the reason ListServiceAccounts is:
-// the operation has no parameters, and the helper's closure gives the linter nothing to trace
-// the request's context through.
-func (c *RestController) ListSessions(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), listSessionsUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	rows, _ := out["data"].([]usecase.Output)
-	sessions := make([]openapi.Session, 0, len(rows))
-	for _, row := range rows {
-		sessions = append(sessions, sessionResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, sessions)
 }
 
 // RedeemInvitation answers POST /auth/invitations:redeem.

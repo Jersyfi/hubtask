@@ -15,41 +15,8 @@ import (
 )
 
 const (
-	startBackupUseCase          = "StartBackup"
 	createBackupScheduleUseCase = "CreateBackupSchedule"
 )
-
-// StartBackup answers POST /backups.
-//
-// 202 with a JobRef, because the run takes minutes: the archive is written by a worker, and what
-// the caller gets now is something to poll. `result_url` names the run, whose identifier is also
-// the archive's identifier in the manifest at the target.
-func (c *RestController) StartBackup(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	var body openapi.BackupStart
-	if err := decodeFrom(r.Body, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	in := usecase.Input{"target_id": body.TargetId.String()}
-	if body.Mode != nil {
-		in["mode"] = string(*body.Mode)
-	}
-	if body.IncludeMedia != nil {
-		in["include_media"] = *body.IncludeMedia
-	}
-	if body.IncludeAudit != nil {
-		in["include_audit"] = *body.IncludeAudit
-	}
-
-	out, ok := c.read(w, r, startBackupUseCase, in)
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusAccepted, acceptedJob(out))
-}
 
 // CreateBackupSchedule answers POST /backup-schedules.
 func (c *RestController) CreateBackupSchedule(w http.ResponseWriter, r *http.Request) {

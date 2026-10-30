@@ -15,39 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-const (
-	listBackupsAtTargetUseCase = "ListBackupsAtTarget"
-)
-
-// ListBackupsAtTarget answers GET /backup-targets/{targetId}/backups.
-//
-// An array rather than a page, for the reason the target list is one: a generation plan tops out at
-// a few dozen archives, and a cursor over those would be ceremony. What the answer is made of comes
-// from the manifests at the target - so this route is the one that still works on the day the
-// database is a fresh empty one.
-func (c *RestController) ListBackupsAtTarget(
-	w http.ResponseWriter, r *http.Request,
-	targetID openapi_types.UUID, params openapi.ListBackupsAtTargetParams,
-) {
-	in := usecase.Input{"target_id": targetID.String()}
-	if params.TenantId != nil {
-		in["tenant_id"] = params.TenantId.String()
-	}
-	if params.Refresh != nil {
-		in["refresh"] = *params.Refresh
-	}
-
-	out, ok := c.read(w, r, listBackupsAtTargetUseCase, in)
-	if !ok {
-		return
-	}
-
-	archives := []openapi.BackupArchive{}
-	for _, row := range rowsOf(out) {
-		archives = append(archives, backupArchiveResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, archives)
-}
+const ()
 
 // backupArchiveResponse maps one archive at the target.
 func backupArchiveResponse(out usecase.Output) openapi.BackupArchive {

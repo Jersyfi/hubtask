@@ -5155,6 +5155,8 @@ paths:
     post:
       tags: [voice]
       operationId: tryVoiceSentence
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: interpretationResponse
       summary: What a spoken sentence would do
       description: >
         Reads a sentence as a voice assistant would hand it over and answers what it would add
@@ -6676,6 +6678,8 @@ paths:
     get:
       tags: [backup]
       operationId: listBackupsAtTarget
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: backupArchiveResponse
       summary: List the backups present at the target
       description: |
         Reads the manifests **at the target**, not from the database. That means the listing
@@ -6796,6 +6800,8 @@ paths:
     post:
       tags: [backup]
       operationId: startBackup
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: acceptedJob
       summary: Start a backup immediately
       description: |
         The run is a job: this answers a `JobRef` whose `result_url` is the backup run, and the
@@ -7974,6 +7980,8 @@ paths:
     get:
       tags: [auth]
       operationId: listSessions
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: sessionResponse
       summary: The caller's active sessions
       description: >
         One's own sessions, newest first: where each was opened (the user agent and the IP class
@@ -10871,6 +10879,9 @@ paths:
     post:
       tags: [admin]
       operationId: cancelInstanceIdentityProviderWithdrawal
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: identityProviderResponse
+      x-hubtask-rest-path: { providerId: id }
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
       summary: Keep offering a provider whose withdrawal was announced
@@ -11682,6 +11693,8 @@ paths:
     get:
       tags: [auth]
       operationId: listIdentityProviderPresets
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: identityProviderPresetResponse
       summary: The providers Hubtask has a preset for, and what registering takes
       description: >
         Three rows and this installation's own callback address, which is the value every
@@ -12456,6 +12469,8 @@ paths:
     put:
       tags: [ai]
       operationId: setOwnAiBudget
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: quotaStandingResponse
       summary: Set the daily budget of this workspace's own AI model
       description: >
         How many tokens a day this workspace's own model may spend, counted in the workspace's own
@@ -12842,6 +12857,8 @@ paths:
     get:
       tags: [privacy]
       operationId: previewErasure
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: erasurePreviewResponse
       summary: What legal holds would keep from an erasure
       description: |
         A legal hold wins over an erasure as far as it reaches: what a hold covers is kept, the
@@ -15191,6 +15208,7 @@ paths:
     post:
       tags: [containers]
       operationId: savePreset
+      x-hubtask-rest: generated
       summary: Saves a hub's or collection's structure as a preset
       description: >
         Saves the eight settings in force on `container_id` under a name - its categories left out,

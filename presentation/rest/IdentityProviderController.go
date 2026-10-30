@@ -17,12 +17,9 @@ import (
 
 // The relying party's configuration use cases.
 const (
-	offerIdentityProviderUseCase        = "OfferIdentityProvider"
-	countAccountsWithoutProviderUseCase = "CountAccountsWithoutProvider"
-	listIdentityProviderPresetsUseCase  = "ListIdentityProviderPresets"
-
-	withdrawInstanceIdentityProviderUseCase         = "WithdrawInstanceIdentityProvider"
-	cancelInstanceIdentityProviderWithdrawalUseCase = "CancelInstanceIdentityProviderWithdrawal"
+	offerIdentityProviderUseCase            = "OfferIdentityProvider"
+	countAccountsWithoutProviderUseCase     = "CountAccountsWithoutProvider"
+	withdrawInstanceIdentityProviderUseCase = "WithdrawInstanceIdentityProvider"
 )
 
 // OfferIdentityProvider answers POST /identity-providers/{providerId}:offer.
@@ -96,52 +93,6 @@ func (c *RestController) WithdrawInstanceIdentityProvider(
 		return
 	}
 	writeJSON(w, r, http.StatusOK, identityProviderResponse(out))
-}
-
-// CancelInstanceIdentityProviderWithdrawal answers
-// POST /admin/identity-providers/{providerId}:cancel-withdrawal.
-func (c *RestController) CancelInstanceIdentityProviderWithdrawal(
-	w http.ResponseWriter, r *http.Request, providerID openapi.ProviderId,
-	params openapi.CancelInstanceIdentityProviderWithdrawalParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), cancelInstanceIdentityProviderWithdrawalUseCase,
-		actorOf(r), usecase.Input{
-			"id":            providerID.String(),
-			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-		})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, identityProviderResponse(out))
-}
-
-// ListIdentityProviderPresets answers GET /identity-provider-presets.
-func (c *RestController) ListIdentityProviderPresets(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(
-		r.Context(), listIdentityProviderPresetsUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	rows, _ := out["data"].([]usecase.Output)
-	presets := make([]openapi.IdentityProviderPreset, 0, len(rows))
-	for _, row := range rows {
-		presets = append(presets, identityProviderPresetResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, presets)
 }
 
 // identityProvidersResponse maps the collection.

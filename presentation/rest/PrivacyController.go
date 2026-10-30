@@ -22,7 +22,6 @@ const (
 	createDataSubjectRequestUseCase = "CreateDataSubjectRequest"
 	listDataSubjectRequestsUseCase  = "ListDataSubjectRequests"
 	updateDataSubjectRequestUseCase = "UpdateDataSubjectRequest"
-	previewErasureUseCase           = "PreviewErasure"
 	restrictProcessingUseCase       = "RestrictProcessing"
 	withdrawConsentUseCase          = "WithdrawConsent"
 	listConsentsUseCase             = "ListConsents"
@@ -187,23 +186,10 @@ func dataSubjectRequestResponse(row usecase.Output) openapi.DataSubjectRequest {
 	return request
 }
 
-// PreviewErasure answers GET /privacy/requests/{requestId}/erasure-preview.
-func (c *RestController) PreviewErasure(
-	w http.ResponseWriter, r *http.Request, requestID openapi_types.UUID,
-	params openapi.PreviewErasureParams,
-) {
-	in := usecase.Input{"request_id": requestID.String()}
-	if params.Mode != nil {
-		in["mode"] = string(*params.Mode)
-	}
-	out, ok := c.read(w, r, previewErasureUseCase, in)
-	if !ok {
-		return
-	}
+// erasurePreviewResponse maps what an erasure in a mode would keep.
+func erasurePreviewResponse(out usecase.Output) openapi.ErasurePreview {
 	parts, _ := out["kept"].([]map[string]any)
-	writeJSON(w, r, http.StatusOK, openapi.ErasurePreview{
-		Mode: openapi.ErasureMode(out.String("mode")), Kept: erasureKeptResponse(parts),
-	})
+	return openapi.ErasurePreview{Mode: openapi.ErasureMode(out.String("mode")), Kept: erasureKeptResponse(parts)}
 }
 
 // erasureKeptResponse maps what each hold kept onto the contract's schema.
