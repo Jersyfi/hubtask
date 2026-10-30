@@ -23648,6 +23648,12 @@
           "meta"
         ],
         "operationId": "setWorkspaceStructure",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-null-to": {
+          "default_preset": "clear_default_preset",
+          "default_preset_id": "clear_default_preset"
+        },
+        "x-hubtask-rest-etag": "version",
         "description": "Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.\n",
         "parameters": [
           {

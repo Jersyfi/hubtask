@@ -16137,6 +16137,9 @@ paths:
     patch:
       tags: [meta]
       operationId: setWorkspaceStructure
+      x-hubtask-rest: generated
+      x-hubtask-rest-null-to: { default_preset: clear_default_preset, default_preset_id: clear_default_preset }
+      x-hubtask-rest-etag: version
       description: >
         Changes the workspace's own structure: the values every hub and collection inherits unless
         it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind

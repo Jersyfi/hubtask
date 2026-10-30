@@ -242,6 +242,8 @@ func TestACacheAndAWholeAnswerAreDeclaredMarks(t *testing.T) {
 		"x-hubtask-rest-cache: private":                                          true,
 		"x-hubtask-rest-list: whole":                                             true,
 		"x-hubtask-rest-list: whole\n      x-hubtask-rest-answer: thingResponse": false,
+		"x-hubtask-rest-null-to: { read_only: clear_read_only }":                 false,
+		"x-hubtask-rest-null-to: { colour: clear_colour }":                       true,
 	} {
 		marked := strings.Replace(contract, `      x-hubtask-cli: "thing set"`, `      x-hubtask-cli: "thing set"
       x-hubtask-rest: generated

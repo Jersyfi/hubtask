@@ -79,6 +79,9 @@ type restDoor struct {
 	// NullAs passes an explicit null member as the value it names, or leaves it out where that is
 	// nil: a bucket's null limit is the number 0.
 	NullAs map[string]any
+	// NullTo turns an explicit null member into the boolean input it names: a default sent as
+	// null clears it, an absent one leaves it.
+	NullTo map[string]string
 	// Expand turns the `expand` parameter's words into the boolean inputs they name; a word not
 	// named is refused.
 	Expand map[string]string
@@ -176,6 +179,10 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 				// The path names the resource; a body member of the same name never moves it. An
 				// explicit null stays: in a merge patch it clears, as MCP's arguments carry it.
 				if _, taken := in[name]; !taken {
+					if input, named := d.NullTo[name]; named && value == nil {
+						in[input] = true
+						continue
+					}
 					if as, named := d.NullAs[name]; named && value == nil {
 						if as != nil {
 							in[name] = as

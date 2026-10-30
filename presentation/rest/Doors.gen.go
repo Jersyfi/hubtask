@@ -629,6 +629,7 @@ var restDoors = map[string]restDoor{
 	"setTimePolicy":                     {UseCase: "SetTimePolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version"}},
 	"setUpInstallation":                 {UseCase: "SetUpInstallation", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil), Request: []string{"user_agent", "remote_addr"}},
 	"setWorkflowScheme":                 {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setWorkspaceStructure":             {UseCase: "SetWorkspaceStructure", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), NullTo: map[string]string{"default_preset": "clear_default_preset", "default_preset_id": "clear_default_preset"}},
 	"setWorkspaceTolerance":             {UseCase: "SetWorkspaceTolerance", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"time_tolerance_days"}},
 	"shareFileStoreItem":                {UseCase: "ShareFileStoreItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"sharePage":                         {UseCase: "SharePage", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -4666,6 +4667,13 @@ func (c *RestController) SetWorkflowScheme(w http.ResponseWriter, r *http.Reques
 	var body openapi.SetWorkflowSchemeJSONRequestBody
 	var answer openapi.WorkflowSchemeResult
 	c.door(w, r, restDoors["setWorkflowScheme"], usecase.Input{}, nil, &body, &answer)
+}
+
+// SetWorkspaceStructure answers PATCH /tenant/structure by the generated mapping.
+func (c *RestController) SetWorkspaceStructure(w http.ResponseWriter, r *http.Request, params openapi.SetWorkspaceStructureParams) {
+	var body openapi.SetWorkspaceStructureJSONRequestBody
+	var answer openapi.WorkspaceStructure
+	c.door(w, r, restDoors["setWorkspaceStructure"], usecase.Input{}, params, &body, &answer)
 }
 
 // SetWorkspaceTolerance answers PUT /plans:tolerance by the generated mapping.

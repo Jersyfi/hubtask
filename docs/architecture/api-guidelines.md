@@ -44,12 +44,15 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
    the named mapper draws one row, and `x-hubtask-rest-list: whole` has it draw the whole answer
    instead (a page with members beside its rows, a list spelled otherwise). `x-hubtask-rest-null-as: { member: value }` passes an explicit
    null member as that value, or leaves it out where the value is null (a bucket's null limit is
-   the number 0). `x-hubtask-rest-words: [member]` hands a boolean on as its word (`true`, `false`) to a use case that
+   the number 0); `x-hubtask-rest-null-to: { member: input }` turns an explicit null member into
+   the boolean input it names (a workspace's `default_preset: null` is `clear_default_preset`, an
+   absent one leaves it). `x-hubtask-rest-words: [member]` hands a boolean on as its word (`true`, `false`) to a use case that
    reads a cleared third state; `x-hubtask-rest-utc: [name]` hands an instant on in UTC where the
    use case keeps the text it was sent; a shown-once member may be a list (recovery codes); an
    answer mapper may be the controller's own (`c.calendarFeedSecretResponse`), where it composes
    an address from the installation's base URL. `x-hubtask-rest-etag` may name a nested part's member (`item.version`, a moved or copied
-   entry's). `x-hubtask-rest-expand: { word: input }` turns the
+   entry's), or an output's member the answer does not show where the contract declares the
+   `ETag` header (a workspace structure's version). `x-hubtask-rest-expand: { word: input }` turns the
    `expand` parameter's words into the boolean inputs they name and refuses any other word by
    name (`items.expand_not_supported`). An operation whose connection an adapter holds rather than one use case
    answers - the change stream, a live document, the sync protocol's pull, push and snapshot - is

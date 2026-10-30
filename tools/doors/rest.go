@@ -85,6 +85,10 @@ type RESTDoor struct {
 	// NullAs passes an explicit null member as the named value instead (`x-hubtask-rest-null-as`),
 	// or leaves it out where the value is null: a bucket's null limit is the number 0.
 	NullAs map[string]any
+	// NullTo turns an explicit null member into the boolean input it names
+	// (`x-hubtask-rest-null-to`): a default sent as null is the use case's `clear_…` flag, and
+	// an absent one leaves it.
+	NullTo map[string]string
 	// Words are boolean members the use case reads as their word, `true` or `false`
 	// (`x-hubtask-rest-words`): a preference that has a third state, cleared.
 	Words []string
@@ -135,6 +139,7 @@ type restOperation struct {
 	Cache       string                       `yaml:"x-hubtask-rest-cache"`
 	Drop        []string                     `yaml:"x-hubtask-rest-drop"`
 	NullAs      map[string]any               `yaml:"x-hubtask-rest-null-as"`
+	NullTo      map[string]string            `yaml:"x-hubtask-rest-null-to"`
 	Words       []string                     `yaml:"x-hubtask-rest-words"`
 	UTC         []string                     `yaml:"x-hubtask-rest-utc"`
 	Expand      map[string]string            `yaml:"x-hubtask-rest-expand"`
@@ -148,6 +153,7 @@ type restOperation struct {
 		Content  map[string]mediaType `yaml:"content"`
 	} `yaml:"requestBody"`
 	Responses map[string]struct {
+		Headers map[string]any       `yaml:"headers"`
 		Content map[string]mediaType `yaml:"content"`
 	} `yaml:"responses"`
 }
@@ -370,6 +376,16 @@ func restDoor(
 			}
 		}
 		door.NullAs = op.NullAs
+		for name := range op.NullTo {
+			held := false
+			for _, content := range op.RequestBody.Content {
+				_, held = doc.composed(content.Schema).Properties[name]
+			}
+			if !held {
+				return door, fmt.Errorf("x-hubtask-rest-null-to names %s, which the body does not hold", name)
+			}
+		}
+		door.NullTo = op.NullTo
 		for _, name := range op.Words {
 			held := false
 			for _, content := range op.RequestBody.Content {
@@ -431,8 +447,10 @@ func restDoor(
 				door.ETag = "version"
 			}
 			if op.ETagFrom != "" {
-				// A nested part's member, `item.version`, is named by its part.
-				if _, held := answer.Properties[strings.SplitN(op.ETagFrom, ".", 2)[0]]; !held {
+				// A nested part's member, `item.version`, is named by its part; a version the answer
+				// does not show is the output's, where the contract declares the ETag header.
+				_, tagged := response.Headers["ETag"]
+				if _, held := answer.Properties[strings.SplitN(op.ETagFrom, ".", 2)[0]]; !held && !tagged {
 					return door, fmt.Errorf("x-hubtask-rest-etag names %s, which the answer does not hold", op.ETagFrom)
 				}
 				door.ETag = op.ETagFrom
@@ -627,6 +645,9 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 			}
 			extra += ", NullAs: map[string]any{" + strings.Join(pairs, ", ") + "}"
 		}
+		if len(d.NullTo) > 0 {
+			extra += ", NullTo: " + stringMap(d.NullTo)
+		}
 		if len(d.Expand) > 0 {
 			keys := make([]string, 0, len(d.Expand))
 			for key := range d.Expand {
@@ -700,4 +721,18 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 			d.OperationID, strings.Join(in, ", "), params, body, answer)
 	}
 	return format.Source(b.Bytes())
+}
+
+// stringMap renders a map of names as Go source, its keys sorted.
+func stringMap(m map[string]string) string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	pairs := make([]string, 0, len(keys))
+	for _, key := range keys {
+		pairs = append(pairs, fmt.Sprintf("%q: %q", key, m[key]))
+	}
+	return "map[string]string{" + strings.Join(pairs, ", ") + "}"
 }
