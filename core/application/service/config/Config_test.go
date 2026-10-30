@@ -59,12 +59,28 @@ type world struct {
 	// PreviewCustomFieldReach answers for each.
 	fields     map[string]map[string]any
 	fieldReach int
+	// views and rules, nil withholding the section, are the shared views and rules by key, and
+	// containers the hubs and collections ListContainers answers.
+	views, rules map[string]map[string]any
+	containers   []any
 }
 
 func (w *world) clone() *world {
 	out := &world{types: map[string]map[string]any{}, roles: map[string]map[string]any{}, failOn: w.failOn,
 		workspace: w.workspace, ai: w.ai, inputs: maps.Clone(w.inputs), workflows: w.workflows, preview: w.preview, previewWithheld: w.previewWithheld, grants: w.grants,
-		hub: w.hub, hubStructure: maps.Clone(w.hubStructure), scheme: w.scheme, hubCalendars: w.hubCalendars, fields: w.fields, fieldReach: w.fieldReach}
+		hub: w.hub, hubStructure: maps.Clone(w.hubStructure), scheme: w.scheme, hubCalendars: w.hubCalendars, fields: w.fields, fieldReach: w.fieldReach, containers: w.containers}
+	if w.views != nil {
+		out.views = map[string]map[string]any{}
+		for k, v := range w.views {
+			out.views[k] = maps.Clone(v)
+		}
+	}
+	if w.rules != nil {
+		out.rules = map[string]map[string]any{}
+		for k, v := range w.rules {
+			out.rules[k] = maps.Clone(v)
+		}
+	}
 	if w.structure != nil {
 		out.structure = maps.Clone(w.structure)
 	}
@@ -241,6 +257,9 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 			"settings": map[string]any{"completion": "MANUAL"},
 		})
 		return usecase.Output{"data": rows}, nil
+	case "ListContainers", "ListSavedViews", "ListRules", "CreateSavedView", "UpdateSavedView", "DeleteSavedView",
+		"CreateRule", "UpdateRule", "EnableRule", "DisableRule", "DeleteRule":
+		return furniture(w, name, in)
 	case "SetModule":
 	default:
 		// Every other section is withheld, as a module switched off withholds it.

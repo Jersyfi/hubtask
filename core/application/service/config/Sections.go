@@ -22,6 +22,9 @@ type operation struct {
 	Path string
 	// StepUp marks an operation that changes the sign-in rule: it carries the apply's fresh proof.
 	StepUp bool
+	// Chain names the field of the previous operation's answer the identifier input takes - a
+	// block written and then switched on in one apply.
+	Chain string
 }
 
 // section is one family of building blocks the document holds, declared by the use cases that
@@ -60,6 +63,11 @@ type section struct {
 	// block and ops replace the generic reading and writing where a section needs its own.
 	block func(row map[string]any) (string, domain.Block)
 	ops   func(change domain.BlockChange, row map[string]any) ([]operation, error)
+	// present names the places a block names by their keys; opsAt writes it back with the
+	// document in force at hand (Furniture.go). paged walks the list use case to its end.
+	present func(p places, block domain.Block) domain.Block
+	opsAt   func(now current, change domain.BlockChange, row map[string]any) ([]operation, error)
+	paged   bool
 	// hides reports whether a change hides data from somebody; permissions whether the section
 	// changes what somebody may do.
 	hides       func(change domain.BlockChange) bool
@@ -86,7 +94,7 @@ const (
 
 // sections is the document's shape, in apply order.
 func sections() []section {
-	return []section{
+	return append([]section{
 		{
 			name: sectionModules, list: "ListModules", rows: "modules", attributes: []string{switchAttribute},
 			block: func(row map[string]any) (string, domain.Block) {
@@ -205,7 +213,7 @@ func sections() []section {
 			create:     "DefineReplyTemplate", change: "DefineReplyTemplate", remove: "DeleteReplyTemplate",
 			locate: "key", locateFrom: "key", changeable: []string{"name", "body"}, whole: true,
 		},
-	}
+	}, furnitureSections("")...)
 }
 
 // workflowOps writes a workflow: a new one is created with its shape; a changed shape is saved

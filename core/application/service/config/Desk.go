@@ -89,6 +89,10 @@ type current struct {
 	WithheldSettings []string
 	// Hub is the hub whose own document this is, empty for the workspace's.
 	Hub shared.ID
+	// Places are the hubs and collections by handle, and Account the reader - who a rule the
+	// document brings acts as unless it names somebody.
+	Places  places
+	Account shared.ID
 }
 
 func (c current) hash() string { return domain.Hash(c.Document) }
@@ -131,14 +135,23 @@ func (d Desk) authorizeAt(ctx context.Context, actor appshared.ActorContext, hub
 // export reads every section through its list use case, in the transaction the caller runs in:
 // the workspace's document, or for a hub the hub's own.
 func (d Desk) export(ctx context.Context, actor appshared.ActorContext, hub shared.ID) (current, error) {
-	out := current{Document: domain.Document{}, Rows: map[string]map[string]map[string]any{}, Hub: hub}
+	out := current{Document: domain.Document{}, Rows: map[string]map[string]map[string]any{}, Hub: hub, Account: actor.AccountID}
 	if !hub.IsZero() {
 		if err := d.isHub(ctx, actor, hub); err != nil {
 			return current{}, err
 		}
 	}
+	placed, err := d.readPlaces(ctx, actor, hub)
+	if err != nil && !withheld(err) {
+		return current{}, err
+	}
+	if err != nil {
+		// A reader who may not list the places reads identifiers where handles would be.
+		placed = places{key: map[string]string{}, id: map[string]string{}, hub: hub.String()}
+	}
+	out.Places = placed
 	for _, s := range out.sections() {
-		answer, err := d.Catalogue.Invoke(ctx, s.list, actor, s.listInput)
+		answer, err := d.list(ctx, actor, s)
 		if err != nil {
 			if withheld(err) {
 				out.Withheld = append(out.Withheld, s.name)
@@ -164,6 +177,9 @@ func (d Desk) export(ctx context.Context, actor appshared.ActorContext, hub shar
 			key, block := s.read(row)
 			if key == "" {
 				continue
+			}
+			if s.present != nil {
+				block = s.present(out.Places, block)
 			}
 			blocks[key] = block
 			byKey[key] = row
@@ -204,6 +220,18 @@ func (d Desk) export(ctx context.Context, actor appshared.ActorContext, hub shar
 	out.Document[sectionSettings] = settings
 	out.Rows[sectionSettings] = rows
 	return out, nil
+}
+
+// list reads a section's rows through its list use case, every page of a paged one.
+func (d Desk) list(ctx context.Context, actor appshared.ActorContext, s section) (usecase.Output, error) {
+	if !s.paged {
+		return d.Catalogue.Invoke(ctx, s.list, actor, s.listInput)
+	}
+	var rows []any
+	if err := d.eachPage(ctx, actor, s.list, s.listInput, func(row map[string]any) { rows = append(rows, row) }); err != nil {
+		return nil, err
+	}
+	return usecase.Output{"data": rows}, nil
 }
 
 // withheld reports whether a section's read was refused for a reason that leaves the rest of the
@@ -372,7 +400,13 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 				p.Refusals = append(p.Refusals, refusals...)
 				continue
 			}
-			ops, err := s.operations(change, now.Rows[s.name][change.Key])
+			var ops []operation
+			var err error
+			if s.opsAt != nil {
+				ops, err = s.opsAt(now, change, now.Rows[s.name][change.Key])
+			} else {
+				ops, err = s.operations(change, now.Rows[s.name][change.Key])
+			}
 			if err != nil {
 				p.Refusals = append(p.Refusals, fieldsOf(err, change.Path())...)
 				continue
@@ -602,6 +636,7 @@ func withScope(actor appshared.ActorContext, scope string, admitted bool) appsha
 }
 
 func (d Desk) run(ctx context.Context, actor appshared.ActorContext, ops []operation, stepUp string) error {
+	var previous usecase.Output
 	for _, op := range ops {
 		in := op.Input
 		if op.StepUp && stepUp != "" {
@@ -610,7 +645,12 @@ func (d Desk) run(ctx context.Context, actor appshared.ActorContext, ops []opera
 				in[k] = v
 			}
 		}
-		if _, err := d.Catalogue.Invoke(ctx, op.UseCase, d.blockActor(actor, op), in); err != nil {
+		if op.Chain != "" {
+			in = chainedInput(in, previous, op.Chain)
+		}
+		answer, err := d.Catalogue.Invoke(ctx, op.UseCase, d.blockActor(actor, op), in)
+		previous = answer
+		if err != nil {
 			var e *shared.Error
 			if errors.As(err, &e) {
 				params := map[string]string{"config_path": op.Path}
@@ -623,6 +663,21 @@ func (d Desk) run(ctx context.Context, actor appshared.ActorContext, ops []opera
 		}
 	}
 	return nil
+}
+
+// chainedInput puts the previous answer's field where the operation holds the chained
+// placeholder; an answer without it leaves the placeholder, which the use case refuses as unknown.
+func chainedInput(in usecase.Input, previous usecase.Output, field string) usecase.Input {
+	out := usecase.Input{}
+	for k, v := range in {
+		out[k] = v
+		if v == chained {
+			if id, held := previous[field]; held {
+				out[k] = id
+			}
+		}
+	}
+	return out
 }
 
 // applied writes the version after an apply and its trail entry: who, the counts, never content.

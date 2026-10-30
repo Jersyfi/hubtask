@@ -16,10 +16,10 @@ import (
 )
 
 // A hub's own document (config-document.md §1) holds what the hub decides itself - its structure
-// settings, its module switches, which workflow it runs for which type and its own versions of the
-// workspace's business calendars - each block by a key
-// that is the same in every hub, so a hub's document applies to a second hub unchanged. The hub
-// is named by the request, never inside the document: a hub has no stable key.
+// settings, its module switches, which workflow it runs for which type, its own versions of the
+// workspace's business calendars, and its shared views and rules - each block by a key that is
+// the same in every hub, so a hub's document applies to a second hub unchanged. The hub is named
+// by the request, and inside the document as `@hub` (Furniture.go).
 const (
 	sectionScheme = "scheme"
 	// schemeEveryType is the scheme row without an entry type: the workflow for every type the hub
@@ -32,7 +32,7 @@ const (
 // hubSections is a hub document's shape, in apply order: a module before the blocks it carries.
 func hubSections(hub shared.ID) []section {
 	id := hub.String()
-	return []section{
+	return append([]section{
 		{
 			name: sectionModules, list: "ListModules", listInput: usecase.Input{"hub_id": id}, rows: "modules",
 			attributes: []string{switchAttribute},
@@ -128,7 +128,7 @@ func hubSections(hub shared.ID) []section {
 			create:     "DefineHubCalendar", change: "DefineHubCalendar", remove: "DeleteHubCalendar",
 			locate: "key", locateFrom: "key", changeable: []string{"name", "zone", "hours", "holidays"}, whole: true,
 		},
-	}
+	}, furnitureSections(hub)...)
 }
 
 // hubStructureRows is a hub's answer as one row per structure setting: its value in force and
