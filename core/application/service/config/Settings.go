@@ -46,6 +46,7 @@ func settingAreas() []settingArea {
 		{read: ReadWorkspaceName, prefixes: []string{signInPrefix, legalPrefix, localisationKey}, rows: workspaceSettingRows, write: workspaceSettingOp},
 		{read: "ReadAiSource", prefixes: []string{aiPrefix}, rows: aiSettingRows, write: aiSettingOp},
 		{read: "ReadAgentPolicy", prefixes: []string{agentPolicyPrefix}, rows: agentPolicyRows, write: agentPolicyOp},
+		{read: "ReadWorkspaceTolerance", prefixes: []string{planningPrefix}, rows: toleranceRows, write: toleranceOp},
 		{read: "ReadPublicLinksPolicy", prefixes: []string{publicLinksKey}, rows: publicLinksRows, write: publicLinksOp},
 	}
 }
@@ -94,6 +95,35 @@ func agentPolicyOp(change domain.BlockChange, _ map[string]any) (operation, erro
 	}
 	on, _ := change.After[settingValueField].(bool)
 	return operation{UseCase: "SetAgentPolicy", Path: change.Path(), Input: usecase.Input{"registered_only": on}}, nil
+}
+
+// planningPrefix is the plans' time tolerance the workspace decides (standards.md P12).
+const planningPrefix = "planning."
+
+// lockAttribute is a tolerance block's lock: the workspace fixes it for the hubs and collections.
+const lockAttribute = "lock"
+
+// toleranceRows reads ReadWorkspaceTolerance's answer, keyed by the catalogue's key, with the
+// lock the workspace set as the block's attribute.
+func toleranceRows(answer map[string]any) map[string]map[string]any {
+	out := agentPolicyRows(answer)
+	for _, row := range out {
+		if row["locked_by"] == workspaceSource {
+			row[lockAttribute] = true
+		}
+	}
+	return out
+}
+
+// toleranceOp sets the workspace's tolerance, locked when the block says so; a removed block
+// leaves it to the level above.
+func toleranceOp(change domain.BlockChange, _ map[string]any) (operation, error) {
+	in := usecase.Input{"time_tolerance_days": nil}
+	if change.Op != domain.OpRemove {
+		in["time_tolerance_days"] = change.After[settingValueField]
+		in[lockAttribute] = change.After[lockAttribute] == true
+	}
+	return operation{UseCase: "SetWorkspaceTolerance", Path: change.Path(), Input: in}, nil
 }
 
 // ReadWorkspaceName is the workspace's read, shared by the structure section and the settings.
@@ -304,6 +334,9 @@ func aiSettingOp(change domain.BlockChange, row map[string]any) (operation, erro
 func settingAttributes(key string) []string {
 	if key == aiPersonOptOutKey {
 		return []string{settingValueField, basisAttribute, contactAttribute}
+	}
+	if strings.HasPrefix(key, planningPrefix) {
+		return []string{settingValueField, lockAttribute}
 	}
 	return []string{settingValueField}
 }

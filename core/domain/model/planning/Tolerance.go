@@ -8,8 +8,8 @@ import (
 )
 
 // TimeToleranceKey is how many calendar days a plan's forecast end may slip past its agreed one
-// before the plan is in exception (standards.md P12, PRINCE2's time tolerance). Decided by a hub
-// or a collection, inherited by the hub's collections and lockable there, like every setting.
+// before the plan is in exception (standards.md P12, PRINCE2's time tolerance). Decided by the
+// workspace, a hub or a collection, inherited below and lockable there, like every setting.
 const TimeToleranceKey setting.Key = "planning.time_tolerance_days"
 
 // MaxTimeToleranceDays bounds the tolerance: a slip of more than a year is no tolerance at all.
@@ -21,9 +21,11 @@ func TimeToleranceDefinition() setting.Definition {
 	zero, most := 0, MaxTimeToleranceDays
 	return setting.Definition{
 		Key: TimeToleranceKey, Kind: setting.KindCount, Minimum: &zero, Maximum: &most,
-		Levels:   []setting.Level{setting.LevelHub, setting.LevelCollection},
+		Levels:   []setting.Level{setting.LevelWorkspace, setting.LevelHub, setting.LevelCollection},
 		Lockable: true, May: setting.MayReplace,
-		Writers: map[setting.Level]string{setting.LevelHub: "STRUCTURE", setting.LevelCollection: "STRUCTURE"},
+		Writers: map[setting.Level]string{
+			setting.LevelWorkspace: "STRUCTURE", setting.LevelHub: "STRUCTURE", setting.LevelCollection: "STRUCTURE",
+		},
 	}
 }
 

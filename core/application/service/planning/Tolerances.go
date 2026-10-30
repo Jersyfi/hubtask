@@ -9,8 +9,10 @@ import (
 	"time"
 
 	settingrepo "github.com/Jersyfi/hubtask/core/application/repository/setting"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/planning"
 	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -138,13 +140,42 @@ func (h ReadPlanTolerance) Execute(ctx context.Context, actor appshared.ActorCon
 	exception := domain.TimeException(agreed, scheduled.Result.Finish, days)
 	view.Exception = &exception
 	if exception.Exceeded {
-		if err := h.Planner.record(ctx, actor, ToleranceExceededAction, toleranceTarget, plan.ID, h.Planner.Clock.Now(),
+		now := h.Planner.Clock.Now()
+		if err := h.Planner.record(ctx, actor, ToleranceExceededAction, toleranceTarget, plan.ID, now,
 			audit.Change{Field: "slip_days", Classification: audit.Open, To: strconv.Itoa(exception.SlipDays)},
 			audit.Change{Field: "tolerance_days", Classification: audit.Open, To: strconv.Itoa(days)}); err != nil {
 			return ToleranceView{}, err
 		}
+		if err := h.Planner.tell(ctx, actor, walk, view, now); err != nil {
+			return ToleranceView{}, err
+		}
 	}
 	return view, nil
+}
+
+// tell sends the exception to whoever decided the tolerance at the level it comes from - the level
+// above the plan where a hub or the workspace set it. A tolerance of the installation or the plan
+// has nobody to tell.
+func (p Planner) tell(ctx context.Context, actor appshared.ActorContext, walk []settingrepo.Place, view ToleranceView, now time.Time) error {
+	if p.Exceptions == nil || p.Settings == nil || view.Baseline == nil {
+		return nil
+	}
+	return p.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		stored, err := p.Settings.At(ctx, walk, string(domain.TimeToleranceKey))
+		if err != nil {
+			return err
+		}
+		var decider shared.ID
+		for _, row := range stored {
+			if row.Place.Level == view.Resolution.Source && row.Key == domain.TimeToleranceKey {
+				decider = row.Entry.By
+			}
+		}
+		if decider.IsZero() {
+			return nil
+		}
+		return p.Exceptions.PlanExceeded(ctx, actor.TenantID, view.Baseline.ID, decider, actor.AccountID, now)
+	})
 }
 
 // agreedFinish is a baseline's last due day in the plan's zone.
@@ -209,43 +240,56 @@ func (h SetPlanTolerance) Execute(ctx context.Context, actor appshared.ActorCont
 		return ToleranceView{}, shared.ErrUnavailable.WithDetail("planning.tolerance_unavailable")
 	}
 	at, walk := walkOf(actor, plan)
-	definition := domain.TimeToleranceDefinition()
-	now := h.Planner.Clock.Now()
 	var view ToleranceView
 	err = h.Planner.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		above, err := h.Planner.tolerance(ctx, walk[:len(walk)-1])
-		if err != nil {
+		var err error
+		if view.Resolution, err = h.Planner.putTolerance(ctx, actor, at, walk, cmd.Days, cmd.Lock); err != nil {
 			return err
 		}
-		if cmd.Days == nil {
-			if _, err := h.Planner.Settings.Remove(ctx, at, definition.Key); err != nil {
-				return err
-			}
-		} else {
-			hold := setting.HoldSet
-			if cmd.Lock {
-				hold = setting.HoldLock
-			}
-			entry := setting.Entry{Value: *cmd.Days, Hold: hold, By: actor.AccountID}
-			if err := setting.Check(definition, at.Level, above, entry); err != nil {
-				return err
-			}
-			if err := h.Planner.Settings.Put(ctx, h.Planner.IDs.NewID(), at, definition.Key, entry, now); err != nil {
-				return err
-			}
-		}
-		if view.Resolution, err = h.Planner.tolerance(ctx, walk); err != nil {
-			return err
-		}
-		to := ""
-		if cmd.Days != nil {
-			to = strconv.Itoa(*cmd.Days)
-		}
-		return h.Planner.record(ctx, actor, ToleranceSetAction, toleranceTarget, plan.ID, now,
-			audit.Change{Field: string(definition.Key), Classification: audit.Open, To: to},
-			audit.Change{Field: "locked", Classification: audit.Open, To: strconv.FormatBool(cmd.Lock && cmd.Days != nil)})
+		return h.Planner.recordTolerance(ctx, actor, plan.ID, cmd.Days, cmd.Lock)
 	})
 	return view, err
+}
+
+// putTolerance stores a level's tolerance, or removes it, inside the caller's transaction, after
+// the levels above - all of walk but its last - had their say; it answers the resolution at the
+// level.
+func (p Planner) putTolerance(
+	ctx context.Context, actor appshared.ActorContext, at settingrepo.Place, walk []settingrepo.Place, days *int, lock bool,
+) (setting.Resolution, error) {
+	definition := domain.TimeToleranceDefinition()
+	above, err := p.tolerance(ctx, walk[:len(walk)-1])
+	if err != nil {
+		return setting.Resolution{}, err
+	}
+	if days == nil {
+		if _, err := p.Settings.Remove(ctx, at, definition.Key); err != nil {
+			return setting.Resolution{}, err
+		}
+	} else {
+		hold := setting.HoldSet
+		if lock {
+			hold = setting.HoldLock
+		}
+		entry := setting.Entry{Value: *days, Hold: hold, By: actor.AccountID}
+		if err := setting.Check(definition, at.Level, above, entry); err != nil {
+			return setting.Resolution{}, err
+		}
+		if err := p.Settings.Put(ctx, p.IDs.NewID(), at, definition.Key, entry, p.Clock.Now()); err != nil {
+			return setting.Resolution{}, err
+		}
+	}
+	return p.tolerance(ctx, walk)
+}
+
+func (p Planner) recordTolerance(ctx context.Context, actor appshared.ActorContext, target shared.ID, days *int, lock bool) error {
+	to := ""
+	if days != nil {
+		to = strconv.Itoa(*days)
+	}
+	return p.record(ctx, actor, ToleranceSetAction, toleranceTarget, target, p.Clock.Now(),
+		audit.Change{Field: string(domain.TimeToleranceKey), Classification: audit.Open, To: to},
+		audit.Change{Field: "locked", Classification: audit.Open, To: strconv.FormatBool(lock && days != nil)})
 }
 
 // Descriptor is the catalogue entry.
@@ -279,6 +323,120 @@ func (h SetPlanTolerance) Descriptor() usecase.Descriptor {
 				return nil, err
 			}
 			return view.Output(), nil
+		}),
+	}, toleranceTarget)
+}
+
+const (
+	ReadWorkspaceToleranceName = "ReadWorkspaceTolerance"
+	SetWorkspaceToleranceName  = "SetWorkspaceTolerance"
+	// ToleranceReadAction is a refused read of the workspace's tolerance.
+	ToleranceReadAction audit.Action = "plan_tolerance.read"
+)
+
+// workspaceTolerance asks the permission at the workspace and answers where its tolerance lies.
+func (p Planner) workspaceTolerance(
+	ctx context.Context, actor appshared.ActorContext, permission service.Permission, action audit.Action, scope string,
+) (settingrepo.Place, error) {
+	if err := p.Authorizer.Authorize(ctx, actor, access.Request{
+		Permission: permission, Path: []identity.Scope{identity.TenantScope()}, Action: action,
+		TokenScope: scope, TargetType: toleranceTarget, TargetID: actor.TenantID,
+	}); err != nil {
+		return settingrepo.Place{}, err
+	}
+	return settingrepo.Place{Level: setting.LevelWorkspace, ScopeID: actor.TenantID}, nil
+}
+
+// workspaceToleranceOutput is keyed by the catalogue's key, as the configuration document's
+// settings area reads it: the value, the level it comes from and the level that locked it.
+func workspaceToleranceOutput(r setting.Resolution) usecase.Output {
+	var days, locked any
+	if n, ok := domain.TimeToleranceOf(r); ok {
+		days = n
+	}
+	if r.Locked() {
+		locked = string(r.LockedBy)
+	}
+	return usecase.Output{string(domain.TimeToleranceKey): usecase.Output{
+		"value": days, "source": string(r.Source), "locked_by": locked,
+	}}
+}
+
+// ReadWorkspaceTolerance answers the time tolerance the workspace decides for every plan in it,
+// with the level it comes from and the level that locked it (standards.md P12).
+type ReadWorkspaceTolerance struct{ Planner Planner }
+
+// Descriptor is the catalogue entry.
+func (h ReadWorkspaceTolerance) Descriptor() usecase.Descriptor {
+	return descriptor(usecase.Descriptor{
+		Name: ReadWorkspaceToleranceName, Permission: service.PermissionRead, ReadOnly: true,
+		Summary: "Answers the time tolerance the workspace decides for every plan in it - the days a plan's forecast " +
+			"end may slip past its latest baseline's - with the level it comes from and the level that locked it.",
+		SideEffects: "None. Reads only.",
+		TokenScope:  itemsRead,
+		Audit:       usecase.AuditDeclaration{Action: ToleranceReadAction},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, _ usecase.Input) (usecase.Output, error) {
+			at, err := h.Planner.workspaceTolerance(ctx, actor, service.PermissionRead, ToleranceReadAction, itemsRead)
+			if err != nil {
+				return nil, err
+			}
+			var r setting.Resolution
+			if err := h.Planner.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				r, err = h.Planner.tolerance(ctx, []settingrepo.Place{at})
+				return err
+			}); err != nil {
+				return nil, err
+			}
+			return workspaceToleranceOutput(r), nil
+		}),
+	}, toleranceTarget)
+}
+
+// SetWorkspaceTolerance sets the time tolerance every plan of the workspace inherits, locked for
+// the hubs and collections below when asked, or leaves it to the installation and the plan.
+// STRUCTURE at the workspace decides it, as the workspace's own shape.
+type SetWorkspaceTolerance struct{ Planner Planner }
+
+// Descriptor is the catalogue entry.
+func (h SetWorkspaceTolerance) Descriptor() usecase.Descriptor {
+	return descriptor(usecase.Descriptor{
+		Name: SetWorkspaceToleranceName, Permission: service.PermissionStructure,
+		Summary: "Sets the time tolerance in calendar days, 0 to 365, that every hub and collection of the workspace " +
+			"inherits, locked for them when asked, or - without days - leaves it to the level above. A level above " +
+			"that locked it refuses (settings.locked).",
+		SideEffects: "Writes the setting and an audit entry.",
+		TokenScope:  itemsWrite,
+		Input: []usecase.Field{
+			{Name: "time_tolerance_days", Kind: usecase.KindInt, Description: "The days a plan's forecast end may slip; absent or null leaves it to the level above."},
+			{Name: "lock", Kind: usecase.KindBool, Description: "Fix it for the hubs and collections below."},
+		},
+		Audit:    usecase.AuditDeclaration{Action: ToleranceSetAction},
+		Activity: usecase.ActivityDeclaration{Exempt: "a tolerance is the workspace's setting and changes no entry."},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			at, err := h.Planner.workspaceTolerance(ctx, actor, service.PermissionStructure, ToleranceSetAction, itemsWrite)
+			if err != nil {
+				return nil, err
+			}
+			if h.Planner.Settings == nil {
+				return nil, shared.ErrUnavailable.WithDetail("planning.tolerance_unavailable")
+			}
+			var days *int
+			if in.Present("time_tolerance_days") && in["time_tolerance_days"] != nil {
+				n := in.Int("time_tolerance_days")
+				days = &n
+			}
+			var r setting.Resolution
+			err = h.Planner.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				var err error
+				if r, err = h.Planner.putTolerance(ctx, actor, at, []settingrepo.Place{at}, days, in.Bool("lock")); err != nil {
+					return err
+				}
+				return h.Planner.recordTolerance(ctx, actor, actor.TenantID, days, in.Bool("lock"))
+			})
+			if err != nil {
+				return nil, err
+			}
+			return workspaceToleranceOutput(r), nil
 		}),
 	}, toleranceTarget)
 }

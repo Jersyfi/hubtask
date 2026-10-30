@@ -761,7 +761,9 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `plan_tolerance.exceeded` | ReadPlanTolerance | `plan_tolerance` | INFO | Every time |
+| `plan_tolerance.read` | ReadWorkspaceTolerance | `plan_tolerance` | INFO | When refused |
 | `plan_tolerance.set` | SetPlanTolerance | `plan_tolerance` | INFO | Every time |
+| `plan_tolerance.set` | SetWorkspaceTolerance | `plan_tolerance` | INFO | Every time |
 
 ## Portfolio
 

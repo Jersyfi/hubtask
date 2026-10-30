@@ -77,6 +77,12 @@ type Reader interface {
 	Permitted(ctx context.Context, actor appshared.ActorContext, request access.Request, paths [][]identity.Scope) ([]bool, error)
 }
 
+// ExceptionNotifier tells the person who decided a plan's tolerance of its exception, once per
+// baseline, inside the caller's transaction.
+type ExceptionNotifier interface {
+	PlanExceeded(ctx context.Context, tenant, baseline, recipient, reader shared.ID, at time.Time) error
+}
+
 // Catalogue runs one use case by name: how a proposed move is applied, through UpdateWorkItem.
 type Catalogue interface {
 	Invoke(ctx context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error)
@@ -89,7 +95,10 @@ type Planner struct {
 	Sprints   planrepo.Sprints
 	Releases  planrepo.Releases
 	// Settings holds a plan's tolerances (standards.md P12); nil leaves every plan without one.
-	Settings   settingrepo.Settings
+	Settings settingrepo.Settings
+	// Exceptions tells whoever decided a plan's tolerance that the plan slipped past it; nil tells
+	// nobody, and the exception stands in the trail alone.
+	Exceptions ExceptionNotifier
 	Items      workrepo.Items
 	Containers workrepo.Containers
 	LinkTypes  workrepo.LinkTypes

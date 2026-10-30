@@ -1893,6 +1893,10 @@ func run() error {
 		Calendars: serviceDeskStore.Calendars(), Catalogue: planMoves, Authorizer: authorizer, Reader: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		Changes: changes, HLC: hybrid,
+		Exceptions: notification.RecordPlanException{
+			Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+			Jobs: jobs, IDs: ids, Signals: metrics,
+		},
 	}
 	// The time module (M7): a person's records, timer and weeks, judged by who approves time where
 	// the entries lie.
@@ -2091,6 +2095,8 @@ func run() error {
 		planningservice.DeleteBaseline{Planner: planner}.Descriptor(),
 		planningservice.ReadPlanTolerance{Planner: planner}.Descriptor(),
 		planningservice.SetPlanTolerance{Planner: planner}.Descriptor(),
+		planningservice.ReadWorkspaceTolerance{Planner: planner}.Descriptor(),
+		planningservice.SetWorkspaceTolerance{Planner: planner}.Descriptor(),
 		planningservice.CreateRelease{Planner: planner}.Descriptor(),
 		planningservice.UpdateRelease{Planner: planner}.Descriptor(),
 		planningservice.ListReleases{Planner: planner}.Descriptor(),
@@ -4088,6 +4094,8 @@ func run() error {
 			Boards: postgres.NewWhiteboardRepository(),
 			// The approval a message is about, and through it the entry.
 			Approvals: serviceDeskStore.Approvals(),
+			// The baseline a plan slipped from, and through it the plan's place.
+			Baselines: postgres.NewPlanningRepository().Baselines(),
 			// The entry's ticket key on the intake's address as Reply-To, so an answer becomes a
 			// comment (ADR-0094).
 			Replies: mailservice.Replies{Writer: mailWriter},
@@ -4526,14 +4534,16 @@ func run() error {
 		// And under a whiteboard mention's (queue.KindWhiteboardMentionEmail).
 		queueport.KindWhiteboardMentionEmail: notificationDelivery,
 		// And under an approval's (queue.KindApprovalEmail).
-		queueport.KindApprovalEmail:   notificationDelivery,
-		queueport.KindWebhookDeliver:  webhookDelivery,
-		queueport.KindPlatformSweep:   worker.PlatformSweep{Sweep: platformSweep},
-		queueport.KindPlatformDeliver: platformDelivery,
-		queueport.KindAutomationRun:   automationRun,
-		queueport.KindAutomationHTTP:  outboundCall,
-		queueport.KindBackupRun:       backupRun,
-		queueport.KindBackupVerify:    worker.BackupVerify{Performer: backupPerformer},
+		queueport.KindApprovalEmail: notificationDelivery,
+		// And under a plan exception's (queue.KindPlanExceptionEmail).
+		queueport.KindPlanExceptionEmail: notificationDelivery,
+		queueport.KindWebhookDeliver:     webhookDelivery,
+		queueport.KindPlatformSweep:      worker.PlatformSweep{Sweep: platformSweep},
+		queueport.KindPlatformDeliver:    platformDelivery,
+		queueport.KindAutomationRun:      automationRun,
+		queueport.KindAutomationHTTP:     outboundCall,
+		queueport.KindBackupRun:          backupRun,
+		queueport.KindBackupVerify:       worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{
 			Applier: backupApplier, Progress: jobs,
 		},

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	settingrepo "github.com/Jersyfi/hubtask/core/application/repository/setting"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/planning"
 	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -83,5 +84,54 @@ func TestAPlanBeyondItsToleranceIsInException(t *testing.T) {
 	}
 	if last := f.audit.entries[len(f.audit.entries)-1]; last.Action != ToleranceExceededAction {
 		t.Errorf("recorded %v, want the exception", last.Action)
+	}
+}
+
+// told records whom a plan's exception was sent to.
+type told struct{ recipients []shared.ID }
+
+func (t *told) PlanExceeded(_ context.Context, _, _, recipient, _ shared.ID, _ time.Time) error {
+	t.recipients = append(t.recipients, recipient)
+	return nil
+}
+
+// standards.md P12 at the workspace: its tolerance, locked, reaches every hub and collection and
+// is not changed there, and the exception goes to the person who decided it - the level above.
+func TestTheWorkspacesToleranceReachesEveryPlanAndHearsItsException(t *testing.T) {
+	f := newFixture()
+	store := &settingStore{}
+	notified := &told{}
+	f.planner.Settings, f.planner.Exceptions = store, notified
+	ctx := context.Background()
+	out, err := SetWorkspaceTolerance{Planner: f.planner}.Descriptor().Handler.Invoke(ctx, actor(), usecase.Input{"time_tolerance_days": 2, "lock": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if asked := f.gate.asked[len(f.gate.asked)-1]; asked.Permission != service.PermissionStructure || asked.TargetID != tenantID {
+		t.Errorf("asked %+v, want STRUCTURE at the workspace", asked)
+	}
+	row := out[string(domain.TimeToleranceKey)].(usecase.Output)
+	if row["value"] != 2 || row["source"] != string(setting.LevelWorkspace) || row["locked_by"] != string(setting.LevelWorkspace) {
+		t.Fatalf("the workspace's tolerance %v", row)
+	}
+	three := 3
+	if _, err := (SetPlanTolerance{Planner: f.planner}).Execute(ctx, actor(), SetPlanToleranceCommand{PlanID: hubID, Days: &three}); err == nil {
+		t.Error("a hub changed the workspace's locked tolerance")
+	}
+	// The workspace's tolerance was decided by somebody other than the reader.
+	decider := shared.MustParseID("01936f2a-7c1e-7000-8000-000000000302")
+	store.stored[0].Entry.By = decider
+	agreed := time.Date(2026, 11, 2, 17, 0, 0, 0, time.UTC)
+	f.baselines.taken = []domain.Baseline{{ID: shared.MustParseID("01936f2a-7c1e-7000-8000-000000000301")}}
+	f.baselines.found = domain.Baseline{ID: f.baselines.taken[0].ID, Entries: []domain.BaselineEntry{{EntryID: launch, DueAt: &agreed}}}
+	view, err := ReadPlanTolerance{Planner: f.planner}.Execute(ctx, actor(), ScheduleQuery{PlanID: collection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.Resolution.Source != setting.LevelWorkspace || view.Exception == nil || !view.Exception.Exceeded {
+		t.Fatalf("view %+v", view)
+	}
+	if len(notified.recipients) != 1 || notified.recipients[0] != decider {
+		t.Errorf("told %v, want the person who decided the tolerance", notified.recipients)
 	}
 }
