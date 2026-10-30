@@ -135,6 +135,22 @@ class Client:
         """How an entry's SLA goals stand"""
         return self._call("GET", "/items/{itemId}/sla", {"itemId": item_id}, None, {}, None, "none", None, "json")
 
+    def list_reply_templates(self) -> "ReplyTemplateList":
+        """The workspace's canned replies"""
+        return self._call("GET", "/reply-templates", {}, None, {}, None, "none", None, "json")
+
+    def define_reply_template(self, template_key: str, body: "ReplyTemplateDefine", *, if_match: str | None = None) -> "ReplyTemplate":
+        """Add or replace a canned reply"""
+        return self._call("PUT", "/reply-templates/{templateKey}", {"templateKey": template_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_reply_template(self, template_key: str) -> None:
+        """Delete a canned reply"""
+        return self._call("DELETE", "/reply-templates/{templateKey}", {"templateKey": template_key}, None, {}, None, "none", None, "void")
+
+    def render_reply_template(self, item_id: str, template_key: str) -> "RenderedReply":
+        """A canned reply filled for an entry"""
+        return self._call("GET", "/items/{itemId}/reply-templates/{templateKey}", {"itemId": item_id, "templateKey": template_key}, None, {}, None, "none", None, "json")
+
     def list_request_catalogue(self, *, query: dict[str, Any] | None = None) -> "RequestCatalogue":
         """The kinds of request a service offers"""
         return self._call("GET", "/request-catalogue", {}, query, {}, None, "none", None, "json")

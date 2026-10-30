@@ -631,6 +631,15 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `reference.resolved` | ResolveReferences | `reference` | INFO | When refused |
 
+## Reply_template
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `reply_template.defined` | DefineReplyTemplate | `reply_template` | INFO | Every time |
+| `reply_template.deleted` | DeleteReplyTemplate | `reply_template` | INFO | Every time |
+| `reply_template.read` | ListReplyTemplates | `reply_template` | INFO | When refused |
+| `reply_template.rendered` | RenderReplyTemplate | `reply_template` | INFO | When refused |
+
 ## Request
 
 | Action | Use case | Target | Severity | Recorded |

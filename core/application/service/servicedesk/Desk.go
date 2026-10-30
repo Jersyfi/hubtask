@@ -38,6 +38,7 @@ const (
 const (
 	calendarTarget = "business_calendar"
 	policyTarget   = "sla_policy"
+	replyTarget    = "reply_template"
 )
 
 // The stable audit codes (audit.md §2). Names are a person's words and go as fingerprints
@@ -51,9 +52,13 @@ const (
 	PoliciesReadAction    audit.Action = "sla_policy.read"
 	EntrySlaReadAction    audit.Action = "entry_sla.read"
 	SlaReportReadAction   audit.Action = "entry_sla.reported"
+	ReplyDefinedAction    audit.Action = "reply_template.defined"
+	ReplyDeletedAction    audit.Action = "reply_template.deleted"
+	RepliesReadAction     audit.Action = "reply_template.read"
+	ReplyRenderedAction   audit.Action = "reply_template.rendered"
 )
 
-const configurationExempt = "a calendar and an SLA policy are the workspace's configuration; the entries they measure record their own history."
+const configurationExempt = "a calendar, an SLA policy and a reply template are the workspace's configuration; the entries they measure record their own history."
 
 // Authorizer records a refusal and answers it.
 type Authorizer interface {
@@ -65,6 +70,7 @@ type Desk struct {
 	Calendars  repository.Calendars
 	Policies   repository.Policies
 	Records    repository.Records
+	Replies    repository.ReplyTemplates
 	Authorizer Authorizer
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork

@@ -2147,3 +2147,15 @@ func (pending) ReadMyRequest(w http.ResponseWriter, r *http.Request, _ openapi.I
 func (pending) CommentOnMyRequest(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.CommentOnMyRequestParams) {
 	notAvailable(w, r)
 }
+
+// The service desk's canned replies (UC-SVC-06), answered by the generated mapping.
+func (pending) ListReplyTemplates(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) DeleteReplyTemplate(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+func (pending) DefineReplyTemplate(w http.ResponseWriter, r *http.Request, _ string, _ openapi.DefineReplyTemplateParams) {
+	notAvailable(w, r)
+}
+func (pending) RenderReplyTemplate(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ string) {
+	notAvailable(w, r)
+}

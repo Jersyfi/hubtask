@@ -15440,6 +15440,32 @@ type ReminderUpdate struct {
 	Recipients *[]openapi_types.UUID `json:"recipients,omitempty"`
 }
 
+// RenderedReply defines model for RenderedReply.
+type RenderedReply struct {
+	Body string `json:"body"`
+	Key  string `json:"key"`
+}
+
+// ReplyTemplate defines model for ReplyTemplate.
+type ReplyTemplate struct {
+	// Body Markdown with placeholders such as {{requester.name}}.
+	Body    string `json:"body"`
+	Key     string `json:"key"`
+	Name    string `json:"name"`
+	Version int    `json:"version"`
+}
+
+// ReplyTemplateDefine defines model for ReplyTemplateDefine.
+type ReplyTemplateDefine struct {
+	Body string `json:"body"`
+	Name string `json:"name"`
+}
+
+// ReplyTemplateList defines model for ReplyTemplateList.
+type ReplyTemplateList struct {
+	Data []ReplyTemplate `json:"data"`
+}
+
 // RequestCatalogue defines model for RequestCatalogue.
 type RequestCatalogue struct {
 	Data []struct {
@@ -19942,6 +19968,12 @@ type ResolveReferencesJSONBody struct {
 	References []Reference `json:"references"`
 }
 
+// DefineReplyTemplateParams defines parameters for DefineReplyTemplate.
+type DefineReplyTemplateParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListRequestCatalogueParams defines parameters for ListRequestCatalogue.
 type ListRequestCatalogueParams struct {
 	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
@@ -20836,6 +20868,9 @@ type OpenPrivateHubJSONRequestBody = PrivateHubAccessRequest
 
 // ResolveReferencesJSONRequestBody defines body for ResolveReferences for application/json ContentType.
 type ResolveReferencesJSONRequestBody ResolveReferencesJSONBody
+
+// DefineReplyTemplateJSONRequestBody defines body for DefineReplyTemplate for application/json ContentType.
+type DefineReplyTemplateJSONRequestBody = ReplyTemplateDefine
 
 // RaiseRequestJSONRequestBody defines body for RaiseRequest for application/json ContentType.
 type RaiseRequestJSONRequestBody RaiseRequestJSONBody
@@ -25457,6 +25492,13 @@ type ClientInterface interface {
 	// Changes a reminder. A merge patch: a field that is not sent is not touched, and each field that moves is its own change log entry, so two devices editing the offset and the channels converge to both. Recipients and channels are chosen whole - the list sent replaces the list stored.
 	UpdateReminderWithApplicationMergePatchPlusJSONBody(ctx context.Context, itemId ItemId, reminderId ReminderId, params *UpdateReminderParams, body UpdateReminderApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RenderReplyTemplate A canned reply filled for an entry
+	//
+	// The canned reply's text with the entry's title and identifier, the name of who raised it and of who asks in its placeholders; a value nobody has is left empty. Sends nothing - the text becomes a comment once it is added. Needs READ on the entry.
+	//
+	// Corresponds with GET /items/{itemId}/reply-templates/{templateKey} (the `RenderReplyTemplate` operationId).
+	RenderReplyTemplate(ctx context.Context, itemId ItemId, templateKey string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ReadEntrySla How an entry's SLA goals stand
 	//
 	// Per goal of the policy that measures the entry: its target in working seconds, whether it runs, stands still, was met or breached, when it falls due and when it was at risk. Empty when no policy measures the entry. Needs READ on the entry.
@@ -27072,6 +27114,38 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /references:resolve (the `ResolveReferences` operationId).
 	ResolveReferences(ctx context.Context, body ResolveReferencesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListReplyTemplates The workspace's canned replies
+	//
+	// Every canned reply of the workspace, by key: its name and its text with the placeholders an entry fills. Needs READ at the workspace and the service desk switched on.
+	//
+	// Corresponds with GET /reply-templates (the `ListReplyTemplates` operationId).
+	ListReplyTemplates(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteReplyTemplate Delete a canned reply
+	//
+	// Deletes the canned reply; replies already sent with it stay as they were written. Needs STRUCTURE at the workspace.
+	//
+	// Corresponds with DELETE /reply-templates/{templateKey} (the `DeleteReplyTemplate` operationId).
+	DeleteReplyTemplate(ctx context.Context, templateKey string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineReplyTemplateWithBody Add or replace a canned reply
+	//
+	// Creates the canned reply under the key, or replaces the one there. Its text may name the placeholders `{{entry.title}}`, `{{entry.id}}`, `{{requester.name}}` and `{{agent.name}}`; any other is refused with `reply_templates.variable_unknown`. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /reply-templates/{templateKey} (the `DefineReplyTemplate` operationId).
+	DefineReplyTemplateWithBody(ctx context.Context, templateKey string, params *DefineReplyTemplateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineReplyTemplate Add or replace a canned reply
+	//
+	// Creates the canned reply under the key, or replaces the one there. Its text may name the placeholders `{{entry.title}}`, `{{entry.id}}`, `{{requester.name}}` and `{{agent.name}}`; any other is refused with `reply_templates.variable_unknown`. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /reply-templates/{templateKey} (the `DefineReplyTemplate` operationId).
+	DefineReplyTemplate(ctx context.Context, templateKey string, params *DefineReplyTemplateParams, body DefineReplyTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListRequestCatalogue The kinds of request a service offers
 	//
@@ -37485,6 +37559,23 @@ func (c *Client) UpdateReminderWithApplicationMergePatchPlusJSONBody(ctx context
 	return c.Client.Do(req)
 }
 
+// RenderReplyTemplate A canned reply filled for an entry
+//
+// The canned reply's text with the entry's title and identifier, the name of who raised it and of who asks in its placeholders; a value nobody has is left empty. Sends nothing - the text becomes a comment once it is added. Needs READ on the entry.
+//
+// Corresponds with GET /items/{itemId}/reply-templates/{templateKey} (the `RenderReplyTemplate` operationId).
+func (c *Client) RenderReplyTemplate(ctx context.Context, itemId ItemId, templateKey string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRenderReplyTemplateRequest(c.Server, itemId, templateKey)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ReadEntrySla How an entry's SLA goals stand
 //
 // Per goal of the policy that measures the entry: its target in working seconds, whether it runs, stands still, was met or breached, when it falls due and when it was at risk. Empty when no policy measures the entry. Needs READ on the entry.
@@ -40781,6 +40872,78 @@ func (c *Client) ResolveReferencesWithBody(ctx context.Context, contentType stri
 // Corresponds with POST /references:resolve (the `ResolveReferences` operationId).
 func (c *Client) ResolveReferences(ctx context.Context, body ResolveReferencesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewResolveReferencesRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListReplyTemplates The workspace's canned replies
+//
+// Every canned reply of the workspace, by key: its name and its text with the placeholders an entry fills. Needs READ at the workspace and the service desk switched on.
+//
+// Corresponds with GET /reply-templates (the `ListReplyTemplates` operationId).
+func (c *Client) ListReplyTemplates(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListReplyTemplatesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteReplyTemplate Delete a canned reply
+//
+// Deletes the canned reply; replies already sent with it stay as they were written. Needs STRUCTURE at the workspace.
+//
+// Corresponds with DELETE /reply-templates/{templateKey} (the `DeleteReplyTemplate` operationId).
+func (c *Client) DeleteReplyTemplate(ctx context.Context, templateKey string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteReplyTemplateRequest(c.Server, templateKey)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineReplyTemplateWithBody Add or replace a canned reply
+//
+// Creates the canned reply under the key, or replaces the one there. Its text may name the placeholders `{{entry.title}}`, `{{entry.id}}`, `{{requester.name}}` and `{{agent.name}}`; any other is refused with `reply_templates.variable_unknown`. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /reply-templates/{templateKey} (the `DefineReplyTemplate` operationId).
+func (c *Client) DefineReplyTemplateWithBody(ctx context.Context, templateKey string, params *DefineReplyTemplateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineReplyTemplateRequestWithBody(c.Server, templateKey, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineReplyTemplate Add or replace a canned reply
+//
+// Creates the canned reply under the key, or replaces the one there. Its text may name the placeholders `{{entry.title}}`, `{{entry.id}}`, `{{requester.name}}` and `{{agent.name}}`; any other is refused with `reply_templates.variable_unknown`. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /reply-templates/{templateKey} (the `DefineReplyTemplate` operationId).
+func (c *Client) DefineReplyTemplate(ctx context.Context, templateKey string, params *DefineReplyTemplateParams, body DefineReplyTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineReplyTemplateRequest(c.Server, templateKey, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -58752,6 +58915,47 @@ func NewUpdateReminderRequestWithBody(server string, itemId ItemId, reminderId R
 	return req, nil
 }
 
+// NewRenderReplyTemplateRequest constructs an http.Request for the RenderReplyTemplate method
+func NewRenderReplyTemplateRequest(server string, itemId ItemId, templateKey string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "templateKey", templateKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/reply-templates/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewReadEntrySlaRequest constructs an http.Request for the ReadEntrySla method
 func NewReadEntrySlaRequest(server string, itemId ItemId) (*http.Request, error) {
 	var err error
@@ -64282,6 +64486,129 @@ func NewResolveReferencesRequestWithBody(server string, contentType string, body
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListReplyTemplatesRequest constructs an http.Request for the ListReplyTemplates method
+func NewListReplyTemplatesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/reply-templates")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteReplyTemplateRequest constructs an http.Request for the DeleteReplyTemplate method
+func NewDeleteReplyTemplateRequest(server string, templateKey string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "templateKey", templateKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/reply-templates/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDefineReplyTemplateRequest calls the generic DefineReplyTemplate builder with application/json body
+func NewDefineReplyTemplateRequest(server string, templateKey string, params *DefineReplyTemplateParams, body DefineReplyTemplateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDefineReplyTemplateRequestWithBody(server, templateKey, params, "application/json", bodyReader)
+}
+
+// NewDefineReplyTemplateRequestWithBody constructs an http.Request for the DefineReplyTemplate method, with any body, and a specified content type
+func NewDefineReplyTemplateRequestWithBody(server string, templateKey string, params *DefineReplyTemplateParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "templateKey", templateKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/reply-templates/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -73095,6 +73422,15 @@ type ClientWithResponsesInterface interface {
 	// Changes a reminder. A merge patch: a field that is not sent is not touched, and each field that moves is its own change log entry, so two devices editing the offset and the channels converge to both. Recipients and channels are chosen whole - the list sent replaces the list stored.
 	UpdateReminderWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, itemId ItemId, reminderId ReminderId, params *UpdateReminderParams, body UpdateReminderApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateReminderResult, error)
 
+	// RenderReplyTemplateWithResponse A canned reply filled for an entry
+	//
+	// The canned reply's text with the entry's title and identifier, the name of who raised it and of who asks in its placeholders; a value nobody has is left empty. Sends nothing - the text becomes a comment once it is added. Needs READ on the entry.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /items/{itemId}/reply-templates/{templateKey} (the `RenderReplyTemplate` operationId).
+	RenderReplyTemplateWithResponse(ctx context.Context, itemId ItemId, templateKey string, reqEditors ...RequestEditorFn) (*RenderReplyTemplateResult, error)
+
 	// ReadEntrySlaWithResponse How an entry's SLA goals stand
 	//
 	// Per goal of the policy that measures the entry: its target in working seconds, whether it runs, stands still, was met or breached, when it falls due and when it was at risk. Empty when no policy measures the entry. Needs READ on the entry.
@@ -74852,6 +75188,42 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /references:resolve (the `ResolveReferences` operationId).
 	ResolveReferencesWithResponse(ctx context.Context, body ResolveReferencesJSONRequestBody, reqEditors ...RequestEditorFn) (*ResolveReferencesResult, error)
+
+	// ListReplyTemplatesWithResponse The workspace's canned replies
+	//
+	// Every canned reply of the workspace, by key: its name and its text with the placeholders an entry fills. Needs READ at the workspace and the service desk switched on.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /reply-templates (the `ListReplyTemplates` operationId).
+	ListReplyTemplatesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListReplyTemplatesResult, error)
+
+	// DeleteReplyTemplateWithResponse Delete a canned reply
+	//
+	// Deletes the canned reply; replies already sent with it stay as they were written. Needs STRUCTURE at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /reply-templates/{templateKey} (the `DeleteReplyTemplate` operationId).
+	DeleteReplyTemplateWithResponse(ctx context.Context, templateKey string, reqEditors ...RequestEditorFn) (*DeleteReplyTemplateResult, error)
+
+	// DefineReplyTemplateWithBodyWithResponse Add or replace a canned reply
+	//
+	// Creates the canned reply under the key, or replaces the one there. Its text may name the placeholders `{{entry.title}}`, `{{entry.id}}`, `{{requester.name}}` and `{{agent.name}}`; any other is refused with `reply_templates.variable_unknown`. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /reply-templates/{templateKey} (the `DefineReplyTemplate` operationId).
+	DefineReplyTemplateWithBodyWithResponse(ctx context.Context, templateKey string, params *DefineReplyTemplateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineReplyTemplateResult, error)
+
+	// DefineReplyTemplateWithResponse Add or replace a canned reply
+	//
+	// Creates the canned reply under the key, or replaces the one there. Its text may name the placeholders `{{entry.title}}`, `{{entry.id}}`, `{{requester.name}}` and `{{agent.name}}`; any other is refused with `reply_templates.variable_unknown`. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /reply-templates/{templateKey} (the `DefineReplyTemplate` operationId).
+	DefineReplyTemplateWithResponse(ctx context.Context, templateKey string, params *DefineReplyTemplateParams, body DefineReplyTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineReplyTemplateResult, error)
 
 	// ListRequestCatalogueWithResponse The kinds of request a service offers
 	//
@@ -91990,6 +92362,54 @@ func (r UpdateReminderResult) ContentType() string {
 	return ""
 }
 
+type RenderReplyTemplateResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *RenderedReply
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RenderReplyTemplateResult) GetJSON200() *RenderedReply {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RenderReplyTemplateResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RenderReplyTemplateResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RenderReplyTemplateResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RenderReplyTemplateResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RenderReplyTemplateResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadEntrySlaResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -97752,6 +98172,143 @@ func (r ResolveReferencesResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ResolveReferencesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListReplyTemplatesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ReplyTemplateList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListReplyTemplatesResult) GetJSON200() *ReplyTemplateList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListReplyTemplatesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListReplyTemplatesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListReplyTemplatesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListReplyTemplatesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListReplyTemplatesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteReplyTemplateResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteReplyTemplateResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteReplyTemplateResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteReplyTemplateResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteReplyTemplateResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteReplyTemplateResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DefineReplyTemplateResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ReplyTemplate
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DefineReplyTemplateResult) GetJSON200() *ReplyTemplate {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DefineReplyTemplateResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DefineReplyTemplateResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DefineReplyTemplateResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DefineReplyTemplateResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DefineReplyTemplateResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -109553,6 +110110,21 @@ func (c *ClientWithResponses) UpdateReminderWithApplicationMergePatchPlusJSONBod
 	return ParseUpdateReminderResult(rsp)
 }
 
+// RenderReplyTemplateWithResponse A canned reply filled for an entry
+//
+// The canned reply's text with the entry's title and identifier, the name of who raised it and of who asks in its placeholders; a value nobody has is left empty. Sends nothing - the text becomes a comment once it is added. Needs READ on the entry.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /items/{itemId}/reply-templates/{templateKey} (the `RenderReplyTemplate` operationId).
+func (c *ClientWithResponses) RenderReplyTemplateWithResponse(ctx context.Context, itemId ItemId, templateKey string, reqEditors ...RequestEditorFn) (*RenderReplyTemplateResult, error) {
+	rsp, err := c.RenderReplyTemplate(ctx, itemId, templateKey, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRenderReplyTemplateResult(rsp)
+}
+
 // ReadEntrySlaWithResponse How an entry's SLA goals stand
 //
 // Per goal of the policy that measures the entry: its target in working seconds, whether it runs, stands still, was met or breached, when it falls due and when it was at risk. Empty when no policy measures the entry. Needs READ on the entry.
@@ -112323,6 +112895,66 @@ func (c *ClientWithResponses) ResolveReferencesWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseResolveReferencesResult(rsp)
+}
+
+// ListReplyTemplatesWithResponse The workspace's canned replies
+//
+// Every canned reply of the workspace, by key: its name and its text with the placeholders an entry fills. Needs READ at the workspace and the service desk switched on.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /reply-templates (the `ListReplyTemplates` operationId).
+func (c *ClientWithResponses) ListReplyTemplatesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListReplyTemplatesResult, error) {
+	rsp, err := c.ListReplyTemplates(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListReplyTemplatesResult(rsp)
+}
+
+// DeleteReplyTemplateWithResponse Delete a canned reply
+//
+// Deletes the canned reply; replies already sent with it stay as they were written. Needs STRUCTURE at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /reply-templates/{templateKey} (the `DeleteReplyTemplate` operationId).
+func (c *ClientWithResponses) DeleteReplyTemplateWithResponse(ctx context.Context, templateKey string, reqEditors ...RequestEditorFn) (*DeleteReplyTemplateResult, error) {
+	rsp, err := c.DeleteReplyTemplate(ctx, templateKey, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteReplyTemplateResult(rsp)
+}
+
+// DefineReplyTemplateWithBodyWithResponse Add or replace a canned reply
+//
+// Creates the canned reply under the key, or replaces the one there. Its text may name the placeholders `{{entry.title}}`, `{{entry.id}}`, `{{requester.name}}` and `{{agent.name}}`; any other is refused with `reply_templates.variable_unknown`. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /reply-templates/{templateKey} (the `DefineReplyTemplate` operationId).
+func (c *ClientWithResponses) DefineReplyTemplateWithBodyWithResponse(ctx context.Context, templateKey string, params *DefineReplyTemplateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineReplyTemplateResult, error) {
+	rsp, err := c.DefineReplyTemplateWithBody(ctx, templateKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineReplyTemplateResult(rsp)
+}
+
+// DefineReplyTemplateWithResponse Add or replace a canned reply
+//
+// Creates the canned reply under the key, or replaces the one there. Its text may name the placeholders `{{entry.title}}`, `{{entry.id}}`, `{{requester.name}}` and `{{agent.name}}`; any other is refused with `reply_templates.variable_unknown`. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /reply-templates/{templateKey} (the `DefineReplyTemplate` operationId).
+func (c *ClientWithResponses) DefineReplyTemplateWithResponse(ctx context.Context, templateKey string, params *DefineReplyTemplateParams, body DefineReplyTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineReplyTemplateResult, error) {
+	rsp, err := c.DefineReplyTemplate(ctx, templateKey, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineReplyTemplateResult(rsp)
 }
 
 // ListRequestCatalogueWithResponse The kinds of request a service offers
@@ -125679,6 +126311,39 @@ func ParseUpdateReminderResult(rsp *http.Response) (*UpdateReminderResult, error
 	return response, nil
 }
 
+// ParseRenderReplyTemplateResult parses an HTTP response from a RenderReplyTemplateWithResponse call
+func ParseRenderReplyTemplateResult(rsp *http.Response) (*RenderReplyTemplateResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RenderReplyTemplateResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest RenderedReply
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseReadEntrySlaResult parses an HTTP response from a ReadEntrySlaWithResponse call
 func ParseReadEntrySlaResult(rsp *http.Response) (*ReadEntrySlaResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -129816,6 +130481,101 @@ func ParseResolveReferencesResult(rsp *http.Response) (*ResolveReferencesResult,
 		var dest struct {
 			Data []ReferenceTarget `json:"data"`
 		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListReplyTemplatesResult parses an HTTP response from a ListReplyTemplatesWithResponse call
+func ParseListReplyTemplatesResult(rsp *http.Response) (*ListReplyTemplatesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListReplyTemplatesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ReplyTemplateList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteReplyTemplateResult parses an HTTP response from a DeleteReplyTemplateWithResponse call
+func ParseDeleteReplyTemplateResult(rsp *http.Response) (*DeleteReplyTemplateResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteReplyTemplateResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDefineReplyTemplateResult parses an HTTP response from a DefineReplyTemplateWithResponse call
+func ParseDefineReplyTemplateResult(rsp *http.Response) (*DefineReplyTemplateResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DefineReplyTemplateResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ReplyTemplate
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

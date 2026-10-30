@@ -1820,7 +1820,7 @@ func run() error {
 	serviceDeskStore := postgres.NewServiceDeskRepository()
 	serviceDesk := servicedeskservice.Desk{
 		Calendars: serviceDeskStore.Calendars(), Policies: serviceDeskStore.Policies(),
-		Records: serviceDeskStore.Records(), Authorizer: authorizer, Audit: auditSink,
+		Records: serviceDeskStore.Records(), Replies: serviceDeskStore.Replies(), Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 	// The requester portal (UC-SVC-05): it raises and answers through the entry use cases in the
@@ -1896,6 +1896,12 @@ func run() error {
 		servicedeskservice.DeleteSlaPolicy{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.ReadEntrySla{Desk: serviceDesk, Items: items, Containers: containers}.Descriptor(),
 		servicedeskservice.ReportSla{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.ListReplyTemplates{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DefineReplyTemplate{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DeleteReplyTemplate{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.RenderReplyTemplate{
+			Desk: serviceDesk, Items: items, Containers: containers, Accounts: accounts,
+		}.Descriptor(),
 		servicedeskservice.ListRequestCatalogue{Portal: requestPortal}.Descriptor(),
 		servicedeskservice.RaiseRequest{Portal: requestPortal}.Descriptor(),
 		servicedeskservice.ListMyRequests{Portal: requestPortal}.Descriptor(),
@@ -3082,7 +3088,7 @@ func run() error {
 		// The public .ics route. Not a catalogue entry: it answers a credential nobody in this
 		// system holds, and every question it asks is asked inwards of the controller.
 		controller.CalendarFeeds = work.ReadCalendarFeed{
-			Feeds: calendarFeeds, Accounts: postgres.NewAccountRepository(),
+			Feeds: calendarFeeds, Accounts: accounts,
 			Export: work.ExportView{
 				Views: savedViews, Containers: containers, Permits: authorizer,
 				Query: work.QueryItems{

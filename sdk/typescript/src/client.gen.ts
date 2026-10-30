@@ -151,6 +151,26 @@ export class HubtaskClient {
     return this.call("GET", "/items/{itemId}/sla", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** The workspace's canned replies */
+  listReplyTemplates(options: CallOptions = {}): Promise<operations["listReplyTemplates"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/reply-templates", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add or replace a canned reply */
+  defineReplyTemplate(templateKey: string, body: NonNullable<operations["defineReplyTemplate"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["defineReplyTemplate"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/reply-templates/{templateKey}", { "templateKey": templateKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Delete a canned reply */
+  deleteReplyTemplate(templateKey: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/reply-templates/{templateKey}", { "templateKey": templateKey }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** A canned reply filled for an entry */
+  renderReplyTemplate(itemId: string, templateKey: string, options: CallOptions = {}): Promise<operations["renderReplyTemplate"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/items/{itemId}/reply-templates/{templateKey}", { "itemId": itemId, "templateKey": templateKey }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The kinds of request a service offers */
   listRequestCatalogue(options: CallOptions & { readonly query?: NonNullable<operations["listRequestCatalogue"]['parameters']['query']> } = {}): Promise<operations["listRequestCatalogue"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/request-catalogue", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

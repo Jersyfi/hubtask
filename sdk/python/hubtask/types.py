@@ -1229,6 +1229,23 @@ class BusinessCalendar(TypedDict, total=False):
     holidays: Required[list[str]]
     version: Required[int]
 
+class ReplyTemplate(TypedDict, total=False):
+    key: Required[str]
+    name: Required[str]
+    body: Required[str]
+    version: Required[int]
+
+class ReplyTemplateList(TypedDict, total=False):
+    data: Required[list["ReplyTemplate"]]
+
+class ReplyTemplateDefine(TypedDict, total=False):
+    name: Required[str]
+    body: Required[str]
+
+class RenderedReply(TypedDict, total=False):
+    key: Required[str]
+    body: Required[str]
+
 class BusinessCalendarList(TypedDict, total=False):
     data: Required[list["BusinessCalendar"]]
 

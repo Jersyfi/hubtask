@@ -90,6 +90,7 @@ var restDoors = map[string]restDoor{
 	"defineCiRelationType":              {UseCase: "DefineCiRelationType", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"defineCiSource":                    {UseCase: "DefineCiSource", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"rank"}},
 	"defineCustomField":                 {UseCase: "DefineCustomField", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/custom-fields/{id}", NullClears: false, Integers: []string(nil)},
+	"defineReplyTemplate":               {UseCase: "DefineReplyTemplate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"defineSlaPolicy":                   {UseCase: "DefineSlaPolicy", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"deleteBackupSchedule":              {UseCase: "DeleteBackupSchedule", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteBackupTarget":                {UseCase: "DeleteBackupTarget", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -107,6 +108,7 @@ var restDoors = map[string]restDoor{
 	"deletePageComment":                 {UseCase: "DeletePageComment", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deletePlatformSubscription":        {UseCase: "DeletePlatformSubscription", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteReminder":                    {UseCase: "DeleteReminder", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteReplyTemplate":               {UseCase: "DeleteReplyTemplate", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteRetentionPolicy":             {UseCase: "DeleteRetentionPolicy", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteRole":                        {UseCase: "DeleteRole", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteRule":                        {UseCase: "DeleteRule", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -213,6 +215,7 @@ var restDoors = map[string]restDoor{
 	"listPrivateHubAccesses":            {UseCase: "ListPrivateHubAccesses", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listPrivateHubs":                   {UseCase: "ListPrivateHubs", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listReminders":                     {UseCase: "ListReminders", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listReplyTemplates":                {UseCase: "ListReplyTemplates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listRequestCatalogue":              {UseCase: "ListRequestCatalogue", Status: 200, Query: []string{"collection_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listRetentionPolicies":             {UseCase: "ListRetentionPolicies", Status: 200, Query: []string{"container_id", "effective"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listRoles":                         {UseCase: "ListRoles", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -296,6 +299,7 @@ var restDoors = map[string]restDoor{
 	"removePlan":                        {UseCase: "RemovePlan", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeRecurrence":                  {UseCase: "RemoveRecurrence", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"renameContainer":                   {UseCase: "RenameContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
+	"renderReplyTemplate":               {UseCase: "RenderReplyTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"renewInvitation":                   {UseCase: "RenewInvitation", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ShownOnce: "invitation_link"},
 	"reopenWorkItem":                    {UseCase: "ReopenWorkItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reorderBucket":                     {UseCase: "ReorderBucket", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -868,6 +872,13 @@ func (c *RestController) DefineCustomField(w http.ResponseWriter, r *http.Reques
 	c.door(w, r, restDoors["defineCustomField"], usecase.Input{}, params, &body, answerBy(customFieldResponse))
 }
 
+// DefineReplyTemplate answers PUT /reply-templates/{templateKey} by the generated mapping.
+func (c *RestController) DefineReplyTemplate(w http.ResponseWriter, r *http.Request, templateKey string, params openapi.DefineReplyTemplateParams) {
+	var body openapi.DefineReplyTemplateJSONRequestBody
+	var answer openapi.ReplyTemplate
+	c.door(w, r, restDoors["defineReplyTemplate"], usecase.Input{"key": templateKey}, params, &body, &answer)
+}
+
 // DefineSlaPolicy answers PUT /sla-policies/{policyKey} by the generated mapping.
 func (c *RestController) DefineSlaPolicy(w http.ResponseWriter, r *http.Request, policyKey string, params openapi.DefineSlaPolicyParams) {
 	var body openapi.DefineSlaPolicyJSONRequestBody
@@ -954,6 +965,11 @@ func (c *RestController) DeletePlatformSubscription(w http.ResponseWriter, r *ht
 // DeleteReminder answers DELETE /items/{itemId}/reminders/{reminderId} by the generated mapping.
 func (c *RestController) DeleteReminder(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, reminderId openapi.ReminderId, params openapi.DeleteReminderParams) {
 	c.door(w, r, restDoors["deleteReminder"], usecase.Input{"item_id": itemId.String(), "reminder_id": reminderId.String()}, params, nil, nil)
+}
+
+// DeleteReplyTemplate answers DELETE /reply-templates/{templateKey} by the generated mapping.
+func (c *RestController) DeleteReplyTemplate(w http.ResponseWriter, r *http.Request, templateKey string) {
+	c.door(w, r, restDoors["deleteReplyTemplate"], usecase.Input{"key": templateKey}, nil, nil, nil)
 }
 
 // DeleteRetentionPolicy answers DELETE /retention-policies/{policyId} by the generated mapping.
@@ -1539,6 +1555,12 @@ func (c *RestController) ListReminders(w http.ResponseWriter, r *http.Request, i
 	c.door(w, r, restDoors["listReminders"], usecase.Input{"item_id": itemId.String()}, nil, nil, answerRows(reminderResponse))
 }
 
+// ListReplyTemplates answers GET /reply-templates by the generated mapping.
+func (c *RestController) ListReplyTemplates(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.ReplyTemplateList
+	c.door(w, r, restDoors["listReplyTemplates"], usecase.Input{}, nil, nil, &answer)
+}
+
 // ListRequestCatalogue answers GET /request-catalogue by the generated mapping.
 func (c *RestController) ListRequestCatalogue(w http.ResponseWriter, r *http.Request, params openapi.ListRequestCatalogueParams) {
 	var answer openapi.RequestCatalogue
@@ -2011,6 +2033,12 @@ func (c *RestController) RemoveRecurrence(w http.ResponseWriter, r *http.Request
 func (c *RestController) RenameContainer(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId, params openapi.RenameContainerParams) {
 	var body openapi.RenameContainerApplicationMergePatchPlusJSONRequestBody
 	c.door(w, r, restDoors["renameContainer"], usecase.Input{"container_id": containerId.String()}, params, &body, answerBy(containerResponse))
+}
+
+// RenderReplyTemplate answers GET /items/{itemId}/reply-templates/{templateKey} by the generated mapping.
+func (c *RestController) RenderReplyTemplate(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, templateKey string) {
+	var answer openapi.RenderedReply
+	c.door(w, r, restDoors["renderReplyTemplate"], usecase.Input{"item_id": itemId.String(), "key": templateKey}, nil, nil, &answer)
 }
 
 // RenewInvitation answers POST /accounts/{accountId}:renew-invitation by the generated mapping.

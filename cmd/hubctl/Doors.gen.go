@@ -554,6 +554,28 @@ var generatedCommands = []door{
 			{Name: "limit", Kind: "integer", Help: "", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"name", "title"}},
+	{Group: "reply", Verb: "define", OperationID: "defineReplyTemplate", Method: "PUT", Path: "/reply-templates/{templateKey}", Summary: "Add or replace a canned reply",
+		PathParams: []doorParam{
+			{Name: "templateKey", Kind: "string", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "body", Kind: "string", Help: "", Required: true},
+			{Name: "name", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "name", "version"}},
+	{Group: "reply", Verb: "ls", OperationID: "listReplyTemplates", Method: "GET", Path: "/reply-templates", Summary: "The workspace's canned replies",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name", "version"}},
+	{Group: "reply", Verb: "render", OperationID: "renderReplyTemplate", Method: "GET", Path: "/items/{itemId}/reply-templates/{templateKey}", Summary: "A canned reply filled for an entry",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+			{Name: "templateKey", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"key"}},
+	{Group: "reply", Verb: "rm", OperationID: "deleteReplyTemplate", Method: "DELETE", Path: "/reply-templates/{templateKey}", Summary: "Delete a canned reply",
+		PathParams: []doorParam{
+			{Name: "templateKey", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "request", Verb: "catalogue", OperationID: "listRequestCatalogue", Method: "GET", Path: "/request-catalogue", Summary: "The kinds of request a service offers",
 		Query: []doorParam{
 			{Name: "collection_id", Kind: "uuid", Help: "", Required: true},

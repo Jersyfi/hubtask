@@ -15434,6 +15434,32 @@ type ReminderUpdate struct {
 	Recipients *[]openapi_types.UUID `json:"recipients,omitempty"`
 }
 
+// RenderedReply defines model for RenderedReply.
+type RenderedReply struct {
+	Body string `json:"body"`
+	Key  string `json:"key"`
+}
+
+// ReplyTemplate defines model for ReplyTemplate.
+type ReplyTemplate struct {
+	// Body Markdown with placeholders such as {{requester.name}}.
+	Body    string `json:"body"`
+	Key     string `json:"key"`
+	Name    string `json:"name"`
+	Version int    `json:"version"`
+}
+
+// ReplyTemplateDefine defines model for ReplyTemplateDefine.
+type ReplyTemplateDefine struct {
+	Body string `json:"body"`
+	Name string `json:"name"`
+}
+
+// ReplyTemplateList defines model for ReplyTemplateList.
+type ReplyTemplateList struct {
+	Data []ReplyTemplate `json:"data"`
+}
+
 // RequestCatalogue defines model for RequestCatalogue.
 type RequestCatalogue struct {
 	Data []struct {
@@ -19936,6 +19962,12 @@ type ResolveReferencesJSONBody struct {
 	References []Reference `json:"references"`
 }
 
+// DefineReplyTemplateParams defines parameters for DefineReplyTemplate.
+type DefineReplyTemplateParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListRequestCatalogueParams defines parameters for ListRequestCatalogue.
 type ListRequestCatalogueParams struct {
 	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
@@ -20830,6 +20862,9 @@ type OpenPrivateHubJSONRequestBody = PrivateHubAccessRequest
 
 // ResolveReferencesJSONRequestBody defines body for ResolveReferences for application/json ContentType.
 type ResolveReferencesJSONRequestBody ResolveReferencesJSONBody
+
+// DefineReplyTemplateJSONRequestBody defines body for DefineReplyTemplate for application/json ContentType.
+type DefineReplyTemplateJSONRequestBody = ReplyTemplateDefine
 
 // RaiseRequestJSONRequestBody defines body for RaiseRequest for application/json ContentType.
 type RaiseRequestJSONRequestBody RaiseRequestJSONBody
@@ -21925,6 +21960,9 @@ type ServerInterface interface {
 
 	// (PATCH /items/{itemId}/reminders/{reminderId})
 	UpdateReminder(w http.ResponseWriter, r *http.Request, itemId ItemId, reminderId ReminderId, params UpdateReminderParams)
+	// RenderReplyTemplate A canned reply filled for an entry
+	// (GET /items/{itemId}/reply-templates/{templateKey})
+	RenderReplyTemplate(w http.ResponseWriter, r *http.Request, itemId ItemId, templateKey string)
 	// ReadEntrySla How an entry's SLA goals stand
 	// (GET /items/{itemId}/sla)
 	ReadEntrySla(w http.ResponseWriter, r *http.Request, itemId ItemId)
@@ -22276,6 +22314,15 @@ type ServerInterface interface {
 	// ResolveReferences Resolve references for the caller
 	// (POST /references:resolve)
 	ResolveReferences(w http.ResponseWriter, r *http.Request)
+	// ListReplyTemplates The workspace's canned replies
+	// (GET /reply-templates)
+	ListReplyTemplates(w http.ResponseWriter, r *http.Request)
+	// DeleteReplyTemplate Delete a canned reply
+	// (DELETE /reply-templates/{templateKey})
+	DeleteReplyTemplate(w http.ResponseWriter, r *http.Request, templateKey string)
+	// DefineReplyTemplate Add or replace a canned reply
+	// (PUT /reply-templates/{templateKey})
+	DefineReplyTemplate(w http.ResponseWriter, r *http.Request, templateKey string, params DefineReplyTemplateParams)
 	// ListRequestCatalogue The kinds of request a service offers
 	// (GET /request-catalogue)
 	ListRequestCatalogue(w http.ResponseWriter, r *http.Request, params ListRequestCatalogueParams)
@@ -33742,6 +33789,41 @@ func (siw *ServerInterfaceWrapper) UpdateReminder(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// RenderReplyTemplate operation middleware
+func (siw *ServerInterfaceWrapper) RenderReplyTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "templateKey" -------------
+	var templateKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "templateKey", r.PathValue("templateKey"), &templateKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "templateKey", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RenderReplyTemplate(w, r, itemId, templateKey)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadEntrySla operation middleware
 func (siw *ServerInterfaceWrapper) ReadEntrySla(w http.ResponseWriter, r *http.Request) {
 
@@ -37854,6 +37936,96 @@ func (siw *ServerInterfaceWrapper) ResolveReferences(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// ListReplyTemplates operation middleware
+func (siw *ServerInterfaceWrapper) ListReplyTemplates(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListReplyTemplates(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteReplyTemplate operation middleware
+func (siw *ServerInterfaceWrapper) DeleteReplyTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "templateKey" -------------
+	var templateKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "templateKey", r.PathValue("templateKey"), &templateKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "templateKey", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteReplyTemplate(w, r, templateKey)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DefineReplyTemplate operation middleware
+func (siw *ServerInterfaceWrapper) DefineReplyTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "templateKey" -------------
+	var templateKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "templateKey", r.PathValue("templateKey"), &templateKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "templateKey", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DefineReplyTemplateParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DefineReplyTemplate(w, r, templateKey, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListRequestCatalogue operation middleware
 func (siw *ServerInterfaceWrapper) ListRequestCatalogue(w http.ResponseWriter, r *http.Request) {
 
@@ -40739,6 +40911,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/sla-policies/{policyKey}", wrapper.DefineSlaPolicy)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sla-report", wrapper.ReportSla)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/sla", wrapper.ReadEntrySla)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/reply-templates", wrapper.ListReplyTemplates)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/reply-templates/{templateKey}", wrapper.DeleteReplyTemplate)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/reply-templates/{templateKey}", wrapper.DefineReplyTemplate)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/reply-templates/{templateKey}", wrapper.RenderReplyTemplate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/request-catalogue", wrapper.ListRequestCatalogue)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/requests", wrapper.ListMyRequests)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/requests", wrapper.RaiseRequest)

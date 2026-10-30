@@ -255,6 +255,98 @@ paths:
               schema: { $ref: "#/components/schemas/EntrySlaList" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /reply-templates:
+    get:
+      tags: [servicedesk]
+      operationId: listReplyTemplates
+      x-hubtask-rest: generated
+      x-hubtask-cli: "reply ls"
+      summary: The workspace's canned replies
+      description: >
+        Every canned reply of the workspace, by key: its name and its text with the placeholders
+        an entry fills. Needs READ at the workspace and the service desk switched on.
+      responses:
+        "200":
+          description: The templates
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReplyTemplateList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /reply-templates/{templateKey}:
+    parameters:
+      - name: templateKey
+        in: path
+        required: true
+        schema: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
+    put:
+      tags: [servicedesk]
+      operationId: defineReplyTemplate
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: { templateKey: key }
+      x-hubtask-cli: "reply define"
+      summary: Add or replace a canned reply
+      description: >
+        Creates the canned reply under the key, or replaces the one there. Its text may name the
+        placeholders `{{entry.title}}`, `{{entry.id}}`, `{{requester.name}}` and `{{agent.name}}`;
+        any other is refused with `reply_templates.variable_unknown`. Needs STRUCTURE at the
+        workspace.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReplyTemplateDefine" }
+      responses:
+        "200":
+          description: The template
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReplyTemplate" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [servicedesk]
+      operationId: deleteReplyTemplate
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: { templateKey: key }
+      x-hubtask-cli: "reply rm"
+      summary: Delete a canned reply
+      description: >
+        Deletes the canned reply; replies already sent with it stay as they were written. Needs
+        STRUCTURE at the workspace.
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /items/{itemId}/reply-templates/{templateKey}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+      - name: templateKey
+        in: path
+        required: true
+        schema: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
+    get:
+      tags: [servicedesk]
+      operationId: renderReplyTemplate
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: { templateKey: key }
+      x-hubtask-cli: "reply render"
+      summary: A canned reply filled for an entry
+      description: >
+        The canned reply's text with the entry's title and identifier, the name of who raised it
+        and of who asks in its placeholders; a value nobody has is left empty. Sends nothing - the
+        text becomes a comment once it is added. Needs READ on the entry.
+      responses:
+        "200":
+          description: The filled text
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RenderedReply" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /request-catalogue:
     get:
       tags: [servicedesk]
@@ -19661,6 +19753,35 @@ components:
         hours: { type: array, items: { $ref: "#/components/schemas/BusinessHours" } }
         holidays: { type: array, items: { type: string, format: date }, description: "Whole local days without working time." }
         version: { type: integer }
+
+    ReplyTemplate:
+      type: object
+      required: [key, name, body, version]
+      properties:
+        key: { type: string }
+        name: { type: string }
+        body: { type: string, description: "Markdown with placeholders such as {{requester.name}}." }
+        version: { type: integer }
+
+    ReplyTemplateList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/ReplyTemplate" } }
+
+    ReplyTemplateDefine:
+      type: object
+      required: [name, body]
+      properties:
+        name: { type: string, maxLength: 120 }
+        body: { type: string, maxLength: 20000 }
+
+    RenderedReply:
+      type: object
+      required: [key, body]
+      properties:
+        key: { type: string }
+        body: { type: string }
 
     BusinessCalendarList:
       type: object
