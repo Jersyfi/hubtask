@@ -12499,7 +12499,7 @@ type ItemAggregateQuery struct {
 			WeekStart *ItemAggregateQueryAggregateBucketWeekStart `json:"week_start,omitempty"`
 		} `json:"bucket,omitempty"`
 
-		// Field The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none. Required for every function but `COUNT`, refused for `COUNT`.
+		// Field The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none -, or `satisfaction`, the requester's score from 1 to 5 of a resolved request, which an entry nobody rated does not hold. Required for every function but `COUNT`, refused for `COUNT`.
 		Field    *string                             `json:"field,omitempty"`
 		Function ItemAggregateQueryAggregateFunction `json:"function"`
 
@@ -14946,10 +14946,13 @@ type PortalRequestDetail struct {
 	IsCompleted bool               `json:"is_completed"`
 	Notes       *string            `json:"notes"`
 	Number      int64              `json:"number"`
-	Sla         []EntrySlaGoal     `json:"sla"`
-	Status      *string            `json:"status"`
-	Title       string             `json:"title"`
-	UpdatedAt   time.Time          `json:"updated_at"`
+
+	// Satisfaction The caller's own score of the resolved request; null while they gave none.
+	Satisfaction *RequestSatisfaction `json:"satisfaction"`
+	Sla          []EntrySlaGoal       `json:"sla"`
+	Status       *string              `json:"status"`
+	Title        string               `json:"title"`
+	UpdatedAt    time.Time            `json:"updated_at"`
 }
 
 // PortalRequestPage defines model for PortalRequestPage.
@@ -15477,6 +15480,12 @@ type RequestCatalogue struct {
 		// Name Empty on a system type nobody named.
 		Name string `json:"name"`
 	} `json:"data"`
+}
+
+// RequestSatisfaction defines model for RequestSatisfaction.
+type RequestSatisfaction struct {
+	RatedAt time.Time `json:"rated_at"`
+	Score   int       `json:"score"`
 }
 
 // ResealAccepted defines model for ResealAccepted.
@@ -20023,6 +20032,12 @@ type CommentOnMyRequestParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// RateMyRequestJSONBody defines parameters for RateMyRequest.
+type RateMyRequestJSONBody struct {
+	Comment *string `json:"comment,omitempty"`
+	Score   int     `json:"score"`
+}
+
 // ListRetentionPoliciesParams defines parameters for ListRetentionPolicies.
 type ListRetentionPoliciesParams struct {
 	ContainerId *openapi_types.UUID `form:"container_id,omitempty" json:"container_id,omitempty"`
@@ -20886,6 +20901,9 @@ type RaiseRequestJSONRequestBody RaiseRequestJSONBody
 
 // CommentOnMyRequestJSONRequestBody defines body for CommentOnMyRequest for application/json ContentType.
 type CommentOnMyRequestJSONRequestBody CommentOnMyRequestJSONBody
+
+// RateMyRequestJSONRequestBody defines body for RateMyRequest for application/json ContentType.
+type RateMyRequestJSONRequestBody RateMyRequestJSONBody
 
 // StartRestoreJSONRequestBody defines body for StartRestore for application/json ContentType.
 type StartRestoreJSONRequestBody = RestoreRequest
@@ -25781,8 +25799,8 @@ type ClientInterface interface {
 	//
 	// How many entries the query's scope and filter keep - or links between them, with
 	// `source: links` - and the sum, average, least or greatest
-	// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
-	// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
+	// of a custom field holding a number, money or a duration, or of an entry's `lead_time`,
+	// `scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week
 	// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
 	// `week_start` says Sunday). The permission is the query's: checked against the scope once;
 	// a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
@@ -25797,8 +25815,8 @@ type ClientInterface interface {
 	//
 	// How many entries the query's scope and filter keep - or links between them, with
 	// `source: links` - and the sum, average, least or greatest
-	// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
-	// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
+	// of a custom field holding a number, money or a duration, or of an entry's `lead_time`,
+	// `scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week
 	// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
 	// `week_start` says Sunday). The permission is the query's: checked against the scope once;
 	// a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
@@ -27206,7 +27224,7 @@ type ClientInterface interface {
 
 	// ReadMyRequest One request I raised
 	//
-	// Where the request stands, the public replies - never an internal note - and how its SLA goals stand. A request somebody else raised is not found. Needs REQUEST at its collection.
+	// Where the request stands, the public replies - never an internal note -, how its SLA goals stand and the caller's own satisfaction score. A request somebody else raised is not found. Needs REQUEST at its collection.
 	//
 	// Corresponds with GET /requests/{itemId} (the `ReadMyRequest` operationId).
 	ReadMyRequest(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -27228,6 +27246,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /requests/{itemId}/comments (the `CommentOnMyRequest` operationId).
 	CommentOnMyRequest(ctx context.Context, itemId ItemId, params *CommentOnMyRequestParams, body CommentOnMyRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RateMyRequestWithBody Say how satisfied I was with a request I raised
+	//
+	// Once the caller's own request is resolved: a score from 1 (very dissatisfied) to 5 (very satisfied) and, if they like, a comment the team reads as theirs. Rating again replaces the score; an open request is refused with `satisfaction.request_open`, a request somebody else raised is not found. Needs REQUEST at its collection.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /requests/{itemId}/satisfaction (the `RateMyRequest` operationId).
+	RateMyRequestWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RateMyRequest Say how satisfied I was with a request I raised
+	//
+	// Once the caller's own request is resolved: a score from 1 (very dissatisfied) to 5 (very satisfied) and, if they like, a comment the team reads as theirs. Rating again replaces the score; an open request is refused with `satisfaction.request_open`, a request somebody else raised is not found. Needs REQUEST at its collection.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /requests/{itemId}/satisfaction (the `RateMyRequest` operationId).
+	RateMyRequest(ctx context.Context, itemId ItemId, body RateMyRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StartRestoreWithBody Start a restore
 	//
@@ -38224,8 +38260,8 @@ func (c *Client) UnassignWorkItem(ctx context.Context, itemId ItemId, params *Un
 //
 // How many entries the query's scope and filter keep - or links between them, with
 // `source: links` - and the sum, average, least or greatest
-// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
-// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
+// of a custom field holding a number, money or a duration, or of an entry's `lead_time`,
+// `scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week
 // or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
 // `week_start` says Sunday). The permission is the query's: checked against the scope once;
 // a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
@@ -38250,8 +38286,8 @@ func (c *Client) AggregateItemsWithBody(ctx context.Context, contentType string,
 //
 // How many entries the query's scope and filter keep - or links between them, with
 // `source: links` - and the sum, average, least or greatest
-// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
-// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
+// of a custom field holding a number, money or a duration, or of an entry's `lead_time`,
+// `scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week
 // or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
 // `week_start` says Sunday). The permission is the query's: checked against the scope once;
 // a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
@@ -41079,7 +41115,7 @@ func (c *Client) RaiseRequest(ctx context.Context, params *RaiseRequestParams, b
 
 // ReadMyRequest One request I raised
 //
-// Where the request stands, the public replies - never an internal note - and how its SLA goals stand. A request somebody else raised is not found. Needs REQUEST at its collection.
+// Where the request stands, the public replies - never an internal note -, how its SLA goals stand and the caller's own satisfaction score. A request somebody else raised is not found. Needs REQUEST at its collection.
 //
 // Corresponds with GET /requests/{itemId} (the `ReadMyRequest` operationId).
 func (c *Client) ReadMyRequest(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -41122,6 +41158,44 @@ func (c *Client) CommentOnMyRequestWithBody(ctx context.Context, itemId ItemId, 
 // Corresponds with POST /requests/{itemId}/comments (the `CommentOnMyRequest` operationId).
 func (c *Client) CommentOnMyRequest(ctx context.Context, itemId ItemId, params *CommentOnMyRequestParams, body CommentOnMyRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCommentOnMyRequestRequest(c.Server, itemId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RateMyRequestWithBody Say how satisfied I was with a request I raised
+//
+// Once the caller's own request is resolved: a score from 1 (very dissatisfied) to 5 (very satisfied) and, if they like, a comment the team reads as theirs. Rating again replaces the score; an open request is refused with `satisfaction.request_open`, a request somebody else raised is not found. Needs REQUEST at its collection.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /requests/{itemId}/satisfaction (the `RateMyRequest` operationId).
+func (c *Client) RateMyRequestWithBody(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRateMyRequestRequestWithBody(c.Server, itemId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RateMyRequest Say how satisfied I was with a request I raised
+//
+// Once the caller's own request is resolved: a score from 1 (very dissatisfied) to 5 (very satisfied) and, if they like, a comment the team reads as theirs. Rating again replaces the score; an open request is refused with `satisfaction.request_open`, a request somebody else raised is not found. Needs REQUEST at its collection.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /requests/{itemId}/satisfaction (the `RateMyRequest` operationId).
+func (c *Client) RateMyRequest(ctx context.Context, itemId ItemId, body RateMyRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRateMyRequestRequest(c.Server, itemId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -64952,6 +65026,53 @@ func NewCommentOnMyRequestRequestWithBody(server string, itemId ItemId, params *
 	return req, nil
 }
 
+// NewRateMyRequestRequest calls the generic RateMyRequest builder with application/json body
+func NewRateMyRequestRequest(server string, itemId ItemId, body RateMyRequestJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRateMyRequestRequestWithBody(server, itemId, "application/json", bodyReader)
+}
+
+// NewRateMyRequestRequestWithBody constructs an http.Request for the RateMyRequest method, with any body, and a specified content type
+func NewRateMyRequestRequestWithBody(server string, itemId ItemId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/requests/%s/satisfaction", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewStartRestoreRequest calls the generic StartRestore builder with application/json body
 func NewStartRestoreRequest(server string, body StartRestoreJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -73800,8 +73921,8 @@ type ClientWithResponsesInterface interface {
 	//
 	// How many entries the query's scope and filter keep - or links between them, with
 	// `source: links` - and the sum, average, least or greatest
-	// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
-	// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
+	// of a custom field holding a number, money or a duration, or of an entry's `lead_time`,
+	// `scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week
 	// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
 	// `week_start` says Sunday). The permission is the query's: checked against the scope once;
 	// a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
@@ -73816,8 +73937,8 @@ type ClientWithResponsesInterface interface {
 	//
 	// How many entries the query's scope and filter keep - or links between them, with
 	// `source: links` - and the sum, average, least or greatest
-	// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
-	// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
+	// of a custom field holding a number, money or a duration, or of an entry's `lead_time`,
+	// `scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week
 	// or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
 	// `week_start` says Sunday). The permission is the query's: checked against the scope once;
 	// a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
@@ -75341,7 +75462,7 @@ type ClientWithResponsesInterface interface {
 
 	// ReadMyRequestWithResponse One request I raised
 	//
-	// Where the request stands, the public replies - never an internal note - and how its SLA goals stand. A request somebody else raised is not found. Needs REQUEST at its collection.
+	// Where the request stands, the public replies - never an internal note -, how its SLA goals stand and the caller's own satisfaction score. A request somebody else raised is not found. Needs REQUEST at its collection.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -75365,6 +75486,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /requests/{itemId}/comments (the `CommentOnMyRequest` operationId).
 	CommentOnMyRequestWithResponse(ctx context.Context, itemId ItemId, params *CommentOnMyRequestParams, body CommentOnMyRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*CommentOnMyRequestResult, error)
+
+	// RateMyRequestWithBodyWithResponse Say how satisfied I was with a request I raised
+	//
+	// Once the caller's own request is resolved: a score from 1 (very dissatisfied) to 5 (very satisfied) and, if they like, a comment the team reads as theirs. Rating again replaces the score; an open request is refused with `satisfaction.request_open`, a request somebody else raised is not found. Needs REQUEST at its collection.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /requests/{itemId}/satisfaction (the `RateMyRequest` operationId).
+	RateMyRequestWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RateMyRequestResult, error)
+
+	// RateMyRequestWithResponse Say how satisfied I was with a request I raised
+	//
+	// Once the caller's own request is resolved: a score from 1 (very dissatisfied) to 5 (very satisfied) and, if they like, a comment the team reads as theirs. Rating again replaces the score; an open request is refused with `satisfaction.request_open`, a request somebody else raised is not found. Needs REQUEST at its collection.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /requests/{itemId}/satisfaction (the `RateMyRequest` operationId).
+	RateMyRequestWithResponse(ctx context.Context, itemId ItemId, body RateMyRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*RateMyRequestResult, error)
 
 	// StartRestoreWithBodyWithResponse Start a restore
 	//
@@ -98633,6 +98772,54 @@ func (r CommentOnMyRequestResult) ContentType() string {
 	return ""
 }
 
+type RateMyRequestResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *RequestSatisfaction
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RateMyRequestResult) GetJSON200() *RequestSatisfaction {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RateMyRequestResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RateMyRequestResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RateMyRequestResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RateMyRequestResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RateMyRequestResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type StartRestoreResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -110718,8 +110905,8 @@ func (c *ClientWithResponses) UnassignWorkItemWithResponse(ctx context.Context, 
 //
 // How many entries the query's scope and filter keep - or links between them, with
 // `source: links` - and the sum, average, least or greatest
-// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
-// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
+// of a custom field holding a number, money or a duration, or of an entry's `lead_time`,
+// `scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week
 // or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
 // `week_start` says Sunday). The permission is the query's: checked against the scope once;
 // a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
@@ -110740,8 +110927,8 @@ func (c *ClientWithResponses) AggregateItemsWithBodyWithResponse(ctx context.Con
 //
 // How many entries the query's scope and filter keep - or links between them, with
 // `source: links` - and the sum, average, least or greatest
-// of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
-// `scheduled_span` - optionally per value of a field a query may group by, and per day, week
+// of a custom field holding a number, money or a duration, or of an entry's `lead_time`,
+// `scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week
 // or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
 // `week_start` says Sunday). The permission is the query's: checked against the scope once;
 // a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
@@ -113117,7 +113304,7 @@ func (c *ClientWithResponses) RaiseRequestWithResponse(ctx context.Context, para
 
 // ReadMyRequestWithResponse One request I raised
 //
-// Where the request stands, the public replies - never an internal note - and how its SLA goals stand. A request somebody else raised is not found. Needs REQUEST at its collection.
+// Where the request stands, the public replies - never an internal note -, how its SLA goals stand and the caller's own satisfaction score. A request somebody else raised is not found. Needs REQUEST at its collection.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -113158,6 +113345,36 @@ func (c *ClientWithResponses) CommentOnMyRequestWithResponse(ctx context.Context
 		return nil, err
 	}
 	return ParseCommentOnMyRequestResult(rsp)
+}
+
+// RateMyRequestWithBodyWithResponse Say how satisfied I was with a request I raised
+//
+// Once the caller's own request is resolved: a score from 1 (very dissatisfied) to 5 (very satisfied) and, if they like, a comment the team reads as theirs. Rating again replaces the score; an open request is refused with `satisfaction.request_open`, a request somebody else raised is not found. Needs REQUEST at its collection.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /requests/{itemId}/satisfaction (the `RateMyRequest` operationId).
+func (c *ClientWithResponses) RateMyRequestWithBodyWithResponse(ctx context.Context, itemId ItemId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RateMyRequestResult, error) {
+	rsp, err := c.RateMyRequestWithBody(ctx, itemId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRateMyRequestResult(rsp)
+}
+
+// RateMyRequestWithResponse Say how satisfied I was with a request I raised
+//
+// Once the caller's own request is resolved: a score from 1 (very dissatisfied) to 5 (very satisfied) and, if they like, a comment the team reads as theirs. Rating again replaces the score; an open request is refused with `satisfaction.request_open`, a request somebody else raised is not found. Needs REQUEST at its collection.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /requests/{itemId}/satisfaction (the `RateMyRequest` operationId).
+func (c *ClientWithResponses) RateMyRequestWithResponse(ctx context.Context, itemId ItemId, body RateMyRequestJSONRequestBody, reqEditors ...RequestEditorFn) (*RateMyRequestResult, error) {
+	rsp, err := c.RateMyRequest(ctx, itemId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRateMyRequestResult(rsp)
 }
 
 // StartRestoreWithBodyWithResponse Start a restore
@@ -130843,6 +131060,39 @@ func ParseCommentOnMyRequestResult(rsp *http.Response) (*CommentOnMyRequestResul
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRateMyRequestResult parses an HTTP response from a RateMyRequestWithResponse call
+func ParseRateMyRequestResult(rsp *http.Response) (*RateMyRequestResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RateMyRequestResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest RequestSatisfaction
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

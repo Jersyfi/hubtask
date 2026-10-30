@@ -132,6 +132,7 @@ func Descriptors() []usecase.Descriptor {
 		servicedeskservice.ListMyRequests{}.Descriptor(),
 		servicedeskservice.ReadMyRequest{}.Descriptor(),
 		servicedeskservice.CommentOnMyRequest{}.Descriptor(),
+		servicedeskservice.RateMyRequest{}.Descriptor(),
 		cmdbservice.ListCiClasses{}.Descriptor(),
 		cmdbservice.DefineCiClass{}.Descriptor(),
 		cmdbservice.ListCiRelationTypes{}.Descriptor(),

@@ -167,6 +167,10 @@ class Client:
         """One request I raised"""
         return self._call("GET", "/requests/{itemId}", {"itemId": item_id}, None, {}, None, "none", None, "json")
 
+    def rate_my_request(self, item_id: str, body: dict[str, Any]) -> "RequestSatisfaction":
+        """Say how satisfied I was with a request I raised"""
+        return self._call("PUT", "/requests/{itemId}/satisfaction", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
     def comment_on_my_request(self, item_id: str, body: dict[str, Any], *, idempotency_key: str | None = None) -> "Comment":
         """Answer on a request I raised"""
         return self._call("POST", "/requests/{itemId}/comments", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")

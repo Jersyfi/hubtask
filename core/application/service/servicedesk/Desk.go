@@ -71,6 +71,7 @@ type Desk struct {
 	Policies   repository.Policies
 	Records    repository.Records
 	Replies    repository.ReplyTemplates
+	Ratings    repository.Ratings
 	Authorizer Authorizer
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork

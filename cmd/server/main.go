@@ -1820,7 +1820,8 @@ func run() error {
 	serviceDeskStore := postgres.NewServiceDeskRepository()
 	serviceDesk := servicedeskservice.Desk{
 		Calendars: serviceDeskStore.Calendars(), Policies: serviceDeskStore.Policies(),
-		Records: serviceDeskStore.Records(), Replies: serviceDeskStore.Replies(), Authorizer: authorizer, Audit: auditSink,
+		Records: serviceDeskStore.Records(), Replies: serviceDeskStore.Replies(),
+		Ratings: serviceDeskStore.Ratings(), Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 	// The requester portal (UC-SVC-05): it raises and answers through the entry use cases in the
@@ -1907,6 +1908,7 @@ func run() error {
 		servicedeskservice.ListMyRequests{Portal: requestPortal}.Descriptor(),
 		servicedeskservice.ReadMyRequest{Portal: requestPortal}.Descriptor(),
 		servicedeskservice.CommentOnMyRequest{Portal: requestPortal}.Descriptor(),
+		servicedeskservice.RateMyRequest{Portal: requestPortal}.Descriptor(),
 		cmdbservice.ListCiClasses{Inventory: inventory}.Descriptor(),
 		cmdbservice.DefineCiClass{Inventory: inventory}.Descriptor(),
 		cmdbservice.ListCiRelationTypes{Inventory: inventory}.Descriptor(),
@@ -2350,7 +2352,7 @@ func run() error {
 		automationservice.TriggerRuleManually{
 			Rules:   postgres.NewAutomationRuleRepository(cursors),
 			Entries: items, Containers: containers,
-			Jobs:  jobs, Authorizer: authorizer, Audit: auditSink,
+			Jobs: jobs, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
 		automationservice.RotateInboundTrigger{

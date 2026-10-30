@@ -647,6 +647,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `request.catalogue_read` | ListRequestCatalogue | `request` | INFO | When refused |
 | `request.commented` | CommentOnMyRequest | `request` | INFO | Every time |
 | `request.raised` | RaiseRequest | `request` | INFO | Every time |
+| `request.rated` | RateMyRequest | `request` | INFO | Every time |
 | `request.read` | ListMyRequests | `request` | INFO | When refused |
 | `request.read` | ReadMyRequest | `request` | INFO | When refused |
 

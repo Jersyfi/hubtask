@@ -606,6 +606,15 @@ var generatedCommands = []door{
 			{Name: "title", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "title", "status"}},
+	{Group: "request", Verb: "rate", OperationID: "rateMyRequest", Method: "PUT", Path: "/requests/{itemId}/satisfaction", Summary: "Say how satisfied I was with a request I raised",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "comment", Kind: "string", Help: "", Required: false},
+			{Name: "score", Kind: "integer", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"rated_at", "score"}},
 	{Group: "request", Verb: "show", OperationID: "readMyRequest", Method: "GET", Path: "/requests/{itemId}", Summary: "One request I raised",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},

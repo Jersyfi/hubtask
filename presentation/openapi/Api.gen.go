@@ -12493,7 +12493,7 @@ type ItemAggregateQuery struct {
 			WeekStart *ItemAggregateQueryAggregateBucketWeekStart `json:"week_start,omitempty"`
 		} `json:"bucket,omitempty"`
 
-		// Field The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none. Required for every function but `COUNT`, refused for `COUNT`.
+		// Field The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none -, or `satisfaction`, the requester's score from 1 to 5 of a resolved request, which an entry nobody rated does not hold. Required for every function but `COUNT`, refused for `COUNT`.
 		Field    *string                             `json:"field,omitempty"`
 		Function ItemAggregateQueryAggregateFunction `json:"function"`
 
@@ -14940,10 +14940,13 @@ type PortalRequestDetail struct {
 	IsCompleted bool               `json:"is_completed"`
 	Notes       *string            `json:"notes"`
 	Number      int64              `json:"number"`
-	Sla         []EntrySlaGoal     `json:"sla"`
-	Status      *string            `json:"status"`
-	Title       string             `json:"title"`
-	UpdatedAt   time.Time          `json:"updated_at"`
+
+	// Satisfaction The caller's own score of the resolved request; null while they gave none.
+	Satisfaction *RequestSatisfaction `json:"satisfaction"`
+	Sla          []EntrySlaGoal       `json:"sla"`
+	Status       *string              `json:"status"`
+	Title        string               `json:"title"`
+	UpdatedAt    time.Time            `json:"updated_at"`
 }
 
 // PortalRequestPage defines model for PortalRequestPage.
@@ -15471,6 +15474,12 @@ type RequestCatalogue struct {
 		// Name Empty on a system type nobody named.
 		Name string `json:"name"`
 	} `json:"data"`
+}
+
+// RequestSatisfaction defines model for RequestSatisfaction.
+type RequestSatisfaction struct {
+	RatedAt time.Time `json:"rated_at"`
+	Score   int       `json:"score"`
 }
 
 // ResealAccepted defines model for ResealAccepted.
@@ -20017,6 +20026,12 @@ type CommentOnMyRequestParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// RateMyRequestJSONBody defines parameters for RateMyRequest.
+type RateMyRequestJSONBody struct {
+	Comment *string `json:"comment,omitempty"`
+	Score   int     `json:"score"`
+}
+
 // ListRetentionPoliciesParams defines parameters for ListRetentionPolicies.
 type ListRetentionPoliciesParams struct {
 	ContainerId *openapi_types.UUID `form:"container_id,omitempty" json:"container_id,omitempty"`
@@ -20880,6 +20895,9 @@ type RaiseRequestJSONRequestBody RaiseRequestJSONBody
 
 // CommentOnMyRequestJSONRequestBody defines body for CommentOnMyRequest for application/json ContentType.
 type CommentOnMyRequestJSONRequestBody CommentOnMyRequestJSONBody
+
+// RateMyRequestJSONRequestBody defines body for RateMyRequest for application/json ContentType.
+type RateMyRequestJSONRequestBody RateMyRequestJSONBody
 
 // StartRestoreJSONRequestBody defines body for StartRestore for application/json ContentType.
 type StartRestoreJSONRequestBody = RestoreRequest
@@ -22347,6 +22365,9 @@ type ServerInterface interface {
 	// CommentOnMyRequest Answer on a request I raised
 	// (POST /requests/{itemId}/comments)
 	CommentOnMyRequest(w http.ResponseWriter, r *http.Request, itemId ItemId, params CommentOnMyRequestParams)
+	// RateMyRequest Say how satisfied I was with a request I raised
+	// (PUT /requests/{itemId}/satisfaction)
+	RateMyRequest(w http.ResponseWriter, r *http.Request, itemId ItemId)
 	// StartRestore Start a restore
 	// (POST /restores)
 	StartRestore(w http.ResponseWriter, r *http.Request)
@@ -38244,6 +38265,32 @@ func (siw *ServerInterfaceWrapper) CommentOnMyRequest(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// RateMyRequest operation middleware
+func (siw *ServerInterfaceWrapper) RateMyRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RateMyRequest(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // StartRestore operation middleware
 func (siw *ServerInterfaceWrapper) StartRestore(w http.ResponseWriter, r *http.Request) {
 
@@ -40928,6 +40975,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/requests", wrapper.ListMyRequests)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/requests", wrapper.RaiseRequest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/requests/{itemId}", wrapper.ReadMyRequest)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/requests/{itemId}/satisfaction", wrapper.RateMyRequest)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/requests/{itemId}/comments", wrapper.CommentOnMyRequest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cmdb/classes", wrapper.ListCiClasses)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/cmdb/classes/{classKey}", wrapper.DefineCiClass)

@@ -1314,6 +1314,10 @@ class PortalRequest(TypedDict, total=False):
     created_at: Required[str]
     updated_at: Required[str]
 
+class RequestSatisfaction(TypedDict, total=False):
+    score: Required[int]
+    rated_at: Required[str]
+
 class PortalRequestPage(TypedDict, total=False):
     data: Required[list["PortalRequest"]]
     page_info: Required["PageInfo"]
@@ -1330,6 +1334,7 @@ class PortalRequestDetail(TypedDict, total=False):
     completed_at: Required[str | None]
     created_at: Required[str]
     updated_at: Required[str]
+    satisfaction: Required["RequestSatisfaction" | Any]
     comments: Required[list[dict[str, Any]]]
     sla: Required[list["EntrySlaGoal"]]
 

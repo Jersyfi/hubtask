@@ -253,6 +253,7 @@ var restDoors = map[string]restDoor{
 	"publishWorkflow":                   {UseCase: "PublishWorkflow", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"purgeWorkItem":                     {UseCase: "PurgeWorkItem", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"raiseRequest":                      {UseCase: "RaiseRequest", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"rateMyRequest":                     {UseCase: "RateMyRequest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"score"}},
 	"readAiBudgetState":                 {UseCase: "ReadAiBudgetState", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readAiProvider":                    {UseCase: "ReadAiProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readAiSource":                      {UseCase: "ReadAiSource", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1780,6 +1781,13 @@ func (c *RestController) RaiseRequest(w http.ResponseWriter, r *http.Request, pa
 	var body openapi.RaiseRequestJSONRequestBody
 	var answer openapi.PortalRequest
 	c.door(w, r, restDoors["raiseRequest"], usecase.Input{}, params, &body, &answer)
+}
+
+// RateMyRequest answers PUT /requests/{itemId}/satisfaction by the generated mapping.
+func (c *RestController) RateMyRequest(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
+	var body openapi.RateMyRequestJSONRequestBody
+	var answer openapi.RequestSatisfaction
+	c.door(w, r, restDoors["rateMyRequest"], usecase.Input{"item_id": itemId.String()}, nil, &body, &answer)
 }
 
 // ReadAiBudgetState answers GET /ai-budget-state by the generated mapping.

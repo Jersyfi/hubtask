@@ -435,14 +435,47 @@ paths:
       x-hubtask-cli: "request show"
       summary: One request I raised
       description: >
-        Where the request stands, the public replies - never an internal note - and how its SLA
-        goals stand. A request somebody else raised is not found. Needs REQUEST at its collection.
+        Where the request stands, the public replies - never an internal note -, how its SLA
+        goals stand and the caller's own satisfaction score. A request somebody else raised is not
+        found. Needs REQUEST at its collection.
       responses:
         "200":
           description: The request
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PortalRequestDetail" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /requests/{itemId}/satisfaction:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    put:
+      tags: [servicedesk]
+      operationId: rateMyRequest
+      x-hubtask-rest: generated
+      x-hubtask-cli: "request rate"
+      summary: Say how satisfied I was with a request I raised
+      description: >
+        Once the caller's own request is resolved: a score from 1 (very dissatisfied) to 5 (very
+        satisfied) and, if they like, a comment the team reads as theirs. Rating again replaces
+        the score; an open request is refused with `satisfaction.request_open`, a request somebody
+        else raised is not found. Needs REQUEST at its collection.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [score]
+              properties:
+                score: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: string, maxLength: 20000 }
+      responses:
+        "200":
+          description: The score as kept
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RequestSatisfaction" }
         "4XX":
           $ref: "#/components/responses/Problem"
   /requests/{itemId}/comments:
@@ -12691,8 +12724,8 @@ paths:
       description: |
         How many entries the query's scope and filter keep - or links between them, with
         `source: links` - and the sum, average, least or greatest
-        of a custom field holding a number, money or a duration, or of an entry's `lead_time` or
-        `scheduled_span` - optionally per value of a field a query may group by, and per day, week
+        of a custom field holding a number, money or a duration, or of an entry's `lead_time`,
+        `scheduled_span` or `satisfaction` - optionally per value of a field a query may group by, and per day, week
         or month of a timestamp, cut in the caller's time zone (a week starts on Monday unless
         `week_start` says Sunday). The permission is the query's: checked against the scope once;
         a `workspace` scope counts every collection the caller may read. At most 5000 rows, in the
@@ -19906,6 +19939,13 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
+    RequestSatisfaction:
+      type: object
+      required: [score, rated_at]
+      properties:
+        score: { type: integer, minimum: 1, maximum: 5 }
+        rated_at: { type: string, format: date-time }
+
     PortalRequestPage:
       type: object
       required: [data, page_info]
@@ -19917,8 +19957,13 @@ components:
       allOf:
         - $ref: "#/components/schemas/PortalRequest"
         - type: object
-          required: [comments, sla]
+          required: [comments, sla, satisfaction]
           properties:
+            satisfaction:
+              description: The caller's own score of the resolved request; null while they gave none.
+              oneOf:
+                - $ref: "#/components/schemas/RequestSatisfaction"
+                - type: "null"
             comments:
               type: array
               description: The public replies, oldest first; at most 200, the newest.
@@ -25217,8 +25262,9 @@ components:
               description: >
                 The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in
                 quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`,
-                start to due; an entry missing a stamp holds none. Required for every function but
-                `COUNT`, refused for `COUNT`.
+                start to due; an entry missing a stamp holds none -, or `satisfaction`, the
+                requester's score from 1 to 5 of a resolved request, which an entry nobody rated
+                does not hold. Required for every function but `COUNT`, refused for `COUNT`.
             group_by:
               type: string
               description: >

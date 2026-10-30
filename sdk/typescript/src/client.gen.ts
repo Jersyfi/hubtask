@@ -191,6 +191,11 @@ export class HubtaskClient {
     return this.call("GET", "/requests/{itemId}", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Say how satisfied I was with a request I raised */
+  rateMyRequest(itemId: string, body: NonNullable<operations["rateMyRequest"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["rateMyRequest"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/requests/{itemId}/satisfaction", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Answer on a request I raised */
   commentOnMyRequest(itemId: string, body: NonNullable<operations["commentOnMyRequest"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["commentOnMyRequest"]['responses'][201]['content']["application/json"]> {
     return this.call("POST", "/requests/{itemId}/comments", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);

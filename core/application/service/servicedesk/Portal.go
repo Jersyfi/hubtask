@@ -380,6 +380,8 @@ type MyRequest struct {
 	Item     workdomain.WorkItem
 	Comments []workdomain.Comment
 	Goals    []domain.EntrySla
+	// Rating is the requester's own score, nil while they have given none (UC-SVC-07).
+	Rating *domain.Rating
 }
 
 // ReadMyRequest answers one of the actor's requests: where it stands, the public replies and
@@ -409,8 +411,21 @@ func (h ReadMyRequest) Execute(ctx context.Context, actor appshared.ActorContext
 		if len(answer.Comments) > MaxPortalComments {
 			answer.Comments = answer.Comments[len(answer.Comments)-MaxPortalComments:]
 		}
-		answer.Goals, err = h.Portal.Desk.Records.OfItem(ctx, itemID)
-		return err
+		if answer.Goals, err = h.Portal.Desk.Records.OfItem(ctx, itemID); err != nil {
+			return err
+		}
+		if h.Portal.Desk.Ratings == nil {
+			return nil
+		}
+		rating, err := h.Portal.Desk.Ratings.OfItem(ctx, itemID)
+		switch {
+		case errors.Is(err, shared.ErrNotFound):
+			return nil
+		case err != nil:
+			return err
+		}
+		answer.Rating = &rating
+		return nil
 	})
 	return answer, err
 }
@@ -432,7 +447,7 @@ func (h ReadMyRequest) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReadMyRequestName, Permission: service.PermissionRequest,
 		Summary: "One request the caller raised: where it stands, the public replies - never an " +
-			"internal note - and how its SLA goals stand.",
+			"internal note -, how its SLA goals stand and the caller's own satisfaction score.",
 		SideEffects: "None. Reads only.", TokenScope: deskRead, ReadOnly: true,
 		Input: []usecase.Field{{Name: "item_id", Kind: usecase.KindID, Required: true, Description: "The request."}},
 		Audit: usecase.AuditDeclaration{Action: RequestsReadAction},
@@ -467,6 +482,7 @@ func (h ReadMyRequest) Descriptor() usecase.Descriptor {
 				goals = append(goals, RecordOutput(goal))
 			}
 			out["comments"], out["sla"] = comments, goals
+			out["satisfaction"] = RatingOutput(answer.Rating)
 			return out, nil
 		}),
 	}, requestTarget)

@@ -2159,3 +2159,6 @@ func (pending) DefineReplyTemplate(w http.ResponseWriter, r *http.Request, _ str
 func (pending) RenderReplyTemplate(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ string) {
 	notAvailable(w, r)
 }
+func (pending) RateMyRequest(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
