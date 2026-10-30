@@ -103,7 +103,9 @@ type Steward struct {
 	ViewSummaries usecase.Handler
 	// Budgets is the time module's ReadBudget, run as the reader for a portfolio's budget roll-up
 	// (UC-GOL-03); nil rolls up none.
-	Budgets    usecase.Handler
+	Budgets usecase.Handler
+	// Jobs schedules a dashboard digest's mail; nil schedules none.
+	Jobs       Enqueuer
 	Authorizer Authorizer
 	Reader     Reader
 	Audit      audit.Sink

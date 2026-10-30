@@ -180,6 +180,7 @@ func newSteward(t *testing.T) (Steward, *memory, *gate, *summaries) {
 	store := &memory{
 		periods: map[shared.ID]domain.Period{}, goals: map[shared.ID]domain.Goal{}, links: map[shared.ID][]shared.ID{},
 		portfolios: map[shared.ID]domain.Portfolio{}, dashboards: map[shared.ID]domain.Dashboard{},
+		digests: map[shared.ID]domain.Digest{},
 	}
 	g, sum := &gate{}, &summaries{}
 	return Steward{
@@ -506,6 +507,7 @@ type memory struct {
 	portfolios map[shared.ID]domain.Portfolio
 	updates    []domain.StatusUpdate
 	dashboards map[shared.ID]domain.Dashboard
+	digests    map[shared.ID]domain.Digest
 }
 
 var _ goalrepo.Store = (*memory)(nil)

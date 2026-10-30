@@ -465,6 +465,11 @@ const (
 	// per connector, deduplicated by its identifier, rescheduling itself to the connector's next
 	// moment; the write that schedules a connector seeds it.
 	KindCmdbConnectorPull Kind = "cmdb.connector_pull"
+
+	// KindDashboardDigest is one person's digest of a dashboard by mail (UC-GOL-04): one job per
+	// digest, deduplicated by its identifier, rescheduling itself to the digest's next moment; the
+	// write that sets the digest seeds it.
+	KindDashboardDigest Kind = "dashboard.digest"
 )
 
 func (k Kind) String() string { return string(k) }
