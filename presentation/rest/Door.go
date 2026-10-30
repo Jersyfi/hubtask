@@ -74,6 +74,9 @@ type restDoor struct {
 	// ReadOnly are the body's read-only members: the answer's, sent back by a client that saves
 	// what it read, and dropped rather than refused as an input nobody declares.
 	ReadOnly []string
+	// NullAs passes an explicit null member as the value it names, or leaves it out where that is
+	// nil: a bucket's null limit is the number 0.
+	NullAs map[string]any
 	// Dropped are body members the contract declares and the use case does not: accepted and
 	// dropped, as before the door was generated, until the owner decides them.
 	Dropped []string
@@ -147,6 +150,12 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 				// The path names the resource; a body member of the same name never moves it. An
 				// explicit null stays: in a merge patch it clears, as MCP's arguments carry it.
 				if _, taken := in[name]; !taken {
+					if as, named := d.NullAs[name]; named && value == nil {
+						if as != nil {
+							in[name] = as
+						}
+						continue
+					}
 					if value == nil && d.NullClears {
 						value = ""
 					}

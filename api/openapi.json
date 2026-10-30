@@ -12949,6 +12949,12 @@
           "webhooks"
         ],
         "operationId": "pollTriggerEvents",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-query": {
+          "since": "cursor"
+        },
+        "x-hubtask-rest-list": "whole",
+        "x-hubtask-rest-answer": "triggerEventPageResponse",
         "summary": "The pull half of the event stream",
         "description": "Events of one type, oldest first, for a platform that has no address a webhook could reach - an n8n instance behind NAT, a Zapier polling trigger. The body of each entry is the same CloudEvent a webhook subscription would have been POSTed: one schema, two transports, and `id` is the same value `X-Hubtask-Event-Id` carries, so a consumer that already deduplicates on it needs to learn nothing new.\nThe cursor is opaque, signed and derived from the outbox's own ordering, so it survives a restart and a failover. Two polls with it neither repeat an event nor step over one.\nThe window is the outbox's retention period, and a cursor older than it is refused with `410 gone` rather than silently answered from the beginning. A poller that missed more than the window has to be told that it missed - one that was quietly restarted would go on reporting a consistency it does not have.\nA replayed event - one a restore wrote rather than one somebody did - is not answered here, exactly as it is not delivered to a webhook.\n",
         "parameters": [
@@ -17362,6 +17368,11 @@
           "auth"
         ],
         "operationId": "startOidcSignIn",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-request": [
+          "host",
+          "tenant_header"
+        ],
         "security": [],
         "summary": "Begin a sign-in through the workspace's identity provider",
         "description": "The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the workspace's address, or the tenant header at the installation's own address - and its configured provider answers the URL to send the browser to.\nNothing about where the code comes back is taken from the request: the redirect URI is this installation's own, derived from its base URL, so a caller cannot point the authorization answer anywhere else. The `state` this returns is the handle for the callback; the code verifier and the nonce stay on the server and are never shown.\nRefused with a clear code when the workspace has no provider configured or has switched it off, and when discovery cannot be reached - a degradation in which local accounts keep signing in.\nA `SAML` provider answers its single sign-on address carrying the authentication request and the `state` as `RelayState`; its answer comes back through `/auth/saml:acs`.\nA sign-in begun on the invitation card carries the invitation's token, and the flow remembers the invited account it accepts; an invitation that cannot be redeemed is refused here with `auth.redemption_failed`, before the browser leaves.\nA sign-in begun from the link a workspace without the password mails to connect its provider carries that link's token (`connect_token`): the flow remembers the link and asks the provider for a fresh sign-in; a link that cannot be used is refused here with `auth.reset_failed`, before the browser leaves.\n",
@@ -17398,6 +17409,18 @@
           "auth"
         ],
         "operationId": "completeOidcSignIn",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-request": [
+          "user_agent",
+          "remote_addr",
+          "tenant_header",
+          "host"
+        ],
+        "x-hubtask-rest-alternate": {
+          "when": "mfa_required",
+          "answer": "mfaChallengeResponse"
+        },
+        "x-hubtask-rest-answer": "sessionTokensResponse",
         "security": [],
         "summary": "Finish the sign-in with the code the provider issued",
         "description": "The second half: the authorization code is exchanged at the provider's token endpoint with the verifier this installation kept, and the ID token is verified in full - the signature against the provider's JWKS, `iss`, `aud`, `exp`, the `nonce` this flow minted, an algorithm allowlist that never contains `none`, and a clock skew of at most sixty seconds. Any of those failing is one refusal.\nWhat it answers is the same pair a password sign-in answers, because it is the same session: how somebody proved themselves is an attribute of the session, not a class of it. The account is provisioned on first arrival under the provider's subject, or linked to an existing local account when the verified address matches inside the configured domains - and that linking is audited.\nAn existing account that already holds a password is **not** linked on the provider's word: the answer is `202` with the single method `LINK`, and the account's password is presented at `/auth/sessions:link`. An account with no password but another provider that lets it in here cannot give that proof here and is refused with `identity_provider.link_needs_own_way_in`; one whose only way in has gone - an identity at an offer that ended or a provider switched off, or a second factor and nothing else - is refused with `identity_provider.link_needs_mailbox`, which points at *Forgot your password?*.\nAn **invited** account is activated and connected only with a second proof: the sign-in started from the invitation's own link (`invitation_token` at the start), or the provider is authoritative for the address. Through the link the invited address is admitted even outside a domains or directories list. The provider's verified address must equal the invited one either way. Without the proof nothing is connected or activated and the answer is `identity_provider.invitation_needs_link`; a different address is `identity_provider.invitation_address_differs`; an invitation that ran out or was accepted meanwhile is `auth.redemption_failed` through the link. A refused arrival never spends the invitation. Whatever was connected to the invited account before the proof is dropped when it is activated.\nAuthority for the address, and a domains or directories list, decide who comes in new on the provider's word and which identities may be connected to an existing account at all: the `LINK` step and the connect link admit only what they admit, the account's own proof notwithstanding, and anything else is `identity_provider.not_admitted`. An identity connected before keeps signing in, as daily sign-in reads no list. *Only people invited here* never creates an account, and an address nobody here holds is refused. An existing account that holds no credential at all is connected only by a provider authoritative for its address, in every mode; otherwise nothing is connected and the answer is `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.\nA sign-in begun from the link a workspace without the password mails (`connect_token` at the start) connects that link's account and no other. The mailbox and a **fresh** sign-in at the provider are its proof, in place of the password: an `auth_time` older than the step-up's window, one from before the flow left for the provider (beyond a minute's clock skew), or none, is `identity_provider.connect_not_fresh`; the provider's verified address must equal the account's (`identity_provider.connect_address_differs`); admission is that of an arrival bringing its own proof (`identity_provider.not_admitted`); and an identity already connected to another account here is `identity_provider.connect_identity_taken`. None of these spends the link. An armed second factor is still asked - the answer is then `202` with the `TOTP` step, and the provider is connected when that step completes. The link is spent in the transaction that connects the provider or hands on to the factor, so a second return is `auth.reset_failed`, as is a link whose password was switched back on meanwhile. No password is stored.\nA `state` that is unknown, already spent or expired is refused indistinguishably: a flow handle is single use.\n",
@@ -27842,6 +27865,16 @@
           "structure"
         ],
         "operationId": "updateBucket",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "containerId": ""
+        },
+        "x-hubtask-rest-null": "empty",
+        "x-hubtask-rest-null-as": {
+          "wip_limit": 0,
+          "is_done_bucket": null
+        },
+        "x-hubtask-rest-answer": "bucketResponse",
         "description": "Changes a column's own fields. A field that is not sent is left alone; sending color_token as null clears it, and sending wip_limit as null or 0 removes the limit. The name stays unique in the collection. Where the column sits is not here - that is :reorder, so that a rename and a rearrangement are two operations with two audit entries.\n",
         "parameters": [
           {

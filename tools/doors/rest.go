@@ -82,6 +82,9 @@ type RESTDoor struct {
 	// AnswerWhole says the named mapper draws the whole answer, a list or a page with members
 	// beside its rows included (`x-hubtask-rest-list: whole`).
 	AnswerWhole bool
+	// NullAs passes an explicit null member as the named value instead (`x-hubtask-rest-null-as`),
+	// or leaves it out where the value is null: a bucket's null limit is the number 0.
+	NullAs map[string]any
 	// Dropped are body members the contract declares and the use case does not
 	// (`x-hubtask-rest-drop`): accepted and dropped, as the door did before it was generated, until
 	// the owner decides the member's fate. Never a member the use case reads.
@@ -114,6 +117,7 @@ type restOperation struct {
 	Flatten     map[string]map[string]string `yaml:"x-hubtask-rest-flatten"`
 	Cache       string                       `yaml:"x-hubtask-rest-cache"`
 	Drop        []string                     `yaml:"x-hubtask-rest-drop"`
+	NullAs      map[string]any               `yaml:"x-hubtask-rest-null-as"`
 	Alternate   *struct {
 		When   string `yaml:"when"`
 		Answer string `yaml:"answer"`
@@ -309,6 +313,16 @@ func restDoor(
 			}
 		}
 		door.Dropped = op.Drop
+		for name := range op.NullAs {
+			held := false
+			for _, content := range op.RequestBody.Content {
+				_, held = doc.composed(content.Schema).Properties[name]
+			}
+			if !held {
+				return door, fmt.Errorf("x-hubtask-rest-null-as names %s, which the body does not hold", name)
+			}
+		}
+		door.NullAs = op.NullAs
 	}
 
 	for _, status := range []string{"200", "201", "202", "204"} {
@@ -516,6 +530,22 @@ func renderREST(doors []RESTDoor) ([]byte, error) {
 				parts = append(parts, fmt.Sprintf("%q: {%s}", name, strings.Join(pairs, ", ")))
 			}
 			extra += ", Flatten: map[string]map[string]string{" + strings.Join(parts, ", ") + "}"
+		}
+		if len(d.NullAs) > 0 {
+			keys := make([]string, 0, len(d.NullAs))
+			for key := range d.NullAs {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+			pairs := make([]string, 0, len(keys))
+			for _, key := range keys {
+				value := "nil"
+				if d.NullAs[key] != nil {
+					value = fmt.Sprintf("%#v", d.NullAs[key])
+				}
+				pairs = append(pairs, fmt.Sprintf("%q: %s", key, value))
+			}
+			extra += ", NullAs: map[string]any{" + strings.Join(pairs, ", ") + "}"
 		}
 		if len(d.Dropped) > 0 {
 			extra += fmt.Sprintf(", Dropped: %#v", d.Dropped)

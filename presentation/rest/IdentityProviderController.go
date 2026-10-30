@@ -4,11 +4,9 @@
 package rest
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -158,103 +156,9 @@ func identityProviderPresetResponse(out usecase.Output) openapi.IdentityProvider
 
 // The relying-party flow's use cases.
 const (
-	startOidcSignInUseCase    = "StartOidcSignIn"
-	completeOidcSignInUseCase = "CompleteOidcSignIn"
-	locateOidcFlowUseCase     = "LocateOidcFlow"
+	startOidcSignInUseCase = "StartOidcSignIn"
+	locateOidcFlowUseCase  = "LocateOidcFlow"
 )
-
-// StartOidcSignIn answers POST /auth/oidc:start.
-func (c *RestController) StartOidcSignIn(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	// The body is optional: a caller with nothing to add sends none, and an empty one is not an
-	// error. Anything that is there is read, and a malformed document still is.
-	var body openapi.OidcStart
-	if r.ContentLength > 0 {
-		if err := decodeJSON(r, &body); err != nil {
-			WriteProblem(w, err, requestID)
-			return
-		}
-	}
-
-	in := usecase.Input{
-		"host":          r.Host,
-		"tenant_header": r.Header.Get(TenantHeader),
-	}
-	if body.ProviderId != nil {
-		in["provider_id"] = body.ProviderId.String()
-	}
-	if body.LoginHint != nil {
-		in["login_hint"] = *body.LoginHint
-	}
-	if body.InvitationToken != nil && *body.InvitationToken != "" {
-		in["invitation_token"] = *body.InvitationToken
-	}
-	if body.ConnectToken != nil && *body.ConnectToken != "" {
-		in["connect_token"] = *body.ConnectToken
-	}
-	if body.TermsUrl != nil && *body.TermsUrl != "" {
-		in["terms_url"] = *body.TermsUrl
-	}
-	if body.TermsVersion != nil && *body.TermsVersion != "" {
-		in["terms_version"] = *body.TermsVersion
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), startOidcSignInUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	answer := openapi.OidcAuthorization{
-		AuthorizationUrl: out.String("authorization_url"),
-		State:            out.String("state"),
-	}
-	if expires, held := out["expires_at"].(time.Time); held {
-		answer.ExpiresAt = expires
-	}
-	writeJSON(w, r, http.StatusCreated, answer)
-}
-
-// CompleteOidcSignIn answers POST /auth/oidc:callback.
-func (c *RestController) CompleteOidcSignIn(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.OidcCallback
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), completeOidcSignInUseCase, actorOf(r), usecase.Input{
-		"code":  body.Code,
-		"state": body.State,
-		// The client hints and the tenant source are the request's, SignIn's reasoning.
-		"user_agent":    r.UserAgent(),
-		"remote_addr":   r.RemoteAddr,
-		"tenant_header": r.Header.Get(TenantHeader),
-		"host":          r.Host,
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	if required, _ := out["mfa_required"].(bool); required {
-		// The address matched an account with a password, which is asked for before the provider
-		// is connected to it (ADR-0071's addendum): the LINK step.
-		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
-}
 
 // outputStrings reads a list a use case built for every channel: `[]any` of strings, which is what
 // the registry's projection is made of.

@@ -7762,6 +7762,10 @@ paths:
     get:
       tags: [webhooks]
       operationId: pollTriggerEvents
+      x-hubtask-rest: generated
+      x-hubtask-rest-query: { since: cursor }
+      x-hubtask-rest-list: whole
+      x-hubtask-rest-answer: triggerEventPageResponse
       summary: The pull half of the event stream
       description: >
         Events of one type, oldest first, for a platform that has no address a webhook could
@@ -11247,6 +11251,8 @@ paths:
     post:
       tags: [auth]
       operationId: startOidcSignIn
+      x-hubtask-rest: generated
+      x-hubtask-rest-request: [host, tenant_header]
       security: []
       summary: Begin a sign-in through the workspace's identity provider
       description: >
@@ -11295,6 +11301,10 @@ paths:
     post:
       tags: [auth]
       operationId: completeOidcSignIn
+      x-hubtask-rest: generated
+      x-hubtask-rest-request: [user_agent, remote_addr, tenant_header, host]
+      x-hubtask-rest-alternate: { when: mfa_required, answer: mfaChallengeResponse }
+      x-hubtask-rest-answer: sessionTokensResponse
       security: []
       summary: Finish the sign-in with the code the provider issued
       description: >
@@ -19041,6 +19051,11 @@ paths:
     patch:
       tags: [structure]
       operationId: updateBucket
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: { containerId: "" }
+      x-hubtask-rest-null: empty
+      x-hubtask-rest-null-as: { wip_limit: 0, is_done_bucket: null }
+      x-hubtask-rest-answer: bucketResponse
       description: >
         Changes a column's own fields. A field that is not sent is left alone; sending color_token
         as null clears it, and sending wip_limit as null or 0 removes the limit. The name stays
