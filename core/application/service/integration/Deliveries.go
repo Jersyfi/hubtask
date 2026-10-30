@@ -202,6 +202,11 @@ func (h RotateWebhookSecret) Execute(
 			return err
 		}
 
+		if stored.Subscription.Format.IsChat() {
+			// A chat room's sealed value is its credential, not a signing secret: a drawn one in
+			// its place would stop every delivery (UC-INT-12).
+			return shared.ErrValidation.WithDetail("webhooks.chat_not_signed")
+		}
 		now := w.Clock.Now()
 		after, err := stored.Subscription.Rotated(now, grace)
 		if err != nil {
