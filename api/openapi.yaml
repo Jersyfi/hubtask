@@ -9444,6 +9444,10 @@ paths:
     post:
       tags: [admin]
       operationId: provisionTenant
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: provisionedTenantResponse
+      x-hubtask-rest-shown-once: owner_redemption_token
+      x-hubtask-rest-location: /admin/tenants
       summary: Provision a workspace
       description: >
         Creates the tenant with its defaults: a default hub, an example
@@ -9530,6 +9534,8 @@ paths:
     post:
       tags: [admin]
       operationId: queryTenants
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: adminTenantResponse
       summary: Find workspaces
       description: >
         The workspaces matching every filter given, oldest first, one page at a time - how a
@@ -15360,6 +15366,9 @@ paths:
     post:
       tags: [containers]
       operationId: createContainer
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: containerResponse
+      x-hubtask-rest-location: /containers/{id}
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:

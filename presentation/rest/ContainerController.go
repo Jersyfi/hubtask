@@ -15,64 +15,10 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
-
-// CreateContainer answers POST /containers.
-//
-// The handler holds no rules. It reads the request, hands it to the catalogue, and maps the
-// result - the permission check, the invariants, the event, the change log entry and the audit
-// entry all happen in the application layer, once, for every channel (ADR-0005, arc42 §4).
-//
-// It goes through the catalogue rather than calling the use case directly, which is what makes
-// this identical to the same operation reached through MCP or from an automation rule: one
-// handler, one audit entry, one metric, whichever door the call came in by (test AT-6).
-func (c *RestController) CreateContainer(w http.ResponseWriter, r *http.Request, _ openapi.CreateContainerParams) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	actor, _ := appshared.ActorFrom(r.Context())
-
-	var body openapi.ContainerCreate
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	var preset any
-	if body.Preset != nil {
-		preset = string(*body.Preset)
-	}
-	out, err := c.UseCases.Invoke(r.Context(), createContainerUseCase, actor, usecase.Input{
-		"preset":      preset,
-		"preset_id":   optionalUUIDField(body.PresetId),
-		"type":        string(body.Type),
-		"name":        body.Name,
-		"parent_id":   optionalUUIDField(body.ParentId),
-		"description": optionalStringField(body.Description),
-		"icon":        optionalStringField(body.Icon),
-		"color_token": optionalStringField(body.ColorToken),
-		"private":     optionalBoolField(body.Private),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	container := containerResponse(out)
-	// Location and ETag are what let a client follow up without guessing: where the container is,
-	// and which version it may write against (api-guidelines.md §5).
-	w.Header().Set("Location", APIBasePath+"/containers/"+container.Id.String())
-	w.Header().Set("ETag", etag(out.Int("version")))
-	writeJSON(w, r, http.StatusCreated, container)
-}
 
 // createContainerUseCase is the catalogue name. The route it is reached through comes from the
 // specification; the two are reconciled by the parity test rather than by this constant.

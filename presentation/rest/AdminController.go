@@ -15,55 +15,21 @@ import (
 // The use case names of the control plane. All four are written out longhand for
 // ListServiceAccounts' reason: the identity helper's closure gives the linter nothing to trace
 // the context through.
-const (
-	provisionTenantUseCase = "ProvisionTenant"
-)
+const ()
 
-// ProvisionTenant answers POST /admin/tenants.
-func (c *RestController) ProvisionTenant(
-	w http.ResponseWriter, r *http.Request, _ openapi.ProvisionTenantParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.TenantProvision
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), provisionTenantUseCase, actorOf(r), usecase.Input{
-		"slug":               body.Slug,
-		"display_name":       body.DisplayName,
-		"default_locale":     optionalStringField(body.DefaultLocale),
-		"default_time_zone":  optionalStringField(body.DefaultTimeZone),
-		"owner_email":        string(body.OwnerEmail),
-		"owner_display_name": optionalStringField(body.OwnerDisplayName),
-		"plan":               optionalStringField(body.Plan),
-		"external_reference": optionalStringField(body.ExternalReference),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
+// provisionedTenantResponse maps a new workspace with the one answer the owner's way in ever appears in (T-18's shown once).
+func provisionedTenantResponse(out usecase.Output) openapi.ProvisionedTenant {
 	tenant := adminTenantResponse(out)
-	provisioned := openapi.ProvisionedTenant{
+	return openapi.ProvisionedTenant{
 		Id: tenant.Id, Slug: tenant.Slug, DisplayName: tenant.DisplayName,
 		Status:        openapi.ProvisionedTenantStatus(tenant.Status),
 		DefaultLocale: tenant.DefaultLocale, DefaultTimeZone: tenant.DefaultTimeZone,
-		CreatedAt:           tenant.CreatedAt,
-		OwnerAccountId:      uuidValue(out.String("owner_account_id")),
-		DefaultHubId:        uuidValue(out.String("default_hub_id")),
-		ExampleCollectionId: uuidValue(out.String("example_collection_id")),
-		// The one response the owner's way in ever appears in (T-18's "shown once").
+		CreatedAt:            tenant.CreatedAt,
+		OwnerAccountId:       uuidValue(out.String("owner_account_id")),
+		DefaultHubId:         uuidValue(out.String("default_hub_id")),
+		ExampleCollectionId:  uuidValue(out.String("example_collection_id")),
 		OwnerRedemptionToken: out.String("owner_redemption_token"),
 	}
-	w.Header().Set("Location", APIBasePath+"/admin/tenants")
-	writeJSON(w, r, http.StatusCreated, provisioned)
 }
 
 func adminTenantResponse(row usecase.Output) openapi.AdminTenant {

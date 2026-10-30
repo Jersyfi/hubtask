@@ -14102,6 +14102,10 @@
           "admin"
         ],
         "operationId": "provisionTenant",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "provisionedTenantResponse",
+        "x-hubtask-rest-shown-once": "owner_redemption_token",
+        "x-hubtask-rest-location": "/admin/tenants",
         "summary": "Provision a workspace",
         "description": "Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "parameters": [
@@ -14228,6 +14232,8 @@
           "admin"
         ],
         "operationId": "queryTenants",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "adminTenantResponse",
         "summary": "Find workspaces",
         "description": "The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "requestBody": {
@@ -22053,6 +22059,9 @@
           "containers"
         ],
         "operationId": "createContainer",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "containerResponse",
+        "x-hubtask-rest-location": "/containers/{id}",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"

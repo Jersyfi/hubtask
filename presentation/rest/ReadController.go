@@ -166,7 +166,10 @@ func rowsOf(out usecase.Output) []usecase.Output {
 // type, so the last page carries an explicit null rather than no field at all - which is what lets a
 // client read the field unconditionally.
 func pageResponse(out usecase.Output) openapi.PageInfo {
-	state, _ := out["page"].(map[string]any)
+	state, held := out["page"].(map[string]any)
+	if !held {
+		state, _ = out["page"].(usecase.Output)
+	}
 	hasMore, _ := state["has_more"].(bool)
 
 	info := openapi.PageInfo{HasMore: hasMore}

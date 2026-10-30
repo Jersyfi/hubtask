@@ -91,6 +91,7 @@ var restDoors = map[string]restDoor{
 	"createAccessToken":                 {UseCase: "CreateAccessToken", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "/auth/tokens/{id}", NullClears: false, Integers: []string(nil), ShownOnce: "token"},
 	"createBucket":                      {UseCase: "CreateBucket", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/containers/{collection_id}/buckets/{id}", NullClears: false, Integers: []string{"wip_limit"}},
 	"createCi":                          {UseCase: "CreateCi", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/cis/{id}", NullClears: false, Integers: []string(nil)},
+	"createContainer":                   {UseCase: "CreateContainer", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/containers/{id}", NullClears: false, Integers: []string(nil)},
 	"createDashboard":                   {UseCase: "CreateDashboard", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createDataSubjectRequest":          {UseCase: "CreateDataSubjectRequest", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createEntryType":                   {UseCase: "CreateEntryType", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
@@ -339,9 +340,11 @@ var restDoors = map[string]restDoor{
 	"previewWorkflowScheme":             {UseCase: "PreviewWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"previewWorkspaceStructure":         {UseCase: "PreviewWorkspaceStructure", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"proposeConfig":                     {UseCase: "ProposeConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
+	"provisionTenant":                   {UseCase: "ProvisionTenant", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/admin/tenants", NullClears: false, Integers: []string(nil), ShownOnce: "owner_redemption_token"},
 	"publishConfigTemplate":             {UseCase: "PublishConfigTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"publishWorkflow":                   {UseCase: "PublishWorkflow", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"purgeWorkItem":                     {UseCase: "PurgeWorkItem", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"queryTenants":                      {UseCase: "QueryTenants", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"raiseRequest":                      {UseCase: "RaiseRequest", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"rateMyRequest":                     {UseCase: "RateMyRequest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"score"}},
 	"readAgent":                         {UseCase: "ReadAgent", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1047,6 +1050,12 @@ func (c *RestController) CreateCi(w http.ResponseWriter, r *http.Request, hubId 
 	var body openapi.CreateCiJSONRequestBody
 	var answer openapi.ConfigurationItem
 	c.door(w, r, restDoors["createCi"], usecase.Input{"hub_id": hubId.String()}, nil, &body, &answer)
+}
+
+// CreateContainer answers POST /containers by the generated mapping.
+func (c *RestController) CreateContainer(w http.ResponseWriter, r *http.Request, params openapi.CreateContainerParams) {
+	var body openapi.CreateContainerJSONRequestBody
+	c.door(w, r, restDoors["createContainer"], usecase.Input{}, params, &body, answerBy(containerResponse))
 }
 
 // CreateDashboard answers POST /dashboards by the generated mapping.
@@ -2470,6 +2479,12 @@ func (c *RestController) ProposeConfig(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["proposeConfig"], usecase.Input{}, nil, &body, &answer)
 }
 
+// ProvisionTenant answers POST /admin/tenants by the generated mapping.
+func (c *RestController) ProvisionTenant(w http.ResponseWriter, r *http.Request, params openapi.ProvisionTenantParams) {
+	var body openapi.ProvisionTenantJSONRequestBody
+	c.door(w, r, restDoors["provisionTenant"], usecase.Input{}, params, &body, answerBy(provisionedTenantResponse))
+}
+
 // PublishConfigTemplate answers POST /config/templates by the generated mapping.
 func (c *RestController) PublishConfigTemplate(w http.ResponseWriter, r *http.Request) {
 	var body openapi.PublishConfigTemplateJSONRequestBody
@@ -2487,6 +2502,12 @@ func (c *RestController) PublishWorkflow(w http.ResponseWriter, r *http.Request,
 // PurgeWorkItem answers POST /items/{itemId}:purge by the generated mapping.
 func (c *RestController) PurgeWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.PurgeWorkItemParams) {
 	c.door(w, r, restDoors["purgeWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, nil)
+}
+
+// QueryTenants answers POST /admin/tenants:query by the generated mapping.
+func (c *RestController) QueryTenants(w http.ResponseWriter, r *http.Request) {
+	var body openapi.QueryTenantsJSONRequestBody
+	c.door(w, r, restDoors["queryTenants"], usecase.Input{}, nil, &body, answerPage(adminTenantResponse))
 }
 
 // RaiseRequest answers POST /requests by the generated mapping.
