@@ -65,6 +65,9 @@ func allows(actor shared.ID, p service.Permission, path []identity.Scope) bool {
 			}
 		}
 	}
+	if p == service.PermissionManageCosts {
+		return actor == ana
+	}
 	return p != service.PermissionStructure || actor == admin
 }
 
@@ -406,6 +409,53 @@ func TestAPortfolioRollsUpWhatItsReaderSees(t *testing.T) {
 		"name": "Spy", "items": []any{map[string]any{"container_id": listS.String()}},
 	}); !errors.Is(err, shared.ErrNotFound) {
 		t.Fatalf("Ben added a collection he cannot read: %v", err)
+	}
+}
+
+// budgets answers the time module's budget of the Launch collection in euros; Merger has none.
+type budgets struct{ calls int }
+
+func (b *budgets) Invoke(_ context.Context, _ appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+	b.calls++
+	if in.String("plan_id") != listA.String() {
+		return usecase.Output{"budgeted": false}, nil
+	}
+	return usecase.Output{
+		"budgeted": true, "budget_minutes": int64(6000), "budget_amount_minor": int64(500000), "currency": "EUR",
+		"minutes": int64(4500), "amount_minor": int64(375000), "unpriced_minutes": int64(0), "over_time": false, "over_money": false,
+	}, nil
+}
+
+// UC-GOL-03: the portfolio's budget is its projects' budgets rolled up from the time module's,
+// shown only to whoever manages costs there.
+func TestAPortfolioRollsUpItsBudgetsForWhoeverManagesCosts(t *testing.T) {
+	s, _, _, _ := newSteward(t)
+	b := &budgets{}
+	s.Budgets = b
+	created := ok(t, CreatePortfolio{s}.Descriptor(), ana, usecase.Input{
+		"name": "Programme", "items": []any{
+			map[string]any{"container_id": listA.String()}, map[string]any{"container_id": listS.String()},
+		},
+	})
+	read := ok(t, ReadPortfolio{s}.Descriptor(), ana, usecase.Input{"portfolio_id": created.String("id")})
+	total, ok1 := read["budget"].(usecase.Output)
+	if !ok1 || total["projects"] != 1 || total["budget_minutes"] != int64(6000) || total["amount_minor"] != int64(375000) || total["currency"] != "EUR" {
+		t.Fatalf("Ana's budget roll-up %v", read["budget"])
+	}
+	rows := read["items"].([]usecase.Output)
+	if rows[0]["budget"] == nil || rows[1]["budget"] != nil {
+		t.Fatalf("the projects' budgets %v / %v", rows[0]["budget"], rows[1]["budget"])
+	}
+	calls := b.calls
+	asBen := ok(t, ReadPortfolio{s}.Descriptor(), ben, usecase.Input{"portfolio_id": created.String("id")})
+	if asBen["budget"] != nil || b.calls != calls {
+		t.Fatalf("Ben, who manages no costs, sees %v", asBen["budget"])
+	}
+	var sum budgetSum
+	sum.add(usecase.Output{"budget_amount_minor": int64(1), "amount_minor": int64(1), "currency": "EUR"})
+	sum.add(usecase.Output{"budget_amount_minor": int64(1), "amount_minor": int64(1), "currency": "USD"})
+	if out := sum.output(); out["mixed_currencies"] != true || out["amount_minor"] != nil {
+		t.Fatalf("two currencies summed: %v", out)
 	}
 }
 

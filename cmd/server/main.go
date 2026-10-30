@@ -1872,6 +1872,7 @@ func run() error {
 			Views: savedViews, Containers: containers, Permits: authorizer, UnitOfWork: unitOfWork,
 			Aggregate: goalSummaries,
 		}.Descriptor().Handler,
+		Budgets:    timeservice.ReadBudget{Keeper: keeper}.Descriptor().Handler,
 		Authorizer: authorizer, Reader: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}

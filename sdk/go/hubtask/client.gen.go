@@ -16860,12 +16860,37 @@ type PortalRequestPage struct {
 
 // Portfolio defines model for Portfolio.
 type Portfolio struct {
+	// Budget Read alone, where the caller manages costs at one or more of its projects with a budget: their budgets and burn rolled up. Money is summed only while every budget with money is in one currency; otherwise its amounts are null and mixed_currencies is true.
+	Budget *struct {
+		AmountMinor       int64  `json:"amount_minor"`
+		BudgetAmountMinor int64  `json:"budget_amount_minor"`
+		BudgetMinutes     int64  `json:"budget_minutes"`
+		Currency          string `json:"currency"`
+		Minutes           int64  `json:"minutes"`
+		MixedCurrencies   bool   `json:"mixed_currencies"`
+
+		// Projects The projects rolled up.
+		Projects        int   `json:"projects"`
+		UnpricedMinutes int64 `json:"unpriced_minutes"`
+	} `json:"budget,omitempty"`
 	Description string             `json:"description"`
 	Id          openapi_types.UUID `json:"id"`
 
 	// Items The projects the caller may read.
 	Items []struct {
-		Archived    bool               `json:"archived"`
+		Archived bool `json:"archived"`
+
+		// Budget Read alone, for a caller who manages costs at the project and where it has a budget - its budget and burn as GET /plans/{planId}/budget answers them.
+		Budget *struct {
+			AmountMinor       int64  `json:"amount_minor"`
+			BudgetAmountMinor int64  `json:"budget_amount_minor"`
+			BudgetMinutes     int64  `json:"budget_minutes"`
+			Currency          string `json:"currency"`
+			Minutes           int64  `json:"minutes"`
+			OverMoney         bool   `json:"over_money"`
+			OverTime          bool   `json:"over_time"`
+			UnpricedMinutes   int64  `json:"unpriced_minutes"`
+		} `json:"budget,omitempty"`
 		ContainerId openapi_types.UUID `json:"container_id"`
 		Done        int                `json:"done"`
 		EndOn       openapi_types.Date `json:"end_on"`
@@ -30274,7 +30299,7 @@ type ClientInterface interface {
 
 	// ReadPortfolio A portfolio as a table
 	//
-	// Each project the caller may read with its dates, health, how many entries it holds and how many are completed - as the caller's own POST /items:aggregate counts them -, the portfolio's progress over them, and its latest status update.
+	// Each project the caller may read with its dates, health, how many entries it holds and how many are completed - as the caller's own POST /items:aggregate counts them -, the portfolio's progress over them, and its latest status update. For a caller who manages costs at a project, its budget and burn and the portfolio's roll-up of them.
 	//
 	// Corresponds with GET /portfolios/{portfolioId} (the `ReadPortfolio` operationId).
 	ReadPortfolio(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -45474,7 +45499,7 @@ func (c *Client) DeletePortfolio(ctx context.Context, portfolioId PortfolioId, p
 
 // ReadPortfolio A portfolio as a table
 //
-// Each project the caller may read with its dates, health, how many entries it holds and how many are completed - as the caller's own POST /items:aggregate counts them -, the portfolio's progress over them, and its latest status update.
+// Each project the caller may read with its dates, health, how many entries it holds and how many are completed - as the caller's own POST /items:aggregate counts them -, the portfolio's progress over them, and its latest status update. For a caller who manages costs at a project, its budget and burn and the portfolio's roll-up of them.
 //
 // Corresponds with GET /portfolios/{portfolioId} (the `ReadPortfolio` operationId).
 func (c *Client) ReadPortfolio(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -85895,7 +85920,7 @@ type ClientWithResponsesInterface interface {
 
 	// ReadPortfolioWithResponse A portfolio as a table
 	//
-	// Each project the caller may read with its dates, health, how many entries it holds and how many are completed - as the caller's own POST /items:aggregate counts them -, the portfolio's progress over them, and its latest status update.
+	// Each project the caller may read with its dates, health, how many entries it holds and how many are completed - as the caller's own POST /items:aggregate counts them -, the portfolio's progress over them, and its latest status update. For a caller who manages costs at a project, its budget and burn and the portfolio's roll-up of them.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -129085,7 +129110,7 @@ func (c *ClientWithResponses) DeletePortfolioWithResponse(ctx context.Context, p
 
 // ReadPortfolioWithResponse A portfolio as a table
 //
-// Each project the caller may read with its dates, health, how many entries it holds and how many are completed - as the caller's own POST /items:aggregate counts them -, the portfolio's progress over them, and its latest status update.
+// Each project the caller may read with its dates, health, how many entries it holds and how many are completed - as the caller's own POST /items:aggregate counts them -, the portfolio's progress over them, and its latest status update. For a caller who manages costs at a project, its budget and burn and the portfolio's roll-up of them.
 //
 // Returns a wrapper object for the known response body format(s).
 //

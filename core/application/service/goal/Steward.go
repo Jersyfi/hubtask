@@ -101,13 +101,16 @@ type Steward struct {
 	// of the module is one of theirs, run as the reader.
 	Summaries     usecase.Handler
 	ViewSummaries usecase.Handler
-	Authorizer    Authorizer
-	Reader        Reader
-	Audit         audit.Sink
-	UnitOfWork    persistence.UnitOfWork
-	Clock         clock.Clock
-	IDs           clock.IDGenerator
-	Text          text.Normalizer
+	// Budgets is the time module's ReadBudget, run as the reader for a portfolio's budget roll-up
+	// (UC-GOL-03); nil rolls up none.
+	Budgets    usecase.Handler
+	Authorizer Authorizer
+	Reader     Reader
+	Audit      audit.Sink
+	UnitOfWork persistence.UnitOfWork
+	Clock      clock.Clock
+	IDs        clock.IDGenerator
+	Text       text.Normalizer
 }
 
 func (s Steward) record(

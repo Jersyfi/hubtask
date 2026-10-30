@@ -992,7 +992,8 @@ paths:
       description: >
         Each project the caller may read with its dates, health, how many entries it holds and how many
         are completed - as the caller's own POST /items:aggregate counts them -, the portfolio's progress
-        over them, and its latest status update.
+        over them, and its latest status update. For a caller who manages costs at a project, its
+        budget and burn and the portfolio's roll-up of them.
       responses:
         "200":
           description: The portfolio
@@ -22478,6 +22479,35 @@ components:
               entries: { type: integer, nullable: true, description: "Read alone: its entries as the caller counts them." }
               done: { type: integer, nullable: true }
               progress: { type: number, nullable: true, minimum: 0, maximum: 1 }
+              budget:
+                type: object
+                description: Read alone, for a caller who manages costs at the project and where it has a budget - its budget and burn as GET /plans/{planId}/budget answers them.
+                required: [budget_minutes, budget_amount_minor, currency, minutes, amount_minor, unpriced_minutes, over_time, over_money]
+                properties:
+                  budget_minutes: { type: integer, format: int64 }
+                  budget_amount_minor: { type: integer, format: int64 }
+                  currency: { type: string }
+                  minutes: { type: integer, format: int64 }
+                  amount_minor: { type: integer, format: int64 }
+                  unpriced_minutes: { type: integer, format: int64 }
+                  over_time: { type: boolean }
+                  over_money: { type: boolean }
+        budget:
+          type: object
+          description: >
+            Read alone, where the caller manages costs at one or more of its projects with a budget:
+            their budgets and burn rolled up. Money is summed only while every budget with money is in
+            one currency; otherwise its amounts are null and mixed_currencies is true.
+          required: [projects, budget_minutes, minutes, unpriced_minutes, currency, mixed_currencies, budget_amount_minor, amount_minor]
+          properties:
+            projects: { type: integer, description: "The projects rolled up." }
+            budget_minutes: { type: integer, format: int64 }
+            minutes: { type: integer, format: int64 }
+            unpriced_minutes: { type: integer, format: int64 }
+            currency: { type: string }
+            mixed_currencies: { type: boolean }
+            budget_amount_minor: { type: integer, format: int64, nullable: true }
+            amount_minor: { type: integer, format: int64, nullable: true }
         latest_update:
           description: Read alone.
           allOf: [{ $ref: "#/components/schemas/PortfolioUpdate" }]

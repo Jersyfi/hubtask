@@ -1566,6 +1566,7 @@ class Portfolio(TypedDict, total=False):
     progress: Required[float | None]
     version: Required[int]
     items: Required[list[dict[str, Any]]]
+    budget: dict[str, Any]
     latest_update: "PortfolioUpdate"
 
 class PortfolioList(TypedDict, total=False):

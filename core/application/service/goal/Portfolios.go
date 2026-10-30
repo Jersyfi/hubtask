@@ -7,6 +7,7 @@ import (
 	"context"
 
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/goal"
@@ -70,6 +71,13 @@ func (s Steward) PortfolioOutput(ctx context.Context, actor appshared.ActorConte
 	}
 	rows := []usecase.Output{}
 	total, done := 0, 0
+	costs := map[shared.ID]bool{}
+	if rollUp && s.Budgets != nil {
+		if costs, err = s.managesCosts(ctx, actor, readable); err != nil {
+			return nil, err
+		}
+	}
+	var sum budgetSum
 	for _, item := range p.Items {
 		c, ok := readable[item.ContainerID]
 		if !ok {
@@ -90,6 +98,12 @@ func (s Steward) PortfolioOutput(ctx context.Context, actor appshared.ActorConte
 				}
 			}
 		}
+		if costs[c.ID] {
+			if burn, ok := s.burn(ctx, actor, c.ID); ok {
+				row["budget"] = burn
+				sum.add(burn)
+			}
+		}
 		rows = append(rows, row)
 	}
 	out := usecase.Output{
@@ -100,7 +114,97 @@ func (s Steward) PortfolioOutput(ctx context.Context, actor appshared.ActorConte
 	if rollUp && total > 0 {
 		out["progress"] = float64(done) / float64(total)
 	}
+	if sum.projects > 0 {
+		out["budget"] = sum.output()
+	}
 	return out, nil
+}
+
+// managesCosts answers which projects the reader manages costs at - MANAGE_COSTS, which the
+// shipped roles reach through MANAGE_MEMBERS -, asked without recording a refusal: a budget left
+// out is no attempt at anything.
+func (s Steward) managesCosts(ctx context.Context, actor appshared.ActorContext, readable map[shared.ID]workrepo.ContainerSummary) (map[shared.ID]bool, error) {
+	out := map[shared.ID]bool{}
+	ids := make([]shared.ID, 0, len(readable))
+	paths := make([][]identity.Scope, 0, len(readable))
+	for id, c := range readable {
+		ids = append(ids, id)
+		paths = append(paths, summaryPath(c))
+	}
+	if len(paths) == 0 {
+		return out, nil
+	}
+	allowed, err := s.Reader.Permitted(ctx, actor, access.Request{
+		Permission: service.PermissionManageCosts, Alternative: service.PermissionManageMembers,
+		Action: PortfolioReadAction, TokenScope: itemsRead, TargetType: portfolioTarget,
+	}, paths)
+	if err != nil {
+		return nil, err
+	}
+	for i, id := range ids {
+		out[id] = i < len(allowed) && allowed[i]
+	}
+	return out, nil
+}
+
+// burn reads a project's budget and its burn through the time module's own use case, as the
+// reader, so that the portfolio's row agrees with the project's budget (P-11).
+func (s Steward) burn(ctx context.Context, actor appshared.ActorContext, container shared.ID) (usecase.Output, bool) {
+	out, err := s.Budgets.Invoke(ctx, actor, usecase.Input{"plan_id": container.String()})
+	if err != nil {
+		return nil, false
+	}
+	budgeted, _ := out["budgeted"].(bool)
+	if !budgeted {
+		return nil, false
+	}
+	keep := usecase.Output{}
+	for _, key := range []string{"budget_minutes", "budget_amount_minor", "currency", "minutes", "amount_minor", "unpriced_minutes", "over_time", "over_money"} {
+		keep[key] = out[key]
+	}
+	return keep, true
+}
+
+// budgetSum rolls the projects' budgets up: minutes always, money only while every budget with
+// money is in one currency.
+type budgetSum struct {
+	projects                         int
+	budgetMinutes, minutes, unpriced int64
+	budgetMinor, minor               int64
+	currency                         string
+	mixed                            bool
+}
+
+func (b *budgetSum) add(burn usecase.Output) {
+	b.projects++
+	n := func(key string) int64 { v, _ := intOf(burn[key]); return int64(v) }
+	b.budgetMinutes += n("budget_minutes")
+	b.minutes += n("minutes")
+	b.unpriced += n("unpriced_minutes")
+	currency, _ := burn["currency"].(string)
+	if currency == "" {
+		return
+	}
+	if b.currency != "" && b.currency != currency {
+		b.mixed = true
+	}
+	if b.currency == "" {
+		b.currency = currency
+	}
+	b.budgetMinor += n("budget_amount_minor")
+	b.minor += n("amount_minor")
+}
+
+func (b budgetSum) output() usecase.Output {
+	out := usecase.Output{
+		"projects": b.projects, "budget_minutes": b.budgetMinutes, "minutes": b.minutes,
+		"unpriced_minutes": b.unpriced, "currency": b.currency, "mixed_currencies": b.mixed,
+		"budget_amount_minor": nil, "amount_minor": nil,
+	}
+	if !b.mixed && b.currency != "" {
+		out["budget_amount_minor"], out["amount_minor"] = b.budgetMinor, b.minor
+	}
+	return out
 }
 
 // completion counts a project's entries and the completed ones through the query's own summary,
@@ -196,7 +300,8 @@ func (h ReadPortfolio) Descriptor() usecase.Descriptor {
 		Name: ReadPortfolioName, Permission: service.PermissionRead, ReadOnly: true,
 		Summary: "One portfolio as a table: each project the caller may read with its dates, health, how many " +
 			"entries it holds and how many are completed, as the caller's own query counts them; the " +
-			"portfolio's progress over them; and its latest status update. Needs READ at the workspace.",
+			"portfolio's progress over them; its latest status update; and, for a caller who manages costs " +
+			"at a project, its budget and burn and their roll-up. Needs READ at the workspace.",
 		SideEffects: "None. Reads only.", TokenScope: itemsRead,
 		Input: []usecase.Field{{Name: "portfolio_id", Kind: usecase.KindID, Required: true, Description: "The portfolio."}},
 		Audit: usecase.AuditDeclaration{Action: PortfolioReadAction},

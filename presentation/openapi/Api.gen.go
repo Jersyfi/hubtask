@@ -16854,12 +16854,37 @@ type PortalRequestPage struct {
 
 // Portfolio defines model for Portfolio.
 type Portfolio struct {
+	// Budget Read alone, where the caller manages costs at one or more of its projects with a budget: their budgets and burn rolled up. Money is summed only while every budget with money is in one currency; otherwise its amounts are null and mixed_currencies is true.
+	Budget *struct {
+		AmountMinor       int64  `json:"amount_minor"`
+		BudgetAmountMinor int64  `json:"budget_amount_minor"`
+		BudgetMinutes     int64  `json:"budget_minutes"`
+		Currency          string `json:"currency"`
+		Minutes           int64  `json:"minutes"`
+		MixedCurrencies   bool   `json:"mixed_currencies"`
+
+		// Projects The projects rolled up.
+		Projects        int   `json:"projects"`
+		UnpricedMinutes int64 `json:"unpriced_minutes"`
+	} `json:"budget,omitempty"`
 	Description string             `json:"description"`
 	Id          openapi_types.UUID `json:"id"`
 
 	// Items The projects the caller may read.
 	Items []struct {
-		Archived    bool               `json:"archived"`
+		Archived bool `json:"archived"`
+
+		// Budget Read alone, for a caller who manages costs at the project and where it has a budget - its budget and burn as GET /plans/{planId}/budget answers them.
+		Budget *struct {
+			AmountMinor       int64  `json:"amount_minor"`
+			BudgetAmountMinor int64  `json:"budget_amount_minor"`
+			BudgetMinutes     int64  `json:"budget_minutes"`
+			Currency          string `json:"currency"`
+			Minutes           int64  `json:"minutes"`
+			OverMoney         bool   `json:"over_money"`
+			OverTime          bool   `json:"over_time"`
+			UnpricedMinutes   int64  `json:"unpriced_minutes"`
+		} `json:"budget,omitempty"`
 		ContainerId openapi_types.UUID `json:"container_id"`
 		Done        int                `json:"done"`
 		EndOn       openapi_types.Date `json:"end_on"`
