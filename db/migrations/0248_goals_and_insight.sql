@@ -1,4 +1,4 @@
--- Goals and insight (M8, UC-GOL-01 … 03, UC-RPT-01): periods, goals with their key results, the
+-- Goals and insight (M8, UC-GOL-01 … 03, UC-GOL-04): periods, goals with their key results, the
 -- entries linked to a goal, check-ins, portfolios of hubs and collections with status updates, and
 -- dashboards. New tables only, so expand only (versioning-release.md §4).
 --

@@ -39,6 +39,7 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`assets/`](./assets/) | `UC-AST` | A hub's configuration items: classes, relations, compliance fields, one reconciliation for every source, files, duplicates, impact, health | `service/cmdb` |
 | [`servicedesk/`](./servicedesk/) | `UC-SVC` | The service desk: business calendars, SLA policies and the clocks they run on an entry, queues, internal notes, the requester portal, canned replies and macros, satisfaction | `service/servicedesk` |
 | [`timekeeping/`](./timekeeping/) | `UC-TIM` | Time: records and the timer, a person's week handed in and approved, the locked period, reports, estimates against actuals, the export to accounting, capacity, absences and the workload, cost rates and budgets | `service/timekeeping` |
+| [`goal/`](./goal/) | `UC-GOL` | Goals and insight: periods, goals with key results fed by check-ins, views and linked entries, check-ins and grades, portfolios with their health and updates, dashboards over the summaries | `service/goal` |
 
 ## What a use case looks like
 
@@ -298,6 +299,10 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-TIM-06](./timekeeping/UC-TIM-06-see-who-has-room-before-handing-out-work.md) | See who has room before handing out work | timekeeping |
 | [UC-TIM-07](./timekeeping/UC-TIM-07-record-absences-and-holidays-once-for-every-plan.md) | Record absences and holidays once for every plan | timekeeping |
 | [UC-TIM-08](./timekeeping/UC-TIM-08-keep-a-project-within-its-budget.md) | Keep a project within its budget | timekeeping |
+| [UC-GOL-01](./goal/UC-GOL-01-set-goals-for-a-period-and-connect-them-to-the-work.md) | Set goals for a period and connect them to the work | goal |
+| [UC-GOL-02](./goal/UC-GOL-02-check-in-on-a-goal-and-say-how-confident-we-are.md) | Check in on a goal and say how confident we are | goal |
+| [UC-GOL-03](./goal/UC-GOL-03-keep-a-portfolio-of-projects-and-its-health-in-one-place.md) | Keep a portfolio of projects and its health in one place | goal |
+| [UC-GOL-04](./goal/UC-GOL-04-put-the-numbers-i-watch-on-a-dashboard.md) | Put the numbers I watch on a dashboard | goal |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work |
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work |

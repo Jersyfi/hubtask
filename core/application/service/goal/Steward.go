@@ -3,7 +3,7 @@
 
 // Package goal is the goals and insight module's use cases (M8): periods and goals with key
 // results and check-ins (UC-GOL-01, UC-GOL-02), portfolios with their health and status updates
-// (UC-GOL-03), and dashboards whose widgets are the query's own summaries (UC-RPT-01).
+// (UC-GOL-03), and dashboards whose widgets are the query's own summaries (UC-GOL-04).
 //
 // A goal lives at the workspace or in a hub and is read with READ there and written with
 // WRITE_ITEMS; one a reader may not read answers not found. Every number - a goal's progress, a

@@ -385,7 +385,7 @@ func TestAPortfolioRollsUpWhatItsReaderSees(t *testing.T) {
 	}
 }
 
-// UC-RPT-01 checks 1 to 5: a widget runs the query's own summary for its reader; a private
+// UC-GOL-04 checks 1 to 5: a widget runs the query's own summary for its reader; a private
 // dashboard is its owner's; a shared one needs STRUCTURE and shows each reader their numbers,
 // a widget they cannot run carrying its error in place.
 func TestADashboardDrawsEachReadersOwnNumbers(t *testing.T) {

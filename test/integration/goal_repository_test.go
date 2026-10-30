@@ -19,7 +19,7 @@ import (
 
 // A period, a goal with its key results, linked entries and check-ins, a portfolio with its
 // projects and updates, and a dashboard stay in their workspace (migration 0248, UC-GOL-01 check 7,
-// UC-GOL-03 check 6, UC-RPT-01 check 6).
+// UC-GOL-03 check 6, UC-GOL-04 check 6).
 func TestGoalsAndInsightStayInTheirWorkspace(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

@@ -765,7 +765,7 @@ deadline and a change's effectiveness check.
   `MANAGE_MEMBERS`) at the workspace or at the hub or collection of the entries; nobody approves
   their own week. `Actuals` adds everybody's minutes to an entry's estimate in hours, rolled up its
   parents.
-* **Resources and costs** (`core/domain/model/timekeeping`, M7; in the domain only, not stored yet):
+* **Resources and costs** (`core/domain/model/timekeeping`, M7; stored by migration 0247, UC-TIM-06 … 08):
   a **`Capacity`** is a person's minutes per weekday from a day on, until their next; an
   **`Absence`** is a span of days, whole or half, of `LEAVE`, `TRAINING` or `OTHER` - no illness as
   a kind, because a calendar the team shares must not show a health reason (GDPR Art. 9). Public
@@ -877,6 +877,34 @@ reconciliation; a scheduled one acts with the rights of the person who last defi
 An `Alert` is one problem per intake and key - firing, resolved, reopened - bound to the CI its
 host names and to the entry opened for it; a pull keeps one more about its own runs, firing while
 they fail or fetch nothing. A connector is switched off, never deleted.
+
+### 3.11 Goals, portfolios and dashboards (context: Goal, M8)
+
+A **`Period`** is a cycle goals are set for - a quarter, a year, at most two years - open until it is
+closed with `STRUCTURE` at the workspace; closing grades each of its goals 0 to 1 once, by the grade
+given or by its progress. A **`Goal`** belongs to a period and to the workspace or one hub (`READ`
+there to read it, `WRITE_ITEMS` to write it; one out of reach is not found), under an optional parent
+goal - never itself or one of its own, at most eight deep. Its **`KeyResult`**s (at most 20) are a
+number from a start to a target either way, a percentage, reached or not (`BINARY`), or a
+`MILESTONE` reached when its entry is completed; a number or a percentage takes its value from a
+check-in (`MANUAL`) or is the total of a saved summary view (`VIEW`) as the reader's own query
+answers it. Entries are linked to a goal (at most 500). A goal's progress is never stored: it is the
+mean of its key results, of the goals under it (a dropped one aside) and of the share of its linked
+entries completed, each a part once - for the reader, from what the reader may see (P-05, P-11). A
+**`CheckIn`** gives a status, a confidence 0 to 10, a note and values of the `MANUAL` key results;
+the goal takes them, and the check-ins stay as history.
+
+A **`Portfolio`** is a workspace's set of at most 200 hubs and collections - each with optional dates
+and a health -, an owner, a health of its own and an optional parent portfolio (six deep); its
+progress is the share of its projects' entries completed as `POST /items:aggregate` counts them for
+the reader, a project the reader may not read left out and kept when they change the portfolio. A
+**`StatusUpdate`** gives a health and a summary, becomes the portfolio's health and stays as history.
+A **`Dashboard`** at the workspace or in a hub is its owner's (`PRIVATE`) or read by everybody who
+reads its place (`SCOPE`, which needs `STRUCTURE`); its at most 24 **`Widget`**s on a twelve-column
+grid run a saved summary view, a stored `POST /items:aggregate` document or goals' progress, and
+their numbers are computed when read, for the reader, never stored.
+
+---
 
 ## 4. Domain events
 
