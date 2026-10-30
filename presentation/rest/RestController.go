@@ -37,6 +37,9 @@ type UseCaseRegistry interface {
 type RestController struct {
 	pending
 
+	// SAML serves the assertion consumer service and the metadata (identity.md §26).
+	SAML SAMLDoor
+
 	// Capabilities answers /meta/capabilities. One field per use case as they land; nil means the
 	// operation falls back to the pending answer rather than panicking.
 	Capabilities CapabilityReader

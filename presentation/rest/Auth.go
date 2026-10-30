@@ -87,6 +87,11 @@ var PublicRoutes = map[string]bool{
 	// Where the return belongs is asked by the same signed-out browser, before :callback, with the
 	// same handle; it reads and spends nothing (multi-tenancy.md §3).
 	http.MethodPost + " " + APIBasePath + "/auth/oidc:locate": true,
+	// A SAML provider posts the browser to the assertion consumer service, signed out; the flow's
+	// state in RelayState is what it is checked against, and nothing is verified or opened there.
+	// The metadata is this installation's, public as a provider's own is (identity.md §26).
+	http.MethodPost + " " + APIBasePath + "/auth/saml:acs":     true,
+	http.MethodGet + " " + APIBasePath + "/auth/saml:metadata": true,
 	// The token endpoint is public the way sign-in is: the single-use code, the PKCE
 	// verifier and - for a confidential client - the secret travel in the body and are the
 	// whole of what authenticates the exchange.

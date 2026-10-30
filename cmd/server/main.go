@@ -129,6 +129,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 	recurrenceadapter "github.com/Jersyfi/hubtask/infrastructure/recurrence"
 	"github.com/Jersyfi/hubtask/infrastructure/resilience"
+	samladapter "github.com/Jersyfi/hubtask/infrastructure/saml"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
 	textadapter "github.com/Jersyfi/hubtask/infrastructure/text"
@@ -507,6 +508,11 @@ func run() error {
 	// (ADR-0028). The path is the web UI's callback route, which reads the code and the state
 	// out of the query and hands them to the API.
 	oidcRedirectURL := strings.TrimSuffix(cfg.BaseURL, "/") + "/auth/callback"
+	// The SAML service provider's two addresses (identity.md §26): the metadata's is the entity ID a
+	// form suggests, the assertion consumer service the one every SAML provider posts to.
+	samlMetadataURL := strings.TrimSuffix(cfg.BaseURL, "/") + rest.APIBasePath + "/auth/saml:metadata"
+	samlACSURL := strings.TrimSuffix(cfg.BaseURL, "/") + rest.APIBasePath + "/auth/saml:acs"
+	serviceProvider := samladapter.New(clockadapter.System{})
 
 	// Who is told the provider's account link: one decision for the manifest and the sign-in
 	// (multi-tenancy.md §4.2). The resolver is stateless, so this copy reads what the later one does.
@@ -1309,6 +1315,8 @@ func run() error {
 		People:      quotaGuard,
 		Relying:     relyingParty,
 		RedirectURL: oidcRedirectURL,
+		SAML:        serviceProvider,
+		SAMLACSURL:  samlACSURL,
 		// What a provider names for newcomers is given in the arrival's own transaction.
 		Grants: grants,
 		Groups: groups,
@@ -1504,7 +1512,9 @@ func run() error {
 		Instance: postgres.NewInstanceSettingRepository(),
 		// The one value every registration form at every provider asks for, and it is this
 		// installation's own rather than anything a request carries.
-		RedirectURL: oidcRedirectURL,
+		RedirectURL:     oidcRedirectURL,
+		SAMLACSURL:      samlACSURL,
+		SAMLMetadataURL: samlMetadataURL,
 		// What a newcomer gets names a group of this workspace, checked at configuration.
 		Groups: groups,
 		Grants: grants,
@@ -3491,6 +3501,17 @@ func run() error {
 			UnitOfWork: unitOfWork, Config: cfg,
 		}
 		controller.MediaTokens = mediaTokens
+		samlMetadata, err := samladapter.Metadata(samlMetadataURL, samlACSURL)
+		if err != nil {
+			return err
+		}
+		controller.SAML = rest.SAMLDoor{
+			Answers: identity.ReceiveSAMLAnswer{
+				Session: sessionWriter,
+				Answers: postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
+			},
+			CallbackURL: oidcRedirectURL, Metadata: samlMetadata,
+		}
 		controller.Clock = clockadapter.System{}
 		// The address a calendar client is handed. Configured rather than taken from the
 		// request's Host, so that one caller cannot decide what the next person's client stores.
