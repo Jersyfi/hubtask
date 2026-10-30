@@ -372,6 +372,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-INT-15](./integration/UC-INT-15-read-a-view-in-power-bi-or-excel.md) | Read a saved view in Power BI or Excel | integration |
 | [UC-INT-16](./integration/UC-INT-16-write-my-calendar-feed-into-my-calendar.md) | Write my calendar feed into my Outlook or Google calendar | integration |
 | [UC-INT-17](./integration/UC-INT-17-pick-a-file-from-my-own-file-store.md) | Pick a file from my own Nextcloud, OneDrive or SharePoint | integration |
+| [UC-INT-18](./integration/UC-INT-18-answer-and-capture-from-a-matrix-room.md) | Answer links and capture tasks from a Matrix room | integration |
 | [UC-NOT-01](./notification/UC-NOT-01-hear-by-mail-when-work-lands-on-me.md) | Hear by mail when work lands on me | notification |
 | [UC-NOT-02](./notification/UC-NOT-02-get-my-reminders-by-mail.md) | Get my reminders by mail | notification |
 | [UC-NOT-03](./notification/UC-NOT-03-choose-which-mails-i-get.md) | Choose which mails I get | notification |

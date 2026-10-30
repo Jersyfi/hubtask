@@ -50,8 +50,8 @@ incoming webhook address, which nobody can read back afterwards.
 
 ## Where it ends
 
-* No link unfurls and no commands or messages from a room into the workspace (a message becoming
-  an entry): the room hears, it does not speak back yet.
+* A subscribed room hears, it does not speak back: link unfurls and a message becoming an entry are
+  a Matrix bot's, [UC-INT-18](./UC-INT-18-answer-and-capture-from-a-matrix-room.md).
 * No platform app installed through the platform's own consent: Matrix through an account's token,
   the others through an incoming webhook address.
 * One language per room; a person's own chat channel is

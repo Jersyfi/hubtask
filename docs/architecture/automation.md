@@ -617,6 +617,25 @@ offers its folders
 * **Retention**: disconnecting removes the connection and gives a Nextcloud's app password back;
   the links stay. Not archived: the grant opens on one installation only.
 
+### 3.8 A Matrix bot in a hub's room
+
+A hub's Matrix account answers links to the hub's entries and makes `!task` messages entries
+([UC-INT-18](../usecases/integration/UC-INT-18-answer-and-capture-from-a-matrix-room.md)).
+
+* **Seating**: an administrator of the hub gives the homeserver, the room's identifier and the
+  account's access token; `/account/whoami` names the account, `/join/{room}` seats it. The token
+  is sealed under the bot's own purpose label.
+* **Read**: one detached `chat.bot` job per bot, every minute: `/sync` with `timeout=0` and a filter
+  to the room's `m.room.message` events, at most fifty per read, from the position the last read
+  kept (`since`); the first read keeps the position alone, so history is never answered.
+* **Answers**: a link `<workspace>/items/<id>` to one of the hub's entries is answered with an
+  `m.notice` of its status, title and link, read through `GetWorkItem` as whoever seated the bot;
+  `!task <title>` runs `CreateWorkItem` in the bot's collection the same way, through the import
+  door. A notice's transaction is the message's event identifier, so a read retried answers once.
+* **Refusals**: a token the homeserver no longer takes stops the bot with its code kept; a
+  homeserver out of reach is read again at the next minute. Not archived: the token opens on one
+  installation only.
+
 ---
 
 ## 4. Why automation is its own service
