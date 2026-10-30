@@ -130,23 +130,12 @@ func (g Gate) judge(
 	var refusal error
 	var request shared.ID
 	err := d.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		halt, err := d.Store.Halt(ctx)
-		if err != nil {
-			return err
-		}
-		revision, retired, err := d.modelRevision(ctx, a)
+		situation, err := d.situation(ctx, a)
 		if err != nil {
 			return err
 		}
 		now := d.Clock.Now()
-		hour, day := windows(now)
-		usage, err := d.Store.Usage(ctx, a.ID, hour, day)
-		if err != nil {
-			return err
-		}
-		decision, refusal = a.Admit(class, domain.Situation{
-			Halted: halt.Halted, ModelRevision: revision, ModelRetired: retired, Usage: usage, HourEnds: hour.Add(time.Hour),
-		})
+		decision, refusal = a.Admit(class, situation)
 		action := domain.Action{ID: d.IDs.NewID(), AgentID: a.ID, UseCase: name, Class: class, Decision: decision, At: now}
 		if refusal != nil {
 			action.Code = shared.AsError(refusal).DetailCode

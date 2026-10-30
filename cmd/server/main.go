@@ -1911,6 +1911,7 @@ func run() error {
 		Store: agentStore, Catalogue: agentCatalogue, Authorizer: authorizer,
 		Sources: integrationservice.ReadAiSource{Writer: aiSourceWriter}.Descriptor().Handler,
 		Audit:   auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		Queue: jobs,
 	}
 	useCases, err := usecase.NewRegistry(
 		// Every act of a registered agent passes its governance first (UC-AGT-02).
@@ -1939,6 +1940,8 @@ func run() error {
 		agentservice.RecordAgentEvaluation{Desk: agentDesk}.Descriptor(),
 		agentservice.ListAgentEvaluations{Desk: agentDesk}.Descriptor(),
 		agentservice.ListValueProvenance{Desk: agentDesk}.Descriptor(),
+		agentservice.StartAgentJob{Desk: agentDesk}.Descriptor(),
+		agentservice.ListAgentJobs{Desk: agentDesk}.Descriptor(),
 		knowledgeservice.CreatePage{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ReadPage{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ListPages{Space: pageSpace}.Descriptor(),
@@ -4369,6 +4372,10 @@ func run() error {
 			Fallback: cfg.Retention.Interval,
 		},
 		queueport.KindCmdbConnectorPull: worker.CmdbConnectorPull{Connectors: connectors},
+		// A shipped agent's job, acting through the gate on its own account (G11).
+		queueport.KindAgentJob: worker.AgentJob{Runner: agentservice.Runner{
+			Desk: agentDesk, Proposer: suggestionservice.AgentProposals{Produce: produceSuggestion},
+		}},
 		// A dashboard's digest by mail, computed as its subscriber (UC-GOL-04).
 		queueport.KindDashboardDigest: worker.DashboardDigest{Digests: goalservice.DashboardDigests{
 			Steward: steward, Accounts: accounts, Preferences: notificationPreferences,

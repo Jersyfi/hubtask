@@ -244,6 +244,8 @@ func Descriptors() []usecase.Descriptor {
 		agentservice.RemoveAgentCase{}.Descriptor(),
 		agentservice.RecordAgentEvaluation{}.Descriptor(),
 		agentservice.ListAgentEvaluations{}.Descriptor(),
+		agentservice.StartAgentJob{}.Descriptor(),
+		agentservice.ListAgentJobs{}.Descriptor(),
 		agentservice.ListValueProvenance{}.Descriptor(),
 		goalservice.SetDashboardDigest{}.Descriptor(),
 		goalservice.DeleteDashboardDigest{}.Descriptor(),

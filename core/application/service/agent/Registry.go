@@ -95,6 +95,8 @@ type Desk struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	Text       text.Normalizer
+	// Queue takes a shipped agent's job; nil in a build that runs none.
+	Queue Jobs
 }
 
 func workspacePath() []identity.Scope { return []identity.Scope{identity.TenantScope()} }

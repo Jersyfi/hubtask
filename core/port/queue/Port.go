@@ -470,6 +470,10 @@ const (
 	// digest, deduplicated by its identifier, rescheduling itself to the digest's next moment; the
 	// write that sets the digest seeds it.
 	KindDashboardDigest Kind = "dashboard.digest"
+
+	// KindAgentJob is one job of a shipped agent on its target (G11), deduplicated by the job's
+	// identifier; StartAgentJob stores the job and seeds it.
+	KindAgentJob Kind = "agents.job"
 )
 
 func (k Kind) String() string { return string(k) }
