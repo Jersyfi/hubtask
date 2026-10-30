@@ -98,8 +98,9 @@ var subjectColumns = map[string][]string{
 	"agent_request":   {"decided_by"},
 	"agent_eval_case": {"created_by"},
 	"agent_eval_run":  {"run_by"},
+	"agent_job":       {"started_by"},
 	"ai_provenance":   {"accepted_by"},
-	"entry_estimate":   {"updated_by"},
+	"entry_estimate":  {"updated_by"},
 	// The pages they wrote, own or checked, their versions and their comments (M3).
 	"page":         {"created_by", "updated_by", "owner_id", "verified_by"},
 	"page_version": {"author_id"},

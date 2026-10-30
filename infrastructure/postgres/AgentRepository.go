@@ -653,3 +653,103 @@ func (AgentRepository) ListMarks(ctx context.Context, targetType string, target 
 	}
 	return out, nil
 }
+
+func jobOf(r sqlc.FindAgentJobRow) (domain.Job, error) {
+	keys, err := ids(r.ID, r.AgentID, r.TargetID, r.StartedBy)
+	if err != nil {
+		return domain.Job{}, err
+	}
+	return domain.Job{
+		ID: keys[0], AgentID: keys[1], TargetType: domain.TargetType(r.TargetType), TargetID: keys[2],
+		Status: domain.JobStatus(r.Status), Code: r.Code, Proposals: int(r.Proposals), Tokens: r.Tokens,
+		StartedBy: keys[3], StartedAt: timeFrom(r.StartedAt), EndedAt: optionalTime(r.EndedAt),
+	}, nil
+}
+
+func (AgentRepository) InsertJob(ctx context.Context, j domain.Job) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	keys, err := uuids(j.ID, j.AgentID, j.TargetID)
+	if err != nil {
+		return err
+	}
+	by, err := optionalUUID(j.StartedBy)
+	if err != nil {
+		return err
+	}
+	return agentError(queries.InsertAgentJob(ctx, sqlc.InsertAgentJobParams{
+		ID: keys[0], AgentID: keys[1], TargetType: string(j.TargetType), TargetID: keys[2],
+		StartedBy: by, StartedAt: timestampOf(j.StartedAt),
+	}), "starting an agent's job")
+}
+
+func (AgentRepository) EndJob(ctx context.Context, j domain.Job) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	key, err := uuidOf(j.ID)
+	if err != nil {
+		return false, err
+	}
+	n, err := queries.EndAgentJob(ctx, sqlc.EndAgentJobParams{
+		Status: string(j.Status), Code: j.Code, Proposals: int32(j.Proposals), Tokens: j.Tokens,
+		EndedAt: optionalTimestamp(j.EndedAt), ID: key,
+	})
+	return n == 1, agentError(err, "ending an agent's job")
+}
+
+func (AgentRepository) FindJob(ctx context.Context, id shared.ID) (domain.Job, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return domain.Job{}, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return domain.Job{}, err
+	}
+	row, err := queries.FindAgentJob(ctx, key)
+	if err != nil {
+		return domain.Job{}, agentError(err, "reading an agent's job")
+	}
+	return jobOf(row)
+}
+
+func (AgentRepository) ListJobs(ctx context.Context, agent shared.ID, max int) ([]domain.Job, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	key, err := uuidOf(agent)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListAgentJobs(ctx, sqlc.ListAgentJobsParams{AgentID: key, Max: int32(max)})
+	if err != nil {
+		return nil, agentError(err, "listing an agent's jobs")
+	}
+	out := make([]domain.Job, 0, len(rows))
+	for _, r := range rows {
+		j, err := jobOf(sqlc.FindAgentJobRow(r))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, j)
+	}
+	return out, nil
+}
+
+func (AgentRepository) RunningJobs(ctx context.Context, agent shared.ID, since time.Time) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	key, err := uuidOf(agent)
+	if err != nil {
+		return 0, err
+	}
+	n, err := queries.AgentJobsRunning(ctx, sqlc.AgentJobsRunningParams{AgentID: key, Since: timestampOf(since)})
+	return int(n), agentError(err, "counting an agent's running jobs")
+}

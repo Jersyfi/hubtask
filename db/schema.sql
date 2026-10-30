@@ -6217,4 +6217,27 @@ CREATE POLICY tenant_isolation ON ai_provenance
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT ON ai_provenance TO hubtask_app;
 
+CREATE TABLE agent_job (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  agent_id    uuid NOT NULL,
+  target_type text NOT NULL CHECK (target_type IN ('ENTRY', 'HUB')),
+  target_id   uuid NOT NULL,
+  status      text NOT NULL CHECK (status IN ('RUNNING', 'DONE', 'FAILED')),
+  code        text NOT NULL DEFAULT '',
+  proposals   integer NOT NULL DEFAULT 0 CHECK (proposals >= 0),
+  tokens      bigint NOT NULL DEFAULT 0 CHECK (tokens >= 0),
+  started_by  uuid,
+  started_at  timestamptz NOT NULL,
+  ended_at    timestamptz,
+  CHECK ((status = 'RUNNING') = (ended_at IS NULL)),
+  CONSTRAINT agent_job_agent_fkey FOREIGN KEY (tenant_id, agent_id) REFERENCES agent (tenant_id, id)
+);
+CREATE INDEX agent_job_agent_idx ON agent_job (tenant_id, agent_id, started_at);
+ALTER TABLE agent_job ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agent_job FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON agent_job
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE ON agent_job TO hubtask_app;
+
 COMMIT;

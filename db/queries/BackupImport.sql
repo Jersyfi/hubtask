@@ -3203,3 +3203,24 @@ SELECT EXISTS (SELECT 1 FROM ai_provenance WHERE id = (sqlc.arg('payload')::json
 
 -- name: ClearAiProvenanceMark :execrows
 DELETE FROM ai_provenance;
+
+-- name: ImportAgentJob :execrows
+INSERT INTO agent_job (id, tenant_id, agent_id, target_type, target_id, status, code, proposals, tokens,
+  started_by, started_at, ended_at)
+SELECT r.id, r.tenant_id, r.agent_id, r.target_type, r.target_id, r.status, r.code, r.proposals, r.tokens,
+  r.started_by, r.started_at, r.ended_at
+FROM jsonb_populate_record(
+  NULL::agent_job,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  agent_id = EXCLUDED.agent_id, target_type = EXCLUDED.target_type, target_id = EXCLUDED.target_id,
+  status = EXCLUDED.status, code = EXCLUDED.code, proposals = EXCLUDED.proposals, tokens = EXCLUDED.tokens,
+  started_by = EXCLUDED.started_by, started_at = EXCLUDED.started_at, ended_at = EXCLUDED.ended_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsAgentJob :one
+SELECT EXISTS (SELECT 1 FROM agent_job WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearAgentJob :execrows
+DELETE FROM agent_job;

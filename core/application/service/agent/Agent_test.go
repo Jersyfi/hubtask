@@ -78,10 +78,11 @@ type store struct {
 	cases    []domain.Case
 	runs     []domain.Run
 	marks    []domain.Mark
+	jobs     map[shared.ID]domain.Job
 }
 
 func newStore() *store {
-	return &store{models: map[shared.ID]domain.Model{}, agents: map[shared.ID]domain.Agent{}, requests: map[shared.ID]domain.Request{}}
+	return &store{models: map[shared.ID]domain.Model{}, agents: map[shared.ID]domain.Agent{}, requests: map[shared.ID]domain.Request{}, jobs: map[shared.ID]domain.Job{}}
 }
 
 func notFound() error { return shared.ErrNotFound.WithDetail("agents.not_found") }
@@ -237,6 +238,41 @@ func (s *store) InsertMark(_ context.Context, m domain.Mark) error {
 }
 func (s *store) ListMarks(context.Context, string, shared.ID, int) ([]domain.Mark, error) {
 	return s.marks, nil
+}
+func (s *store) InsertJob(_ context.Context, j domain.Job) error {
+	s.jobs[j.ID] = j
+	return nil
+}
+func (s *store) EndJob(_ context.Context, j domain.Job) (bool, error) {
+	if was, ok := s.jobs[j.ID]; !ok || was.Status != domain.JobRunning {
+		return false, nil
+	}
+	s.jobs[j.ID] = j
+	return true, nil
+}
+func (s *store) FindJob(_ context.Context, id shared.ID) (domain.Job, error) {
+	if j, ok := s.jobs[id]; ok {
+		return j, nil
+	}
+	return domain.Job{}, notFound()
+}
+func (s *store) ListJobs(_ context.Context, agent shared.ID, max int) ([]domain.Job, error) {
+	out := []domain.Job{}
+	for _, j := range s.jobs {
+		if j.AgentID == agent && len(out) < max {
+			out = append(out, j)
+		}
+	}
+	return out, nil
+}
+func (s *store) RunningJobs(_ context.Context, agent shared.ID, since time.Time) (int, error) {
+	n := 0
+	for _, j := range s.jobs {
+		if j.AgentID == agent && j.Status == domain.JobRunning && !j.StartedAt.Before(since) {
+			n++
+		}
+	}
+	return n, nil
 }
 
 // catalogue creates a service account and records every other call with its actor.

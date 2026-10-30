@@ -123,6 +123,18 @@ func (q *Queries) ClearAgentHalt(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearAgentJob = `-- name: ClearAgentJob :execrows
+DELETE FROM agent_job
+`
+
+func (q *Queries) ClearAgentJob(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearAgentJob)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearAgentModel = `-- name: ClearAgentModel :execrows
 DELETE FROM agent_model
 `
@@ -1333,6 +1345,17 @@ SELECT EXISTS (SELECT 1 FROM agent_halt) AS held
 
 func (q *Queries) HoldsAgentHalt(ctx context.Context) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsAgentHalt)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsAgentJob = `-- name: HoldsAgentJob :one
+SELECT EXISTS (SELECT 1 FROM agent_job WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsAgentJob(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsAgentJob, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -2773,6 +2796,35 @@ type ImportAgentHaltParams struct {
 
 func (q *Queries) ImportAgentHalt(ctx context.Context, arg ImportAgentHaltParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importAgentHalt, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importAgentJob = `-- name: ImportAgentJob :execrows
+INSERT INTO agent_job (id, tenant_id, agent_id, target_type, target_id, status, code, proposals, tokens,
+  started_by, started_at, ended_at)
+SELECT r.id, r.tenant_id, r.agent_id, r.target_type, r.target_id, r.status, r.code, r.proposals, r.tokens,
+  r.started_by, r.started_at, r.ended_at
+FROM jsonb_populate_record(
+  NULL::agent_job,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  agent_id = EXCLUDED.agent_id, target_type = EXCLUDED.target_type, target_id = EXCLUDED.target_id,
+  status = EXCLUDED.status, code = EXCLUDED.code, proposals = EXCLUDED.proposals, tokens = EXCLUDED.tokens,
+  started_by = EXCLUDED.started_by, started_at = EXCLUDED.started_at, ended_at = EXCLUDED.ended_at
+WHERE $2::boolean
+`
+
+type ImportAgentJobParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportAgentJob(ctx context.Context, arg ImportAgentJobParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importAgentJob, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

@@ -42,6 +42,10 @@ func TestAgentsStayInTheirWorkspace(t *testing.T) {
 		ID: freshID(t), TargetType: "work_item", TargetID: freshID(t), Fields: []string{"title"}, Model: "m",
 		AcceptedBy: authorA, AcceptedAt: now,
 	}
+	job := agent.Job{
+		ID: freshID(t), AgentID: a.ID, TargetType: agent.TargetEntry, TargetID: freshID(t), Status: agent.JobRunning,
+		StartedBy: authorA, StartedAt: now,
+	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		if err := store.InsertModel(ctx, model, now); err != nil {
 			return err
@@ -70,6 +74,9 @@ func TestAgentsStayInTheirWorkspace(t *testing.T) {
 		if err := store.InsertRun(ctx, agent.Run{ID: freshID(t), AgentID: a.ID, ModelRevision: 1, Cases: 1, Passed: 1, By: authorA, At: now}); err != nil {
 			return err
 		}
+		if err := store.InsertJob(ctx, job); err != nil {
+			return err
+		}
 		return store.InsertMark(ctx, mark)
 	}); err != nil {
 		t.Fatalf("write: %v", err)
@@ -94,6 +101,9 @@ func TestAgentsStayInTheirWorkspace(t *testing.T) {
 		if err != nil || len(marks) != 1 || marks[0].Fields[0] != "title" {
 			t.Errorf("marks = %+v %v", marks, err)
 		}
+		if running, err := store.RunningJobs(ctx, a.ID, now.Add(-agent.JobLease)); err != nil || running != 1 {
+			t.Errorf("running = %d %v", running, err)
+		}
 		return nil
 	}); err != nil {
 		t.Fatal(err)
@@ -117,6 +127,12 @@ func TestAgentsStayInTheirWorkspace(t *testing.T) {
 		if marks, err := store.ListMarks(ctx, "work_item", mark.TargetID, 10); err != nil || len(marks) != 0 {
 			t.Errorf("the other workspace reads provenance: %v %v", marks, err)
 		}
+		if _, err := store.FindJob(ctx, job.ID); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("the other workspace finds the job: %v", err)
+		}
+		if running, err := store.RunningJobs(ctx, a.ID, now.Add(-agent.JobLease)); err != nil || running != 0 {
+			t.Errorf("the other workspace counts the job: %d %v", running, err)
+		}
 		return nil
 	}); err != nil {
 		t.Fatal(err)
@@ -125,5 +141,23 @@ func TestAgentsStayInTheirWorkspace(t *testing.T) {
 		return store.UpdateAgent(ctx, a, 1, now)
 	}); !errors.Is(err, shared.ErrVersionConflict) {
 		t.Errorf("the other workspace changed the agent: %v", err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		ended, err := store.EndJob(ctx, job.Ended(agent.JobDone, "agents.job_proposed", 1, 10, now))
+		if err == nil && ended {
+			t.Error("the other workspace ended the job")
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		ended, err := store.EndJob(ctx, job.Ended(agent.JobDone, "agents.job_proposed", 1, 10, now))
+		if err == nil && !ended {
+			t.Error("the job did not end")
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
 	}
 }

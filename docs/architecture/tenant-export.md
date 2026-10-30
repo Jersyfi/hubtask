@@ -217,6 +217,7 @@ re-mints identities must rewrite exactly these).
 | 99 | `agent_eval_cases` | `agent_eval_case` | `id` | `agent_id`→agents, `created_by`→accounts (a golden case: words and the expected answer) |
 | 100 | `agent_eval_runs` | `agent_eval_run` | `id` | `agent_id`→agents, `run_by`→accounts (an evaluation's counts on a model revision) |
 | 101 | `ai_provenance` | `ai_provenance` | `id` | `accepted_by`→accounts (an accepted AI value's mark: object, field names, suggestion, agent, model, prompt, who accepted when - AI-2) |
+| 102 | `agent_jobs` | `agent_job` | `id` | `agent_id`→agents, `started_by`→accounts (a shipped agent's job on an entry or a hub: how it ended, what it proposed, the tokens; never what it read or the model answered; migration 0252) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

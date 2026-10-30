@@ -11,6 +11,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const agentJobsRunning = `-- name: AgentJobsRunning :one
+SELECT count(*)::int
+FROM agent_job
+WHERE tenant_id = current_tenant_id() AND agent_id = $1::uuid
+  AND status = 'RUNNING' AND started_at >= $2::timestamptz
+`
+
+type AgentJobsRunningParams struct {
+	AgentID pgtype.UUID
+	Since   pgtype.Timestamptz
+}
+
+// An agent's jobs still running that started since `since` - the lease (agent.JobLease).
+func (q *Queries) AgentJobsRunning(ctx context.Context, arg AgentJobsRunningParams) (int32, error) {
+	row := q.db.QueryRow(ctx, agentJobsRunning, arg.AgentID, arg.Since)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const agentMetering = `-- name: AgentMetering :many
 SELECT agent_id, (date_trunc('day', at AT TIME ZONE 'UTC'))::date AS day,
   count(*) FILTER (WHERE decision IN ('ALLOWED', 'NOTIFIED'))::int AS allowed,
@@ -141,6 +161,37 @@ type DeleteAgentCaseParams struct {
 
 func (q *Queries) DeleteAgentCase(ctx context.Context, arg DeleteAgentCaseParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteAgentCase, arg.AgentID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const endAgentJob = `-- name: EndAgentJob :execrows
+UPDATE agent_job SET status = $1, code = $2, proposals = $3,
+  tokens = $4, ended_at = $5
+WHERE tenant_id = current_tenant_id() AND id = $6::uuid AND status = 'RUNNING'
+`
+
+type EndAgentJobParams struct {
+	Status    string
+	Code      string
+	Proposals int32
+	Tokens    int64
+	EndedAt   pgtype.Timestamptz
+	ID        pgtype.UUID
+}
+
+// A running job's end: how it ended, what it proposed and spent. A job already ended stays as it was.
+func (q *Queries) EndAgentJob(ctx context.Context, arg EndAgentJobParams) (int64, error) {
+	result, err := q.db.Exec(ctx, endAgentJob,
+		arg.Status,
+		arg.Code,
+		arg.Proposals,
+		arg.Tokens,
+		arg.EndedAt,
+		arg.ID,
+	)
 	if err != nil {
 		return 0, err
 	}
@@ -320,6 +371,45 @@ func (q *Queries) FindAgentHalt(ctx context.Context) (FindAgentHaltRow, error) {
 	row := q.db.QueryRow(ctx, findAgentHalt)
 	var i FindAgentHaltRow
 	err := row.Scan(&i.Halted, &i.SetBy, &i.SetAt)
+	return i, err
+}
+
+const findAgentJob = `-- name: FindAgentJob :one
+SELECT id, agent_id, target_type, target_id, status, code, proposals, tokens, started_by, started_at, ended_at
+FROM agent_job
+WHERE tenant_id = current_tenant_id() AND id = $1::uuid
+`
+
+type FindAgentJobRow struct {
+	ID         pgtype.UUID
+	AgentID    pgtype.UUID
+	TargetType string
+	TargetID   pgtype.UUID
+	Status     string
+	Code       string
+	Proposals  int32
+	Tokens     int64
+	StartedBy  pgtype.UUID
+	StartedAt  pgtype.Timestamptz
+	EndedAt    pgtype.Timestamptz
+}
+
+func (q *Queries) FindAgentJob(ctx context.Context, id pgtype.UUID) (FindAgentJobRow, error) {
+	row := q.db.QueryRow(ctx, findAgentJob, id)
+	var i FindAgentJobRow
+	err := row.Scan(
+		&i.ID,
+		&i.AgentID,
+		&i.TargetType,
+		&i.TargetID,
+		&i.Status,
+		&i.Code,
+		&i.Proposals,
+		&i.Tokens,
+		&i.StartedBy,
+		&i.StartedAt,
+		&i.EndedAt,
+	)
 	return i, err
 }
 
@@ -522,6 +612,33 @@ func (q *Queries) InsertAgentCase(ctx context.Context, arg InsertAgentCaseParams
 		arg.Expected,
 		arg.CreatedBy,
 		arg.At,
+	)
+	return err
+}
+
+const insertAgentJob = `-- name: InsertAgentJob :exec
+INSERT INTO agent_job (id, tenant_id, agent_id, target_type, target_id, status, started_by, started_at)
+VALUES ($1, current_tenant_id(), $2, $3, $4,
+  'RUNNING', $5, $6)
+`
+
+type InsertAgentJobParams struct {
+	ID         pgtype.UUID
+	AgentID    pgtype.UUID
+	TargetType string
+	TargetID   pgtype.UUID
+	StartedBy  pgtype.UUID
+	StartedAt  pgtype.Timestamptz
+}
+
+func (q *Queries) InsertAgentJob(ctx context.Context, arg InsertAgentJobParams) error {
+	_, err := q.db.Exec(ctx, insertAgentJob,
+		arg.ID,
+		arg.AgentID,
+		arg.TargetType,
+		arg.TargetID,
+		arg.StartedBy,
+		arg.StartedAt,
 	)
 	return err
 }
@@ -757,6 +874,65 @@ func (q *Queries) ListAgentCases(ctx context.Context, arg ListAgentCasesParams) 
 			&i.Expected,
 			&i.CreatedBy,
 			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAgentJobs = `-- name: ListAgentJobs :many
+SELECT id, agent_id, target_type, target_id, status, code, proposals, tokens, started_by, started_at, ended_at
+FROM agent_job
+WHERE tenant_id = current_tenant_id() AND agent_id = $1::uuid
+ORDER BY started_at DESC, id
+LIMIT $2::int
+`
+
+type ListAgentJobsParams struct {
+	AgentID pgtype.UUID
+	Max     int32
+}
+
+type ListAgentJobsRow struct {
+	ID         pgtype.UUID
+	AgentID    pgtype.UUID
+	TargetType string
+	TargetID   pgtype.UUID
+	Status     string
+	Code       string
+	Proposals  int32
+	Tokens     int64
+	StartedBy  pgtype.UUID
+	StartedAt  pgtype.Timestamptz
+	EndedAt    pgtype.Timestamptz
+}
+
+func (q *Queries) ListAgentJobs(ctx context.Context, arg ListAgentJobsParams) ([]ListAgentJobsRow, error) {
+	rows, err := q.db.Query(ctx, listAgentJobs, arg.AgentID, arg.Max)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAgentJobsRow{}
+	for rows.Next() {
+		var i ListAgentJobsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AgentID,
+			&i.TargetType,
+			&i.TargetID,
+			&i.Status,
+			&i.Code,
+			&i.Proposals,
+			&i.Tokens,
+			&i.StartedBy,
+			&i.StartedAt,
+			&i.EndedAt,
 		); err != nil {
 			return nil, err
 		}

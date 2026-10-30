@@ -502,6 +502,21 @@ type AgentHalt struct {
 	SetAt    pgtype.Timestamptz
 }
 
+type AgentJob struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	AgentID    pgtype.UUID
+	TargetType string
+	TargetID   pgtype.UUID
+	Status     string
+	Code       string
+	Proposals  int32
+	Tokens     int64
+	StartedBy  pgtype.UUID
+	StartedAt  pgtype.Timestamptz
+	EndedAt    pgtype.Timestamptz
+}
+
 type AgentModel struct {
 	ID            pgtype.UUID
 	TenantID      pgtype.UUID

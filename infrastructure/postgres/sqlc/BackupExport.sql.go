@@ -392,6 +392,51 @@ func (q *Queries) ExportAgentHalts(ctx context.Context, arg ExportAgentHaltsPara
 	return items, nil
 }
 
+const exportAgentJobs = `-- name: ExportAgentJobs :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM agent_job x
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportAgentJobsParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportAgentJobsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportAgentJobs(ctx context.Context, arg ExportAgentJobsParams) ([]ExportAgentJobsRow, error) {
+	rows, err := q.db.Query(ctx, exportAgentJobs, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportAgentJobsRow{}
+	for rows.Next() {
+		var i ExportAgentJobsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportAgentModels = `-- name: ExportAgentModels :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

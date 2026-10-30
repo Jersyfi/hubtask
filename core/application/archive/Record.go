@@ -968,6 +968,14 @@ var entities = []Entity{
 		References: []Reference{{Field: "agent_id", Table: "agent"}},
 	},
 	{
+		Name: "agent_jobs", Table: "agent_job", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "agent_id", Table: "agent"},
+			{Field: "started_by", Table: "account", Clearable: true},
+		},
+	},
+	{
 		Name: "agent_eval_cases", Table: "agent_eval_case", Whole: true, Unmarked: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true,
 		References: []Reference{

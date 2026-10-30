@@ -204,3 +204,33 @@ LIMIT sqlc.arg('max')::int;
 -- An approved act that could not be performed: the refusal's code, for the person to read.
 UPDATE agent_request SET status = 'FAILED', code = sqlc.arg('code'), version = version + 1
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid AND status = 'APPROVED';
+
+-- name: InsertAgentJob :exec
+INSERT INTO agent_job (id, tenant_id, agent_id, target_type, target_id, status, started_by, started_at)
+VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('agent_id'), sqlc.arg('target_type'), sqlc.arg('target_id'),
+  'RUNNING', sqlc.narg('started_by'), sqlc.arg('started_at'));
+
+-- name: EndAgentJob :execrows
+-- A running job's end: how it ended, what it proposed and spent. A job already ended stays as it was.
+UPDATE agent_job SET status = sqlc.arg('status'), code = sqlc.arg('code'), proposals = sqlc.arg('proposals'),
+  tokens = sqlc.arg('tokens'), ended_at = sqlc.arg('ended_at')
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid AND status = 'RUNNING';
+
+-- name: FindAgentJob :one
+SELECT id, agent_id, target_type, target_id, status, code, proposals, tokens, started_by, started_at, ended_at
+FROM agent_job
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid;
+
+-- name: ListAgentJobs :many
+SELECT id, agent_id, target_type, target_id, status, code, proposals, tokens, started_by, started_at, ended_at
+FROM agent_job
+WHERE tenant_id = current_tenant_id() AND agent_id = sqlc.arg('agent_id')::uuid
+ORDER BY started_at DESC, id
+LIMIT sqlc.arg('max')::int;
+
+-- name: AgentJobsRunning :one
+-- An agent's jobs still running that started since `since` - the lease (agent.JobLease).
+SELECT count(*)::int
+FROM agent_job
+WHERE tenant_id = current_tenant_id() AND agent_id = sqlc.arg('agent_id')::uuid
+  AND status = 'RUNNING' AND started_at >= sqlc.arg('since')::timestamptz;

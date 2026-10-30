@@ -71,6 +71,14 @@ type Store interface {
 	InsertRun(ctx context.Context, r domain.Run) error
 	ListRuns(ctx context.Context, agent shared.ID, max int) ([]domain.Run, error)
 
+	InsertJob(ctx context.Context, j domain.Job) error
+	// EndJob writes a running job's end; false where it had ended already.
+	EndJob(ctx context.Context, j domain.Job) (bool, error)
+	FindJob(ctx context.Context, id shared.ID) (domain.Job, error)
+	ListJobs(ctx context.Context, agent shared.ID, max int) ([]domain.Job, error)
+	// RunningJobs counts an agent's jobs running that started since a moment.
+	RunningJobs(ctx context.Context, agent shared.ID, since time.Time) (int, error)
+
 	InsertMark(ctx context.Context, m domain.Mark) error
 	ListMarks(ctx context.Context, targetType string, target shared.ID, max int) ([]domain.Mark, error)
 }

@@ -546,6 +546,17 @@ var importers = map[string]importer{
 			return queries.ClearAgentRequest(ctx)
 		},
 	},
+	"agent_job": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportAgentJob(ctx, sqlc.ImportAgentJobParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsAgentJob(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearAgentJob(ctx)
+		},
+	},
 	"agent_action": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportAgentAction(ctx, sqlc.ImportAgentActionParams{Payload: payload, Overwrite: overwrite})
