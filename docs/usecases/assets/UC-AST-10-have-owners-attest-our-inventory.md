@@ -5,9 +5,9 @@ context: assets
 actors: [PE-admin, PE-member, PE-auditor]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, test/integration/cmdb_assurance_test.go]
+checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, test/integration/cmdb_assurance_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
 ---
 
 # Have owners attest our inventory
@@ -31,7 +31,3 @@ Dana starts the annual review of the servers and virtual machines whose review f
 ## Where it ends
 
 * No campaign that starts itself on a schedule, no reminder mail to the people asked - the review day on each CI and the health's *reviews overdue* say what is due.
-
-## Today
-
-* Check 5: not met — the web app has no campaign screen yet.

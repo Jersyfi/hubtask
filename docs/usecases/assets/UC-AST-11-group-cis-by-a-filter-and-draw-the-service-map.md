@@ -5,9 +5,9 @@ context: assets
 actors: [PE-admin, PE-member, PE-handler, PE-auditor]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18, P-19]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, core/application/service/sync/InitialSyncCmdb_test.go, test/integration/cmdb_assurance_test.go]
+checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, core/application/service/sync/InitialSyncCmdb_test.go, test/integration/cmdb_assurance_test.go, apps/webapp/src/lib/data/cmdb.test.ts, apps/webapp/src/lib/data/replica.test.ts]
 ---
 
 # Group configuration items by a filter and draw the service map
@@ -31,7 +31,3 @@ The CRM's machines come and go with the load. Dana defines the group "CRM machin
 ## Where it ends
 
 * No discovered or traffic-based service map (research I5), no group of hand-picked CIs.
-
-## Today
-
-* Check 5: not met — the web app has no groups section and no drawn map yet.

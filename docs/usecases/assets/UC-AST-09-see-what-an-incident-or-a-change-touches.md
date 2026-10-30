@@ -5,9 +5,9 @@ context: assets
 actors: [PE-handler, PE-member, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18, P-19]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, core/application/service/sync/InitialSyncCmdb_test.go, test/integration/cmdb_assurance_test.go]
+checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, core/application/service/sync/InitialSyncCmdb_test.go, test/integration/cmdb_assurance_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
 ---
 
 # See what an incident or a change touches
@@ -32,7 +32,3 @@ Kai opens the incident "Booking is slow" and names the booking application as af
 ## Where it ends
 
 * No CI suggested for an incident by an agent (M9's CI suggestion), no rule that routes by the affected offering.
-
-## Today
-
-* Check 6: not met — the web app's entry screen does not show the affected CIs yet.

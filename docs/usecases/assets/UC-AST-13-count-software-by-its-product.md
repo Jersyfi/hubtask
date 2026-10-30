@@ -5,9 +5,9 @@ context: assets
 actors: [PE-admin, PE-member, PE-auditor]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, test/integration/cmdb_assurance_test.go]
+checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, test/integration/cmdb_assurance_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
 ---
 
 # Count software by its product
@@ -29,7 +29,3 @@ The scans report "Mozilla Firefox 128.0 (x64)" and "mozilla firefox", and Code f
 ## Where it ends
 
 * No licence compliance position (research A4), no vulnerability matching (A7), no shipped catalogue of products.
-
-## Today
-
-* Check 3: not met — the web app has no software view yet.
