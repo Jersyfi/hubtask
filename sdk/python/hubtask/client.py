@@ -135,6 +135,38 @@ class Client:
         """Whether the scheduler may move an entry, and whether it is a milestone"""
         return self._call("PUT", "/items/{itemId}/scheduling", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
 
+    def list_releases(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "ReleaseList":
+        """A hub's releases"""
+        return self._call("GET", "/hubs/{hubId}/releases", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def create_release(self, hub_id: str, body: dict[str, Any]) -> "Release":
+        """Plan a release"""
+        return self._call("POST", "/hubs/{hubId}/releases", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_release(self, release_id: str) -> "ReleaseDetail":
+        """A release with its entries"""
+        return self._call("GET", "/releases/{releaseId}", {"releaseId": release_id}, None, {}, None, "none", None, "json")
+
+    def update_release(self, release_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "Release":
+        """Change a release"""
+        return self._call("PATCH", "/releases/{releaseId}", {"releaseId": release_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_release(self, release_id: str) -> None:
+        """Delete a planned release"""
+        return self._call("DELETE", "/releases/{releaseId}", {"releaseId": release_id}, None, {}, None, "none", None, "void")
+
+    def publish_release(self, release_id: str, body: dict[str, Any]) -> "Release":
+        """Release it"""
+        return self._call("POST", "/releases/{releaseId}:publish", {"releaseId": release_id}, None, {}, body, "json", "application/json", "json")
+
+    def add_release_entries(self, release_id: str, body: dict[str, Any]) -> "Release":
+        """Put entries into a release"""
+        return self._call("POST", "/releases/{releaseId}/entries", {"releaseId": release_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_release_entries(self, release_id: str, body: dict[str, Any]) -> "Release":
+        """Take entries out of a release"""
+        return self._call("POST", "/releases/{releaseId}/entries:remove", {"releaseId": release_id}, None, {}, body, "json", "application/json", "json")
+
     def list_sprints(self, collection_id: str, *, query: dict[str, Any] | None = None) -> "SprintList":
         """A collection's sprints"""
         return self._call("GET", "/collections/{collectionId}/sprints", {"collectionId": collection_id}, query, {}, None, "none", None, "json")

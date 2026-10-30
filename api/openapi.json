@@ -523,6 +523,373 @@
         }
       }
     },
+    "/hubs/{hubId}/releases": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/HubId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "listReleases",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "release ls",
+        "summary": "A hub's releases",
+        "description": "The hub's releases, the latest day first, at most 200. Needs READ at the hub.",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PLANNED",
+                "RELEASED"
+              ]
+            },
+            "description": "Only releases in this state."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The releases",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "createRelease",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "release create",
+        "summary": "Plan a release",
+        "description": "A name, a description and the day it is meant to go out. It starts PLANNED; entries of the hub's collections join it until it is released. Needs WRITE_ITEMS at the hub; a collection has no releases of its own (`releases.hub_required`).\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "release_on"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "release_on": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Planned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Release"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/releases/{releaseId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ReleaseId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "readRelease",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "release get",
+        "summary": "A release with its entries",
+        "description": "Every entry in the release the caller may see - its title, its type's name and whether it is done - and how many are done and open. Needs READ at the hub.\n",
+        "responses": {
+          "200": {
+            "description": "The release",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseDetail"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "updateRelease",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "release update",
+        "summary": "Change a release",
+        "description": "Its name, description or day; a member left out keeps what stands. A released release does not change (`releases.released`). Needs WRITE_ITEMS at the hub.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "release_on": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The release",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Release"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "deleteRelease",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "release rm",
+        "summary": "Delete a planned release",
+        "description": "Its entries are in no release afterwards and otherwise unchanged. A released one is the hub's record and stays (`releases.released`). Needs WRITE_ITEMS at the hub.\n",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/releases/{releaseId}:publish": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ReleaseId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "publishRelease",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "release publish",
+        "summary": "Release it",
+        "description": "Marks a planned release as released. Its done entries ship in it; its open ones move into another planned release of the hub (`carry_to`) or out of it. With `write_notes`, its notes - the description and the done entries the caller may see, grouped under their type's name, each a mention - are written as a page of the hub's space, which the release then names. Needs WRITE_ITEMS at the hub, and for the notes, the right to write the space.\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "write_notes": {
+                    "type": "boolean"
+                  },
+                  "notes_parent_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "carry_to": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The released release",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Release"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/releases/{releaseId}/entries": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ReleaseId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "addReleaseEntries",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "release add",
+        "summary": "Put entries into a release",
+        "description": "Entries of the hub's collections, all or none; a release holds at most 200. An entry is in one release at a time (`releases.entry_in_another_release`). Needs WRITE_ITEMS at the hub.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "item_ids"
+                ],
+                "properties": {
+                  "item_ids": {
+                    "type": "array",
+                    "maxItems": 200,
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The release",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Release"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/releases/{releaseId}/entries:remove": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ReleaseId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "removeReleaseEntries",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "release remove",
+        "summary": "Take entries out of a release",
+        "description": "An entry not in the release is passed over. Needs WRITE_ITEMS at the hub.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "item_ids"
+                ],
+                "properties": {
+                  "item_ids": {
+                    "type": "array",
+                    "maxItems": 200,
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The release",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Release"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/collections/{collectionId}/sprints": {
       "parameters": [
         {
@@ -29505,6 +29872,15 @@
           "format": "uuid"
         }
       },
+      "ReleaseId": {
+        "name": "releaseId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
       "SprintId": {
         "name": "sprintId",
         "in": "path",
@@ -36059,6 +36435,143 @@
             "type": "integer"
           }
         }
+      },
+      "Release": {
+        "type": "object",
+        "required": [
+          "id",
+          "hub_id",
+          "name",
+          "description",
+          "release_on",
+          "state",
+          "released_at",
+          "notes_page_id",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "release_on": {
+            "type": "string",
+            "format": "date",
+            "description": "The day it is meant to go out."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "PLANNED",
+              "RELEASED"
+            ]
+          },
+          "released_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "notes_page_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The page its notes were written to."
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "ReleaseList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Release"
+            }
+          }
+        }
+      },
+      "ReleaseDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Release"
+          },
+          {
+            "type": "object",
+            "required": [
+              "entries",
+              "done_count",
+              "open_count"
+            ],
+            "properties": {
+              "done_count": {
+                "type": "integer"
+              },
+              "open_count": {
+                "type": "integer"
+              },
+              "entries": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "item_id",
+                    "title",
+                    "type_name",
+                    "done",
+                    "collection_id",
+                    "added_at"
+                  ],
+                  "properties": {
+                    "item_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "type_name": {
+                      "type": "string",
+                      "description": "The name of the entry's type; empty without one."
+                    },
+                    "done": {
+                      "type": "boolean"
+                    },
+                    "collection_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "added_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
       },
       "SprintList": {
         "type": "object",

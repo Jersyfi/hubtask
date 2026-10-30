@@ -7042,6 +7042,42 @@ func (e ReferenceStrength) Valid() bool {
 	}
 }
 
+// Defines values for ReleaseState.
+const (
+	ReleaseStatePLANNED  ReleaseState = "PLANNED"
+	ReleaseStateRELEASED ReleaseState = "RELEASED"
+)
+
+// Valid indicates whether the value is a known member of the ReleaseState enum.
+func (e ReleaseState) Valid() bool {
+	switch e {
+	case ReleaseStatePLANNED:
+		return true
+	case ReleaseStateRELEASED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReleaseDetailState.
+const (
+	ReleaseDetailStatePLANNED  ReleaseDetailState = "PLANNED"
+	ReleaseDetailStateRELEASED ReleaseDetailState = "RELEASED"
+)
+
+// Valid indicates whether the value is a known member of the ReleaseDetailState enum.
+func (e ReleaseDetailState) Valid() bool {
+	switch e {
+	case ReleaseDetailStatePLANNED:
+		return true
+	case ReleaseDetailStateRELEASED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReminderChannel.
 const (
 	ReminderChannelEMAIL ReminderChannel = "EMAIL"
@@ -9946,6 +9982,24 @@ func (e ListCiAlertsParamsStatus) Valid() bool {
 	case ListCiAlertsParamsStatusFIRING:
 		return true
 	case ListCiAlertsParamsStatusRESOLVED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListReleasesParamsState.
+const (
+	ListReleasesParamsStatePLANNED  ListReleasesParamsState = "PLANNED"
+	ListReleasesParamsStateRELEASED ListReleasesParamsState = "RELEASED"
+)
+
+// Valid indicates whether the value is a known member of the ListReleasesParamsState enum.
+func (e ListReleasesParamsState) Valid() bool {
+	switch e {
+	case ListReleasesParamsStatePLANNED:
+		return true
+	case ListReleasesParamsStateRELEASED:
 		return true
 	default:
 		return false
@@ -19201,6 +19255,63 @@ type ReferenceTarget struct {
 	Title *string `json:"title,omitempty"`
 }
 
+// Release defines model for Release.
+type Release struct {
+	Description string             `json:"description"`
+	HubId       openapi_types.UUID `json:"hub_id"`
+	Id          openapi_types.UUID `json:"id"`
+	Name        string             `json:"name"`
+
+	// NotesPageId The page its notes were written to.
+	NotesPageId *openapi_types.UUID `json:"notes_page_id"`
+
+	// ReleaseOn The day it is meant to go out.
+	ReleaseOn  openapi_types.Date `json:"release_on"`
+	ReleasedAt *time.Time         `json:"released_at"`
+	State      ReleaseState       `json:"state"`
+	Version    int                `json:"version"`
+}
+
+// ReleaseState defines model for Release.State.
+type ReleaseState string
+
+// ReleaseDetail defines model for ReleaseDetail.
+type ReleaseDetail struct {
+	Description string `json:"description"`
+	DoneCount   int    `json:"done_count"`
+	Entries     []struct {
+		AddedAt      time.Time          `json:"added_at"`
+		CollectionId openapi_types.UUID `json:"collection_id"`
+		Done         bool               `json:"done"`
+		ItemId       openapi_types.UUID `json:"item_id"`
+		Title        string             `json:"title"`
+
+		// TypeName The name of the entry's type; empty without one.
+		TypeName string `json:"type_name"`
+	} `json:"entries"`
+	HubId openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID `json:"id"`
+	Name  string             `json:"name"`
+
+	// NotesPageId The page its notes were written to.
+	NotesPageId *openapi_types.UUID `json:"notes_page_id"`
+	OpenCount   int                 `json:"open_count"`
+
+	// ReleaseOn The day it is meant to go out.
+	ReleaseOn  openapi_types.Date `json:"release_on"`
+	ReleasedAt *time.Time         `json:"released_at"`
+	State      ReleaseDetailState `json:"state"`
+	Version    int                `json:"version"`
+}
+
+// ReleaseDetailState defines model for ReleaseDetail.State.
+type ReleaseDetailState string
+
+// ReleaseList defines model for ReleaseList.
+type ReleaseList struct {
+	Data []Release `json:"data"`
+}
+
 // Reminder defines model for Reminder.
 type Reminder struct {
 	Channels  []ReminderChannel `json:"channels"`
@@ -22933,6 +23044,9 @@ type PresetId = openapi_types.UUID
 // ProviderId defines model for ProviderId.
 type ProviderId = openapi_types.UUID
 
+// ReleaseId defines model for ReleaseId.
+type ReleaseId = openapi_types.UUID
+
 // ReminderId defines model for ReminderId.
 type ReminderId = openapi_types.UUID
 
@@ -24089,6 +24203,22 @@ type ListPagesParams struct {
 	Templates       *bool `form:"templates,omitempty" json:"templates,omitempty"`
 }
 
+// ListReleasesParams defines parameters for ListReleases.
+type ListReleasesParams struct {
+	// State Only releases in this state.
+	State *ListReleasesParamsState `form:"state,omitempty" json:"state,omitempty"`
+}
+
+// ListReleasesParamsState defines parameters for ListReleases.
+type ListReleasesParamsState string
+
+// CreateReleaseJSONBody defines parameters for CreateRelease.
+type CreateReleaseJSONBody struct {
+	Description *string            `json:"description,omitempty"`
+	Name        string             `json:"name"`
+	ReleaseOn   openapi_types.Date `json:"release_on"`
+}
+
 // ReadServiceMapParams defines parameters for ReadServiceMap.
 type ReadServiceMapParams struct {
 	ServiceId *openapi_types.UUID `form:"service_id,omitempty" json:"service_id,omitempty"`
@@ -24890,6 +25020,36 @@ type OpenPrivateHubParams struct {
 // ResolveReferencesJSONBody defines parameters for ResolveReferences.
 type ResolveReferencesJSONBody struct {
 	References []Reference `json:"references"`
+}
+
+// UpdateReleaseJSONBody defines parameters for UpdateRelease.
+type UpdateReleaseJSONBody struct {
+	Description *string             `json:"description,omitempty"`
+	Name        *string             `json:"name,omitempty"`
+	ReleaseOn   *openapi_types.Date `json:"release_on,omitempty"`
+}
+
+// UpdateReleaseParams defines parameters for UpdateRelease.
+type UpdateReleaseParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// AddReleaseEntriesJSONBody defines parameters for AddReleaseEntries.
+type AddReleaseEntriesJSONBody struct {
+	ItemIds []openapi_types.UUID `json:"item_ids"`
+}
+
+// RemoveReleaseEntriesJSONBody defines parameters for RemoveReleaseEntries.
+type RemoveReleaseEntriesJSONBody struct {
+	ItemIds []openapi_types.UUID `json:"item_ids"`
+}
+
+// PublishReleaseJSONBody defines parameters for PublishRelease.
+type PublishReleaseJSONBody struct {
+	CarryTo       *openapi_types.UUID `json:"carry_to,omitempty"`
+	NotesParentId *openapi_types.UUID `json:"notes_parent_id,omitempty"`
+	WriteNotes    *bool               `json:"write_notes,omitempty"`
 }
 
 // DefineReplyTemplateParams defines parameters for DefineReplyTemplate.
@@ -25969,6 +26129,9 @@ type DefineCiConnectorJSONRequestBody = CiConnectorDefine
 // CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
 type CreatePageJSONRequestBody = PageCreate
 
+// CreateReleaseJSONRequestBody defines body for CreateRelease for application/json ContentType.
+type CreateReleaseJSONRequestBody CreateReleaseJSONBody
+
 // CreateWhiteboardJSONRequestBody defines body for CreateWhiteboard for application/json ContentType.
 type CreateWhiteboardJSONRequestBody = WhiteboardCreate
 
@@ -26244,6 +26407,18 @@ type OpenPrivateHubJSONRequestBody = PrivateHubAccessRequest
 
 // ResolveReferencesJSONRequestBody defines body for ResolveReferences for application/json ContentType.
 type ResolveReferencesJSONRequestBody ResolveReferencesJSONBody
+
+// UpdateReleaseJSONRequestBody defines body for UpdateRelease for application/json ContentType.
+type UpdateReleaseJSONRequestBody UpdateReleaseJSONBody
+
+// AddReleaseEntriesJSONRequestBody defines body for AddReleaseEntries for application/json ContentType.
+type AddReleaseEntriesJSONRequestBody AddReleaseEntriesJSONBody
+
+// RemoveReleaseEntriesJSONRequestBody defines body for RemoveReleaseEntries for application/json ContentType.
+type RemoveReleaseEntriesJSONRequestBody RemoveReleaseEntriesJSONBody
+
+// PublishReleaseJSONRequestBody defines body for PublishRelease for application/json ContentType.
+type PublishReleaseJSONRequestBody PublishReleaseJSONBody
 
 // DefineReplyTemplateJSONRequestBody defines body for DefineReplyTemplate for application/json ContentType.
 type DefineReplyTemplateJSONRequestBody = ReplyTemplateDefine
@@ -27909,6 +28084,12 @@ type ServerInterface interface {
 	// CreatePage Write a new page
 	// (POST /hubs/{hubId}/pages)
 	CreatePage(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// ListReleases A hub's releases
+	// (GET /hubs/{hubId}/releases)
+	ListReleases(w http.ResponseWriter, r *http.Request, hubId HubId, params ListReleasesParams)
+	// CreateRelease Plan a release
+	// (POST /hubs/{hubId}/releases)
+	CreateRelease(w http.ResponseWriter, r *http.Request, hubId HubId)
 	// ReadServiceMap A hub's service map
 	// (GET /hubs/{hubId}/service-map)
 	ReadServiceMap(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ReadServiceMapParams)
@@ -28581,6 +28762,24 @@ type ServerInterface interface {
 	// ResolveReferences Resolve references for the caller
 	// (POST /references:resolve)
 	ResolveReferences(w http.ResponseWriter, r *http.Request)
+	// DeleteRelease Delete a planned release
+	// (DELETE /releases/{releaseId})
+	DeleteRelease(w http.ResponseWriter, r *http.Request, releaseId ReleaseId)
+	// ReadRelease A release with its entries
+	// (GET /releases/{releaseId})
+	ReadRelease(w http.ResponseWriter, r *http.Request, releaseId ReleaseId)
+	// UpdateRelease Change a release
+	// (PATCH /releases/{releaseId})
+	UpdateRelease(w http.ResponseWriter, r *http.Request, releaseId ReleaseId, params UpdateReleaseParams)
+	// AddReleaseEntries Put entries into a release
+	// (POST /releases/{releaseId}/entries)
+	AddReleaseEntries(w http.ResponseWriter, r *http.Request, releaseId ReleaseId)
+	// RemoveReleaseEntries Take entries out of a release
+	// (POST /releases/{releaseId}/entries:remove)
+	RemoveReleaseEntries(w http.ResponseWriter, r *http.Request, releaseId ReleaseId)
+	// PublishRelease Release it
+	// (POST /releases/{releaseId}:publish)
+	PublishRelease(w http.ResponseWriter, r *http.Request, releaseId ReleaseId)
 	// ListReplyTemplates The workspace's canned replies
 	// (GET /reply-templates)
 	ListReplyTemplates(w http.ResponseWriter, r *http.Request)
@@ -40334,6 +40533,74 @@ func (siw *ServerInterfaceWrapper) CreatePage(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// ListReleases operation middleware
+func (siw *ServerInterfaceWrapper) ListReleases(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId HubId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListReleasesParams
+
+	// ------------- Optional query parameter "state" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "state", r.URL.Query(), &params.State, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListReleases(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateRelease operation middleware
+func (siw *ServerInterfaceWrapper) CreateRelease(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId HubId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateRelease(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadServiceMap operation middleware
 func (siw *ServerInterfaceWrapper) ReadServiceMap(w http.ResponseWriter, r *http.Request) {
 
@@ -48277,6 +48544,186 @@ func (siw *ServerInterfaceWrapper) ResolveReferences(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteRelease operation middleware
+func (siw *ServerInterfaceWrapper) DeleteRelease(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "releaseId" -------------
+	var releaseId ReleaseId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "releaseId", r.PathValue("releaseId"), &releaseId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "releaseId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteRelease(w, r, releaseId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadRelease operation middleware
+func (siw *ServerInterfaceWrapper) ReadRelease(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "releaseId" -------------
+	var releaseId ReleaseId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "releaseId", r.PathValue("releaseId"), &releaseId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "releaseId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadRelease(w, r, releaseId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateRelease operation middleware
+func (siw *ServerInterfaceWrapper) UpdateRelease(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "releaseId" -------------
+	var releaseId ReleaseId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "releaseId", r.PathValue("releaseId"), &releaseId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "releaseId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateReleaseParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateRelease(w, r, releaseId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddReleaseEntries operation middleware
+func (siw *ServerInterfaceWrapper) AddReleaseEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "releaseId" -------------
+	var releaseId ReleaseId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "releaseId", r.PathValue("releaseId"), &releaseId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "releaseId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddReleaseEntries(w, r, releaseId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveReleaseEntries operation middleware
+func (siw *ServerInterfaceWrapper) RemoveReleaseEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "releaseId" -------------
+	var releaseId ReleaseId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "releaseId", r.PathValue("releaseId"), &releaseId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "releaseId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveReleaseEntries(w, r, releaseId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PublishRelease operation middleware
+func (siw *ServerInterfaceWrapper) PublishRelease(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "releaseId" -------------
+	var releaseId ReleaseId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "releaseId", r.PathValue("releaseId"), &releaseId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "releaseId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PublishRelease(w, r, releaseId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListReplyTemplates operation middleware
 func (siw *ServerInterfaceWrapper) ListReplyTemplates(w http.ResponseWriter, r *http.Request) {
 
@@ -53081,6 +53528,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/baselines/{baselineId}", wrapper.CompareBaseline)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/links/{linkId}/timing", wrapper.SetDependencyTiming)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/scheduling", wrapper.SetEntryScheduling)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/releases", wrapper.ListReleases)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/releases", wrapper.CreateRelease)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/releases/{releaseId}", wrapper.DeleteRelease)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/releases/{releaseId}", wrapper.ReadRelease)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/releases/{releaseId}", wrapper.UpdateRelease)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/releases/{releaseId}:publish", wrapper.PublishRelease)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/releases/{releaseId}/entries", wrapper.AddReleaseEntries)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/releases/{releaseId}/entries:remove", wrapper.RemoveReleaseEntries)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/collections/{collectionId}/sprints", wrapper.ListSprints)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/collections/{collectionId}/sprints", wrapper.CreateSprint)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/collections/{collectionId}/sprint-backlog", wrapper.ReadSprintBacklog)

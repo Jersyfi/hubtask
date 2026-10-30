@@ -7047,6 +7047,42 @@ func (e ReferenceStrength) Valid() bool {
 	}
 }
 
+// Defines values for ReleaseState.
+const (
+	ReleaseStatePLANNED  ReleaseState = "PLANNED"
+	ReleaseStateRELEASED ReleaseState = "RELEASED"
+)
+
+// Valid indicates whether the value is a known member of the ReleaseState enum.
+func (e ReleaseState) Valid() bool {
+	switch e {
+	case ReleaseStatePLANNED:
+		return true
+	case ReleaseStateRELEASED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReleaseDetailState.
+const (
+	ReleaseDetailStatePLANNED  ReleaseDetailState = "PLANNED"
+	ReleaseDetailStateRELEASED ReleaseDetailState = "RELEASED"
+)
+
+// Valid indicates whether the value is a known member of the ReleaseDetailState enum.
+func (e ReleaseDetailState) Valid() bool {
+	switch e {
+	case ReleaseDetailStatePLANNED:
+		return true
+	case ReleaseDetailStateRELEASED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReminderChannel.
 const (
 	ReminderChannelEMAIL ReminderChannel = "EMAIL"
@@ -9951,6 +9987,24 @@ func (e ListCiAlertsParamsStatus) Valid() bool {
 	case ListCiAlertsParamsStatusFIRING:
 		return true
 	case ListCiAlertsParamsStatusRESOLVED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListReleasesParamsState.
+const (
+	ListReleasesParamsStatePLANNED  ListReleasesParamsState = "PLANNED"
+	ListReleasesParamsStateRELEASED ListReleasesParamsState = "RELEASED"
+)
+
+// Valid indicates whether the value is a known member of the ListReleasesParamsState enum.
+func (e ListReleasesParamsState) Valid() bool {
+	switch e {
+	case ListReleasesParamsStatePLANNED:
+		return true
+	case ListReleasesParamsStateRELEASED:
 		return true
 	default:
 		return false
@@ -19206,6 +19260,63 @@ type ReferenceTarget struct {
 	Title *string `json:"title,omitempty"`
 }
 
+// Release defines model for Release.
+type Release struct {
+	Description string             `json:"description"`
+	HubId       openapi_types.UUID `json:"hub_id"`
+	Id          openapi_types.UUID `json:"id"`
+	Name        string             `json:"name"`
+
+	// NotesPageId The page its notes were written to.
+	NotesPageId *openapi_types.UUID `json:"notes_page_id"`
+
+	// ReleaseOn The day it is meant to go out.
+	ReleaseOn  openapi_types.Date `json:"release_on"`
+	ReleasedAt *time.Time         `json:"released_at"`
+	State      ReleaseState       `json:"state"`
+	Version    int                `json:"version"`
+}
+
+// ReleaseState defines model for Release.State.
+type ReleaseState string
+
+// ReleaseDetail defines model for ReleaseDetail.
+type ReleaseDetail struct {
+	Description string `json:"description"`
+	DoneCount   int    `json:"done_count"`
+	Entries     []struct {
+		AddedAt      time.Time          `json:"added_at"`
+		CollectionId openapi_types.UUID `json:"collection_id"`
+		Done         bool               `json:"done"`
+		ItemId       openapi_types.UUID `json:"item_id"`
+		Title        string             `json:"title"`
+
+		// TypeName The name of the entry's type; empty without one.
+		TypeName string `json:"type_name"`
+	} `json:"entries"`
+	HubId openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID `json:"id"`
+	Name  string             `json:"name"`
+
+	// NotesPageId The page its notes were written to.
+	NotesPageId *openapi_types.UUID `json:"notes_page_id"`
+	OpenCount   int                 `json:"open_count"`
+
+	// ReleaseOn The day it is meant to go out.
+	ReleaseOn  openapi_types.Date `json:"release_on"`
+	ReleasedAt *time.Time         `json:"released_at"`
+	State      ReleaseDetailState `json:"state"`
+	Version    int                `json:"version"`
+}
+
+// ReleaseDetailState defines model for ReleaseDetail.State.
+type ReleaseDetailState string
+
+// ReleaseList defines model for ReleaseList.
+type ReleaseList struct {
+	Data []Release `json:"data"`
+}
+
 // Reminder defines model for Reminder.
 type Reminder struct {
 	Channels  []ReminderChannel `json:"channels"`
@@ -22938,6 +23049,9 @@ type PresetId = openapi_types.UUID
 // ProviderId defines model for ProviderId.
 type ProviderId = openapi_types.UUID
 
+// ReleaseId defines model for ReleaseId.
+type ReleaseId = openapi_types.UUID
+
 // ReminderId defines model for ReminderId.
 type ReminderId = openapi_types.UUID
 
@@ -24094,6 +24208,22 @@ type ListPagesParams struct {
 	Templates       *bool `form:"templates,omitempty" json:"templates,omitempty"`
 }
 
+// ListReleasesParams defines parameters for ListReleases.
+type ListReleasesParams struct {
+	// State Only releases in this state.
+	State *ListReleasesParamsState `form:"state,omitempty" json:"state,omitempty"`
+}
+
+// ListReleasesParamsState defines parameters for ListReleases.
+type ListReleasesParamsState string
+
+// CreateReleaseJSONBody defines parameters for CreateRelease.
+type CreateReleaseJSONBody struct {
+	Description *string            `json:"description,omitempty"`
+	Name        string             `json:"name"`
+	ReleaseOn   openapi_types.Date `json:"release_on"`
+}
+
 // ReadServiceMapParams defines parameters for ReadServiceMap.
 type ReadServiceMapParams struct {
 	ServiceId *openapi_types.UUID `form:"service_id,omitempty" json:"service_id,omitempty"`
@@ -24895,6 +25025,36 @@ type OpenPrivateHubParams struct {
 // ResolveReferencesJSONBody defines parameters for ResolveReferences.
 type ResolveReferencesJSONBody struct {
 	References []Reference `json:"references"`
+}
+
+// UpdateReleaseJSONBody defines parameters for UpdateRelease.
+type UpdateReleaseJSONBody struct {
+	Description *string             `json:"description,omitempty"`
+	Name        *string             `json:"name,omitempty"`
+	ReleaseOn   *openapi_types.Date `json:"release_on,omitempty"`
+}
+
+// UpdateReleaseParams defines parameters for UpdateRelease.
+type UpdateReleaseParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// AddReleaseEntriesJSONBody defines parameters for AddReleaseEntries.
+type AddReleaseEntriesJSONBody struct {
+	ItemIds []openapi_types.UUID `json:"item_ids"`
+}
+
+// RemoveReleaseEntriesJSONBody defines parameters for RemoveReleaseEntries.
+type RemoveReleaseEntriesJSONBody struct {
+	ItemIds []openapi_types.UUID `json:"item_ids"`
+}
+
+// PublishReleaseJSONBody defines parameters for PublishRelease.
+type PublishReleaseJSONBody struct {
+	CarryTo       *openapi_types.UUID `json:"carry_to,omitempty"`
+	NotesParentId *openapi_types.UUID `json:"notes_parent_id,omitempty"`
+	WriteNotes    *bool               `json:"write_notes,omitempty"`
 }
 
 // DefineReplyTemplateParams defines parameters for DefineReplyTemplate.
@@ -25974,6 +26134,9 @@ type DefineCiConnectorJSONRequestBody = CiConnectorDefine
 // CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
 type CreatePageJSONRequestBody = PageCreate
 
+// CreateReleaseJSONRequestBody defines body for CreateRelease for application/json ContentType.
+type CreateReleaseJSONRequestBody CreateReleaseJSONBody
+
 // CreateWhiteboardJSONRequestBody defines body for CreateWhiteboard for application/json ContentType.
 type CreateWhiteboardJSONRequestBody = WhiteboardCreate
 
@@ -26249,6 +26412,18 @@ type OpenPrivateHubJSONRequestBody = PrivateHubAccessRequest
 
 // ResolveReferencesJSONRequestBody defines body for ResolveReferences for application/json ContentType.
 type ResolveReferencesJSONRequestBody ResolveReferencesJSONBody
+
+// UpdateReleaseJSONRequestBody defines body for UpdateRelease for application/json ContentType.
+type UpdateReleaseJSONRequestBody UpdateReleaseJSONBody
+
+// AddReleaseEntriesJSONRequestBody defines body for AddReleaseEntries for application/json ContentType.
+type AddReleaseEntriesJSONRequestBody AddReleaseEntriesJSONBody
+
+// RemoveReleaseEntriesJSONRequestBody defines body for RemoveReleaseEntries for application/json ContentType.
+type RemoveReleaseEntriesJSONRequestBody RemoveReleaseEntriesJSONBody
+
+// PublishReleaseJSONRequestBody defines body for PublishRelease for application/json ContentType.
+type PublishReleaseJSONRequestBody PublishReleaseJSONBody
 
 // DefineReplyTemplateJSONRequestBody defines body for DefineReplyTemplate for application/json ContentType.
 type DefineReplyTemplateJSONRequestBody = ReplyTemplateDefine
@@ -31687,6 +31862,31 @@ type ClientInterface interface {
 	// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
 	CreatePage(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListReleases A hub's releases
+	//
+	// The hub's releases, the latest day first, at most 200. Needs READ at the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/releases (the `ListReleases` operationId).
+	ListReleases(ctx context.Context, hubId HubId, params *ListReleasesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateReleaseWithBody Plan a release
+	//
+	// A name, a description and the day it is meant to go out. It starts PLANNED; entries of the hub's collections join it until it is released. Needs WRITE_ITEMS at the hub; a collection has no releases of its own (`releases.hub_required`).
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/releases (the `CreateRelease` operationId).
+	CreateReleaseWithBody(ctx context.Context, hubId HubId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateRelease Plan a release
+	//
+	// A name, a description and the day it is meant to go out. It starts PLANNED; entries of the hub's collections join it until it is released. Needs WRITE_ITEMS at the hub; a collection has no releases of its own (`releases.hub_required`).
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/releases (the `CreateRelease` operationId).
+	CreateRelease(ctx context.Context, hubId HubId, body CreateReleaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ReadServiceMap A hub's service map
 	//
 	// Its active services and offerings, everything whose failure they suffer and the members of the groups standing for them, in layers, with the relations carrying impact between them. Needs READ on the hub.
@@ -34433,6 +34633,92 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /references:resolve (the `ResolveReferences` operationId).
 	ResolveReferences(ctx context.Context, body ResolveReferencesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteRelease Delete a planned release
+	//
+	// Its entries are in no release afterwards and otherwise unchanged. A released one is the hub's record and stays (`releases.released`). Needs WRITE_ITEMS at the hub.
+	//
+	// Corresponds with DELETE /releases/{releaseId} (the `DeleteRelease` operationId).
+	DeleteRelease(ctx context.Context, releaseId ReleaseId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadRelease A release with its entries
+	//
+	// Every entry in the release the caller may see - its title, its type's name and whether it is done - and how many are done and open. Needs READ at the hub.
+	//
+	// Corresponds with GET /releases/{releaseId} (the `ReadRelease` operationId).
+	ReadRelease(ctx context.Context, releaseId ReleaseId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateReleaseWithBody Change a release
+	//
+	// Its name, description or day; a member left out keeps what stands. A released release does not change (`releases.released`). Needs WRITE_ITEMS at the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /releases/{releaseId} (the `UpdateRelease` operationId).
+	UpdateReleaseWithBody(ctx context.Context, releaseId ReleaseId, params *UpdateReleaseParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateRelease Change a release
+	//
+	// Its name, description or day; a member left out keeps what stands. A released release does not change (`releases.released`). Needs WRITE_ITEMS at the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /releases/{releaseId} (the `UpdateRelease` operationId).
+	UpdateRelease(ctx context.Context, releaseId ReleaseId, params *UpdateReleaseParams, body UpdateReleaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddReleaseEntriesWithBody Put entries into a release
+	//
+	// Entries of the hub's collections, all or none; a release holds at most 200. An entry is in one release at a time (`releases.entry_in_another_release`). Needs WRITE_ITEMS at the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /releases/{releaseId}/entries (the `AddReleaseEntries` operationId).
+	AddReleaseEntriesWithBody(ctx context.Context, releaseId ReleaseId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddReleaseEntries Put entries into a release
+	//
+	// Entries of the hub's collections, all or none; a release holds at most 200. An entry is in one release at a time (`releases.entry_in_another_release`). Needs WRITE_ITEMS at the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /releases/{releaseId}/entries (the `AddReleaseEntries` operationId).
+	AddReleaseEntries(ctx context.Context, releaseId ReleaseId, body AddReleaseEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveReleaseEntriesWithBody Take entries out of a release
+	//
+	// An entry not in the release is passed over. Needs WRITE_ITEMS at the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /releases/{releaseId}/entries:remove (the `RemoveReleaseEntries` operationId).
+	RemoveReleaseEntriesWithBody(ctx context.Context, releaseId ReleaseId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveReleaseEntries Take entries out of a release
+	//
+	// An entry not in the release is passed over. Needs WRITE_ITEMS at the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /releases/{releaseId}/entries:remove (the `RemoveReleaseEntries` operationId).
+	RemoveReleaseEntries(ctx context.Context, releaseId ReleaseId, body RemoveReleaseEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PublishReleaseWithBody Release it
+	//
+	// Marks a planned release as released. Its done entries ship in it; its open ones move into another planned release of the hub (`carry_to`) or out of it. With `write_notes`, its notes - the description and the done entries the caller may see, grouped under their type's name, each a mention - are written as a page of the hub's space, which the release then names. Needs WRITE_ITEMS at the hub, and for the notes, the right to write the space.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /releases/{releaseId}:publish (the `PublishRelease` operationId).
+	PublishReleaseWithBody(ctx context.Context, releaseId ReleaseId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PublishRelease Release it
+	//
+	// Marks a planned release as released. Its done entries ship in it; its open ones move into another planned release of the hub (`carry_to`) or out of it. With `write_notes`, its notes - the description and the done entries the caller may see, grouped under their type's name, each a mention - are written as a page of the hub's space, which the release then names. Needs WRITE_ITEMS at the hub, and for the notes, the right to write the space.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /releases/{releaseId}:publish (the `PublishRelease` operationId).
+	PublishRelease(ctx context.Context, releaseId ReleaseId, body PublishReleaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListReplyTemplates The workspace's canned replies
 	//
@@ -46290,6 +46576,61 @@ func (c *Client) CreatePage(ctx context.Context, hubId openapi_types.UUID, body 
 	return c.Client.Do(req)
 }
 
+// ListReleases A hub's releases
+//
+// The hub's releases, the latest day first, at most 200. Needs READ at the hub.
+//
+// Corresponds with GET /hubs/{hubId}/releases (the `ListReleases` operationId).
+func (c *Client) ListReleases(ctx context.Context, hubId HubId, params *ListReleasesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListReleasesRequest(c.Server, hubId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateReleaseWithBody Plan a release
+//
+// A name, a description and the day it is meant to go out. It starts PLANNED; entries of the hub's collections join it until it is released. Needs WRITE_ITEMS at the hub; a collection has no releases of its own (`releases.hub_required`).
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /hubs/{hubId}/releases (the `CreateRelease` operationId).
+func (c *Client) CreateReleaseWithBody(ctx context.Context, hubId HubId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateReleaseRequestWithBody(c.Server, hubId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateRelease Plan a release
+//
+// A name, a description and the day it is meant to go out. It starts PLANNED; entries of the hub's collections join it until it is released. Needs WRITE_ITEMS at the hub; a collection has no releases of its own (`releases.hub_required`).
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /hubs/{hubId}/releases (the `CreateRelease` operationId).
+func (c *Client) CreateRelease(ctx context.Context, hubId HubId, body CreateReleaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateReleaseRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ReadServiceMap A hub's service map
 //
 // Its active services and offerings, everything whose failure they suffer and the members of the groups standing for them, in layers, with the relations carrying impact between them. Needs READ on the hub.
@@ -52177,6 +52518,192 @@ func (c *Client) ResolveReferencesWithBody(ctx context.Context, contentType stri
 // Corresponds with POST /references:resolve (the `ResolveReferences` operationId).
 func (c *Client) ResolveReferences(ctx context.Context, body ResolveReferencesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewResolveReferencesRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteRelease Delete a planned release
+//
+// Its entries are in no release afterwards and otherwise unchanged. A released one is the hub's record and stays (`releases.released`). Needs WRITE_ITEMS at the hub.
+//
+// Corresponds with DELETE /releases/{releaseId} (the `DeleteRelease` operationId).
+func (c *Client) DeleteRelease(ctx context.Context, releaseId ReleaseId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteReleaseRequest(c.Server, releaseId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadRelease A release with its entries
+//
+// Every entry in the release the caller may see - its title, its type's name and whether it is done - and how many are done and open. Needs READ at the hub.
+//
+// Corresponds with GET /releases/{releaseId} (the `ReadRelease` operationId).
+func (c *Client) ReadRelease(ctx context.Context, releaseId ReleaseId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadReleaseRequest(c.Server, releaseId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateReleaseWithBody Change a release
+//
+// Its name, description or day; a member left out keeps what stands. A released release does not change (`releases.released`). Needs WRITE_ITEMS at the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /releases/{releaseId} (the `UpdateRelease` operationId).
+func (c *Client) UpdateReleaseWithBody(ctx context.Context, releaseId ReleaseId, params *UpdateReleaseParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateReleaseRequestWithBody(c.Server, releaseId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateRelease Change a release
+//
+// Its name, description or day; a member left out keeps what stands. A released release does not change (`releases.released`). Needs WRITE_ITEMS at the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /releases/{releaseId} (the `UpdateRelease` operationId).
+func (c *Client) UpdateRelease(ctx context.Context, releaseId ReleaseId, params *UpdateReleaseParams, body UpdateReleaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateReleaseRequest(c.Server, releaseId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddReleaseEntriesWithBody Put entries into a release
+//
+// Entries of the hub's collections, all or none; a release holds at most 200. An entry is in one release at a time (`releases.entry_in_another_release`). Needs WRITE_ITEMS at the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /releases/{releaseId}/entries (the `AddReleaseEntries` operationId).
+func (c *Client) AddReleaseEntriesWithBody(ctx context.Context, releaseId ReleaseId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddReleaseEntriesRequestWithBody(c.Server, releaseId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddReleaseEntries Put entries into a release
+//
+// Entries of the hub's collections, all or none; a release holds at most 200. An entry is in one release at a time (`releases.entry_in_another_release`). Needs WRITE_ITEMS at the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /releases/{releaseId}/entries (the `AddReleaseEntries` operationId).
+func (c *Client) AddReleaseEntries(ctx context.Context, releaseId ReleaseId, body AddReleaseEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddReleaseEntriesRequest(c.Server, releaseId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveReleaseEntriesWithBody Take entries out of a release
+//
+// An entry not in the release is passed over. Needs WRITE_ITEMS at the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /releases/{releaseId}/entries:remove (the `RemoveReleaseEntries` operationId).
+func (c *Client) RemoveReleaseEntriesWithBody(ctx context.Context, releaseId ReleaseId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveReleaseEntriesRequestWithBody(c.Server, releaseId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveReleaseEntries Take entries out of a release
+//
+// An entry not in the release is passed over. Needs WRITE_ITEMS at the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /releases/{releaseId}/entries:remove (the `RemoveReleaseEntries` operationId).
+func (c *Client) RemoveReleaseEntries(ctx context.Context, releaseId ReleaseId, body RemoveReleaseEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveReleaseEntriesRequest(c.Server, releaseId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PublishReleaseWithBody Release it
+//
+// Marks a planned release as released. Its done entries ship in it; its open ones move into another planned release of the hub (`carry_to`) or out of it. With `write_notes`, its notes - the description and the done entries the caller may see, grouped under their type's name, each a mention - are written as a page of the hub's space, which the release then names. Needs WRITE_ITEMS at the hub, and for the notes, the right to write the space.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /releases/{releaseId}:publish (the `PublishRelease` operationId).
+func (c *Client) PublishReleaseWithBody(ctx context.Context, releaseId ReleaseId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishReleaseRequestWithBody(c.Server, releaseId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PublishRelease Release it
+//
+// Marks a planned release as released. Its done entries ship in it; its open ones move into another planned release of the hub (`carry_to`) or out of it. With `write_notes`, its notes - the description and the done entries the caller may see, grouped under their type's name, each a mention - are written as a page of the hub's space, which the release then names. Needs WRITE_ITEMS at the hub, and for the notes, the right to write the space.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /releases/{releaseId}:publish (the `PublishRelease` operationId).
+func (c *Client) PublishRelease(ctx context.Context, releaseId ReleaseId, body PublishReleaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishReleaseRequest(c.Server, releaseId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -72574,6 +73101,114 @@ func NewCreatePageRequestWithBody(server string, hubId openapi_types.UUID, conte
 	return req, nil
 }
 
+// NewListReleasesRequest constructs an http.Request for the ListReleases method
+func NewListReleasesRequest(server string, hubId HubId, params *ListReleasesParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/releases", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.State != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "state", *params.State, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateReleaseRequest calls the generic CreateRelease builder with application/json body
+func NewCreateReleaseRequest(server string, hubId HubId, body CreateReleaseJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateReleaseRequestWithBody(server, hubId, "application/json", bodyReader)
+}
+
+// NewCreateReleaseRequestWithBody constructs an http.Request for the CreateRelease method, with any body, and a specified content type
+func NewCreateReleaseRequestWithBody(server string, hubId HubId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/releases", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewReadServiceMapRequest constructs an http.Request for the ReadServiceMap method
 func NewReadServiceMapRequest(server string, hubId openapi_types.UUID, params *ReadServiceMapParams) (*http.Request, error) {
 	var err error
@@ -83147,6 +83782,277 @@ func NewResolveReferencesRequestWithBody(server string, contentType string, body
 	}
 
 	operationPath := fmt.Sprintf("/references:resolve")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteReleaseRequest constructs an http.Request for the DeleteRelease method
+func NewDeleteReleaseRequest(server string, releaseId ReleaseId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "releaseId", releaseId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/releases/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadReleaseRequest constructs an http.Request for the ReadRelease method
+func NewReadReleaseRequest(server string, releaseId ReleaseId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "releaseId", releaseId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/releases/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateReleaseRequest calls the generic UpdateRelease builder with application/json body
+func NewUpdateReleaseRequest(server string, releaseId ReleaseId, params *UpdateReleaseParams, body UpdateReleaseJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateReleaseRequestWithBody(server, releaseId, params, "application/json", bodyReader)
+}
+
+// NewUpdateReleaseRequestWithBody constructs an http.Request for the UpdateRelease method, with any body, and a specified content type
+func NewUpdateReleaseRequestWithBody(server string, releaseId ReleaseId, params *UpdateReleaseParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "releaseId", releaseId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/releases/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewAddReleaseEntriesRequest calls the generic AddReleaseEntries builder with application/json body
+func NewAddReleaseEntriesRequest(server string, releaseId ReleaseId, body AddReleaseEntriesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddReleaseEntriesRequestWithBody(server, releaseId, "application/json", bodyReader)
+}
+
+// NewAddReleaseEntriesRequestWithBody constructs an http.Request for the AddReleaseEntries method, with any body, and a specified content type
+func NewAddReleaseEntriesRequestWithBody(server string, releaseId ReleaseId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "releaseId", releaseId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/releases/%s/entries", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRemoveReleaseEntriesRequest calls the generic RemoveReleaseEntries builder with application/json body
+func NewRemoveReleaseEntriesRequest(server string, releaseId ReleaseId, body RemoveReleaseEntriesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRemoveReleaseEntriesRequestWithBody(server, releaseId, "application/json", bodyReader)
+}
+
+// NewRemoveReleaseEntriesRequestWithBody constructs an http.Request for the RemoveReleaseEntries method, with any body, and a specified content type
+func NewRemoveReleaseEntriesRequestWithBody(server string, releaseId ReleaseId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "releaseId", releaseId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/releases/%s/entries:remove", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPublishReleaseRequest calls the generic PublishRelease builder with application/json body
+func NewPublishReleaseRequest(server string, releaseId ReleaseId, body PublishReleaseJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPublishReleaseRequestWithBody(server, releaseId, "application/json", bodyReader)
+}
+
+// NewPublishReleaseRequestWithBody constructs an http.Request for the PublishRelease method, with any body, and a specified content type
+func NewPublishReleaseRequestWithBody(server string, releaseId ReleaseId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "releaseId", releaseId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/releases/%s:publish", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -95246,6 +96152,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
 	CreatePageWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePageResult, error)
 
+	// ListReleasesWithResponse A hub's releases
+	//
+	// The hub's releases, the latest day first, at most 200. Needs READ at the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/releases (the `ListReleases` operationId).
+	ListReleasesWithResponse(ctx context.Context, hubId HubId, params *ListReleasesParams, reqEditors ...RequestEditorFn) (*ListReleasesResult, error)
+
+	// CreateReleaseWithBodyWithResponse Plan a release
+	//
+	// A name, a description and the day it is meant to go out. It starts PLANNED; entries of the hub's collections join it until it is released. Needs WRITE_ITEMS at the hub; a collection has no releases of its own (`releases.hub_required`).
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/releases (the `CreateRelease` operationId).
+	CreateReleaseWithBodyWithResponse(ctx context.Context, hubId HubId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateReleaseResult, error)
+
+	// CreateReleaseWithResponse Plan a release
+	//
+	// A name, a description and the day it is meant to go out. It starts PLANNED; entries of the hub's collections join it until it is released. Needs WRITE_ITEMS at the hub; a collection has no releases of its own (`releases.hub_required`).
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/releases (the `CreateRelease` operationId).
+	CreateReleaseWithResponse(ctx context.Context, hubId HubId, body CreateReleaseJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateReleaseResult, error)
+
 	// ReadServiceMapWithResponse A hub's service map
 	//
 	// Its active services and offerings, everything whose failure they suffer and the members of the groups standing for them, in layers, with the relations carrying impact between them. Needs READ on the hub.
@@ -98292,6 +99225,96 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /references:resolve (the `ResolveReferences` operationId).
 	ResolveReferencesWithResponse(ctx context.Context, body ResolveReferencesJSONRequestBody, reqEditors ...RequestEditorFn) (*ResolveReferencesResult, error)
+
+	// DeleteReleaseWithResponse Delete a planned release
+	//
+	// Its entries are in no release afterwards and otherwise unchanged. A released one is the hub's record and stays (`releases.released`). Needs WRITE_ITEMS at the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /releases/{releaseId} (the `DeleteRelease` operationId).
+	DeleteReleaseWithResponse(ctx context.Context, releaseId ReleaseId, reqEditors ...RequestEditorFn) (*DeleteReleaseResult, error)
+
+	// ReadReleaseWithResponse A release with its entries
+	//
+	// Every entry in the release the caller may see - its title, its type's name and whether it is done - and how many are done and open. Needs READ at the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /releases/{releaseId} (the `ReadRelease` operationId).
+	ReadReleaseWithResponse(ctx context.Context, releaseId ReleaseId, reqEditors ...RequestEditorFn) (*ReadReleaseResult, error)
+
+	// UpdateReleaseWithBodyWithResponse Change a release
+	//
+	// Its name, description or day; a member left out keeps what stands. A released release does not change (`releases.released`). Needs WRITE_ITEMS at the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /releases/{releaseId} (the `UpdateRelease` operationId).
+	UpdateReleaseWithBodyWithResponse(ctx context.Context, releaseId ReleaseId, params *UpdateReleaseParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateReleaseResult, error)
+
+	// UpdateReleaseWithResponse Change a release
+	//
+	// Its name, description or day; a member left out keeps what stands. A released release does not change (`releases.released`). Needs WRITE_ITEMS at the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /releases/{releaseId} (the `UpdateRelease` operationId).
+	UpdateReleaseWithResponse(ctx context.Context, releaseId ReleaseId, params *UpdateReleaseParams, body UpdateReleaseJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateReleaseResult, error)
+
+	// AddReleaseEntriesWithBodyWithResponse Put entries into a release
+	//
+	// Entries of the hub's collections, all or none; a release holds at most 200. An entry is in one release at a time (`releases.entry_in_another_release`). Needs WRITE_ITEMS at the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /releases/{releaseId}/entries (the `AddReleaseEntries` operationId).
+	AddReleaseEntriesWithBodyWithResponse(ctx context.Context, releaseId ReleaseId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddReleaseEntriesResult, error)
+
+	// AddReleaseEntriesWithResponse Put entries into a release
+	//
+	// Entries of the hub's collections, all or none; a release holds at most 200. An entry is in one release at a time (`releases.entry_in_another_release`). Needs WRITE_ITEMS at the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /releases/{releaseId}/entries (the `AddReleaseEntries` operationId).
+	AddReleaseEntriesWithResponse(ctx context.Context, releaseId ReleaseId, body AddReleaseEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*AddReleaseEntriesResult, error)
+
+	// RemoveReleaseEntriesWithBodyWithResponse Take entries out of a release
+	//
+	// An entry not in the release is passed over. Needs WRITE_ITEMS at the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /releases/{releaseId}/entries:remove (the `RemoveReleaseEntries` operationId).
+	RemoveReleaseEntriesWithBodyWithResponse(ctx context.Context, releaseId ReleaseId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RemoveReleaseEntriesResult, error)
+
+	// RemoveReleaseEntriesWithResponse Take entries out of a release
+	//
+	// An entry not in the release is passed over. Needs WRITE_ITEMS at the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /releases/{releaseId}/entries:remove (the `RemoveReleaseEntries` operationId).
+	RemoveReleaseEntriesWithResponse(ctx context.Context, releaseId ReleaseId, body RemoveReleaseEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*RemoveReleaseEntriesResult, error)
+
+	// PublishReleaseWithBodyWithResponse Release it
+	//
+	// Marks a planned release as released. Its done entries ship in it; its open ones move into another planned release of the hub (`carry_to`) or out of it. With `write_notes`, its notes - the description and the done entries the caller may see, grouped under their type's name, each a mention - are written as a page of the hub's space, which the release then names. Needs WRITE_ITEMS at the hub, and for the notes, the right to write the space.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /releases/{releaseId}:publish (the `PublishRelease` operationId).
+	PublishReleaseWithBodyWithResponse(ctx context.Context, releaseId ReleaseId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishReleaseResult, error)
+
+	// PublishReleaseWithResponse Release it
+	//
+	// Marks a planned release as released. Its done entries ship in it; its open ones move into another planned release of the hub (`carry_to`) or out of it. With `write_notes`, its notes - the description and the done entries the caller may see, grouped under their type's name, each a mention - are written as a page of the hub's space, which the release then names. Needs WRITE_ITEMS at the hub, and for the notes, the right to write the space.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /releases/{releaseId}:publish (the `PublishRelease` operationId).
+	PublishReleaseWithResponse(ctx context.Context, releaseId ReleaseId, body PublishReleaseJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishReleaseResult, error)
 
 	// ListReplyTemplatesWithResponse The workspace's canned replies
 	//
@@ -117231,6 +118254,102 @@ func (r CreatePageResult) ContentType() string {
 	return ""
 }
 
+type ListReleasesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ReleaseList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListReleasesResult) GetJSON200() *ReleaseList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListReleasesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListReleasesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListReleasesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListReleasesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListReleasesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateReleaseResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Release
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateReleaseResult) GetJSON201() *Release {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateReleaseResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateReleaseResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateReleaseResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateReleaseResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateReleaseResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadServiceMapResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -128143,6 +129262,287 @@ func (r ResolveReferencesResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ResolveReferencesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteReleaseResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteReleaseResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteReleaseResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteReleaseResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteReleaseResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteReleaseResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadReleaseResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ReleaseDetail
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadReleaseResult) GetJSON200() *ReleaseDetail {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadReleaseResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadReleaseResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadReleaseResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadReleaseResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadReleaseResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateReleaseResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Release
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateReleaseResult) GetJSON200() *Release {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UpdateReleaseResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateReleaseResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateReleaseResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateReleaseResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateReleaseResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AddReleaseEntriesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Release
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AddReleaseEntriesResult) GetJSON200() *Release {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AddReleaseEntriesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AddReleaseEntriesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AddReleaseEntriesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddReleaseEntriesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AddReleaseEntriesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveReleaseEntriesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Release
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RemoveReleaseEntriesResult) GetJSON200() *Release {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveReleaseEntriesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveReleaseEntriesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveReleaseEntriesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveReleaseEntriesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveReleaseEntriesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PublishReleaseResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Release
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PublishReleaseResult) GetJSON200() *Release {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PublishReleaseResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PublishReleaseResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PublishReleaseResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PublishReleaseResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PublishReleaseResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -143381,6 +144781,51 @@ func (c *ClientWithResponses) CreatePageWithResponse(ctx context.Context, hubId 
 	return ParseCreatePageResult(rsp)
 }
 
+// ListReleasesWithResponse A hub's releases
+//
+// The hub's releases, the latest day first, at most 200. Needs READ at the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/releases (the `ListReleases` operationId).
+func (c *ClientWithResponses) ListReleasesWithResponse(ctx context.Context, hubId HubId, params *ListReleasesParams, reqEditors ...RequestEditorFn) (*ListReleasesResult, error) {
+	rsp, err := c.ListReleases(ctx, hubId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListReleasesResult(rsp)
+}
+
+// CreateReleaseWithBodyWithResponse Plan a release
+//
+// A name, a description and the day it is meant to go out. It starts PLANNED; entries of the hub's collections join it until it is released. Needs WRITE_ITEMS at the hub; a collection has no releases of its own (`releases.hub_required`).
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/releases (the `CreateRelease` operationId).
+func (c *ClientWithResponses) CreateReleaseWithBodyWithResponse(ctx context.Context, hubId HubId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateReleaseResult, error) {
+	rsp, err := c.CreateReleaseWithBody(ctx, hubId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateReleaseResult(rsp)
+}
+
+// CreateReleaseWithResponse Plan a release
+//
+// A name, a description and the day it is meant to go out. It starts PLANNED; entries of the hub's collections join it until it is released. Needs WRITE_ITEMS at the hub; a collection has no releases of its own (`releases.hub_required`).
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/releases (the `CreateRelease` operationId).
+func (c *ClientWithResponses) CreateReleaseWithResponse(ctx context.Context, hubId HubId, body CreateReleaseJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateReleaseResult, error) {
+	rsp, err := c.CreateRelease(ctx, hubId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateReleaseResult(rsp)
+}
+
 // ReadServiceMapWithResponse A hub's service map
 //
 // Its active services and offerings, everything whose failure they suffer and the members of the groups standing for them, in layers, with the relations carrying impact between them. Needs READ on the hub.
@@ -148316,6 +149761,156 @@ func (c *ClientWithResponses) ResolveReferencesWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseResolveReferencesResult(rsp)
+}
+
+// DeleteReleaseWithResponse Delete a planned release
+//
+// Its entries are in no release afterwards and otherwise unchanged. A released one is the hub's record and stays (`releases.released`). Needs WRITE_ITEMS at the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /releases/{releaseId} (the `DeleteRelease` operationId).
+func (c *ClientWithResponses) DeleteReleaseWithResponse(ctx context.Context, releaseId ReleaseId, reqEditors ...RequestEditorFn) (*DeleteReleaseResult, error) {
+	rsp, err := c.DeleteRelease(ctx, releaseId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteReleaseResult(rsp)
+}
+
+// ReadReleaseWithResponse A release with its entries
+//
+// Every entry in the release the caller may see - its title, its type's name and whether it is done - and how many are done and open. Needs READ at the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /releases/{releaseId} (the `ReadRelease` operationId).
+func (c *ClientWithResponses) ReadReleaseWithResponse(ctx context.Context, releaseId ReleaseId, reqEditors ...RequestEditorFn) (*ReadReleaseResult, error) {
+	rsp, err := c.ReadRelease(ctx, releaseId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadReleaseResult(rsp)
+}
+
+// UpdateReleaseWithBodyWithResponse Change a release
+//
+// Its name, description or day; a member left out keeps what stands. A released release does not change (`releases.released`). Needs WRITE_ITEMS at the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /releases/{releaseId} (the `UpdateRelease` operationId).
+func (c *ClientWithResponses) UpdateReleaseWithBodyWithResponse(ctx context.Context, releaseId ReleaseId, params *UpdateReleaseParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateReleaseResult, error) {
+	rsp, err := c.UpdateReleaseWithBody(ctx, releaseId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateReleaseResult(rsp)
+}
+
+// UpdateReleaseWithResponse Change a release
+//
+// Its name, description or day; a member left out keeps what stands. A released release does not change (`releases.released`). Needs WRITE_ITEMS at the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /releases/{releaseId} (the `UpdateRelease` operationId).
+func (c *ClientWithResponses) UpdateReleaseWithResponse(ctx context.Context, releaseId ReleaseId, params *UpdateReleaseParams, body UpdateReleaseJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateReleaseResult, error) {
+	rsp, err := c.UpdateRelease(ctx, releaseId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateReleaseResult(rsp)
+}
+
+// AddReleaseEntriesWithBodyWithResponse Put entries into a release
+//
+// Entries of the hub's collections, all or none; a release holds at most 200. An entry is in one release at a time (`releases.entry_in_another_release`). Needs WRITE_ITEMS at the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /releases/{releaseId}/entries (the `AddReleaseEntries` operationId).
+func (c *ClientWithResponses) AddReleaseEntriesWithBodyWithResponse(ctx context.Context, releaseId ReleaseId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddReleaseEntriesResult, error) {
+	rsp, err := c.AddReleaseEntriesWithBody(ctx, releaseId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddReleaseEntriesResult(rsp)
+}
+
+// AddReleaseEntriesWithResponse Put entries into a release
+//
+// Entries of the hub's collections, all or none; a release holds at most 200. An entry is in one release at a time (`releases.entry_in_another_release`). Needs WRITE_ITEMS at the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /releases/{releaseId}/entries (the `AddReleaseEntries` operationId).
+func (c *ClientWithResponses) AddReleaseEntriesWithResponse(ctx context.Context, releaseId ReleaseId, body AddReleaseEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*AddReleaseEntriesResult, error) {
+	rsp, err := c.AddReleaseEntries(ctx, releaseId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddReleaseEntriesResult(rsp)
+}
+
+// RemoveReleaseEntriesWithBodyWithResponse Take entries out of a release
+//
+// An entry not in the release is passed over. Needs WRITE_ITEMS at the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /releases/{releaseId}/entries:remove (the `RemoveReleaseEntries` operationId).
+func (c *ClientWithResponses) RemoveReleaseEntriesWithBodyWithResponse(ctx context.Context, releaseId ReleaseId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RemoveReleaseEntriesResult, error) {
+	rsp, err := c.RemoveReleaseEntriesWithBody(ctx, releaseId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveReleaseEntriesResult(rsp)
+}
+
+// RemoveReleaseEntriesWithResponse Take entries out of a release
+//
+// An entry not in the release is passed over. Needs WRITE_ITEMS at the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /releases/{releaseId}/entries:remove (the `RemoveReleaseEntries` operationId).
+func (c *ClientWithResponses) RemoveReleaseEntriesWithResponse(ctx context.Context, releaseId ReleaseId, body RemoveReleaseEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*RemoveReleaseEntriesResult, error) {
+	rsp, err := c.RemoveReleaseEntries(ctx, releaseId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveReleaseEntriesResult(rsp)
+}
+
+// PublishReleaseWithBodyWithResponse Release it
+//
+// Marks a planned release as released. Its done entries ship in it; its open ones move into another planned release of the hub (`carry_to`) or out of it. With `write_notes`, its notes - the description and the done entries the caller may see, grouped under their type's name, each a mention - are written as a page of the hub's space, which the release then names. Needs WRITE_ITEMS at the hub, and for the notes, the right to write the space.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /releases/{releaseId}:publish (the `PublishRelease` operationId).
+func (c *ClientWithResponses) PublishReleaseWithBodyWithResponse(ctx context.Context, releaseId ReleaseId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishReleaseResult, error) {
+	rsp, err := c.PublishReleaseWithBody(ctx, releaseId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePublishReleaseResult(rsp)
+}
+
+// PublishReleaseWithResponse Release it
+//
+// Marks a planned release as released. Its done entries ship in it; its open ones move into another planned release of the hub (`carry_to`) or out of it. With `write_notes`, its notes - the description and the done entries the caller may see, grouped under their type's name, each a mention - are written as a page of the hub's space, which the release then names. Needs WRITE_ITEMS at the hub, and for the notes, the right to write the space.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /releases/{releaseId}:publish (the `PublishRelease` operationId).
+func (c *ClientWithResponses) PublishReleaseWithResponse(ctx context.Context, releaseId ReleaseId, body PublishReleaseJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishReleaseResult, error) {
+	rsp, err := c.PublishRelease(ctx, releaseId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePublishReleaseResult(rsp)
 }
 
 // ListReplyTemplatesWithResponse The workspace's canned replies
@@ -163651,6 +165246,72 @@ func ParseCreatePageResult(rsp *http.Response) (*CreatePageResult, error) {
 	return response, nil
 }
 
+// ParseListReleasesResult parses an HTTP response from a ListReleasesWithResponse call
+func ParseListReleasesResult(rsp *http.Response) (*ListReleasesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListReleasesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ReleaseList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateReleaseResult parses an HTTP response from a CreateReleaseWithResponse call
+func ParseCreateReleaseResult(rsp *http.Response) (*CreateReleaseResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateReleaseResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Release
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseReadServiceMapResult parses an HTTP response from a ReadServiceMapWithResponse call
 func ParseReadServiceMapResult(rsp *http.Response) (*ReadServiceMapResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -171450,6 +173111,200 @@ func ParseResolveReferencesResult(rsp *http.Response) (*ResolveReferencesResult,
 		var dest struct {
 			Data []ReferenceTarget `json:"data"`
 		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteReleaseResult parses an HTTP response from a DeleteReleaseWithResponse call
+func ParseDeleteReleaseResult(rsp *http.Response) (*DeleteReleaseResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteReleaseResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadReleaseResult parses an HTTP response from a ReadReleaseWithResponse call
+func ParseReadReleaseResult(rsp *http.Response) (*ReadReleaseResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadReleaseResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ReleaseDetail
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateReleaseResult parses an HTTP response from a UpdateReleaseWithResponse call
+func ParseUpdateReleaseResult(rsp *http.Response) (*UpdateReleaseResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateReleaseResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Release
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddReleaseEntriesResult parses an HTTP response from a AddReleaseEntriesWithResponse call
+func ParseAddReleaseEntriesResult(rsp *http.Response) (*AddReleaseEntriesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddReleaseEntriesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Release
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveReleaseEntriesResult parses an HTTP response from a RemoveReleaseEntriesWithResponse call
+func ParseRemoveReleaseEntriesResult(rsp *http.Response) (*RemoveReleaseEntriesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveReleaseEntriesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Release
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePublishReleaseResult parses an HTTP response from a PublishReleaseWithResponse call
+func ParsePublishReleaseResult(rsp *http.Response) (*PublishReleaseResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PublishReleaseResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Release
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

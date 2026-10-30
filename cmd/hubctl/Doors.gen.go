@@ -1465,6 +1465,70 @@ var generatedCommands = []door{
 			{Name: "portfolioId", Kind: "uuid", Help: "A portfolio", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "status"}},
+	{Group: "release", Verb: "add", OperationID: "addReleaseEntries", Method: "POST", Path: "/releases/{releaseId}/entries", Summary: "Put entries into a release",
+		PathParams: []doorParam{
+			{Name: "releaseId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "item_ids", Kind: "strings", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "state", "version"}},
+	{Group: "release", Verb: "create", OperationID: "createRelease", Method: "POST", Path: "/hubs/{hubId}/releases", Summary: "Plan a release",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "description", Kind: "string", Help: "", Required: false},
+			{Name: "name", Kind: "string", Help: "", Required: true},
+			{Name: "release_on", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "state", "version"}},
+	{Group: "release", Verb: "get", OperationID: "readRelease", Method: "GET", Path: "/releases/{releaseId}", Summary: "A release with its entries",
+		PathParams: []doorParam{
+			{Name: "releaseId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "release", Verb: "ls", OperationID: "listReleases", Method: "GET", Path: "/hubs/{hubId}/releases", Summary: "A hub's releases",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "state", Kind: "string", Help: "Only releases in this state", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "name", "state", "version"}},
+	{Group: "release", Verb: "publish", OperationID: "publishRelease", Method: "POST", Path: "/releases/{releaseId}:publish", Summary: "Release it",
+		PathParams: []doorParam{
+			{Name: "releaseId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "carry_to", Kind: "uuid", Help: "", Required: false},
+			{Name: "notes_parent_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "write_notes", Kind: "boolean", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "state", "version"}},
+	{Group: "release", Verb: "remove", OperationID: "removeReleaseEntries", Method: "POST", Path: "/releases/{releaseId}/entries:remove", Summary: "Take entries out of a release",
+		PathParams: []doorParam{
+			{Name: "releaseId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "item_ids", Kind: "strings", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "state", "version"}},
+	{Group: "release", Verb: "rm", OperationID: "deleteRelease", Method: "DELETE", Path: "/releases/{releaseId}", Summary: "Delete a planned release",
+		PathParams: []doorParam{
+			{Name: "releaseId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "release", Verb: "update", OperationID: "updateRelease", Method: "PATCH", Path: "/releases/{releaseId}", Summary: "Change a release",
+		PathParams: []doorParam{
+			{Name: "releaseId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "description", Kind: "string", Help: "", Required: false},
+			{Name: "name", Kind: "string", Help: "", Required: false},
+			{Name: "release_on", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "name", "state", "version"}},
 	{Group: "reply", Verb: "define", OperationID: "defineReplyTemplate", Method: "PUT", Path: "/reply-templates/{templateKey}", Summary: "Add or replace a canned reply",
 		PathParams: []doorParam{
 			{Name: "templateKey", Kind: "string", Help: "", Required: true},

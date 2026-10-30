@@ -808,6 +808,19 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `reference.resolved` | ResolveReferences | `reference` | INFO | When refused |
 
+## Release
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `release.created` | CreateRelease | `release` | INFO | Every time |
+| `release.deleted` | DeleteRelease | `release` | INFO | Every time |
+| `release.entries_added` | AddReleaseEntries | `release` | INFO | Every time |
+| `release.entries_removed` | RemoveReleaseEntries | `release` | INFO | Every time |
+| `release.published` | PublishRelease | `release` | INFO | Every time |
+| `release.read` | ListReleases | `release` | INFO | When refused |
+| `release.read` | ReadRelease | `release` | INFO | When refused |
+| `release.updated` | UpdateRelease | `release` | INFO | Every time |
+
 ## Reply_template
 
 | Action | Use case | Target | Severity | Recorded |

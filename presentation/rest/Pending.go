@@ -2799,3 +2799,27 @@ func (pending) StartCiCampaign(w http.ResponseWriter, r *http.Request, _ openapi
 func (pending) UnaffectEntryCi(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }
+func (pending) ListReleases(w http.ResponseWriter, r *http.Request, _ openapi.HubId, _ openapi.ListReleasesParams) {
+	notAvailable(w, r)
+}
+func (pending) CreateRelease(w http.ResponseWriter, r *http.Request, _ openapi.HubId) {
+	notAvailable(w, r)
+}
+func (pending) ReadRelease(w http.ResponseWriter, r *http.Request, _ openapi.ReleaseId) {
+	notAvailable(w, r)
+}
+func (pending) UpdateRelease(w http.ResponseWriter, r *http.Request, _ openapi.ReleaseId, _ openapi.UpdateReleaseParams) {
+	notAvailable(w, r)
+}
+func (pending) DeleteRelease(w http.ResponseWriter, r *http.Request, _ openapi.ReleaseId) {
+	notAvailable(w, r)
+}
+func (pending) PublishRelease(w http.ResponseWriter, r *http.Request, _ openapi.ReleaseId) {
+	notAvailable(w, r)
+}
+func (pending) AddReleaseEntries(w http.ResponseWriter, r *http.Request, _ openapi.ReleaseId) {
+	notAvailable(w, r)
+}
+func (pending) RemoveReleaseEntries(w http.ResponseWriter, r *http.Request, _ openapi.ReleaseId) {
+	notAvailable(w, r)
+}

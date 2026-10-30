@@ -151,6 +151,46 @@ export class HubtaskClient {
     return this.call("PUT", "/items/{itemId}/scheduling", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** A hub's releases */
+  listReleases(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listReleases"]['parameters']['query']> } = {}): Promise<operations["listReleases"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/releases", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Plan a release */
+  createRelease(hubId: string, body: NonNullable<operations["createRelease"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createRelease"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/hubs/{hubId}/releases", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** A release with its entries */
+  readRelease(releaseId: string, options: CallOptions = {}): Promise<operations["readRelease"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/releases/{releaseId}", { "releaseId": releaseId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Change a release */
+  updateRelease(releaseId: string, body: NonNullable<operations["updateRelease"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateRelease"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/releases/{releaseId}", { "releaseId": releaseId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Delete a planned release */
+  deleteRelease(releaseId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/releases/{releaseId}", { "releaseId": releaseId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Release it */
+  publishRelease(releaseId: string, body: NonNullable<operations["publishRelease"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["publishRelease"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/releases/{releaseId}:publish", { "releaseId": releaseId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Put entries into a release */
+  addReleaseEntries(releaseId: string, body: NonNullable<operations["addReleaseEntries"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["addReleaseEntries"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/releases/{releaseId}/entries", { "releaseId": releaseId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Take entries out of a release */
+  removeReleaseEntries(releaseId: string, body: NonNullable<operations["removeReleaseEntries"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["removeReleaseEntries"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/releases/{releaseId}/entries:remove", { "releaseId": releaseId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** A collection's sprints */
   listSprints(collectionId: string, options: CallOptions & { readonly query?: NonNullable<operations["listSprints"]['parameters']['query']> } = {}): Promise<operations["listSprints"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/collections/{collectionId}/sprints", { "collectionId": collectionId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

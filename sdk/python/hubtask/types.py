@@ -1323,6 +1323,34 @@ class Sprint(TypedDict, total=False):
     closed_at: Required[str | None]
     version: Required[int]
 
+class Release(TypedDict, total=False):
+    id: Required[str]
+    hub_id: Required[str]
+    name: Required[str]
+    description: Required[str]
+    release_on: Required[str]
+    state: Required[Literal["PLANNED", "RELEASED"]]
+    released_at: Required[str | None]
+    notes_page_id: Required[str | None]
+    version: Required[int]
+
+class ReleaseList(TypedDict, total=False):
+    data: Required[list["Release"]]
+
+class ReleaseDetail(TypedDict, total=False):
+    id: Required[str]
+    hub_id: Required[str]
+    name: Required[str]
+    description: Required[str]
+    release_on: Required[str]
+    state: Required[Literal["PLANNED", "RELEASED"]]
+    released_at: Required[str | None]
+    notes_page_id: Required[str | None]
+    version: Required[int]
+    done_count: Required[int]
+    open_count: Required[int]
+    entries: Required[list[dict[str, Any]]]
+
 class SprintList(TypedDict, total=False):
     data: Required[list["Sprint"]]
 
