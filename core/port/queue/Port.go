@@ -488,6 +488,11 @@ const (
 	// moment; the write that schedules a connector seeds it.
 	KindCmdbConnectorPull Kind = "cmdb.connector_pull"
 
+	// KindLdapSync is a workspace's LDAP synchronisation (UC-ID-31): one job per workspace,
+	// deduplicated by it, rescheduling itself to the directory's next run and finishing when the
+	// directory is removed or switched off; the write that configures it seeds it.
+	KindLdapSync Kind = "directory.ldap_sync"
+
 	// KindDashboardDigest is one person's digest of a dashboard by mail (UC-GOL-04): one job per
 	// digest, deduplicated by its identifier, rescheduling itself to the digest's next moment; the
 	// write that sets the digest seeds it.

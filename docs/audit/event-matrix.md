@@ -448,6 +448,15 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `trash.emptied` | EmptyTrash | `trash` | WARNING | Every time |
 | `trash.read` | ListTrash | `trash` | INFO | When refused |
 
+## Directory
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `directory.ldap_configured` | ConfigureLdapDirectory | `ldap_directory` | NOTICE | Every time |
+| `directory.ldap_read` | ShowLdapDirectory | `ldap_directory` | INFO | When refused |
+| `directory.ldap_removed` | RemoveLdapDirectory | `ldap_directory` | NOTICE | Every time |
+| `directory.ldap_synced` | SyncLdapDirectory | `ldap_directory` | NOTICE | Every time |
+
 ## Dsr
 
 | Action | Use case | Target | Severity | Recorded |

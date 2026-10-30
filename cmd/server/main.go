@@ -122,6 +122,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
 	importadapter "github.com/Jersyfi/hubtask/infrastructure/importer"
 	"github.com/Jersyfi/hubtask/infrastructure/instancefile"
+	ldapadapter "github.com/Jersyfi/hubtask/infrastructure/ldap"
 	mailadapter "github.com/Jersyfi/hubtask/infrastructure/mail"
 	mailboxadapter "github.com/Jersyfi/hubtask/infrastructure/mailbox"
 	"github.com/Jersyfi/hubtask/infrastructure/observability"
@@ -1670,6 +1671,37 @@ func run() error {
 	accessTokenWriter.StepUp = stepUpVerifier
 	workspaceWriter.StepUp = stepUpVerifier
 	identityProviderWriter.StepUp = stepUpVerifier
+
+	// The SCIM door a directory provisions through (UC-ID-28), and the LDAP synchronisation that
+	// acts through the same service as its service account (UC-ID-31): the group acts are the
+	// catalogue's own, wired as they are there.
+	directory := identity.Directory{
+		Accounts: accounts, Names: accounts, Links: postgres.NewDirectoryRepository(), Groups: groups,
+		Sessions: sessions, Owners: grants, Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains, Text: forms,
+		Limit: quotaGuard,
+		CreateGroup: identity.CreateGroup{
+			Groups: groups, Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		},
+		UpdateGroup: identity.UpdateGroup{
+			Groups: groups, Accounts: accounts, Grants: grants, Authorizer: authorizer, Revocations: revocations,
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
+			Owners: grants, StepUp: stepUpVerifier, Platform: platformEvents,
+			Notices: customRoles,
+		},
+		DeleteGroup: identity.DeleteGroup{
+			Groups: groups, Grants: grants, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Owners: grants,
+			StepUp: stepUpVerifier, Platform: platformEvents,
+			Notices: customRoles,
+		},
+	}
+	ldapDirectories := identity.LdapDirectories{
+		Store: postgres.NewLdapDirectoryRepository(), Reader: ldapadapter.Directory{Guard: outboundGuard},
+		Encryptor: encryptor, Directory: directory, StepUp: stepUpVerifier,
+		Jobs: jobs,
+	}
 	instanceProviderWriter.Configure = identityProviderWriter
 	passwordWriter.StepUp = stepUpVerifier
 	instanceTargetWriter.StepUp = stepUpVerifier
@@ -2597,6 +2629,10 @@ func run() error {
 		identity.ReadWorkspace{Writer: workspaceWriter}.Descriptor(),
 		identity.UpdateWorkspace{Writer: workspaceWriter}.Descriptor(),
 		identity.ConfigureIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
+		identity.ShowLdapDirectory{Directories: ldapDirectories}.Descriptor(),
+		identity.ConfigureLdapDirectory{Directories: ldapDirectories}.Descriptor(),
+		identity.RemoveLdapDirectory{Directories: ldapDirectories}.Descriptor(),
+		identity.SyncLdapDirectory{Directories: ldapDirectories}.Descriptor(),
 		identity.ListIdentityProviders{Writer: identityProviderWriter}.Descriptor(),
 		identity.CountAccountsWithoutProvider{
 			Writer: identityProviderWriter, External: postgres.NewExternalAccountRepository(),
@@ -3574,28 +3610,7 @@ func run() error {
 		controller.CmdbInventory = intake.InventoryIntake{Deliveries: connectors}
 		// The SCIM door a directory provisions through (UC-ID-28): the group acts are the
 		// catalogue's own, wired as they are there.
-		controller.Directory = identity.Directory{
-			Accounts: accounts, Names: accounts, Links: postgres.NewDirectoryRepository(), Groups: groups,
-			Sessions: sessions, Owners: grants, Authorizer: authorizer, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains, Text: forms,
-			Limit: quotaGuard,
-			CreateGroup: identity.CreateGroup{
-				Groups: groups, Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
-				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
-			},
-			UpdateGroup: identity.UpdateGroup{
-				Groups: groups, Accounts: accounts, Grants: grants, Authorizer: authorizer, Revocations: revocations,
-				Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
-				Owners: grants, StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Platform: platformEvents,
-				Notices: customRoles,
-			},
-			DeleteGroup: identity.DeleteGroup{
-				Groups: groups, Grants: grants, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
-				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Owners: grants,
-				StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Platform: platformEvents,
-				Notices: customRoles,
-			},
-		}
+		controller.Directory = directory
 		controller.MailIntake = intake.MailIntake{
 			Deliveries: jumbleservice.IntakeMail{
 				Intake: jumbleIntake, Entries: postgres.NewJumbleRepository(cursors),
@@ -4703,6 +4718,8 @@ func run() error {
 			Fallback: cfg.Retention.Interval,
 		},
 		queueport.KindCmdbConnectorPull: worker.CmdbConnectorPull{Connectors: connectors},
+		// A workspace's LDAP synchronisation, rescheduling itself (UC-ID-31).
+		queueport.KindLdapSync: identity.LdapSyncJob{Directories: ldapDirectories},
 		// A shipped agent's job, acting through the gate on its own account (G11).
 		queueport.KindAgentJob: worker.AgentJob{Runner: agentservice.Runner{
 			Desk: agentDesk, Proposer: suggestionservice.AgentProposals{Produce: produceSuggestion},

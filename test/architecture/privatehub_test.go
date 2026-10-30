@@ -105,6 +105,7 @@ var privateHubExemptions = map[string]string{
 	"ListServiceAccounts":          noHub,
 	"ListSessions":                 noHub,
 	"ReadIdentityProvider":         noHub,
+	"ShowLdapDirectory":            noHub,
 	"ReadOauthClient":              noHub,
 	"ReadWorkspace":                noHub,
 }
