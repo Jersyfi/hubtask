@@ -18,7 +18,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, CommentThread, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Button, CommentThread, Stack, Switch, Textarea } from '@hubtask/design-system/components';
   import type { ThreadComment } from '@hubtask/design-system/components';
   import type { Comment, CommentPage, WorkItem } from '@hubtask/sync-engine';
 
@@ -35,6 +35,7 @@
   import MentionDialog from '../entries/MentionDialog.svelte';
   import ReferenceChip from '../entries/ReferenceChip.svelte';
   import { inserted, referencesIn, resolved } from '../data/links.svelte.ts';
+  import DeskTools from '../servicedesk/DeskTools.svelte';
 
   /**
    * `mayComment`: whether the reader may add to this thread, from their role on the entry - a
@@ -51,7 +52,18 @@
     path,
     mayComment,
     isClosed = false,
-  }: { item: WorkItem; path: Path; mayComment: boolean | undefined; isClosed?: boolean } = $props();
+    isDesk = false,
+  }: {
+    item: WorkItem;
+    path: Path;
+    mayComment: boolean | undefined;
+    isClosed?: boolean;
+    /** The service desk is on: an internal note, a canned reply and a macro are offered (UC-SVC-04, 06). */
+    isDesk?: boolean;
+  } = $props();
+
+  /** Whether the next comment is a note for the team; a reply to an internal note is one anyway. */
+  let isInternal = $state(false);
 
 
   // The path is taken once, as every other subscription in this application takes one: the view
@@ -126,7 +138,8 @@
       when: formatDateTime(comment.created_at, messages.locale),
       at: comment.created_at,
       isRemoved: removed,
-      editedLabel: comment.edited_at ? t('app.comments.edited') : undefined,
+      editedLabel: [comment.internal ? t('app.desk.internal_mark') : '', comment.edited_at ? t('app.comments.edited') : '']
+        .filter((word) => word !== '').join(' · ') || undefined,
       // Offered to the author and to an administrator, and to nobody else - not drawn off with a
       // sentence on every comment (UC-WRK-19 check 3, P-05) - and to nobody while it is closed.
       isChangeable: moderates && !isClosed,
@@ -151,7 +164,7 @@
     if (draft.trim() === '' || tooLong) return;
     void attempt(async () => {
       if (editing) await comments.edit(item.id, editing, draft);
-      else await comments.add(item.id, draft, replyTo, crypto.randomUUID());
+      else await comments.add(item.id, draft, replyTo, crypto.randomUUID(), isDesk && isInternal);
       draft = '';
       replyTo = undefined;
       editing = undefined;
@@ -212,6 +225,11 @@
           rows={draft.trim() === '' ? 1 : 3}
           error={tooLong ? t('app.comments.too_long', { limit: String(BODY_LIMIT), length: String(bodyLength(draft)) }) : undefined}
         />
+        {#if isDesk && !editing}
+          <Switch label={t('app.desk.internal')} hint={t('app.desk.internal_hint')} checked={isInternal}
+            onchange={(event: Event) => (isInternal = (event.currentTarget as HTMLInputElement).checked)} />
+          <DeskTools itemId={item.id} oninsert={(text) => (draft = draft.trim() === '' ? text : `${draft}\n\n${text}`)} />
+        {/if}
         {#if writeFailure}<p class="failure" role="alert">{writeFailure}</p>{/if}
         <div class="actions">
           <Button isBusy={isSending} busyLabel={t('app.workspace.saving')} onclick={send}>

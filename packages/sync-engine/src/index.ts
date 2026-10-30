@@ -166,6 +166,8 @@ export type {
   ReplyTemplate,
   ReplyTemplateList,
   ReplyTemplateDefine,
+  RenderedReply,
+  SlaGoal,
   Approval,
   ApprovalList,
   ApprovalDelegation,

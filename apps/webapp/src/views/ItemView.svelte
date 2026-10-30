@@ -96,6 +96,7 @@
   import LinksSection from '../lib/entries/LinksSection.svelte';
   import AffectedCis from '../lib/entries/AffectedCis.svelte';
   import EntryApprovals from '../lib/servicedesk/EntryApprovals.svelte';
+  import EntrySla from '../lib/servicedesk/EntrySla.svelte';
   import EntryProvenance from '../lib/entries/EntryProvenance.svelte';
   import EntryTimer from '../lib/time/EntryTimer.svelte';
   import EntryGoals from '../lib/goals/EntryGoals.svelte';
@@ -1358,6 +1359,8 @@
         {#key item.id}<StepControl {item} />{/key}
         <!-- The approvals its steps opened and their trail, where the service desk is on (UC-SVC-09 check 4). -->
         {#if manifest.value?.modules_on?.includes('SERVICE_DESK')}
+          <!-- Its promised times (UC-SVC-02 check 6). -->
+          {#key item.id}<EntrySla itemId={item.id} />{/key}
           {#key item.id}<EntryApprovals itemId={item.id} />{/key}
         {/if}
         <!-- Links from both sides, backlinks and what the notes mention (UC-PLN-01). Keyed, so
@@ -1394,7 +1397,8 @@
               <div class="field-ai"><AiAsk {item} place="comments" mayChange={isWritable} {hasComments} standing={standingAt('comments')} /></div>
               <AiPlace {item} place="comments" proposals={proposalsAt('comments')} mayChange={isWritable} onclose={closeProposal} />
             {/if}
-            <CommentPanel {item} path={peoplePath} mayComment={frozenReason === undefined ? mayCommentHere : false} isClosed={frozenReason !== undefined} />
+            <CommentPanel {item} path={peoplePath} mayComment={frozenReason === undefined ? mayCommentHere : false} isClosed={frozenReason !== undefined}
+              isDesk={manifest.value?.modules_on?.includes('SERVICE_DESK') ?? false} />
           {:else}
             <Stack gap="150">
               {#if historyFailure}
