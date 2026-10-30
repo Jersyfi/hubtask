@@ -5,9 +5,9 @@ context: planning
 actors: [PE-planner, PE-member, PE-integrator, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-04, P-08, P-11, P-13, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/planning/Schedule_test.go, core/application/service/planning/Planner_test.go, test/integration/planning_repository_test.go]
+checked_by: [core/domain/model/planning/Schedule_test.go, core/application/service/planning/Planner_test.go, test/integration/planning_repository_test.go, apps/webapp/src/lib/data/planning.test.ts, apps/webapp/src/lib/data/schedule.test.ts]
 ---
 
 # See the plan as a Gantt chart and move it by hand
@@ -59,7 +59,3 @@ The design lead sets the copy to start two days after the design starts instead.
 * A plan is one hub or one collection; an entry outside it that a dependency names is shown and
   kept where it is, never moved by this plan.
 * Export of the chart to PDF or PNG and of the plan to a spreadsheet is the release after M2's first.
-
-## Today
-
-* Check 7: not met — no Gantt screen in the web app yet (S-19, second part).

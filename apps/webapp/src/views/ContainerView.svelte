@@ -857,9 +857,14 @@
    * join the place's menu. Import is the place's menu's, the filter the toolbar's.
    */
   const moduleActions = $derived.by<PageAction[]>(() => {
-    if (container?.type !== 'HUB') return [];
+    if (!container) return [];
     const on = manifest.value?.modules_on ?? [];
     const actions: PageAction[] = [];
+    if (on.includes('PLANNING')) {
+      const base = container.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`;
+      actions.push({ label: t('app.planning.title'), icon: 'calendar', onclick: () => onnavigate(`${base}/plan`) });
+    }
+    if (container.type !== 'HUB') return actions;
     if (on.includes('KNOWLEDGE')) actions.push({ label: t('app.pages.title'), icon: 'book-open', onclick: () => onnavigate(`/hubs/${id}/pages`) });
     if (on.includes('WHITEBOARD')) actions.push({ label: t('app.whiteboards.title'), icon: 'layout-template', onclick: () => onnavigate(`/hubs/${id}/whiteboards`) });
     if (on.includes('ASSETS')) actions.push({ label: t('app.assets.title'), icon: 'shield', onclick: () => onnavigate(`/hubs/${id}/assets`) });

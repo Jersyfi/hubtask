@@ -816,3 +816,15 @@ export type DataSubjectRequestExtension = components['schemas']['DataSubjectRequ
 export type DataSubjectRequestExtensionReason = components['schemas']['DataSubjectRequestExtensionReason'];
 /** What an erasure does to other people's content. */
 export type ErasureMode = components['schemas']['ErasureMode'];
+
+/** A hub's or a collection's plan as the scheduler places it, and what is written to it (M2). */
+export type PlanSchedule = components['schemas']['PlanSchedule'];
+export type PlanScheduleEntry = components['schemas']['PlanScheduleEntry'];
+export type PlanDependency = components['schemas']['PlanDependency'];
+export type PlanConflict = components['schemas']['PlanConflict'];
+export type PlanMoves = components['schemas']['PlanMoves'];
+export type EntryScheduling = components['schemas']['EntryScheduling'];
+export type PlanBaseline = components['schemas']['PlanBaseline'];
+export type PlanBaselineList = components['schemas']['PlanBaselineList'];
+export type BaselineVariance = components['schemas']['BaselineVariance'];
+export type BaselineComparison = components['schemas']['BaselineComparison'];

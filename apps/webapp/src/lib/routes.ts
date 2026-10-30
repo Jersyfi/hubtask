@@ -128,6 +128,9 @@ export const ROUTES: readonly Route[] = [
   // A hub's whiteboards and one of them (M4), addressed as a page is.
   { name: 'hub-whiteboards', pattern: '/hubs/:id/whiteboards' },
   { name: 'whiteboard', pattern: '/whiteboards/:id' },
+  // A hub's or a collection's plan (M2): the schedule as a Gantt chart and as a table.
+  { name: 'hub-plan', pattern: '/hubs/:id/plan' },
+  { name: 'collection-plan', pattern: '/collections/:id/plan' },
   // A hub's assets (M6) by section, and one configuration item, addressed by itself because an
   // impact, a duplicate or a health problem links it without its hub.
   { name: 'hub-assets', pattern: '/hubs/:id/assets' },

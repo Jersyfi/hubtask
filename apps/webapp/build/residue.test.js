@@ -255,6 +255,8 @@ async function views() {
     ['page', await load('PagesView'), { pageId: ITEM, onnavigate: noop }],
     ['hub-whiteboards', await load('WhiteboardsView'), { hubId: COLLECTION, onnavigate: noop }],
     ['whiteboard', await load('WhiteboardsView'), { boardId: ITEM, onnavigate: noop }],
+    ['hub-plan', await load('PlanView'), { planId: COLLECTION, onnavigate: noop }],
+    ['collection-plan', await load('PlanView'), { planId: COLLECTION, onnavigate: noop }],
     ['hub-assets', await load('AssetsView'), { hubId: COLLECTION, onnavigate: noop }],
     ['hub-assets-section', await load('AssetsView'), { hubId: COLLECTION, section: 'health', onnavigate: noop }],
     ['ci', await load('AssetsView'), { ciId: ITEM, onnavigate: noop }],
