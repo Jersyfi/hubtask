@@ -63,6 +63,14 @@ type Modules struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Epochs is the workspace's synchronisation epoch, advanced when a module whose records leave
+	// a device's copy turns on or off at the workspace (offline-sync.md §8). Nil advances nothing.
+	Epochs Epochs
+}
+
+// Epochs advances the workspace's synchronisation epoch inside the caller's transaction.
+type Epochs interface {
+	Advance(ctx context.Context) (int64, error)
 }
 
 // place is the workspace or one hub of it, with the places a resolution walks through.
@@ -234,9 +242,28 @@ func (h SetModule) Execute(ctx context.Context, actor appshared.ActorContext, cm
 		}
 		states = module.Resolve(layers...)
 		after := domain.Resolve(definition, layers...)
+		if err := m.resynchronise(ctx, cmd, before, after); err != nil {
+			return err
+		}
 		return m.recordAudit(ctx, actor, where, cmd, before, after, now)
 	})
 	return states, err
+}
+
+// resynchronise advances the epoch when the workspace's switch of a module the replica narrows
+// changes what it resolves to: every device walks again, and holds the module's records exactly
+// while it is on - a delta could not hand back what the stream withheld while it was off.
+func (m Modules) resynchronise(ctx context.Context, cmd SetModuleCommand, before, after domain.Resolution) error {
+	if m.Epochs == nil || !cmd.HubID.IsZero() || !cmd.Module.NarrowsReplica() {
+		return nil
+	}
+	was, _ := before.Effective.(bool)
+	is, _ := after.Effective.(bool)
+	if was == is {
+		return nil
+	}
+	_, err := m.Epochs.Advance(ctx)
+	return err
 }
 
 func (m Modules) recordAudit(

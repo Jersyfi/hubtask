@@ -268,3 +268,39 @@ func TestReadingNeedsTheRightToShape(t *testing.T) {
 		t.Error("a refused switch wrote a success entry")
 	}
 }
+
+type epochs struct{ advanced int }
+
+func (e *epochs) Advance(context.Context) (int64, error) {
+	e.advanced++
+	return int64(e.advanced), nil
+}
+
+// The goals leave a device's copy while off (offline-sync.md §8): a change of what the workspace
+// resolves them to advances the epoch, so every device walks again; a hub's narrowing, another
+// module and a switch that changes nothing advance none.
+func TestSwitchingTheGoalsResynchronisesTheWorkspace(t *testing.T) {
+	ctx := context.Background()
+	modules, _, _ := fixture()
+	counter := &epochs{}
+	modules.Epochs = counter
+	set := settingservice.SetModule{Modules: modules}
+	steps := []struct {
+		cmd  settingservice.SetModuleCommand
+		want int
+	}{
+		{settingservice.SetModuleCommand{Module: module.Planning, Switch: settingservice.SwitchOn}, 0},
+		{settingservice.SetModuleCommand{Module: module.Goals, Switch: settingservice.SwitchOn}, 1},
+		{settingservice.SetModuleCommand{Module: module.Goals, Switch: settingservice.SwitchOn}, 1},
+		{settingservice.SetModuleCommand{Module: module.Goals, Switch: settingservice.SwitchOff, HubID: hub}, 1},
+		{settingservice.SetModuleCommand{Module: module.Goals, Switch: settingservice.SwitchInherit}, 2},
+	}
+	for i, step := range steps {
+		if _, err := set.Execute(ctx, actor(), step.cmd); err != nil {
+			t.Fatalf("step %d: %v", i, err)
+		}
+		if counter.advanced != step.want {
+			t.Errorf("after step %d the epoch advanced %d times, want %d", i, counter.advanced, step.want)
+		}
+	}
+}

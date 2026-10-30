@@ -98,3 +98,13 @@ func TestEveryModuleIsAValidCatalogueEntry(t *testing.T) {
 		}
 	}
 }
+
+// Only the goals leave a device's copy while off: every other module's records are drawn by the
+// base product's screens too.
+func TestOnlyTheGoalsNarrowTheReplica(t *testing.T) {
+	for _, key := range module.Keys() {
+		if got, want := key.NarrowsReplica(), key == module.Goals; got != want {
+			t.Errorf("%s.NarrowsReplica() = %v, want %v", key, got, want)
+		}
+	}
+}

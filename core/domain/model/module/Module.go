@@ -88,6 +88,12 @@ func (k Key) Definition() setting.Definition {
 	}
 }
 
+// NarrowsReplica reports whether a device's copy holds the module's records only while the module
+// is on at the workspace (offline-sync.md §8): the goals, read by no other module's screen. A
+// module whose records others draw from - a workflow's statuses, a sprint on an entry - stays in
+// the copy and is hidden by the client.
+func (k Key) NarrowsReplica() bool { return k == Goals }
+
 // Definitions is every module's entry, in Keys' order.
 func Definitions() []setting.Definition {
 	out := make([]setting.Definition, 0, len(keys))
