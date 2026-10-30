@@ -28,10 +28,10 @@ import (
 
 // The use case names and trail codes of a page's public link (UC-DOC-08 check 4).
 const (
-	CreatePagePublicLinkName = "CreatePagePublicLink"
-	DeletePagePublicLinkName = "DeletePagePublicLink"
+	CreatePagePublicLinkName  = "CreatePagePublicLink"
+	DeletePagePublicLinkName  = "DeletePagePublicLink"
 	ReadPublicLinksPolicyName = "ReadPublicLinksPolicy"
-	SetPublicLinksPolicyName = "SetPublicLinksPolicy"
+	SetPublicLinksPolicyName  = "SetPublicLinksPolicy"
 
 	PagePublicLinkCreatedAction audit.Action = "page.public_link_created"
 	PagePublicLinkDeletedAction audit.Action = "page.public_link_deleted"
