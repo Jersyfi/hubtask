@@ -69,6 +69,7 @@ without a row here, a row without a mark, and a mark for a preset the server doe
 | [cel.dev/expr](https://pkg.go.dev/cel.dev/expr?tab=licenses) | Apache-2.0 |
 | [github.com/antlr4-go/antlr/v4](https://pkg.go.dev/github.com/antlr4-go/antlr/v4?tab=licenses) | BSD-3-Clause |
 | [github.com/apapsch/go-jsonmerge/v2](https://pkg.go.dev/github.com/apapsch/go-jsonmerge/v2?tab=licenses) | MIT |
+| [github.com/beevik/etree](https://pkg.go.dev/github.com/beevik/etree?tab=licenses) | BSD-2-Clause |
 | [github.com/beorn7/perks/quantile](https://pkg.go.dev/github.com/beorn7/perks/quantile?tab=licenses) | MIT |
 | [github.com/cenkalti/backoff/v5](https://pkg.go.dev/github.com/cenkalti/backoff/v5?tab=licenses) | MIT |
 | [github.com/cespare/xxhash/v2](https://pkg.go.dev/github.com/cespare/xxhash/v2?tab=licenses) | MIT |
@@ -84,6 +85,7 @@ without a row here, a row without a mark, and a mark for a preset the server doe
 | [github.com/jackc/pgservicefile](https://pkg.go.dev/github.com/jackc/pgservicefile?tab=licenses) | MIT |
 | [github.com/jackc/pgx/v5](https://pkg.go.dev/github.com/jackc/pgx/v5?tab=licenses) | MIT |
 | [github.com/jackc/puddle/v2](https://pkg.go.dev/github.com/jackc/puddle/v2?tab=licenses) | MIT |
+| [github.com/jonboulle/clockwork](https://pkg.go.dev/github.com/jonboulle/clockwork?tab=licenses) | Apache-2.0 |
 | [github.com/klauspost/compress](https://pkg.go.dev/github.com/klauspost/compress?tab=licenses) | Apache-2.0 |
 | [github.com/mfridman/interpolate](https://pkg.go.dev/github.com/mfridman/interpolate?tab=licenses) | MIT |
 | [github.com/munnerz/goautoneg](https://pkg.go.dev/github.com/munnerz/goautoneg?tab=licenses) | BSD-3-Clause |
@@ -98,6 +100,7 @@ without a row here, a row without a mark, and a mark for a preset the server doe
 | [github.com/prometheus/common](https://pkg.go.dev/github.com/prometheus/common?tab=licenses) | Apache-2.0 |
 | [github.com/prometheus/otlptranslator](https://pkg.go.dev/github.com/prometheus/otlptranslator?tab=licenses) | Apache-2.0 |
 | [github.com/prometheus/procfs](https://pkg.go.dev/github.com/prometheus/procfs?tab=licenses) | Apache-2.0 |
+| [github.com/russellhaering/goxmldsig](https://pkg.go.dev/github.com/russellhaering/goxmldsig?tab=licenses) | Apache-2.0 |
 | [github.com/sethvargo/go-retry](https://pkg.go.dev/github.com/sethvargo/go-retry?tab=licenses) | Apache-2.0 |
 | [github.com/teambition/rrule-go](https://pkg.go.dev/github.com/teambition/rrule-go?tab=licenses) | MIT |
 | [go.opentelemetry.io/auto/sdk](https://pkg.go.dev/go.opentelemetry.io/auto/sdk?tab=licenses) | Apache-2.0 |

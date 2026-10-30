@@ -367,6 +367,28 @@ func TestTheIdentityProviderLibraryIsBehindOneAdapter(t *testing.T) {
 		})
 }
 
+// The SAML service provider's XML signature library and the LDAP client are each behind one adapter
+// (ADR-0099), for the reason go-oidc is: replacing one is an edit to one directory.
+func TestTheSAMLAndLDAPLibrariesAreBehindOneAdapterEach(t *testing.T) {
+	confined := map[string]string{
+		"github.com/russellhaering/goxmldsig": "infrastructure/saml",
+		"github.com/beevik/etree":             "infrastructure/saml",
+		"github.com/go-ldap/ldap":             "infrastructure/ldap",
+		"github.com/go-asn1-ber/asn1-ber":     "infrastructure/ldap",
+	}
+	forEachGoFile(t, []string{"../../core", "../../infrastructure", "../../presentation", "../../cmd"},
+		func(path string, f *ast.File, fset *token.FileSet) {
+			for _, imp := range f.Imports {
+				for library, adapter := range confined {
+					if strings.HasPrefix(strings.Trim(imp.Path.Value, `"`), library) &&
+						!strings.Contains(filepath.ToSlash(path), adapter) {
+						t.Errorf("%s imports %s: it belongs in %s and nowhere else (ADR-0099)", rel(path), library, adapter)
+					}
+				}
+			}
+		})
+}
+
 // The text libraries live in exactly the packages ADR-0056 names, and this is the gate it promised.
 // golang.org/x/text and golang.org/x/net/idna are in the module graph anyway; what the ADR decides
 // is which four packages of them the binary imports and from where - the matcher and
