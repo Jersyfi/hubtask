@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// A person's own delegation of their approvals while away (UC-APR-03): set, read and ended by
+// A person's own delegation of their approvals while away (UC-SVC-10): set, read and ended by
 // that person alone, so each asks no permission of the catalogue.
 
 // DelegationOutput is a delegation as every door answers it (schema ApprovalDelegation).

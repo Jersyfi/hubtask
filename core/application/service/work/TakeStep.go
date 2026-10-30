@@ -36,7 +36,7 @@ type TakeStep struct {
 	// Rules runs the STEP_TAKEN rules on the step inside its transaction (UC-FLW-04 check 4). Nil
 	// runs none: a build without the engine.
 	Rules StepRules
-	// Approvals opens the approval a step waits for (UC-APR-01). Nil refuses such a step.
+	// Approvals opens the approval a step waits for (UC-SVC-08). Nil refuses such a step.
 	Approvals StepApprovals
 }
 
@@ -120,7 +120,7 @@ func (h TakeStep) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 			return err
 		}
 		// A step that waits for people's yes opens its approval and leaves the entry where it
-		// stands; the decision takes the step (UC-APR-01 check 3).
+		// stands; the decision takes the step (UC-SVC-08 check 3).
 		if step.Approval != nil && !TakenByApproval(ctx) {
 			if h.Approvals == nil {
 				return shared.ErrConflict.WithDetail("approvals.not_available")

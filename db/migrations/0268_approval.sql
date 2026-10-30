@@ -1,4 +1,4 @@
--- Approvals (M5, UC-APR-01 to 03): a workflow step waiting for people's yes on one entry, each
+-- Approvals (M5, UC-SVC-08 to 03): a workflow step waiting for people's yes on one entry, each
 -- answer kept as the trail, and a person's delegation while away. An approval keeps its levels
 -- as it opened (the step's rule and the people counted then), so changing the workflow later
 -- changes no approval in flight. New tables, so expand only (versioning-release.md §4).

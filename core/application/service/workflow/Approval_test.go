@@ -11,7 +11,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// UC-APR-01 check 1: a step's approval is read from a door and answered as written.
+// UC-SVC-08 check 1: a step's approval is read from a door and answered as written.
 func TestAnApprovalStepIsReadAsItIsAnswered(t *testing.T) {
 	approval := &domain.StepApproval{DeclineTo: "declined", DueHours: 48, Levels: []domain.ApprovalLevel{
 		{People: []string{"0190a4c2-7b1e-7000-8000-00000000000a"}, Groups: []string{}, Roles: []string{}, PersonFields: []string{"custom_fields.manager"}, Rule: domain.ApprovalAny},

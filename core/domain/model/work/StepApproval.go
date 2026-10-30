@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// ApprovalRule is how many of a level's approvers must say yes (UC-APR-01 check 2). One decline
+// ApprovalRule is how many of a level's approvers must say yes (UC-SVC-08 check 2). One decline
 // declines the level whatever the rule, so a no is never outvoted silently.
 type ApprovalRule string
 
@@ -60,7 +60,7 @@ func (l ApprovalLevel) Needed(counted int) int {
 	}
 }
 
-// StepApproval makes a step wait for people's yes (UC-APR-01): taking the step opens an approval
+// StepApproval makes a step wait for people's yes (UC-SVC-08): taking the step opens an approval
 // instead of moving the entry; the step is taken once the last level says yes, and a decline
 // moves the entry to DeclineTo, or leaves it where it stands.
 type StepApproval struct {

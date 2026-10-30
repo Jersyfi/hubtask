@@ -102,7 +102,7 @@ func person(id shared.ID) appshared.ActorContext {
 	return appshared.ActorContext{TenantID: tenantID, AccountID: id, Kind: appshared.ActorUser, Scopes: []string{itemsWriteScope}}
 }
 
-// UC-APR-01 checks 1 and 3, UC-APR-02 checks 1 and 2: the step opens an approval counting the
+// UC-SVC-08 checks 1 and 3, UC-SVC-09 checks 1 and 2: the step opens an approval counting the
 // person its field names; somebody else is told nothing; the last yes takes the step as the
 // person who asked, marked as the approval's.
 func TestTheLastYesTakesTheStep(t *testing.T) {
@@ -135,7 +135,7 @@ func TestTheLastYesTakesTheStep(t *testing.T) {
 	}
 }
 
-// UC-APR-03 check 2: the delegate decides for the person away, and the trail names both.
+// UC-SVC-10 check 2: the delegate decides for the person away, and the trail names both.
 func TestTheDelegateDecidesWhileThePersonIsAway(t *testing.T) {
 	approvals, store, calls, items := approvalFixture(t)
 	step := workdomain.WorkflowStep{Key: "approve", To: "approved", Approval: &workdomain.StepApproval{

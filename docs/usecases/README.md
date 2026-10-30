@@ -37,7 +37,7 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`knowledge/`](./knowledge/) | `UC-DOC` | A hub's pages: writing together, finding, linking, versions, comments, export | `service/knowledge` |
 | [`whiteboard/`](./whiteboard/) | `UC-CNV` | A hub's whiteboards: drawing together, notes made tasks, cards of entries, export, arranging, sessions with votes and a timer, history, comments | `service/whiteboard` |
 | [`assets/`](./assets/) | `UC-AST` | A hub's configuration items: classes, relations, compliance fields, one reconciliation for every source, files, duplicates, impact, health | `service/cmdb` |
-| [`servicedesk/`](./servicedesk/) | `UC-SVC` | The service desk: business calendars, SLA policies and the clocks they run on an entry, queues, internal notes, the requester portal, canned replies and macros, satisfaction | `service/servicedesk` |
+| [`servicedesk/`](./servicedesk/) | `UC-SVC` | The service desk: business calendars, SLA policies and the clocks they run on an entry, queues, internal notes, the requester portal, canned replies and macros, satisfaction, approvals | `service/servicedesk` |
 | [`timekeeping/`](./timekeeping/) | `UC-TIM` | Time: records and the timer, a person's week handed in and approved, the locked period, reports, estimates against actuals, the export to accounting, capacity, absences and the workload, cost rates and budgets | `service/timekeeping` |
 | [`goal/`](./goal/) | `UC-GOL` | Goals and insight: periods, goals with key results fed by check-ins, views and linked entries, check-ins and grades, portfolios with their health and updates, dashboards over the summaries | `service/goal` |
 | [`agent/`](./agent/) | `UC-AGT` | Governed agents: the registry and lifecycle, the gate every act passes, held acts approved by a person, budgets and kill switches, the models agents may call, evaluation before going live, the provenance of accepted AI values, an agent configuring within its sections | `service/agent` |
@@ -305,6 +305,9 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-SVC-05](./servicedesk/UC-SVC-05-ask-the-service-desk-for-help.md) | Ask the service desk for help and follow my request | servicedesk |
 | [UC-SVC-06](./servicedesk/UC-SVC-06-answer-the-usual-requests-the-usual-way.md) | Answer the usual requests the usual way | servicedesk |
 | [UC-SVC-07](./servicedesk/UC-SVC-07-learn-whether-the-requester-was-satisfied.md) | Learn whether the requester was satisfied | servicedesk |
+| [UC-SVC-08](./servicedesk/UC-SVC-08-make-a-step-wait-for-somebodys-yes.md) | Make a step wait for somebody's yes | servicedesk |
+| [UC-SVC-09](./servicedesk/UC-SVC-09-approve-or-decline-with-a-reason.md) | Approve or decline, with a reason | servicedesk |
+| [UC-SVC-10](./servicedesk/UC-SVC-10-hand-my-approvals-to-someone-while-i-am-away.md) | Hand my approvals to someone while I am away | servicedesk |
 | [UC-TIM-01](./timekeeping/UC-TIM-01-track-my-time-on-what-i-work-on.md) | Track my time on what I work on | timekeeping |
 | [UC-TIM-02](./timekeeping/UC-TIM-02-fill-in-and-hand-in-my-week.md) | Fill in and hand in my week | timekeeping |
 | [UC-TIM-03](./timekeeping/UC-TIM-03-approve-a-teams-time.md) | Approve a team's time | timekeeping |

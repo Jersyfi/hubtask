@@ -24,7 +24,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
-// The approvals' use cases (UC-APR-01 to 03).
+// The approvals' use cases (UC-SVC-08 to 03).
 const (
 	DecideApprovalName         = "DecideApproval"
 	ListMyApprovalsName        = "ListMyApprovals"
@@ -64,7 +64,7 @@ type Approvals struct {
 
 var _ work.StepApprovals = Approvals{}
 
-// Open opens the step's approval with the people each level counts now (UC-APR-01 check 1).
+// Open opens the step's approval with the people each level counts now (UC-SVC-08 check 1).
 func (a Approvals) Open(
 	ctx context.Context, actor appshared.ActorContext, item workdomain.WorkItem, _ workdomain.Container,
 	workflow string, step workdomain.WorkflowStep,
@@ -256,7 +256,7 @@ func idOrNil(id shared.ID) any {
 	return id.String()
 }
 
-// DecideApproval answers an approval at its current level (UC-APR-02): an approver counted there,
+// DecideApproval answers an approval at its current level (UC-SVC-09): an approver counted there,
 // holding its role, or deciding for a counted person away. The last yes takes the step; a decline
 // moves the entry to the step's decline status where it names one.
 type DecideApproval struct{ Approvals Approvals }
@@ -371,7 +371,7 @@ func (h DecideApproval) Descriptor() usecase.Descriptor {
 }
 
 // ListMyApprovals answers the approvals waiting for the reader, directly or for somebody away
-// whose approvals they decide (UC-APR-02 check 1, UC-APR-03 check 2).
+// whose approvals they decide (UC-SVC-09 check 1, UC-SVC-10 check 2).
 type ListMyApprovals struct{ Approvals Approvals }
 
 // Execute lists them, oldest first.
@@ -437,7 +437,7 @@ func (h ListMyApprovals) Descriptor() usecase.Descriptor {
 	return d
 }
 
-// ReadEntryApprovals answers an entry's approvals with their trail for its readers (UC-APR-02
+// ReadEntryApprovals answers an entry's approvals with their trail for its readers (UC-SVC-09
 // check 3).
 type ReadEntryApprovals struct{ Approvals Approvals }
 

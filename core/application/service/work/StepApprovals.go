@@ -11,7 +11,7 @@ import (
 )
 
 // StepApprovals opens the approval a step waits for and withdraws one its entry left behind
-// (UC-APR-01); the service desk implements it, because who decides is its concern.
+// (UC-SVC-08); the service desk implements it, because who decides is its concern.
 type StepApprovals interface {
 	// Open opens the step's approval on the entry, inside the step's transaction.
 	Open(ctx context.Context, actor appshared.ActorContext, item domain.WorkItem, collection domain.Container,

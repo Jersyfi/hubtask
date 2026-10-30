@@ -42,7 +42,7 @@ func decide(t *testing.T, a servicedesk.Approval, decided []servicedesk.Decision
 	return next, append(decided, decision)
 }
 
-// UC-APR-01 check 2: any, all, N of M and a majority pass a level by their own count.
+// UC-SVC-08 check 2: any, all, N of M and a majority pass a level by their own count.
 func TestALevelPassesByItsRule(t *testing.T) {
 	cases := []struct {
 		rule  work.ApprovalRule
@@ -66,7 +66,7 @@ func TestALevelPassesByItsRule(t *testing.T) {
 	}
 }
 
-// UC-APR-01 check 3: levels decide one after another; one decline declines the approval.
+// UC-SVC-08 check 3: levels decide one after another; one decline declines the approval.
 func TestLevelsDecideInTurnAndOneDeclineDeclines(t *testing.T) {
 	a := approvalOf(t, []work.ApprovalLevel{{Rule: work.ApprovalAny}, {Rule: work.ApprovalAll}}, [][]shared.ID{{ana}, {ben, cem}})
 	a, decided := decide(t, a, nil, ana, servicedesk.VerdictApprove)
@@ -79,7 +79,7 @@ func TestLevelsDecideInTurnAndOneDeclineDeclines(t *testing.T) {
 	}
 }
 
-// UC-APR-02 checks 1 and 2: a decline needs a reason, nobody decides twice, and nobody decides
+// UC-SVC-09 checks 1 and 2: a decline needs a reason, nobody decides twice, and nobody decides
 // who is not an approver.
 func TestADecisionIsHeldToItsRules(t *testing.T) {
 	a := approvalOf(t, []work.ApprovalLevel{{Rule: work.ApprovalAll}}, [][]shared.ID{{ana, ben}})
@@ -99,7 +99,7 @@ func TestADecisionIsHeldToItsRules(t *testing.T) {
 	}
 }
 
-// UC-APR-03 checks 1 and 2: a delegate decides for the person away, once for both of them.
+// UC-SVC-10 checks 1 and 2: a delegate decides for the person away, once for both of them.
 func TestADelegateDecidesForThePersonAway(t *testing.T) {
 	a := approvalOf(t, []work.ApprovalLevel{{Rule: work.ApprovalAll}}, [][]shared.ID{{ana, ben}})
 	next, decision, err := servicedesk.Decide(a, nil, "0190a4c2-7b1e-7000-8000-0000000000d1", cem, servicedesk.Eligibility{OnBehalfOf: ana},
@@ -120,7 +120,7 @@ func TestADelegateDecidesForThePersonAway(t *testing.T) {
 	}
 }
 
-// UC-APR-01 check 1: a level counting all or a majority opens only with people to count.
+// UC-SVC-08 check 1: a level counting all or a majority opens only with people to count.
 func TestACountedLevelNeedsPeople(t *testing.T) {
 	step := work.WorkflowStep{Key: "approve", To: "approved", Approval: &work.StepApproval{Levels: []work.ApprovalLevel{{Rule: work.ApprovalAll}}}}
 	if _, err := servicedesk.NewApproval("x", work.WorkItem{}, "w", step, [][]shared.ID{{}}, dora, approvedAt); code(err) != "approvals.too_few_approvers" {

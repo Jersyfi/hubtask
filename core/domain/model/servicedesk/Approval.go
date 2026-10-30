@@ -43,7 +43,7 @@ type OpenLevel struct {
 	Counted []shared.ID
 }
 
-// Approval is a step waiting for people's yes on one entry (UC-APR-01): the step, the entry's
+// Approval is a step waiting for people's yes on one entry (UC-SVC-08): the step, the entry's
 // version when it was asked, its levels and the one deciding now.
 type Approval struct {
 	ID          shared.ID
@@ -66,7 +66,7 @@ type Approval struct {
 	Version    int
 }
 
-// Decision is one approver's answer at one level, kept as the trail (UC-APR-02 check 3): who,
+// Decision is one approver's answer at one level, kept as the trail (UC-SVC-09 check 3): who,
 // for whom while they were away, when, and the entry's version they decided on.
 type Decision struct {
 	ID          shared.ID
@@ -203,7 +203,7 @@ func distinctIDs(ids []shared.ID) []shared.ID {
 // MaxDelegationDays bounds one absence a delegation covers.
 const MaxDelegationDays = 366
 
-// Delegation hands a person's approvals to somebody else while they are away (UC-APR-03): from
+// Delegation hands a person's approvals to somebody else while they are away (UC-SVC-10): from
 // one moment to another, never to themselves. One per person; a new one replaces it.
 type Delegation struct {
 	TenantID   shared.ID

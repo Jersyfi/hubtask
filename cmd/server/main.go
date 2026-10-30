@@ -1865,7 +1865,7 @@ func run() error {
 		Entries: portalEntries, Items: items, Containers: containers, Comments: postgres.NewCommentRepository(cursors),
 		EntryTypes: entryTypes, Fields: customFields, Gate: entryGate, Desk: serviceDesk,
 	}
-	// Approvals (UC-APR-01 to 03): a step waiting for people's yes; the decision takes the step
+	// Approvals (UC-SVC-08 to 03): a step waiting for people's yes; the decision takes the step
 	// through TakeStep in the registry.
 	approvalSteps := &deferredCatalogue{}
 	stepApprovals := servicedeskservice.Approvals{

@@ -10,7 +10,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// UC-APR-01 check 1: a step's approval is kept in the shape's column as written.
+// UC-SVC-08 check 1: a step's approval is kept in the shape's column as written.
 func TestAStepsApprovalIsKeptInTheShape(t *testing.T) {
 	approval := &work.StepApproval{DeclineTo: "declined", DueHours: 24, Levels: []work.ApprovalLevel{
 		{People: []string{"0190a4c2-7b1e-7000-8000-00000000000a"}, Rule: work.ApprovalAll},

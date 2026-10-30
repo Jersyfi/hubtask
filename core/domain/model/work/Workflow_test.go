@@ -274,7 +274,7 @@ func TestACheckSpeaksEachLanguage(t *testing.T) {
 	}
 }
 
-// UC-APR-01 check 1: an approval step names its levels, a known decline status, a rule and
+// UC-SVC-08 check 1: an approval step names its levels, a known decline status, a rule and
 // approvers; a level asking all or a majority counts people, never a role.
 func TestAnApprovalStepIsHeldToItsShape(t *testing.T) {
 	shapeWith := func(approval *work.StepApproval) work.WorkflowShape {
