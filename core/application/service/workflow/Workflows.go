@@ -1029,7 +1029,10 @@ func (h PreviewWorkflowScheme) Descriptor() usecase.Descriptor {
 		"Answers what using a workflow in a hub or collection - or no longer using one - would do: "+
 			"which status every existing entry gets, by collection, type and status, and the board's "+
 			"columns. Changes nothing.",
-		"None. Reads only.", typesWrite, true, WorkflowSchemeSetAction, schemeFields(),
+		"None. Reads only.", typesWrite, true, WorkflowSchemeSetAction,
+		// The preview reads the move's own body, so it declares its confirmation and changes
+		// nothing whatever it says.
+		append(schemeFields(), usecase.Field{Name: "confirm", Kind: usecase.KindBool, Description: "Read by the move only; a preview changes nothing."}),
 		func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			change, err := schemeChangeFrom(in)
 			if err != nil {
