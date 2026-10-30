@@ -465,6 +465,7 @@ func readHits(
 			&row.RetentionBlockedBy,
 			&row.ArchivedAt, &row.DeletedAt,
 			&row.TrashBatchID, &row.CreatedBy, &row.CreatedAt, &row.UpdatedAt, &row.Version,
+			&row.Number, &row.EntryType, &row.Status,
 			&hub, &rank, &byMeaning,
 		); err != nil {
 			return nil, queryFailed("reading a search hit", err)
