@@ -7029,4 +7029,10 @@ CREATE POLICY tenant_isolation ON chat_bot
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON chat_bot TO hubtask_app;
 
+-- Migration 0282: what the retention pass reads of pages and boards.
+CREATE INDEX page_trashed_idx ON page (tenant_id, deleted_at) WHERE deleted_at IS NOT NULL;
+CREATE INDEX page_children_idx ON page (tenant_id, parent_id) WHERE parent_id IS NOT NULL;
+CREATE INDEX whiteboard_trashed_idx ON whiteboard (tenant_id, deleted_at) WHERE deleted_at IS NOT NULL;
+CREATE INDEX page_version_unnamed_idx ON page_version (tenant_id, created_at) WHERE name = '';
+
 COMMIT;

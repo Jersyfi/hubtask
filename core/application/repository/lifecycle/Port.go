@@ -454,3 +454,14 @@ type Cursors interface {
 	// Clear forgets the reader's place: it reached the end of its rows.
 	Clear(ctx context.Context, reader Reader) error
 }
+
+// TrashedDocument is a trashed page or board whose time in the trash is up.
+type TrashedDocument struct {
+	// Entity is the table and the change log's entity: `page` or `whiteboard`.
+	Entity string
+	ID     shared.ID
+	HubID  shared.ID
+	// Contributors are the accounts whose own words go with it: its creator and the authors of its
+	// versions and comments.
+	Contributors []shared.ID
+}

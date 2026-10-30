@@ -4360,6 +4360,12 @@ func run() error {
 			// The agents' ledger thirteen months, their held acts and jobs ninety days (accepted.md B).
 			AgentLedger: postgres.AgentLedgerExpiry{}, AgentRequests: postgres.AgentRequestExpiry{},
 			AgentJobs: postgres.AgentJobExpiry{},
+			// Pages and boards trashed on their own, after the trash's period, and page versions
+			// thinned after ninety days (accepted.md B).
+			Documents: lifecycle.DocumentSweep{
+				Trash: postgres.DocumentTrash{}, Versions: postgres.PageVersionThinning{},
+				Changes: changes, HLC: hybrid,
+			},
 			// The SESSION kind: expired and revoked sessions age out through the engine,
 			// not a second sweeper.
 			Sessions: postgres.NewSessionRepository(),

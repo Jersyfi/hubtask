@@ -63,6 +63,11 @@ type RunRetention struct {
 	AgentLedger   ExpiringRows
 	AgentRequests ExpiringRows
 	AgentJobs     ExpiringRows
+	// Documents are pages' and boards' trash and page versions (TRASH, PAGE_VERSION).
+	Documents DocumentSweep
+	// Requesters is the record of requesters without an account (REQUESTER). Optional, the
+	// deliveries' reason.
+	Requesters ExpiringRows
 	// Proposals is the suggestion store's remover. Optional for the outbox's reason: an
 	// installation wired without it sweeps exactly what it did before, and what it would have
 	// removed is a working note rather than personal content nobody looks at - a suggestion's
@@ -273,6 +278,13 @@ func (h RunRetention) Execute(
 		ObserveRestrictions: true,
 	}, started)
 
+	// Pages and boards trashed on their own share the trash's period and its log row.
+	if sweepErr == nil {
+		var documents Outcome
+		documents, sweepErr = h.sweepTrashedDocuments(ctx, actor.TenantID, policy.Cutoff(started), started)
+		outcome.add(documents)
+	}
+
 	// The log is closed either way. A failed pass that left no trace would be indistinguishable from
 	// one that never ran, which is the state this log exists to make visible.
 	finished := h.Clock.Now()
@@ -350,6 +362,18 @@ func (h RunRetention) Execute(
 		agentSweeps = append(agentSweeps, swept)
 	}
 
+	versions, err := h.sweepPageVersions(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+
+	requesters := Outcome{}
+	if h.Requesters != nil {
+		if requesters, err = h.sweepHeldByTenant(ctx, started, domain.KindRequester, h.Requesters); err != nil {
+			return outcome, err
+		}
+	}
+
 	sessions, err := h.sweepSessions(ctx, started)
 	if err != nil {
 		return outcome, err
@@ -424,6 +448,8 @@ func (h RunRetention) Execute(
 	for _, swept := range agentSweeps {
 		outcome.add(swept)
 	}
+	outcome.add(versions)
+	outcome.add(requesters)
 	outcome.add(rules)
 	outcome.Matched += sessions.Matched
 	outcome.Removed += sessions.Removed
