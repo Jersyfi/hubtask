@@ -7788,6 +7788,8 @@
   "app.retention.kind.AGENT_LEDGER": "Protokoll der Agenten",
   "app.retention.kind.AGENT_REQUEST": "Zurückgehaltene Handlungen der Agenten",
   "app.retention.kind.AGENT_JOB": "Aufträge der Agenten",
+  "app.retention.kind.PAGE_VERSION": "Seitenversionen",
+  "app.retention.kind.REQUESTER": "Anfragende ohne Konto",
   "mail.place_required": "Nenne die Sammlung, deren Kennung sich ändert.",
   "mail.routes_unreadable": "Die Absender-Regeln des Mail-Eingangs ließen sich nicht lesen. Speichere sie erneut.",
   "mail.handle_invalid": "Eine Kennung beginnt mit einem Buchstaben und hat zwei bis zwanzig Buchstaben und Ziffern, ohne Bindestrich.",

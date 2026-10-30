@@ -61,13 +61,14 @@ func TestTheDefaultsAreOnePerKindTheEngineSweeps(t *testing.T) {
 		lifecycle.KindDevice, lifecycle.KindSyncLog, lifecycle.KindIdempotencyKey,
 		lifecycle.KindWebhookDelivery, lifecycle.KindMailReceipt, lifecycle.KindDocumentHistory,
 		lifecycle.KindAgentLedger, lifecycle.KindAgentRequest, lifecycle.KindAgentJob,
+		lifecycle.KindPageVersion, lifecycle.KindRequester,
 	} {
 		if !seen[swept] {
 			t.Errorf("%s is swept and has no default period", swept)
 		}
 	}
-	if len(seen) != 15 {
-		t.Errorf("%d kinds have defaults, want the fifteen the engine sweeps", len(seen))
+	if len(seen) != 17 {
+		t.Errorf("%d kinds have defaults, want the seventeen the engine sweeps", len(seen))
 	}
 }
 

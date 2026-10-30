@@ -7791,6 +7791,8 @@
   "app.retention.kind.AGENT_LEDGER": "Agents' ledger",
   "app.retention.kind.AGENT_REQUEST": "Agents' held acts",
   "app.retention.kind.AGENT_JOB": "Agents' jobs",
+  "app.retention.kind.PAGE_VERSION": "Page versions",
+  "app.retention.kind.REQUESTER": "Requesters without an account",
   "mail.place_required": "Name the collection whose handle changes.",
   "mail.routes_unreadable": "The mail intake's sender rules could not be read. Save them again.",
   "mail.handle_invalid": "A handle starts with a letter and has two to twenty letters and digits, no hyphen.",

@@ -24,6 +24,8 @@ const (
 	AnchorLastSeenAt  Anchor = "last_seen_at"
 	AnchorCompactedAt Anchor = "compacted_at"
 	AnchorEndedAt     Anchor = "ended_at"
+	// AnchorLastContactAt is when a requester without an account last wrote in.
+	AnchorLastContactAt Anchor = "last_contact_at"
 )
 
 // Action is what a rule does when the period is up (data-retention.md §2).
@@ -322,6 +324,25 @@ var catalogue = []Kind{
 		Actions:   []Action{ActionHardDelete},
 		Blockable: []string{BlockedByLegalHold},
 	},
+	{
+		// A page's versions thinned out (UC-DOC-06, accepted.md B): one past ninety days that is
+		// neither named nor the newest of its day (UTC) goes; a named version and each day's last
+		// stay for as long as the page. A hold on the workspace, the page's hub or an author keeps
+		// them, and so does a restricted author. No marking phase: nobody takes a version out of
+		// its period, they name it.
+		Name: KindPageVersion, Anchor: AnchorCreatedAt, DefaultDays: 90,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
+	{
+		// A requester without an account - somebody who wrote in by mail and whose request an
+		// account filed on their behalf (accepted.md B, data-protection.md §4): their address, name
+		// and which entries they wrote on, removed 24 months after they last wrote. The entries are
+		// the team's and keep their own periods. A hold on the workspace keeps the record.
+		Name: KindRequester, Anchor: AnchorLastContactAt, DefaultDays: 730,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
 	{Name: KindMediaOrphan, Anchor: AnchorCreatedAt, DefaultDays: 7},
 	{Name: KindDeletedAccountResidue, Anchor: AnchorDeletedAt, DefaultDays: 30},
 }
@@ -353,6 +374,8 @@ const (
 	KindAgentLedger           DataKind = "AGENT_LEDGER"
 	KindAgentRequest          DataKind = "AGENT_REQUEST"
 	KindAgentJob              DataKind = "AGENT_JOB"
+	KindPageVersion           DataKind = "PAGE_VERSION"
+	KindRequester             DataKind = "REQUESTER"
 	KindDeletedAccountResidue DataKind = "DELETED_ACCOUNT_RESIDUE"
 )
 
