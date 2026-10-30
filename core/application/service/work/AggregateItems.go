@@ -395,3 +395,7 @@ func aggregateOutput(aggregation view.Aggregation, result repository.ItemAggrega
 	}
 	return usecase.Output{"data": rows, "truncated": result.Truncated}
 }
+
+// ParseSummary reads a summary document as POST /items:aggregate takes it, so that a module that
+// stores one - a dashboard's widget - is held to the same grammar at write.
+func ParseSummary(in usecase.Input) (view.Spec, view.Aggregation, error) { return summaryOf(in) }
