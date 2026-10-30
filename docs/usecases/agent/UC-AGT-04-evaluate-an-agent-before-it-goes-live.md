@@ -36,8 +36,14 @@ model changes, it must pass again.
 4. The agent itself reads its set and records its run before it is live; an administrator may too.
 5. Cases and runs stay in their workspace and join its archive.
 6. The web app shows an agent's set and runs and lets an administrator add and remove cases.
+7. An administrator has a shipped agent answer its own set (`RunAgentEvaluation`) from each case's
+   title and notes: a knowledge draft answers `title` and `body`, a CI suggestion and a triage `cis`,
+   the names of the chosen hub's CIs the text names (`agents.evaluation_hub_required` without a
+   hub); a duplicate review is evaluated by answers somebody sends (`agents.evaluation_by_answers`).
+   REST, MCP, hubctl and the web app start it alike.
 
 ## Where it ends
 
-* The shipped agents do not run their set themselves yet; a run is recorded from their answers.
+* A triage's labels come from the classifier on an entry, not from a case's text: a case expecting
+  labels fails its own run, and is recorded from answers somebody sends.
 * No accuracy, escalation or override rates measured in production.
