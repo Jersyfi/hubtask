@@ -466,3 +466,25 @@ test('the custom field definitions in force are answered from the copy', async (
   const inCollection = await storeFor({ path: `/custom-fields?collection_id=${COLLECTION}` }, storage) as Record<string, unknown>[];
   assert.deepEqual(inCollection.map((row) => row.id), ['f-wide', 'f-own']);
 });
+
+// UC-TIM-01 offline: the reader's running timer, with its minutes counted on the device, and the
+// workspace's kinds of work and policy are answered from the copy; without a timer it is not
+// running, and a policy never set is the default.
+test('the timer, the kinds of work and the policy are answered from the copy', async () => {
+  const empty = new MemoryStorage();
+  assert.deepEqual(await storeFor({ path: '/timer' }, empty), { running: false });
+  assert.deepEqual(await storeFor({ path: '/time-work-types' }, empty), { data: [] });
+  assert.equal((await storeFor({ path: '/time-policy' }, empty) as Record<string, unknown>).visibility, 'FULL');
+
+  const storage = new MemoryStorage();
+  const started = new Date(Date.now() - 25 * 60000).toISOString();
+  await storage.put('time_timers', 'me', record({ account_id: 'me', running: true, work_type: 'development', started_at: started }));
+  await storage.put('time_work_types', 't-1', record({ data: [{ key: 'development', name: 'Development' }] }));
+  const timer = await storeFor({ path: '/timer' }, storage) as Record<string, unknown>;
+  assert.equal(timer.running, true);
+  assert.equal(timer.work_type, 'development');
+  assert.ok(Number(timer.elapsed_minutes) >= 24, 'the minutes are counted from the start');
+  assert.equal('account_id' in timer, false);
+  const kinds = await storeFor({ path: '/time-work-types' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(kinds.data.map((row) => row.key), ['development']);
+});

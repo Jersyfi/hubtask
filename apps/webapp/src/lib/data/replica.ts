@@ -402,6 +402,26 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
     return rows;
   }
 
+  // The person's running timer and the workspace's kinds of work and policy while the server is
+  // away (M7): the copy holds the reader's own timer alone, its minutes counted here; a policy
+  // never set is the default.
+  if (pathname === '/timer') {
+    const [timer] = await documents(storage, 'time_timers');
+    if (!timer) return { running: false };
+    const started = typeof timer.started_at === 'string' ? Date.parse(timer.started_at) : Number.NaN;
+    const elapsed = Number.isFinite(started) ? Math.max(0, Math.floor((Date.now() - started) / 60000)) : 0;
+    const { account_id: _account, ...rest } = timer;
+    return { ...rest, running: true, elapsed_minutes: elapsed };
+  }
+  if (pathname === '/time-work-types') {
+    const [held] = await documents(storage, 'time_work_types');
+    return { data: Array.isArray(held?.data) ? held.data : [] };
+  }
+  if (pathname === '/time-policy') {
+    const [held] = await documents(storage, 'time_policy');
+    return held ?? { locked_through: null, visibility: 'FULL', version: 0 };
+  }
+
   // A collection's sprints read while the server is away (M2), in the server's order - the latest
   // start first. The burndown and the velocity are computed by the server and wait for it.
   match = /^\/collections\/([^/:]+)\/sprints$/.exec(pathname);
