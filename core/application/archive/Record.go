@@ -889,6 +889,25 @@ var entities = []Entity{
 			{Field: "entry_id", Table: "work_item"},
 		},
 	},
+	// A hub's releases and their entries (migration 0272, M2). Whole: none says when it was
+	// removed. The notes page is a reference the release can lose.
+	{
+		Name: "releases", Table: "release", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+			{Field: "notes_page_id", Table: "page", Clearable: true},
+			{Field: "created_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "release_entries", Table: "release_entry", Whole: true, Later: true,
+		Keys: []string{"release_id", "entry_id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "release_id", Table: "release"},
+			{Field: "entry_id", Table: "work_item"},
+		},
+	},
 	{
 		Name: "entry_estimates", Table: "entry_estimate", Whole: true, Unmarked: true, Later: true,
 		Keys: []string{"entry_id"}, Duplicable: true,

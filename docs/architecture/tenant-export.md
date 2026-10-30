@@ -237,6 +237,8 @@ re-mints identities must rewrite exactly these).
 | 119 | `approval_delegations` | `approval_delegation` | `account_id` | `account_id`→accounts, `delegate_id`→accounts (who decides a person's approvals while they are away, from when until when) |
 | 120 | `hub_business_calendars` | `hub_business_calendar` | `id` | `hub_id`→containers (a hub's own version of a workspace calendar under its key: working spans, holidays and a zone, migration 0270) |
 | 121 | `config_hub_template_uses` | `config_hub_template_use` | `hub_id`, `template_key` | `hub_id`→containers (the hub template part a hub took and that part then, the base of the hub's three-way upgrade, migration 0271) |
+| 122 | `releases` | `release` | `id` | `hub_id`→containers, `notes_page_id`→pages, `created_by`→accounts (a version a hub ships, its day, and once out the page its notes went to, migration 0272) |
+| 123 | `release_entries` | `release_entry` | `release_id`, `entry_id` | `release_id`→releases, `entry_id`→work_items (an entry in a release; one release per entry) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

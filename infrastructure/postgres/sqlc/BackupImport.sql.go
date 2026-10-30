@@ -1131,6 +1131,30 @@ func (q *Queries) ClearRecurrenceRule(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearRelease = `-- name: ClearRelease :execrows
+DELETE FROM release
+`
+
+func (q *Queries) ClearRelease(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearRelease)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearReleaseEntry = `-- name: ClearReleaseEntry :execrows
+DELETE FROM release_entry
+`
+
+func (q *Queries) ClearReleaseEntry(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearReleaseEntry)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearReminder = `-- name: ClearReminder :execrows
 DELETE FROM reminder
 `
@@ -2564,6 +2588,32 @@ SELECT EXISTS (SELECT 1 FROM recurrence_rule WHERE id = ($1::jsonb->>'id')::uuid
 
 func (q *Queries) HoldsRecurrenceRule(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsRecurrenceRule, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsRelease = `-- name: HoldsRelease :one
+SELECT EXISTS (SELECT 1 FROM release WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsRelease(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsRelease, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsReleaseEntry = `-- name: HoldsReleaseEntry :one
+SELECT EXISTS (
+  SELECT 1 FROM release_entry
+  WHERE release_id = ($1::jsonb->>'release_id')::uuid
+    AND entry_id = ($1::jsonb->>'entry_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsReleaseEntry(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsReleaseEntry, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -6181,6 +6231,59 @@ type ImportRecurrenceRuleParams struct {
 
 func (q *Queries) ImportRecurrenceRule(ctx context.Context, arg ImportRecurrenceRuleParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importRecurrenceRule, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importRelease = `-- name: ImportRelease :execrows
+INSERT INTO release (id, tenant_id, hub_id, name, description, release_on, state, released_at,
+  notes_page_id, created_at, created_by, updated_at, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.name, r.description, r.release_on, r.state, r.released_at,
+  r.notes_page_id, r.created_at, r.created_by, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::release,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, description = EXCLUDED.description, release_on = EXCLUDED.release_on,
+  state = EXCLUDED.state, released_at = EXCLUDED.released_at, notes_page_id = EXCLUDED.notes_page_id,
+  updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportReleaseParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportRelease(ctx context.Context, arg ImportReleaseParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importRelease, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importReleaseEntry = `-- name: ImportReleaseEntry :execrows
+INSERT INTO release_entry (tenant_id, release_id, entry_id, added_at)
+SELECT r.tenant_id, r.release_id, r.entry_id, r.added_at
+FROM jsonb_populate_record(
+  NULL::release_entry,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, release_id, entry_id) DO UPDATE SET added_at = EXCLUDED.added_at
+WHERE $2::boolean
+`
+
+type ImportReleaseEntryParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportReleaseEntry(ctx context.Context, arg ImportReleaseEntryParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importReleaseEntry, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

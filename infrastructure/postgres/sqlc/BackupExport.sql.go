@@ -4396,6 +4396,98 @@ func (q *Queries) ExportRecurrenceRules(ctx context.Context, arg ExportRecurrenc
 	return items, nil
 }
 
+const exportReleaseEntries = `-- name: ExportReleaseEntries :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.release_id::text || '/' || x.entry_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.release_id AS key_1,
+         x.entry_id AS key_2
+  FROM release_entry x
+) s
+  WHERE (s.key_1, s.key_2) > ($1::uuid, $2::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportReleaseEntriesParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond pgtype.UUID
+	Batch       int32
+}
+
+type ExportReleaseEntriesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportReleaseEntries(ctx context.Context, arg ExportReleaseEntriesParams) ([]ExportReleaseEntriesRow, error) {
+	rows, err := q.db.Query(ctx, exportReleaseEntries, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportReleaseEntriesRow{}
+	for rows.Next() {
+		var i ExportReleaseEntriesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportReleases = `-- name: ExportReleases :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM release x
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportReleasesParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportReleasesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportReleases(ctx context.Context, arg ExportReleasesParams) ([]ExportReleasesRow, error) {
+	rows, err := q.db.Query(ctx, exportReleases, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportReleasesRow{}
+	for rows.Next() {
+		var i ExportReleasesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportReminders = `-- name: ExportReminders :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

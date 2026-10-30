@@ -115,3 +115,44 @@ type Sprints interface {
 	// Estimates returns the estimates of the entries among the identifiers.
 	Estimates(ctx context.Context, entryIDs []shared.ID) (map[shared.ID]planning.Estimate, error)
 }
+
+// ReleaseMember is one entry of a release with what its notes and a reader's view need.
+type ReleaseMember struct {
+	EntryID      shared.ID
+	AddedAt      time.Time
+	Title        string
+	TypeName     string
+	Done         bool
+	CollectionID shared.ID
+	HubID        shared.ID
+}
+
+// EntryRelease is the release an entry is in.
+type EntryRelease struct {
+	EntryID   shared.ID
+	ReleaseID shared.ID
+}
+
+// Releases stores a hub's releases and their entries (PLN-08).
+type Releases interface {
+	// Insert writes a planned release.
+	Insert(ctx context.Context, release planning.Release) error
+	// Update writes a release held to the version read, or reports ErrVersionConflict.
+	Update(ctx context.Context, release planning.Release, expected int) error
+	// Find returns a release, or ErrNotFound.
+	Find(ctx context.Context, id shared.ID) (planning.Release, error)
+	// List returns a hub's releases, the latest day first, of one state or all, at most max.
+	List(ctx context.Context, hubID shared.ID, state planning.ReleaseState, max int) ([]planning.Release, error)
+	// Delete removes a release and its entries' membership, or reports ErrNotFound.
+	Delete(ctx context.Context, id shared.ID) error
+	// Entries returns a release's entries that are not trashed, at most max.
+	Entries(ctx context.Context, releaseID shared.ID, max int) ([]ReleaseMember, error)
+	// Count is how many entries a release holds.
+	Count(ctx context.Context, releaseID shared.ID) (int, error)
+	// Of answers the release each of the entries is in.
+	Of(ctx context.Context, entryIDs []shared.ID) ([]EntryRelease, error)
+	// Add puts an entry into a release at a moment.
+	Add(ctx context.Context, releaseID, entryID shared.ID, at time.Time) error
+	// Remove takes an entry out of a release; false when it was not in it.
+	Remove(ctx context.Context, releaseID, entryID shared.ID) (bool, error)
+}

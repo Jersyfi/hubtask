@@ -3622,3 +3622,44 @@ SELECT EXISTS (SELECT 1 FROM approval_delegation WHERE account_id = (sqlc.arg('p
 
 -- name: ClearApprovalDelegation :execrows
 DELETE FROM approval_delegation;
+
+-- name: ImportRelease :execrows
+INSERT INTO release (id, tenant_id, hub_id, name, description, release_on, state, released_at,
+  notes_page_id, created_at, created_by, updated_at, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.name, r.description, r.release_on, r.state, r.released_at,
+  r.notes_page_id, r.created_at, r.created_by, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::release,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, description = EXCLUDED.description, release_on = EXCLUDED.release_on,
+  state = EXCLUDED.state, released_at = EXCLUDED.released_at, notes_page_id = EXCLUDED.notes_page_id,
+  updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsRelease :one
+SELECT EXISTS (SELECT 1 FROM release WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearRelease :execrows
+DELETE FROM release;
+
+-- name: ImportReleaseEntry :execrows
+INSERT INTO release_entry (tenant_id, release_id, entry_id, added_at)
+SELECT r.tenant_id, r.release_id, r.entry_id, r.added_at
+FROM jsonb_populate_record(
+  NULL::release_entry,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, release_id, entry_id) DO UPDATE SET added_at = EXCLUDED.added_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsReleaseEntry :one
+SELECT EXISTS (
+  SELECT 1 FROM release_entry
+  WHERE release_id = (sqlc.arg('payload')::jsonb->>'release_id')::uuid
+    AND entry_id = (sqlc.arg('payload')::jsonb->>'entry_id')::uuid
+) AS held;
+
+-- name: ClearReleaseEntry :execrows
+DELETE FROM release_entry;

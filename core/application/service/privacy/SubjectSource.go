@@ -68,6 +68,8 @@ var subjectColumns = map[string][]string{
 	"plan_baseline": {"taken_by"},
 	// The sprints they planned and the estimates they gave (M2).
 	"sprint": {"created_by"},
+	// The releases they planned (M2).
+	"release": {"created_by"},
 	// The time they recorded, their running timer, their weeks and the weeks they decided, and the
 	// time policy they set (M7).
 	"time_record": {"account_id"},
@@ -202,6 +204,7 @@ var notThePersons = map[string]string{
 	"entry_schedule":          "whether the scheduler may move an entry, which names nobody; the entry is the entry's",
 	"plan_baseline_entry":     "an entry's dates as a baseline holds them, which name nobody; the baseline names who took it",
 	"sprint_entry":            "an entry's membership in a sprint, which names nobody; the sprint names who planned it",
+	"release_entry":           "an entry's membership in a release, which names nobody; the release names who planned it",
 	"time_work_type":          "the workspace's kinds of work, which name nobody",
 	"portfolio_item":          "which hub or collection a portfolio holds with its dates and status, which names nobody; the portfolio names its owner",
 	"agent_action":            "the ledger of an agent's acts, which names no person; the agent names its owner and an act held for a person is in agent_request",

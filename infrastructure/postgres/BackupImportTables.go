@@ -315,6 +315,28 @@ var importers = map[string]importer{
 			return queries.ClearSprintEntry(ctx)
 		},
 	},
+	"release": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportRelease(ctx, sqlc.ImportReleaseParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsRelease(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearRelease(ctx)
+		},
+	},
+	"release_entry": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportReleaseEntry(ctx, sqlc.ImportReleaseEntryParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsReleaseEntry(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearReleaseEntry(ctx)
+		},
+	},
 	"entry_estimate": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportEntryEstimate(ctx, sqlc.ImportEntryEstimateParams{Payload: payload, Overwrite: overwrite})

@@ -2436,6 +2436,29 @@ type RecurrenceRule struct {
 	UpdatedAt          pgtype.Timestamptz
 }
 
+type Release struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	HubID       pgtype.UUID
+	Name        string
+	Description string
+	ReleaseOn   pgtype.Date
+	State       string
+	ReleasedAt  pgtype.Timestamptz
+	NotesPageID pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	CreatedBy   pgtype.UUID
+	UpdatedAt   pgtype.Timestamptz
+	Version     int32
+}
+
+type ReleaseEntry struct {
+	TenantID  pgtype.UUID
+	ReleaseID pgtype.UUID
+	EntryID   pgtype.UUID
+	AddedAt   pgtype.Timestamptz
+}
+
 type Reminder struct {
 	ID         pgtype.UUID
 	TenantID   pgtype.UUID

@@ -1715,3 +1715,30 @@ FROM (
   WHERE s.key_1 > sqlc.arg('after_id')::uuid
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportReleases :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM release x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportReleaseEntries :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.release_id::text || '/' || x.entry_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.release_id AS key_1,
+         x.entry_id AS key_2
+  FROM release_entry x
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
