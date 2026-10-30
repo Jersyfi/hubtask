@@ -151,3 +151,6 @@ export function exportBytes(file: { content: string; encoding: 'TEXT' | 'BASE64'
   for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
   return out;
 }
+
+/** The address a page's public link opens, on this server: the token is the whole credential. */
+export const publicLinkAddress = (origin: string, token: string) => `${origin.replace(/\/+$/u, '')}/api/v1/public/pages/${token}`;

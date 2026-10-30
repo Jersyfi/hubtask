@@ -12,7 +12,7 @@
  */
 
 import type {
-  Page, PageChange, PageComment, PageCommentCreate, PageCreate, PageExport, PageHitList, PageMove, PageShare, PageTrashed, PageVersionNamed,
+  Page, PageChange, PageComment, PageCommentCreate, PageCreate, PageExport, PageHitList, PageMove, PagePublicLinkMinted, PageShare, PublicLinksPolicy, PageTrashed, PageVersionNamed,
 } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
@@ -31,6 +31,7 @@ export const backlinksPath = (pageId: string) => `/pages/${pageId}/backlinks`;
 export const accessPath = (pageId: string) => `/pages/${pageId}/access`;
 export const sharedPagesPath = '/pages:shared';
 export const personalSpacePath = '/pages:personal';
+export const publicLinksPolicyPath = '/pages:public-links';
 
 /** What a write to one page makes stale: the page, its space, and its history. */
 const touched = (hubId: string, pageId: string) => [pagePath(pageId), `/hubs/${hubId}/pages`, `/hubs/${hubId}/trashed-pages`, versionsPath(pageId)];
@@ -154,6 +155,25 @@ class Pages {
     return engine.mutate<unknown>('DELETE', `${pagePath(pageId)}/shares/${accountId}`, undefined, {
       invalidates: [accessPath(pageId), sharedPagesPath],
     });
+  }
+
+  /**
+   * Makes the page's public link, replacing the one it had, and answers its token - once
+   * (UC-DOC-08). Only where the workspace allows public links.
+   */
+  link(pageId: string): Promise<PagePublicLinkMinted> {
+    return engine.mutate<PagePublicLinkMinted>('POST', `${pagePath(pageId)}/public-link`, undefined, {
+      invalidates: [accessPath(pageId)],
+    });
+  }
+
+  unlink(pageId: string): Promise<unknown> {
+    return engine.mutate<unknown>('DELETE', `${pagePath(pageId)}/public-link`, undefined, { invalidates: [accessPath(pageId)] });
+  }
+
+  /** Allows or forbids public links in the workspace, inside what the plan leaves. */
+  setPublicLinks(allowed: boolean): Promise<PublicLinksPolicy> {
+    return engine.mutate<PublicLinksPolicy>('PUT', publicLinksPolicyPath, { allowed }, { invalidates: [publicLinksPolicyPath] });
   }
 
   /** Today's note in the reader's personal space, made with the space on first use (UC-DOC-07). */

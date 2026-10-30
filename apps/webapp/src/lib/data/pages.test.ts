@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import type { Page } from '@hubtask/sync-engine';
 
-import { SHIPPED_TEMPLATES, ancestorsOf, caretOf, exportFileName, pageTree, shippedTemplate, subtreeOf, verifiedUntil, visibleRows } from './pages.ts';
+import { SHIPPED_TEMPLATES, ancestorsOf, caretOf, exportFileName, publicLinkAddress, pageTree, shippedTemplate, subtreeOf, verifiedUntil, visibleRows } from './pages.ts';
 
 const page = (id: string, parent: string | null, position: string, title = id): Page => ({
   id, hub_id: 'hub', parent_id: parent, title, icon: null, position, template: false, content_language: null, owner_id: null,
@@ -56,4 +56,8 @@ test('an exported DOCX document is saved as its decoded bytes, text as its UTF-8
   const { exportBytes } = await import('./pages.ts');
   assert.deepEqual([...exportBytes({ content: 'UEs=', encoding: 'BASE64' })], [0x50, 0x4b]);
   assert.deepEqual([...exportBytes({ content: 'ä', encoding: 'TEXT' })], [0xc3, 0xa4]);
+});
+
+test('a public link opens the page on this server, its token the whole credential (UC-DOC-08 check 5)', () => {
+  assert.equal(publicLinkAddress('https://hub.example.org/', 'hbt_page_abc'), 'https://hub.example.org/api/v1/public/pages/hbt_page_abc');
 });

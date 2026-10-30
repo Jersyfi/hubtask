@@ -4,15 +4,16 @@
   // Who reads a page beyond its hub (UC-DOC-07, UC-DOC-08): its restriction to fewer of the hub's
   // readers, one above it, and the people it is shared with read-only. A writer restricts and
   // lifts; somebody who manages the hub's members shares (`may_share`). What the reader may not do
-  // is not drawn (P-05).
+  // is not drawn (P-05). A public link, where the workspace allows one, is shown once when made:
+  // only its hash is kept.
 
   import { untrack } from 'svelte';
-  import { Badge, Button, CheckboxGroup, Inline, Select, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, CheckboxGroup, Inline, Input, Select, Stack } from '@hubtask/design-system/components';
   import type { PageAccess, PageRead } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
-  import { accessPath, pages } from '../data/pages.svelte.ts';
+  import { accessPath, pages, publicLinkAddress } from '../data/pages.svelte.ts';
   import { people } from '../data/people.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -86,6 +87,28 @@
     await act(() => pages.share(page.id, whom), t('app.pages.access_shared', { name: nameOf(whom) }));
     shareWith = '';
   }
+
+  // --- A public link -----------------------------------------------------------------------------
+
+  let madeAddress = $state<string | undefined>(undefined);
+  const linkable = $derived(info?.may_share === true && info.public_links_allowed && !info.restricted && !info.restricted_above);
+
+  async function makeLink() {
+    refusal = undefined;
+    try {
+      const made = await pages.link(page.id);
+      madeAddress = publicLinkAddress(globalThis.location.origin, made.token);
+      void navigator.clipboard?.writeText(madeAddress).catch(() => undefined);
+      toast.show({ text: t('app.pages.access_link_made'), tone: 'success' });
+    } catch (error) {
+      refusal = renderProblem(error as never, messages).message;
+    }
+  }
+
+  async function removeLink() {
+    madeAddress = undefined;
+    await act(() => pages.unlink(page.id), t('app.pages.access_link_removed'));
+  }
 </script>
 
 <section aria-labelledby="page-access-heading">
@@ -148,6 +171,36 @@
           <Button size="sm" tone="secondary" onclick={share}>{t('app.pages.access_share')}</Button>
         </Inline>
         <p class="quiet">{t('app.pages.access_share_hint')}</p>
+      {/if}
+
+      {#if info.public_link || linkable}
+        <h4 class="sub">{t('app.pages.access_link')}</h4>
+        {#if info.public_link}
+          <p class="meta">
+            {info.public_links_allowed
+              ? t('app.pages.access_link_open', { name: nameOf(info.public_link.created_by) })
+              : t('app.pages.access_link_paused')}
+          </p>
+        {:else}
+          <p class="quiet">{t('app.pages.access_link_none')}</p>
+        {/if}
+        {#if madeAddress}
+          <Input label={t('app.pages.access_link_address')} value={madeAddress} readonly />
+          <p class="quiet">{t('app.pages.access_link_once')}</p>
+        {/if}
+        {#if info.may_share}
+          <Inline gap="100" isWrapping>
+            {#if linkable}
+              <Button size="sm" tone="secondary" icon="link" onclick={makeLink}>
+                {info.public_link ? t('app.pages.access_link_renew') : t('app.pages.access_link_make')}
+              </Button>
+            {/if}
+            {#if info.public_link}
+              <Button size="sm" tone="subtle" onclick={removeLink}>{t('app.pages.access_link_remove')}</Button>
+            {/if}
+          </Inline>
+          <p class="quiet">{t('app.pages.access_link_hint')}</p>
+        {/if}
       {/if}
     {/if}
   </Stack>

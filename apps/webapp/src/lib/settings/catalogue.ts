@@ -49,6 +49,7 @@ const WORKSPACE: Readonly<Record<string, Screen>> = {
   ai: { path: '/administration/ai', code: 'app.admin.ai' },
   structure: { path: '/administration/presets', code: 'app.presets.title' },
   module: { path: '/administration/modules', code: 'app.modules.title' },
+  knowledge: { path: '/administration/workspace', code: 'app.admin.workspace' },
 };
 
 /** The screen that draws a setting at a level, or none where no screen of the reader's does. */
