@@ -274,6 +274,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-DOC-10](./knowledge/UC-DOC-10-embed-a-live-view-of-work-in-a-page.md) | Embed a live view of work in a page | knowledge |
 | [UC-DOC-11](./knowledge/UC-DOC-11-discuss-a-page-beside-its-words.md) | Discuss a page beside its words | knowledge |
 | [UC-DOC-12](./knowledge/UC-DOC-12-keep-a-page-known-to-be-right.md) | Keep a page known to be right | knowledge |
+| [UC-DOC-13](./knowledge/UC-DOC-13-answer-a-requester-from-the-knowledge-base.md) | Answer a requester from the knowledge base | knowledge |
 | [UC-CNV-01](./whiteboard/UC-CNV-01-draw-on-a-whiteboard-together.md) | Draw on a whiteboard together | whiteboard |
 | [UC-CNV-02](./whiteboard/UC-CNV-02-turn-a-sticky-note-into-a-task-and-keep-it-on-the-board.md) | Turn a sticky note into a task and keep it on the board | whiteboard |
 | [UC-CNV-03](./whiteboard/UC-CNV-03-take-a-whiteboard-out-again.md) | Take a whiteboard out again | whiteboard |

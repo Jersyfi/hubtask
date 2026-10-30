@@ -817,7 +817,10 @@ memberships (UC-DOC-08): granted with MANAGE_MEMBERS, the page alone, never past
 A `PublicLink` opens one page to anybody holding its token, without signing in, where the
 workspace's `knowledge.public_links` allows it (off by default, lock-able by the installation and
 a plan): one per page, only the token's hash kept, never for a page behind a restriction, read as
-the person who made it at every opening. A
+the person who made it at every opening. An `Article` publishes a page to one service's portal
+(UC-DOC-13): a collection's requesters, holding REQUEST there and reading no hub, are offered it
+while they type and open it - counted -, and rate it once each; never a page behind a
+restriction. A
 person's `personal_space` is a private hub of their own made on first use, and a page with
 `daily_for` is its note of a day, one per day (UC-DOC-07).
 
