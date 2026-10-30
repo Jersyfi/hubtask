@@ -607,7 +607,7 @@
   };
   let entryCollection = $state<string>('');
   const kinds = $derived(entryCollection ? kindsIn(entryCollection) : []);
-  const notesToTurn = $derived(chosen?.kind === 'FRAME' ? notesInFrame(elements, chosen) : chosen?.kind === 'STICKY' ? [chosen] : []);
+  const notesToTurn = $derived(chosen?.kind === 'FRAME' ? notesInFrame(elements, chosen) : chosen?.kind === 'STICKY' || chosen?.kind === 'SHAPE' ? [chosen] : []);
 
   async function makeEntries() {
     isMakingEntry = false;
@@ -1231,7 +1231,7 @@
             {#if chosen.kind === 'LINK'}
               <Input size="sm" label={t('app.whiteboards.link_address')} value={chosen.url ?? ''} onchange={(event: Event) => { const url = (event.currentTarget as HTMLInputElement).value.trim(); if (url) model.update(chosen.id, { url }); }} />
             {/if}
-            {#if chosen.kind === 'STICKY' || (chosen.kind === 'FRAME' && notesToTurn.length > 0)}
+            {#if chosen.kind === 'STICKY' || chosen.kind === 'SHAPE' || (chosen.kind === 'FRAME' && notesToTurn.length > 0)}
               <Button size="sm" tone="secondary" icon="square-check" onclick={() => { isMakingEntry = !isMakingEntry; entryCollection = collections[0]?.id ?? ''; entryKind = ''; }}>
                 {chosen.kind === 'FRAME' ? t('app.whiteboards.make_entries', { count: String(notesToTurn.length) }) : t('app.whiteboards.make_entry')}
               </Button>

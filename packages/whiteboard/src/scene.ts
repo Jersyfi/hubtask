@@ -189,17 +189,18 @@ export class Board {
   }
 
   /**
-   * A sticky note becomes the card of the entry it was turned into, in its place: the same
-   * identifier, so a connector attached to the note stays attached to the card (UC-CNV-02).
+   * A sticky note or a shape becomes the card of the entry it was turned into, in its place: the
+   * same identifier, so a connector attached to it stays attached to the card (UC-CNV-02).
    */
   toCard(id: string, entryId: string): boolean {
     const stored = this.#map.get(id);
-    if (!stored || stored.get('kind') !== 'STICKY') return false;
+    if (!stored || (stored.get('kind') !== 'STICKY' && stored.get('kind') !== 'SHAPE')) return false;
     this.doc.transact(() => {
       stored.set('kind', 'CARD');
       stored.set('target', { kind: 'ENTRY', id: entryId });
       stored.delete('text');
       stored.delete('color_token');
+      stored.delete('shape');
       const size = DEFAULT_SIZE.CARD;
       stored.set('width', Math.max(Number(stored.get('width') ?? 0), size.width));
       stored.set('height', size.height);

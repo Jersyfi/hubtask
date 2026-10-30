@@ -29,6 +29,7 @@ At the end of the retro, Anna turns the note "Book the room earlier" into a task
 5. A reference to a board (`hubtask:whiteboard/<id>`, `#<frame>` for one frame) resolves to its title and number of objects for a reader of its hub, and to its address alone for anybody else.
 6. Turning a note, the writer chooses the entry type among those the collection offers at the task level (where the workflows module is on); the entry is created of that type, held to its form.
 7. A frame's sticky notes with words are turned into entries at once, each becoming its entry's card in its place; a refusal stops the turning and is shown in words.
+8. A shape with words is turned into an entry as a sticky note is, and becomes its entry's card in its place.
 
 ## Where it ends
 

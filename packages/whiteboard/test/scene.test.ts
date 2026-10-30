@@ -70,7 +70,17 @@ test('a sticky note becomes the card of its entry in its place, its connectors s
   assert.equal(card?.x, 50);
   assert.equal(card?.text, undefined);
   assert.equal(board.get('l')?.from, 'a');
-  assert.equal(board.toCard('l', 'x'), false, 'only a sticky note becomes a card');
+  assert.equal(board.toCard('l', 'x'), false, 'only a sticky note or a shape becomes a card');
+});
+
+test('a shape with words becomes the card of its entry in its place (UC-CNV-02 check 8)', () => {
+  const board = new Board(new Y.Doc());
+  board.add({ id: 'd', kind: 'SHAPE', shape: 'DIAMOND', x: 70, y: 20, width: 120, height: 120, text: 'Approve?' });
+  assert.equal(board.toCard('d', '0192f000-0000-7000-8000-000000000002'), true);
+  const card = board.get('d');
+  assert.equal(card?.kind, 'CARD');
+  assert.equal(card?.shape, undefined);
+  assert.equal(card?.x, 70);
 });
 
 test('a saved scene seeds an empty document only, and the board stops at its limit (UC-CNV-01 check 5)', () => {
