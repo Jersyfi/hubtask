@@ -4,18 +4,22 @@
   // The workflow as two lists a keyboard reaches (UC-FLW-02 check 2): its statuses and its steps,
   // with every action the diagram offers and the step's who, requires, asks and checks
   // (UC-FLW-04 checks 1 to 3), and its *then*: the rules on the step, which run in its own change
-  // (check 4) and are written in the rule editor from the same actions as every rule. Every edit is a function over the draft (lib/data/workflows.ts);
+  // (check 4) and are written in the rule editor from the same actions as every rule, and whose yes
+  // it waits for (UC-SVC-08 check 1). Every edit is a function over the draft (lib/data/workflows.ts);
   // nothing is sent from here - the page saves the draft.
 
   import { tick, untrack } from 'svelte';
-  import { Button, Checkbox, IconButton, Inline, Input, Select, Stack } from '@hubtask/design-system/components';
+  import { Button, Checkbox, IconButton, Inline, Input, Select, Stack, Switch } from '@hubtask/design-system/components';
   import { labelTokens } from '@hubtask/design-system';
   import type { WorkflowShape, WorkflowStep } from '@hubtask/sync-engine';
 
   import {
-    CATEGORIES, CHECK_MESSAGE_CODES, addStatus, addStep, changeStatus, changeStep, moveStatus, removeStatus, removeStep, statusLabel,
-    stepLabel, type Category,
+    APPROVAL_RULES, CATEGORIES, CHECK_MESSAGE_CODES, addApprovalLevel, addStatus, addStep, changeApproval, changeApprovalLevel, changeStatus,
+    changeStep, moveStatus, removeApprovalLevel, removeStatus, removeStep, statusLabel, stepLabel, toggleApproval, type ApprovalLevel,
+    type Category,
   } from '../data/workflows.ts';
+  import { accounts } from '../data/accounts.svelte.ts';
+  import PersonPicker from '../people/PersonPicker.svelte';
   import { groups } from '../data/groups.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
@@ -152,6 +156,30 @@
     } catch {
       return language;
     }
+  }
+
+  // The approval's levels (UC-SVC-08 check 1): whom each counts and by which rule it passes.
+  const ruleOptions = $derived(APPROVAL_RULES.map((rule) => ({ value: rule, label: t(`app.approvals.rule.${rule.toLowerCase()}`) })));
+  const declineOptions = $derived([
+    { value: '', label: t('app.approvals.decline_stays') },
+    ...shape.statuses.map((status) => ({ value: status.key, label: statusLabel(status, t) })),
+  ]);
+  /** The person being added to each level, by `step:index`, until *Add* is pressed. */
+  let adding = $state<Record<string, string>>({});
+
+  function toggleIn(list: readonly string[] | undefined, value: string, on: boolean): string[] {
+    const set = new Set(list ?? []);
+    if (on) set.add(value);
+    else set.delete(value);
+    return [...set];
+  }
+
+  function addPerson(step: WorkflowStep, index: number, level: ApprovalLevel) {
+    const slot = `${step.key}:${index}`;
+    const person = adding[slot];
+    if (!person) return;
+    onchange(changeApprovalLevel(shape, step.key, index, { people: toggleIn(level.people, person, true) }));
+    adding[slot] = '';
   }
 
   const checked = (event: Event) => (event.currentTarget as HTMLInputElement).checked;
@@ -338,6 +366,87 @@
                 onchange={(event: Event) => onchange(changeStep(shape, step.key, { asks: words(valueOf(event)) }))}
               />
             </div>
+            <fieldset class="group" data-step-approval={step.key}>
+              <legend>{t('app.approvals.step_title')}</legend>
+              <Switch
+                label={t('app.approvals.step_waits')}
+                hint={t('app.approvals.step_waits_hint')}
+                checked={step.approval != null}
+                disabledReason={isReadOnly ? t('app.workflow_designer.read_only') : undefined}
+                onchange={(event: Event) => onchange(toggleApproval(shape, step.key, checked(event)))}
+              />
+              {#if step.approval}
+                {#each step.approval.levels as level, index (index)}
+                  <div class="level" data-approval-level={index}>
+                    <Inline gap="100" align="center" justify="between">
+                      <span class="title">{t('app.approvals.level', { n: String(index + 1) })}</span>
+                      {#if !isReadOnly && step.approval.levels.length > 1}
+                        <IconButton icon="trash" size="sm" tone="subtle" label={t('app.approvals.remove_level')}
+                          onclick={() => onchange(removeApprovalLevel(shape, step.key, index))} />
+                      {/if}
+                    </Inline>
+                    <div class="fields">
+                      <Select label={t('app.approvals.rule_label')} options={ruleOptions} value={level.rule}
+                        disabledReason={isReadOnly ? t('app.workflow_designer.read_only') : undefined}
+                        onchange={(event: Event) => onchange(changeApprovalLevel(shape, step.key, index, { rule: valueOf(event) as ApprovalLevel['rule'] }))} />
+                      {#if level.rule === 'N_OF'}
+                        <Input label={t('app.approvals.count')} type="number" min="1" max="50" value={String(level.count ?? 1)} readonly={isReadOnly}
+                          onchange={(event: Event) => onchange(changeApprovalLevel(shape, step.key, index, { count: Math.max(1, Number(valueOf(event)) || 1) }))} />
+                      {/if}
+                    </div>
+                    <div class="choices" role="group" aria-label={t('app.approvals.people')}>
+                      {#each level.people ?? [] as person (person)}
+                        <Inline gap="050" align="center">
+                          <span>{accounts.nameOf(person) ?? t('app.approvals.somebody')}</span>
+                          {#if !isReadOnly}
+                            <IconButton icon="x" size="sm" tone="subtle" label={t('app.approvals.remove_person')}
+                              onclick={() => onchange(changeApprovalLevel(shape, step.key, index, { people: toggleIn(level.people, person, false) }))} />
+                          {/if}
+                        </Inline>
+                      {/each}
+                    </div>
+                    {#if !isReadOnly}
+                      <div class="add">
+                        <PersonPicker label={t('app.approvals.add_person')} noneLabel={t('app.approvals.choose_person')} bind:value={() => adding[`${step.key}:${index}`] ?? '', (next) => (adding[`${step.key}:${index}`] = next)} />
+                        <Button tone="subtle" size="sm" icon="plus" onclick={() => addPerson(step, index, level)}>{t('app.approvals.add')}</Button>
+                      </div>
+                    {/if}
+                    {#if groups.all.length > 0}
+                      <div class="choices" role="group" aria-label={t('app.approvals.groups')}>
+                        {#each groups.all as group (group.id)}
+                          <Checkbox label={group.name} checked={level.groups?.includes(group.id) ?? false}
+                            disabledReason={isReadOnly ? t('app.workflow_designer.read_only') : undefined}
+                            onchange={(event: Event) => onchange(changeApprovalLevel(shape, step.key, index, { groups: toggleIn(level.groups, group.id, checked(event)) }))} />
+                        {/each}
+                      </div>
+                    {/if}
+                    {#if level.rule === 'ANY' || level.rule === 'N_OF'}
+                      <div class="choices" role="group" aria-label={t('app.approvals.roles')}>
+                        {#each ROLES as role (role)}
+                          <Checkbox label={t(`app.people.role.${role.toLowerCase()}`)} checked={level.roles?.includes(role) ?? false}
+                            disabledReason={isReadOnly ? t('app.workflow_designer.read_only') : undefined}
+                            onchange={(event: Event) => onchange(changeApprovalLevel(shape, step.key, index, { roles: toggleIn(level.roles, role, checked(event)) }))} />
+                        {/each}
+                      </div>
+                    {/if}
+                    <Input label={t('app.approvals.person_fields')} hint={t('app.workflow_designer.person_fields_hint')} value={joined(level.person_fields)}
+                      readonly={isReadOnly}
+                      onchange={(event: Event) => onchange(changeApprovalLevel(shape, step.key, index, { person_fields: words(valueOf(event)) }))} />
+                  </div>
+                {/each}
+                {#if !isReadOnly && step.approval.levels.length < 5}
+                  <Inline gap="100"><Button tone="subtle" size="sm" icon="plus" onclick={() => onchange(addApprovalLevel(shape, step.key))}>{t('app.approvals.add_level')}</Button></Inline>
+                {/if}
+                <div class="fields">
+                  <Select label={t('app.approvals.decline_to')} options={declineOptions} value={step.approval.decline_to ?? ''}
+                    disabledReason={isReadOnly ? t('app.workflow_designer.read_only') : undefined}
+                    onchange={(event: Event) => onchange(changeApproval(shape, step.key, { decline_to: valueOf(event) || null }))} />
+                  <Input label={t('app.approvals.due_hours')} hint={t('app.approvals.due_hours_hint')} type="number" min="0" max="2160"
+                    value={String(step.approval.due_hours ?? 0)} readonly={isReadOnly}
+                    onchange={(event: Event) => onchange(changeApproval(shape, step.key, { due_hours: Math.min(2160, Math.max(0, Math.round(Number(valueOf(event)) || 0))) }))} />
+                </div>
+              {/if}
+            </fieldset>
             <fieldset class="group">
               <legend>{t('app.workflow_designer.checks')}</legend>
               {#each step.checks ?? [] as check, index (check.key)}
@@ -442,6 +551,14 @@
   }
 
   .check { grid-template-columns: 1fr 1fr auto; }
+
+  .level {
+    display: grid;
+    gap: var(--sp-100);
+    padding: var(--sp-100);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-md);
+  }
 
   .group { margin: 0; padding: 0; border: none; display: grid; gap: var(--sp-050); }
   .group legend { padding: 0; font-size: var(--fs-075); font-weight: var(--fw-medium); color: var(--text-secondary); }

@@ -223,3 +223,54 @@ export function checkMessage(check: CheckWords, locale: string, t: (code: string
   if (check.message_code) return t(`workflows.check_message.${check.message_code}`);
   return check.key;
 }
+
+/** A step's approval as the shape carries it (UC-SVC-08 check 1). */
+export type StepApproval = NonNullable<WorkflowStep['approval']>;
+export type ApprovalLevel = StepApproval['levels'][number];
+
+/** The rules a level may pass by, in the order the designer offers them. */
+export const APPROVAL_RULES = ['ANY', 'ALL', 'N_OF', 'MAJORITY'] as const;
+
+/** Makes a step wait for one level of anybody's yes, or moves it at once again. */
+export function toggleApproval(shape: WorkflowShape, key: string, isOn: boolean): WorkflowShape {
+  return changeStep(shape, key, { approval: isOn ? { levels: [{ rule: 'ANY' }], decline_to: null, due_hours: 0 } : null });
+}
+
+/** Replaces the step's approval in part; a step without one is left as it is. */
+export function changeApproval(shape: WorkflowShape, key: string, change: Partial<StepApproval>): WorkflowShape {
+  const step = shape.steps.find((each) => each.key === key);
+  if (!step?.approval) return shape;
+  return changeStep(shape, key, { approval: { ...step.approval, ...change } });
+}
+
+/**
+ * Replaces one level. A rule other than `N_OF` drops its count, and `ALL` or `MAJORITY` drops the
+ * roles - the server refuses both (a role is held when somebody decides, so it has no fixed size).
+ */
+export function changeApprovalLevel(shape: WorkflowShape, key: string, index: number, change: Partial<ApprovalLevel>): WorkflowShape {
+  const step = shape.steps.find((each) => each.key === key);
+  if (!step?.approval) return shape;
+  const levels = step.approval.levels.map((level, at) => {
+    if (at !== index) return level;
+    const next: ApprovalLevel = { ...level, ...change };
+    if (next.rule !== 'N_OF') delete next.count;
+    else if (next.count === undefined) next.count = 1;
+    if (next.rule === 'ALL' || next.rule === 'MAJORITY') delete next.roles;
+    return next;
+  });
+  return changeApproval(shape, key, { levels });
+}
+
+/** Adds a level after the last, at most five (the contract's bound). */
+export function addApprovalLevel(shape: WorkflowShape, key: string): WorkflowShape {
+  const step = shape.steps.find((each) => each.key === key);
+  if (!step?.approval || step.approval.levels.length >= 5) return shape;
+  return changeApproval(shape, key, { levels: [...step.approval.levels, { rule: 'ANY' }] });
+}
+
+/** Removes a level; the last one cannot go - the approval is switched off instead. */
+export function removeApprovalLevel(shape: WorkflowShape, key: string, index: number): WorkflowShape {
+  const step = shape.steps.find((each) => each.key === key);
+  if (!step?.approval || step.approval.levels.length <= 1) return shape;
+  return changeApproval(shape, key, { levels: step.approval.levels.filter((_, at) => at !== index) });
+}

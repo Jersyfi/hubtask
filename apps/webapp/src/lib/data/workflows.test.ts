@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 import type { WorkflowList, WorkflowShape } from '@hubtask/sync-engine';
 
 import {
-  addStatus, addStep, checkMessage, completes, layout, moveStatus, removeStatus, standing, stepsFrom, workflowChoices, workflowFor,
+  addApprovalLevel, addStatus, addStep, changeApproval, changeApprovalLevel, checkMessage, completes, layout, moveStatus, removeApprovalLevel,
+  removeStatus, standing, stepsFrom, toggleApproval, workflowChoices, workflowFor,
 } from './workflows.ts';
 
 const shape: WorkflowShape = {
@@ -76,4 +77,22 @@ test('a check message is read in the reader\'s language', () => {
   assert.equal(checkMessage(check, 'fr', t), 'Above zero');
   assert.equal(checkMessage({ key: 'amount', message: null, message_code: 'amount_positive' }, 'fr', t), '<workflows.check_message.amount_positive>');
   assert.equal(checkMessage({ key: 'amount' }, 'fr', t), 'amount');
+});
+
+test('an approval step keeps what the server accepts of a level (UC-SVC-08 check 1)', () => {
+  let draft = toggleApproval(shape, 'finish', true);
+  assert.deepEqual(draft.steps[1]?.approval, { levels: [{ rule: 'ANY' }], decline_to: null, due_hours: 0 });
+  draft = changeApprovalLevel(draft, 'finish', 0, { rule: 'N_OF', roles: ['ADMIN'] });
+  assert.deepEqual(draft.steps[1]?.approval?.levels[0], { rule: 'N_OF', roles: ['ADMIN'], count: 1 });
+  draft = changeApprovalLevel(draft, 'finish', 0, { rule: 'ALL' });
+  assert.deepEqual(draft.steps[1]?.approval?.levels[0], { rule: 'ALL' });
+  draft = addApprovalLevel(draft, 'finish');
+  assert.equal(draft.steps[1]?.approval?.levels.length, 2);
+  draft = removeApprovalLevel(draft, 'finish', 0);
+  draft = removeApprovalLevel(draft, 'finish', 0);
+  assert.equal(draft.steps[1]?.approval?.levels.length, 1, 'the last level stays');
+  for (let n = 0; n < 6; n++) draft = addApprovalLevel(draft, 'finish');
+  assert.equal(draft.steps[1]?.approval?.levels.length, 5);
+  assert.equal(changeApproval(shape, 'finish', { due_hours: 4 }), shape, 'a step without an approval is left alone');
+  assert.equal(toggleApproval(draft, 'finish', false).steps[1]?.approval, null);
 });
