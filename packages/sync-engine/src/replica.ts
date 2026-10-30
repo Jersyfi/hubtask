@@ -75,6 +75,10 @@ export function collectionOf(entity: string): string {
       return 'entry_estimates';
     case 'custom_field':
       return 'custom_fields';
+    case 'time_record':
+      return 'time_records';
+    case 'time_timer':
+      return 'time_timers';
     case 'workflow':
       return 'workflows';
     case 'custom_role':

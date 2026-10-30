@@ -20,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/planning"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	syncdomain "github.com/Jersyfi/hubtask/core/domain/model/sync"
+	"github.com/Jersyfi/hubtask/core/domain/model/timekeeping"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
@@ -169,6 +170,12 @@ type Snapshot interface {
 	EntryEstimates(ctx context.Context, after shared.ID, batch int) ([]EstimateOf, error)
 	// CustomFields pages the custom field definitions in force, a deleted one left out.
 	CustomFields(ctx context.Context, after shared.ID, batch int) ([]work.CustomFieldDefinition, error)
+	// OwnTimeRecords pages one person's time records and OwnTimer reads their running timer -
+	// the only time read for one person; TimeWorkTypes and TimePolicy read the workspace's (M7).
+	OwnTimeRecords(ctx context.Context, account, after shared.ID, batch int) ([]timekeeping.Record, error)
+	OwnTimer(ctx context.Context, account shared.ID) (timekeeping.Timer, bool, error)
+	TimeWorkTypes(ctx context.Context) ([]timekeeping.WorkType, error)
+	TimePolicy(ctx context.Context) (timekeeping.Policy, error)
 	// CustomRoles pages the workspace's own roles (UC-ID-26).
 	CustomRoles(ctx context.Context, after shared.ID, batch int) ([]identityrepo.CustomRoleRow, error)
 	// Pages pages the workspace's living pages with their bodies, for reading offline (M3).

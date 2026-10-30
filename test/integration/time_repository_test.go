@@ -119,3 +119,59 @@ func TestTimeStaysInItsWorkspace(t *testing.T) {
 		t.Errorf("the other workspace removed the record: %v", err)
 	}
 }
+
+// The walk's time stays in its workspace and with its person (offline-sync.md §3.1): another
+// person's walk holds none of a person's records, and the workspace next door none at all.
+func TestTheTimeWalkStaysWithItsPerson(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	store := postgres.NewTimeRepository()
+	snapshot := postgres.NewSnapshotRepository()
+	_, _, tasks := seedPlan(ctx, t, tenantA)
+	now := time.Date(2026, 11, 3, 17, 0, 0, 0, time.UTC)
+	day, _ := timekeeping.ParseDay("2026-11-03")
+	record := timekeeping.Record{
+		ID: freshID(t), AccountID: authorA, EntryID: tasks[0], WorkType: "walked", Day: day,
+		Minutes: 15, Source: timekeeping.SourceManual, CreatedAt: now, UpdatedAt: now, Version: 1,
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := store.PutWorkType(ctx, freshID(t), timekeeping.WorkType{Key: "walked", Name: "Walked"}, now); err != nil {
+			return err
+		}
+		return store.InsertRecord(ctx, record)
+	}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	walked := func(tenant, person shared.ID) (seen bool) {
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			records, err := snapshot.OwnTimeRecords(ctx, person, "", 5000)
+			for _, r := range records {
+				seen = seen || r.ID == record.ID
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return seen
+	}
+	if !walked(tenantA, authorA) {
+		t.Error("the person's walk holds no record of theirs")
+	}
+	if walked(tenantA, freshID(t)) {
+		t.Error("another person's walk holds the record")
+	}
+	if walked(tenantB, authorA) {
+		t.Error("the workspace next door walked the record")
+	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		kinds, err := snapshot.TimeWorkTypes(ctx)
+		for _, k := range kinds {
+			if k.Key == "walked" {
+				t.Errorf("the workspace next door walked the kind of work")
+			}
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

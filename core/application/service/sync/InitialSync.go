@@ -13,6 +13,7 @@ import (
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
 	knowledgeservice "github.com/Jersyfi/hubtask/core/application/service/knowledge"
 	planningservice "github.com/Jersyfi/hubtask/core/application/service/planning"
+	timeservice "github.com/Jersyfi/hubtask/core/application/service/timekeeping"
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	workflowservice "github.com/Jersyfi/hubtask/core/application/service/workflow"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -39,6 +40,7 @@ var walkKinds = []string{
 	entityCI, entityCIRelation, entityCICatalogue, entityEntrySchedule,
 	entityGoalPeriod, entityGoal, entityGoalCheckIn, entityDashboard,
 	entitySprint, entitySprintEntry, entityEstimate, entityCustomField,
+	entityTimeRecord, entityTimer, entityWorkTypes, entityTimePolicy,
 }
 
 const (
@@ -92,6 +94,13 @@ const (
 	// workspace-wide one, which reaches every member as the types do: a definition draws a form,
 	// a read-restricted field narrows its values, never its definition.
 	entityCustomField = workservice.CustomFieldEntity
+	// entityTimeRecord and entityTimer are a person's own, walked for that person alone and
+	// delivered to them alone; entityWorkTypes and entityTimePolicy one record each under the
+	// workspace's identifier, for every member (M7).
+	entityTimeRecord = timeservice.RecordEntity
+	entityTimer      = timeservice.TimerEntity
+	entityWorkTypes  = timeservice.WorkTypesEntity
+	entityTimePolicy = timeservice.PolicyEntity
 	// kindSet is the walk's own name for the set element pass. Not an entity: its records are the
 	// entry's.
 	kindSet = "set"
@@ -205,6 +214,10 @@ func (p PullChanges) readKind(
 			rows, err = p.catalogue(ctx, actor, after)
 			return err
 		}
+		if kind == entityTimeRecord || kind == entityTimer || kind == entityWorkTypes || kind == entityTimePolicy {
+			rows, err = p.time(ctx, actor, kind, after, batch)
+			return err
+		}
 		rows, err = p.pageOf(ctx, kind, after, batch)
 		return err
 	})
@@ -242,6 +255,51 @@ func (p PullChanges) catalogue(ctx context.Context, actor appshared.ActorContext
 		entity: entityCICatalogue, entityID: actor.TenantID,
 		payload: cmdbservice.CatalogueOutput(classes, types), key: actor.TenantID.String(),
 	}}, nil
+}
+
+// time pages the time module's kinds: a person's own records and timer, and the workspace's two
+// records, each delivered once and only once there is something to tell.
+func (p PullChanges) time(ctx context.Context, actor appshared.ActorContext, kind, after string, batch int) ([]walkRow, error) {
+	switch kind {
+	case entityTimeRecord:
+		records, err := p.Snapshot.OwnTimeRecords(ctx, actor.AccountID, shared.ID(after), batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(records))
+		for _, r := range records {
+			rows = append(rows, walkRow{entity: entityTimeRecord, entityID: r.ID, payload: timeservice.RecordOutput(r), key: r.ID.String()})
+		}
+		return rows, nil
+	case entityTimer:
+		if after != "" {
+			return nil, nil
+		}
+		timer, running, err := p.Snapshot.OwnTimer(ctx, actor.AccountID)
+		if err != nil || !running {
+			return nil, err
+		}
+		return []walkRow{{entity: entityTimer, entityID: actor.AccountID, payload: timeservice.TimerRecord(timer), key: actor.AccountID.String()}}, nil
+	case entityWorkTypes:
+		if after != "" {
+			return nil, nil
+		}
+		kinds, err := p.Snapshot.TimeWorkTypes(ctx)
+		if err != nil || len(kinds) == 0 {
+			return nil, err
+		}
+		return []walkRow{{entity: entityWorkTypes, entityID: actor.TenantID, payload: timeservice.WorkTypesRecord(kinds), key: actor.TenantID.String()}}, nil
+	default:
+		if after != "" {
+			return nil, nil
+		}
+		policy, err := p.Snapshot.TimePolicy(ctx)
+		if err != nil || policy.Version == 0 {
+			// Never set: a device without the record holds the default policy.
+			return nil, err
+		}
+		return []walkRow{{entity: entityTimePolicy, entityID: actor.TenantID, payload: timeservice.PolicyOutput(policy), key: actor.TenantID.String()}}, nil
+	}
 }
 
 // pageOf is the table of kinds: what each one reads, and how its rows become records.

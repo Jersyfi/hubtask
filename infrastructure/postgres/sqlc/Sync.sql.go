@@ -1684,6 +1684,75 @@ func (q *Queries) SnapshotOwnRoleGrants(ctx context.Context, arg SnapshotOwnRole
 	return items, nil
 }
 
+const snapshotOwnTimeRecords = `-- name: SnapshotOwnTimeRecords :many
+SELECT id, account_id, entry_id, work_type, day, started_at, minutes, note, billable, source,
+  corrects, created_at, updated_at, version
+FROM time_record
+WHERE tenant_id = current_tenant_id() AND account_id = $1::uuid
+  AND id > $2
+ORDER BY id
+LIMIT $3
+`
+
+type SnapshotOwnTimeRecordsParams struct {
+	AccountID pgtype.UUID
+	After     pgtype.UUID
+	Batch     int32
+}
+
+type SnapshotOwnTimeRecordsRow struct {
+	ID        pgtype.UUID
+	AccountID pgtype.UUID
+	EntryID   pgtype.UUID
+	WorkType  string
+	Day       pgtype.Date
+	StartedAt pgtype.Timestamptz
+	Minutes   int32
+	Note      string
+	Billable  bool
+	Source    string
+	Corrects  pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
+// One person's time records (migration 0246), walked for that person alone.
+func (q *Queries) SnapshotOwnTimeRecords(ctx context.Context, arg SnapshotOwnTimeRecordsParams) ([]SnapshotOwnTimeRecordsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotOwnTimeRecords, arg.AccountID, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotOwnTimeRecordsRow{}
+	for rows.Next() {
+		var i SnapshotOwnTimeRecordsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.EntryID,
+			&i.WorkType,
+			&i.Day,
+			&i.StartedAt,
+			&i.Minutes,
+			&i.Note,
+			&i.Billable,
+			&i.Source,
+			&i.Corrects,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotPages = `-- name: SnapshotPages :many
 SELECT id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,

@@ -515,3 +515,13 @@ FROM custom_field_definition
 WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL AND id > sqlc.arg('after')
 ORDER BY id
 LIMIT sqlc.arg('batch');
+
+-- name: SnapshotOwnTimeRecords :many
+-- One person's time records (migration 0246), walked for that person alone.
+SELECT id, account_id, entry_id, work_type, day, started_at, minutes, note, billable, source,
+  corrects, created_at, updated_at, version
+FROM time_record
+WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id')::uuid
+  AND id > sqlc.arg('after')
+ORDER BY id
+LIMIT sqlc.arg('batch');

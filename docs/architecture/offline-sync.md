@@ -87,7 +87,7 @@ A **null cursor is the initial synchronisation**: the current state, one kind at
 (containers, buckets, labels, entries, set elements, comments, reminders, recurrence rules,
 templates, entry types, link types, workflows, custom roles, links, the reader's own role grants,
 pages, configuration items, their relations, the CMDB's catalogue, entry schedules, goal periods,
-goals, check-ins, dashboards, sprints, entries' open sprints and estimates, custom field definitions), paged by identifier, each row
+goals, check-ins, dashboards, sprints, entries' open sprints and estimates, custom field definitions, the reader's own time records and running timer, the kinds of work and the time policy), paged by identifier, each row
 judged by the same permission as a delta record, with the log position taken *before* the first
 page so a change landing mid-walk is the first delta's. Entry types, link types and workflows are
 the workspace's vocabulary and reach every member; a custom role reaches whoever may read at the
@@ -125,7 +125,15 @@ written online only. A custom field definition (`custom_field`, a deleted one le
 under its collection, a workspace-wide one under none and reaching every member as the types do:
 a read-restricted field narrows its values (UC-ID-27), never its definition. Defining, changing
 and deleting one records it; while the server is away the web app answers the definitions in force
-from the copy, so an entry's form is drawn offline. A
+from the copy, so an entry's form is drawn offline. A person's time records (`time_record`) and
+running timer (`time_timer`, by the account) are walked for that person alone, filed under no
+container and addressed by `account_id` - a removal as well -, so the stream delivers them to that
+account only, as a custom role's grant (§4.3); the workspace's kinds of work (`time_work_types`)
+and its time policy (`time_policy`) are one record each under the workspace's identifier, walked
+once there is something to tell and reaching every member. While the server is away the web app
+answers the timer, its minutes counted on the device, the kinds of work and the policy from the
+copy. Time is written online only; weeks, capacities, absences, rates and budgets are not in the
+replica. A
 mid-walk page cursor names the kind and key it resumes after; the pull continues it, the stream
 refuses it.
 

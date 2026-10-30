@@ -284,7 +284,7 @@ func (s StreamChanges) page(
 			}
 			continue
 		}
-		if entry.Entity == entityRoleGrant {
+		if entry.Entity == entityRoleGrant || entry.Entity == entityTimeRecord || entry.Entity == entityTimer {
 			held, err := s.holds(ctx, actor, entry.Op, entry.Payload)
 			if err != nil {
 				return Batch{}, err
@@ -425,8 +425,12 @@ func (s StreamChanges) mayReadWorkspaceWide(
 		// What ListEntryTypes, ListLinkTypes and ListWorkflows answer every member, and the
 		// workspace-wide definitions ListCustomFields answers within every collection.
 		return visibility{allowed: true}, nil
-	case entityRoleGrant:
-		// The walk reads the reader's own grants only; the stream decides each record by holds.
+	case entityRoleGrant, entityTimeRecord, entityTimer:
+		// The walk reads the reader's own grants and time only; the stream decides each record by
+		// holds.
+		return visibility{allowed: true}, nil
+	case entityWorkTypes, entityTimePolicy:
+		// What every member fills a time record in with.
 		return visibility{allowed: true}, nil
 	}
 	if seen, decided := resolved[shared.ID("")]; decided {

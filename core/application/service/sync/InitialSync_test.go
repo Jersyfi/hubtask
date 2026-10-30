@@ -19,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/planning"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/timekeeping"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
@@ -52,6 +53,9 @@ type snapshotStore struct {
 	members     []repository.SprintEntryOf
 	estimates   []repository.EstimateOf
 	fields      []work.CustomFieldDefinition
+	timeRecords []timekeeping.Record
+	timers      []timekeeping.Timer
+	workTypes   []timekeeping.WorkType
 	// groups are the groups the reader is in.
 	groups map[shared.ID]bool
 	// reads counts the pages asked for, so a test can say how much of the store a walk touched.
