@@ -79,6 +79,9 @@ func isIdentifierURL(value string) bool {
 		// The CalendarServer namespace of `getctag`: a WebDAV property name every CalDAV client
 		// asks by, written into an XML document and never fetched.
 		"calendarserver.org/ns",
+		// The Adaptive Card schema a chat room's card names as its `$schema`, a dialect like
+		// JSON Schema's: written into the message and never fetched.
+		"adaptivecards.io/schemas/",
 	} {
 		if strings.Contains(value, identifier) {
 			return true
