@@ -2721,6 +2721,168 @@ func (e CustomRoleGrantCreateScopeType) Valid() bool {
 	}
 }
 
+// Defines values for DashboardSharing.
+const (
+	DashboardSharingPRIVATE DashboardSharing = "PRIVATE"
+	DashboardSharingSCOPE   DashboardSharing = "SCOPE"
+)
+
+// Valid indicates whether the value is a known member of the DashboardSharing enum.
+func (e DashboardSharing) Valid() bool {
+	switch e {
+	case DashboardSharingPRIVATE:
+		return true
+	case DashboardSharingSCOPE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardCreateSharing.
+const (
+	DashboardCreateSharingPRIVATE DashboardCreateSharing = "PRIVATE"
+	DashboardCreateSharingSCOPE   DashboardCreateSharing = "SCOPE"
+)
+
+// Valid indicates whether the value is a known member of the DashboardCreateSharing enum.
+func (e DashboardCreateSharing) Valid() bool {
+	switch e {
+	case DashboardCreateSharingPRIVATE:
+		return true
+	case DashboardCreateSharingSCOPE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardWidgetChart.
+const (
+	DashboardWidgetChartBAR      DashboardWidgetChart = "BAR"
+	DashboardWidgetChartLINE     DashboardWidgetChart = "LINE"
+	DashboardWidgetChartMATRIX   DashboardWidgetChart = "MATRIX"
+	DashboardWidgetChartNUMBER   DashboardWidgetChart = "NUMBER"
+	DashboardWidgetChartPIE      DashboardWidgetChart = "PIE"
+	DashboardWidgetChartPROGRESS DashboardWidgetChart = "PROGRESS"
+	DashboardWidgetChartTABLE    DashboardWidgetChart = "TABLE"
+)
+
+// Valid indicates whether the value is a known member of the DashboardWidgetChart enum.
+func (e DashboardWidgetChart) Valid() bool {
+	switch e {
+	case DashboardWidgetChartBAR:
+		return true
+	case DashboardWidgetChartLINE:
+		return true
+	case DashboardWidgetChartMATRIX:
+		return true
+	case DashboardWidgetChartNUMBER:
+		return true
+	case DashboardWidgetChartPIE:
+		return true
+	case DashboardWidgetChartPROGRESS:
+		return true
+	case DashboardWidgetChartTABLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardWidgetSource.
+const (
+	DashboardWidgetSourceGOALS DashboardWidgetSource = "GOALS"
+	DashboardWidgetSourceQUERY DashboardWidgetSource = "QUERY"
+	DashboardWidgetSourceVIEW  DashboardWidgetSource = "VIEW"
+)
+
+// Valid indicates whether the value is a known member of the DashboardWidgetSource enum.
+func (e DashboardWidgetSource) Valid() bool {
+	switch e {
+	case DashboardWidgetSourceGOALS:
+		return true
+	case DashboardWidgetSourceQUERY:
+		return true
+	case DashboardWidgetSourceVIEW:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardWidgetWriteChart.
+const (
+	DashboardWidgetWriteChartBAR      DashboardWidgetWriteChart = "BAR"
+	DashboardWidgetWriteChartLINE     DashboardWidgetWriteChart = "LINE"
+	DashboardWidgetWriteChartMATRIX   DashboardWidgetWriteChart = "MATRIX"
+	DashboardWidgetWriteChartNUMBER   DashboardWidgetWriteChart = "NUMBER"
+	DashboardWidgetWriteChartPIE      DashboardWidgetWriteChart = "PIE"
+	DashboardWidgetWriteChartPROGRESS DashboardWidgetWriteChart = "PROGRESS"
+	DashboardWidgetWriteChartTABLE    DashboardWidgetWriteChart = "TABLE"
+)
+
+// Valid indicates whether the value is a known member of the DashboardWidgetWriteChart enum.
+func (e DashboardWidgetWriteChart) Valid() bool {
+	switch e {
+	case DashboardWidgetWriteChartBAR:
+		return true
+	case DashboardWidgetWriteChartLINE:
+		return true
+	case DashboardWidgetWriteChartMATRIX:
+		return true
+	case DashboardWidgetWriteChartNUMBER:
+		return true
+	case DashboardWidgetWriteChartPIE:
+		return true
+	case DashboardWidgetWriteChartPROGRESS:
+		return true
+	case DashboardWidgetWriteChartTABLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardWidgetWriteSource.
+const (
+	DashboardWidgetWriteSourceGOALS DashboardWidgetWriteSource = "GOALS"
+	DashboardWidgetWriteSourceQUERY DashboardWidgetWriteSource = "QUERY"
+	DashboardWidgetWriteSourceVIEW  DashboardWidgetWriteSource = "VIEW"
+)
+
+// Valid indicates whether the value is a known member of the DashboardWidgetWriteSource enum.
+func (e DashboardWidgetWriteSource) Valid() bool {
+	switch e {
+	case DashboardWidgetWriteSourceGOALS:
+		return true
+	case DashboardWidgetWriteSourceQUERY:
+		return true
+	case DashboardWidgetWriteSourceVIEW:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardWriteSharing.
+const (
+	DashboardWriteSharingPRIVATE DashboardWriteSharing = "PRIVATE"
+	DashboardWriteSharingSCOPE   DashboardWriteSharing = "SCOPE"
+)
+
+// Valid indicates whether the value is a known member of the DashboardWriteSharing enum.
+func (e DashboardWriteSharing) Valid() bool {
+	switch e {
+	case DashboardWriteSharingPRIVATE:
+		return true
+	case DashboardWriteSharingSCOPE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DataSubjectRequestKeptLegalBasis.
 const (
 	ART173E DataSubjectRequestKeptLegalBasis = "ART_17_3_E"
@@ -3393,6 +3555,141 @@ func (e FilterNodeOp) Valid() bool {
 	case OR:
 		return true
 	case STARTSWITH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GoalStatus.
+const (
+	GoalStatusATRISK   GoalStatus = "AT_RISK"
+	GoalStatusDONE     GoalStatus = "DONE"
+	GoalStatusDROPPED  GoalStatus = "DROPPED"
+	GoalStatusNONE     GoalStatus = "NONE"
+	GoalStatusOFFTRACK GoalStatus = "OFF_TRACK"
+	GoalStatusONTRACK  GoalStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the GoalStatus enum.
+func (e GoalStatus) Valid() bool {
+	switch e {
+	case GoalStatusATRISK:
+		return true
+	case GoalStatusDONE:
+		return true
+	case GoalStatusDROPPED:
+		return true
+	case GoalStatusNONE:
+		return true
+	case GoalStatusOFFTRACK:
+		return true
+	case GoalStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GoalCheckInStatus.
+const (
+	GoalCheckInStatusATRISK   GoalCheckInStatus = "AT_RISK"
+	GoalCheckInStatusDONE     GoalCheckInStatus = "DONE"
+	GoalCheckInStatusDROPPED  GoalCheckInStatus = "DROPPED"
+	GoalCheckInStatusOFFTRACK GoalCheckInStatus = "OFF_TRACK"
+	GoalCheckInStatusONTRACK  GoalCheckInStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the GoalCheckInStatus enum.
+func (e GoalCheckInStatus) Valid() bool {
+	switch e {
+	case GoalCheckInStatusATRISK:
+		return true
+	case GoalCheckInStatusDONE:
+		return true
+	case GoalCheckInStatusDROPPED:
+		return true
+	case GoalCheckInStatusOFFTRACK:
+		return true
+	case GoalCheckInStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GoalCreateStatus.
+const (
+	GoalCreateStatusATRISK   GoalCreateStatus = "AT_RISK"
+	GoalCreateStatusDONE     GoalCreateStatus = "DONE"
+	GoalCreateStatusDROPPED  GoalCreateStatus = "DROPPED"
+	GoalCreateStatusNONE     GoalCreateStatus = "NONE"
+	GoalCreateStatusOFFTRACK GoalCreateStatus = "OFF_TRACK"
+	GoalCreateStatusONTRACK  GoalCreateStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the GoalCreateStatus enum.
+func (e GoalCreateStatus) Valid() bool {
+	switch e {
+	case GoalCreateStatusATRISK:
+		return true
+	case GoalCreateStatusDONE:
+		return true
+	case GoalCreateStatusDROPPED:
+		return true
+	case GoalCreateStatusNONE:
+		return true
+	case GoalCreateStatusOFFTRACK:
+		return true
+	case GoalCreateStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GoalPeriodState.
+const (
+	GoalPeriodStateCLOSED GoalPeriodState = "CLOSED"
+	GoalPeriodStateOPEN   GoalPeriodState = "OPEN"
+)
+
+// Valid indicates whether the value is a known member of the GoalPeriodState enum.
+func (e GoalPeriodState) Valid() bool {
+	switch e {
+	case GoalPeriodStateCLOSED:
+		return true
+	case GoalPeriodStateOPEN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GoalWriteStatus.
+const (
+	GoalWriteStatusATRISK   GoalWriteStatus = "AT_RISK"
+	GoalWriteStatusDONE     GoalWriteStatus = "DONE"
+	GoalWriteStatusDROPPED  GoalWriteStatus = "DROPPED"
+	GoalWriteStatusNONE     GoalWriteStatus = "NONE"
+	GoalWriteStatusOFFTRACK GoalWriteStatus = "OFF_TRACK"
+	GoalWriteStatusONTRACK  GoalWriteStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the GoalWriteStatus enum.
+func (e GoalWriteStatus) Valid() bool {
+	switch e {
+	case GoalWriteStatusATRISK:
+		return true
+	case GoalWriteStatusDONE:
+		return true
+	case GoalWriteStatusDROPPED:
+		return true
+	case GoalWriteStatusNONE:
+		return true
+	case GoalWriteStatusOFFTRACK:
+		return true
+	case GoalWriteStatusONTRACK:
 		return true
 	default:
 		return false
@@ -4134,6 +4431,90 @@ func (e JumbleEntrySubmitChannel) Valid() bool {
 	case JumbleEntrySubmitChannelAPI:
 		return true
 	case JumbleEntrySubmitChannelQUICKCAPTURE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for KeyResultKind.
+const (
+	KeyResultKindBINARY    KeyResultKind = "BINARY"
+	KeyResultKindMILESTONE KeyResultKind = "MILESTONE"
+	KeyResultKindNUMBER    KeyResultKind = "NUMBER"
+	KeyResultKindPERCENT   KeyResultKind = "PERCENT"
+)
+
+// Valid indicates whether the value is a known member of the KeyResultKind enum.
+func (e KeyResultKind) Valid() bool {
+	switch e {
+	case KeyResultKindBINARY:
+		return true
+	case KeyResultKindMILESTONE:
+		return true
+	case KeyResultKindNUMBER:
+		return true
+	case KeyResultKindPERCENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for KeyResultSource.
+const (
+	KeyResultSourceMANUAL KeyResultSource = "MANUAL"
+	KeyResultSourceVIEW   KeyResultSource = "VIEW"
+)
+
+// Valid indicates whether the value is a known member of the KeyResultSource enum.
+func (e KeyResultSource) Valid() bool {
+	switch e {
+	case KeyResultSourceMANUAL:
+		return true
+	case KeyResultSourceVIEW:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for KeyResultWriteKind.
+const (
+	KeyResultWriteKindBINARY    KeyResultWriteKind = "BINARY"
+	KeyResultWriteKindMILESTONE KeyResultWriteKind = "MILESTONE"
+	KeyResultWriteKindNUMBER    KeyResultWriteKind = "NUMBER"
+	KeyResultWriteKindPERCENT   KeyResultWriteKind = "PERCENT"
+)
+
+// Valid indicates whether the value is a known member of the KeyResultWriteKind enum.
+func (e KeyResultWriteKind) Valid() bool {
+	switch e {
+	case KeyResultWriteKindBINARY:
+		return true
+	case KeyResultWriteKindMILESTONE:
+		return true
+	case KeyResultWriteKindNUMBER:
+		return true
+	case KeyResultWriteKindPERCENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for KeyResultWriteSource.
+const (
+	KeyResultWriteSourceMANUAL KeyResultWriteSource = "MANUAL"
+	KeyResultWriteSourceVIEW   KeyResultWriteSource = "VIEW"
+)
+
+// Valid indicates whether the value is a known member of the KeyResultWriteSource enum.
+func (e KeyResultWriteSource) Valid() bool {
+	switch e {
+	case KeyResultWriteSourceMANUAL:
+		return true
+	case KeyResultWriteSourceVIEW:
 		return true
 	default:
 		return false
@@ -5421,6 +5802,141 @@ func (e PolicySource) Valid() bool {
 	case PolicySourcePLAN:
 		return true
 	case PolicySourceWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PortfolioItemsKind.
+const (
+	PortfolioItemsKindCOLLECTION PortfolioItemsKind = "COLLECTION"
+	PortfolioItemsKindHUB        PortfolioItemsKind = "HUB"
+)
+
+// Valid indicates whether the value is a known member of the PortfolioItemsKind enum.
+func (e PortfolioItemsKind) Valid() bool {
+	switch e {
+	case PortfolioItemsKindCOLLECTION:
+		return true
+	case PortfolioItemsKindHUB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PortfolioItemsStatus.
+const (
+	PortfolioItemsStatusATRISK   PortfolioItemsStatus = "AT_RISK"
+	PortfolioItemsStatusNONE     PortfolioItemsStatus = "NONE"
+	PortfolioItemsStatusOFFTRACK PortfolioItemsStatus = "OFF_TRACK"
+	PortfolioItemsStatusONTRACK  PortfolioItemsStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the PortfolioItemsStatus enum.
+func (e PortfolioItemsStatus) Valid() bool {
+	switch e {
+	case PortfolioItemsStatusATRISK:
+		return true
+	case PortfolioItemsStatusNONE:
+		return true
+	case PortfolioItemsStatusOFFTRACK:
+		return true
+	case PortfolioItemsStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PortfolioStatus.
+const (
+	PortfolioStatusATRISK   PortfolioStatus = "AT_RISK"
+	PortfolioStatusNONE     PortfolioStatus = "NONE"
+	PortfolioStatusOFFTRACK PortfolioStatus = "OFF_TRACK"
+	PortfolioStatusONTRACK  PortfolioStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the PortfolioStatus enum.
+func (e PortfolioStatus) Valid() bool {
+	switch e {
+	case PortfolioStatusATRISK:
+		return true
+	case PortfolioStatusNONE:
+		return true
+	case PortfolioStatusOFFTRACK:
+		return true
+	case PortfolioStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PortfolioUpdateStatus.
+const (
+	PortfolioUpdateStatusATRISK   PortfolioUpdateStatus = "AT_RISK"
+	PortfolioUpdateStatusOFFTRACK PortfolioUpdateStatus = "OFF_TRACK"
+	PortfolioUpdateStatusONTRACK  PortfolioUpdateStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the PortfolioUpdateStatus enum.
+func (e PortfolioUpdateStatus) Valid() bool {
+	switch e {
+	case PortfolioUpdateStatusATRISK:
+		return true
+	case PortfolioUpdateStatusOFFTRACK:
+		return true
+	case PortfolioUpdateStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PortfolioWriteItemsStatus.
+const (
+	PortfolioWriteItemsStatusATRISK   PortfolioWriteItemsStatus = "AT_RISK"
+	PortfolioWriteItemsStatusNONE     PortfolioWriteItemsStatus = "NONE"
+	PortfolioWriteItemsStatusOFFTRACK PortfolioWriteItemsStatus = "OFF_TRACK"
+	PortfolioWriteItemsStatusONTRACK  PortfolioWriteItemsStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the PortfolioWriteItemsStatus enum.
+func (e PortfolioWriteItemsStatus) Valid() bool {
+	switch e {
+	case PortfolioWriteItemsStatusATRISK:
+		return true
+	case PortfolioWriteItemsStatusNONE:
+		return true
+	case PortfolioWriteItemsStatusOFFTRACK:
+		return true
+	case PortfolioWriteItemsStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PortfolioWriteStatus.
+const (
+	PortfolioWriteStatusATRISK   PortfolioWriteStatus = "AT_RISK"
+	PortfolioWriteStatusNONE     PortfolioWriteStatus = "NONE"
+	PortfolioWriteStatusOFFTRACK PortfolioWriteStatus = "OFF_TRACK"
+	PortfolioWriteStatusONTRACK  PortfolioWriteStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the PortfolioWriteStatus enum.
+func (e PortfolioWriteStatus) Valid() bool {
+	switch e {
+	case PortfolioWriteStatusATRISK:
+		return true
+	case PortfolioWriteStatusNONE:
+		return true
+	case PortfolioWriteStatusOFFTRACK:
+		return true
+	case PortfolioWriteStatusONTRACK:
 		return true
 	default:
 		return false
@@ -8463,6 +8979,33 @@ func (e ListConfigProposalsParamsState) Valid() bool {
 	}
 }
 
+// Defines values for CheckInGoalJSONBodyStatus.
+const (
+	CheckInGoalJSONBodyStatusATRISK   CheckInGoalJSONBodyStatus = "AT_RISK"
+	CheckInGoalJSONBodyStatusDONE     CheckInGoalJSONBodyStatus = "DONE"
+	CheckInGoalJSONBodyStatusDROPPED  CheckInGoalJSONBodyStatus = "DROPPED"
+	CheckInGoalJSONBodyStatusOFFTRACK CheckInGoalJSONBodyStatus = "OFF_TRACK"
+	CheckInGoalJSONBodyStatusONTRACK  CheckInGoalJSONBodyStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the CheckInGoalJSONBodyStatus enum.
+func (e CheckInGoalJSONBodyStatus) Valid() bool {
+	switch e {
+	case CheckInGoalJSONBodyStatusATRISK:
+		return true
+	case CheckInGoalJSONBodyStatusDONE:
+		return true
+	case CheckInGoalJSONBodyStatusDROPPED:
+		return true
+	case CheckInGoalJSONBodyStatusOFFTRACK:
+		return true
+	case CheckInGoalJSONBodyStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListCiAlertsParamsStatus.
 const (
 	ListCiAlertsParamsStatusFIRING   ListCiAlertsParamsStatus = "FIRING"
@@ -8640,6 +9183,27 @@ func (e SetDependencyTimingJSONBodyDependencyKind) Valid() bool {
 	case SetDependencyTimingJSONBodyDependencyKindSF:
 		return true
 	case SetDependencyTimingJSONBodyDependencyKindSS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReportPortfolioStatusJSONBodyStatus.
+const (
+	ReportPortfolioStatusJSONBodyStatusATRISK   ReportPortfolioStatusJSONBodyStatus = "AT_RISK"
+	ReportPortfolioStatusJSONBodyStatusOFFTRACK ReportPortfolioStatusJSONBodyStatus = "OFF_TRACK"
+	ReportPortfolioStatusJSONBodyStatusONTRACK  ReportPortfolioStatusJSONBodyStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the ReportPortfolioStatusJSONBodyStatus enum.
+func (e ReportPortfolioStatusJSONBodyStatus) Valid() bool {
+	switch e {
+	case ReportPortfolioStatusJSONBodyStatusATRISK:
+		return true
+	case ReportPortfolioStatusJSONBodyStatusOFFTRACK:
+		return true
+	case ReportPortfolioStatusJSONBodyStatusONTRACK:
 		return true
 	default:
 		return false
@@ -11894,6 +12458,110 @@ type CustomRoleGrantCreate struct {
 // CustomRoleGrantCreateScopeType defines model for CustomRoleGrantCreate.ScopeType.
 type CustomRoleGrantCreateScopeType string
 
+// Dashboard defines model for Dashboard.
+type Dashboard struct {
+	HubId   openapi_types.UUID `json:"hub_id"`
+	Id      openapi_types.UUID `json:"id"`
+	Name    string             `json:"name"`
+	OwnerId openapi_types.UUID `json:"owner_id"`
+	Sharing DashboardSharing   `json:"sharing"`
+	Version int                `json:"version"`
+	Widgets []DashboardWidget  `json:"widgets"`
+}
+
+// DashboardSharing defines model for Dashboard.Sharing.
+type DashboardSharing string
+
+// DashboardCreate defines model for DashboardCreate.
+type DashboardCreate struct {
+	// HubId The hub it belongs to; the workspace's without.
+	HubId   *openapi_types.UUID     `json:"hub_id,omitempty"`
+	Name    string                  `json:"name"`
+	Sharing *DashboardCreateSharing `json:"sharing,omitempty"`
+	Widgets *[]DashboardWidgetWrite `json:"widgets,omitempty"`
+}
+
+// DashboardCreateSharing defines model for DashboardCreate.Sharing.
+type DashboardCreateSharing string
+
+// DashboardFigures defines model for DashboardFigures.
+type DashboardFigures struct {
+	ComputedAt  time.Time          `json:"computed_at"`
+	DashboardId openapi_types.UUID `json:"dashboard_id"`
+	Widgets     []struct {
+		// Data A summary's rows (count, group, period, value), or a GOALS widget's goals (goal_id, title, status, progress).
+		Data []map[string]interface{} `json:"data"`
+
+		// Error The error code of a widget the caller cannot run.
+		Error     string             `json:"error"`
+		Id        openapi_types.UUID `json:"id"`
+		Truncated bool               `json:"truncated"`
+	} `json:"widgets"`
+}
+
+// DashboardList defines model for DashboardList.
+type DashboardList struct {
+	Data []Dashboard `json:"data"`
+}
+
+// DashboardWidget defines model for DashboardWidget.
+type DashboardWidget struct {
+	Chart   DashboardWidgetChart   `json:"chart"`
+	GoalIds []openapi_types.UUID   `json:"goal_ids"`
+	H       int                    `json:"h"`
+	Id      openapi_types.UUID     `json:"id"`
+	Query   map[string]interface{} `json:"query"`
+	Source  DashboardWidgetSource  `json:"source"`
+	Title   string                 `json:"title"`
+	ViewId  openapi_types.UUID     `json:"view_id"`
+	W       int                    `json:"w"`
+	X       int                    `json:"x"`
+	Y       int                    `json:"y"`
+}
+
+// DashboardWidgetChart defines model for DashboardWidget.Chart.
+type DashboardWidgetChart string
+
+// DashboardWidgetSource defines model for DashboardWidget.Source.
+type DashboardWidgetSource string
+
+// DashboardWidgetWrite defines model for DashboardWidgetWrite.
+type DashboardWidgetWrite struct {
+	Chart DashboardWidgetWriteChart `json:"chart"`
+
+	// GoalIds For GOALS.
+	GoalIds *[]openapi_types.UUID `json:"goal_ids,omitempty"`
+	H       *int                  `json:"h,omitempty"`
+	Id      *openapi_types.UUID   `json:"id,omitempty"`
+
+	// Query A POST /items:aggregate document, for QUERY.
+	Query  *map[string]interface{}    `json:"query,omitempty"`
+	Source DashboardWidgetWriteSource `json:"source"`
+	Title  string                     `json:"title"`
+
+	// ViewId A saved summary view, for VIEW.
+	ViewId *openapi_types.UUID `json:"view_id,omitempty"`
+	W      *int                `json:"w,omitempty"`
+	X      *int                `json:"x,omitempty"`
+	Y      *int                `json:"y,omitempty"`
+}
+
+// DashboardWidgetWriteChart defines model for DashboardWidgetWrite.Chart.
+type DashboardWidgetWriteChart string
+
+// DashboardWidgetWriteSource defines model for DashboardWidgetWrite.Source.
+type DashboardWidgetWriteSource string
+
+// DashboardWrite defines model for DashboardWrite.
+type DashboardWrite struct {
+	Name    string                  `json:"name"`
+	Sharing *DashboardWriteSharing  `json:"sharing,omitempty"`
+	Widgets *[]DashboardWidgetWrite `json:"widgets,omitempty"`
+}
+
+// DashboardWriteSharing defines model for DashboardWrite.Sharing.
+type DashboardWriteSharing string
+
 // DataSubjectRequest defines model for DataSubjectRequest.
 type DataSubjectRequest struct {
 	CompletedAt *time.Time `json:"completed_at,omitempty"`
@@ -12735,6 +13403,132 @@ type FilterNode struct {
 
 // FilterNodeOp defines model for FilterNode.Op.
 type FilterNodeOp string
+
+// Goal defines model for Goal.
+type Goal struct {
+	// CheckIns The latest 20, only on a goal read alone.
+	CheckIns *[]GoalCheckIn `json:"check_ins,omitempty"`
+
+	// ChildCount The goals under it the caller may read.
+	ChildCount  int    `json:"child_count"`
+	Confidence  int    `json:"confidence"`
+	Description string `json:"description"`
+
+	// Entries The linked entries the caller may read, and how many are completed.
+	Entries struct {
+		Done  int `json:"done"`
+		Total int `json:"total"`
+	} `json:"entries"`
+	Grade      float32            `json:"grade"`
+	HubId      openapi_types.UUID `json:"hub_id"`
+	Id         openapi_types.UUID `json:"id"`
+	KeyResults []KeyResult        `json:"key_results"`
+
+	// LinkedEntries Only on a goal read alone.
+	LinkedEntries *[]struct {
+		CollectionId openapi_types.UUID `json:"collection_id"`
+		Completed    bool               `json:"completed"`
+		Id           openapi_types.UUID `json:"id"`
+		Key          string             `json:"key"`
+		Title        string             `json:"title"`
+	} `json:"linked_entries,omitempty"`
+	OwnerId  openapi_types.UUID `json:"owner_id"`
+	ParentId openapi_types.UUID `json:"parent_id"`
+	PeriodId openapi_types.UUID `json:"period_id"`
+
+	// Progress The mean of its key results, its goals below and its linked entries' share completed; null with none.
+	Progress float32    `json:"progress"`
+	Status   GoalStatus `json:"status"`
+	Title    string     `json:"title"`
+	Version  int        `json:"version"`
+}
+
+// GoalStatus defines model for Goal.Status.
+type GoalStatus string
+
+// GoalCheckIn defines model for GoalCheckIn.
+type GoalCheckIn struct {
+	AuthorId   openapi_types.UUID `json:"author_id"`
+	Confidence int                `json:"confidence"`
+	CreatedAt  time.Time          `json:"created_at"`
+	GoalId     openapi_types.UUID `json:"goal_id"`
+	Id         openapi_types.UUID `json:"id"`
+	Note       string             `json:"note"`
+	Status     GoalCheckInStatus  `json:"status"`
+	Values     []struct {
+		KeyResultId openapi_types.UUID `json:"key_result_id"`
+		Value       float32            `json:"value"`
+	} `json:"values"`
+}
+
+// GoalCheckInStatus defines model for GoalCheckIn.Status.
+type GoalCheckInStatus string
+
+// GoalCheckInList defines model for GoalCheckInList.
+type GoalCheckInList struct {
+	Data []GoalCheckIn `json:"data"`
+}
+
+// GoalCreate defines model for GoalCreate.
+type GoalCreate struct {
+	Description *string `json:"description,omitempty"`
+
+	// HubId The hub it belongs to; the workspace's without.
+	HubId      *openapi_types.UUID `json:"hub_id,omitempty"`
+	KeyResults *[]KeyResultWrite   `json:"key_results,omitempty"`
+	OwnerId    *openapi_types.UUID `json:"owner_id,omitempty"`
+	ParentId   *openapi_types.UUID `json:"parent_id,omitempty"`
+	PeriodId   openapi_types.UUID  `json:"period_id"`
+	Status     *GoalCreateStatus   `json:"status,omitempty"`
+	Title      string              `json:"title"`
+}
+
+// GoalCreateStatus defines model for GoalCreate.Status.
+type GoalCreateStatus string
+
+// GoalList defines model for GoalList.
+type GoalList struct {
+	Data []Goal `json:"data"`
+}
+
+// GoalPeriod defines model for GoalPeriod.
+type GoalPeriod struct {
+	EndOn   openapi_types.Date `json:"end_on"`
+	Id      openapi_types.UUID `json:"id"`
+	Name    string             `json:"name"`
+	StartOn openapi_types.Date `json:"start_on"`
+	State   GoalPeriodState    `json:"state"`
+	Version int                `json:"version"`
+}
+
+// GoalPeriodState defines model for GoalPeriod.State.
+type GoalPeriodState string
+
+// GoalPeriodList defines model for GoalPeriodList.
+type GoalPeriodList struct {
+	Data []GoalPeriod `json:"data"`
+}
+
+// GoalPeriodWrite defines model for GoalPeriodWrite.
+type GoalPeriodWrite struct {
+	EndOn   openapi_types.Date `json:"end_on"`
+	Name    string             `json:"name"`
+	StartOn openapi_types.Date `json:"start_on"`
+}
+
+// GoalWrite defines model for GoalWrite.
+type GoalWrite struct {
+	Description *string             `json:"description,omitempty"`
+	KeyResults  *[]KeyResultWrite   `json:"key_results,omitempty"`
+	OwnerId     *openapi_types.UUID `json:"owner_id,omitempty"`
+	ParentId    *openapi_types.UUID `json:"parent_id,omitempty"`
+	PeriodId    openapi_types.UUID  `json:"period_id"`
+	Status      *GoalWriteStatus    `json:"status,omitempty"`
+	Title       string              `json:"title"`
+}
+
+// GoalWriteStatus defines model for GoalWrite.Status.
+type GoalWriteStatus string
 
 // Group defines model for Group.
 type Group struct {
@@ -13797,6 +14591,57 @@ type JumbleIntakeToken struct {
 	// Token The whole credential. Post to `/jumble/inbound/{token}`.
 	Token string `json:"token"`
 }
+
+// KeyResult defines model for KeyResult.
+type KeyResult struct {
+	// Current As the caller sees it: a view's total or a milestone's entry where live, else the last value reported.
+	Current float32            `json:"current"`
+	EntryId openapi_types.UUID `json:"entry_id"`
+	Id      openapi_types.UUID `json:"id"`
+	Kind    KeyResultKind      `json:"kind"`
+
+	// Live Whether current was computed for the caller now.
+	Live     bool               `json:"live"`
+	Progress float32            `json:"progress"`
+	Source   KeyResultSource    `json:"source"`
+	Start    float32            `json:"start"`
+	Target   float32            `json:"target"`
+	Title    string             `json:"title"`
+	Unit     string             `json:"unit"`
+	ViewId   openapi_types.UUID `json:"view_id"`
+}
+
+// KeyResultKind defines model for KeyResult.Kind.
+type KeyResultKind string
+
+// KeyResultSource defines model for KeyResult.Source.
+type KeyResultSource string
+
+// KeyResultWrite defines model for KeyResultWrite.
+type KeyResultWrite struct {
+	Current *float32 `json:"current,omitempty"`
+
+	// EntryId The entry a MILESTONE waits for.
+	EntryId *openapi_types.UUID `json:"entry_id,omitempty"`
+
+	// Id Keeps an existing key result and its values.
+	Id   *openapi_types.UUID `json:"id,omitempty"`
+	Kind KeyResultWriteKind  `json:"kind"`
+
+	// Source VIEW takes the total of a saved summary view.
+	Source *KeyResultWriteSource `json:"source,omitempty"`
+	Start  *float32              `json:"start,omitempty"`
+	Target *float32              `json:"target,omitempty"`
+	Title  string                `json:"title"`
+	Unit   *string               `json:"unit,omitempty"`
+	ViewId *openapi_types.UUID   `json:"view_id,omitempty"`
+}
+
+// KeyResultWriteKind defines model for KeyResultWrite.Kind.
+type KeyResultWriteKind string
+
+// KeyResultWriteSource VIEW takes the total of a saved summary view.
+type KeyResultWriteSource string
 
 // Kudos defines model for Kudos.
 type Kudos struct {
@@ -16012,6 +16857,92 @@ type PortalRequestPage struct {
 	Data     []PortalRequest `json:"data"`
 	PageInfo PageInfo        `json:"page_info"`
 }
+
+// Portfolio defines model for Portfolio.
+type Portfolio struct {
+	Description string             `json:"description"`
+	Id          openapi_types.UUID `json:"id"`
+
+	// Items The projects the caller may read.
+	Items []struct {
+		Archived    bool               `json:"archived"`
+		ContainerId openapi_types.UUID `json:"container_id"`
+		Done        int                `json:"done"`
+		EndOn       openapi_types.Date `json:"end_on"`
+
+		// Entries Read alone: its entries as the caller counts them.
+		Entries  int                  `json:"entries"`
+		Kind     PortfolioItemsKind   `json:"kind"`
+		Name     string               `json:"name"`
+		Progress float32              `json:"progress"`
+		StartOn  openapi_types.Date   `json:"start_on"`
+		Status   PortfolioItemsStatus `json:"status"`
+	} `json:"items"`
+
+	// LatestUpdate Read alone.
+	LatestUpdate *PortfolioUpdate   `json:"latest_update,omitempty"`
+	Name         string             `json:"name"`
+	OwnerId      openapi_types.UUID `json:"owner_id"`
+	ParentId     openapi_types.UUID `json:"parent_id"`
+
+	// Progress Read alone: the share of its projects' entries completed.
+	Progress float32         `json:"progress"`
+	Status   PortfolioStatus `json:"status"`
+	Version  int             `json:"version"`
+}
+
+// PortfolioItemsKind defines model for Portfolio.Items.Kind.
+type PortfolioItemsKind string
+
+// PortfolioItemsStatus defines model for Portfolio.Items.Status.
+type PortfolioItemsStatus string
+
+// PortfolioStatus defines model for Portfolio.Status.
+type PortfolioStatus string
+
+// PortfolioList defines model for PortfolioList.
+type PortfolioList struct {
+	Data []Portfolio `json:"data"`
+}
+
+// PortfolioUpdate defines model for PortfolioUpdate.
+type PortfolioUpdate struct {
+	AuthorId    openapi_types.UUID    `json:"author_id"`
+	CreatedAt   time.Time             `json:"created_at"`
+	Id          openapi_types.UUID    `json:"id"`
+	PortfolioId openapi_types.UUID    `json:"portfolio_id"`
+	Status      PortfolioUpdateStatus `json:"status"`
+	Summary     string                `json:"summary"`
+}
+
+// PortfolioUpdateStatus defines model for PortfolioUpdate.Status.
+type PortfolioUpdateStatus string
+
+// PortfolioUpdateList defines model for PortfolioUpdateList.
+type PortfolioUpdateList struct {
+	Data []PortfolioUpdate `json:"data"`
+}
+
+// PortfolioWrite defines model for PortfolioWrite.
+type PortfolioWrite struct {
+	Description *string `json:"description,omitempty"`
+	Items       *[]struct {
+		ContainerId openapi_types.UUID         `json:"container_id"`
+		EndOn       *openapi_types.Date        `json:"end_on,omitempty"`
+		StartOn     *openapi_types.Date        `json:"start_on,omitempty"`
+		Status      *PortfolioWriteItemsStatus `json:"status,omitempty"`
+	} `json:"items,omitempty"`
+	Name     string                `json:"name"`
+	OwnerId  *openapi_types.UUID   `json:"owner_id,omitempty"`
+	ParentId *openapi_types.UUID   `json:"parent_id,omitempty"`
+	Status   *PortfolioWriteStatus `json:"status,omitempty"`
+}
+
+// PortfolioWriteItemsStatus defines model for PortfolioWrite.Items.Status.
+type PortfolioWriteItemsStatus string
+
+// PortfolioWriteStatus defines model for PortfolioWrite.Status.
+type PortfolioWriteStatus string
 
 // Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the installation's, the workspace's or the caller's own - its `id`, the `name` given it and its `version`.
 type Preset struct {
@@ -19756,6 +20687,9 @@ type CustomFieldId = openapi_types.UUID
 // CustomFieldKey defines model for CustomFieldKey.
 type CustomFieldKey = string
 
+// DashboardId defines model for DashboardId.
+type DashboardId = openapi_types.UUID
+
 // DeliveryId defines model for DeliveryId.
 type DeliveryId = openapi_types.UUID
 
@@ -19770,6 +20704,9 @@ type Expand = []string
 
 // FeedId defines model for FeedId.
 type FeedId = openapi_types.UUID
+
+// GoalId defines model for GoalId.
+type GoalId = openapi_types.UUID
 
 // GroupId defines model for GroupId.
 type GroupId = openapi_types.UUID
@@ -19824,6 +20761,9 @@ type PasskeyId = openapi_types.UUID
 
 // PlanId defines model for PlanId.
 type PlanId = openapi_types.UUID
+
+// PortfolioId defines model for PortfolioId.
+type PortfolioId = openapi_types.UUID
 
 // PresetId defines model for PresetId.
 type PresetId = openapi_types.UUID
@@ -20644,6 +21584,24 @@ type UpdateCustomFieldParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListDashboardsParams defines parameters for ListDashboards.
+type ListDashboardsParams struct {
+	// HubId Only this hub's dashboards.
+	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+}
+
+// DeleteDashboardParams defines parameters for DeleteDashboard.
+type DeleteDashboardParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateDashboardParams defines parameters for UpdateDashboard.
+type UpdateDashboardParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ChangeEntryTypeParams defines parameters for ChangeEntryType.
 type ChangeEntryTypeParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -20654,6 +21612,73 @@ type ChangeEntryTypeParams struct {
 type SetEntryTypeFormParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ChangeGoalPeriodParams defines parameters for ChangeGoalPeriod.
+type ChangeGoalPeriodParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// CloseGoalPeriodJSONBody defines parameters for CloseGoalPeriod.
+type CloseGoalPeriodJSONBody struct {
+	// Grades A grade from 0 to 1 per goal identifier.
+	Grades *map[string]float32 `json:"grades,omitempty"`
+}
+
+// CloseGoalPeriodParams defines parameters for CloseGoalPeriod.
+type CloseGoalPeriodParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ListGoalsParams defines parameters for ListGoals.
+type ListGoalsParams struct {
+	// PeriodId Only this period's goals.
+	PeriodId *openapi_types.UUID `form:"period_id,omitempty" json:"period_id,omitempty"`
+
+	// HubId Only this hub's goals.
+	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+
+	// WorkspaceOnly Only the workspace's own goals.
+	WorkspaceOnly *bool `form:"workspace_only,omitempty" json:"workspace_only,omitempty"`
+
+	// OwnerId Only this person's goals.
+	OwnerId *openapi_types.UUID `form:"owner_id,omitempty" json:"owner_id,omitempty"`
+
+	// ParentId Only the goals under this one.
+	ParentId *openapi_types.UUID `form:"parent_id,omitempty" json:"parent_id,omitempty"`
+}
+
+// DeleteGoalParams defines parameters for DeleteGoal.
+type DeleteGoalParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateGoalParams defines parameters for UpdateGoal.
+type UpdateGoalParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// CheckInGoalJSONBody defines parameters for CheckInGoal.
+type CheckInGoalJSONBody struct {
+	Confidence int                       `json:"confidence"`
+	Note       *string                   `json:"note,omitempty"`
+	Status     CheckInGoalJSONBodyStatus `json:"status"`
+	Values     *[]struct {
+		KeyResultId openapi_types.UUID `json:"key_result_id"`
+		Value       float32            `json:"value"`
+	} `json:"values,omitempty"`
+}
+
+// CheckInGoalJSONBodyStatus defines parameters for CheckInGoal.
+type CheckInGoalJSONBodyStatus string
+
+// LinkGoalEntriesJSONBody defines parameters for LinkGoalEntries.
+type LinkGoalEntriesJSONBody struct {
+	EntryIds []openapi_types.UUID `json:"entry_ids"`
 }
 
 // ListGroupsParams defines parameters for ListGroups.
@@ -21436,6 +22461,27 @@ type ReadWorkloadParams struct {
 	// Zone The time zone the entries' dates are days in; UTC without.
 	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
 }
+
+// DeletePortfolioParams defines parameters for DeletePortfolio.
+type DeletePortfolioParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdatePortfolioParams defines parameters for UpdatePortfolio.
+type UpdatePortfolioParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ReportPortfolioStatusJSONBody defines parameters for ReportPortfolioStatus.
+type ReportPortfolioStatusJSONBody struct {
+	Status  ReportPortfolioStatusJSONBodyStatus `json:"status"`
+	Summary string                              `json:"summary"`
+}
+
+// ReportPortfolioStatusJSONBodyStatus defines parameters for ReportPortfolioStatus.
+type ReportPortfolioStatusJSONBodyStatus string
 
 // WithdrawPresetParams defines parameters for WithdrawPreset.
 type WithdrawPresetParams struct {
@@ -22407,6 +23453,12 @@ type DefineCustomFieldJSONRequestBody = CustomFieldDefinitionCreate
 // UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody defines body for UpdateCustomField for application/merge-patch+json ContentType.
 type UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody = CustomFieldDefinitionUpdate
 
+// CreateDashboardJSONRequestBody defines body for CreateDashboard for application/json ContentType.
+type CreateDashboardJSONRequestBody = DashboardCreate
+
+// UpdateDashboardJSONRequestBody defines body for UpdateDashboard for application/json ContentType.
+type UpdateDashboardJSONRequestBody = DashboardWrite
+
 // CreateEntryTypeJSONRequestBody defines body for CreateEntryType for application/json ContentType.
 type CreateEntryTypeJSONRequestBody = EntryTypeCreate
 
@@ -22418,6 +23470,27 @@ type SetEntryTypeFormJSONRequestBody = EntryForm
 
 // EvaluateEntryFormJSONRequestBody defines body for EvaluateEntryForm for application/json ContentType.
 type EvaluateEntryFormJSONRequestBody = EntryFormDraft
+
+// DefineGoalPeriodJSONRequestBody defines body for DefineGoalPeriod for application/json ContentType.
+type DefineGoalPeriodJSONRequestBody = GoalPeriodWrite
+
+// ChangeGoalPeriodJSONRequestBody defines body for ChangeGoalPeriod for application/json ContentType.
+type ChangeGoalPeriodJSONRequestBody = GoalPeriodWrite
+
+// CloseGoalPeriodJSONRequestBody defines body for CloseGoalPeriod for application/json ContentType.
+type CloseGoalPeriodJSONRequestBody CloseGoalPeriodJSONBody
+
+// CreateGoalJSONRequestBody defines body for CreateGoal for application/json ContentType.
+type CreateGoalJSONRequestBody = GoalCreate
+
+// UpdateGoalJSONRequestBody defines body for UpdateGoal for application/json ContentType.
+type UpdateGoalJSONRequestBody = GoalWrite
+
+// CheckInGoalJSONRequestBody defines body for CheckInGoal for application/json ContentType.
+type CheckInGoalJSONRequestBody CheckInGoalJSONBody
+
+// LinkGoalEntriesJSONRequestBody defines body for LinkGoalEntries for application/json ContentType.
+type LinkGoalEntriesJSONRequestBody LinkGoalEntriesJSONBody
 
 // CreateGroupJSONRequestBody defines body for CreateGroup for application/json ContentType.
 type CreateGroupJSONRequestBody = GroupCreate
@@ -22661,6 +23734,15 @@ type SetBudgetJSONRequestBody SetBudgetJSONBody
 
 // ApplyPlanScheduleJSONRequestBody defines body for ApplyPlanSchedule for application/json ContentType.
 type ApplyPlanScheduleJSONRequestBody ApplyPlanScheduleJSONBody
+
+// CreatePortfolioJSONRequestBody defines body for CreatePortfolio for application/json ContentType.
+type CreatePortfolioJSONRequestBody = PortfolioWrite
+
+// UpdatePortfolioJSONRequestBody defines body for UpdatePortfolio for application/json ContentType.
+type UpdatePortfolioJSONRequestBody = PortfolioWrite
+
+// ReportPortfolioStatusJSONRequestBody defines body for ReportPortfolioStatus for application/json ContentType.
+type ReportPortfolioStatusJSONRequestBody ReportPortfolioStatusJSONBody
 
 // SavePresetJSONRequestBody defines body for SavePreset for application/json ContentType.
 type SavePresetJSONRequestBody = PresetCreate
@@ -26529,6 +27611,70 @@ type ClientInterface interface {
 	// Corresponds with GET /custom-fields/{fieldId}/reach (the `PreviewCustomFieldReach` operationId).
 	PreviewCustomFieldReach(ctx context.Context, fieldId CustomFieldId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListDashboards The dashboards the caller sees
+	//
+	// Their own and the shared ones of the workspace and of the hubs they read, by name.
+	//
+	// Corresponds with GET /dashboards (the `ListDashboards` operationId).
+	ListDashboards(ctx context.Context, params *ListDashboardsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateDashboardWithBody Create a dashboard
+	//
+	// At the workspace or in a hub, owned by the caller; a widget's numbers are never stored. A private one needs READ at its place, a shared one STRUCTURE.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /dashboards (the `CreateDashboard` operationId).
+	CreateDashboardWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateDashboard Create a dashboard
+	//
+	// At the workspace or in a hub, owned by the caller; a widget's numbers are never stored. A private one needs READ at its place, a shared one STRUCTURE.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /dashboards (the `CreateDashboard` operationId).
+	CreateDashboard(ctx context.Context, body CreateDashboardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteDashboard Delete a dashboard
+	//
+	// The saved views its widgets run stay. As changing it.
+	//
+	// Corresponds with DELETE /dashboards/{dashboardId} (the `DeleteDashboard` operationId).
+	DeleteDashboard(ctx context.Context, dashboardId DashboardId, params *DeleteDashboardParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadDashboard A dashboard
+	//
+	// Its name, sharing and widgets as their queries. One the caller does not see is not found.
+	//
+	// Corresponds with GET /dashboards/{dashboardId} (the `ReadDashboard` operationId).
+	ReadDashboard(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateDashboardWithBody Replace a dashboard
+	//
+	// Its name, sharing and widgets, held to the version read. Its owner changes a private one; a shared one, or somebody else's, needs STRUCTURE at its place.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /dashboards/{dashboardId} (the `UpdateDashboard` operationId).
+	UpdateDashboardWithBody(ctx context.Context, dashboardId DashboardId, params *UpdateDashboardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateDashboard Replace a dashboard
+	//
+	// Its name, sharing and widgets, held to the version read. Its owner changes a private one; a shared one, or somebody else's, needs STRUCTURE at its place.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /dashboards/{dashboardId} (the `UpdateDashboard` operationId).
+	UpdateDashboard(ctx context.Context, dashboardId DashboardId, params *UpdateDashboardParams, body UpdateDashboardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadDashboardFigures A dashboard's numbers, for the caller
+	//
+	// Every widget computed now: a VIEW or QUERY widget's rows exactly as POST /views/{viewId}:aggregate or POST /items:aggregate answers the caller, a GOALS widget's goals with their progress. A widget the caller cannot run carries its error code, and the others still draw.
+	//
+	// Corresponds with GET /dashboards/{dashboardId}/figures (the `ReadDashboardFigures` operationId).
+	ReadDashboardFigures(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListEntryTypes The workspace's entry types
 	//
 	// Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
@@ -26614,6 +27760,174 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /entry-types/{key}/form:evaluate (the `EvaluateEntryForm` operationId).
 	EvaluateEntryForm(ctx context.Context, key string, body EvaluateEntryFormJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListGoalPeriods The goal periods
+	//
+	// The workspace's periods - quarters, years - the latest first, open and closed.
+	//
+	// Corresponds with GET /goal-periods (the `ListGoalPeriods` operationId).
+	ListGoalPeriods(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineGoalPeriodWithBody Create a goal period
+	//
+	// A name and its first and last day, at most two years apart. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /goal-periods (the `DefineGoalPeriod` operationId).
+	DefineGoalPeriodWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineGoalPeriod Create a goal period
+	//
+	// A name and its first and last day, at most two years apart. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /goal-periods (the `DefineGoalPeriod` operationId).
+	DefineGoalPeriod(ctx context.Context, body DefineGoalPeriodJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeGoalPeriodWithBody Change an open goal period
+	//
+	// Its name and days, held to the version read. A closed period does not change (`goal_periods.closed`). Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /goal-periods/{periodId} (the `ChangeGoalPeriod` operationId).
+	ChangeGoalPeriodWithBody(ctx context.Context, periodId openapi_types.UUID, params *ChangeGoalPeriodParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeGoalPeriod Change an open goal period
+	//
+	// Its name and days, held to the version read. A closed period does not change (`goal_periods.closed`). Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /goal-periods/{periodId} (the `ChangeGoalPeriod` operationId).
+	ChangeGoalPeriod(ctx context.Context, periodId openapi_types.UUID, params *ChangeGoalPeriodParams, body ChangeGoalPeriodJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CloseGoalPeriodWithBody Close a goal period and grade its goals
+	//
+	// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /goal-periods/{periodId}:close (the `CloseGoalPeriod` operationId).
+	CloseGoalPeriodWithBody(ctx context.Context, periodId openapi_types.UUID, params *CloseGoalPeriodParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CloseGoalPeriod Close a goal period and grade its goals
+	//
+	// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /goal-periods/{periodId}:close (the `CloseGoalPeriod` operationId).
+	CloseGoalPeriod(ctx context.Context, periodId openapi_types.UUID, params *CloseGoalPeriodParams, body CloseGoalPeriodJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListGoals The goals the caller may read
+	//
+	// The workspace's goals and those of the hubs the caller reads, narrowed by period, hub, owner or parent; each with its key results and its progress as the caller sees it - the mean of its key results, its goals below and the share of its linked entries completed. The alignment tree is drawn from `parent_id`.
+	//
+	// Corresponds with GET /goals (the `ListGoals` operationId).
+	ListGoals(ctx context.Context, params *ListGoalsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateGoalWithBody Set a goal
+	//
+	// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. Needs WRITE_ITEMS at the workspace or the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /goals (the `CreateGoal` operationId).
+	CreateGoalWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateGoal Set a goal
+	//
+	// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. Needs WRITE_ITEMS at the workspace or the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /goals (the `CreateGoal` operationId).
+	CreateGoal(ctx context.Context, body CreateGoalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteGoal Delete a goal
+	//
+	// With its links and check-ins; the goals under it move up to its parent and the entries stay. Needs WRITE_ITEMS at the goal's place.
+	//
+	// Corresponds with DELETE /goals/{goalId} (the `DeleteGoal` operationId).
+	DeleteGoal(ctx context.Context, goalId GoalId, params *DeleteGoalParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadGoal A goal
+	//
+	// With its key results and progress, the linked entries the caller may read and its latest check-ins. A goal the caller may not read is not found.
+	//
+	// Corresponds with GET /goals/{goalId} (the `ReadGoal` operationId).
+	ReadGoal(ctx context.Context, goalId GoalId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateGoalWithBody Replace a goal
+	//
+	// Its period, title, description, owner, parent, status and key results, held to the version read; a key result keeps its values by its id; the hub stays. A graded goal does not change. Needs WRITE_ITEMS at the goal's place.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /goals/{goalId} (the `UpdateGoal` operationId).
+	UpdateGoalWithBody(ctx context.Context, goalId GoalId, params *UpdateGoalParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateGoal Replace a goal
+	//
+	// Its period, title, description, owner, parent, status and key results, held to the version read; a key result keeps its values by its id; the hub stays. A graded goal does not change. Needs WRITE_ITEMS at the goal's place.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /goals/{goalId} (the `UpdateGoal` operationId).
+	UpdateGoal(ctx context.Context, goalId GoalId, params *UpdateGoalParams, body UpdateGoalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListGoalCheckIns A goal's check-ins
+	//
+	// The latest first, at most 200.
+	//
+	// Corresponds with GET /goals/{goalId}/check-ins (the `ListGoalCheckIns` operationId).
+	ListGoalCheckIns(ctx context.Context, goalId GoalId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckInGoalWithBody Check in on a goal
+	//
+	// Its status, a confidence from 0 to 10, a note and new values of its key results reported by hand; kept as history. A graded goal takes none (`goals.graded`). Needs WRITE_ITEMS at the goal's place.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /goals/{goalId}/check-ins (the `CheckInGoal` operationId).
+	CheckInGoalWithBody(ctx context.Context, goalId GoalId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckInGoal Check in on a goal
+	//
+	// Its status, a confidence from 0 to 10, a note and new values of its key results reported by hand; kept as history. A graded goal takes none (`goals.graded`). Needs WRITE_ITEMS at the goal's place.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /goals/{goalId}/check-ins (the `CheckInGoal` operationId).
+	CheckInGoal(ctx context.Context, goalId GoalId, body CheckInGoalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LinkGoalEntriesWithBody Link entries to a goal
+	//
+	// At most 500 per goal, each one the caller may read; its progress counts the share completed. Needs WRITE_ITEMS at the goal's place.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /goals/{goalId}/entries (the `LinkGoalEntries` operationId).
+	LinkGoalEntriesWithBody(ctx context.Context, goalId GoalId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LinkGoalEntries Link entries to a goal
+	//
+	// At most 500 per goal, each one the caller may read; its progress counts the share completed. Needs WRITE_ITEMS at the goal's place.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /goals/{goalId}/entries (the `LinkGoalEntries` operationId).
+	LinkGoalEntries(ctx context.Context, goalId GoalId, body LinkGoalEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UnlinkGoalEntry Unlink an entry from a goal
+	//
+	// The entry stays. Needs WRITE_ITEMS at the goal's place.
+	//
+	// Corresponds with DELETE /goals/{goalId}/entries/{entryId} (the `UnlinkGoalEntry` operationId).
+	UnlinkGoalEntry(ctx context.Context, goalId GoalId, entryId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListGroups The workspace's groups
 	//
@@ -28915,6 +30229,88 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /plans/{planId}/workload (the `ReadWorkload` operationId).
 	ReadWorkload(ctx context.Context, planId PlanId, params *ReadWorkloadParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPortfolios The portfolios
+	//
+	// By name, nested by `parent_id`, each with the projects the caller may read. Needs READ at the workspace.
+	//
+	// Corresponds with GET /portfolios (the `ListPortfolios` operationId).
+	ListPortfolios(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePortfolioWithBody Create a portfolio
+	//
+	// Of hubs and collections the caller may read, with dates and health per project. Needs WRITE_ITEMS at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /portfolios (the `CreatePortfolio` operationId).
+	CreatePortfolioWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePortfolio Create a portfolio
+	//
+	// Of hubs and collections the caller may read, with dates and health per project. Needs WRITE_ITEMS at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /portfolios (the `CreatePortfolio` operationId).
+	CreatePortfolio(ctx context.Context, body CreatePortfolioJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeletePortfolio Delete a portfolio
+	//
+	// With its status updates; its portfolios move up to its parent and its hubs and collections stay. Needs WRITE_ITEMS at the workspace.
+	//
+	// Corresponds with DELETE /portfolios/{portfolioId} (the `DeletePortfolio` operationId).
+	DeletePortfolio(ctx context.Context, portfolioId PortfolioId, params *DeletePortfolioParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadPortfolio A portfolio as a table
+	//
+	// Each project the caller may read with its dates, health, how many entries it holds and how many are completed - as the caller's own POST /items:aggregate counts them -, the portfolio's progress over them, and its latest status update.
+	//
+	// Corresponds with GET /portfolios/{portfolioId} (the `ReadPortfolio` operationId).
+	ReadPortfolio(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdatePortfolioWithBody Replace a portfolio
+	//
+	// Its fields and projects, held to the version read; a project the caller may not read is kept. Needs WRITE_ITEMS at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /portfolios/{portfolioId} (the `UpdatePortfolio` operationId).
+	UpdatePortfolioWithBody(ctx context.Context, portfolioId PortfolioId, params *UpdatePortfolioParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdatePortfolio Replace a portfolio
+	//
+	// Its fields and projects, held to the version read; a project the caller may not read is kept. Needs WRITE_ITEMS at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /portfolios/{portfolioId} (the `UpdatePortfolio` operationId).
+	UpdatePortfolio(ctx context.Context, portfolioId PortfolioId, params *UpdatePortfolioParams, body UpdatePortfolioJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPortfolioUpdates A portfolio's status updates
+	//
+	// The latest first, at most 200.
+	//
+	// Corresponds with GET /portfolios/{portfolioId}/updates (the `ListPortfolioUpdates` operationId).
+	ListPortfolioUpdates(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReportPortfolioStatusWithBody Write a status update
+	//
+	// Its health and a summary; the health becomes the portfolio's. Kept as history. Needs WRITE_ITEMS at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /portfolios/{portfolioId}/updates (the `ReportPortfolioStatus` operationId).
+	ReportPortfolioStatusWithBody(ctx context.Context, portfolioId PortfolioId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReportPortfolioStatus Write a status update
+	//
+	// Its health and a summary; the health becomes the portfolio's. Kept as history. Needs WRITE_ITEMS at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /portfolios/{portfolioId}/updates (the `ReportPortfolioStatus` operationId).
+	ReportPortfolioStatus(ctx context.Context, portfolioId PortfolioId, body ReportPortfolioStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPresets The presets a hub or collection can start from
 	//
@@ -38258,6 +39654,150 @@ func (c *Client) PreviewCustomFieldReach(ctx context.Context, fieldId CustomFiel
 	return c.Client.Do(req)
 }
 
+// ListDashboards The dashboards the caller sees
+//
+// Their own and the shared ones of the workspace and of the hubs they read, by name.
+//
+// Corresponds with GET /dashboards (the `ListDashboards` operationId).
+func (c *Client) ListDashboards(ctx context.Context, params *ListDashboardsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDashboardsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateDashboardWithBody Create a dashboard
+//
+// At the workspace or in a hub, owned by the caller; a widget's numbers are never stored. A private one needs READ at its place, a shared one STRUCTURE.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /dashboards (the `CreateDashboard` operationId).
+func (c *Client) CreateDashboardWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDashboardRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateDashboard Create a dashboard
+//
+// At the workspace or in a hub, owned by the caller; a widget's numbers are never stored. A private one needs READ at its place, a shared one STRUCTURE.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /dashboards (the `CreateDashboard` operationId).
+func (c *Client) CreateDashboard(ctx context.Context, body CreateDashboardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDashboardRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteDashboard Delete a dashboard
+//
+// The saved views its widgets run stay. As changing it.
+//
+// Corresponds with DELETE /dashboards/{dashboardId} (the `DeleteDashboard` operationId).
+func (c *Client) DeleteDashboard(ctx context.Context, dashboardId DashboardId, params *DeleteDashboardParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteDashboardRequest(c.Server, dashboardId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadDashboard A dashboard
+//
+// Its name, sharing and widgets as their queries. One the caller does not see is not found.
+//
+// Corresponds with GET /dashboards/{dashboardId} (the `ReadDashboard` operationId).
+func (c *Client) ReadDashboard(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadDashboardRequest(c.Server, dashboardId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateDashboardWithBody Replace a dashboard
+//
+// Its name, sharing and widgets, held to the version read. Its owner changes a private one; a shared one, or somebody else's, needs STRUCTURE at its place.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /dashboards/{dashboardId} (the `UpdateDashboard` operationId).
+func (c *Client) UpdateDashboardWithBody(ctx context.Context, dashboardId DashboardId, params *UpdateDashboardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateDashboardRequestWithBody(c.Server, dashboardId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateDashboard Replace a dashboard
+//
+// Its name, sharing and widgets, held to the version read. Its owner changes a private one; a shared one, or somebody else's, needs STRUCTURE at its place.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /dashboards/{dashboardId} (the `UpdateDashboard` operationId).
+func (c *Client) UpdateDashboard(ctx context.Context, dashboardId DashboardId, params *UpdateDashboardParams, body UpdateDashboardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateDashboardRequest(c.Server, dashboardId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadDashboardFigures A dashboard's numbers, for the caller
+//
+// Every widget computed now: a VIEW or QUERY widget's rows exactly as POST /views/{viewId}:aggregate or POST /items:aggregate answers the caller, a GOALS widget's goals with their progress. A widget the caller cannot run carries its error code, and the others still draw.
+//
+// Corresponds with GET /dashboards/{dashboardId}/figures (the `ReadDashboardFigures` operationId).
+func (c *Client) ReadDashboardFigures(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadDashboardFiguresRequest(c.Server, dashboardId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListEntryTypes The workspace's entry types
 //
 // Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
@@ -38434,6 +39974,374 @@ func (c *Client) EvaluateEntryFormWithBody(ctx context.Context, key string, cont
 // Corresponds with POST /entry-types/{key}/form:evaluate (the `EvaluateEntryForm` operationId).
 func (c *Client) EvaluateEntryForm(ctx context.Context, key string, body EvaluateEntryFormJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewEvaluateEntryFormRequest(c.Server, key, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListGoalPeriods The goal periods
+//
+// The workspace's periods - quarters, years - the latest first, open and closed.
+//
+// Corresponds with GET /goal-periods (the `ListGoalPeriods` operationId).
+func (c *Client) ListGoalPeriods(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListGoalPeriodsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineGoalPeriodWithBody Create a goal period
+//
+// A name and its first and last day, at most two years apart. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /goal-periods (the `DefineGoalPeriod` operationId).
+func (c *Client) DefineGoalPeriodWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineGoalPeriodRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineGoalPeriod Create a goal period
+//
+// A name and its first and last day, at most two years apart. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /goal-periods (the `DefineGoalPeriod` operationId).
+func (c *Client) DefineGoalPeriod(ctx context.Context, body DefineGoalPeriodJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineGoalPeriodRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeGoalPeriodWithBody Change an open goal period
+//
+// Its name and days, held to the version read. A closed period does not change (`goal_periods.closed`). Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /goal-periods/{periodId} (the `ChangeGoalPeriod` operationId).
+func (c *Client) ChangeGoalPeriodWithBody(ctx context.Context, periodId openapi_types.UUID, params *ChangeGoalPeriodParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeGoalPeriodRequestWithBody(c.Server, periodId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeGoalPeriod Change an open goal period
+//
+// Its name and days, held to the version read. A closed period does not change (`goal_periods.closed`). Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /goal-periods/{periodId} (the `ChangeGoalPeriod` operationId).
+func (c *Client) ChangeGoalPeriod(ctx context.Context, periodId openapi_types.UUID, params *ChangeGoalPeriodParams, body ChangeGoalPeriodJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeGoalPeriodRequest(c.Server, periodId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CloseGoalPeriodWithBody Close a goal period and grade its goals
+//
+// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /goal-periods/{periodId}:close (the `CloseGoalPeriod` operationId).
+func (c *Client) CloseGoalPeriodWithBody(ctx context.Context, periodId openapi_types.UUID, params *CloseGoalPeriodParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCloseGoalPeriodRequestWithBody(c.Server, periodId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CloseGoalPeriod Close a goal period and grade its goals
+//
+// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /goal-periods/{periodId}:close (the `CloseGoalPeriod` operationId).
+func (c *Client) CloseGoalPeriod(ctx context.Context, periodId openapi_types.UUID, params *CloseGoalPeriodParams, body CloseGoalPeriodJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCloseGoalPeriodRequest(c.Server, periodId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListGoals The goals the caller may read
+//
+// The workspace's goals and those of the hubs the caller reads, narrowed by period, hub, owner or parent; each with its key results and its progress as the caller sees it - the mean of its key results, its goals below and the share of its linked entries completed. The alignment tree is drawn from `parent_id`.
+//
+// Corresponds with GET /goals (the `ListGoals` operationId).
+func (c *Client) ListGoals(ctx context.Context, params *ListGoalsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListGoalsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateGoalWithBody Set a goal
+//
+// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. Needs WRITE_ITEMS at the workspace or the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /goals (the `CreateGoal` operationId).
+func (c *Client) CreateGoalWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateGoalRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateGoal Set a goal
+//
+// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. Needs WRITE_ITEMS at the workspace or the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /goals (the `CreateGoal` operationId).
+func (c *Client) CreateGoal(ctx context.Context, body CreateGoalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateGoalRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteGoal Delete a goal
+//
+// With its links and check-ins; the goals under it move up to its parent and the entries stay. Needs WRITE_ITEMS at the goal's place.
+//
+// Corresponds with DELETE /goals/{goalId} (the `DeleteGoal` operationId).
+func (c *Client) DeleteGoal(ctx context.Context, goalId GoalId, params *DeleteGoalParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteGoalRequest(c.Server, goalId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadGoal A goal
+//
+// With its key results and progress, the linked entries the caller may read and its latest check-ins. A goal the caller may not read is not found.
+//
+// Corresponds with GET /goals/{goalId} (the `ReadGoal` operationId).
+func (c *Client) ReadGoal(ctx context.Context, goalId GoalId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadGoalRequest(c.Server, goalId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateGoalWithBody Replace a goal
+//
+// Its period, title, description, owner, parent, status and key results, held to the version read; a key result keeps its values by its id; the hub stays. A graded goal does not change. Needs WRITE_ITEMS at the goal's place.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /goals/{goalId} (the `UpdateGoal` operationId).
+func (c *Client) UpdateGoalWithBody(ctx context.Context, goalId GoalId, params *UpdateGoalParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateGoalRequestWithBody(c.Server, goalId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateGoal Replace a goal
+//
+// Its period, title, description, owner, parent, status and key results, held to the version read; a key result keeps its values by its id; the hub stays. A graded goal does not change. Needs WRITE_ITEMS at the goal's place.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /goals/{goalId} (the `UpdateGoal` operationId).
+func (c *Client) UpdateGoal(ctx context.Context, goalId GoalId, params *UpdateGoalParams, body UpdateGoalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateGoalRequest(c.Server, goalId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListGoalCheckIns A goal's check-ins
+//
+// The latest first, at most 200.
+//
+// Corresponds with GET /goals/{goalId}/check-ins (the `ListGoalCheckIns` operationId).
+func (c *Client) ListGoalCheckIns(ctx context.Context, goalId GoalId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListGoalCheckInsRequest(c.Server, goalId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckInGoalWithBody Check in on a goal
+//
+// Its status, a confidence from 0 to 10, a note and new values of its key results reported by hand; kept as history. A graded goal takes none (`goals.graded`). Needs WRITE_ITEMS at the goal's place.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /goals/{goalId}/check-ins (the `CheckInGoal` operationId).
+func (c *Client) CheckInGoalWithBody(ctx context.Context, goalId GoalId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckInGoalRequestWithBody(c.Server, goalId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckInGoal Check in on a goal
+//
+// Its status, a confidence from 0 to 10, a note and new values of its key results reported by hand; kept as history. A graded goal takes none (`goals.graded`). Needs WRITE_ITEMS at the goal's place.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /goals/{goalId}/check-ins (the `CheckInGoal` operationId).
+func (c *Client) CheckInGoal(ctx context.Context, goalId GoalId, body CheckInGoalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckInGoalRequest(c.Server, goalId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LinkGoalEntriesWithBody Link entries to a goal
+//
+// At most 500 per goal, each one the caller may read; its progress counts the share completed. Needs WRITE_ITEMS at the goal's place.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /goals/{goalId}/entries (the `LinkGoalEntries` operationId).
+func (c *Client) LinkGoalEntriesWithBody(ctx context.Context, goalId GoalId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLinkGoalEntriesRequestWithBody(c.Server, goalId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LinkGoalEntries Link entries to a goal
+//
+// At most 500 per goal, each one the caller may read; its progress counts the share completed. Needs WRITE_ITEMS at the goal's place.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /goals/{goalId}/entries (the `LinkGoalEntries` operationId).
+func (c *Client) LinkGoalEntries(ctx context.Context, goalId GoalId, body LinkGoalEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLinkGoalEntriesRequest(c.Server, goalId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UnlinkGoalEntry Unlink an entry from a goal
+//
+// The entry stays. Needs WRITE_ITEMS at the goal's place.
+//
+// Corresponds with DELETE /goals/{goalId}/entries/{entryId} (the `UnlinkGoalEntry` operationId).
+func (c *Client) UnlinkGoalEntry(ctx context.Context, goalId GoalId, entryId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUnlinkGoalEntryRequest(c.Server, goalId, entryId)
 	if err != nil {
 		return nil, err
 	}
@@ -43455,6 +45363,188 @@ func (c *Client) ApplyPlanSchedule(ctx context.Context, planId PlanId, body Appl
 // Corresponds with GET /plans/{planId}/workload (the `ReadWorkload` operationId).
 func (c *Client) ReadWorkload(ctx context.Context, planId PlanId, params *ReadWorkloadParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadWorkloadRequest(c.Server, planId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPortfolios The portfolios
+//
+// By name, nested by `parent_id`, each with the projects the caller may read. Needs READ at the workspace.
+//
+// Corresponds with GET /portfolios (the `ListPortfolios` operationId).
+func (c *Client) ListPortfolios(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPortfoliosRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePortfolioWithBody Create a portfolio
+//
+// Of hubs and collections the caller may read, with dates and health per project. Needs WRITE_ITEMS at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /portfolios (the `CreatePortfolio` operationId).
+func (c *Client) CreatePortfolioWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePortfolioRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePortfolio Create a portfolio
+//
+// Of hubs and collections the caller may read, with dates and health per project. Needs WRITE_ITEMS at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /portfolios (the `CreatePortfolio` operationId).
+func (c *Client) CreatePortfolio(ctx context.Context, body CreatePortfolioJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePortfolioRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeletePortfolio Delete a portfolio
+//
+// With its status updates; its portfolios move up to its parent and its hubs and collections stay. Needs WRITE_ITEMS at the workspace.
+//
+// Corresponds with DELETE /portfolios/{portfolioId} (the `DeletePortfolio` operationId).
+func (c *Client) DeletePortfolio(ctx context.Context, portfolioId PortfolioId, params *DeletePortfolioParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeletePortfolioRequest(c.Server, portfolioId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadPortfolio A portfolio as a table
+//
+// Each project the caller may read with its dates, health, how many entries it holds and how many are completed - as the caller's own POST /items:aggregate counts them -, the portfolio's progress over them, and its latest status update.
+//
+// Corresponds with GET /portfolios/{portfolioId} (the `ReadPortfolio` operationId).
+func (c *Client) ReadPortfolio(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPortfolioRequest(c.Server, portfolioId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdatePortfolioWithBody Replace a portfolio
+//
+// Its fields and projects, held to the version read; a project the caller may not read is kept. Needs WRITE_ITEMS at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /portfolios/{portfolioId} (the `UpdatePortfolio` operationId).
+func (c *Client) UpdatePortfolioWithBody(ctx context.Context, portfolioId PortfolioId, params *UpdatePortfolioParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdatePortfolioRequestWithBody(c.Server, portfolioId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdatePortfolio Replace a portfolio
+//
+// Its fields and projects, held to the version read; a project the caller may not read is kept. Needs WRITE_ITEMS at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /portfolios/{portfolioId} (the `UpdatePortfolio` operationId).
+func (c *Client) UpdatePortfolio(ctx context.Context, portfolioId PortfolioId, params *UpdatePortfolioParams, body UpdatePortfolioJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdatePortfolioRequest(c.Server, portfolioId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPortfolioUpdates A portfolio's status updates
+//
+// The latest first, at most 200.
+//
+// Corresponds with GET /portfolios/{portfolioId}/updates (the `ListPortfolioUpdates` operationId).
+func (c *Client) ListPortfolioUpdates(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPortfolioUpdatesRequest(c.Server, portfolioId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReportPortfolioStatusWithBody Write a status update
+//
+// Its health and a summary; the health becomes the portfolio's. Kept as history. Needs WRITE_ITEMS at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /portfolios/{portfolioId}/updates (the `ReportPortfolioStatus` operationId).
+func (c *Client) ReportPortfolioStatusWithBody(ctx context.Context, portfolioId PortfolioId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReportPortfolioStatusRequestWithBody(c.Server, portfolioId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReportPortfolioStatus Write a status update
+//
+// Its health and a summary; the health becomes the portfolio's. Kept as history. Needs WRITE_ITEMS at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /portfolios/{portfolioId}/updates (the `ReportPortfolioStatus` operationId).
+func (c *Client) ReportPortfolioStatus(ctx context.Context, portfolioId PortfolioId, body ReportPortfolioStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReportPortfolioStatusRequest(c.Server, portfolioId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -59090,6 +61180,279 @@ func NewPreviewCustomFieldReachRequest(server string, fieldId CustomFieldId) (*h
 	return req, nil
 }
 
+// NewListDashboardsRequest constructs an http.Request for the ListDashboards method
+func NewListDashboardsRequest(server string, params *ListDashboardsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dashboards")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.HubId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "hub_id", *params.HubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateDashboardRequest calls the generic CreateDashboard builder with application/json body
+func NewCreateDashboardRequest(server string, body CreateDashboardJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateDashboardRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateDashboardRequestWithBody constructs an http.Request for the CreateDashboard method, with any body, and a specified content type
+func NewCreateDashboardRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dashboards")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteDashboardRequest constructs an http.Request for the DeleteDashboard method
+func NewDeleteDashboardRequest(server string, dashboardId DashboardId, params *DeleteDashboardParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "dashboardId", dashboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dashboards/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewReadDashboardRequest constructs an http.Request for the ReadDashboard method
+func NewReadDashboardRequest(server string, dashboardId DashboardId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "dashboardId", dashboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dashboards/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateDashboardRequest calls the generic UpdateDashboard builder with application/json body
+func NewUpdateDashboardRequest(server string, dashboardId DashboardId, params *UpdateDashboardParams, body UpdateDashboardJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateDashboardRequestWithBody(server, dashboardId, params, "application/json", bodyReader)
+}
+
+// NewUpdateDashboardRequestWithBody constructs an http.Request for the UpdateDashboard method, with any body, and a specified content type
+func NewUpdateDashboardRequestWithBody(server string, dashboardId DashboardId, params *UpdateDashboardParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "dashboardId", dashboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dashboards/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewReadDashboardFiguresRequest constructs an http.Request for the ReadDashboardFigures method
+func NewReadDashboardFiguresRequest(server string, dashboardId DashboardId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "dashboardId", dashboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dashboards/%s/figures", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListEntryTypesRequest constructs an http.Request for the ListEntryTypes method
 func NewListEntryTypesRequest(server string) (*http.Request, error) {
 	var err error
@@ -59358,6 +61721,653 @@ func NewEvaluateEntryFormRequestWithBody(server string, key string, contentType 
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListGoalPeriodsRequest constructs an http.Request for the ListGoalPeriods method
+func NewListGoalPeriodsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/goal-periods")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDefineGoalPeriodRequest calls the generic DefineGoalPeriod builder with application/json body
+func NewDefineGoalPeriodRequest(server string, body DefineGoalPeriodJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDefineGoalPeriodRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewDefineGoalPeriodRequestWithBody constructs an http.Request for the DefineGoalPeriod method, with any body, and a specified content type
+func NewDefineGoalPeriodRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/goal-periods")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewChangeGoalPeriodRequest calls the generic ChangeGoalPeriod builder with application/json body
+func NewChangeGoalPeriodRequest(server string, periodId openapi_types.UUID, params *ChangeGoalPeriodParams, body ChangeGoalPeriodJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangeGoalPeriodRequestWithBody(server, periodId, params, "application/json", bodyReader)
+}
+
+// NewChangeGoalPeriodRequestWithBody constructs an http.Request for the ChangeGoalPeriod method, with any body, and a specified content type
+func NewChangeGoalPeriodRequestWithBody(server string, periodId openapi_types.UUID, params *ChangeGoalPeriodParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "periodId", periodId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/goal-periods/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewCloseGoalPeriodRequest calls the generic CloseGoalPeriod builder with application/json body
+func NewCloseGoalPeriodRequest(server string, periodId openapi_types.UUID, params *CloseGoalPeriodParams, body CloseGoalPeriodJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCloseGoalPeriodRequestWithBody(server, periodId, params, "application/json", bodyReader)
+}
+
+// NewCloseGoalPeriodRequestWithBody constructs an http.Request for the CloseGoalPeriod method, with any body, and a specified content type
+func NewCloseGoalPeriodRequestWithBody(server string, periodId openapi_types.UUID, params *CloseGoalPeriodParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "periodId", periodId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/goal-periods/%s:close", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListGoalsRequest constructs an http.Request for the ListGoals method
+func NewListGoalsRequest(server string, params *ListGoalsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/goals")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.PeriodId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "period_id", *params.PeriodId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.HubId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "hub_id", *params.HubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.WorkspaceOnly != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "workspace_only", *params.WorkspaceOnly, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.OwnerId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "owner_id", *params.OwnerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.ParentId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "parent_id", *params.ParentId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateGoalRequest calls the generic CreateGoal builder with application/json body
+func NewCreateGoalRequest(server string, body CreateGoalJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateGoalRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateGoalRequestWithBody constructs an http.Request for the CreateGoal method, with any body, and a specified content type
+func NewCreateGoalRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/goals")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteGoalRequest constructs an http.Request for the DeleteGoal method
+func NewDeleteGoalRequest(server string, goalId GoalId, params *DeleteGoalParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "goalId", goalId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/goals/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewReadGoalRequest constructs an http.Request for the ReadGoal method
+func NewReadGoalRequest(server string, goalId GoalId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "goalId", goalId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/goals/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateGoalRequest calls the generic UpdateGoal builder with application/json body
+func NewUpdateGoalRequest(server string, goalId GoalId, params *UpdateGoalParams, body UpdateGoalJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateGoalRequestWithBody(server, goalId, params, "application/json", bodyReader)
+}
+
+// NewUpdateGoalRequestWithBody constructs an http.Request for the UpdateGoal method, with any body, and a specified content type
+func NewUpdateGoalRequestWithBody(server string, goalId GoalId, params *UpdateGoalParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "goalId", goalId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/goals/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListGoalCheckInsRequest constructs an http.Request for the ListGoalCheckIns method
+func NewListGoalCheckInsRequest(server string, goalId GoalId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "goalId", goalId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/goals/%s/check-ins", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCheckInGoalRequest calls the generic CheckInGoal builder with application/json body
+func NewCheckInGoalRequest(server string, goalId GoalId, body CheckInGoalJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCheckInGoalRequestWithBody(server, goalId, "application/json", bodyReader)
+}
+
+// NewCheckInGoalRequestWithBody constructs an http.Request for the CheckInGoal method, with any body, and a specified content type
+func NewCheckInGoalRequestWithBody(server string, goalId GoalId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "goalId", goalId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/goals/%s/check-ins", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewLinkGoalEntriesRequest calls the generic LinkGoalEntries builder with application/json body
+func NewLinkGoalEntriesRequest(server string, goalId GoalId, body LinkGoalEntriesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewLinkGoalEntriesRequestWithBody(server, goalId, "application/json", bodyReader)
+}
+
+// NewLinkGoalEntriesRequestWithBody constructs an http.Request for the LinkGoalEntries method, with any body, and a specified content type
+func NewLinkGoalEntriesRequestWithBody(server string, goalId GoalId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "goalId", goalId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/goals/%s/entries", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewUnlinkGoalEntryRequest constructs an http.Request for the UnlinkGoalEntry method
+func NewUnlinkGoalEntryRequest(server string, goalId GoalId, entryId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "goalId", goalId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "entryId", entryId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/goals/%s/entries/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -68873,6 +71883,299 @@ func NewReadWorkloadRequest(server string, planId PlanId, params *ReadWorkloadPa
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewListPortfoliosRequest constructs an http.Request for the ListPortfolios method
+func NewListPortfoliosRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/portfolios")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreatePortfolioRequest calls the generic CreatePortfolio builder with application/json body
+func NewCreatePortfolioRequest(server string, body CreatePortfolioJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreatePortfolioRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreatePortfolioRequestWithBody constructs an http.Request for the CreatePortfolio method, with any body, and a specified content type
+func NewCreatePortfolioRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/portfolios")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeletePortfolioRequest constructs an http.Request for the DeletePortfolio method
+func NewDeletePortfolioRequest(server string, portfolioId PortfolioId, params *DeletePortfolioParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "portfolioId", portfolioId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/portfolios/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewReadPortfolioRequest constructs an http.Request for the ReadPortfolio method
+func NewReadPortfolioRequest(server string, portfolioId PortfolioId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "portfolioId", portfolioId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/portfolios/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdatePortfolioRequest calls the generic UpdatePortfolio builder with application/json body
+func NewUpdatePortfolioRequest(server string, portfolioId PortfolioId, params *UpdatePortfolioParams, body UpdatePortfolioJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdatePortfolioRequestWithBody(server, portfolioId, params, "application/json", bodyReader)
+}
+
+// NewUpdatePortfolioRequestWithBody constructs an http.Request for the UpdatePortfolio method, with any body, and a specified content type
+func NewUpdatePortfolioRequestWithBody(server string, portfolioId PortfolioId, params *UpdatePortfolioParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "portfolioId", portfolioId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/portfolios/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListPortfolioUpdatesRequest constructs an http.Request for the ListPortfolioUpdates method
+func NewListPortfolioUpdatesRequest(server string, portfolioId PortfolioId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "portfolioId", portfolioId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/portfolios/%s/updates", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReportPortfolioStatusRequest calls the generic ReportPortfolioStatus builder with application/json body
+func NewReportPortfolioStatusRequest(server string, portfolioId PortfolioId, body ReportPortfolioStatusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReportPortfolioStatusRequestWithBody(server, portfolioId, "application/json", bodyReader)
+}
+
+// NewReportPortfolioStatusRequestWithBody constructs an http.Request for the ReportPortfolioStatus method, with any body, and a specified content type
+func NewReportPortfolioStatusRequestWithBody(server string, portfolioId PortfolioId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "portfolioId", portfolioId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/portfolios/%s/updates", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -79583,6 +82886,78 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /custom-fields/{fieldId}/reach (the `PreviewCustomFieldReach` operationId).
 	PreviewCustomFieldReachWithResponse(ctx context.Context, fieldId CustomFieldId, reqEditors ...RequestEditorFn) (*PreviewCustomFieldReachResult, error)
 
+	// ListDashboardsWithResponse The dashboards the caller sees
+	//
+	// Their own and the shared ones of the workspace and of the hubs they read, by name.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /dashboards (the `ListDashboards` operationId).
+	ListDashboardsWithResponse(ctx context.Context, params *ListDashboardsParams, reqEditors ...RequestEditorFn) (*ListDashboardsResult, error)
+
+	// CreateDashboardWithBodyWithResponse Create a dashboard
+	//
+	// At the workspace or in a hub, owned by the caller; a widget's numbers are never stored. A private one needs READ at its place, a shared one STRUCTURE.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /dashboards (the `CreateDashboard` operationId).
+	CreateDashboardWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDashboardResult, error)
+
+	// CreateDashboardWithResponse Create a dashboard
+	//
+	// At the workspace or in a hub, owned by the caller; a widget's numbers are never stored. A private one needs READ at its place, a shared one STRUCTURE.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /dashboards (the `CreateDashboard` operationId).
+	CreateDashboardWithResponse(ctx context.Context, body CreateDashboardJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDashboardResult, error)
+
+	// DeleteDashboardWithResponse Delete a dashboard
+	//
+	// The saved views its widgets run stay. As changing it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /dashboards/{dashboardId} (the `DeleteDashboard` operationId).
+	DeleteDashboardWithResponse(ctx context.Context, dashboardId DashboardId, params *DeleteDashboardParams, reqEditors ...RequestEditorFn) (*DeleteDashboardResult, error)
+
+	// ReadDashboardWithResponse A dashboard
+	//
+	// Its name, sharing and widgets as their queries. One the caller does not see is not found.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /dashboards/{dashboardId} (the `ReadDashboard` operationId).
+	ReadDashboardWithResponse(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*ReadDashboardResult, error)
+
+	// UpdateDashboardWithBodyWithResponse Replace a dashboard
+	//
+	// Its name, sharing and widgets, held to the version read. Its owner changes a private one; a shared one, or somebody else's, needs STRUCTURE at its place.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /dashboards/{dashboardId} (the `UpdateDashboard` operationId).
+	UpdateDashboardWithBodyWithResponse(ctx context.Context, dashboardId DashboardId, params *UpdateDashboardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateDashboardResult, error)
+
+	// UpdateDashboardWithResponse Replace a dashboard
+	//
+	// Its name, sharing and widgets, held to the version read. Its owner changes a private one; a shared one, or somebody else's, needs STRUCTURE at its place.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /dashboards/{dashboardId} (the `UpdateDashboard` operationId).
+	UpdateDashboardWithResponse(ctx context.Context, dashboardId DashboardId, params *UpdateDashboardParams, body UpdateDashboardJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateDashboardResult, error)
+
+	// ReadDashboardFiguresWithResponse A dashboard's numbers, for the caller
+	//
+	// Every widget computed now: a VIEW or QUERY widget's rows exactly as POST /views/{viewId}:aggregate or POST /items:aggregate answers the caller, a GOALS widget's goals with their progress. A widget the caller cannot run carries its error code, and the others still draw.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /dashboards/{dashboardId}/figures (the `ReadDashboardFigures` operationId).
+	ReadDashboardFiguresWithResponse(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*ReadDashboardFiguresResult, error)
+
 	// ListEntryTypesWithResponse The workspace's entry types
 	//
 	// Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
@@ -79672,6 +83047,186 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /entry-types/{key}/form:evaluate (the `EvaluateEntryForm` operationId).
 	EvaluateEntryFormWithResponse(ctx context.Context, key string, body EvaluateEntryFormJSONRequestBody, reqEditors ...RequestEditorFn) (*EvaluateEntryFormResult, error)
+
+	// ListGoalPeriodsWithResponse The goal periods
+	//
+	// The workspace's periods - quarters, years - the latest first, open and closed.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /goal-periods (the `ListGoalPeriods` operationId).
+	ListGoalPeriodsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListGoalPeriodsResult, error)
+
+	// DefineGoalPeriodWithBodyWithResponse Create a goal period
+	//
+	// A name and its first and last day, at most two years apart. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /goal-periods (the `DefineGoalPeriod` operationId).
+	DefineGoalPeriodWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineGoalPeriodResult, error)
+
+	// DefineGoalPeriodWithResponse Create a goal period
+	//
+	// A name and its first and last day, at most two years apart. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /goal-periods (the `DefineGoalPeriod` operationId).
+	DefineGoalPeriodWithResponse(ctx context.Context, body DefineGoalPeriodJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineGoalPeriodResult, error)
+
+	// ChangeGoalPeriodWithBodyWithResponse Change an open goal period
+	//
+	// Its name and days, held to the version read. A closed period does not change (`goal_periods.closed`). Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /goal-periods/{periodId} (the `ChangeGoalPeriod` operationId).
+	ChangeGoalPeriodWithBodyWithResponse(ctx context.Context, periodId openapi_types.UUID, params *ChangeGoalPeriodParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeGoalPeriodResult, error)
+
+	// ChangeGoalPeriodWithResponse Change an open goal period
+	//
+	// Its name and days, held to the version read. A closed period does not change (`goal_periods.closed`). Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /goal-periods/{periodId} (the `ChangeGoalPeriod` operationId).
+	ChangeGoalPeriodWithResponse(ctx context.Context, periodId openapi_types.UUID, params *ChangeGoalPeriodParams, body ChangeGoalPeriodJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeGoalPeriodResult, error)
+
+	// CloseGoalPeriodWithBodyWithResponse Close a goal period and grade its goals
+	//
+	// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /goal-periods/{periodId}:close (the `CloseGoalPeriod` operationId).
+	CloseGoalPeriodWithBodyWithResponse(ctx context.Context, periodId openapi_types.UUID, params *CloseGoalPeriodParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CloseGoalPeriodResult, error)
+
+	// CloseGoalPeriodWithResponse Close a goal period and grade its goals
+	//
+	// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /goal-periods/{periodId}:close (the `CloseGoalPeriod` operationId).
+	CloseGoalPeriodWithResponse(ctx context.Context, periodId openapi_types.UUID, params *CloseGoalPeriodParams, body CloseGoalPeriodJSONRequestBody, reqEditors ...RequestEditorFn) (*CloseGoalPeriodResult, error)
+
+	// ListGoalsWithResponse The goals the caller may read
+	//
+	// The workspace's goals and those of the hubs the caller reads, narrowed by period, hub, owner or parent; each with its key results and its progress as the caller sees it - the mean of its key results, its goals below and the share of its linked entries completed. The alignment tree is drawn from `parent_id`.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /goals (the `ListGoals` operationId).
+	ListGoalsWithResponse(ctx context.Context, params *ListGoalsParams, reqEditors ...RequestEditorFn) (*ListGoalsResult, error)
+
+	// CreateGoalWithBodyWithResponse Set a goal
+	//
+	// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. Needs WRITE_ITEMS at the workspace or the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /goals (the `CreateGoal` operationId).
+	CreateGoalWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateGoalResult, error)
+
+	// CreateGoalWithResponse Set a goal
+	//
+	// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. Needs WRITE_ITEMS at the workspace or the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /goals (the `CreateGoal` operationId).
+	CreateGoalWithResponse(ctx context.Context, body CreateGoalJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateGoalResult, error)
+
+	// DeleteGoalWithResponse Delete a goal
+	//
+	// With its links and check-ins; the goals under it move up to its parent and the entries stay. Needs WRITE_ITEMS at the goal's place.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /goals/{goalId} (the `DeleteGoal` operationId).
+	DeleteGoalWithResponse(ctx context.Context, goalId GoalId, params *DeleteGoalParams, reqEditors ...RequestEditorFn) (*DeleteGoalResult, error)
+
+	// ReadGoalWithResponse A goal
+	//
+	// With its key results and progress, the linked entries the caller may read and its latest check-ins. A goal the caller may not read is not found.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /goals/{goalId} (the `ReadGoal` operationId).
+	ReadGoalWithResponse(ctx context.Context, goalId GoalId, reqEditors ...RequestEditorFn) (*ReadGoalResult, error)
+
+	// UpdateGoalWithBodyWithResponse Replace a goal
+	//
+	// Its period, title, description, owner, parent, status and key results, held to the version read; a key result keeps its values by its id; the hub stays. A graded goal does not change. Needs WRITE_ITEMS at the goal's place.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /goals/{goalId} (the `UpdateGoal` operationId).
+	UpdateGoalWithBodyWithResponse(ctx context.Context, goalId GoalId, params *UpdateGoalParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateGoalResult, error)
+
+	// UpdateGoalWithResponse Replace a goal
+	//
+	// Its period, title, description, owner, parent, status and key results, held to the version read; a key result keeps its values by its id; the hub stays. A graded goal does not change. Needs WRITE_ITEMS at the goal's place.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /goals/{goalId} (the `UpdateGoal` operationId).
+	UpdateGoalWithResponse(ctx context.Context, goalId GoalId, params *UpdateGoalParams, body UpdateGoalJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateGoalResult, error)
+
+	// ListGoalCheckInsWithResponse A goal's check-ins
+	//
+	// The latest first, at most 200.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /goals/{goalId}/check-ins (the `ListGoalCheckIns` operationId).
+	ListGoalCheckInsWithResponse(ctx context.Context, goalId GoalId, reqEditors ...RequestEditorFn) (*ListGoalCheckInsResult, error)
+
+	// CheckInGoalWithBodyWithResponse Check in on a goal
+	//
+	// Its status, a confidence from 0 to 10, a note and new values of its key results reported by hand; kept as history. A graded goal takes none (`goals.graded`). Needs WRITE_ITEMS at the goal's place.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /goals/{goalId}/check-ins (the `CheckInGoal` operationId).
+	CheckInGoalWithBodyWithResponse(ctx context.Context, goalId GoalId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckInGoalResult, error)
+
+	// CheckInGoalWithResponse Check in on a goal
+	//
+	// Its status, a confidence from 0 to 10, a note and new values of its key results reported by hand; kept as history. A graded goal takes none (`goals.graded`). Needs WRITE_ITEMS at the goal's place.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /goals/{goalId}/check-ins (the `CheckInGoal` operationId).
+	CheckInGoalWithResponse(ctx context.Context, goalId GoalId, body CheckInGoalJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckInGoalResult, error)
+
+	// LinkGoalEntriesWithBodyWithResponse Link entries to a goal
+	//
+	// At most 500 per goal, each one the caller may read; its progress counts the share completed. Needs WRITE_ITEMS at the goal's place.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /goals/{goalId}/entries (the `LinkGoalEntries` operationId).
+	LinkGoalEntriesWithBodyWithResponse(ctx context.Context, goalId GoalId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LinkGoalEntriesResult, error)
+
+	// LinkGoalEntriesWithResponse Link entries to a goal
+	//
+	// At most 500 per goal, each one the caller may read; its progress counts the share completed. Needs WRITE_ITEMS at the goal's place.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /goals/{goalId}/entries (the `LinkGoalEntries` operationId).
+	LinkGoalEntriesWithResponse(ctx context.Context, goalId GoalId, body LinkGoalEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*LinkGoalEntriesResult, error)
+
+	// UnlinkGoalEntryWithResponse Unlink an entry from a goal
+	//
+	// The entry stays. Needs WRITE_ITEMS at the goal's place.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /goals/{goalId}/entries/{entryId} (the `UnlinkGoalEntry` operationId).
+	UnlinkGoalEntryWithResponse(ctx context.Context, goalId GoalId, entryId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnlinkGoalEntryResult, error)
 
 	// ListGroupsWithResponse The workspace's groups
 	//
@@ -82231,6 +85786,96 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /plans/{planId}/workload (the `ReadWorkload` operationId).
 	ReadWorkloadWithResponse(ctx context.Context, planId PlanId, params *ReadWorkloadParams, reqEditors ...RequestEditorFn) (*ReadWorkloadResult, error)
+
+	// ListPortfoliosWithResponse The portfolios
+	//
+	// By name, nested by `parent_id`, each with the projects the caller may read. Needs READ at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /portfolios (the `ListPortfolios` operationId).
+	ListPortfoliosWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPortfoliosResult, error)
+
+	// CreatePortfolioWithBodyWithResponse Create a portfolio
+	//
+	// Of hubs and collections the caller may read, with dates and health per project. Needs WRITE_ITEMS at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /portfolios (the `CreatePortfolio` operationId).
+	CreatePortfolioWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreatePortfolioResult, error)
+
+	// CreatePortfolioWithResponse Create a portfolio
+	//
+	// Of hubs and collections the caller may read, with dates and health per project. Needs WRITE_ITEMS at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /portfolios (the `CreatePortfolio` operationId).
+	CreatePortfolioWithResponse(ctx context.Context, body CreatePortfolioJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePortfolioResult, error)
+
+	// DeletePortfolioWithResponse Delete a portfolio
+	//
+	// With its status updates; its portfolios move up to its parent and its hubs and collections stay. Needs WRITE_ITEMS at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /portfolios/{portfolioId} (the `DeletePortfolio` operationId).
+	DeletePortfolioWithResponse(ctx context.Context, portfolioId PortfolioId, params *DeletePortfolioParams, reqEditors ...RequestEditorFn) (*DeletePortfolioResult, error)
+
+	// ReadPortfolioWithResponse A portfolio as a table
+	//
+	// Each project the caller may read with its dates, health, how many entries it holds and how many are completed - as the caller's own POST /items:aggregate counts them -, the portfolio's progress over them, and its latest status update.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /portfolios/{portfolioId} (the `ReadPortfolio` operationId).
+	ReadPortfolioWithResponse(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*ReadPortfolioResult, error)
+
+	// UpdatePortfolioWithBodyWithResponse Replace a portfolio
+	//
+	// Its fields and projects, held to the version read; a project the caller may not read is kept. Needs WRITE_ITEMS at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /portfolios/{portfolioId} (the `UpdatePortfolio` operationId).
+	UpdatePortfolioWithBodyWithResponse(ctx context.Context, portfolioId PortfolioId, params *UpdatePortfolioParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdatePortfolioResult, error)
+
+	// UpdatePortfolioWithResponse Replace a portfolio
+	//
+	// Its fields and projects, held to the version read; a project the caller may not read is kept. Needs WRITE_ITEMS at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /portfolios/{portfolioId} (the `UpdatePortfolio` operationId).
+	UpdatePortfolioWithResponse(ctx context.Context, portfolioId PortfolioId, params *UpdatePortfolioParams, body UpdatePortfolioJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdatePortfolioResult, error)
+
+	// ListPortfolioUpdatesWithResponse A portfolio's status updates
+	//
+	// The latest first, at most 200.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /portfolios/{portfolioId}/updates (the `ListPortfolioUpdates` operationId).
+	ListPortfolioUpdatesWithResponse(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*ListPortfolioUpdatesResult, error)
+
+	// ReportPortfolioStatusWithBodyWithResponse Write a status update
+	//
+	// Its health and a summary; the health becomes the portfolio's. Kept as history. Needs WRITE_ITEMS at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /portfolios/{portfolioId}/updates (the `ReportPortfolioStatus` operationId).
+	ReportPortfolioStatusWithBodyWithResponse(ctx context.Context, portfolioId PortfolioId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReportPortfolioStatusResult, error)
+
+	// ReportPortfolioStatusWithResponse Write a status update
+	//
+	// Its health and a summary; the health becomes the portfolio's. Kept as history. Needs WRITE_ITEMS at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /portfolios/{portfolioId}/updates (the `ReportPortfolioStatus` operationId).
+	ReportPortfolioStatusWithResponse(ctx context.Context, portfolioId PortfolioId, body ReportPortfolioStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*ReportPortfolioStatusResult, error)
 
 	// ListPresetsWithResponse The presets a hub or collection can start from
 	//
@@ -96501,6 +100146,287 @@ func (r PreviewCustomFieldReachResult) ContentType() string {
 	return ""
 }
 
+type ListDashboardsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DashboardList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListDashboardsResult) GetJSON200() *DashboardList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListDashboardsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListDashboardsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListDashboardsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListDashboardsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListDashboardsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateDashboardResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Dashboard
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateDashboardResult) GetJSON201() *Dashboard {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateDashboardResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateDashboardResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateDashboardResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateDashboardResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateDashboardResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteDashboardResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteDashboardResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteDashboardResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteDashboardResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteDashboardResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteDashboardResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadDashboardResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Dashboard
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadDashboardResult) GetJSON200() *Dashboard {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadDashboardResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadDashboardResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadDashboardResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadDashboardResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadDashboardResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateDashboardResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Dashboard
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateDashboardResult) GetJSON200() *Dashboard {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UpdateDashboardResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateDashboardResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateDashboardResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateDashboardResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateDashboardResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadDashboardFiguresResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DashboardFigures
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadDashboardFiguresResult) GetJSON200() *DashboardFigures {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadDashboardFiguresResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadDashboardFiguresResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadDashboardFiguresResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadDashboardFiguresResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadDashboardFiguresResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListEntryTypesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -96776,6 +100702,623 @@ func (r EvaluateEntryFormResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r EvaluateEntryFormResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListGoalPeriodsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GoalPeriodList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListGoalPeriodsResult) GetJSON200() *GoalPeriodList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListGoalPeriodsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListGoalPeriodsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListGoalPeriodsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListGoalPeriodsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListGoalPeriodsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DefineGoalPeriodResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *GoalPeriod
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r DefineGoalPeriodResult) GetJSON201() *GoalPeriod {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DefineGoalPeriodResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DefineGoalPeriodResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DefineGoalPeriodResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DefineGoalPeriodResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DefineGoalPeriodResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ChangeGoalPeriodResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GoalPeriod
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ChangeGoalPeriodResult) GetJSON200() *GoalPeriod {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangeGoalPeriodResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangeGoalPeriodResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangeGoalPeriodResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangeGoalPeriodResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangeGoalPeriodResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CloseGoalPeriodResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GoalPeriod
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CloseGoalPeriodResult) GetJSON200() *GoalPeriod {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CloseGoalPeriodResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CloseGoalPeriodResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CloseGoalPeriodResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CloseGoalPeriodResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CloseGoalPeriodResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListGoalsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GoalList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListGoalsResult) GetJSON200() *GoalList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListGoalsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListGoalsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListGoalsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListGoalsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListGoalsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateGoalResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Goal
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateGoalResult) GetJSON201() *Goal {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateGoalResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateGoalResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateGoalResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateGoalResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateGoalResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteGoalResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteGoalResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteGoalResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteGoalResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteGoalResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteGoalResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadGoalResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Goal
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadGoalResult) GetJSON200() *Goal {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadGoalResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadGoalResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadGoalResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadGoalResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadGoalResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateGoalResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Goal
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateGoalResult) GetJSON200() *Goal {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UpdateGoalResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateGoalResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateGoalResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateGoalResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateGoalResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListGoalCheckInsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GoalCheckInList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListGoalCheckInsResult) GetJSON200() *GoalCheckInList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListGoalCheckInsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListGoalCheckInsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListGoalCheckInsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListGoalCheckInsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListGoalCheckInsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CheckInGoalResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Goal
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CheckInGoalResult) GetJSON200() *Goal {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CheckInGoalResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CheckInGoalResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CheckInGoalResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CheckInGoalResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CheckInGoalResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type LinkGoalEntriesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Goal
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r LinkGoalEntriesResult) GetJSON200() *Goal {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r LinkGoalEntriesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r LinkGoalEntriesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r LinkGoalEntriesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r LinkGoalEntriesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r LinkGoalEntriesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UnlinkGoalEntryResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Goal
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UnlinkGoalEntryResult) GetJSON200() *Goal {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UnlinkGoalEntryResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UnlinkGoalEntryResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UnlinkGoalEntryResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UnlinkGoalEntryResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UnlinkGoalEntryResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -106179,6 +110722,335 @@ func (r ReadWorkloadResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReadWorkloadResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListPortfoliosResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PortfolioList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPortfoliosResult) GetJSON200() *PortfolioList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPortfoliosResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPortfoliosResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPortfoliosResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPortfoliosResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPortfoliosResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreatePortfolioResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Portfolio
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreatePortfolioResult) GetJSON201() *Portfolio {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreatePortfolioResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreatePortfolioResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreatePortfolioResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreatePortfolioResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreatePortfolioResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeletePortfolioResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeletePortfolioResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeletePortfolioResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeletePortfolioResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeletePortfolioResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeletePortfolioResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadPortfolioResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Portfolio
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPortfolioResult) GetJSON200() *Portfolio {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPortfolioResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPortfolioResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPortfolioResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPortfolioResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPortfolioResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdatePortfolioResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Portfolio
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdatePortfolioResult) GetJSON200() *Portfolio {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UpdatePortfolioResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdatePortfolioResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdatePortfolioResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdatePortfolioResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdatePortfolioResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListPortfolioUpdatesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PortfolioUpdateList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPortfolioUpdatesResult) GetJSON200() *PortfolioUpdateList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPortfolioUpdatesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPortfolioUpdatesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPortfolioUpdatesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPortfolioUpdatesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPortfolioUpdatesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReportPortfolioStatusResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *PortfolioUpdate
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r ReportPortfolioStatusResult) GetJSON201() *PortfolioUpdate {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReportPortfolioStatusResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReportPortfolioStatusResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReportPortfolioStatusResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReportPortfolioStatusResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReportPortfolioStatusResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -119257,6 +124129,126 @@ func (c *ClientWithResponses) PreviewCustomFieldReachWithResponse(ctx context.Co
 	return ParsePreviewCustomFieldReachResult(rsp)
 }
 
+// ListDashboardsWithResponse The dashboards the caller sees
+//
+// Their own and the shared ones of the workspace and of the hubs they read, by name.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /dashboards (the `ListDashboards` operationId).
+func (c *ClientWithResponses) ListDashboardsWithResponse(ctx context.Context, params *ListDashboardsParams, reqEditors ...RequestEditorFn) (*ListDashboardsResult, error) {
+	rsp, err := c.ListDashboards(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListDashboardsResult(rsp)
+}
+
+// CreateDashboardWithBodyWithResponse Create a dashboard
+//
+// At the workspace or in a hub, owned by the caller; a widget's numbers are never stored. A private one needs READ at its place, a shared one STRUCTURE.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /dashboards (the `CreateDashboard` operationId).
+func (c *ClientWithResponses) CreateDashboardWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDashboardResult, error) {
+	rsp, err := c.CreateDashboardWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDashboardResult(rsp)
+}
+
+// CreateDashboardWithResponse Create a dashboard
+//
+// At the workspace or in a hub, owned by the caller; a widget's numbers are never stored. A private one needs READ at its place, a shared one STRUCTURE.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /dashboards (the `CreateDashboard` operationId).
+func (c *ClientWithResponses) CreateDashboardWithResponse(ctx context.Context, body CreateDashboardJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDashboardResult, error) {
+	rsp, err := c.CreateDashboard(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDashboardResult(rsp)
+}
+
+// DeleteDashboardWithResponse Delete a dashboard
+//
+// The saved views its widgets run stay. As changing it.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /dashboards/{dashboardId} (the `DeleteDashboard` operationId).
+func (c *ClientWithResponses) DeleteDashboardWithResponse(ctx context.Context, dashboardId DashboardId, params *DeleteDashboardParams, reqEditors ...RequestEditorFn) (*DeleteDashboardResult, error) {
+	rsp, err := c.DeleteDashboard(ctx, dashboardId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteDashboardResult(rsp)
+}
+
+// ReadDashboardWithResponse A dashboard
+//
+// Its name, sharing and widgets as their queries. One the caller does not see is not found.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /dashboards/{dashboardId} (the `ReadDashboard` operationId).
+func (c *ClientWithResponses) ReadDashboardWithResponse(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*ReadDashboardResult, error) {
+	rsp, err := c.ReadDashboard(ctx, dashboardId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadDashboardResult(rsp)
+}
+
+// UpdateDashboardWithBodyWithResponse Replace a dashboard
+//
+// Its name, sharing and widgets, held to the version read. Its owner changes a private one; a shared one, or somebody else's, needs STRUCTURE at its place.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /dashboards/{dashboardId} (the `UpdateDashboard` operationId).
+func (c *ClientWithResponses) UpdateDashboardWithBodyWithResponse(ctx context.Context, dashboardId DashboardId, params *UpdateDashboardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateDashboardResult, error) {
+	rsp, err := c.UpdateDashboardWithBody(ctx, dashboardId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateDashboardResult(rsp)
+}
+
+// UpdateDashboardWithResponse Replace a dashboard
+//
+// Its name, sharing and widgets, held to the version read. Its owner changes a private one; a shared one, or somebody else's, needs STRUCTURE at its place.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /dashboards/{dashboardId} (the `UpdateDashboard` operationId).
+func (c *ClientWithResponses) UpdateDashboardWithResponse(ctx context.Context, dashboardId DashboardId, params *UpdateDashboardParams, body UpdateDashboardJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateDashboardResult, error) {
+	rsp, err := c.UpdateDashboard(ctx, dashboardId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateDashboardResult(rsp)
+}
+
+// ReadDashboardFiguresWithResponse A dashboard's numbers, for the caller
+//
+// Every widget computed now: a VIEW or QUERY widget's rows exactly as POST /views/{viewId}:aggregate or POST /items:aggregate answers the caller, a GOALS widget's goals with their progress. A widget the caller cannot run carries its error code, and the others still draw.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /dashboards/{dashboardId}/figures (the `ReadDashboardFigures` operationId).
+func (c *ClientWithResponses) ReadDashboardFiguresWithResponse(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*ReadDashboardFiguresResult, error) {
+	rsp, err := c.ReadDashboardFigures(ctx, dashboardId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadDashboardFiguresResult(rsp)
+}
+
 // ListEntryTypesWithResponse The workspace's entry types
 //
 // Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
@@ -119405,6 +124397,306 @@ func (c *ClientWithResponses) EvaluateEntryFormWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseEvaluateEntryFormResult(rsp)
+}
+
+// ListGoalPeriodsWithResponse The goal periods
+//
+// The workspace's periods - quarters, years - the latest first, open and closed.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /goal-periods (the `ListGoalPeriods` operationId).
+func (c *ClientWithResponses) ListGoalPeriodsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListGoalPeriodsResult, error) {
+	rsp, err := c.ListGoalPeriods(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListGoalPeriodsResult(rsp)
+}
+
+// DefineGoalPeriodWithBodyWithResponse Create a goal period
+//
+// A name and its first and last day, at most two years apart. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /goal-periods (the `DefineGoalPeriod` operationId).
+func (c *ClientWithResponses) DefineGoalPeriodWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineGoalPeriodResult, error) {
+	rsp, err := c.DefineGoalPeriodWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineGoalPeriodResult(rsp)
+}
+
+// DefineGoalPeriodWithResponse Create a goal period
+//
+// A name and its first and last day, at most two years apart. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /goal-periods (the `DefineGoalPeriod` operationId).
+func (c *ClientWithResponses) DefineGoalPeriodWithResponse(ctx context.Context, body DefineGoalPeriodJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineGoalPeriodResult, error) {
+	rsp, err := c.DefineGoalPeriod(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineGoalPeriodResult(rsp)
+}
+
+// ChangeGoalPeriodWithBodyWithResponse Change an open goal period
+//
+// Its name and days, held to the version read. A closed period does not change (`goal_periods.closed`). Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /goal-periods/{periodId} (the `ChangeGoalPeriod` operationId).
+func (c *ClientWithResponses) ChangeGoalPeriodWithBodyWithResponse(ctx context.Context, periodId openapi_types.UUID, params *ChangeGoalPeriodParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeGoalPeriodResult, error) {
+	rsp, err := c.ChangeGoalPeriodWithBody(ctx, periodId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeGoalPeriodResult(rsp)
+}
+
+// ChangeGoalPeriodWithResponse Change an open goal period
+//
+// Its name and days, held to the version read. A closed period does not change (`goal_periods.closed`). Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /goal-periods/{periodId} (the `ChangeGoalPeriod` operationId).
+func (c *ClientWithResponses) ChangeGoalPeriodWithResponse(ctx context.Context, periodId openapi_types.UUID, params *ChangeGoalPeriodParams, body ChangeGoalPeriodJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeGoalPeriodResult, error) {
+	rsp, err := c.ChangeGoalPeriod(ctx, periodId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeGoalPeriodResult(rsp)
+}
+
+// CloseGoalPeriodWithBodyWithResponse Close a goal period and grade its goals
+//
+// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /goal-periods/{periodId}:close (the `CloseGoalPeriod` operationId).
+func (c *ClientWithResponses) CloseGoalPeriodWithBodyWithResponse(ctx context.Context, periodId openapi_types.UUID, params *CloseGoalPeriodParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CloseGoalPeriodResult, error) {
+	rsp, err := c.CloseGoalPeriodWithBody(ctx, periodId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCloseGoalPeriodResult(rsp)
+}
+
+// CloseGoalPeriodWithResponse Close a goal period and grade its goals
+//
+// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /goal-periods/{periodId}:close (the `CloseGoalPeriod` operationId).
+func (c *ClientWithResponses) CloseGoalPeriodWithResponse(ctx context.Context, periodId openapi_types.UUID, params *CloseGoalPeriodParams, body CloseGoalPeriodJSONRequestBody, reqEditors ...RequestEditorFn) (*CloseGoalPeriodResult, error) {
+	rsp, err := c.CloseGoalPeriod(ctx, periodId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCloseGoalPeriodResult(rsp)
+}
+
+// ListGoalsWithResponse The goals the caller may read
+//
+// The workspace's goals and those of the hubs the caller reads, narrowed by period, hub, owner or parent; each with its key results and its progress as the caller sees it - the mean of its key results, its goals below and the share of its linked entries completed. The alignment tree is drawn from `parent_id`.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /goals (the `ListGoals` operationId).
+func (c *ClientWithResponses) ListGoalsWithResponse(ctx context.Context, params *ListGoalsParams, reqEditors ...RequestEditorFn) (*ListGoalsResult, error) {
+	rsp, err := c.ListGoals(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListGoalsResult(rsp)
+}
+
+// CreateGoalWithBodyWithResponse Set a goal
+//
+// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. Needs WRITE_ITEMS at the workspace or the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /goals (the `CreateGoal` operationId).
+func (c *ClientWithResponses) CreateGoalWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateGoalResult, error) {
+	rsp, err := c.CreateGoalWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateGoalResult(rsp)
+}
+
+// CreateGoalWithResponse Set a goal
+//
+// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. Needs WRITE_ITEMS at the workspace or the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /goals (the `CreateGoal` operationId).
+func (c *ClientWithResponses) CreateGoalWithResponse(ctx context.Context, body CreateGoalJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateGoalResult, error) {
+	rsp, err := c.CreateGoal(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateGoalResult(rsp)
+}
+
+// DeleteGoalWithResponse Delete a goal
+//
+// With its links and check-ins; the goals under it move up to its parent and the entries stay. Needs WRITE_ITEMS at the goal's place.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /goals/{goalId} (the `DeleteGoal` operationId).
+func (c *ClientWithResponses) DeleteGoalWithResponse(ctx context.Context, goalId GoalId, params *DeleteGoalParams, reqEditors ...RequestEditorFn) (*DeleteGoalResult, error) {
+	rsp, err := c.DeleteGoal(ctx, goalId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteGoalResult(rsp)
+}
+
+// ReadGoalWithResponse A goal
+//
+// With its key results and progress, the linked entries the caller may read and its latest check-ins. A goal the caller may not read is not found.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /goals/{goalId} (the `ReadGoal` operationId).
+func (c *ClientWithResponses) ReadGoalWithResponse(ctx context.Context, goalId GoalId, reqEditors ...RequestEditorFn) (*ReadGoalResult, error) {
+	rsp, err := c.ReadGoal(ctx, goalId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadGoalResult(rsp)
+}
+
+// UpdateGoalWithBodyWithResponse Replace a goal
+//
+// Its period, title, description, owner, parent, status and key results, held to the version read; a key result keeps its values by its id; the hub stays. A graded goal does not change. Needs WRITE_ITEMS at the goal's place.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /goals/{goalId} (the `UpdateGoal` operationId).
+func (c *ClientWithResponses) UpdateGoalWithBodyWithResponse(ctx context.Context, goalId GoalId, params *UpdateGoalParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateGoalResult, error) {
+	rsp, err := c.UpdateGoalWithBody(ctx, goalId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateGoalResult(rsp)
+}
+
+// UpdateGoalWithResponse Replace a goal
+//
+// Its period, title, description, owner, parent, status and key results, held to the version read; a key result keeps its values by its id; the hub stays. A graded goal does not change. Needs WRITE_ITEMS at the goal's place.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /goals/{goalId} (the `UpdateGoal` operationId).
+func (c *ClientWithResponses) UpdateGoalWithResponse(ctx context.Context, goalId GoalId, params *UpdateGoalParams, body UpdateGoalJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateGoalResult, error) {
+	rsp, err := c.UpdateGoal(ctx, goalId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateGoalResult(rsp)
+}
+
+// ListGoalCheckInsWithResponse A goal's check-ins
+//
+// The latest first, at most 200.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /goals/{goalId}/check-ins (the `ListGoalCheckIns` operationId).
+func (c *ClientWithResponses) ListGoalCheckInsWithResponse(ctx context.Context, goalId GoalId, reqEditors ...RequestEditorFn) (*ListGoalCheckInsResult, error) {
+	rsp, err := c.ListGoalCheckIns(ctx, goalId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListGoalCheckInsResult(rsp)
+}
+
+// CheckInGoalWithBodyWithResponse Check in on a goal
+//
+// Its status, a confidence from 0 to 10, a note and new values of its key results reported by hand; kept as history. A graded goal takes none (`goals.graded`). Needs WRITE_ITEMS at the goal's place.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /goals/{goalId}/check-ins (the `CheckInGoal` operationId).
+func (c *ClientWithResponses) CheckInGoalWithBodyWithResponse(ctx context.Context, goalId GoalId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckInGoalResult, error) {
+	rsp, err := c.CheckInGoalWithBody(ctx, goalId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckInGoalResult(rsp)
+}
+
+// CheckInGoalWithResponse Check in on a goal
+//
+// Its status, a confidence from 0 to 10, a note and new values of its key results reported by hand; kept as history. A graded goal takes none (`goals.graded`). Needs WRITE_ITEMS at the goal's place.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /goals/{goalId}/check-ins (the `CheckInGoal` operationId).
+func (c *ClientWithResponses) CheckInGoalWithResponse(ctx context.Context, goalId GoalId, body CheckInGoalJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckInGoalResult, error) {
+	rsp, err := c.CheckInGoal(ctx, goalId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckInGoalResult(rsp)
+}
+
+// LinkGoalEntriesWithBodyWithResponse Link entries to a goal
+//
+// At most 500 per goal, each one the caller may read; its progress counts the share completed. Needs WRITE_ITEMS at the goal's place.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /goals/{goalId}/entries (the `LinkGoalEntries` operationId).
+func (c *ClientWithResponses) LinkGoalEntriesWithBodyWithResponse(ctx context.Context, goalId GoalId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LinkGoalEntriesResult, error) {
+	rsp, err := c.LinkGoalEntriesWithBody(ctx, goalId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLinkGoalEntriesResult(rsp)
+}
+
+// LinkGoalEntriesWithResponse Link entries to a goal
+//
+// At most 500 per goal, each one the caller may read; its progress counts the share completed. Needs WRITE_ITEMS at the goal's place.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /goals/{goalId}/entries (the `LinkGoalEntries` operationId).
+func (c *ClientWithResponses) LinkGoalEntriesWithResponse(ctx context.Context, goalId GoalId, body LinkGoalEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*LinkGoalEntriesResult, error) {
+	rsp, err := c.LinkGoalEntries(ctx, goalId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLinkGoalEntriesResult(rsp)
+}
+
+// UnlinkGoalEntryWithResponse Unlink an entry from a goal
+//
+// The entry stays. Needs WRITE_ITEMS at the goal's place.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /goals/{goalId}/entries/{entryId} (the `UnlinkGoalEntry` operationId).
+func (c *ClientWithResponses) UnlinkGoalEntryWithResponse(ctx context.Context, goalId GoalId, entryId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnlinkGoalEntryResult, error) {
+	rsp, err := c.UnlinkGoalEntry(ctx, goalId, entryId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUnlinkGoalEntryResult(rsp)
 }
 
 // ListGroupsWithResponse The workspace's groups
@@ -123596,6 +128888,156 @@ func (c *ClientWithResponses) ReadWorkloadWithResponse(ctx context.Context, plan
 		return nil, err
 	}
 	return ParseReadWorkloadResult(rsp)
+}
+
+// ListPortfoliosWithResponse The portfolios
+//
+// By name, nested by `parent_id`, each with the projects the caller may read. Needs READ at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /portfolios (the `ListPortfolios` operationId).
+func (c *ClientWithResponses) ListPortfoliosWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPortfoliosResult, error) {
+	rsp, err := c.ListPortfolios(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPortfoliosResult(rsp)
+}
+
+// CreatePortfolioWithBodyWithResponse Create a portfolio
+//
+// Of hubs and collections the caller may read, with dates and health per project. Needs WRITE_ITEMS at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /portfolios (the `CreatePortfolio` operationId).
+func (c *ClientWithResponses) CreatePortfolioWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreatePortfolioResult, error) {
+	rsp, err := c.CreatePortfolioWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePortfolioResult(rsp)
+}
+
+// CreatePortfolioWithResponse Create a portfolio
+//
+// Of hubs and collections the caller may read, with dates and health per project. Needs WRITE_ITEMS at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /portfolios (the `CreatePortfolio` operationId).
+func (c *ClientWithResponses) CreatePortfolioWithResponse(ctx context.Context, body CreatePortfolioJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePortfolioResult, error) {
+	rsp, err := c.CreatePortfolio(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePortfolioResult(rsp)
+}
+
+// DeletePortfolioWithResponse Delete a portfolio
+//
+// With its status updates; its portfolios move up to its parent and its hubs and collections stay. Needs WRITE_ITEMS at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /portfolios/{portfolioId} (the `DeletePortfolio` operationId).
+func (c *ClientWithResponses) DeletePortfolioWithResponse(ctx context.Context, portfolioId PortfolioId, params *DeletePortfolioParams, reqEditors ...RequestEditorFn) (*DeletePortfolioResult, error) {
+	rsp, err := c.DeletePortfolio(ctx, portfolioId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeletePortfolioResult(rsp)
+}
+
+// ReadPortfolioWithResponse A portfolio as a table
+//
+// Each project the caller may read with its dates, health, how many entries it holds and how many are completed - as the caller's own POST /items:aggregate counts them -, the portfolio's progress over them, and its latest status update.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /portfolios/{portfolioId} (the `ReadPortfolio` operationId).
+func (c *ClientWithResponses) ReadPortfolioWithResponse(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*ReadPortfolioResult, error) {
+	rsp, err := c.ReadPortfolio(ctx, portfolioId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPortfolioResult(rsp)
+}
+
+// UpdatePortfolioWithBodyWithResponse Replace a portfolio
+//
+// Its fields and projects, held to the version read; a project the caller may not read is kept. Needs WRITE_ITEMS at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /portfolios/{portfolioId} (the `UpdatePortfolio` operationId).
+func (c *ClientWithResponses) UpdatePortfolioWithBodyWithResponse(ctx context.Context, portfolioId PortfolioId, params *UpdatePortfolioParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdatePortfolioResult, error) {
+	rsp, err := c.UpdatePortfolioWithBody(ctx, portfolioId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdatePortfolioResult(rsp)
+}
+
+// UpdatePortfolioWithResponse Replace a portfolio
+//
+// Its fields and projects, held to the version read; a project the caller may not read is kept. Needs WRITE_ITEMS at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /portfolios/{portfolioId} (the `UpdatePortfolio` operationId).
+func (c *ClientWithResponses) UpdatePortfolioWithResponse(ctx context.Context, portfolioId PortfolioId, params *UpdatePortfolioParams, body UpdatePortfolioJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdatePortfolioResult, error) {
+	rsp, err := c.UpdatePortfolio(ctx, portfolioId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdatePortfolioResult(rsp)
+}
+
+// ListPortfolioUpdatesWithResponse A portfolio's status updates
+//
+// The latest first, at most 200.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /portfolios/{portfolioId}/updates (the `ListPortfolioUpdates` operationId).
+func (c *ClientWithResponses) ListPortfolioUpdatesWithResponse(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*ListPortfolioUpdatesResult, error) {
+	rsp, err := c.ListPortfolioUpdates(ctx, portfolioId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPortfolioUpdatesResult(rsp)
+}
+
+// ReportPortfolioStatusWithBodyWithResponse Write a status update
+//
+// Its health and a summary; the health becomes the portfolio's. Kept as history. Needs WRITE_ITEMS at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /portfolios/{portfolioId}/updates (the `ReportPortfolioStatus` operationId).
+func (c *ClientWithResponses) ReportPortfolioStatusWithBodyWithResponse(ctx context.Context, portfolioId PortfolioId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReportPortfolioStatusResult, error) {
+	rsp, err := c.ReportPortfolioStatusWithBody(ctx, portfolioId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReportPortfolioStatusResult(rsp)
+}
+
+// ReportPortfolioStatusWithResponse Write a status update
+//
+// Its health and a summary; the health becomes the portfolio's. Kept as history. Needs WRITE_ITEMS at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /portfolios/{portfolioId}/updates (the `ReportPortfolioStatus` operationId).
+func (c *ClientWithResponses) ReportPortfolioStatusWithResponse(ctx context.Context, portfolioId PortfolioId, body ReportPortfolioStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*ReportPortfolioStatusResult, error) {
+	rsp, err := c.ReportPortfolioStatus(ctx, portfolioId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReportPortfolioStatusResult(rsp)
 }
 
 // ListPresetsWithResponse The presets a hub or collection can start from
@@ -135656,6 +141098,200 @@ func ParsePreviewCustomFieldReachResult(rsp *http.Response) (*PreviewCustomField
 	return response, nil
 }
 
+// ParseListDashboardsResult parses an HTTP response from a ListDashboardsWithResponse call
+func ParseListDashboardsResult(rsp *http.Response) (*ListDashboardsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListDashboardsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DashboardList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateDashboardResult parses an HTTP response from a CreateDashboardWithResponse call
+func ParseCreateDashboardResult(rsp *http.Response) (*CreateDashboardResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateDashboardResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Dashboard
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteDashboardResult parses an HTTP response from a DeleteDashboardWithResponse call
+func ParseDeleteDashboardResult(rsp *http.Response) (*DeleteDashboardResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteDashboardResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadDashboardResult parses an HTTP response from a ReadDashboardWithResponse call
+func ParseReadDashboardResult(rsp *http.Response) (*ReadDashboardResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadDashboardResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Dashboard
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateDashboardResult parses an HTTP response from a UpdateDashboardWithResponse call
+func ParseUpdateDashboardResult(rsp *http.Response) (*UpdateDashboardResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateDashboardResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Dashboard
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadDashboardFiguresResult parses an HTTP response from a ReadDashboardFiguresWithResponse call
+func ParseReadDashboardFiguresResult(rsp *http.Response) (*ReadDashboardFiguresResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadDashboardFiguresResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DashboardFigures
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListEntryTypesResult parses an HTTP response from a ListEntryTypesWithResponse call
 func ParseListEntryTypesResult(rsp *http.Response) (*ListEntryTypesResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -135833,6 +141469,431 @@ func ParseEvaluateEntryFormResult(rsp *http.Response) (*EvaluateEntryFormResult,
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest EntryFormState
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListGoalPeriodsResult parses an HTTP response from a ListGoalPeriodsWithResponse call
+func ParseListGoalPeriodsResult(rsp *http.Response) (*ListGoalPeriodsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListGoalPeriodsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GoalPeriodList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDefineGoalPeriodResult parses an HTTP response from a DefineGoalPeriodWithResponse call
+func ParseDefineGoalPeriodResult(rsp *http.Response) (*DefineGoalPeriodResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DefineGoalPeriodResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest GoalPeriod
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseChangeGoalPeriodResult parses an HTTP response from a ChangeGoalPeriodWithResponse call
+func ParseChangeGoalPeriodResult(rsp *http.Response) (*ChangeGoalPeriodResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangeGoalPeriodResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GoalPeriod
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCloseGoalPeriodResult parses an HTTP response from a CloseGoalPeriodWithResponse call
+func ParseCloseGoalPeriodResult(rsp *http.Response) (*CloseGoalPeriodResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CloseGoalPeriodResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GoalPeriod
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListGoalsResult parses an HTTP response from a ListGoalsWithResponse call
+func ParseListGoalsResult(rsp *http.Response) (*ListGoalsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListGoalsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GoalList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateGoalResult parses an HTTP response from a CreateGoalWithResponse call
+func ParseCreateGoalResult(rsp *http.Response) (*CreateGoalResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateGoalResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Goal
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteGoalResult parses an HTTP response from a DeleteGoalWithResponse call
+func ParseDeleteGoalResult(rsp *http.Response) (*DeleteGoalResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteGoalResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadGoalResult parses an HTTP response from a ReadGoalWithResponse call
+func ParseReadGoalResult(rsp *http.Response) (*ReadGoalResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadGoalResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Goal
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateGoalResult parses an HTTP response from a UpdateGoalWithResponse call
+func ParseUpdateGoalResult(rsp *http.Response) (*UpdateGoalResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateGoalResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Goal
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListGoalCheckInsResult parses an HTTP response from a ListGoalCheckInsWithResponse call
+func ParseListGoalCheckInsResult(rsp *http.Response) (*ListGoalCheckInsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListGoalCheckInsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GoalCheckInList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCheckInGoalResult parses an HTTP response from a CheckInGoalWithResponse call
+func ParseCheckInGoalResult(rsp *http.Response) (*CheckInGoalResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CheckInGoalResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Goal
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseLinkGoalEntriesResult parses an HTTP response from a LinkGoalEntriesWithResponse call
+func ParseLinkGoalEntriesResult(rsp *http.Response) (*LinkGoalEntriesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &LinkGoalEntriesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Goal
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUnlinkGoalEntryResult parses an HTTP response from a UnlinkGoalEntryWithResponse call
+func ParseUnlinkGoalEntryResult(rsp *http.Response) (*UnlinkGoalEntryResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UnlinkGoalEntryResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Goal
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -142610,6 +148671,233 @@ func ParseReadWorkloadResult(rsp *http.Response) (*ReadWorkloadResult, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPortfoliosResult parses an HTTP response from a ListPortfoliosWithResponse call
+func ParseListPortfoliosResult(rsp *http.Response) (*ListPortfoliosResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPortfoliosResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PortfolioList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreatePortfolioResult parses an HTTP response from a CreatePortfolioWithResponse call
+func ParseCreatePortfolioResult(rsp *http.Response) (*CreatePortfolioResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreatePortfolioResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Portfolio
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeletePortfolioResult parses an HTTP response from a DeletePortfolioWithResponse call
+func ParseDeletePortfolioResult(rsp *http.Response) (*DeletePortfolioResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeletePortfolioResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadPortfolioResult parses an HTTP response from a ReadPortfolioWithResponse call
+func ParseReadPortfolioResult(rsp *http.Response) (*ReadPortfolioResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPortfolioResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Portfolio
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdatePortfolioResult parses an HTTP response from a UpdatePortfolioWithResponse call
+func ParseUpdatePortfolioResult(rsp *http.Response) (*UpdatePortfolioResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdatePortfolioResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Portfolio
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPortfolioUpdatesResult parses an HTTP response from a ListPortfolioUpdatesWithResponse call
+func ParseListPortfolioUpdatesResult(rsp *http.Response) (*ListPortfolioUpdatesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPortfolioUpdatesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PortfolioUpdateList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReportPortfolioStatusResult parses an HTTP response from a ReportPortfolioStatusWithResponse call
+func ParseReportPortfolioStatusResult(rsp *http.Response) (*ReportPortfolioStatusResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReportPortfolioStatusResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PortfolioUpdate
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

@@ -28,6 +28,7 @@ import (
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
 	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
+	goalservice "github.com/Jersyfi/hubtask/core/application/service/goal"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	importservice "github.com/Jersyfi/hubtask/core/application/service/importer"
 	"github.com/Jersyfi/hubtask/core/application/service/integration"
@@ -193,6 +194,31 @@ func Descriptors() []usecase.Descriptor {
 		timeservice.ReadBudget{}.Descriptor(),
 		timeservice.SetBudget{}.Descriptor(),
 		timeservice.RemoveBudget{}.Descriptor(),
+		goalservice.ListGoalPeriods{}.Descriptor(),
+		goalservice.DefineGoalPeriod{}.Descriptor(),
+		goalservice.CloseGoalPeriod{}.Descriptor(),
+		goalservice.ListGoals{}.Descriptor(),
+		goalservice.ReadGoal{}.Descriptor(),
+		goalservice.CreateGoal{}.Descriptor(),
+		goalservice.UpdateGoal{}.Descriptor(),
+		goalservice.DeleteGoal{}.Descriptor(),
+		goalservice.LinkGoalEntries{}.Descriptor(),
+		goalservice.UnlinkGoalEntry{}.Descriptor(),
+		goalservice.CheckInGoal{}.Descriptor(),
+		goalservice.ListGoalCheckIns{}.Descriptor(),
+		goalservice.ListPortfolios{}.Descriptor(),
+		goalservice.ReadPortfolio{}.Descriptor(),
+		goalservice.CreatePortfolio{}.Descriptor(),
+		goalservice.UpdatePortfolio{}.Descriptor(),
+		goalservice.DeletePortfolio{}.Descriptor(),
+		goalservice.ReportPortfolioStatus{}.Descriptor(),
+		goalservice.ListPortfolioUpdates{}.Descriptor(),
+		goalservice.ListDashboards{}.Descriptor(),
+		goalservice.ReadDashboard{}.Descriptor(),
+		goalservice.CreateDashboard{}.Descriptor(),
+		goalservice.UpdateDashboard{}.Descriptor(),
+		goalservice.DeleteDashboard{}.Descriptor(),
+		goalservice.ReadDashboardFigures{}.Descriptor(),
 		cmdbservice.ListCiClasses{}.Descriptor(),
 		cmdbservice.DefineCiClass{}.Descriptor(),
 		cmdbservice.ListCiRelationTypes{}.Descriptor(),

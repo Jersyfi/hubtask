@@ -2715,6 +2715,168 @@ func (e CustomRoleGrantCreateScopeType) Valid() bool {
 	}
 }
 
+// Defines values for DashboardSharing.
+const (
+	DashboardSharingPRIVATE DashboardSharing = "PRIVATE"
+	DashboardSharingSCOPE   DashboardSharing = "SCOPE"
+)
+
+// Valid indicates whether the value is a known member of the DashboardSharing enum.
+func (e DashboardSharing) Valid() bool {
+	switch e {
+	case DashboardSharingPRIVATE:
+		return true
+	case DashboardSharingSCOPE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardCreateSharing.
+const (
+	DashboardCreateSharingPRIVATE DashboardCreateSharing = "PRIVATE"
+	DashboardCreateSharingSCOPE   DashboardCreateSharing = "SCOPE"
+)
+
+// Valid indicates whether the value is a known member of the DashboardCreateSharing enum.
+func (e DashboardCreateSharing) Valid() bool {
+	switch e {
+	case DashboardCreateSharingPRIVATE:
+		return true
+	case DashboardCreateSharingSCOPE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardWidgetChart.
+const (
+	DashboardWidgetChartBAR      DashboardWidgetChart = "BAR"
+	DashboardWidgetChartLINE     DashboardWidgetChart = "LINE"
+	DashboardWidgetChartMATRIX   DashboardWidgetChart = "MATRIX"
+	DashboardWidgetChartNUMBER   DashboardWidgetChart = "NUMBER"
+	DashboardWidgetChartPIE      DashboardWidgetChart = "PIE"
+	DashboardWidgetChartPROGRESS DashboardWidgetChart = "PROGRESS"
+	DashboardWidgetChartTABLE    DashboardWidgetChart = "TABLE"
+)
+
+// Valid indicates whether the value is a known member of the DashboardWidgetChart enum.
+func (e DashboardWidgetChart) Valid() bool {
+	switch e {
+	case DashboardWidgetChartBAR:
+		return true
+	case DashboardWidgetChartLINE:
+		return true
+	case DashboardWidgetChartMATRIX:
+		return true
+	case DashboardWidgetChartNUMBER:
+		return true
+	case DashboardWidgetChartPIE:
+		return true
+	case DashboardWidgetChartPROGRESS:
+		return true
+	case DashboardWidgetChartTABLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardWidgetSource.
+const (
+	DashboardWidgetSourceGOALS DashboardWidgetSource = "GOALS"
+	DashboardWidgetSourceQUERY DashboardWidgetSource = "QUERY"
+	DashboardWidgetSourceVIEW  DashboardWidgetSource = "VIEW"
+)
+
+// Valid indicates whether the value is a known member of the DashboardWidgetSource enum.
+func (e DashboardWidgetSource) Valid() bool {
+	switch e {
+	case DashboardWidgetSourceGOALS:
+		return true
+	case DashboardWidgetSourceQUERY:
+		return true
+	case DashboardWidgetSourceVIEW:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardWidgetWriteChart.
+const (
+	DashboardWidgetWriteChartBAR      DashboardWidgetWriteChart = "BAR"
+	DashboardWidgetWriteChartLINE     DashboardWidgetWriteChart = "LINE"
+	DashboardWidgetWriteChartMATRIX   DashboardWidgetWriteChart = "MATRIX"
+	DashboardWidgetWriteChartNUMBER   DashboardWidgetWriteChart = "NUMBER"
+	DashboardWidgetWriteChartPIE      DashboardWidgetWriteChart = "PIE"
+	DashboardWidgetWriteChartPROGRESS DashboardWidgetWriteChart = "PROGRESS"
+	DashboardWidgetWriteChartTABLE    DashboardWidgetWriteChart = "TABLE"
+)
+
+// Valid indicates whether the value is a known member of the DashboardWidgetWriteChart enum.
+func (e DashboardWidgetWriteChart) Valid() bool {
+	switch e {
+	case DashboardWidgetWriteChartBAR:
+		return true
+	case DashboardWidgetWriteChartLINE:
+		return true
+	case DashboardWidgetWriteChartMATRIX:
+		return true
+	case DashboardWidgetWriteChartNUMBER:
+		return true
+	case DashboardWidgetWriteChartPIE:
+		return true
+	case DashboardWidgetWriteChartPROGRESS:
+		return true
+	case DashboardWidgetWriteChartTABLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardWidgetWriteSource.
+const (
+	DashboardWidgetWriteSourceGOALS DashboardWidgetWriteSource = "GOALS"
+	DashboardWidgetWriteSourceQUERY DashboardWidgetWriteSource = "QUERY"
+	DashboardWidgetWriteSourceVIEW  DashboardWidgetWriteSource = "VIEW"
+)
+
+// Valid indicates whether the value is a known member of the DashboardWidgetWriteSource enum.
+func (e DashboardWidgetWriteSource) Valid() bool {
+	switch e {
+	case DashboardWidgetWriteSourceGOALS:
+		return true
+	case DashboardWidgetWriteSourceQUERY:
+		return true
+	case DashboardWidgetWriteSourceVIEW:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DashboardWriteSharing.
+const (
+	DashboardWriteSharingPRIVATE DashboardWriteSharing = "PRIVATE"
+	DashboardWriteSharingSCOPE   DashboardWriteSharing = "SCOPE"
+)
+
+// Valid indicates whether the value is a known member of the DashboardWriteSharing enum.
+func (e DashboardWriteSharing) Valid() bool {
+	switch e {
+	case DashboardWriteSharingPRIVATE:
+		return true
+	case DashboardWriteSharingSCOPE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DataSubjectRequestKeptLegalBasis.
 const (
 	ART173E DataSubjectRequestKeptLegalBasis = "ART_17_3_E"
@@ -3387,6 +3549,141 @@ func (e FilterNodeOp) Valid() bool {
 	case OR:
 		return true
 	case STARTSWITH:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GoalStatus.
+const (
+	GoalStatusATRISK   GoalStatus = "AT_RISK"
+	GoalStatusDONE     GoalStatus = "DONE"
+	GoalStatusDROPPED  GoalStatus = "DROPPED"
+	GoalStatusNONE     GoalStatus = "NONE"
+	GoalStatusOFFTRACK GoalStatus = "OFF_TRACK"
+	GoalStatusONTRACK  GoalStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the GoalStatus enum.
+func (e GoalStatus) Valid() bool {
+	switch e {
+	case GoalStatusATRISK:
+		return true
+	case GoalStatusDONE:
+		return true
+	case GoalStatusDROPPED:
+		return true
+	case GoalStatusNONE:
+		return true
+	case GoalStatusOFFTRACK:
+		return true
+	case GoalStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GoalCheckInStatus.
+const (
+	GoalCheckInStatusATRISK   GoalCheckInStatus = "AT_RISK"
+	GoalCheckInStatusDONE     GoalCheckInStatus = "DONE"
+	GoalCheckInStatusDROPPED  GoalCheckInStatus = "DROPPED"
+	GoalCheckInStatusOFFTRACK GoalCheckInStatus = "OFF_TRACK"
+	GoalCheckInStatusONTRACK  GoalCheckInStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the GoalCheckInStatus enum.
+func (e GoalCheckInStatus) Valid() bool {
+	switch e {
+	case GoalCheckInStatusATRISK:
+		return true
+	case GoalCheckInStatusDONE:
+		return true
+	case GoalCheckInStatusDROPPED:
+		return true
+	case GoalCheckInStatusOFFTRACK:
+		return true
+	case GoalCheckInStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GoalCreateStatus.
+const (
+	GoalCreateStatusATRISK   GoalCreateStatus = "AT_RISK"
+	GoalCreateStatusDONE     GoalCreateStatus = "DONE"
+	GoalCreateStatusDROPPED  GoalCreateStatus = "DROPPED"
+	GoalCreateStatusNONE     GoalCreateStatus = "NONE"
+	GoalCreateStatusOFFTRACK GoalCreateStatus = "OFF_TRACK"
+	GoalCreateStatusONTRACK  GoalCreateStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the GoalCreateStatus enum.
+func (e GoalCreateStatus) Valid() bool {
+	switch e {
+	case GoalCreateStatusATRISK:
+		return true
+	case GoalCreateStatusDONE:
+		return true
+	case GoalCreateStatusDROPPED:
+		return true
+	case GoalCreateStatusNONE:
+		return true
+	case GoalCreateStatusOFFTRACK:
+		return true
+	case GoalCreateStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GoalPeriodState.
+const (
+	GoalPeriodStateCLOSED GoalPeriodState = "CLOSED"
+	GoalPeriodStateOPEN   GoalPeriodState = "OPEN"
+)
+
+// Valid indicates whether the value is a known member of the GoalPeriodState enum.
+func (e GoalPeriodState) Valid() bool {
+	switch e {
+	case GoalPeriodStateCLOSED:
+		return true
+	case GoalPeriodStateOPEN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GoalWriteStatus.
+const (
+	GoalWriteStatusATRISK   GoalWriteStatus = "AT_RISK"
+	GoalWriteStatusDONE     GoalWriteStatus = "DONE"
+	GoalWriteStatusDROPPED  GoalWriteStatus = "DROPPED"
+	GoalWriteStatusNONE     GoalWriteStatus = "NONE"
+	GoalWriteStatusOFFTRACK GoalWriteStatus = "OFF_TRACK"
+	GoalWriteStatusONTRACK  GoalWriteStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the GoalWriteStatus enum.
+func (e GoalWriteStatus) Valid() bool {
+	switch e {
+	case GoalWriteStatusATRISK:
+		return true
+	case GoalWriteStatusDONE:
+		return true
+	case GoalWriteStatusDROPPED:
+		return true
+	case GoalWriteStatusNONE:
+		return true
+	case GoalWriteStatusOFFTRACK:
+		return true
+	case GoalWriteStatusONTRACK:
 		return true
 	default:
 		return false
@@ -4128,6 +4425,90 @@ func (e JumbleEntrySubmitChannel) Valid() bool {
 	case JumbleEntrySubmitChannelAPI:
 		return true
 	case JumbleEntrySubmitChannelQUICKCAPTURE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for KeyResultKind.
+const (
+	KeyResultKindBINARY    KeyResultKind = "BINARY"
+	KeyResultKindMILESTONE KeyResultKind = "MILESTONE"
+	KeyResultKindNUMBER    KeyResultKind = "NUMBER"
+	KeyResultKindPERCENT   KeyResultKind = "PERCENT"
+)
+
+// Valid indicates whether the value is a known member of the KeyResultKind enum.
+func (e KeyResultKind) Valid() bool {
+	switch e {
+	case KeyResultKindBINARY:
+		return true
+	case KeyResultKindMILESTONE:
+		return true
+	case KeyResultKindNUMBER:
+		return true
+	case KeyResultKindPERCENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for KeyResultSource.
+const (
+	KeyResultSourceMANUAL KeyResultSource = "MANUAL"
+	KeyResultSourceVIEW   KeyResultSource = "VIEW"
+)
+
+// Valid indicates whether the value is a known member of the KeyResultSource enum.
+func (e KeyResultSource) Valid() bool {
+	switch e {
+	case KeyResultSourceMANUAL:
+		return true
+	case KeyResultSourceVIEW:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for KeyResultWriteKind.
+const (
+	KeyResultWriteKindBINARY    KeyResultWriteKind = "BINARY"
+	KeyResultWriteKindMILESTONE KeyResultWriteKind = "MILESTONE"
+	KeyResultWriteKindNUMBER    KeyResultWriteKind = "NUMBER"
+	KeyResultWriteKindPERCENT   KeyResultWriteKind = "PERCENT"
+)
+
+// Valid indicates whether the value is a known member of the KeyResultWriteKind enum.
+func (e KeyResultWriteKind) Valid() bool {
+	switch e {
+	case KeyResultWriteKindBINARY:
+		return true
+	case KeyResultWriteKindMILESTONE:
+		return true
+	case KeyResultWriteKindNUMBER:
+		return true
+	case KeyResultWriteKindPERCENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for KeyResultWriteSource.
+const (
+	KeyResultWriteSourceMANUAL KeyResultWriteSource = "MANUAL"
+	KeyResultWriteSourceVIEW   KeyResultWriteSource = "VIEW"
+)
+
+// Valid indicates whether the value is a known member of the KeyResultWriteSource enum.
+func (e KeyResultWriteSource) Valid() bool {
+	switch e {
+	case KeyResultWriteSourceMANUAL:
+		return true
+	case KeyResultWriteSourceVIEW:
 		return true
 	default:
 		return false
@@ -5415,6 +5796,141 @@ func (e PolicySource) Valid() bool {
 	case PolicySourcePLAN:
 		return true
 	case PolicySourceWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PortfolioItemsKind.
+const (
+	PortfolioItemsKindCOLLECTION PortfolioItemsKind = "COLLECTION"
+	PortfolioItemsKindHUB        PortfolioItemsKind = "HUB"
+)
+
+// Valid indicates whether the value is a known member of the PortfolioItemsKind enum.
+func (e PortfolioItemsKind) Valid() bool {
+	switch e {
+	case PortfolioItemsKindCOLLECTION:
+		return true
+	case PortfolioItemsKindHUB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PortfolioItemsStatus.
+const (
+	PortfolioItemsStatusATRISK   PortfolioItemsStatus = "AT_RISK"
+	PortfolioItemsStatusNONE     PortfolioItemsStatus = "NONE"
+	PortfolioItemsStatusOFFTRACK PortfolioItemsStatus = "OFF_TRACK"
+	PortfolioItemsStatusONTRACK  PortfolioItemsStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the PortfolioItemsStatus enum.
+func (e PortfolioItemsStatus) Valid() bool {
+	switch e {
+	case PortfolioItemsStatusATRISK:
+		return true
+	case PortfolioItemsStatusNONE:
+		return true
+	case PortfolioItemsStatusOFFTRACK:
+		return true
+	case PortfolioItemsStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PortfolioStatus.
+const (
+	PortfolioStatusATRISK   PortfolioStatus = "AT_RISK"
+	PortfolioStatusNONE     PortfolioStatus = "NONE"
+	PortfolioStatusOFFTRACK PortfolioStatus = "OFF_TRACK"
+	PortfolioStatusONTRACK  PortfolioStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the PortfolioStatus enum.
+func (e PortfolioStatus) Valid() bool {
+	switch e {
+	case PortfolioStatusATRISK:
+		return true
+	case PortfolioStatusNONE:
+		return true
+	case PortfolioStatusOFFTRACK:
+		return true
+	case PortfolioStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PortfolioUpdateStatus.
+const (
+	PortfolioUpdateStatusATRISK   PortfolioUpdateStatus = "AT_RISK"
+	PortfolioUpdateStatusOFFTRACK PortfolioUpdateStatus = "OFF_TRACK"
+	PortfolioUpdateStatusONTRACK  PortfolioUpdateStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the PortfolioUpdateStatus enum.
+func (e PortfolioUpdateStatus) Valid() bool {
+	switch e {
+	case PortfolioUpdateStatusATRISK:
+		return true
+	case PortfolioUpdateStatusOFFTRACK:
+		return true
+	case PortfolioUpdateStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PortfolioWriteItemsStatus.
+const (
+	PortfolioWriteItemsStatusATRISK   PortfolioWriteItemsStatus = "AT_RISK"
+	PortfolioWriteItemsStatusNONE     PortfolioWriteItemsStatus = "NONE"
+	PortfolioWriteItemsStatusOFFTRACK PortfolioWriteItemsStatus = "OFF_TRACK"
+	PortfolioWriteItemsStatusONTRACK  PortfolioWriteItemsStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the PortfolioWriteItemsStatus enum.
+func (e PortfolioWriteItemsStatus) Valid() bool {
+	switch e {
+	case PortfolioWriteItemsStatusATRISK:
+		return true
+	case PortfolioWriteItemsStatusNONE:
+		return true
+	case PortfolioWriteItemsStatusOFFTRACK:
+		return true
+	case PortfolioWriteItemsStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PortfolioWriteStatus.
+const (
+	PortfolioWriteStatusATRISK   PortfolioWriteStatus = "AT_RISK"
+	PortfolioWriteStatusNONE     PortfolioWriteStatus = "NONE"
+	PortfolioWriteStatusOFFTRACK PortfolioWriteStatus = "OFF_TRACK"
+	PortfolioWriteStatusONTRACK  PortfolioWriteStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the PortfolioWriteStatus enum.
+func (e PortfolioWriteStatus) Valid() bool {
+	switch e {
+	case PortfolioWriteStatusATRISK:
+		return true
+	case PortfolioWriteStatusNONE:
+		return true
+	case PortfolioWriteStatusOFFTRACK:
+		return true
+	case PortfolioWriteStatusONTRACK:
 		return true
 	default:
 		return false
@@ -8457,6 +8973,33 @@ func (e ListConfigProposalsParamsState) Valid() bool {
 	}
 }
 
+// Defines values for CheckInGoalJSONBodyStatus.
+const (
+	CheckInGoalJSONBodyStatusATRISK   CheckInGoalJSONBodyStatus = "AT_RISK"
+	CheckInGoalJSONBodyStatusDONE     CheckInGoalJSONBodyStatus = "DONE"
+	CheckInGoalJSONBodyStatusDROPPED  CheckInGoalJSONBodyStatus = "DROPPED"
+	CheckInGoalJSONBodyStatusOFFTRACK CheckInGoalJSONBodyStatus = "OFF_TRACK"
+	CheckInGoalJSONBodyStatusONTRACK  CheckInGoalJSONBodyStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the CheckInGoalJSONBodyStatus enum.
+func (e CheckInGoalJSONBodyStatus) Valid() bool {
+	switch e {
+	case CheckInGoalJSONBodyStatusATRISK:
+		return true
+	case CheckInGoalJSONBodyStatusDONE:
+		return true
+	case CheckInGoalJSONBodyStatusDROPPED:
+		return true
+	case CheckInGoalJSONBodyStatusOFFTRACK:
+		return true
+	case CheckInGoalJSONBodyStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListCiAlertsParamsStatus.
 const (
 	ListCiAlertsParamsStatusFIRING   ListCiAlertsParamsStatus = "FIRING"
@@ -8634,6 +9177,27 @@ func (e SetDependencyTimingJSONBodyDependencyKind) Valid() bool {
 	case SetDependencyTimingJSONBodyDependencyKindSF:
 		return true
 	case SetDependencyTimingJSONBodyDependencyKindSS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReportPortfolioStatusJSONBodyStatus.
+const (
+	ReportPortfolioStatusJSONBodyStatusATRISK   ReportPortfolioStatusJSONBodyStatus = "AT_RISK"
+	ReportPortfolioStatusJSONBodyStatusOFFTRACK ReportPortfolioStatusJSONBodyStatus = "OFF_TRACK"
+	ReportPortfolioStatusJSONBodyStatusONTRACK  ReportPortfolioStatusJSONBodyStatus = "ON_TRACK"
+)
+
+// Valid indicates whether the value is a known member of the ReportPortfolioStatusJSONBodyStatus enum.
+func (e ReportPortfolioStatusJSONBodyStatus) Valid() bool {
+	switch e {
+	case ReportPortfolioStatusJSONBodyStatusATRISK:
+		return true
+	case ReportPortfolioStatusJSONBodyStatusOFFTRACK:
+		return true
+	case ReportPortfolioStatusJSONBodyStatusONTRACK:
 		return true
 	default:
 		return false
@@ -11888,6 +12452,110 @@ type CustomRoleGrantCreate struct {
 // CustomRoleGrantCreateScopeType defines model for CustomRoleGrantCreate.ScopeType.
 type CustomRoleGrantCreateScopeType string
 
+// Dashboard defines model for Dashboard.
+type Dashboard struct {
+	HubId   openapi_types.UUID `json:"hub_id"`
+	Id      openapi_types.UUID `json:"id"`
+	Name    string             `json:"name"`
+	OwnerId openapi_types.UUID `json:"owner_id"`
+	Sharing DashboardSharing   `json:"sharing"`
+	Version int                `json:"version"`
+	Widgets []DashboardWidget  `json:"widgets"`
+}
+
+// DashboardSharing defines model for Dashboard.Sharing.
+type DashboardSharing string
+
+// DashboardCreate defines model for DashboardCreate.
+type DashboardCreate struct {
+	// HubId The hub it belongs to; the workspace's without.
+	HubId   *openapi_types.UUID     `json:"hub_id,omitempty"`
+	Name    string                  `json:"name"`
+	Sharing *DashboardCreateSharing `json:"sharing,omitempty"`
+	Widgets *[]DashboardWidgetWrite `json:"widgets,omitempty"`
+}
+
+// DashboardCreateSharing defines model for DashboardCreate.Sharing.
+type DashboardCreateSharing string
+
+// DashboardFigures defines model for DashboardFigures.
+type DashboardFigures struct {
+	ComputedAt  time.Time          `json:"computed_at"`
+	DashboardId openapi_types.UUID `json:"dashboard_id"`
+	Widgets     []struct {
+		// Data A summary's rows (count, group, period, value), or a GOALS widget's goals (goal_id, title, status, progress).
+		Data []map[string]interface{} `json:"data"`
+
+		// Error The error code of a widget the caller cannot run.
+		Error     string             `json:"error"`
+		Id        openapi_types.UUID `json:"id"`
+		Truncated bool               `json:"truncated"`
+	} `json:"widgets"`
+}
+
+// DashboardList defines model for DashboardList.
+type DashboardList struct {
+	Data []Dashboard `json:"data"`
+}
+
+// DashboardWidget defines model for DashboardWidget.
+type DashboardWidget struct {
+	Chart   DashboardWidgetChart   `json:"chart"`
+	GoalIds []openapi_types.UUID   `json:"goal_ids"`
+	H       int                    `json:"h"`
+	Id      openapi_types.UUID     `json:"id"`
+	Query   map[string]interface{} `json:"query"`
+	Source  DashboardWidgetSource  `json:"source"`
+	Title   string                 `json:"title"`
+	ViewId  openapi_types.UUID     `json:"view_id"`
+	W       int                    `json:"w"`
+	X       int                    `json:"x"`
+	Y       int                    `json:"y"`
+}
+
+// DashboardWidgetChart defines model for DashboardWidget.Chart.
+type DashboardWidgetChart string
+
+// DashboardWidgetSource defines model for DashboardWidget.Source.
+type DashboardWidgetSource string
+
+// DashboardWidgetWrite defines model for DashboardWidgetWrite.
+type DashboardWidgetWrite struct {
+	Chart DashboardWidgetWriteChart `json:"chart"`
+
+	// GoalIds For GOALS.
+	GoalIds *[]openapi_types.UUID `json:"goal_ids,omitempty"`
+	H       *int                  `json:"h,omitempty"`
+	Id      *openapi_types.UUID   `json:"id,omitempty"`
+
+	// Query A POST /items:aggregate document, for QUERY.
+	Query  *map[string]interface{}    `json:"query,omitempty"`
+	Source DashboardWidgetWriteSource `json:"source"`
+	Title  string                     `json:"title"`
+
+	// ViewId A saved summary view, for VIEW.
+	ViewId *openapi_types.UUID `json:"view_id,omitempty"`
+	W      *int                `json:"w,omitempty"`
+	X      *int                `json:"x,omitempty"`
+	Y      *int                `json:"y,omitempty"`
+}
+
+// DashboardWidgetWriteChart defines model for DashboardWidgetWrite.Chart.
+type DashboardWidgetWriteChart string
+
+// DashboardWidgetWriteSource defines model for DashboardWidgetWrite.Source.
+type DashboardWidgetWriteSource string
+
+// DashboardWrite defines model for DashboardWrite.
+type DashboardWrite struct {
+	Name    string                  `json:"name"`
+	Sharing *DashboardWriteSharing  `json:"sharing,omitempty"`
+	Widgets *[]DashboardWidgetWrite `json:"widgets,omitempty"`
+}
+
+// DashboardWriteSharing defines model for DashboardWrite.Sharing.
+type DashboardWriteSharing string
+
 // DataSubjectRequest defines model for DataSubjectRequest.
 type DataSubjectRequest struct {
 	CompletedAt *time.Time `json:"completed_at,omitempty"`
@@ -12729,6 +13397,132 @@ type FilterNode struct {
 
 // FilterNodeOp defines model for FilterNode.Op.
 type FilterNodeOp string
+
+// Goal defines model for Goal.
+type Goal struct {
+	// CheckIns The latest 20, only on a goal read alone.
+	CheckIns *[]GoalCheckIn `json:"check_ins,omitempty"`
+
+	// ChildCount The goals under it the caller may read.
+	ChildCount  int    `json:"child_count"`
+	Confidence  int    `json:"confidence"`
+	Description string `json:"description"`
+
+	// Entries The linked entries the caller may read, and how many are completed.
+	Entries struct {
+		Done  int `json:"done"`
+		Total int `json:"total"`
+	} `json:"entries"`
+	Grade      float32            `json:"grade"`
+	HubId      openapi_types.UUID `json:"hub_id"`
+	Id         openapi_types.UUID `json:"id"`
+	KeyResults []KeyResult        `json:"key_results"`
+
+	// LinkedEntries Only on a goal read alone.
+	LinkedEntries *[]struct {
+		CollectionId openapi_types.UUID `json:"collection_id"`
+		Completed    bool               `json:"completed"`
+		Id           openapi_types.UUID `json:"id"`
+		Key          string             `json:"key"`
+		Title        string             `json:"title"`
+	} `json:"linked_entries,omitempty"`
+	OwnerId  openapi_types.UUID `json:"owner_id"`
+	ParentId openapi_types.UUID `json:"parent_id"`
+	PeriodId openapi_types.UUID `json:"period_id"`
+
+	// Progress The mean of its key results, its goals below and its linked entries' share completed; null with none.
+	Progress float32    `json:"progress"`
+	Status   GoalStatus `json:"status"`
+	Title    string     `json:"title"`
+	Version  int        `json:"version"`
+}
+
+// GoalStatus defines model for Goal.Status.
+type GoalStatus string
+
+// GoalCheckIn defines model for GoalCheckIn.
+type GoalCheckIn struct {
+	AuthorId   openapi_types.UUID `json:"author_id"`
+	Confidence int                `json:"confidence"`
+	CreatedAt  time.Time          `json:"created_at"`
+	GoalId     openapi_types.UUID `json:"goal_id"`
+	Id         openapi_types.UUID `json:"id"`
+	Note       string             `json:"note"`
+	Status     GoalCheckInStatus  `json:"status"`
+	Values     []struct {
+		KeyResultId openapi_types.UUID `json:"key_result_id"`
+		Value       float32            `json:"value"`
+	} `json:"values"`
+}
+
+// GoalCheckInStatus defines model for GoalCheckIn.Status.
+type GoalCheckInStatus string
+
+// GoalCheckInList defines model for GoalCheckInList.
+type GoalCheckInList struct {
+	Data []GoalCheckIn `json:"data"`
+}
+
+// GoalCreate defines model for GoalCreate.
+type GoalCreate struct {
+	Description *string `json:"description,omitempty"`
+
+	// HubId The hub it belongs to; the workspace's without.
+	HubId      *openapi_types.UUID `json:"hub_id,omitempty"`
+	KeyResults *[]KeyResultWrite   `json:"key_results,omitempty"`
+	OwnerId    *openapi_types.UUID `json:"owner_id,omitempty"`
+	ParentId   *openapi_types.UUID `json:"parent_id,omitempty"`
+	PeriodId   openapi_types.UUID  `json:"period_id"`
+	Status     *GoalCreateStatus   `json:"status,omitempty"`
+	Title      string              `json:"title"`
+}
+
+// GoalCreateStatus defines model for GoalCreate.Status.
+type GoalCreateStatus string
+
+// GoalList defines model for GoalList.
+type GoalList struct {
+	Data []Goal `json:"data"`
+}
+
+// GoalPeriod defines model for GoalPeriod.
+type GoalPeriod struct {
+	EndOn   openapi_types.Date `json:"end_on"`
+	Id      openapi_types.UUID `json:"id"`
+	Name    string             `json:"name"`
+	StartOn openapi_types.Date `json:"start_on"`
+	State   GoalPeriodState    `json:"state"`
+	Version int                `json:"version"`
+}
+
+// GoalPeriodState defines model for GoalPeriod.State.
+type GoalPeriodState string
+
+// GoalPeriodList defines model for GoalPeriodList.
+type GoalPeriodList struct {
+	Data []GoalPeriod `json:"data"`
+}
+
+// GoalPeriodWrite defines model for GoalPeriodWrite.
+type GoalPeriodWrite struct {
+	EndOn   openapi_types.Date `json:"end_on"`
+	Name    string             `json:"name"`
+	StartOn openapi_types.Date `json:"start_on"`
+}
+
+// GoalWrite defines model for GoalWrite.
+type GoalWrite struct {
+	Description *string             `json:"description,omitempty"`
+	KeyResults  *[]KeyResultWrite   `json:"key_results,omitempty"`
+	OwnerId     *openapi_types.UUID `json:"owner_id,omitempty"`
+	ParentId    *openapi_types.UUID `json:"parent_id,omitempty"`
+	PeriodId    openapi_types.UUID  `json:"period_id"`
+	Status      *GoalWriteStatus    `json:"status,omitempty"`
+	Title       string              `json:"title"`
+}
+
+// GoalWriteStatus defines model for GoalWrite.Status.
+type GoalWriteStatus string
 
 // Group defines model for Group.
 type Group struct {
@@ -13791,6 +14585,57 @@ type JumbleIntakeToken struct {
 	// Token The whole credential. Post to `/jumble/inbound/{token}`.
 	Token string `json:"token"`
 }
+
+// KeyResult defines model for KeyResult.
+type KeyResult struct {
+	// Current As the caller sees it: a view's total or a milestone's entry where live, else the last value reported.
+	Current float32            `json:"current"`
+	EntryId openapi_types.UUID `json:"entry_id"`
+	Id      openapi_types.UUID `json:"id"`
+	Kind    KeyResultKind      `json:"kind"`
+
+	// Live Whether current was computed for the caller now.
+	Live     bool               `json:"live"`
+	Progress float32            `json:"progress"`
+	Source   KeyResultSource    `json:"source"`
+	Start    float32            `json:"start"`
+	Target   float32            `json:"target"`
+	Title    string             `json:"title"`
+	Unit     string             `json:"unit"`
+	ViewId   openapi_types.UUID `json:"view_id"`
+}
+
+// KeyResultKind defines model for KeyResult.Kind.
+type KeyResultKind string
+
+// KeyResultSource defines model for KeyResult.Source.
+type KeyResultSource string
+
+// KeyResultWrite defines model for KeyResultWrite.
+type KeyResultWrite struct {
+	Current *float32 `json:"current,omitempty"`
+
+	// EntryId The entry a MILESTONE waits for.
+	EntryId *openapi_types.UUID `json:"entry_id,omitempty"`
+
+	// Id Keeps an existing key result and its values.
+	Id   *openapi_types.UUID `json:"id,omitempty"`
+	Kind KeyResultWriteKind  `json:"kind"`
+
+	// Source VIEW takes the total of a saved summary view.
+	Source *KeyResultWriteSource `json:"source,omitempty"`
+	Start  *float32              `json:"start,omitempty"`
+	Target *float32              `json:"target,omitempty"`
+	Title  string                `json:"title"`
+	Unit   *string               `json:"unit,omitempty"`
+	ViewId *openapi_types.UUID   `json:"view_id,omitempty"`
+}
+
+// KeyResultWriteKind defines model for KeyResultWrite.Kind.
+type KeyResultWriteKind string
+
+// KeyResultWriteSource VIEW takes the total of a saved summary view.
+type KeyResultWriteSource string
 
 // Kudos defines model for Kudos.
 type Kudos struct {
@@ -16006,6 +16851,92 @@ type PortalRequestPage struct {
 	Data     []PortalRequest `json:"data"`
 	PageInfo PageInfo        `json:"page_info"`
 }
+
+// Portfolio defines model for Portfolio.
+type Portfolio struct {
+	Description string             `json:"description"`
+	Id          openapi_types.UUID `json:"id"`
+
+	// Items The projects the caller may read.
+	Items []struct {
+		Archived    bool               `json:"archived"`
+		ContainerId openapi_types.UUID `json:"container_id"`
+		Done        int                `json:"done"`
+		EndOn       openapi_types.Date `json:"end_on"`
+
+		// Entries Read alone: its entries as the caller counts them.
+		Entries  int                  `json:"entries"`
+		Kind     PortfolioItemsKind   `json:"kind"`
+		Name     string               `json:"name"`
+		Progress float32              `json:"progress"`
+		StartOn  openapi_types.Date   `json:"start_on"`
+		Status   PortfolioItemsStatus `json:"status"`
+	} `json:"items"`
+
+	// LatestUpdate Read alone.
+	LatestUpdate *PortfolioUpdate   `json:"latest_update,omitempty"`
+	Name         string             `json:"name"`
+	OwnerId      openapi_types.UUID `json:"owner_id"`
+	ParentId     openapi_types.UUID `json:"parent_id"`
+
+	// Progress Read alone: the share of its projects' entries completed.
+	Progress float32         `json:"progress"`
+	Status   PortfolioStatus `json:"status"`
+	Version  int             `json:"version"`
+}
+
+// PortfolioItemsKind defines model for Portfolio.Items.Kind.
+type PortfolioItemsKind string
+
+// PortfolioItemsStatus defines model for Portfolio.Items.Status.
+type PortfolioItemsStatus string
+
+// PortfolioStatus defines model for Portfolio.Status.
+type PortfolioStatus string
+
+// PortfolioList defines model for PortfolioList.
+type PortfolioList struct {
+	Data []Portfolio `json:"data"`
+}
+
+// PortfolioUpdate defines model for PortfolioUpdate.
+type PortfolioUpdate struct {
+	AuthorId    openapi_types.UUID    `json:"author_id"`
+	CreatedAt   time.Time             `json:"created_at"`
+	Id          openapi_types.UUID    `json:"id"`
+	PortfolioId openapi_types.UUID    `json:"portfolio_id"`
+	Status      PortfolioUpdateStatus `json:"status"`
+	Summary     string                `json:"summary"`
+}
+
+// PortfolioUpdateStatus defines model for PortfolioUpdate.Status.
+type PortfolioUpdateStatus string
+
+// PortfolioUpdateList defines model for PortfolioUpdateList.
+type PortfolioUpdateList struct {
+	Data []PortfolioUpdate `json:"data"`
+}
+
+// PortfolioWrite defines model for PortfolioWrite.
+type PortfolioWrite struct {
+	Description *string `json:"description,omitempty"`
+	Items       *[]struct {
+		ContainerId openapi_types.UUID         `json:"container_id"`
+		EndOn       *openapi_types.Date        `json:"end_on,omitempty"`
+		StartOn     *openapi_types.Date        `json:"start_on,omitempty"`
+		Status      *PortfolioWriteItemsStatus `json:"status,omitempty"`
+	} `json:"items,omitempty"`
+	Name     string                `json:"name"`
+	OwnerId  *openapi_types.UUID   `json:"owner_id,omitempty"`
+	ParentId *openapi_types.UUID   `json:"parent_id,omitempty"`
+	Status   *PortfolioWriteStatus `json:"status,omitempty"`
+}
+
+// PortfolioWriteItemsStatus defines model for PortfolioWrite.Items.Status.
+type PortfolioWriteItemsStatus string
+
+// PortfolioWriteStatus defines model for PortfolioWrite.Status.
+type PortfolioWriteStatus string
 
 // Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the installation's, the workspace's or the caller's own - its `id`, the `name` given it and its `version`.
 type Preset struct {
@@ -19750,6 +20681,9 @@ type CustomFieldId = openapi_types.UUID
 // CustomFieldKey defines model for CustomFieldKey.
 type CustomFieldKey = string
 
+// DashboardId defines model for DashboardId.
+type DashboardId = openapi_types.UUID
+
 // DeliveryId defines model for DeliveryId.
 type DeliveryId = openapi_types.UUID
 
@@ -19764,6 +20698,9 @@ type Expand = []string
 
 // FeedId defines model for FeedId.
 type FeedId = openapi_types.UUID
+
+// GoalId defines model for GoalId.
+type GoalId = openapi_types.UUID
 
 // GroupId defines model for GroupId.
 type GroupId = openapi_types.UUID
@@ -19818,6 +20755,9 @@ type PasskeyId = openapi_types.UUID
 
 // PlanId defines model for PlanId.
 type PlanId = openapi_types.UUID
+
+// PortfolioId defines model for PortfolioId.
+type PortfolioId = openapi_types.UUID
 
 // PresetId defines model for PresetId.
 type PresetId = openapi_types.UUID
@@ -20638,6 +21578,24 @@ type UpdateCustomFieldParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListDashboardsParams defines parameters for ListDashboards.
+type ListDashboardsParams struct {
+	// HubId Only this hub's dashboards.
+	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+}
+
+// DeleteDashboardParams defines parameters for DeleteDashboard.
+type DeleteDashboardParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateDashboardParams defines parameters for UpdateDashboard.
+type UpdateDashboardParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ChangeEntryTypeParams defines parameters for ChangeEntryType.
 type ChangeEntryTypeParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -20648,6 +21606,73 @@ type ChangeEntryTypeParams struct {
 type SetEntryTypeFormParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ChangeGoalPeriodParams defines parameters for ChangeGoalPeriod.
+type ChangeGoalPeriodParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// CloseGoalPeriodJSONBody defines parameters for CloseGoalPeriod.
+type CloseGoalPeriodJSONBody struct {
+	// Grades A grade from 0 to 1 per goal identifier.
+	Grades *map[string]float32 `json:"grades,omitempty"`
+}
+
+// CloseGoalPeriodParams defines parameters for CloseGoalPeriod.
+type CloseGoalPeriodParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ListGoalsParams defines parameters for ListGoals.
+type ListGoalsParams struct {
+	// PeriodId Only this period's goals.
+	PeriodId *openapi_types.UUID `form:"period_id,omitempty" json:"period_id,omitempty"`
+
+	// HubId Only this hub's goals.
+	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+
+	// WorkspaceOnly Only the workspace's own goals.
+	WorkspaceOnly *bool `form:"workspace_only,omitempty" json:"workspace_only,omitempty"`
+
+	// OwnerId Only this person's goals.
+	OwnerId *openapi_types.UUID `form:"owner_id,omitempty" json:"owner_id,omitempty"`
+
+	// ParentId Only the goals under this one.
+	ParentId *openapi_types.UUID `form:"parent_id,omitempty" json:"parent_id,omitempty"`
+}
+
+// DeleteGoalParams defines parameters for DeleteGoal.
+type DeleteGoalParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdateGoalParams defines parameters for UpdateGoal.
+type UpdateGoalParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// CheckInGoalJSONBody defines parameters for CheckInGoal.
+type CheckInGoalJSONBody struct {
+	Confidence int                       `json:"confidence"`
+	Note       *string                   `json:"note,omitempty"`
+	Status     CheckInGoalJSONBodyStatus `json:"status"`
+	Values     *[]struct {
+		KeyResultId openapi_types.UUID `json:"key_result_id"`
+		Value       float32            `json:"value"`
+	} `json:"values,omitempty"`
+}
+
+// CheckInGoalJSONBodyStatus defines parameters for CheckInGoal.
+type CheckInGoalJSONBodyStatus string
+
+// LinkGoalEntriesJSONBody defines parameters for LinkGoalEntries.
+type LinkGoalEntriesJSONBody struct {
+	EntryIds []openapi_types.UUID `json:"entry_ids"`
 }
 
 // ListGroupsParams defines parameters for ListGroups.
@@ -21430,6 +22455,27 @@ type ReadWorkloadParams struct {
 	// Zone The time zone the entries' dates are days in; UTC without.
 	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
 }
+
+// DeletePortfolioParams defines parameters for DeletePortfolio.
+type DeletePortfolioParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// UpdatePortfolioParams defines parameters for UpdatePortfolio.
+type UpdatePortfolioParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ReportPortfolioStatusJSONBody defines parameters for ReportPortfolioStatus.
+type ReportPortfolioStatusJSONBody struct {
+	Status  ReportPortfolioStatusJSONBodyStatus `json:"status"`
+	Summary string                              `json:"summary"`
+}
+
+// ReportPortfolioStatusJSONBodyStatus defines parameters for ReportPortfolioStatus.
+type ReportPortfolioStatusJSONBodyStatus string
 
 // WithdrawPresetParams defines parameters for WithdrawPreset.
 type WithdrawPresetParams struct {
@@ -22401,6 +23447,12 @@ type DefineCustomFieldJSONRequestBody = CustomFieldDefinitionCreate
 // UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody defines body for UpdateCustomField for application/merge-patch+json ContentType.
 type UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody = CustomFieldDefinitionUpdate
 
+// CreateDashboardJSONRequestBody defines body for CreateDashboard for application/json ContentType.
+type CreateDashboardJSONRequestBody = DashboardCreate
+
+// UpdateDashboardJSONRequestBody defines body for UpdateDashboard for application/json ContentType.
+type UpdateDashboardJSONRequestBody = DashboardWrite
+
 // CreateEntryTypeJSONRequestBody defines body for CreateEntryType for application/json ContentType.
 type CreateEntryTypeJSONRequestBody = EntryTypeCreate
 
@@ -22412,6 +23464,27 @@ type SetEntryTypeFormJSONRequestBody = EntryForm
 
 // EvaluateEntryFormJSONRequestBody defines body for EvaluateEntryForm for application/json ContentType.
 type EvaluateEntryFormJSONRequestBody = EntryFormDraft
+
+// DefineGoalPeriodJSONRequestBody defines body for DefineGoalPeriod for application/json ContentType.
+type DefineGoalPeriodJSONRequestBody = GoalPeriodWrite
+
+// ChangeGoalPeriodJSONRequestBody defines body for ChangeGoalPeriod for application/json ContentType.
+type ChangeGoalPeriodJSONRequestBody = GoalPeriodWrite
+
+// CloseGoalPeriodJSONRequestBody defines body for CloseGoalPeriod for application/json ContentType.
+type CloseGoalPeriodJSONRequestBody CloseGoalPeriodJSONBody
+
+// CreateGoalJSONRequestBody defines body for CreateGoal for application/json ContentType.
+type CreateGoalJSONRequestBody = GoalCreate
+
+// UpdateGoalJSONRequestBody defines body for UpdateGoal for application/json ContentType.
+type UpdateGoalJSONRequestBody = GoalWrite
+
+// CheckInGoalJSONRequestBody defines body for CheckInGoal for application/json ContentType.
+type CheckInGoalJSONRequestBody CheckInGoalJSONBody
+
+// LinkGoalEntriesJSONRequestBody defines body for LinkGoalEntries for application/json ContentType.
+type LinkGoalEntriesJSONRequestBody LinkGoalEntriesJSONBody
 
 // CreateGroupJSONRequestBody defines body for CreateGroup for application/json ContentType.
 type CreateGroupJSONRequestBody = GroupCreate
@@ -22655,6 +23728,15 @@ type SetBudgetJSONRequestBody SetBudgetJSONBody
 
 // ApplyPlanScheduleJSONRequestBody defines body for ApplyPlanSchedule for application/json ContentType.
 type ApplyPlanScheduleJSONRequestBody ApplyPlanScheduleJSONBody
+
+// CreatePortfolioJSONRequestBody defines body for CreatePortfolio for application/json ContentType.
+type CreatePortfolioJSONRequestBody = PortfolioWrite
+
+// UpdatePortfolioJSONRequestBody defines body for UpdatePortfolio for application/json ContentType.
+type UpdatePortfolioJSONRequestBody = PortfolioWrite
+
+// ReportPortfolioStatusJSONRequestBody defines body for ReportPortfolioStatus for application/json ContentType.
+type ReportPortfolioStatusJSONRequestBody ReportPortfolioStatusJSONBody
 
 // SavePresetJSONRequestBody defines body for SavePreset for application/json ContentType.
 type SavePresetJSONRequestBody = PresetCreate
@@ -23606,6 +24688,24 @@ type ServerInterface interface {
 	// PreviewCustomFieldReach What removing or hiding a field would stop showing
 	// (GET /custom-fields/{fieldId}/reach)
 	PreviewCustomFieldReach(w http.ResponseWriter, r *http.Request, fieldId CustomFieldId)
+	// ListDashboards The dashboards the caller sees
+	// (GET /dashboards)
+	ListDashboards(w http.ResponseWriter, r *http.Request, params ListDashboardsParams)
+	// CreateDashboard Create a dashboard
+	// (POST /dashboards)
+	CreateDashboard(w http.ResponseWriter, r *http.Request)
+	// DeleteDashboard Delete a dashboard
+	// (DELETE /dashboards/{dashboardId})
+	DeleteDashboard(w http.ResponseWriter, r *http.Request, dashboardId DashboardId, params DeleteDashboardParams)
+	// ReadDashboard A dashboard
+	// (GET /dashboards/{dashboardId})
+	ReadDashboard(w http.ResponseWriter, r *http.Request, dashboardId DashboardId)
+	// UpdateDashboard Replace a dashboard
+	// (PUT /dashboards/{dashboardId})
+	UpdateDashboard(w http.ResponseWriter, r *http.Request, dashboardId DashboardId, params UpdateDashboardParams)
+	// ReadDashboardFigures A dashboard's numbers, for the caller
+	// (GET /dashboards/{dashboardId}/figures)
+	ReadDashboardFigures(w http.ResponseWriter, r *http.Request, dashboardId DashboardId)
 	// ListEntryTypes The workspace's entry types
 	// (GET /entry-types)
 	ListEntryTypes(w http.ResponseWriter, r *http.Request)
@@ -23624,6 +24724,45 @@ type ServerInterface interface {
 	// EvaluateEntryForm Answer a type's form for a draft
 	// (POST /entry-types/{key}/form:evaluate)
 	EvaluateEntryForm(w http.ResponseWriter, r *http.Request, key string)
+	// ListGoalPeriods The goal periods
+	// (GET /goal-periods)
+	ListGoalPeriods(w http.ResponseWriter, r *http.Request)
+	// DefineGoalPeriod Create a goal period
+	// (POST /goal-periods)
+	DefineGoalPeriod(w http.ResponseWriter, r *http.Request)
+	// ChangeGoalPeriod Change an open goal period
+	// (PATCH /goal-periods/{periodId})
+	ChangeGoalPeriod(w http.ResponseWriter, r *http.Request, periodId openapi_types.UUID, params ChangeGoalPeriodParams)
+	// CloseGoalPeriod Close a goal period and grade its goals
+	// (POST /goal-periods/{periodId}:close)
+	CloseGoalPeriod(w http.ResponseWriter, r *http.Request, periodId openapi_types.UUID, params CloseGoalPeriodParams)
+	// ListGoals The goals the caller may read
+	// (GET /goals)
+	ListGoals(w http.ResponseWriter, r *http.Request, params ListGoalsParams)
+	// CreateGoal Set a goal
+	// (POST /goals)
+	CreateGoal(w http.ResponseWriter, r *http.Request)
+	// DeleteGoal Delete a goal
+	// (DELETE /goals/{goalId})
+	DeleteGoal(w http.ResponseWriter, r *http.Request, goalId GoalId, params DeleteGoalParams)
+	// ReadGoal A goal
+	// (GET /goals/{goalId})
+	ReadGoal(w http.ResponseWriter, r *http.Request, goalId GoalId)
+	// UpdateGoal Replace a goal
+	// (PUT /goals/{goalId})
+	UpdateGoal(w http.ResponseWriter, r *http.Request, goalId GoalId, params UpdateGoalParams)
+	// ListGoalCheckIns A goal's check-ins
+	// (GET /goals/{goalId}/check-ins)
+	ListGoalCheckIns(w http.ResponseWriter, r *http.Request, goalId GoalId)
+	// CheckInGoal Check in on a goal
+	// (POST /goals/{goalId}/check-ins)
+	CheckInGoal(w http.ResponseWriter, r *http.Request, goalId GoalId)
+	// LinkGoalEntries Link entries to a goal
+	// (POST /goals/{goalId}/entries)
+	LinkGoalEntries(w http.ResponseWriter, r *http.Request, goalId GoalId)
+	// UnlinkGoalEntry Unlink an entry from a goal
+	// (DELETE /goals/{goalId}/entries/{entryId})
+	UnlinkGoalEntry(w http.ResponseWriter, r *http.Request, goalId GoalId, entryId openapi_types.UUID)
 	// ListGroups The workspace's groups
 	// (GET /groups)
 	ListGroups(w http.ResponseWriter, r *http.Request, params ListGroupsParams)
@@ -24200,6 +25339,27 @@ type ServerInterface interface {
 	// ReadWorkload Who has room in a plan
 	// (GET /plans/{planId}/workload)
 	ReadWorkload(w http.ResponseWriter, r *http.Request, planId PlanId, params ReadWorkloadParams)
+	// ListPortfolios The portfolios
+	// (GET /portfolios)
+	ListPortfolios(w http.ResponseWriter, r *http.Request)
+	// CreatePortfolio Create a portfolio
+	// (POST /portfolios)
+	CreatePortfolio(w http.ResponseWriter, r *http.Request)
+	// DeletePortfolio Delete a portfolio
+	// (DELETE /portfolios/{portfolioId})
+	DeletePortfolio(w http.ResponseWriter, r *http.Request, portfolioId PortfolioId, params DeletePortfolioParams)
+	// ReadPortfolio A portfolio as a table
+	// (GET /portfolios/{portfolioId})
+	ReadPortfolio(w http.ResponseWriter, r *http.Request, portfolioId PortfolioId)
+	// UpdatePortfolio Replace a portfolio
+	// (PUT /portfolios/{portfolioId})
+	UpdatePortfolio(w http.ResponseWriter, r *http.Request, portfolioId PortfolioId, params UpdatePortfolioParams)
+	// ListPortfolioUpdates A portfolio's status updates
+	// (GET /portfolios/{portfolioId}/updates)
+	ListPortfolioUpdates(w http.ResponseWriter, r *http.Request, portfolioId PortfolioId)
+	// ReportPortfolioStatus Write a status update
+	// (POST /portfolios/{portfolioId}/updates)
+	ReportPortfolioStatus(w http.ResponseWriter, r *http.Request, portfolioId PortfolioId)
 	// ListPresets The presets a hub or collection can start from
 	// (GET /presets)
 	ListPresets(w http.ResponseWriter, r *http.Request)
@@ -32648,6 +33808,205 @@ func (siw *ServerInterfaceWrapper) PreviewCustomFieldReach(w http.ResponseWriter
 	handler.ServeHTTP(w, r)
 }
 
+// ListDashboards operation middleware
+func (siw *ServerInterfaceWrapper) ListDashboards(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListDashboardsParams
+
+	// ------------- Optional query parameter "hub_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "hub_id", r.URL.Query(), &params.HubId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "hub_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hub_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDashboards(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateDashboard operation middleware
+func (siw *ServerInterfaceWrapper) CreateDashboard(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateDashboard(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteDashboard operation middleware
+func (siw *ServerInterfaceWrapper) DeleteDashboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "dashboardId" -------------
+	var dashboardId DashboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "dashboardId", r.PathValue("dashboardId"), &dashboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboardId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteDashboardParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteDashboard(w, r, dashboardId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadDashboard operation middleware
+func (siw *ServerInterfaceWrapper) ReadDashboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "dashboardId" -------------
+	var dashboardId DashboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "dashboardId", r.PathValue("dashboardId"), &dashboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboardId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadDashboard(w, r, dashboardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateDashboard operation middleware
+func (siw *ServerInterfaceWrapper) UpdateDashboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "dashboardId" -------------
+	var dashboardId DashboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "dashboardId", r.PathValue("dashboardId"), &dashboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboardId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateDashboardParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateDashboard(w, r, dashboardId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadDashboardFigures operation middleware
+func (siw *ServerInterfaceWrapper) ReadDashboardFigures(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "dashboardId" -------------
+	var dashboardId DashboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "dashboardId", r.PathValue("dashboardId"), &dashboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboardId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadDashboardFigures(w, r, dashboardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListEntryTypes operation middleware
 func (siw *ServerInterfaceWrapper) ListEntryTypes(w http.ResponseWriter, r *http.Request) {
 
@@ -32819,6 +34178,472 @@ func (siw *ServerInterfaceWrapper) EvaluateEntryForm(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.EvaluateEntryForm(w, r, key)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListGoalPeriods operation middleware
+func (siw *ServerInterfaceWrapper) ListGoalPeriods(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListGoalPeriods(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DefineGoalPeriod operation middleware
+func (siw *ServerInterfaceWrapper) DefineGoalPeriod(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DefineGoalPeriod(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangeGoalPeriod operation middleware
+func (siw *ServerInterfaceWrapper) ChangeGoalPeriod(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "periodId" -------------
+	var periodId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "periodId", r.PathValue("periodId"), &periodId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "periodId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangeGoalPeriodParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeGoalPeriod(w, r, periodId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CloseGoalPeriod operation middleware
+func (siw *ServerInterfaceWrapper) CloseGoalPeriod(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "periodId" -------------
+	var periodId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "periodId", r.PathValue("periodId"), &periodId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "periodId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CloseGoalPeriodParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CloseGoalPeriod(w, r, periodId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListGoals operation middleware
+func (siw *ServerInterfaceWrapper) ListGoals(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListGoalsParams
+
+	// ------------- Optional query parameter "period_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "period_id", r.URL.Query(), &params.PeriodId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "period_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "period_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "hub_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "hub_id", r.URL.Query(), &params.HubId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "hub_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hub_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "workspace_only" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "workspace_only", r.URL.Query(), &params.WorkspaceOnly, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "workspace_only"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspace_only", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "owner_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "owner_id", r.URL.Query(), &params.OwnerId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "owner_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "owner_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "parent_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "parent_id", r.URL.Query(), &params.ParentId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "parent_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "parent_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListGoals(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateGoal operation middleware
+func (siw *ServerInterfaceWrapper) CreateGoal(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateGoal(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteGoal operation middleware
+func (siw *ServerInterfaceWrapper) DeleteGoal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "goalId" -------------
+	var goalId GoalId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "goalId", r.PathValue("goalId"), &goalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "goalId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteGoalParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteGoal(w, r, goalId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadGoal operation middleware
+func (siw *ServerInterfaceWrapper) ReadGoal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "goalId" -------------
+	var goalId GoalId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "goalId", r.PathValue("goalId"), &goalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "goalId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadGoal(w, r, goalId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateGoal operation middleware
+func (siw *ServerInterfaceWrapper) UpdateGoal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "goalId" -------------
+	var goalId GoalId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "goalId", r.PathValue("goalId"), &goalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "goalId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateGoalParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateGoal(w, r, goalId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListGoalCheckIns operation middleware
+func (siw *ServerInterfaceWrapper) ListGoalCheckIns(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "goalId" -------------
+	var goalId GoalId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "goalId", r.PathValue("goalId"), &goalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "goalId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListGoalCheckIns(w, r, goalId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CheckInGoal operation middleware
+func (siw *ServerInterfaceWrapper) CheckInGoal(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "goalId" -------------
+	var goalId GoalId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "goalId", r.PathValue("goalId"), &goalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "goalId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckInGoal(w, r, goalId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LinkGoalEntries operation middleware
+func (siw *ServerInterfaceWrapper) LinkGoalEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "goalId" -------------
+	var goalId GoalId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "goalId", r.PathValue("goalId"), &goalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "goalId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LinkGoalEntries(w, r, goalId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnlinkGoalEntry operation middleware
+func (siw *ServerInterfaceWrapper) UnlinkGoalEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "goalId" -------------
+	var goalId GoalId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "goalId", r.PathValue("goalId"), &goalId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "goalId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "entryId" -------------
+	var entryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entryId", r.PathValue("entryId"), &entryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnlinkGoalEntry(w, r, goalId, entryId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -40112,6 +41937,212 @@ func (siw *ServerInterfaceWrapper) ReadWorkload(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// ListPortfolios operation middleware
+func (siw *ServerInterfaceWrapper) ListPortfolios(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPortfolios(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePortfolio operation middleware
+func (siw *ServerInterfaceWrapper) CreatePortfolio(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePortfolio(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeletePortfolio operation middleware
+func (siw *ServerInterfaceWrapper) DeletePortfolio(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "portfolioId" -------------
+	var portfolioId PortfolioId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "portfolioId", r.PathValue("portfolioId"), &portfolioId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "portfolioId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeletePortfolioParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePortfolio(w, r, portfolioId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadPortfolio operation middleware
+func (siw *ServerInterfaceWrapper) ReadPortfolio(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "portfolioId" -------------
+	var portfolioId PortfolioId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "portfolioId", r.PathValue("portfolioId"), &portfolioId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "portfolioId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPortfolio(w, r, portfolioId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdatePortfolio operation middleware
+func (siw *ServerInterfaceWrapper) UpdatePortfolio(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "portfolioId" -------------
+	var portfolioId PortfolioId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "portfolioId", r.PathValue("portfolioId"), &portfolioId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "portfolioId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdatePortfolioParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdatePortfolio(w, r, portfolioId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPortfolioUpdates operation middleware
+func (siw *ServerInterfaceWrapper) ListPortfolioUpdates(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "portfolioId" -------------
+	var portfolioId PortfolioId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "portfolioId", r.PathValue("portfolioId"), &portfolioId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "portfolioId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPortfolioUpdates(w, r, portfolioId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReportPortfolioStatus operation middleware
+func (siw *ServerInterfaceWrapper) ReportPortfolioStatus(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "portfolioId" -------------
+	var portfolioId PortfolioId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "portfolioId", r.PathValue("portfolioId"), &portfolioId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "portfolioId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReportPortfolioStatus(w, r, portfolioId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPresets operation middleware
 func (siw *ServerInterfaceWrapper) ListPresets(w http.ResponseWriter, r *http.Request) {
 
@@ -44922,6 +46953,32 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sprints/{sprintId}/entries:remove", wrapper.RemoveSprintEntries)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/estimate", wrapper.ClearEntryEstimate)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/estimate", wrapper.SetEntryEstimate)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/goal-periods", wrapper.ListGoalPeriods)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/goal-periods", wrapper.DefineGoalPeriod)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/goal-periods/{periodId}", wrapper.ChangeGoalPeriod)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/goal-periods/{periodId}:close", wrapper.CloseGoalPeriod)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/goals", wrapper.ListGoals)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/goals", wrapper.CreateGoal)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/goals/{goalId}", wrapper.DeleteGoal)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/goals/{goalId}", wrapper.ReadGoal)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/goals/{goalId}", wrapper.UpdateGoal)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/goals/{goalId}/entries", wrapper.LinkGoalEntries)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/goals/{goalId}/entries/{entryId}", wrapper.UnlinkGoalEntry)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/goals/{goalId}/check-ins", wrapper.ListGoalCheckIns)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/goals/{goalId}/check-ins", wrapper.CheckInGoal)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/portfolios", wrapper.ListPortfolios)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/portfolios", wrapper.CreatePortfolio)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/portfolios/{portfolioId}", wrapper.DeletePortfolio)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/portfolios/{portfolioId}", wrapper.ReadPortfolio)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/portfolios/{portfolioId}", wrapper.UpdatePortfolio)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/portfolios/{portfolioId}/updates", wrapper.ListPortfolioUpdates)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/portfolios/{portfolioId}/updates", wrapper.ReportPortfolioStatus)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dashboards", wrapper.ListDashboards)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/dashboards", wrapper.CreateDashboard)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/dashboards/{dashboardId}", wrapper.DeleteDashboard)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dashboards/{dashboardId}", wrapper.ReadDashboard)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/dashboards/{dashboardId}", wrapper.UpdateDashboard)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dashboards/{dashboardId}/figures", wrapper.ReadDashboardFigures)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/time-records", wrapper.ListTimeRecords)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/time-records", wrapper.LogTime)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/time-records/{recordId}", wrapper.DeleteTimeRecord)

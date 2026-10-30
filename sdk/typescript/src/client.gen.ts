@@ -216,6 +216,136 @@ export class HubtaskClient {
     return this.call("DELETE", "/items/{itemId}/estimate", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** The goal periods */
+  listGoalPeriods(options: CallOptions = {}): Promise<operations["listGoalPeriods"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/goal-periods", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Create a goal period */
+  defineGoalPeriod(body: NonNullable<operations["defineGoalPeriod"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["defineGoalPeriod"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/goal-periods", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Change an open goal period */
+  changeGoalPeriod(periodId: string, body: NonNullable<operations["changeGoalPeriod"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["changeGoalPeriod"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/goal-periods/{periodId}", { "periodId": periodId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Close a goal period and grade its goals */
+  closeGoalPeriod(periodId: string, body: NonNullable<operations["closeGoalPeriod"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["closeGoalPeriod"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/goal-periods/{periodId}:close", { "periodId": periodId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The goals the caller may read */
+  listGoals(options: CallOptions & { readonly query?: NonNullable<operations["listGoals"]['parameters']['query']> } = {}): Promise<operations["listGoals"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/goals", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Set a goal */
+  createGoal(body: NonNullable<operations["createGoal"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createGoal"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/goals", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** A goal */
+  readGoal(goalId: string, options: CallOptions = {}): Promise<operations["readGoal"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/goals/{goalId}", { "goalId": goalId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Replace a goal */
+  updateGoal(goalId: string, body: NonNullable<operations["updateGoal"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateGoal"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/goals/{goalId}", { "goalId": goalId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Delete a goal */
+  deleteGoal(goalId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/goals/{goalId}", { "goalId": goalId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Link entries to a goal */
+  linkGoalEntries(goalId: string, body: NonNullable<operations["linkGoalEntries"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["linkGoalEntries"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/goals/{goalId}/entries", { "goalId": goalId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Unlink an entry from a goal */
+  unlinkGoalEntry(goalId: string, entryId: string, options: CallOptions = {}): Promise<operations["unlinkGoalEntry"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/goals/{goalId}/entries/{entryId}", { "goalId": goalId, "entryId": entryId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** A goal's check-ins */
+  listGoalCheckIns(goalId: string, options: CallOptions = {}): Promise<operations["listGoalCheckIns"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/goals/{goalId}/check-ins", { "goalId": goalId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Check in on a goal */
+  checkInGoal(goalId: string, body: NonNullable<operations["checkInGoal"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["checkInGoal"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/goals/{goalId}/check-ins", { "goalId": goalId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The portfolios */
+  listPortfolios(options: CallOptions = {}): Promise<operations["listPortfolios"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/portfolios", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Create a portfolio */
+  createPortfolio(body: NonNullable<operations["createPortfolio"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createPortfolio"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/portfolios", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** A portfolio as a table */
+  readPortfolio(portfolioId: string, options: CallOptions = {}): Promise<operations["readPortfolio"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/portfolios/{portfolioId}", { "portfolioId": portfolioId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Replace a portfolio */
+  updatePortfolio(portfolioId: string, body: NonNullable<operations["updatePortfolio"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updatePortfolio"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/portfolios/{portfolioId}", { "portfolioId": portfolioId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Delete a portfolio */
+  deletePortfolio(portfolioId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/portfolios/{portfolioId}", { "portfolioId": portfolioId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** A portfolio's status updates */
+  listPortfolioUpdates(portfolioId: string, options: CallOptions = {}): Promise<operations["listPortfolioUpdates"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/portfolios/{portfolioId}/updates", { "portfolioId": portfolioId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Write a status update */
+  reportPortfolioStatus(portfolioId: string, body: NonNullable<operations["reportPortfolioStatus"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["reportPortfolioStatus"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/portfolios/{portfolioId}/updates", { "portfolioId": portfolioId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The dashboards the caller sees */
+  listDashboards(options: CallOptions & { readonly query?: NonNullable<operations["listDashboards"]['parameters']['query']> } = {}): Promise<operations["listDashboards"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/dashboards", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Create a dashboard */
+  createDashboard(body: NonNullable<operations["createDashboard"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createDashboard"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/dashboards", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** A dashboard */
+  readDashboard(dashboardId: string, options: CallOptions = {}): Promise<operations["readDashboard"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/dashboards/{dashboardId}", { "dashboardId": dashboardId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Replace a dashboard */
+  updateDashboard(dashboardId: string, body: NonNullable<operations["updateDashboard"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateDashboard"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/dashboards/{dashboardId}", { "dashboardId": dashboardId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Delete a dashboard */
+  deleteDashboard(dashboardId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/dashboards/{dashboardId}", { "dashboardId": dashboardId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** A dashboard's numbers, for the caller */
+  readDashboardFigures(dashboardId: string, options: CallOptions = {}): Promise<operations["readDashboardFigures"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/dashboards/{dashboardId}/figures", { "dashboardId": dashboardId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Time records of a range of days */
   listTimeRecords(options: CallOptions & { readonly query?: NonNullable<operations["listTimeRecords"]['parameters']['query']> } = {}): Promise<operations["listTimeRecords"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/time-records", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

@@ -237,6 +237,17 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `config.sandbox_written` | WriteConfigSandbox | `configuration` | INFO | Every time |
 | `config.template_published` | PublishConfigTemplate | `configuration` | INFO | Every time |
 
+## Dashboard
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `dashboard.created` | CreateDashboard | `dashboard` | INFO | Every time |
+| `dashboard.deleted` | DeleteDashboard | `dashboard` | INFO | Every time |
+| `dashboard.read` | ListDashboards | `dashboard` | INFO | When refused |
+| `dashboard.read` | ReadDashboard | `dashboard` | INFO | When refused |
+| `dashboard.read` | ReadDashboardFigures | `dashboard` | INFO | When refused |
+| `dashboard.updated` | UpdateDashboard | `dashboard` | INFO | Every time |
+
 ## Data: comments
 
 | Action | Use case | Target | Severity | Recorded |
@@ -380,6 +391,28 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `entry_type.deleted` | DeleteEntryType | `entry_type` | INFO | Every time |
 | `entry_type.form_set` | SetEntryTypeForm | `entry_type` | INFO | Every time |
 | `entry_type.read` | ListEntryTypes | `entry_type` | INFO | When refused |
+
+## Goal
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `goal.checked_in` | CheckInGoal | `goal` | INFO | Every time |
+| `goal.created` | CreateGoal | `goal` | INFO | Every time |
+| `goal.deleted` | DeleteGoal | `goal` | INFO | Every time |
+| `goal.entries_linked` | LinkGoalEntries | `goal` | INFO | Every time |
+| `goal.entry_unlinked` | UnlinkGoalEntry | `goal` | INFO | Every time |
+| `goal.read` | ListGoalCheckIns | `goal` | INFO | When refused |
+| `goal.read` | ListGoals | `goal` | INFO | When refused |
+| `goal.read` | ReadGoal | `goal` | INFO | When refused |
+| `goal.updated` | UpdateGoal | `goal` | INFO | Every time |
+
+## Goal_period
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `goal_period.closed` | CloseGoalPeriod | `goal_period` | INFO | Every time |
+| `goal_period.defined` | DefineGoalPeriod | `goal_period` | INFO | Every time |
+| `goal_period.read` | ListGoalPeriods | `goal_period` | INFO | When refused |
 
 ## Health
 
@@ -611,6 +644,18 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `plan_baseline.deleted` | DeleteBaseline | `plan_baseline` | INFO | Every time |
 | `plan_baseline.read` | ListBaselines | `plan_baseline` | INFO | When refused |
 | `plan_baseline.taken` | TakeBaseline | `plan_baseline` | INFO | Every time |
+
+## Portfolio
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `portfolio.created` | CreatePortfolio | `portfolio` | INFO | Every time |
+| `portfolio.deleted` | DeletePortfolio | `portfolio` | INFO | Every time |
+| `portfolio.read` | ListPortfolioUpdates | `portfolio` | INFO | When refused |
+| `portfolio.read` | ListPortfolios | `portfolio` | INFO | When refused |
+| `portfolio.read` | ReadPortfolio | `portfolio` | INFO | When refused |
+| `portfolio.status_reported` | ReportPortfolioStatus | `portfolio` | INFO | Every time |
+| `portfolio.updated` | UpdatePortfolio | `portfolio` | INFO | Every time |
 
 ## Presets
 

@@ -187,6 +187,110 @@ class Client:
         """Remove an entry's estimate"""
         return self._call("DELETE", "/items/{itemId}/estimate", {"itemId": item_id}, None, {}, None, "none", None, "void")
 
+    def list_goal_periods(self) -> "GoalPeriodList":
+        """The goal periods"""
+        return self._call("GET", "/goal-periods", {}, None, {}, None, "none", None, "json")
+
+    def define_goal_period(self, body: "GoalPeriodWrite") -> "GoalPeriod":
+        """Create a goal period"""
+        return self._call("POST", "/goal-periods", {}, None, {}, body, "json", "application/json", "json")
+
+    def change_goal_period(self, period_id: str, body: "GoalPeriodWrite", *, if_match: str | None = None) -> "GoalPeriod":
+        """Change an open goal period"""
+        return self._call("PATCH", "/goal-periods/{periodId}", {"periodId": period_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def close_goal_period(self, period_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "GoalPeriod":
+        """Close a goal period and grade its goals"""
+        return self._call("POST", "/goal-periods/{periodId}:close", {"periodId": period_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_goals(self, *, query: dict[str, Any] | None = None) -> "GoalList":
+        """The goals the caller may read"""
+        return self._call("GET", "/goals", {}, query, {}, None, "none", None, "json")
+
+    def create_goal(self, body: "GoalCreate") -> "Goal":
+        """Set a goal"""
+        return self._call("POST", "/goals", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_goal(self, goal_id: str) -> "Goal":
+        """A goal"""
+        return self._call("GET", "/goals/{goalId}", {"goalId": goal_id}, None, {}, None, "none", None, "json")
+
+    def update_goal(self, goal_id: str, body: "GoalWrite", *, if_match: str | None = None) -> "Goal":
+        """Replace a goal"""
+        return self._call("PUT", "/goals/{goalId}", {"goalId": goal_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_goal(self, goal_id: str, *, if_match: str | None = None) -> None:
+        """Delete a goal"""
+        return self._call("DELETE", "/goals/{goalId}", {"goalId": goal_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
+    def link_goal_entries(self, goal_id: str, body: dict[str, Any]) -> "Goal":
+        """Link entries to a goal"""
+        return self._call("POST", "/goals/{goalId}/entries", {"goalId": goal_id}, None, {}, body, "json", "application/json", "json")
+
+    def unlink_goal_entry(self, goal_id: str, entry_id: str) -> "Goal":
+        """Unlink an entry from a goal"""
+        return self._call("DELETE", "/goals/{goalId}/entries/{entryId}", {"goalId": goal_id, "entryId": entry_id}, None, {}, None, "none", None, "json")
+
+    def list_goal_check_ins(self, goal_id: str) -> "GoalCheckInList":
+        """A goal's check-ins"""
+        return self._call("GET", "/goals/{goalId}/check-ins", {"goalId": goal_id}, None, {}, None, "none", None, "json")
+
+    def check_in_goal(self, goal_id: str, body: dict[str, Any]) -> "Goal":
+        """Check in on a goal"""
+        return self._call("POST", "/goals/{goalId}/check-ins", {"goalId": goal_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_portfolios(self) -> "PortfolioList":
+        """The portfolios"""
+        return self._call("GET", "/portfolios", {}, None, {}, None, "none", None, "json")
+
+    def create_portfolio(self, body: "PortfolioWrite") -> "Portfolio":
+        """Create a portfolio"""
+        return self._call("POST", "/portfolios", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_portfolio(self, portfolio_id: str) -> "Portfolio":
+        """A portfolio as a table"""
+        return self._call("GET", "/portfolios/{portfolioId}", {"portfolioId": portfolio_id}, None, {}, None, "none", None, "json")
+
+    def update_portfolio(self, portfolio_id: str, body: "PortfolioWrite", *, if_match: str | None = None) -> "Portfolio":
+        """Replace a portfolio"""
+        return self._call("PUT", "/portfolios/{portfolioId}", {"portfolioId": portfolio_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_portfolio(self, portfolio_id: str, *, if_match: str | None = None) -> None:
+        """Delete a portfolio"""
+        return self._call("DELETE", "/portfolios/{portfolioId}", {"portfolioId": portfolio_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
+    def list_portfolio_updates(self, portfolio_id: str) -> "PortfolioUpdateList":
+        """A portfolio's status updates"""
+        return self._call("GET", "/portfolios/{portfolioId}/updates", {"portfolioId": portfolio_id}, None, {}, None, "none", None, "json")
+
+    def report_portfolio_status(self, portfolio_id: str, body: dict[str, Any]) -> "PortfolioUpdate":
+        """Write a status update"""
+        return self._call("POST", "/portfolios/{portfolioId}/updates", {"portfolioId": portfolio_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_dashboards(self, *, query: dict[str, Any] | None = None) -> "DashboardList":
+        """The dashboards the caller sees"""
+        return self._call("GET", "/dashboards", {}, query, {}, None, "none", None, "json")
+
+    def create_dashboard(self, body: "DashboardCreate") -> "Dashboard":
+        """Create a dashboard"""
+        return self._call("POST", "/dashboards", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_dashboard(self, dashboard_id: str) -> "Dashboard":
+        """A dashboard"""
+        return self._call("GET", "/dashboards/{dashboardId}", {"dashboardId": dashboard_id}, None, {}, None, "none", None, "json")
+
+    def update_dashboard(self, dashboard_id: str, body: "DashboardWrite", *, if_match: str | None = None) -> "Dashboard":
+        """Replace a dashboard"""
+        return self._call("PUT", "/dashboards/{dashboardId}", {"dashboardId": dashboard_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_dashboard(self, dashboard_id: str, *, if_match: str | None = None) -> None:
+        """Delete a dashboard"""
+        return self._call("DELETE", "/dashboards/{dashboardId}", {"dashboardId": dashboard_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
+    def read_dashboard_figures(self, dashboard_id: str) -> "DashboardFigures":
+        """A dashboard's numbers, for the caller"""
+        return self._call("GET", "/dashboards/{dashboardId}/figures", {"dashboardId": dashboard_id}, None, {}, None, "none", None, "json")
+
     def list_time_records(self, *, query: dict[str, Any] | None = None) -> "TimeRecordList":
         """Time records of a range of days"""
         return self._call("GET", "/time-records", {}, query, {}, None, "none", None, "json")

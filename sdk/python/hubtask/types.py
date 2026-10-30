@@ -1452,6 +1452,190 @@ Capacity = TypedDict("Capacity", {
 class CapacityList(TypedDict, total=False):
     data: Required[list["Capacity"]]
 
+class GoalPeriodWrite(TypedDict, total=False):
+    name: Required[str]
+    start_on: Required[str]
+    end_on: Required[str]
+
+class GoalPeriod(TypedDict, total=False):
+    id: Required[str]
+    name: Required[str]
+    start_on: Required[str]
+    end_on: Required[str]
+    state: Required[Literal["OPEN", "CLOSED"]]
+    version: Required[int]
+
+class GoalPeriodList(TypedDict, total=False):
+    data: Required[list["GoalPeriod"]]
+
+class KeyResultWrite(TypedDict, total=False):
+    id: str
+    title: Required[str]
+    kind: Required[Literal["NUMBER", "PERCENT", "BINARY", "MILESTONE"]]
+    start: float
+    target: float
+    current: float
+    unit: str
+    source: Literal["MANUAL", "VIEW"]
+    view_id: str
+    entry_id: str
+
+class KeyResult(TypedDict, total=False):
+    id: Required[str]
+    title: Required[str]
+    kind: Required[Literal["NUMBER", "PERCENT", "BINARY", "MILESTONE"]]
+    start: Required[float]
+    target: Required[float]
+    current: Required[float]
+    unit: Required[str]
+    source: Required[Literal["MANUAL", "VIEW"]]
+    view_id: Required[str | None]
+    entry_id: Required[str | None]
+    progress: Required[float]
+    live: Required[bool]
+
+class GoalWrite(TypedDict, total=False):
+    period_id: Required[str]
+    title: Required[str]
+    description: str
+    owner_id: str
+    parent_id: str
+    status: Literal["NONE", "ON_TRACK", "AT_RISK", "OFF_TRACK", "DONE", "DROPPED"]
+    key_results: list["KeyResultWrite"]
+
+class GoalCreate(TypedDict, total=False):
+    period_id: Required[str]
+    title: Required[str]
+    description: str
+    owner_id: str
+    parent_id: str
+    status: Literal["NONE", "ON_TRACK", "AT_RISK", "OFF_TRACK", "DONE", "DROPPED"]
+    key_results: list["KeyResultWrite"]
+    hub_id: str
+
+class Goal(TypedDict, total=False):
+    id: Required[str]
+    period_id: Required[str]
+    hub_id: Required[str | None]
+    parent_id: Required[str | None]
+    title: Required[str]
+    description: Required[str]
+    owner_id: Required[str | None]
+    status: Required[Literal["NONE", "ON_TRACK", "AT_RISK", "OFF_TRACK", "DONE", "DROPPED"]]
+    confidence: Required[int | None]
+    grade: Required[float | None]
+    key_results: Required[list["KeyResult"]]
+    entries: Required[dict[str, Any]]
+    child_count: Required[int]
+    progress: Required[float | None]
+    version: Required[int]
+    linked_entries: list[dict[str, Any]]
+    check_ins: list["GoalCheckIn"]
+
+class GoalList(TypedDict, total=False):
+    data: Required[list["Goal"]]
+
+class GoalCheckIn(TypedDict, total=False):
+    id: Required[str]
+    goal_id: Required[str]
+    author_id: Required[str | None]
+    status: Required[Literal["ON_TRACK", "AT_RISK", "OFF_TRACK", "DONE", "DROPPED"]]
+    confidence: Required[int]
+    note: Required[str]
+    values: Required[list[dict[str, Any]]]
+    created_at: Required[str]
+
+class GoalCheckInList(TypedDict, total=False):
+    data: Required[list["GoalCheckIn"]]
+
+class PortfolioWrite(TypedDict, total=False):
+    name: Required[str]
+    description: str
+    owner_id: str
+    parent_id: str
+    status: Literal["NONE", "ON_TRACK", "AT_RISK", "OFF_TRACK"]
+    items: list[dict[str, Any]]
+
+class Portfolio(TypedDict, total=False):
+    id: Required[str]
+    parent_id: Required[str | None]
+    name: Required[str]
+    description: Required[str]
+    owner_id: Required[str | None]
+    status: Required[Literal["NONE", "ON_TRACK", "AT_RISK", "OFF_TRACK"]]
+    progress: Required[float | None]
+    version: Required[int]
+    items: Required[list[dict[str, Any]]]
+    latest_update: "PortfolioUpdate"
+
+class PortfolioList(TypedDict, total=False):
+    data: Required[list["Portfolio"]]
+
+class PortfolioUpdate(TypedDict, total=False):
+    id: Required[str]
+    portfolio_id: Required[str]
+    author_id: Required[str | None]
+    status: Required[Literal["ON_TRACK", "AT_RISK", "OFF_TRACK"]]
+    summary: Required[str]
+    created_at: Required[str]
+
+class PortfolioUpdateList(TypedDict, total=False):
+    data: Required[list["PortfolioUpdate"]]
+
+class DashboardWidgetWrite(TypedDict, total=False):
+    id: str
+    title: Required[str]
+    chart: Required[Literal["NUMBER", "BAR", "PIE", "LINE", "TABLE", "MATRIX", "PROGRESS"]]
+    source: Required[Literal["VIEW", "QUERY", "GOALS"]]
+    view_id: str
+    query: dict[str, Any]
+    goal_ids: list[str]
+    x: int
+    y: int
+    w: int
+    h: int
+
+class DashboardWidget(TypedDict, total=False):
+    id: Required[str]
+    title: Required[str]
+    chart: Required[Literal["NUMBER", "BAR", "PIE", "LINE", "TABLE", "MATRIX", "PROGRESS"]]
+    source: Required[Literal["VIEW", "QUERY", "GOALS"]]
+    view_id: Required[str | None]
+    query: Required[dict[str, Any] | None]
+    goal_ids: Required[list[str]]
+    x: Required[int]
+    y: Required[int]
+    w: Required[int]
+    h: Required[int]
+
+class DashboardWrite(TypedDict, total=False):
+    name: Required[str]
+    sharing: Literal["PRIVATE", "SCOPE"]
+    widgets: list["DashboardWidgetWrite"]
+
+class DashboardCreate(TypedDict, total=False):
+    name: Required[str]
+    sharing: Literal["PRIVATE", "SCOPE"]
+    widgets: list["DashboardWidgetWrite"]
+    hub_id: str
+
+class Dashboard(TypedDict, total=False):
+    id: Required[str]
+    hub_id: Required[str | None]
+    owner_id: Required[str | None]
+    name: Required[str]
+    sharing: Required[Literal["PRIVATE", "SCOPE"]]
+    widgets: Required[list["DashboardWidget"]]
+    version: Required[int]
+
+class DashboardList(TypedDict, total=False):
+    data: Required[list["Dashboard"]]
+
+class DashboardFigures(TypedDict, total=False):
+    dashboard_id: Required[str]
+    computed_at: Required[str]
+    widgets: Required[list[dict[str, Any]]]
+
 Absence = TypedDict("Absence", {
     "id": Required[str],
     "account_id": Required[str],

@@ -2339,3 +2339,108 @@ func (pending) ChangeCostRate(w http.ResponseWriter, r *http.Request, _ openapi_
 func (pending) RemoveCostRate(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.RemoveCostRateParams) {
 	notAvailable(w, r)
 }
+
+// The goals and insight operations (M8).
+func (pending) ListGoalPeriods(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) DefineGoalPeriod(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ChangeGoalPeriod(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ChangeGoalPeriodParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CloseGoalPeriod(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.CloseGoalPeriodParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListGoals(w http.ResponseWriter, r *http.Request, _ openapi.ListGoalsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadGoal(w http.ResponseWriter, r *http.Request, _ openapi.GoalId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateGoal(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateGoal(w http.ResponseWriter, r *http.Request, _ openapi.GoalId, _ openapi.UpdateGoalParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteGoal(w http.ResponseWriter, r *http.Request, _ openapi.GoalId, _ openapi.DeleteGoalParams) {
+	notAvailable(w, r)
+}
+
+func (pending) LinkGoalEntries(w http.ResponseWriter, r *http.Request, _ openapi.GoalId) {
+	notAvailable(w, r)
+}
+
+func (pending) UnlinkGoalEntry(w http.ResponseWriter, r *http.Request, _ openapi.GoalId, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) CheckInGoal(w http.ResponseWriter, r *http.Request, _ openapi.GoalId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListGoalCheckIns(w http.ResponseWriter, r *http.Request, _ openapi.GoalId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListPortfolios(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPortfolio(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreatePortfolio(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdatePortfolio(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId, _ openapi.UpdatePortfolioParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeletePortfolio(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId, _ openapi.DeletePortfolioParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReportPortfolioStatus(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListPortfolioUpdates(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListDashboards(w http.ResponseWriter, r *http.Request, _ openapi.ListDashboardsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadDashboard(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateDashboard(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateDashboard(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId, _ openapi.UpdateDashboardParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteDashboard(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId, _ openapi.DeleteDashboardParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadDashboardFigures(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId) {
+	notAvailable(w, r)
+}

@@ -63,6 +63,7 @@ tags:
   - name: servicedesk
   - name: planning
   - name: time
+  - name: goals
 
 x-hubtask-cli-groups:
   workflow: "the workspace's workflows and which collection runs which"
@@ -84,6 +85,10 @@ x-hubtask-cli-groups:
   timer: "the caller's running timer, the same on every device"
   timesheet: "a person's week from Monday: filled in, copied, handed in, approved or sent back"
   work-type: "the workspace's kinds of work time is recorded as"
+  goal-period: "the workspace's goal periods: quarters and years, closed with every goal graded"
+  goal: "goals with key results, linked entries and check-ins, and their progress as the caller sees it"
+  portfolio: "portfolios of hubs and collections: their health, roll-up and status updates"
+  dashboard: "dashboards: widgets over summary views, summary documents and goals, and their figures for the caller"
 
 paths:
   /plans/{planId}/schedule:
@@ -604,6 +609,570 @@ paths:
       responses:
         "204":
           description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /goal-periods:
+    get:
+      tags: [goals]
+      operationId: listGoalPeriods
+      x-hubtask-rest: generated
+      x-hubtask-cli: "goal-period ls"
+      summary: The goal periods
+      description: The workspace's periods - quarters, years - the latest first, open and closed.
+      responses:
+        "200":
+          description: The periods
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GoalPeriodList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [goals]
+      operationId: defineGoalPeriod
+      x-hubtask-rest: generated
+      x-hubtask-cli: "goal-period add"
+      summary: Create a goal period
+      description: A name and its first and last day, at most two years apart. Needs STRUCTURE at the workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GoalPeriodWrite" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GoalPeriod" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /goal-periods/{periodId}:
+    parameters:
+      - name: periodId
+        in: path
+        required: true
+        description: A goal period.
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [goals]
+      operationId: changeGoalPeriod
+      x-hubtask-rest: generated
+      x-hubtask-rest-use-case: DefineGoalPeriod
+      x-hubtask-cli: "goal-period update"
+      summary: Change an open goal period
+      description: Its name and days, held to the version read. A closed period does not change (`goal_periods.closed`). Needs STRUCTURE at the workspace.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GoalPeriodWrite" }
+      responses:
+        "200":
+          description: Changed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GoalPeriod" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /goal-periods/{periodId}:close:
+    parameters:
+      - name: periodId
+        in: path
+        required: true
+        description: A goal period.
+        schema: { type: string, format: uuid }
+    post:
+      tags: [goals]
+      operationId: closeGoalPeriod
+      x-hubtask-rest: generated
+      x-hubtask-cli: "goal-period close"
+      summary: Close a goal period and grade its goals
+      description: >
+        Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the
+        caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the
+        workspace.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                grades:
+                  type: object
+                  description: A grade from 0 to 1 per goal identifier.
+                  additionalProperties: { type: number, minimum: 0, maximum: 1 }
+      responses:
+        "200":
+          description: Closed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GoalPeriod" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /goals:
+    get:
+      tags: [goals]
+      operationId: listGoals
+      x-hubtask-rest: generated
+      x-hubtask-cli: "goal ls"
+      summary: The goals the caller may read
+      description: >
+        The workspace's goals and those of the hubs the caller reads, narrowed by period, hub, owner or
+        parent; each with its key results and its progress as the caller sees it - the mean of its key
+        results, its goals below and the share of its linked entries completed. The alignment tree is
+        drawn from `parent_id`.
+      parameters:
+        - { name: period_id, in: query, schema: { type: string, format: uuid }, description: "Only this period's goals." }
+        - { name: hub_id, in: query, schema: { type: string, format: uuid }, description: "Only this hub's goals." }
+        - { name: workspace_only, in: query, schema: { type: boolean }, description: "Only the workspace's own goals." }
+        - { name: owner_id, in: query, schema: { type: string, format: uuid }, description: "Only this person's goals." }
+        - { name: parent_id, in: query, schema: { type: string, format: uuid }, description: "Only the goals under this one." }
+      responses:
+        "200":
+          description: The goals
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GoalList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [goals]
+      operationId: createGoal
+      x-hubtask-rest: generated
+      x-hubtask-cli: "goal add"
+      summary: Set a goal
+      description: >
+        For an open period, at the workspace or in a hub, with its key results and an optional parent
+        goal. Needs WRITE_ITEMS at the workspace or the hub.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GoalCreate" }
+      responses:
+        "201":
+          description: Set
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Goal" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /goals/{goalId}:
+    parameters:
+      - $ref: "#/components/parameters/GoalId"
+    get:
+      tags: [goals]
+      operationId: readGoal
+      x-hubtask-rest: generated
+      x-hubtask-cli: "goal get"
+      summary: A goal
+      description: With its key results and progress, the linked entries the caller may read and its latest check-ins. A goal the caller may not read is not found.
+      responses:
+        "200":
+          description: The goal
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Goal" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [goals]
+      operationId: updateGoal
+      x-hubtask-rest: generated
+      x-hubtask-cli: "goal update"
+      summary: Replace a goal
+      description: >
+        Its period, title, description, owner, parent, status and key results, held to the version read;
+        a key result keeps its values by its id; the hub stays. A graded goal does not change. Needs
+        WRITE_ITEMS at the goal's place.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GoalWrite" }
+      responses:
+        "200":
+          description: Replaced
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Goal" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [goals]
+      operationId: deleteGoal
+      x-hubtask-rest: generated
+      x-hubtask-cli: "goal rm"
+      summary: Delete a goal
+      description: With its links and check-ins; the goals under it move up to its parent and the entries stay. Needs WRITE_ITEMS at the goal's place.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /goals/{goalId}/entries:
+    parameters:
+      - $ref: "#/components/parameters/GoalId"
+    post:
+      tags: [goals]
+      operationId: linkGoalEntries
+      x-hubtask-rest: generated
+      x-hubtask-cli: "goal link"
+      summary: Link entries to a goal
+      description: At most 500 per goal, each one the caller may read; its progress counts the share completed. Needs WRITE_ITEMS at the goal's place.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [entry_ids]
+              properties:
+                entry_ids: { type: array, minItems: 1, maxItems: 500, items: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Linked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Goal" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /goals/{goalId}/entries/{entryId}:
+    parameters:
+      - $ref: "#/components/parameters/GoalId"
+      - name: entryId
+        in: path
+        required: true
+        description: A linked entry.
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [goals]
+      operationId: unlinkGoalEntry
+      x-hubtask-rest: generated
+      x-hubtask-cli: "goal unlink"
+      summary: Unlink an entry from a goal
+      description: The entry stays. Needs WRITE_ITEMS at the goal's place.
+      responses:
+        "200":
+          description: Unlinked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Goal" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /goals/{goalId}/check-ins:
+    parameters:
+      - $ref: "#/components/parameters/GoalId"
+    get:
+      tags: [goals]
+      operationId: listGoalCheckIns
+      x-hubtask-rest: generated
+      x-hubtask-cli: "goal check-ins"
+      summary: A goal's check-ins
+      description: The latest first, at most 200.
+      responses:
+        "200":
+          description: The check-ins
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GoalCheckInList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [goals]
+      operationId: checkInGoal
+      x-hubtask-rest: generated
+      x-hubtask-cli: "goal check-in"
+      summary: Check in on a goal
+      description: >
+        Its status, a confidence from 0 to 10, a note and new values of its key results reported by hand;
+        kept as history. A graded goal takes none (`goals.graded`). Needs WRITE_ITEMS at the goal's place.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, confidence]
+              properties:
+                status: { type: string, enum: [ON_TRACK, AT_RISK, OFF_TRACK, DONE, DROPPED] }
+                confidence: { type: integer, minimum: 0, maximum: 10 }
+                note: { type: string, maxLength: 5000 }
+                values:
+                  type: array
+                  maxItems: 20
+                  items:
+                    type: object
+                    required: [key_result_id, value]
+                    properties:
+                      key_result_id: { type: string, format: uuid }
+                      value: { type: number }
+      responses:
+        "200":
+          description: Checked in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Goal" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /portfolios:
+    get:
+      tags: [goals]
+      operationId: listPortfolios
+      x-hubtask-rest: generated
+      x-hubtask-cli: "portfolio ls"
+      summary: The portfolios
+      description: By name, nested by `parent_id`, each with the projects the caller may read. Needs READ at the workspace.
+      responses:
+        "200":
+          description: The portfolios
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PortfolioList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [goals]
+      operationId: createPortfolio
+      x-hubtask-rest: generated
+      x-hubtask-cli: "portfolio add"
+      summary: Create a portfolio
+      description: Of hubs and collections the caller may read, with dates and health per project. Needs WRITE_ITEMS at the workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PortfolioWrite" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Portfolio" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /portfolios/{portfolioId}:
+    parameters:
+      - $ref: "#/components/parameters/PortfolioId"
+    get:
+      tags: [goals]
+      operationId: readPortfolio
+      x-hubtask-rest: generated
+      x-hubtask-cli: "portfolio get"
+      summary: A portfolio as a table
+      description: >
+        Each project the caller may read with its dates, health, how many entries it holds and how many
+        are completed - as the caller's own POST /items:aggregate counts them -, the portfolio's progress
+        over them, and its latest status update.
+      responses:
+        "200":
+          description: The portfolio
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Portfolio" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [goals]
+      operationId: updatePortfolio
+      x-hubtask-rest: generated
+      x-hubtask-cli: "portfolio update"
+      summary: Replace a portfolio
+      description: Its fields and projects, held to the version read; a project the caller may not read is kept. Needs WRITE_ITEMS at the workspace.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PortfolioWrite" }
+      responses:
+        "200":
+          description: Replaced
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Portfolio" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [goals]
+      operationId: deletePortfolio
+      x-hubtask-rest: generated
+      x-hubtask-cli: "portfolio rm"
+      summary: Delete a portfolio
+      description: With its status updates; its portfolios move up to its parent and its hubs and collections stay. Needs WRITE_ITEMS at the workspace.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /portfolios/{portfolioId}/updates:
+    parameters:
+      - $ref: "#/components/parameters/PortfolioId"
+    get:
+      tags: [goals]
+      operationId: listPortfolioUpdates
+      x-hubtask-rest: generated
+      x-hubtask-cli: "portfolio updates"
+      summary: A portfolio's status updates
+      description: The latest first, at most 200.
+      responses:
+        "200":
+          description: The updates
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PortfolioUpdateList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [goals]
+      operationId: reportPortfolioStatus
+      x-hubtask-rest: generated
+      x-hubtask-cli: "portfolio report"
+      summary: Write a status update
+      description: Its health and a summary; the health becomes the portfolio's. Kept as history. Needs WRITE_ITEMS at the workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, summary]
+              properties:
+                status: { type: string, enum: [ON_TRACK, AT_RISK, OFF_TRACK] }
+                summary: { type: string, minLength: 1, maxLength: 10000 }
+      responses:
+        "201":
+          description: Written
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PortfolioUpdate" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /dashboards:
+    get:
+      tags: [goals]
+      operationId: listDashboards
+      x-hubtask-rest: generated
+      x-hubtask-cli: "dashboard ls"
+      summary: The dashboards the caller sees
+      description: Their own and the shared ones of the workspace and of the hubs they read, by name.
+      parameters:
+        - { name: hub_id, in: query, schema: { type: string, format: uuid }, description: "Only this hub's dashboards." }
+      responses:
+        "200":
+          description: The dashboards
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [goals]
+      operationId: createDashboard
+      x-hubtask-rest: generated
+      x-hubtask-cli: "dashboard add"
+      summary: Create a dashboard
+      description: >
+        At the workspace or in a hub, owned by the caller; a widget's numbers are never stored. A private
+        one needs READ at its place, a shared one STRUCTURE.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardCreate" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /dashboards/{dashboardId}:
+    parameters:
+      - $ref: "#/components/parameters/DashboardId"
+    get:
+      tags: [goals]
+      operationId: readDashboard
+      x-hubtask-rest: generated
+      x-hubtask-cli: "dashboard get"
+      summary: A dashboard
+      description: Its name, sharing and widgets as their queries. One the caller does not see is not found.
+      responses:
+        "200":
+          description: The dashboard
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [goals]
+      operationId: updateDashboard
+      x-hubtask-rest: generated
+      x-hubtask-cli: "dashboard update"
+      summary: Replace a dashboard
+      description: Its name, sharing and widgets, held to the version read. Its owner changes a private one; a shared one, or somebody else's, needs STRUCTURE at its place.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardWrite" }
+      responses:
+        "200":
+          description: Replaced
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [goals]
+      operationId: deleteDashboard
+      x-hubtask-rest: generated
+      x-hubtask-cli: "dashboard rm"
+      summary: Delete a dashboard
+      description: The saved views its widgets run stay. As changing it.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /dashboards/{dashboardId}/figures:
+    parameters:
+      - $ref: "#/components/parameters/DashboardId"
+    get:
+      tags: [goals]
+      operationId: readDashboardFigures
+      x-hubtask-rest: generated
+      x-hubtask-cli: "dashboard figures"
+      summary: A dashboard's numbers, for the caller
+      description: >
+        Every widget computed now: a VIEW or QUERY widget's rows exactly as POST /views/{viewId}:aggregate
+        or POST /items:aggregate answers the caller, a GOALS widget's goals with their progress. A widget
+        the caller cannot run carries its error code, and the others still draw.
+      responses:
+        "200":
+          description: The figures
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardFigures" }
         "4XX":
           $ref: "#/components/responses/Problem"
   /time-records:
@@ -17246,6 +17815,24 @@ components:
       required: true
       description: Any day of the week, YYYY-MM-DD; the week runs from Monday.
       schema: { type: string, format: date }
+    GoalId:
+      name: goalId
+      in: path
+      required: true
+      description: A goal.
+      schema: { type: string, format: uuid }
+    PortfolioId:
+      name: portfolioId
+      in: path
+      required: true
+      description: A portfolio.
+      schema: { type: string, format: uuid }
+    DashboardId:
+      name: dashboardId
+      in: path
+      required: true
+      description: A dashboard.
+      schema: { type: string, format: uuid }
     PlanId:
       name: planId
       in: path
@@ -21667,6 +22254,324 @@ components:
       required: [data]
       properties:
         data: { type: array, items: { $ref: "#/components/schemas/Capacity" } }
+
+    GoalPeriodWrite:
+      type: object
+      required: [name, start_on, end_on]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        start_on: { type: string, format: date }
+        end_on: { type: string, format: date }
+
+    GoalPeriod:
+      type: object
+      required: [id, name, start_on, end_on, state, version]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        start_on: { type: string, format: date }
+        end_on: { type: string, format: date }
+        state: { type: string, enum: [OPEN, CLOSED] }
+        version: { type: integer }
+
+    GoalPeriodList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/GoalPeriod" } }
+
+    KeyResultWrite:
+      type: object
+      required: [title, kind]
+      properties:
+        id: { type: string, format: uuid, description: "Keeps an existing key result and its values." }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        kind: { type: string, enum: [NUMBER, PERCENT, BINARY, MILESTONE] }
+        start: { type: number }
+        target: { type: number }
+        current: { type: number }
+        unit: { type: string, maxLength: 16 }
+        source: { type: string, enum: [MANUAL, VIEW], description: "VIEW takes the total of a saved summary view." }
+        view_id: { type: string, format: uuid }
+        entry_id: { type: string, format: uuid, description: "The entry a MILESTONE waits for." }
+
+    KeyResult:
+      type: object
+      required: [id, title, kind, start, target, current, unit, source, view_id, entry_id, progress, live]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        kind: { type: string, enum: [NUMBER, PERCENT, BINARY, MILESTONE] }
+        start: { type: number }
+        target: { type: number }
+        current: { type: number, description: "As the caller sees it: a view's total or a milestone's entry where live, else the last value reported." }
+        unit: { type: string }
+        source: { type: string, enum: [MANUAL, VIEW] }
+        view_id: { type: string, format: uuid, nullable: true }
+        entry_id: { type: string, format: uuid, nullable: true }
+        progress: { type: number, minimum: 0, maximum: 1 }
+        live: { type: boolean, description: "Whether current was computed for the caller now." }
+
+    GoalWrite:
+      type: object
+      required: [period_id, title]
+      properties:
+        period_id: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 10000 }
+        owner_id: { type: string, format: uuid }
+        parent_id: { type: string, format: uuid }
+        status: { type: string, enum: [NONE, ON_TRACK, AT_RISK, OFF_TRACK, DONE, DROPPED] }
+        key_results: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/KeyResultWrite" } }
+
+    GoalCreate:
+      type: object
+      required: [period_id, title]
+      properties:
+        period_id: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 10000 }
+        owner_id: { type: string, format: uuid }
+        parent_id: { type: string, format: uuid }
+        status: { type: string, enum: [NONE, ON_TRACK, AT_RISK, OFF_TRACK, DONE, DROPPED] }
+        key_results: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/KeyResultWrite" } }
+        hub_id: { type: string, format: uuid, description: "The hub it belongs to; the workspace's without." }
+
+    Goal:
+      type: object
+      required: [id, period_id, hub_id, parent_id, title, description, owner_id, status, confidence, grade, key_results, entries, child_count, progress, version]
+      properties:
+        id: { type: string, format: uuid }
+        period_id: { type: string, format: uuid }
+        hub_id: { type: string, format: uuid, nullable: true }
+        parent_id: { type: string, format: uuid, nullable: true }
+        title: { type: string }
+        description: { type: string }
+        owner_id: { type: string, format: uuid, nullable: true }
+        status: { type: string, enum: [NONE, ON_TRACK, AT_RISK, OFF_TRACK, DONE, DROPPED] }
+        confidence: { type: integer, nullable: true, minimum: 0, maximum: 10 }
+        grade: { type: number, nullable: true, minimum: 0, maximum: 1 }
+        key_results: { type: array, items: { $ref: "#/components/schemas/KeyResult" } }
+        entries:
+          type: object
+          description: The linked entries the caller may read, and how many are completed.
+          required: [total, done]
+          properties:
+            total: { type: integer }
+            done: { type: integer }
+        child_count: { type: integer, description: "The goals under it the caller may read." }
+        progress: { type: number, nullable: true, minimum: 0, maximum: 1, description: "The mean of its key results, its goals below and its linked entries' share completed; null with none." }
+        version: { type: integer }
+        linked_entries:
+          type: array
+          description: Only on a goal read alone.
+          items:
+            type: object
+            required: [id, title, key, completed, collection_id]
+            properties:
+              id: { type: string, format: uuid }
+              title: { type: string }
+              key: { type: string, nullable: true }
+              completed: { type: boolean }
+              collection_id: { type: string, format: uuid }
+        check_ins: { type: array, description: "The latest 20, only on a goal read alone.", items: { $ref: "#/components/schemas/GoalCheckIn" } }
+
+    GoalList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Goal" } }
+
+    GoalCheckIn:
+      type: object
+      required: [id, goal_id, author_id, status, confidence, note, values, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        goal_id: { type: string, format: uuid }
+        author_id: { type: string, format: uuid, nullable: true }
+        status: { type: string, enum: [ON_TRACK, AT_RISK, OFF_TRACK, DONE, DROPPED] }
+        confidence: { type: integer, minimum: 0, maximum: 10 }
+        note: { type: string }
+        values:
+          type: array
+          items:
+            type: object
+            required: [key_result_id, value]
+            properties:
+              key_result_id: { type: string, format: uuid }
+              value: { type: number }
+        created_at: { type: string, format: date-time }
+
+    GoalCheckInList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/GoalCheckIn" } }
+
+    PortfolioWrite:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 10000 }
+        owner_id: { type: string, format: uuid }
+        parent_id: { type: string, format: uuid }
+        status: { type: string, enum: [NONE, ON_TRACK, AT_RISK, OFF_TRACK] }
+        items:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            required: [container_id]
+            properties:
+              container_id: { type: string, format: uuid }
+              start_on: { type: string, format: date }
+              end_on: { type: string, format: date }
+              status: { type: string, enum: [NONE, ON_TRACK, AT_RISK, OFF_TRACK] }
+
+    Portfolio:
+      type: object
+      required: [id, parent_id, name, description, owner_id, status, items, progress, version]
+      properties:
+        id: { type: string, format: uuid }
+        parent_id: { type: string, format: uuid, nullable: true }
+        name: { type: string }
+        description: { type: string }
+        owner_id: { type: string, format: uuid, nullable: true }
+        status: { type: string, enum: [NONE, ON_TRACK, AT_RISK, OFF_TRACK] }
+        progress: { type: number, nullable: true, minimum: 0, maximum: 1, description: "Read alone: the share of its projects' entries completed." }
+        version: { type: integer }
+        items:
+          type: array
+          description: The projects the caller may read.
+          items:
+            type: object
+            required: [container_id, kind, name, archived, start_on, end_on, status, entries, done, progress]
+            properties:
+              container_id: { type: string, format: uuid }
+              kind: { type: string, enum: [HUB, COLLECTION] }
+              name: { type: string }
+              archived: { type: boolean }
+              start_on: { type: string, format: date, nullable: true }
+              end_on: { type: string, format: date, nullable: true }
+              status: { type: string, enum: [NONE, ON_TRACK, AT_RISK, OFF_TRACK] }
+              entries: { type: integer, nullable: true, description: "Read alone: its entries as the caller counts them." }
+              done: { type: integer, nullable: true }
+              progress: { type: number, nullable: true, minimum: 0, maximum: 1 }
+        latest_update:
+          description: Read alone.
+          allOf: [{ $ref: "#/components/schemas/PortfolioUpdate" }]
+          nullable: true
+
+    PortfolioList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Portfolio" } }
+
+    PortfolioUpdate:
+      type: object
+      required: [id, portfolio_id, author_id, status, summary, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        portfolio_id: { type: string, format: uuid }
+        author_id: { type: string, format: uuid, nullable: true }
+        status: { type: string, enum: [ON_TRACK, AT_RISK, OFF_TRACK] }
+        summary: { type: string }
+        created_at: { type: string, format: date-time }
+
+    PortfolioUpdateList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/PortfolioUpdate" } }
+
+    DashboardWidgetWrite:
+      type: object
+      required: [title, chart, source]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        chart: { type: string, enum: [NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS] }
+        source: { type: string, enum: [VIEW, QUERY, GOALS] }
+        view_id: { type: string, format: uuid, description: "A saved summary view, for VIEW." }
+        query: { type: object, additionalProperties: true, description: "A POST /items:aggregate document, for QUERY." }
+        goal_ids: { type: array, maxItems: 20, items: { type: string, format: uuid }, description: "For GOALS." }
+        x: { type: integer, minimum: 0, maximum: 11 }
+        y: { type: integer, minimum: 0 }
+        w: { type: integer, minimum: 1, maximum: 12 }
+        h: { type: integer, minimum: 1, maximum: 12 }
+
+    DashboardWidget:
+      type: object
+      required: [id, title, chart, source, view_id, query, goal_ids, x, y, w, h]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        chart: { type: string, enum: [NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS] }
+        source: { type: string, enum: [VIEW, QUERY, GOALS] }
+        view_id: { type: string, format: uuid, nullable: true }
+        query: { type: object, additionalProperties: true, nullable: true }
+        goal_ids: { type: array, items: { type: string, format: uuid } }
+        x: { type: integer }
+        y: { type: integer }
+        w: { type: integer }
+        h: { type: integer }
+
+    DashboardWrite:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        sharing: { type: string, enum: [PRIVATE, SCOPE] }
+        widgets: { type: array, maxItems: 24, items: { $ref: "#/components/schemas/DashboardWidgetWrite" } }
+
+    DashboardCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        sharing: { type: string, enum: [PRIVATE, SCOPE] }
+        widgets: { type: array, maxItems: 24, items: { $ref: "#/components/schemas/DashboardWidgetWrite" } }
+        hub_id: { type: string, format: uuid, description: "The hub it belongs to; the workspace's without." }
+
+    Dashboard:
+      type: object
+      required: [id, hub_id, owner_id, name, sharing, widgets, version]
+      properties:
+        id: { type: string, format: uuid }
+        hub_id: { type: string, format: uuid, nullable: true }
+        owner_id: { type: string, format: uuid, nullable: true }
+        name: { type: string }
+        sharing: { type: string, enum: [PRIVATE, SCOPE] }
+        widgets: { type: array, items: { $ref: "#/components/schemas/DashboardWidget" } }
+        version: { type: integer }
+
+    DashboardList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Dashboard" } }
+
+    DashboardFigures:
+      type: object
+      required: [dashboard_id, computed_at, widgets]
+      properties:
+        dashboard_id: { type: string, format: uuid }
+        computed_at: { type: string, format: date-time }
+        widgets:
+          type: array
+          items:
+            type: object
+            required: [id, data, truncated, error]
+            properties:
+              id: { type: string, format: uuid }
+              data:
+                type: array
+                description: A summary's rows (count, group, period, value), or a GOALS widget's goals (goal_id, title, status, progress).
+                items: { type: object, additionalProperties: true }
+              truncated: { type: boolean }
+              error: { type: string, nullable: true, description: "The error code of a widget the caller cannot run." }
 
     Absence:
       type: object

@@ -44,6 +44,7 @@ import (
 	calendarservice "github.com/Jersyfi/hubtask/core/application/service/calendar"
 	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
 	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
+	goalservice "github.com/Jersyfi/hubtask/core/application/service/goal"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	importservice "github.com/Jersyfi/hubtask/core/application/service/importer"
@@ -1853,6 +1854,27 @@ func run() error {
 		Plans: planningStore, Estimates: planningStore.Sprints(), Authorizer: authorizer, Reader: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
+	// The goals and insight module (M8): every number it shows is POST /items:aggregate's or a
+	// saved view's summary, run as the reader.
+	goalSummaries := work.AggregateItems{
+		Query: work.QueryItems{
+			Gate:  entryGate,
+			Items: items, Containers: containers, Fields: customFields,
+			Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		},
+		Aggregates: items, Collections: containers, Reader: authorizer,
+		Shared: postgres.NewMembershipRepository(),
+	}
+	steward := goalservice.Steward{
+		Store: postgres.NewGoalRepository(), References: entryLinks, Containers: containers,
+		Summaries: goalSummaries.Descriptor().Handler,
+		ViewSummaries: work.AggregateView{
+			Views: savedViews, Containers: containers, Permits: authorizer, UnitOfWork: unitOfWork,
+			Aggregate: goalSummaries,
+		}.Descriptor().Handler,
+		Authorizer: authorizer, Reader: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, Text: forms,
+	}
 	// The assets and configuration module (M6): a hub's CIs, judged at the hub; every write of a CI
 	// goes through the inventory's reconciliation.
 	inventory := cmdbservice.Inventory{
@@ -1989,6 +2011,31 @@ func run() error {
 		timeservice.ReadBudget{Keeper: keeper}.Descriptor(),
 		timeservice.SetBudget{Keeper: keeper}.Descriptor(),
 		timeservice.RemoveBudget{Keeper: keeper}.Descriptor(),
+		goalservice.ListGoalPeriods{Steward: steward}.Descriptor(),
+		goalservice.DefineGoalPeriod{Steward: steward}.Descriptor(),
+		goalservice.CloseGoalPeriod{Steward: steward}.Descriptor(),
+		goalservice.ListGoals{Steward: steward}.Descriptor(),
+		goalservice.ReadGoal{Steward: steward}.Descriptor(),
+		goalservice.CreateGoal{Steward: steward}.Descriptor(),
+		goalservice.UpdateGoal{Steward: steward}.Descriptor(),
+		goalservice.DeleteGoal{Steward: steward}.Descriptor(),
+		goalservice.LinkGoalEntries{Steward: steward}.Descriptor(),
+		goalservice.UnlinkGoalEntry{Steward: steward}.Descriptor(),
+		goalservice.CheckInGoal{Steward: steward}.Descriptor(),
+		goalservice.ListGoalCheckIns{Steward: steward}.Descriptor(),
+		goalservice.ListPortfolios{Steward: steward}.Descriptor(),
+		goalservice.ReadPortfolio{Steward: steward}.Descriptor(),
+		goalservice.CreatePortfolio{Steward: steward}.Descriptor(),
+		goalservice.UpdatePortfolio{Steward: steward}.Descriptor(),
+		goalservice.DeletePortfolio{Steward: steward}.Descriptor(),
+		goalservice.ReportPortfolioStatus{Steward: steward}.Descriptor(),
+		goalservice.ListPortfolioUpdates{Steward: steward}.Descriptor(),
+		goalservice.ListDashboards{Steward: steward}.Descriptor(),
+		goalservice.ReadDashboard{Steward: steward}.Descriptor(),
+		goalservice.CreateDashboard{Steward: steward}.Descriptor(),
+		goalservice.UpdateDashboard{Steward: steward}.Descriptor(),
+		goalservice.DeleteDashboard{Steward: steward}.Descriptor(),
+		goalservice.ReadDashboardFigures{Steward: steward}.Descriptor(),
 		cmdbservice.ListCiClasses{Inventory: inventory}.Descriptor(),
 		cmdbservice.DefineCiClass{Inventory: inventory}.Descriptor(),
 		cmdbservice.ListCiRelationTypes{Inventory: inventory}.Descriptor(),
