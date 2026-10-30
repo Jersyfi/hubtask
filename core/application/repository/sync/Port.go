@@ -22,6 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	syncdomain "github.com/Jersyfi/hubtask/core/domain/model/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/timekeeping"
+	"github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
@@ -189,6 +190,9 @@ type Snapshot interface {
 	CustomRoles(ctx context.Context, after shared.ID, batch int) ([]identityrepo.CustomRoleRow, error)
 	// Pages pages the workspace's living pages with their bodies, for reading offline (M3).
 	Pages(ctx context.Context, after shared.ID, batch int) ([]knowledge.Page, error)
+	// Whiteboards pages the workspace's boards outside the trash with their scenes, for reading
+	// offline (M4).
+	Whiteboards(ctx context.Context, after shared.ID, batch int) ([]whiteboard.Board, error)
 	// CIs pages the workspace's configuration items that are not merged away, for reading a
 	// hub's inventory offline (M6).
 	CIs(ctx context.Context, after shared.ID, batch int) ([]cmdb.CI, error)

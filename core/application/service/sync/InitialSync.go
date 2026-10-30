@@ -15,12 +15,14 @@ import (
 	knowledgeservice "github.com/Jersyfi/hubtask/core/application/service/knowledge"
 	planningservice "github.com/Jersyfi/hubtask/core/application/service/planning"
 	timeservice "github.com/Jersyfi/hubtask/core/application/service/timekeeping"
+	whiteboardservice "github.com/Jersyfi/hubtask/core/application/service/whiteboard"
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	workflowservice "github.com/Jersyfi/hubtask/core/application/service/workflow"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/planning"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
@@ -37,7 +39,7 @@ import (
 var walkKinds = []string{
 	entityContainer, entityBucket, entityLabel, entityItem, kindSet,
 	entityComment, entityReminder, entityRecurrence, entityTemplate, entityEntryType,
-	entityLinkType, entityWorkflow, entityCustomRole, entityEntryLink, entityRoleGrant, entityPage,
+	entityLinkType, entityWorkflow, entityCustomRole, entityEntryLink, entityRoleGrant, entityPage, entityWhiteboard,
 	entityCI, entityCIRelation, entityCICatalogue, entityEntrySchedule,
 	entityGoalPeriod, entityGoal, entityGoalCheckIn, entityDashboard,
 	entitySprint, entitySprintEntry, entityEstimate, entityCustomField,
@@ -71,6 +73,9 @@ const (
 	entityEntrySchedule = planningservice.ScheduleEntity
 	// entityPage is a page with its body, filed under its hub: a page is read where its hub is.
 	entityPage = knowledge.DocumentKind
+	// entityWhiteboard is a board with its scene, filed under its hub: a board is read where its
+	// hub is (M4).
+	entityWhiteboard = whiteboard.DocumentKind
 	// entityCI and entityCIRelation are a configuration item and a relation between two, each
 	// filed under its hub: an inventory is read where its hub is (M6).
 	entityCI         = cmdbservice.CIEntity
@@ -653,6 +658,19 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 			rows = append(rows, walkRow{
 				entity: entityPage, entityID: page.ID, containerID: page.HubID,
 				payload: knowledgeservice.PageOutput(page, true, now), key: page.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityWhiteboard:
+		boards, err := p.Snapshot.Whiteboards(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(boards))
+		for _, board := range boards {
+			rows = append(rows, walkRow{
+				entity: entityWhiteboard, entityID: board.ID, containerID: board.HubID,
+				payload: whiteboardservice.BoardOutput(board, len(board.Scene.Elements), true), key: board.ID.String(),
 			})
 		}
 		return rows, nil

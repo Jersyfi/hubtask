@@ -268,3 +268,30 @@ func TestABoardsCommentsStayInItsWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// The initial sync's board walk (offline reading, UC-CNV-01 check 9) answers a workspace's own
+// boards with their scenes, and none of the workspace next door's.
+func TestTheBoardWalkStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	_, board, _ := seedBoard(ctx, t)
+	snapshot := postgres.NewSnapshotRepository()
+	seen := func(tenant shared.ID) map[shared.ID]int {
+		found := map[shared.ID]int{}
+		if err := write(ctx, t, tenant, func(ctx context.Context) error {
+			boards, err := snapshot.Whiteboards(ctx, "", 5000)
+			for _, each := range boards {
+				found[each.ID] = len(each.Scene.Elements)
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return found
+	}
+	if own := seen(tenantA); own[board] != 3 {
+		t.Errorf("the workspace's walk holds %v, want the board with its three objects", own)
+	}
+	if _, found := seen(tenantB)[board]; found {
+		t.Error("the workspace next door walked the board")
+	}
+}

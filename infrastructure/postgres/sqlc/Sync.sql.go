@@ -2763,6 +2763,65 @@ func (q *Queries) SnapshotTimeBudgets(ctx context.Context, arg SnapshotTimeBudge
 	return items, nil
 }
 
+const snapshotWhiteboards = `-- name: SnapshotWhiteboards :many
+SELECT id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version
+FROM whiteboard
+WHERE tenant_id = current_tenant_id() AND id > $1 AND deleted_at IS NULL
+ORDER BY id
+LIMIT $2
+`
+
+type SnapshotWhiteboardsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotWhiteboardsRow struct {
+	ID        pgtype.UUID
+	HubID     pgtype.UUID
+	Title     string
+	Scene     []byte
+	DeletedAt pgtype.Timestamptz
+	CreatedBy pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	UpdatedBy pgtype.UUID
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
+// The workspace's boards outside the trash with their scenes (migration 0233), for reading offline;
+// each is filed under its hub, which decides who is told of it.
+func (q *Queries) SnapshotWhiteboards(ctx context.Context, arg SnapshotWhiteboardsParams) ([]SnapshotWhiteboardsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotWhiteboards, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotWhiteboardsRow{}
+	for rows.Next() {
+		var i SnapshotWhiteboardsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HubID,
+			&i.Title,
+			&i.Scene,
+			&i.DeletedAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedBy,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotWorkItems = `-- name: SnapshotWorkItems :many
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,

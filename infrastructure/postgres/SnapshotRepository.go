@@ -15,6 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/goal"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
@@ -421,6 +422,23 @@ func (SnapshotRepository) CIRelations(ctx context.Context, after shared.ID, batc
 	}
 	return mapRows(rows, func(row sqlc.SnapshotCmdbRelationsRow) (cmdb.Relation, error) {
 		return cmdbRelationFrom(sqlc.FindCmdbRelationRow(row))
+	})
+}
+
+// Whiteboards pages the workspace's boards outside the trash with their scenes.
+func (SnapshotRepository) Whiteboards(ctx context.Context, after shared.ID, batch int) ([]whiteboard.Board, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotWhiteboards(ctx, sqlc.SnapshotWhiteboardsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("whiteboards", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotWhiteboardsRow) (whiteboard.Board, error) {
+		return boardFrom(sqlc.FindWhiteboardRow(row))
 	})
 }
 

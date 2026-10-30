@@ -608,3 +608,12 @@ JOIN agent a ON a.tenant_id = r.tenant_id AND a.id = r.agent_id
 WHERE r.tenant_id = current_tenant_id() AND r.id > sqlc.arg('after')
 ORDER BY r.id
 LIMIT sqlc.arg('batch');
+
+-- name: SnapshotWhiteboards :many
+-- The workspace's boards outside the trash with their scenes (migration 0233), for reading offline;
+-- each is filed under its hub, which decides who is told of it.
+SELECT id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version
+FROM whiteboard
+WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after') AND deleted_at IS NULL
+ORDER BY id
+LIMIT sqlc.arg('batch');
