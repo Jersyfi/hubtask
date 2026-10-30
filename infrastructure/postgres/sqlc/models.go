@@ -930,6 +930,44 @@ type CalendarFeed struct {
 	Kind      string
 }
 
+type CalendarPush struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	AccountID   pgtype.UUID
+	FeedID      pgtype.UUID
+	Provider    string
+	Address     string
+	SecretEnc   []byte
+	SecretKeyID string
+	State       string
+	Failure     string
+	PushedAt    pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	Version     int32
+}
+
+type CalendarPushAuthorization struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	AccountID     pgtype.UUID
+	FeedID        pgtype.UUID
+	Provider      string
+	StateHash     []byte
+	VerifierEnc   []byte
+	VerifierKeyID string
+	ExpiresAt     pgtype.Timestamptz
+}
+
+type CalendarPushEvent struct {
+	TenantID pgtype.UUID
+	PushID   pgtype.UUID
+	EntryID  pgtype.UUID
+	RemoteID string
+	Digest   string
+	PushedAt pgtype.Timestamptz
+}
+
 type ChangeLog struct {
 	TenantID    pgtype.UUID
 	Seq         int64
