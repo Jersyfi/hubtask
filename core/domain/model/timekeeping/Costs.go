@@ -186,7 +186,9 @@ type Burn struct {
 func (b Burn) OverTime() bool { return b.Budget.Minutes > 0 && b.Minutes > b.Budget.Minutes }
 
 // OverMoney reports whether the cost passed the money budget.
-func (b Burn) OverMoney() bool { return b.Budget.AmountMinor > 0 && b.AmountMinor > b.Budget.AmountMinor }
+func (b Burn) OverMoney() bool {
+	return b.Budget.AmountMinor > 0 && b.AmountMinor > b.Budget.AmountMinor
+}
 
 // BurnOf sums records against a budget: every minute counts against the time budget, and a
 // minute costs what the day's rate says where that rate is in the budget's currency - a rate in

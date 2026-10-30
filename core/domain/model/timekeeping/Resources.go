@@ -158,7 +158,9 @@ func (c WorkloadCell) Over() bool { return c.Known && c.Allocated > c.Available 
 
 // Under reports whether the week leaves at least a fifth of what the person can give unasked:
 // room to hand out more work.
-func (c WorkloadCell) Under() bool { return c.Known && c.Available > 0 && c.Allocated*5 < c.Available*4 }
+func (c WorkloadCell) Under() bool {
+	return c.Known && c.Available > 0 && c.Allocated*5 < c.Available*4
+}
 
 // Person is what the workload knows of one person: their capacities and their absences.
 type Person struct {
