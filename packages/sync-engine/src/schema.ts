@@ -840,3 +840,18 @@ export type BurndownPoint = components['schemas']['BurndownPoint'];
 export type Velocity = components['schemas']['Velocity'];
 export type Estimate = components['schemas']['Estimate'];
 export type EntryEstimate = components['schemas']['EntryEstimate'];
+
+/** Time records, the timer, weeks, kinds of work, the policy, reports and actuals (M7). */
+export type TimeRecord = components['schemas']['TimeRecord'];
+export type PlacedTimeRecord = components['schemas']['PlacedTimeRecord'];
+export type TimeRecordList = components['schemas']['TimeRecordList'];
+export type TimeReport = components['schemas']['TimeReport'];
+export type TimeExport = components['schemas']['TimeExport'];
+export type TimeTimer = components['schemas']['TimeTimer'];
+export type Timesheet = components['schemas']['Timesheet'];
+export type TimesheetList = components['schemas']['TimesheetList'];
+export type TimesheetWeek = components['schemas']['TimesheetWeek'];
+export type WorkType = components['schemas']['WorkType'];
+export type WorkTypeList = components['schemas']['WorkTypeList'];
+export type TimePolicy = components['schemas']['TimePolicy'];
+export type EstimatesVsActuals = components['schemas']['EstimatesVsActuals'];
