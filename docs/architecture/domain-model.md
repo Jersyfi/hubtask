@@ -806,6 +806,17 @@ continuous calendar (in legs of at most a timer's bound), and when it fires the 
 one, the verifier - gets a `REMINDER` notification naming the page. Trash takes a page with the pages under it at
 one moment and brings them back together.
 
+A page may narrow its hub's readers, never widen them: `restricted` with the people
+`page_restriction` names. A page under several restricted ones is read by the people every one
+names (`Readers`), and a restricted page whose people have all gone stays closed; whoever is kept
+out finds it not there - in the tree, a search, a backlink, a reference, its live document - and a
+restricted page leaves the offline copy (a `DELETE` in the change log, absent from the walk). A
+writer the restriction admits sets it; somebody with MANAGE_MEMBERS on the hub may lift one that
+shuts them out. A `PageShare` opens one page, read-only, to one person beside the hub's
+memberships (UC-DOC-08): granted with MANAGE_MEMBERS, the page alone, never past a restriction. A
+person's `personal_space` is a private hub of their own made on first use, and a page with
+`daily_for` is its note of a day, one per day (UC-DOC-07).
+
 ### 3.9 Whiteboards (context: Whiteboard, M4)
 
 A hub holds `Board`s (at most 1,000 outside the trash), judged at the hub as its pages are: READ to

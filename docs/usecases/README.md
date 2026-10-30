@@ -268,7 +268,10 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-DOC-04](./knowledge/UC-DOC-04-link-pages-and-entries-and-see-what-links-here.md) | Link pages and entries and see what links here | knowledge |
 | [UC-DOC-05](./knowledge/UC-DOC-05-start-a-page-from-a-template.md) | Start a page from a template | knowledge |
 | [UC-DOC-06](./knowledge/UC-DOC-06-see-how-a-page-changed-and-bring-an-older-version-back.md) | See how a page changed and bring an older version back | knowledge |
+| [UC-DOC-07](./knowledge/UC-DOC-07-keep-notes-only-i-can-read.md) | Keep notes only I can read | knowledge |
+| [UC-DOC-08](./knowledge/UC-DOC-08-share-a-page-with-someone-outside-read-only.md) | Share a page with someone outside, read-only | knowledge |
 | [UC-DOC-09](./knowledge/UC-DOC-09-take-a-wiki-out-again.md) | Take a wiki out again | knowledge |
+| [UC-DOC-10](./knowledge/UC-DOC-10-embed-a-live-view-of-work-in-a-page.md) | Embed a live view of work in a page | knowledge |
 | [UC-DOC-11](./knowledge/UC-DOC-11-discuss-a-page-beside-its-words.md) | Discuss a page beside its words | knowledge |
 | [UC-DOC-12](./knowledge/UC-DOC-12-keep-a-page-known-to-be-right.md) | Keep a page known to be right | knowledge |
 | [UC-CNV-01](./whiteboard/UC-CNV-01-draw-on-a-whiteboard-together.md) | Draw on a whiteboard together | whiteboard |
