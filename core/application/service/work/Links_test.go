@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/reference"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -590,5 +591,31 @@ func TestAnEntrysBacklinksNameThePagesTheReaderMayRead(t *testing.T) {
 	out := links.Output(item)["page_backlinks"].([]usecase.Output)
 	if page := out[0]["page"].(usecase.Output); page["title"] != "Handbook" || page["available"] != true {
 		t.Errorf("a page backlink answers %+v", out[0])
+	}
+}
+
+// UC-DOC-07 check 3: a restricted page resolves for the people it names alone; to every other
+// reader of its hub it answers its address, as a page out of reach does.
+func TestARestrictedPageReferenceResolvesForThePeopleItNames(t *testing.T) {
+	ctx := context.Background()
+	h := newLinkHarness()
+	hub := shared.MustParseID("0192f000-0000-7000-8000-0000000005e1")
+	page := shared.MustParseID("0192f000-0000-7000-8000-0000000005e2")
+	linking := h.linking()
+	someoneElse := shared.MustParseID("0192f000-0000-7000-8000-0000000005e3")
+	linking.Pages = pageSummaries{{ID: page, HubID: hub, Title: "Salaries",
+		Readers: knowledge.Readers{Restricted: true, Accounts: []shared.ID{someoneElse}}}}
+	resolved, err := ResolveReferences{Linking: linking}.Execute(ctx, linkActor(), []reference.Reference{{Kind: reference.KindPage, ID: page}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved[0]["available"] != false || resolved[0]["title"] != nil {
+		t.Errorf("a page restricted to somebody else resolves to %+v", resolved[0])
+	}
+	linking.Pages = pageSummaries{{ID: page, HubID: hub, Title: "Salaries",
+		Readers: knowledge.Readers{Restricted: true, Accounts: []shared.ID{linkActor().AccountID}}}}
+	resolved, err = ResolveReferences{Linking: linking}.Execute(ctx, linkActor(), []reference.Reference{{Kind: reference.KindPage, ID: page}})
+	if err != nil || resolved[0]["available"] != true {
+		t.Errorf("a page restricted to the reader resolves to %+v, %v", resolved[0], err)
 	}
 }
