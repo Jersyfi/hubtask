@@ -99,7 +99,7 @@ func (k knowledgeOn) On(context.Context, appshared.ActorContext, shared.ID) (mod
 	return module.Set{module.Knowledge}, nil
 }
 
-// UC-DOC-08 check 5: a page's public link is made only where the workspace allows it and never
+// UC-DOC-08 check 4: a page's public link is made only where the workspace allows it and never
 // for a restricted page; whoever holds it reads the page alone without signing in, as its maker
 // reads it now; a new link, switching public links off, a restriction, the module off, the maker
 // losing the hub or the page going to the trash each leave the link answering nothing.
@@ -193,7 +193,7 @@ func TestAPublicLinkOpensThePageAloneWhileTheWorkspaceAllowsIt(t *testing.T) {
 	}
 }
 
-// UC-DOC-08 check 5: a plan that locks public links off leaves the workspace no switch; an agent
+// UC-DOC-08 check 4: a plan that locks public links off leaves the workspace no switch; an agent
 // never decides it.
 func TestAPlanLocksPublicLinksOff(t *testing.T) {
 	f := newFixture()

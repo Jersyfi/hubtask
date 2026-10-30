@@ -58,6 +58,6 @@ test('an exported DOCX document is saved as its decoded bytes, text as its UTF-8
   assert.deepEqual([...exportBytes({ content: 'ä', encoding: 'TEXT' })], [0xc3, 0xa4]);
 });
 
-test('a public link opens the page on this server, its token the whole credential (UC-DOC-08 check 5)', () => {
+test('a public link opens the page on this server, its token the whole credential (UC-DOC-08 check 4)', () => {
   assert.equal(publicLinkAddress('https://hub.example.org/', 'hbt_page_abc'), 'https://hub.example.org/api/v1/public/pages/hbt_page_abc');
 });

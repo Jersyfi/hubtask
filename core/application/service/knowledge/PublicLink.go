@@ -26,7 +26,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// The use case names and trail codes of a page's public link (UC-DOC-08 check 5).
+// The use case names and trail codes of a page's public link (UC-DOC-08 check 4).
 const (
 	CreatePagePublicLinkName = "CreatePagePublicLink"
 	DeletePagePublicLinkName = "DeletePagePublicLink"

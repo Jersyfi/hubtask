@@ -27,7 +27,7 @@ func (p *publicReader) Execute(_ context.Context, _ integration.PageLinkToken) (
 	}}, nil
 }
 
-// UC-DOC-08 check 5: the public route answers the page as an inert HTML document without a bearer,
+// UC-DOC-08 check 4: the public route answers the page as an inert HTML document without a bearer,
 // naming no page around it; a malformed token is not even asked about.
 func TestAPublicLinkAnswersAnInertDocument(t *testing.T) {
 	reader := &publicReader{}

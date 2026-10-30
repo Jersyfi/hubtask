@@ -267,7 +267,7 @@ func TestAPagesAccessIsReadAsWrittenAndStaysInItsWorkspace(t *testing.T) {
 	}
 }
 
-// UC-DOC-08 check 5: a public link is found by its token in its own workspace alone, a new one
+// UC-DOC-08 check 4: a public link is found by its token in its own workspace alone, a new one
 // replaces the old, and taking it away leaves nothing to find (migration 0262).
 func TestAPagesPublicLinkIsFoundByItsTokenInItsWorkspaceAlone(t *testing.T) {
 	ctx := context.Background()

@@ -813,7 +813,11 @@ out finds it not there - in the tree, a search, a backlink, a reference, its liv
 restricted page leaves the offline copy (a `DELETE` in the change log, absent from the walk). A
 writer the restriction admits sets it; somebody with MANAGE_MEMBERS on the hub may lift one that
 shuts them out. A `PageShare` opens one page, read-only, to one person beside the hub's
-memberships (UC-DOC-08): granted with MANAGE_MEMBERS, the page alone, never past a restriction. A
+memberships (UC-DOC-08): granted with MANAGE_MEMBERS, the page alone, never past a restriction.
+A `PublicLink` opens one page to anybody holding its token, without signing in, where the
+workspace's `knowledge.public_links` allows it (off by default, lock-able by the installation and
+a plan): one per page, only the token's hash kept, never for a page behind a restriction, read as
+the person who made it at every opening. A
 person's `personal_space` is a private hub of their own made on first use, and a page with
 `daily_for` is its note of a day, one per day (UC-DOC-07).
 

@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// UC-DOC-08 check 5: a public link's token names its tenant, reads back, and never prints itself.
+// UC-DOC-08 check 4: a public link's token names its tenant, reads back, and never prints itself.
 func TestAPageLinkTokenReadsBackAndMasks(t *testing.T) {
 	tenant := shared.ID("0b6f1f9e-3c1d-4f43-9a8e-2b7c5d1e6a40")
 	token, err := NewPageLinkToken(tenant, bytes.Repeat([]byte{7}, PageLinkTokenSecretBytes))

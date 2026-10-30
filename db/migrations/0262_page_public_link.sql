@@ -1,4 +1,4 @@
--- A page opened read-only by a link, without signing in (M3; UC-DOC-08 check 5).
+-- A page opened read-only by a link, without signing in (M3; UC-DOC-08 check 4).
 --
 -- One link per page: a new one replaces the row and the old token stops answering. The token is
 -- never stored - its keyed hash is, unique across the installation, so the unauthenticated route

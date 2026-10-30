@@ -98,7 +98,7 @@ func TestADailyNoteIsForTheReadersToday(t *testing.T) {
 	}
 }
 
-// UC-DOC-08 check 5: a public link is made for an open page and never for one behind a
+// UC-DOC-08 check 4: a public link is made for an open page and never for one behind a
 // restriction; the workspace's switch is off by default and a plan may lock it.
 func TestAPublicLinkIsNeverMadePastARestriction(t *testing.T) {
 	tenant, page, by := shared.ID("t"), shared.ID("p"), shared.ID("a")

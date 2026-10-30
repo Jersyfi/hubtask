@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // Whether the workspace lets a page be opened by a public link (UC-DOC-08 check 5), for somebody
+  // Whether the workspace lets a page be opened by a public link (UC-DOC-08 check 4), for somebody
   // who manages its members. Locked by the installation or the plan, it is shown and not switched.
 
   import { Switch } from '@hubtask/design-system/components';
