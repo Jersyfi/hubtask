@@ -1951,6 +1951,159 @@ func (e CiAlertStatus) Valid() bool {
 	}
 }
 
+// Defines values for CiAssetState.
+const (
+	CiAssetStateDEPLOYED  CiAssetState = "DEPLOYED"
+	CiAssetStateDISPOSED  CiAssetState = "DISPOSED"
+	CiAssetStateINSTOCK   CiAssetState = "IN_STOCK"
+	CiAssetStateORDERED   CiAssetState = "ORDERED"
+	CiAssetStateREQUESTED CiAssetState = "REQUESTED"
+	CiAssetStateRETIRED   CiAssetState = "RETIRED"
+)
+
+// Valid indicates whether the value is a known member of the CiAssetState enum.
+func (e CiAssetState) Valid() bool {
+	switch e {
+	case CiAssetStateDEPLOYED:
+		return true
+	case CiAssetStateDISPOSED:
+		return true
+	case CiAssetStateINSTOCK:
+		return true
+	case CiAssetStateORDERED:
+		return true
+	case CiAssetStateREQUESTED:
+		return true
+	case CiAssetStateRETIRED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiAssetMoveDisposalMethod.
+const (
+	CiAssetMoveDisposalMethodDESTROYED CiAssetMoveDisposalMethod = "DESTROYED"
+	CiAssetMoveDisposalMethodRECYCLED  CiAssetMoveDisposalMethod = "RECYCLED"
+	CiAssetMoveDisposalMethodRETURNED  CiAssetMoveDisposalMethod = "RETURNED"
+	CiAssetMoveDisposalMethodSOLD      CiAssetMoveDisposalMethod = "SOLD"
+	CiAssetMoveDisposalMethodWIPED     CiAssetMoveDisposalMethod = "WIPED"
+)
+
+// Valid indicates whether the value is a known member of the CiAssetMoveDisposalMethod enum.
+func (e CiAssetMoveDisposalMethod) Valid() bool {
+	switch e {
+	case CiAssetMoveDisposalMethodDESTROYED:
+		return true
+	case CiAssetMoveDisposalMethodRECYCLED:
+		return true
+	case CiAssetMoveDisposalMethodRETURNED:
+		return true
+	case CiAssetMoveDisposalMethodSOLD:
+		return true
+	case CiAssetMoveDisposalMethodWIPED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiAssetMoveState.
+const (
+	CiAssetMoveStateDEPLOYED  CiAssetMoveState = "DEPLOYED"
+	CiAssetMoveStateDISPOSED  CiAssetMoveState = "DISPOSED"
+	CiAssetMoveStateINSTOCK   CiAssetMoveState = "IN_STOCK"
+	CiAssetMoveStateORDERED   CiAssetMoveState = "ORDERED"
+	CiAssetMoveStateREQUESTED CiAssetMoveState = "REQUESTED"
+	CiAssetMoveStateRETIRED   CiAssetMoveState = "RETIRED"
+)
+
+// Valid indicates whether the value is a known member of the CiAssetMoveState enum.
+func (e CiAssetMoveState) Valid() bool {
+	switch e {
+	case CiAssetMoveStateDEPLOYED:
+		return true
+	case CiAssetMoveStateDISPOSED:
+		return true
+	case CiAssetMoveStateINSTOCK:
+		return true
+	case CiAssetMoveStateORDERED:
+		return true
+	case CiAssetMoveStateREQUESTED:
+		return true
+	case CiAssetMoveStateRETIRED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiAssetRegisterState.
+const (
+	CiAssetRegisterStateDEPLOYED  CiAssetRegisterState = "DEPLOYED"
+	CiAssetRegisterStateDISPOSED  CiAssetRegisterState = "DISPOSED"
+	CiAssetRegisterStateINSTOCK   CiAssetRegisterState = "IN_STOCK"
+	CiAssetRegisterStateORDERED   CiAssetRegisterState = "ORDERED"
+	CiAssetRegisterStateREQUESTED CiAssetRegisterState = "REQUESTED"
+	CiAssetRegisterStateRETIRED   CiAssetRegisterState = "RETIRED"
+)
+
+// Valid indicates whether the value is a known member of the CiAssetRegisterState enum.
+func (e CiAssetRegisterState) Valid() bool {
+	switch e {
+	case CiAssetRegisterStateDEPLOYED:
+		return true
+	case CiAssetRegisterStateDISPOSED:
+		return true
+	case CiAssetRegisterStateINSTOCK:
+		return true
+	case CiAssetRegisterStateORDERED:
+		return true
+	case CiAssetRegisterStateREQUESTED:
+		return true
+	case CiAssetRegisterStateRETIRED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiAttestVerdict.
+const (
+	CiAttestVerdictCONFIRMED CiAttestVerdict = "CONFIRMED"
+	CiAttestVerdictDISPUTED  CiAttestVerdict = "DISPUTED"
+)
+
+// Valid indicates whether the value is a known member of the CiAttestVerdict enum.
+func (e CiAttestVerdict) Valid() bool {
+	switch e {
+	case CiAttestVerdictCONFIRMED:
+		return true
+	case CiAttestVerdictDISPUTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiAttestationVerdict.
+const (
+	CiAttestationVerdictCONFIRMED CiAttestationVerdict = "CONFIRMED"
+	CiAttestationVerdictDISPUTED  CiAttestationVerdict = "DISPUTED"
+)
+
+// Valid indicates whether the value is a known member of the CiAttestationVerdict enum.
+func (e CiAttestationVerdict) Valid() bool {
+	switch e {
+	case CiAttestationVerdictCONFIRMED:
+		return true
+	case CiAttestationVerdictDISPUTED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CiAttributeKind.
 const (
 	CiAttributeKindACCOUNT CiAttributeKind = "ACCOUNT"
@@ -2047,6 +2200,27 @@ func (e CiBacklinkListDataStrength) Valid() bool {
 	case CiBacklinkListDataStrengthEMBED:
 		return true
 	case CiBacklinkListDataStrengthMENTION:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiCampaignDetailAttestationsVerdict.
+const (
+	CiCampaignDetailAttestationsVerdictCONFIRMED CiCampaignDetailAttestationsVerdict = "CONFIRMED"
+	CiCampaignDetailAttestationsVerdictDISPUTED  CiCampaignDetailAttestationsVerdict = "DISPUTED"
+	CiCampaignDetailAttestationsVerdictPENDING   CiCampaignDetailAttestationsVerdict = "PENDING"
+)
+
+// Valid indicates whether the value is a known member of the CiCampaignDetailAttestationsVerdict enum.
+func (e CiCampaignDetailAttestationsVerdict) Valid() bool {
+	switch e {
+	case CiCampaignDetailAttestationsVerdictCONFIRMED:
+		return true
+	case CiCampaignDetailAttestationsVerdictDISPUTED:
+		return true
+	case CiCampaignDetailAttestationsVerdictPENDING:
 		return true
 	default:
 		return false
@@ -2281,6 +2455,39 @@ func (e CiFileImportFormat) Valid() bool {
 	case CiFileImportFormatJSON:
 		return true
 	case CiFileImportFormatSPDX:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiGroupFilterStages.
+const (
+	CiGroupFilterStagesDISPOSED    CiGroupFilterStages = "DISPOSED"
+	CiGroupFilterStagesINSTOCK     CiGroupFilterStages = "IN_STOCK"
+	CiGroupFilterStagesINUSE       CiGroupFilterStages = "IN_USE"
+	CiGroupFilterStagesMAINTENANCE CiGroupFilterStages = "MAINTENANCE"
+	CiGroupFilterStagesORDERED     CiGroupFilterStages = "ORDERED"
+	CiGroupFilterStagesPLANNED     CiGroupFilterStages = "PLANNED"
+	CiGroupFilterStagesRETIRED     CiGroupFilterStages = "RETIRED"
+)
+
+// Valid indicates whether the value is a known member of the CiGroupFilterStages enum.
+func (e CiGroupFilterStages) Valid() bool {
+	switch e {
+	case CiGroupFilterStagesDISPOSED:
+		return true
+	case CiGroupFilterStagesINSTOCK:
+		return true
+	case CiGroupFilterStagesINUSE:
+		return true
+	case CiGroupFilterStagesMAINTENANCE:
+		return true
+	case CiGroupFilterStagesORDERED:
+		return true
+	case CiGroupFilterStagesPLANNED:
+		return true
+	case CiGroupFilterStagesRETIRED:
 		return true
 	default:
 		return false
@@ -9589,6 +9796,36 @@ func (e CheckInGoalJSONBodyStatus) Valid() bool {
 	}
 }
 
+// Defines values for ListCiAssetsParamsState.
+const (
+	ListCiAssetsParamsStateDEPLOYED  ListCiAssetsParamsState = "DEPLOYED"
+	ListCiAssetsParamsStateDISPOSED  ListCiAssetsParamsState = "DISPOSED"
+	ListCiAssetsParamsStateINSTOCK   ListCiAssetsParamsState = "IN_STOCK"
+	ListCiAssetsParamsStateORDERED   ListCiAssetsParamsState = "ORDERED"
+	ListCiAssetsParamsStateREQUESTED ListCiAssetsParamsState = "REQUESTED"
+	ListCiAssetsParamsStateRETIRED   ListCiAssetsParamsState = "RETIRED"
+)
+
+// Valid indicates whether the value is a known member of the ListCiAssetsParamsState enum.
+func (e ListCiAssetsParamsState) Valid() bool {
+	switch e {
+	case ListCiAssetsParamsStateDEPLOYED:
+		return true
+	case ListCiAssetsParamsStateDISPOSED:
+		return true
+	case ListCiAssetsParamsStateINSTOCK:
+		return true
+	case ListCiAssetsParamsStateORDERED:
+		return true
+	case ListCiAssetsParamsStateREQUESTED:
+		return true
+	case ListCiAssetsParamsStateRETIRED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListCiAlertsParamsStatus.
 const (
 	ListCiAlertsParamsStatusFIRING   ListCiAlertsParamsStatus = "FIRING"
@@ -11909,6 +12146,97 @@ type CiAlertReceipt struct {
 	Unchanged     int `json:"unchanged"`
 }
 
+// CiAsset defines model for CiAsset.
+type CiAsset struct {
+	AssetTag   string              `json:"asset_tag"`
+	AssignedTo *openapi_types.UUID `json:"assigned_to"`
+	CiId       openapi_types.UUID  `json:"ci_id"`
+	Class      *string             `json:"class,omitempty"`
+	ContractId *openapi_types.UUID `json:"contract_id"`
+	CostMinor  int64               `json:"cost_minor"`
+	Currency   string              `json:"currency"`
+	Disposal   *struct {
+		At          time.Time           `json:"at"`
+		By          *openapi_types.UUID `json:"by"`
+		Certificate string              `json:"certificate"`
+		Method      string              `json:"method"`
+	} `json:"disposal"`
+	HubId         openapi_types.UUID  `json:"hub_id"`
+	Name          *string             `json:"name,omitempty"`
+	PurchasedOn   *openapi_types.Date `json:"purchased_on"`
+	RequestId     *openapi_types.UUID `json:"request_id"`
+	State         CiAssetState        `json:"state"`
+	StockroomId   *openapi_types.UUID `json:"stockroom_id"`
+	Supplier      string              `json:"supplier"`
+	UpdatedAt     time.Time           `json:"updated_at"`
+	Version       int                 `json:"version"`
+	WarrantyEnded bool                `json:"warranty_ended"`
+	WarrantyUntil *openapi_types.Date `json:"warranty_until"`
+}
+
+// CiAssetState defines model for CiAsset.State.
+type CiAssetState string
+
+// CiAssetList defines model for CiAssetList.
+type CiAssetList struct {
+	Data []CiAsset `json:"data"`
+}
+
+// CiAssetMove defines model for CiAssetMove.
+type CiAssetMove struct {
+	Disposal *struct {
+		// Certificate The reference of the certificate that proves it.
+		Certificate string                    `json:"certificate"`
+		Method      CiAssetMoveDisposalMethod `json:"method"`
+	} `json:"disposal,omitempty"`
+	State CiAssetMoveState `json:"state"`
+}
+
+// CiAssetMoveDisposalMethod defines model for CiAssetMove.Disposal.Method.
+type CiAssetMoveDisposalMethod string
+
+// CiAssetMoveState defines model for CiAssetMove.State.
+type CiAssetMoveState string
+
+// CiAssetRegister defines model for CiAssetRegister.
+type CiAssetRegister struct {
+	AssetTag      *string               `json:"asset_tag,omitempty"`
+	AssignedTo    *openapi_types.UUID   `json:"assigned_to,omitempty"`
+	ContractId    *openapi_types.UUID   `json:"contract_id,omitempty"`
+	CostMinor     *int64                `json:"cost_minor,omitempty"`
+	Currency      *string               `json:"currency,omitempty"`
+	PurchasedOn   *openapi_types.Date   `json:"purchased_on,omitempty"`
+	RequestId     *openapi_types.UUID   `json:"request_id,omitempty"`
+	State         *CiAssetRegisterState `json:"state,omitempty"`
+	StockroomId   *openapi_types.UUID   `json:"stockroom_id,omitempty"`
+	Supplier      *string               `json:"supplier,omitempty"`
+	WarrantyUntil *openapi_types.Date   `json:"warranty_until,omitempty"`
+}
+
+// CiAssetRegisterState defines model for CiAssetRegister.State.
+type CiAssetRegisterState string
+
+// CiAttest defines model for CiAttest.
+type CiAttest struct {
+	Verdict CiAttestVerdict `json:"verdict"`
+}
+
+// CiAttestVerdict defines model for CiAttest.Verdict.
+type CiAttestVerdict string
+
+// CiAttestation defines model for CiAttestation.
+type CiAttestation struct {
+	AttestedAt time.Time            `json:"attested_at"`
+	AttestedBy openapi_types.UUID   `json:"attested_by"`
+	CampaignId openapi_types.UUID   `json:"campaign_id"`
+	CiId       openapi_types.UUID   `json:"ci_id"`
+	ReviewDue  openapi_types.Date   `json:"review_due"`
+	Verdict    CiAttestationVerdict `json:"verdict"`
+}
+
+// CiAttestationVerdict defines model for CiAttestation.Verdict.
+type CiAttestationVerdict string
+
 // CiAttribute defines model for CiAttribute.
 type CiAttribute struct {
 	Identifier *bool            `json:"identifier,omitempty"`
@@ -11944,6 +12272,86 @@ type CiBacklinkListDataSourceKind string
 
 // CiBacklinkListDataStrength defines model for CiBacklinkList.Data.Strength.
 type CiBacklinkListDataStrength string
+
+// CiCampaign defines model for CiCampaign.
+type CiCampaign struct {
+	Classes      []string            `json:"classes"`
+	ClosedAt     *time.Time          `json:"closed_at"`
+	DueBy        *openapi_types.Date `json:"due_by"`
+	DueOn        openapi_types.Date  `json:"due_on"`
+	HubId        openapi_types.UUID  `json:"hub_id"`
+	Id           openapi_types.UUID  `json:"id"`
+	Name         string              `json:"name"`
+	ReviewMonths int                 `json:"review_months"`
+	Score        struct {
+		Confirmed int `json:"confirmed"`
+		Disputed  int `json:"disputed"`
+
+		// Overdue The pending ones once the due day passed.
+		Overdue int `json:"overdue"`
+		Pending int `json:"pending"`
+
+		// Rate The share answered
+		Rate  float32 `json:"rate"`
+		Total int     `json:"total"`
+	} `json:"score"`
+	StartedAt time.Time          `json:"started_at"`
+	StartedBy openapi_types.UUID `json:"started_by"`
+	Version   int                `json:"version"`
+}
+
+// CiCampaignDetail defines model for CiCampaignDetail.
+type CiCampaignDetail struct {
+	Attestations []struct {
+		AttestedAt *time.Time                          `json:"attested_at"`
+		AttestedBy *openapi_types.UUID                 `json:"attested_by"`
+		CiId       openapi_types.UUID                  `json:"ci_id"`
+		Class      string                              `json:"class"`
+		Name       string                              `json:"name"`
+		OwnerId    *openapi_types.UUID                 `json:"owner_id"`
+		Verdict    CiCampaignDetailAttestationsVerdict `json:"verdict"`
+	} `json:"attestations"`
+	Classes      []string            `json:"classes"`
+	ClosedAt     *time.Time          `json:"closed_at"`
+	DueBy        *openapi_types.Date `json:"due_by"`
+	DueOn        openapi_types.Date  `json:"due_on"`
+	HubId        openapi_types.UUID  `json:"hub_id"`
+	Id           openapi_types.UUID  `json:"id"`
+	Name         string              `json:"name"`
+	ReviewMonths int                 `json:"review_months"`
+	Score        struct {
+		Confirmed int `json:"confirmed"`
+		Disputed  int `json:"disputed"`
+
+		// Overdue The pending ones once the due day passed.
+		Overdue int `json:"overdue"`
+		Pending int `json:"pending"`
+
+		// Rate The share answered
+		Rate  float32 `json:"rate"`
+		Total int     `json:"total"`
+	} `json:"score"`
+	StartedAt time.Time          `json:"started_at"`
+	StartedBy openapi_types.UUID `json:"started_by"`
+	Version   int                `json:"version"`
+}
+
+// CiCampaignDetailAttestationsVerdict defines model for CiCampaignDetail.Attestations.Verdict.
+type CiCampaignDetailAttestationsVerdict string
+
+// CiCampaignList defines model for CiCampaignList.
+type CiCampaignList struct {
+	Data []CiCampaign `json:"data"`
+}
+
+// CiCampaignStart defines model for CiCampaignStart.
+type CiCampaignStart struct {
+	Classes      *[]string           `json:"classes,omitempty"`
+	DueBy        *openapi_types.Date `json:"due_by,omitempty"`
+	DueOn        openapi_types.Date  `json:"due_on"`
+	Name         string              `json:"name"`
+	ReviewMonths *int                `json:"review_months,omitempty"`
+}
 
 // CiClass A configuration item class. A shipped class has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits.
 type CiClass struct {
@@ -12172,6 +12580,55 @@ type CiFileMapping struct {
 	Defaults        *map[string]string `json:"defaults,omitempty"`
 	NameColumn      string             `json:"name_column"`
 	NativeKeyColumn *string            `json:"native_key_column,omitempty"`
+}
+
+// CiGroup defines model for CiGroup.
+type CiGroup struct {
+	Filter CiGroupFilter      `json:"filter"`
+	HubId  openapi_types.UUID `json:"hub_id"`
+	Id     openapi_types.UUID `json:"id"`
+	Key    string             `json:"key"`
+
+	// Members How many CIs it holds now.
+	Members   *int                `json:"members,omitempty"`
+	Name      string              `json:"name"`
+	ServiceId *openapi_types.UUID `json:"service_id"`
+	UpdatedAt time.Time           `json:"updated_at"`
+	Version   int                 `json:"version"`
+}
+
+// CiGroupDefine defines model for CiGroupDefine.
+type CiGroupDefine struct {
+	Filter    CiGroupFilter       `json:"filter"`
+	Name      string              `json:"name"`
+	ServiceId *openapi_types.UUID `json:"service_id,omitempty"`
+}
+
+// CiGroupFilter defines model for CiGroupFilter.
+type CiGroupFilter struct {
+	Attributes *map[string]string     `json:"attributes,omitempty"`
+	Classes    *[]string              `json:"classes,omitempty"`
+	NameHas    *string                `json:"name_has,omitempty"`
+	Stages     *[]CiGroupFilterStages `json:"stages,omitempty"`
+}
+
+// CiGroupFilterStages defines model for CiGroupFilter.Stages.
+type CiGroupFilterStages string
+
+// CiGroupList defines model for CiGroupList.
+type CiGroupList struct {
+	Data []CiGroup `json:"data"`
+}
+
+// CiGroupMembers defines model for CiGroupMembers.
+type CiGroupMembers struct {
+	Data []struct {
+		CiId  openapi_types.UUID `json:"ci_id"`
+		Class string             `json:"class"`
+		Name  string             `json:"name"`
+		Stage string             `json:"stage"`
+	} `json:"data"`
+	Group CiGroup `json:"group"`
 }
 
 // CiHold defines model for CiHold.
@@ -13854,6 +14311,44 @@ type EntriesText struct {
 	Text string `json:"text"`
 }
 
+// EntryCis defines model for EntryCis.
+type EntryCis struct {
+	Cis []struct {
+		AddedAt time.Time          `json:"added_at"`
+		CiId    openapi_types.UUID `json:"ci_id"`
+		Class   string             `json:"class"`
+		HubId   openapi_types.UUID `json:"hub_id"`
+		Name    string             `json:"name"`
+		Stage   string             `json:"stage"`
+	} `json:"cis"`
+
+	// Collisions The entries planned on an affected CI, or one it reaches, in an overlapping window.
+	Collisions []struct {
+		CiId openapi_types.UUID `json:"ci_id"`
+
+		// Direct Both entries name the CI itself.
+		Direct    bool               `json:"direct"`
+		DueAt     *time.Time         `json:"due_at"`
+		EntryType string             `json:"entry_type"`
+		Handle    string             `json:"handle"`
+		ItemId    openapi_types.UUID `json:"item_id"`
+		Number    int64              `json:"number"`
+		StartAt   *time.Time         `json:"start_at"`
+		Title     string             `json:"title"`
+	} `json:"collisions"`
+	ItemId openapi_types.UUID `json:"item_id"`
+
+	// Related The other open entries naming an affected CI or one it reaches.
+	Related []EntryOnCi `json:"related"`
+
+	// Services The active services and offerings the affected CIs' failure reaches.
+	Services []struct {
+		CiId  openapi_types.UUID `json:"ci_id"`
+		Class string             `json:"class"`
+		Name  string             `json:"name"`
+	} `json:"services"`
+}
+
 // EntryEstimate defines model for EntryEstimate.
 type EntryEstimate struct {
 	ItemId openapi_types.UUID `json:"item_id"`
@@ -14086,6 +14581,18 @@ type EntryLinksLinksDependencyKind string
 
 // EntryLinksLinksWaits Which end waits for the other, by the link's type.
 type EntryLinksLinksWaits string
+
+// EntryOnCi defines model for EntryOnCi.
+type EntryOnCi struct {
+	CiId      openapi_types.UUID `json:"ci_id"`
+	DueAt     *time.Time         `json:"due_at"`
+	EntryType string             `json:"entry_type"`
+	Handle    string             `json:"handle"`
+	ItemId    openapi_types.UUID `json:"item_id"`
+	Number    int64              `json:"number"`
+	StartAt   *time.Time         `json:"start_at"`
+	Title     string             `json:"title"`
+}
 
 // EntryScheduling defines model for EntryScheduling.
 type EntryScheduling struct {
@@ -19244,6 +19751,30 @@ type ServiceAccountCreate struct {
 	DisplayName string `json:"display_name"`
 }
 
+// ServiceMap defines model for ServiceMap.
+type ServiceMap struct {
+	Edges []struct {
+		Source openapi_types.UUID `json:"source"`
+		Target openapi_types.UUID `json:"target"`
+
+		// Type A relation type's key, or group:<key> for a group's member.
+		Type string `json:"type"`
+	} `json:"edges"`
+	HubId openapi_types.UUID `json:"hub_id"`
+	Nodes []struct {
+		CiId  openapi_types.UUID `json:"ci_id"`
+		Class string             `json:"class"`
+
+		// Layer 0 offerings, 1 services, 2 application services, 3 software and data, 4 virtual and cloud resources, 5 what they stand on.
+		Layer int    `json:"layer"`
+		Name  string `json:"name"`
+		Stage string `json:"stage"`
+	} `json:"nodes"`
+
+	// Truncated The map stopped at 2000 CIs.
+	Truncated bool `json:"truncated"`
+}
+
 // Session A sign-in somebody can see and revoke. The client hint is what was recorded at sign-in - a user agent and an IP class, enough to recognise one's own devices and deliberately not a precise address.
 type Session struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -19665,6 +20196,53 @@ type SlaReportDataGoal string
 
 // SlaReportDataStanding defines model for SlaReport.Data.Standing.
 type SlaReportDataStanding string
+
+// SoftwareAlias defines model for SoftwareAlias.
+type SoftwareAlias struct {
+	Id             openapi_types.UUID `json:"id"`
+	MatchProduct   string             `json:"match_product"`
+	MatchPublisher string             `json:"match_publisher"`
+	Product        string             `json:"product"`
+	Publisher      string             `json:"publisher"`
+	UpdatedAt      time.Time          `json:"updated_at"`
+	Version        int                `json:"version"`
+}
+
+// SoftwareAliasDefine defines model for SoftwareAliasDefine.
+type SoftwareAliasDefine struct {
+	MatchProduct   string  `json:"match_product"`
+	MatchPublisher *string `json:"match_publisher,omitempty"`
+	Product        string  `json:"product"`
+	Publisher      *string `json:"publisher,omitempty"`
+}
+
+// SoftwareAliasList defines model for SoftwareAliasList.
+type SoftwareAliasList struct {
+	Data []SoftwareAlias `json:"data"`
+}
+
+// SoftwareAliasRemoved defines model for SoftwareAliasRemoved.
+type SoftwareAliasRemoved struct {
+	Id      openapi_types.UUID `json:"id"`
+	Removed bool               `json:"removed"`
+}
+
+// SoftwareProductList defines model for SoftwareProductList.
+type SoftwareProductList struct {
+	Data []struct {
+		// Aliased An alias named it.
+		Aliased       bool                 `json:"aliased"`
+		CiIds         []openapi_types.UUID `json:"ci_ids"`
+		Installations int                  `json:"installations"`
+		Product       string               `json:"product"`
+		Publisher     string               `json:"publisher"`
+		Versions      []struct {
+			Cis           int    `json:"cis"`
+			Installations int    `json:"installations"`
+			Version       string `json:"version"`
+		} `json:"versions"`
+	} `json:"data"`
+}
 
 // SortTerm One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by. A custom field (`custom_fields.<key>`) sorts by its typed value - numbers, amounts and durations as numbers, dates as days, text by its first 256 characters; a field holding several values, a person, a reference or formatted text is not sortable.
 type SortTerm struct {
@@ -22706,8 +23284,26 @@ type DefineBusinessCalendarParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// CloseCiCampaignParams defines parameters for CloseCiCampaign.
+type CloseCiCampaignParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // UpdateCiParams defines parameters for UpdateCi.
 type UpdateCiParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// RegisterCiAssetParams defines parameters for RegisterCiAsset.
+type RegisterCiAssetParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// MoveCiAssetParams defines parameters for MoveCiAsset.
+type MoveCiAssetParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -23170,6 +23766,16 @@ type UpdateGroupParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ListCiAssetsParams defines parameters for ListCiAssets.
+type ListCiAssetsParams struct {
+	State *ListCiAssetsParamsState `form:"state,omitempty" json:"state,omitempty"`
+	After *openapi_types.UUID      `form:"after,omitempty" json:"after,omitempty"`
+	Limit *int                     `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListCiAssetsParamsState defines parameters for ListCiAssets.
+type ListCiAssetsParamsState string
+
 // ListCiAlertsParams defines parameters for ListCiAlerts.
 type ListCiAlertsParams struct {
 	Status *ListCiAlertsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
@@ -23179,9 +23785,20 @@ type ListCiAlertsParams struct {
 // ListCiAlertsParamsStatus defines parameters for ListCiAlerts.
 type ListCiAlertsParamsStatus string
 
+// ListCiCampaignsParams defines parameters for ListCiCampaigns.
+type ListCiCampaignsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // ListCiDuplicatesParams defines parameters for ListCiDuplicates.
 type ListCiDuplicatesParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// DefineCiGroupParams defines parameters for DefineCiGroup.
+type DefineCiGroupParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
 // ListCiHoldsParams defines parameters for ListCiHolds.
@@ -23212,6 +23829,11 @@ type DefineCiConnectorParams struct {
 type ListPagesParams struct {
 	IncludeArchived *bool `form:"include_archived,omitempty" json:"include_archived,omitempty"`
 	Templates       *bool `form:"templates,omitempty" json:"templates,omitempty"`
+}
+
+// ReadServiceMapParams defines parameters for ReadServiceMap.
+type ReadServiceMapParams struct {
+	ServiceId *openapi_types.UUID `form:"service_id,omitempty" json:"service_id,omitempty"`
 }
 
 // ListWhiteboardsParams defines parameters for ListWhiteboards.
@@ -24131,6 +24753,12 @@ type ReportSlaParams struct {
 	To   time.Time `form:"to" json:"to"`
 }
 
+// DefineSoftwareAliasParams defines parameters for DefineSoftwareAlias.
+type DefineSoftwareAliasParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ReadSprintParams defines parameters for ReadSprint.
 type ReadSprintParams struct {
 	// Calendar A business calendar's key.
@@ -24873,6 +25501,9 @@ type StartBackupJSONRequestBody = BackupStart
 // DefineBusinessCalendarJSONRequestBody defines body for DefineBusinessCalendar for application/json ContentType.
 type DefineBusinessCalendarJSONRequestBody = BusinessCalendarDefine
 
+// AttestCiJSONRequestBody defines body for AttestCi for application/json ContentType.
+type AttestCiJSONRequestBody = CiAttest
+
 // ResolveCiDuplicateJSONRequestBody defines body for ResolveCiDuplicate for application/json ContentType.
 type ResolveCiDuplicateJSONRequestBody = CiDuplicateResolve
 
@@ -24881,6 +25512,12 @@ type RelateCisJSONRequestBody = CiRelate
 
 // UpdateCiJSONRequestBody defines body for UpdateCi for application/json ContentType.
 type UpdateCiJSONRequestBody = ConfigurationItemUpdate
+
+// RegisterCiAssetJSONRequestBody defines body for RegisterCiAsset for application/json ContentType.
+type RegisterCiAssetJSONRequestBody = CiAssetRegister
+
+// MoveCiAssetJSONRequestBody defines body for MoveCiAsset for application/json ContentType.
+type MoveCiAssetJSONRequestBody = CiAssetMove
 
 // SetCiComplianceJSONRequestBody defines body for SetCiCompliance for application/json ContentType.
 type SetCiComplianceJSONRequestBody = CiCompliance
@@ -25043,6 +25680,12 @@ type CreateGroupJSONRequestBody = GroupCreate
 
 // UpdateGroupApplicationMergePatchPlusJSONRequestBody defines body for UpdateGroup for application/merge-patch+json ContentType.
 type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
+
+// StartCiCampaignJSONRequestBody defines body for StartCiCampaign for application/json ContentType.
+type StartCiCampaignJSONRequestBody = CiCampaignStart
+
+// DefineCiGroupJSONRequestBody defines body for DefineCiGroup for application/json ContentType.
+type DefineCiGroupJSONRequestBody = CiGroupDefine
 
 // CreateCiJSONRequestBody defines body for CreateCi for application/json ContentType.
 type CreateCiJSONRequestBody = ConfigurationItemCreate
@@ -25406,6 +26049,9 @@ type SearchItemsJSONRequestBody = ItemSearchQuery
 
 // DefineSlaPolicyJSONRequestBody defines body for DefineSlaPolicy for application/json ContentType.
 type DefineSlaPolicyJSONRequestBody = SlaPolicyDefine
+
+// DefineSoftwareAliasJSONRequestBody defines body for DefineSoftwareAlias for application/json ContentType.
+type DefineSoftwareAliasJSONRequestBody = SoftwareAliasDefine
 
 // UpdateSprintJSONRequestBody defines body for UpdateSprint for application/json ContentType.
 type UpdateSprintJSONRequestBody UpdateSprintJSONBody
@@ -26570,9 +27216,21 @@ type ServerInterface interface {
 
 	// (GET /calendar/{token}.ics)
 	GetCalendarFeedDocument(w http.ResponseWriter, r *http.Request, token string)
+	// ReadCiCampaign A certification campaign with every CI asked
+	// (GET /ci-campaigns/{campaignId})
+	ReadCiCampaign(w http.ResponseWriter, r *http.Request, campaignId openapi_types.UUID)
+	// AttestCi Answer a campaign's question about a configuration item
+	// (PUT /ci-campaigns/{campaignId}/cis/{ciId})
+	AttestCi(w http.ResponseWriter, r *http.Request, campaignId openapi_types.UUID, ciId openapi_types.UUID)
+	// CloseCiCampaign Stop a campaign taking answers
+	// (POST /ci-campaigns/{campaignId}:close)
+	CloseCiCampaign(w http.ResponseWriter, r *http.Request, campaignId openapi_types.UUID, params CloseCiCampaignParams)
 	// ResolveCiDuplicate Merge a duplicate or call it distinct
 	// (POST /ci-duplicates/{duplicateId}:resolve)
 	ResolveCiDuplicate(w http.ResponseWriter, r *http.Request, duplicateId openapi_types.UUID)
+	// ListCiGroupMembers The configuration items a group holds now
+	// (GET /ci-groups/{groupId}/members)
+	ListCiGroupMembers(w http.ResponseWriter, r *http.Request, groupId openapi_types.UUID)
 	// DismissCiHold Close a held item
 	// (POST /ci-holds/{holdId}:dismiss)
 	DismissCiHold(w http.ResponseWriter, r *http.Request, holdId openapi_types.UUID)
@@ -26591,6 +27249,15 @@ type ServerInterface interface {
 	// UpdateCi Change a configuration item by hand
 	// (PATCH /cis/{ciId})
 	UpdateCi(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params UpdateCiParams)
+	// ReadCiAsset A configuration item's asset record
+	// (GET /cis/{ciId}/asset)
+	ReadCiAsset(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID)
+	// RegisterCiAsset Write a configuration item's asset record
+	// (PUT /cis/{ciId}/asset)
+	RegisterCiAsset(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params RegisterCiAssetParams)
+	// MoveCiAsset Move an asset through its life
+	// (POST /cis/{ciId}/asset:move)
+	MoveCiAsset(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params MoveCiAssetParams)
 	// ListCiBacklinks What points at a configuration item
 	// (GET /cis/{ciId}/backlinks)
 	ListCiBacklinks(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID)
@@ -26897,12 +27564,27 @@ type ServerInterface interface {
 	// UpdateGroup Rename a group or change its description
 	// (PATCH /groups/{groupId})
 	UpdateGroup(w http.ResponseWriter, r *http.Request, groupId GroupId, params UpdateGroupParams)
+	// ListCiAssets A hub's asset register
+	// (GET /hubs/{hubId}/assets)
+	ListCiAssets(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiAssetsParams)
 	// ListCiAlerts A hub's alerts
 	// (GET /hubs/{hubId}/ci-alerts)
 	ListCiAlerts(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiAlertsParams)
+	// ListCiCampaigns A hub's certification campaigns
+	// (GET /hubs/{hubId}/ci-campaigns)
+	ListCiCampaigns(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiCampaignsParams)
+	// StartCiCampaign Ask the owners of a hub's CIs to attest them
+	// (POST /hubs/{hubId}/ci-campaigns)
+	StartCiCampaign(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ListCiDuplicates Open duplicates
 	// (GET /hubs/{hubId}/ci-duplicates)
 	ListCiDuplicates(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiDuplicatesParams)
+	// ListCiGroups A hub's CI groups
+	// (GET /hubs/{hubId}/ci-groups)
+	ListCiGroups(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// DefineCiGroup Define or change a CI group by its key
+	// (PUT /hubs/{hubId}/ci-groups/{groupKey})
+	DefineCiGroup(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, groupKey string, params DefineCiGroupParams)
 	// ListCiHolds Items held for review
 	// (GET /hubs/{hubId}/ci-holds)
 	ListCiHolds(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiHoldsParams)
@@ -26936,6 +27618,12 @@ type ServerInterface interface {
 	// CreatePage Write a new page
 	// (POST /hubs/{hubId}/pages)
 	CreatePage(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// ReadServiceMap A hub's service map
+	// (GET /hubs/{hubId}/service-map)
+	ReadServiceMap(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ReadServiceMapParams)
+	// ListSoftwareProducts A hub's software, normalised
+	// (GET /hubs/{hubId}/software)
+	ListSoftwareProducts(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ListTrashedPages A hub's trashed pages
 	// (GET /hubs/{hubId}/trashed-pages)
 	ListTrashedPages(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
@@ -27044,6 +27732,15 @@ type ServerInterface interface {
 
 	// (PUT /items/{itemId}/attachments/{mediaId})
 	AttachMedia(w http.ResponseWriter, r *http.Request, itemId ItemId, mediaId MediaId)
+	// ListEntryCis The configuration items an entry names as affected
+	// (GET /items/{itemId}/cis)
+	ListEntryCis(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID)
+	// UnaffectEntryCi Remove a configuration item from an entry's affected ones
+	// (DELETE /items/{itemId}/cis/{ciId})
+	UnaffectEntryCi(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID, ciId openapi_types.UUID)
+	// AffectEntryCi Name a configuration item as affected by an entry
+	// (PUT /items/{itemId}/cis/{ciId})
+	AffectEntryCi(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID, ciId openapi_types.UUID)
 
 	// (GET /items/{itemId}/comments)
 	ListComments(w http.ResponseWriter, r *http.Request, itemId ItemId, params ListCommentsParams)
@@ -27722,6 +28419,15 @@ type ServerInterface interface {
 	// ReportSla How the SLA goals of a period stood
 	// (GET /sla-report)
 	ReportSla(w http.ResponseWriter, r *http.Request, params ReportSlaParams)
+	// ListSoftwareAliases The workspace's software aliases
+	// (GET /software-aliases)
+	ListSoftwareAliases(w http.ResponseWriter, r *http.Request)
+	// DefineSoftwareAlias Count what installations report as one product
+	// (POST /software-aliases)
+	DefineSoftwareAlias(w http.ResponseWriter, r *http.Request, params DefineSoftwareAliasParams)
+	// RemoveSoftwareAlias Remove a software alias
+	// (DELETE /software-aliases/{aliasId})
+	RemoveSoftwareAlias(w http.ResponseWriter, r *http.Request, aliasId openapi_types.UUID)
 	// DeleteSprint Delete a planned sprint
 	// (DELETE /sprints/{sprintId})
 	DeleteSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId)
@@ -33983,6 +34689,117 @@ func (siw *ServerInterfaceWrapper) GetCalendarFeedDocument(w http.ResponseWriter
 	handler.ServeHTTP(w, r)
 }
 
+// ReadCiCampaign operation middleware
+func (siw *ServerInterfaceWrapper) ReadCiCampaign(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "campaignId" -------------
+	var campaignId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "campaignId", r.PathValue("campaignId"), &campaignId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "campaignId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadCiCampaign(w, r, campaignId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AttestCi operation middleware
+func (siw *ServerInterfaceWrapper) AttestCi(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "campaignId" -------------
+	var campaignId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "campaignId", r.PathValue("campaignId"), &campaignId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "campaignId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AttestCi(w, r, campaignId, ciId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CloseCiCampaign operation middleware
+func (siw *ServerInterfaceWrapper) CloseCiCampaign(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "campaignId" -------------
+	var campaignId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "campaignId", r.PathValue("campaignId"), &campaignId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "campaignId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CloseCiCampaignParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CloseCiCampaign(w, r, campaignId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ResolveCiDuplicate operation middleware
 func (siw *ServerInterfaceWrapper) ResolveCiDuplicate(w http.ResponseWriter, r *http.Request) {
 
@@ -34000,6 +34817,32 @@ func (siw *ServerInterfaceWrapper) ResolveCiDuplicate(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ResolveCiDuplicate(w, r, duplicateId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCiGroupMembers operation middleware
+func (siw *ServerInterfaceWrapper) ListCiGroupMembers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "groupId" -------------
+	var groupId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupId", r.PathValue("groupId"), &groupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiGroupMembers(w, r, groupId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -34168,6 +35011,132 @@ func (siw *ServerInterfaceWrapper) UpdateCi(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateCi(w, r, ciId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadCiAsset operation middleware
+func (siw *ServerInterfaceWrapper) ReadCiAsset(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadCiAsset(w, r, ciId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RegisterCiAsset operation middleware
+func (siw *ServerInterfaceWrapper) RegisterCiAsset(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RegisterCiAssetParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RegisterCiAsset(w, r, ciId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MoveCiAsset operation middleware
+func (siw *ServerInterfaceWrapper) MoveCiAsset(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params MoveCiAssetParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MoveCiAsset(w, r, ciId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -38097,6 +39066,74 @@ func (siw *ServerInterfaceWrapper) UpdateGroup(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// ListCiAssets operation middleware
+func (siw *ServerInterfaceWrapper) ListCiAssets(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCiAssetsParams
+
+	// ------------- Optional query parameter "state" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "state", r.URL.Query(), &params.State, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "after" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "after", r.URL.Query(), &params.After, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "after"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "after", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiAssets(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListCiAlerts operation middleware
 func (siw *ServerInterfaceWrapper) ListCiAlerts(w http.ResponseWriter, r *http.Request) {
 
@@ -38152,6 +39189,74 @@ func (siw *ServerInterfaceWrapper) ListCiAlerts(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// ListCiCampaigns operation middleware
+func (siw *ServerInterfaceWrapper) ListCiCampaigns(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCiCampaignsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiCampaigns(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartCiCampaign operation middleware
+func (siw *ServerInterfaceWrapper) StartCiCampaign(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartCiCampaign(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListCiDuplicates operation middleware
 func (siw *ServerInterfaceWrapper) ListCiDuplicates(w http.ResponseWriter, r *http.Request) {
 
@@ -38185,6 +39290,91 @@ func (siw *ServerInterfaceWrapper) ListCiDuplicates(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListCiDuplicates(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCiGroups operation middleware
+func (siw *ServerInterfaceWrapper) ListCiGroups(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiGroups(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DefineCiGroup operation middleware
+func (siw *ServerInterfaceWrapper) DefineCiGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "groupKey" -------------
+	var groupKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupKey", r.PathValue("groupKey"), &groupKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupKey", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DefineCiGroupParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DefineCiGroup(w, r, hubId, groupKey, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -38620,6 +39810,74 @@ func (siw *ServerInterfaceWrapper) CreatePage(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreatePage(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadServiceMap operation middleware
+func (siw *ServerInterfaceWrapper) ReadServiceMap(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReadServiceMapParams
+
+	// ------------- Optional query parameter "service_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "service_id", r.URL.Query(), &params.ServiceId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "service_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "service_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadServiceMap(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSoftwareProducts operation middleware
+func (siw *ServerInterfaceWrapper) ListSoftwareProducts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSoftwareProducts(w, r, hubId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -40002,6 +41260,102 @@ func (siw *ServerInterfaceWrapper) AttachMedia(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AttachMedia(w, r, itemId, mediaId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListEntryCis operation middleware
+func (siw *ServerInterfaceWrapper) ListEntryCis(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEntryCis(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnaffectEntryCi operation middleware
+func (siw *ServerInterfaceWrapper) UnaffectEntryCi(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnaffectEntryCi(w, r, itemId, ciId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AffectEntryCi operation middleware
+func (siw *ServerInterfaceWrapper) AffectEntryCi(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AffectEntryCi(w, r, itemId, ciId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -47710,6 +49064,87 @@ func (siw *ServerInterfaceWrapper) ReportSla(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// ListSoftwareAliases operation middleware
+func (siw *ServerInterfaceWrapper) ListSoftwareAliases(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSoftwareAliases(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DefineSoftwareAlias operation middleware
+func (siw *ServerInterfaceWrapper) DefineSoftwareAlias(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DefineSoftwareAliasParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DefineSoftwareAlias(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveSoftwareAlias operation middleware
+func (siw *ServerInterfaceWrapper) RemoveSoftwareAlias(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "aliasId" -------------
+	var aliasId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "aliasId", r.PathValue("aliasId"), &aliasId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "aliasId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveSoftwareAlias(w, r, aliasId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DeleteSprint operation middleware
 func (siw *ServerInterfaceWrapper) DeleteSprint(w http.ResponseWriter, r *http.Request) {
 
@@ -51264,6 +52699,26 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/cis/{ciId}/compliance", wrapper.SetCiCompliance)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/impact", wrapper.ReadCiImpact)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/backlinks", wrapper.ListCiBacklinks)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/cis", wrapper.ListEntryCis)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/cis/{ciId}", wrapper.UnaffectEntryCi)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/cis/{ciId}", wrapper.AffectEntryCi)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/ci-campaigns", wrapper.ListCiCampaigns)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/ci-campaigns", wrapper.StartCiCampaign)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ci-campaigns/{campaignId}", wrapper.ReadCiCampaign)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/ci-campaigns/{campaignId}:close", wrapper.CloseCiCampaign)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ci-campaigns/{campaignId}/cis/{ciId}", wrapper.AttestCi)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/ci-groups", wrapper.ListCiGroups)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/hubs/{hubId}/ci-groups/{groupKey}", wrapper.DefineCiGroup)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ci-groups/{groupId}/members", wrapper.ListCiGroupMembers)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/service-map", wrapper.ReadServiceMap)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/assets", wrapper.ListCiAssets)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/asset", wrapper.ReadCiAsset)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/cis/{ciId}/asset", wrapper.RegisterCiAsset)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/cis/{ciId}/asset:move", wrapper.MoveCiAsset)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/software-aliases", wrapper.ListSoftwareAliases)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/software-aliases", wrapper.DefineSoftwareAlias)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/software-aliases/{aliasId}", wrapper.RemoveSoftwareAlias)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/software", wrapper.ListSoftwareProducts)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/ci-relations", wrapper.RelateCis)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/ci-relations/{relationId}", wrapper.UnrelateCis)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/templates", wrapper.ListTemplates)

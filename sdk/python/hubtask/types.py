@@ -5635,6 +5635,175 @@ CiDuplicateResolved = TypedDict("CiDuplicateResolved", {
     "version": int,
 }, total=False)
 
+class EntryCis(TypedDict, total=False):
+    item_id: Required[str]
+    cis: Required[list[dict[str, Any]]]
+    services: Required[list[dict[str, Any]]]
+    related: Required[list["EntryOnCi"]]
+    collisions: Required[list["EntryOnCi"]]
+
+class EntryOnCi(TypedDict, total=False):
+    item_id: Required[str]
+    title: Required[str]
+    handle: Required[str]
+    number: Required[int]
+    entry_type: Required[str]
+    ci_id: Required[str]
+    start_at: Required[str | None]
+    due_at: Required[str | None]
+
+class CiCampaignStart(TypedDict, total=False):
+    name: Required[str]
+    classes: list[str]
+    due_by: str
+    due_on: Required[str]
+    review_months: int
+
+class CiCampaign(TypedDict, total=False):
+    id: Required[str]
+    hub_id: Required[str]
+    name: Required[str]
+    classes: Required[list[str]]
+    due_by: Required[str | None]
+    due_on: Required[str]
+    review_months: Required[int]
+    started_by: Required[str]
+    started_at: Required[str]
+    closed_at: Required[str | None]
+    version: Required[int]
+    score: Required[dict[str, Any]]
+
+class CiCampaignList(TypedDict, total=False):
+    data: Required[list["CiCampaign"]]
+
+class CiCampaignDetail(TypedDict, total=False):
+    id: Required[str]
+    hub_id: Required[str]
+    name: Required[str]
+    classes: Required[list[str]]
+    due_by: Required[str | None]
+    due_on: Required[str]
+    review_months: Required[int]
+    started_by: Required[str]
+    started_at: Required[str]
+    closed_at: Required[str | None]
+    version: Required[int]
+    score: Required[dict[str, Any]]
+    attestations: Required[list[dict[str, Any]]]
+
+class CiAttest(TypedDict, total=False):
+    verdict: Required[Literal["CONFIRMED", "DISPUTED"]]
+
+class CiAttestation(TypedDict, total=False):
+    campaign_id: Required[str]
+    ci_id: Required[str]
+    verdict: Required[Literal["CONFIRMED", "DISPUTED"]]
+    attested_by: Required[str]
+    attested_at: Required[str]
+    review_due: Required[str]
+
+class CiGroupFilter(TypedDict, total=False):
+    classes: list[str]
+    stages: list[Literal["PLANNED", "ORDERED", "IN_STOCK", "IN_USE", "MAINTENANCE", "RETIRED", "DISPOSED"]]
+    name_has: str
+    attributes: dict[str, Any]
+
+class CiGroupDefine(TypedDict, total=False):
+    name: Required[str]
+    filter: Required["CiGroupFilter"]
+    service_id: str | None
+
+class CiGroup(TypedDict, total=False):
+    id: Required[str]
+    hub_id: Required[str]
+    key: Required[str]
+    name: Required[str]
+    filter: Required["CiGroupFilter"]
+    service_id: Required[str | None]
+    updated_at: Required[str]
+    version: Required[int]
+    members: int
+
+class CiGroupList(TypedDict, total=False):
+    data: Required[list["CiGroup"]]
+
+class CiGroupMembers(TypedDict, total=False):
+    group: Required["CiGroup"]
+    data: Required[list[dict[str, Any]]]
+
+class ServiceMap(TypedDict, total=False):
+    hub_id: Required[str]
+    nodes: Required[list[dict[str, Any]]]
+    edges: Required[list[dict[str, Any]]]
+    truncated: Required[bool]
+
+class CiAssetRegister(TypedDict, total=False):
+    asset_tag: str
+    cost_minor: int
+    currency: str
+    purchased_on: str | None
+    supplier: str
+    warranty_until: str | None
+    contract_id: str | None
+    stockroom_id: str | None
+    assigned_to: str | None
+    request_id: str | None
+    state: Literal["REQUESTED", "ORDERED", "IN_STOCK", "DEPLOYED", "RETIRED", "DISPOSED"]
+
+class CiAssetMove(TypedDict, total=False):
+    state: Required[Literal["REQUESTED", "ORDERED", "IN_STOCK", "DEPLOYED", "RETIRED", "DISPOSED"]]
+    disposal: dict[str, Any]
+
+CiAsset = TypedDict("CiAsset", {
+    "ci_id": Required[str],
+    "hub_id": Required[str],
+    "name": str,
+    "class": str,
+    "asset_tag": Required[str],
+    "cost_minor": Required[int],
+    "currency": Required[str],
+    "purchased_on": Required[str | None],
+    "supplier": Required[str],
+    "warranty_until": Required[str | None],
+    "warranty_ended": Required[bool],
+    "contract_id": Required[str | None],
+    "stockroom_id": Required[str | None],
+    "assigned_to": Required[str | None],
+    "request_id": Required[str | None],
+    "state": Required[Literal["REQUESTED", "ORDERED", "IN_STOCK", "DEPLOYED", "RETIRED", "DISPOSED"]],
+    "disposal": Required[dict[str, Any] | None],
+    "updated_at": Required[str],
+    "version": Required[int],
+}, total=False)
+
+class CiAssetList(TypedDict, total=False):
+    data: Required[list["CiAsset"]]
+
+class SoftwareAliasDefine(TypedDict, total=False):
+    match_publisher: str
+    match_product: Required[str]
+    publisher: str
+    product: Required[str]
+
+class SoftwareAlias(TypedDict, total=False):
+    id: Required[str]
+    match_publisher: Required[str]
+    match_product: Required[str]
+    publisher: Required[str]
+    product: Required[str]
+    updated_at: Required[str]
+    version: Required[int]
+
+class SoftwareAliasList(TypedDict, total=False):
+    data: Required[list["SoftwareAlias"]]
+
+class SoftwareAliasRemoved(TypedDict, total=False):
+    id: Required[str]
+    removed: Required[bool]
+
+class SoftwareProductList(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
+
 class CiRelate(TypedDict, total=False):
     source_ci_id: Required[str]
     target_ci_id: Required[str]

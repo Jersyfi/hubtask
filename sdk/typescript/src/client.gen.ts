@@ -948,6 +948,106 @@ export class HubtaskClient {
     return this.call("GET", "/cis/{ciId}/backlinks", { "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** The configuration items an entry names as affected */
+  listEntryCis(itemId: string, options: CallOptions = {}): Promise<operations["listEntryCis"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/items/{itemId}/cis", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Name a configuration item as affected by an entry */
+  affectEntryCi(itemId: string, ciId: string, options: CallOptions = {}): Promise<operations["affectEntryCi"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/items/{itemId}/cis/{ciId}", { "itemId": itemId, "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Remove a configuration item from an entry's affected ones */
+  unaffectEntryCi(itemId: string, ciId: string, options: CallOptions = {}): Promise<operations["unaffectEntryCi"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/items/{itemId}/cis/{ciId}", { "itemId": itemId, "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** A hub's certification campaigns */
+  listCiCampaigns(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listCiCampaigns"]['parameters']['query']> } = {}): Promise<operations["listCiCampaigns"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/ci-campaigns", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Ask the owners of a hub's CIs to attest them */
+  startCiCampaign(hubId: string, body: NonNullable<operations["startCiCampaign"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["startCiCampaign"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/hubs/{hubId}/ci-campaigns", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** A certification campaign with every CI asked */
+  readCiCampaign(campaignId: string, options: CallOptions = {}): Promise<operations["readCiCampaign"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/ci-campaigns/{campaignId}", { "campaignId": campaignId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Stop a campaign taking answers */
+  closeCiCampaign(campaignId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["closeCiCampaign"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/ci-campaigns/{campaignId}:close", { "campaignId": campaignId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Answer a campaign's question about a configuration item */
+  attestCi(campaignId: string, ciId: string, body: NonNullable<operations["attestCi"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["attestCi"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/ci-campaigns/{campaignId}/cis/{ciId}", { "campaignId": campaignId, "ciId": ciId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** A hub's CI groups */
+  listCiGroups(hubId: string, options: CallOptions = {}): Promise<operations["listCiGroups"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/ci-groups", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Define or change a CI group by its key */
+  defineCiGroup(hubId: string, groupKey: string, body: NonNullable<operations["defineCiGroup"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["defineCiGroup"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/hubs/{hubId}/ci-groups/{groupKey}", { "hubId": hubId, "groupKey": groupKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The configuration items a group holds now */
+  listCiGroupMembers(groupId: string, options: CallOptions = {}): Promise<operations["listCiGroupMembers"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/ci-groups/{groupId}/members", { "groupId": groupId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** A hub's service map */
+  readServiceMap(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["readServiceMap"]['parameters']['query']> } = {}): Promise<operations["readServiceMap"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/service-map", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** A hub's asset register */
+  listCiAssets(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listCiAssets"]['parameters']['query']> } = {}): Promise<operations["listCiAssets"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/assets", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** A configuration item's asset record */
+  readCiAsset(ciId: string, options: CallOptions = {}): Promise<operations["readCiAsset"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/cis/{ciId}/asset", { "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Write a configuration item's asset record */
+  registerCiAsset(ciId: string, body: NonNullable<operations["registerCiAsset"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["registerCiAsset"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/cis/{ciId}/asset", { "ciId": ciId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Move an asset through its life */
+  moveCiAsset(ciId: string, body: NonNullable<operations["moveCiAsset"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["moveCiAsset"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/cis/{ciId}/asset:move", { "ciId": ciId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The workspace's software aliases */
+  listSoftwareAliases(options: CallOptions = {}): Promise<operations["listSoftwareAliases"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/software-aliases", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Count what installations report as one product */
+  defineSoftwareAlias(body: NonNullable<operations["defineSoftwareAlias"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["defineSoftwareAlias"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/software-aliases", {  }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove a software alias */
+  removeSoftwareAlias(aliasId: string, options: CallOptions = {}): Promise<operations["removeSoftwareAlias"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/software-aliases/{aliasId}", { "aliasId": aliasId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** A hub's software, normalised */
+  listSoftwareProducts(hubId: string, options: CallOptions = {}): Promise<operations["listSoftwareProducts"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/software", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Join two configuration items */
   relateCis(body: NonNullable<operations["relateCis"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["relateCis"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/ci-relations", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);

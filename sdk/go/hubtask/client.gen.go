@@ -1956,6 +1956,159 @@ func (e CiAlertStatus) Valid() bool {
 	}
 }
 
+// Defines values for CiAssetState.
+const (
+	CiAssetStateDEPLOYED  CiAssetState = "DEPLOYED"
+	CiAssetStateDISPOSED  CiAssetState = "DISPOSED"
+	CiAssetStateINSTOCK   CiAssetState = "IN_STOCK"
+	CiAssetStateORDERED   CiAssetState = "ORDERED"
+	CiAssetStateREQUESTED CiAssetState = "REQUESTED"
+	CiAssetStateRETIRED   CiAssetState = "RETIRED"
+)
+
+// Valid indicates whether the value is a known member of the CiAssetState enum.
+func (e CiAssetState) Valid() bool {
+	switch e {
+	case CiAssetStateDEPLOYED:
+		return true
+	case CiAssetStateDISPOSED:
+		return true
+	case CiAssetStateINSTOCK:
+		return true
+	case CiAssetStateORDERED:
+		return true
+	case CiAssetStateREQUESTED:
+		return true
+	case CiAssetStateRETIRED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiAssetMoveDisposalMethod.
+const (
+	CiAssetMoveDisposalMethodDESTROYED CiAssetMoveDisposalMethod = "DESTROYED"
+	CiAssetMoveDisposalMethodRECYCLED  CiAssetMoveDisposalMethod = "RECYCLED"
+	CiAssetMoveDisposalMethodRETURNED  CiAssetMoveDisposalMethod = "RETURNED"
+	CiAssetMoveDisposalMethodSOLD      CiAssetMoveDisposalMethod = "SOLD"
+	CiAssetMoveDisposalMethodWIPED     CiAssetMoveDisposalMethod = "WIPED"
+)
+
+// Valid indicates whether the value is a known member of the CiAssetMoveDisposalMethod enum.
+func (e CiAssetMoveDisposalMethod) Valid() bool {
+	switch e {
+	case CiAssetMoveDisposalMethodDESTROYED:
+		return true
+	case CiAssetMoveDisposalMethodRECYCLED:
+		return true
+	case CiAssetMoveDisposalMethodRETURNED:
+		return true
+	case CiAssetMoveDisposalMethodSOLD:
+		return true
+	case CiAssetMoveDisposalMethodWIPED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiAssetMoveState.
+const (
+	CiAssetMoveStateDEPLOYED  CiAssetMoveState = "DEPLOYED"
+	CiAssetMoveStateDISPOSED  CiAssetMoveState = "DISPOSED"
+	CiAssetMoveStateINSTOCK   CiAssetMoveState = "IN_STOCK"
+	CiAssetMoveStateORDERED   CiAssetMoveState = "ORDERED"
+	CiAssetMoveStateREQUESTED CiAssetMoveState = "REQUESTED"
+	CiAssetMoveStateRETIRED   CiAssetMoveState = "RETIRED"
+)
+
+// Valid indicates whether the value is a known member of the CiAssetMoveState enum.
+func (e CiAssetMoveState) Valid() bool {
+	switch e {
+	case CiAssetMoveStateDEPLOYED:
+		return true
+	case CiAssetMoveStateDISPOSED:
+		return true
+	case CiAssetMoveStateINSTOCK:
+		return true
+	case CiAssetMoveStateORDERED:
+		return true
+	case CiAssetMoveStateREQUESTED:
+		return true
+	case CiAssetMoveStateRETIRED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiAssetRegisterState.
+const (
+	CiAssetRegisterStateDEPLOYED  CiAssetRegisterState = "DEPLOYED"
+	CiAssetRegisterStateDISPOSED  CiAssetRegisterState = "DISPOSED"
+	CiAssetRegisterStateINSTOCK   CiAssetRegisterState = "IN_STOCK"
+	CiAssetRegisterStateORDERED   CiAssetRegisterState = "ORDERED"
+	CiAssetRegisterStateREQUESTED CiAssetRegisterState = "REQUESTED"
+	CiAssetRegisterStateRETIRED   CiAssetRegisterState = "RETIRED"
+)
+
+// Valid indicates whether the value is a known member of the CiAssetRegisterState enum.
+func (e CiAssetRegisterState) Valid() bool {
+	switch e {
+	case CiAssetRegisterStateDEPLOYED:
+		return true
+	case CiAssetRegisterStateDISPOSED:
+		return true
+	case CiAssetRegisterStateINSTOCK:
+		return true
+	case CiAssetRegisterStateORDERED:
+		return true
+	case CiAssetRegisterStateREQUESTED:
+		return true
+	case CiAssetRegisterStateRETIRED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiAttestVerdict.
+const (
+	CiAttestVerdictCONFIRMED CiAttestVerdict = "CONFIRMED"
+	CiAttestVerdictDISPUTED  CiAttestVerdict = "DISPUTED"
+)
+
+// Valid indicates whether the value is a known member of the CiAttestVerdict enum.
+func (e CiAttestVerdict) Valid() bool {
+	switch e {
+	case CiAttestVerdictCONFIRMED:
+		return true
+	case CiAttestVerdictDISPUTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiAttestationVerdict.
+const (
+	CiAttestationVerdictCONFIRMED CiAttestationVerdict = "CONFIRMED"
+	CiAttestationVerdictDISPUTED  CiAttestationVerdict = "DISPUTED"
+)
+
+// Valid indicates whether the value is a known member of the CiAttestationVerdict enum.
+func (e CiAttestationVerdict) Valid() bool {
+	switch e {
+	case CiAttestationVerdictCONFIRMED:
+		return true
+	case CiAttestationVerdictDISPUTED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CiAttributeKind.
 const (
 	CiAttributeKindACCOUNT CiAttributeKind = "ACCOUNT"
@@ -2052,6 +2205,27 @@ func (e CiBacklinkListDataStrength) Valid() bool {
 	case CiBacklinkListDataStrengthEMBED:
 		return true
 	case CiBacklinkListDataStrengthMENTION:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiCampaignDetailAttestationsVerdict.
+const (
+	CiCampaignDetailAttestationsVerdictCONFIRMED CiCampaignDetailAttestationsVerdict = "CONFIRMED"
+	CiCampaignDetailAttestationsVerdictDISPUTED  CiCampaignDetailAttestationsVerdict = "DISPUTED"
+	CiCampaignDetailAttestationsVerdictPENDING   CiCampaignDetailAttestationsVerdict = "PENDING"
+)
+
+// Valid indicates whether the value is a known member of the CiCampaignDetailAttestationsVerdict enum.
+func (e CiCampaignDetailAttestationsVerdict) Valid() bool {
+	switch e {
+	case CiCampaignDetailAttestationsVerdictCONFIRMED:
+		return true
+	case CiCampaignDetailAttestationsVerdictDISPUTED:
+		return true
+	case CiCampaignDetailAttestationsVerdictPENDING:
 		return true
 	default:
 		return false
@@ -2286,6 +2460,39 @@ func (e CiFileImportFormat) Valid() bool {
 	case CiFileImportFormatJSON:
 		return true
 	case CiFileImportFormatSPDX:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiGroupFilterStages.
+const (
+	CiGroupFilterStagesDISPOSED    CiGroupFilterStages = "DISPOSED"
+	CiGroupFilterStagesINSTOCK     CiGroupFilterStages = "IN_STOCK"
+	CiGroupFilterStagesINUSE       CiGroupFilterStages = "IN_USE"
+	CiGroupFilterStagesMAINTENANCE CiGroupFilterStages = "MAINTENANCE"
+	CiGroupFilterStagesORDERED     CiGroupFilterStages = "ORDERED"
+	CiGroupFilterStagesPLANNED     CiGroupFilterStages = "PLANNED"
+	CiGroupFilterStagesRETIRED     CiGroupFilterStages = "RETIRED"
+)
+
+// Valid indicates whether the value is a known member of the CiGroupFilterStages enum.
+func (e CiGroupFilterStages) Valid() bool {
+	switch e {
+	case CiGroupFilterStagesDISPOSED:
+		return true
+	case CiGroupFilterStagesINSTOCK:
+		return true
+	case CiGroupFilterStagesINUSE:
+		return true
+	case CiGroupFilterStagesMAINTENANCE:
+		return true
+	case CiGroupFilterStagesORDERED:
+		return true
+	case CiGroupFilterStagesPLANNED:
+		return true
+	case CiGroupFilterStagesRETIRED:
 		return true
 	default:
 		return false
@@ -9594,6 +9801,36 @@ func (e CheckInGoalJSONBodyStatus) Valid() bool {
 	}
 }
 
+// Defines values for ListCiAssetsParamsState.
+const (
+	ListCiAssetsParamsStateDEPLOYED  ListCiAssetsParamsState = "DEPLOYED"
+	ListCiAssetsParamsStateDISPOSED  ListCiAssetsParamsState = "DISPOSED"
+	ListCiAssetsParamsStateINSTOCK   ListCiAssetsParamsState = "IN_STOCK"
+	ListCiAssetsParamsStateORDERED   ListCiAssetsParamsState = "ORDERED"
+	ListCiAssetsParamsStateREQUESTED ListCiAssetsParamsState = "REQUESTED"
+	ListCiAssetsParamsStateRETIRED   ListCiAssetsParamsState = "RETIRED"
+)
+
+// Valid indicates whether the value is a known member of the ListCiAssetsParamsState enum.
+func (e ListCiAssetsParamsState) Valid() bool {
+	switch e {
+	case ListCiAssetsParamsStateDEPLOYED:
+		return true
+	case ListCiAssetsParamsStateDISPOSED:
+		return true
+	case ListCiAssetsParamsStateINSTOCK:
+		return true
+	case ListCiAssetsParamsStateORDERED:
+		return true
+	case ListCiAssetsParamsStateREQUESTED:
+		return true
+	case ListCiAssetsParamsStateRETIRED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListCiAlertsParamsStatus.
 const (
 	ListCiAlertsParamsStatusFIRING   ListCiAlertsParamsStatus = "FIRING"
@@ -11914,6 +12151,97 @@ type CiAlertReceipt struct {
 	Unchanged     int `json:"unchanged"`
 }
 
+// CiAsset defines model for CiAsset.
+type CiAsset struct {
+	AssetTag   string              `json:"asset_tag"`
+	AssignedTo *openapi_types.UUID `json:"assigned_to"`
+	CiId       openapi_types.UUID  `json:"ci_id"`
+	Class      *string             `json:"class,omitempty"`
+	ContractId *openapi_types.UUID `json:"contract_id"`
+	CostMinor  int64               `json:"cost_minor"`
+	Currency   string              `json:"currency"`
+	Disposal   *struct {
+		At          time.Time           `json:"at"`
+		By          *openapi_types.UUID `json:"by"`
+		Certificate string              `json:"certificate"`
+		Method      string              `json:"method"`
+	} `json:"disposal"`
+	HubId         openapi_types.UUID  `json:"hub_id"`
+	Name          *string             `json:"name,omitempty"`
+	PurchasedOn   *openapi_types.Date `json:"purchased_on"`
+	RequestId     *openapi_types.UUID `json:"request_id"`
+	State         CiAssetState        `json:"state"`
+	StockroomId   *openapi_types.UUID `json:"stockroom_id"`
+	Supplier      string              `json:"supplier"`
+	UpdatedAt     time.Time           `json:"updated_at"`
+	Version       int                 `json:"version"`
+	WarrantyEnded bool                `json:"warranty_ended"`
+	WarrantyUntil *openapi_types.Date `json:"warranty_until"`
+}
+
+// CiAssetState defines model for CiAsset.State.
+type CiAssetState string
+
+// CiAssetList defines model for CiAssetList.
+type CiAssetList struct {
+	Data []CiAsset `json:"data"`
+}
+
+// CiAssetMove defines model for CiAssetMove.
+type CiAssetMove struct {
+	Disposal *struct {
+		// Certificate The reference of the certificate that proves it.
+		Certificate string                    `json:"certificate"`
+		Method      CiAssetMoveDisposalMethod `json:"method"`
+	} `json:"disposal,omitempty"`
+	State CiAssetMoveState `json:"state"`
+}
+
+// CiAssetMoveDisposalMethod defines model for CiAssetMove.Disposal.Method.
+type CiAssetMoveDisposalMethod string
+
+// CiAssetMoveState defines model for CiAssetMove.State.
+type CiAssetMoveState string
+
+// CiAssetRegister defines model for CiAssetRegister.
+type CiAssetRegister struct {
+	AssetTag      *string               `json:"asset_tag,omitempty"`
+	AssignedTo    *openapi_types.UUID   `json:"assigned_to,omitempty"`
+	ContractId    *openapi_types.UUID   `json:"contract_id,omitempty"`
+	CostMinor     *int64                `json:"cost_minor,omitempty"`
+	Currency      *string               `json:"currency,omitempty"`
+	PurchasedOn   *openapi_types.Date   `json:"purchased_on,omitempty"`
+	RequestId     *openapi_types.UUID   `json:"request_id,omitempty"`
+	State         *CiAssetRegisterState `json:"state,omitempty"`
+	StockroomId   *openapi_types.UUID   `json:"stockroom_id,omitempty"`
+	Supplier      *string               `json:"supplier,omitempty"`
+	WarrantyUntil *openapi_types.Date   `json:"warranty_until,omitempty"`
+}
+
+// CiAssetRegisterState defines model for CiAssetRegister.State.
+type CiAssetRegisterState string
+
+// CiAttest defines model for CiAttest.
+type CiAttest struct {
+	Verdict CiAttestVerdict `json:"verdict"`
+}
+
+// CiAttestVerdict defines model for CiAttest.Verdict.
+type CiAttestVerdict string
+
+// CiAttestation defines model for CiAttestation.
+type CiAttestation struct {
+	AttestedAt time.Time            `json:"attested_at"`
+	AttestedBy openapi_types.UUID   `json:"attested_by"`
+	CampaignId openapi_types.UUID   `json:"campaign_id"`
+	CiId       openapi_types.UUID   `json:"ci_id"`
+	ReviewDue  openapi_types.Date   `json:"review_due"`
+	Verdict    CiAttestationVerdict `json:"verdict"`
+}
+
+// CiAttestationVerdict defines model for CiAttestation.Verdict.
+type CiAttestationVerdict string
+
 // CiAttribute defines model for CiAttribute.
 type CiAttribute struct {
 	Identifier *bool            `json:"identifier,omitempty"`
@@ -11949,6 +12277,86 @@ type CiBacklinkListDataSourceKind string
 
 // CiBacklinkListDataStrength defines model for CiBacklinkList.Data.Strength.
 type CiBacklinkListDataStrength string
+
+// CiCampaign defines model for CiCampaign.
+type CiCampaign struct {
+	Classes      []string            `json:"classes"`
+	ClosedAt     *time.Time          `json:"closed_at"`
+	DueBy        *openapi_types.Date `json:"due_by"`
+	DueOn        openapi_types.Date  `json:"due_on"`
+	HubId        openapi_types.UUID  `json:"hub_id"`
+	Id           openapi_types.UUID  `json:"id"`
+	Name         string              `json:"name"`
+	ReviewMonths int                 `json:"review_months"`
+	Score        struct {
+		Confirmed int `json:"confirmed"`
+		Disputed  int `json:"disputed"`
+
+		// Overdue The pending ones once the due day passed.
+		Overdue int `json:"overdue"`
+		Pending int `json:"pending"`
+
+		// Rate The share answered
+		Rate  float32 `json:"rate"`
+		Total int     `json:"total"`
+	} `json:"score"`
+	StartedAt time.Time          `json:"started_at"`
+	StartedBy openapi_types.UUID `json:"started_by"`
+	Version   int                `json:"version"`
+}
+
+// CiCampaignDetail defines model for CiCampaignDetail.
+type CiCampaignDetail struct {
+	Attestations []struct {
+		AttestedAt *time.Time                          `json:"attested_at"`
+		AttestedBy *openapi_types.UUID                 `json:"attested_by"`
+		CiId       openapi_types.UUID                  `json:"ci_id"`
+		Class      string                              `json:"class"`
+		Name       string                              `json:"name"`
+		OwnerId    *openapi_types.UUID                 `json:"owner_id"`
+		Verdict    CiCampaignDetailAttestationsVerdict `json:"verdict"`
+	} `json:"attestations"`
+	Classes      []string            `json:"classes"`
+	ClosedAt     *time.Time          `json:"closed_at"`
+	DueBy        *openapi_types.Date `json:"due_by"`
+	DueOn        openapi_types.Date  `json:"due_on"`
+	HubId        openapi_types.UUID  `json:"hub_id"`
+	Id           openapi_types.UUID  `json:"id"`
+	Name         string              `json:"name"`
+	ReviewMonths int                 `json:"review_months"`
+	Score        struct {
+		Confirmed int `json:"confirmed"`
+		Disputed  int `json:"disputed"`
+
+		// Overdue The pending ones once the due day passed.
+		Overdue int `json:"overdue"`
+		Pending int `json:"pending"`
+
+		// Rate The share answered
+		Rate  float32 `json:"rate"`
+		Total int     `json:"total"`
+	} `json:"score"`
+	StartedAt time.Time          `json:"started_at"`
+	StartedBy openapi_types.UUID `json:"started_by"`
+	Version   int                `json:"version"`
+}
+
+// CiCampaignDetailAttestationsVerdict defines model for CiCampaignDetail.Attestations.Verdict.
+type CiCampaignDetailAttestationsVerdict string
+
+// CiCampaignList defines model for CiCampaignList.
+type CiCampaignList struct {
+	Data []CiCampaign `json:"data"`
+}
+
+// CiCampaignStart defines model for CiCampaignStart.
+type CiCampaignStart struct {
+	Classes      *[]string           `json:"classes,omitempty"`
+	DueBy        *openapi_types.Date `json:"due_by,omitempty"`
+	DueOn        openapi_types.Date  `json:"due_on"`
+	Name         string              `json:"name"`
+	ReviewMonths *int                `json:"review_months,omitempty"`
+}
 
 // CiClass A configuration item class. A shipped class has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits.
 type CiClass struct {
@@ -12177,6 +12585,55 @@ type CiFileMapping struct {
 	Defaults        *map[string]string `json:"defaults,omitempty"`
 	NameColumn      string             `json:"name_column"`
 	NativeKeyColumn *string            `json:"native_key_column,omitempty"`
+}
+
+// CiGroup defines model for CiGroup.
+type CiGroup struct {
+	Filter CiGroupFilter      `json:"filter"`
+	HubId  openapi_types.UUID `json:"hub_id"`
+	Id     openapi_types.UUID `json:"id"`
+	Key    string             `json:"key"`
+
+	// Members How many CIs it holds now.
+	Members   *int                `json:"members,omitempty"`
+	Name      string              `json:"name"`
+	ServiceId *openapi_types.UUID `json:"service_id"`
+	UpdatedAt time.Time           `json:"updated_at"`
+	Version   int                 `json:"version"`
+}
+
+// CiGroupDefine defines model for CiGroupDefine.
+type CiGroupDefine struct {
+	Filter    CiGroupFilter       `json:"filter"`
+	Name      string              `json:"name"`
+	ServiceId *openapi_types.UUID `json:"service_id,omitempty"`
+}
+
+// CiGroupFilter defines model for CiGroupFilter.
+type CiGroupFilter struct {
+	Attributes *map[string]string     `json:"attributes,omitempty"`
+	Classes    *[]string              `json:"classes,omitempty"`
+	NameHas    *string                `json:"name_has,omitempty"`
+	Stages     *[]CiGroupFilterStages `json:"stages,omitempty"`
+}
+
+// CiGroupFilterStages defines model for CiGroupFilter.Stages.
+type CiGroupFilterStages string
+
+// CiGroupList defines model for CiGroupList.
+type CiGroupList struct {
+	Data []CiGroup `json:"data"`
+}
+
+// CiGroupMembers defines model for CiGroupMembers.
+type CiGroupMembers struct {
+	Data []struct {
+		CiId  openapi_types.UUID `json:"ci_id"`
+		Class string             `json:"class"`
+		Name  string             `json:"name"`
+		Stage string             `json:"stage"`
+	} `json:"data"`
+	Group CiGroup `json:"group"`
 }
 
 // CiHold defines model for CiHold.
@@ -13859,6 +14316,44 @@ type EntriesText struct {
 	Text string `json:"text"`
 }
 
+// EntryCis defines model for EntryCis.
+type EntryCis struct {
+	Cis []struct {
+		AddedAt time.Time          `json:"added_at"`
+		CiId    openapi_types.UUID `json:"ci_id"`
+		Class   string             `json:"class"`
+		HubId   openapi_types.UUID `json:"hub_id"`
+		Name    string             `json:"name"`
+		Stage   string             `json:"stage"`
+	} `json:"cis"`
+
+	// Collisions The entries planned on an affected CI, or one it reaches, in an overlapping window.
+	Collisions []struct {
+		CiId openapi_types.UUID `json:"ci_id"`
+
+		// Direct Both entries name the CI itself.
+		Direct    bool               `json:"direct"`
+		DueAt     *time.Time         `json:"due_at"`
+		EntryType string             `json:"entry_type"`
+		Handle    string             `json:"handle"`
+		ItemId    openapi_types.UUID `json:"item_id"`
+		Number    int64              `json:"number"`
+		StartAt   *time.Time         `json:"start_at"`
+		Title     string             `json:"title"`
+	} `json:"collisions"`
+	ItemId openapi_types.UUID `json:"item_id"`
+
+	// Related The other open entries naming an affected CI or one it reaches.
+	Related []EntryOnCi `json:"related"`
+
+	// Services The active services and offerings the affected CIs' failure reaches.
+	Services []struct {
+		CiId  openapi_types.UUID `json:"ci_id"`
+		Class string             `json:"class"`
+		Name  string             `json:"name"`
+	} `json:"services"`
+}
+
 // EntryEstimate defines model for EntryEstimate.
 type EntryEstimate struct {
 	ItemId openapi_types.UUID `json:"item_id"`
@@ -14091,6 +14586,18 @@ type EntryLinksLinksDependencyKind string
 
 // EntryLinksLinksWaits Which end waits for the other, by the link's type.
 type EntryLinksLinksWaits string
+
+// EntryOnCi defines model for EntryOnCi.
+type EntryOnCi struct {
+	CiId      openapi_types.UUID `json:"ci_id"`
+	DueAt     *time.Time         `json:"due_at"`
+	EntryType string             `json:"entry_type"`
+	Handle    string             `json:"handle"`
+	ItemId    openapi_types.UUID `json:"item_id"`
+	Number    int64              `json:"number"`
+	StartAt   *time.Time         `json:"start_at"`
+	Title     string             `json:"title"`
+}
 
 // EntryScheduling defines model for EntryScheduling.
 type EntryScheduling struct {
@@ -19249,6 +19756,30 @@ type ServiceAccountCreate struct {
 	DisplayName string `json:"display_name"`
 }
 
+// ServiceMap defines model for ServiceMap.
+type ServiceMap struct {
+	Edges []struct {
+		Source openapi_types.UUID `json:"source"`
+		Target openapi_types.UUID `json:"target"`
+
+		// Type A relation type's key, or group:<key> for a group's member.
+		Type string `json:"type"`
+	} `json:"edges"`
+	HubId openapi_types.UUID `json:"hub_id"`
+	Nodes []struct {
+		CiId  openapi_types.UUID `json:"ci_id"`
+		Class string             `json:"class"`
+
+		// Layer 0 offerings, 1 services, 2 application services, 3 software and data, 4 virtual and cloud resources, 5 what they stand on.
+		Layer int    `json:"layer"`
+		Name  string `json:"name"`
+		Stage string `json:"stage"`
+	} `json:"nodes"`
+
+	// Truncated The map stopped at 2000 CIs.
+	Truncated bool `json:"truncated"`
+}
+
 // Session A sign-in somebody can see and revoke. The client hint is what was recorded at sign-in - a user agent and an IP class, enough to recognise one's own devices and deliberately not a precise address.
 type Session struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -19670,6 +20201,53 @@ type SlaReportDataGoal string
 
 // SlaReportDataStanding defines model for SlaReport.Data.Standing.
 type SlaReportDataStanding string
+
+// SoftwareAlias defines model for SoftwareAlias.
+type SoftwareAlias struct {
+	Id             openapi_types.UUID `json:"id"`
+	MatchProduct   string             `json:"match_product"`
+	MatchPublisher string             `json:"match_publisher"`
+	Product        string             `json:"product"`
+	Publisher      string             `json:"publisher"`
+	UpdatedAt      time.Time          `json:"updated_at"`
+	Version        int                `json:"version"`
+}
+
+// SoftwareAliasDefine defines model for SoftwareAliasDefine.
+type SoftwareAliasDefine struct {
+	MatchProduct   string  `json:"match_product"`
+	MatchPublisher *string `json:"match_publisher,omitempty"`
+	Product        string  `json:"product"`
+	Publisher      *string `json:"publisher,omitempty"`
+}
+
+// SoftwareAliasList defines model for SoftwareAliasList.
+type SoftwareAliasList struct {
+	Data []SoftwareAlias `json:"data"`
+}
+
+// SoftwareAliasRemoved defines model for SoftwareAliasRemoved.
+type SoftwareAliasRemoved struct {
+	Id      openapi_types.UUID `json:"id"`
+	Removed bool               `json:"removed"`
+}
+
+// SoftwareProductList defines model for SoftwareProductList.
+type SoftwareProductList struct {
+	Data []struct {
+		// Aliased An alias named it.
+		Aliased       bool                 `json:"aliased"`
+		CiIds         []openapi_types.UUID `json:"ci_ids"`
+		Installations int                  `json:"installations"`
+		Product       string               `json:"product"`
+		Publisher     string               `json:"publisher"`
+		Versions      []struct {
+			Cis           int    `json:"cis"`
+			Installations int    `json:"installations"`
+			Version       string `json:"version"`
+		} `json:"versions"`
+	} `json:"data"`
+}
 
 // SortTerm One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by. A custom field (`custom_fields.<key>`) sorts by its typed value - numbers, amounts and durations as numbers, dates as days, text by its first 256 characters; a field holding several values, a person, a reference or formatted text is not sortable.
 type SortTerm struct {
@@ -22711,8 +23289,26 @@ type DefineBusinessCalendarParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// CloseCiCampaignParams defines parameters for CloseCiCampaign.
+type CloseCiCampaignParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // UpdateCiParams defines parameters for UpdateCi.
 type UpdateCiParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// RegisterCiAssetParams defines parameters for RegisterCiAsset.
+type RegisterCiAssetParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// MoveCiAssetParams defines parameters for MoveCiAsset.
+type MoveCiAssetParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -23175,6 +23771,16 @@ type UpdateGroupParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ListCiAssetsParams defines parameters for ListCiAssets.
+type ListCiAssetsParams struct {
+	State *ListCiAssetsParamsState `form:"state,omitempty" json:"state,omitempty"`
+	After *openapi_types.UUID      `form:"after,omitempty" json:"after,omitempty"`
+	Limit *int                     `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListCiAssetsParamsState defines parameters for ListCiAssets.
+type ListCiAssetsParamsState string
+
 // ListCiAlertsParams defines parameters for ListCiAlerts.
 type ListCiAlertsParams struct {
 	Status *ListCiAlertsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
@@ -23184,9 +23790,20 @@ type ListCiAlertsParams struct {
 // ListCiAlertsParamsStatus defines parameters for ListCiAlerts.
 type ListCiAlertsParamsStatus string
 
+// ListCiCampaignsParams defines parameters for ListCiCampaigns.
+type ListCiCampaignsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // ListCiDuplicatesParams defines parameters for ListCiDuplicates.
 type ListCiDuplicatesParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// DefineCiGroupParams defines parameters for DefineCiGroup.
+type DefineCiGroupParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
 // ListCiHoldsParams defines parameters for ListCiHolds.
@@ -23217,6 +23834,11 @@ type DefineCiConnectorParams struct {
 type ListPagesParams struct {
 	IncludeArchived *bool `form:"include_archived,omitempty" json:"include_archived,omitempty"`
 	Templates       *bool `form:"templates,omitempty" json:"templates,omitempty"`
+}
+
+// ReadServiceMapParams defines parameters for ReadServiceMap.
+type ReadServiceMapParams struct {
+	ServiceId *openapi_types.UUID `form:"service_id,omitempty" json:"service_id,omitempty"`
 }
 
 // ListWhiteboardsParams defines parameters for ListWhiteboards.
@@ -24136,6 +24758,12 @@ type ReportSlaParams struct {
 	To   time.Time `form:"to" json:"to"`
 }
 
+// DefineSoftwareAliasParams defines parameters for DefineSoftwareAlias.
+type DefineSoftwareAliasParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ReadSprintParams defines parameters for ReadSprint.
 type ReadSprintParams struct {
 	// Calendar A business calendar's key.
@@ -24878,6 +25506,9 @@ type StartBackupJSONRequestBody = BackupStart
 // DefineBusinessCalendarJSONRequestBody defines body for DefineBusinessCalendar for application/json ContentType.
 type DefineBusinessCalendarJSONRequestBody = BusinessCalendarDefine
 
+// AttestCiJSONRequestBody defines body for AttestCi for application/json ContentType.
+type AttestCiJSONRequestBody = CiAttest
+
 // ResolveCiDuplicateJSONRequestBody defines body for ResolveCiDuplicate for application/json ContentType.
 type ResolveCiDuplicateJSONRequestBody = CiDuplicateResolve
 
@@ -24886,6 +25517,12 @@ type RelateCisJSONRequestBody = CiRelate
 
 // UpdateCiJSONRequestBody defines body for UpdateCi for application/json ContentType.
 type UpdateCiJSONRequestBody = ConfigurationItemUpdate
+
+// RegisterCiAssetJSONRequestBody defines body for RegisterCiAsset for application/json ContentType.
+type RegisterCiAssetJSONRequestBody = CiAssetRegister
+
+// MoveCiAssetJSONRequestBody defines body for MoveCiAsset for application/json ContentType.
+type MoveCiAssetJSONRequestBody = CiAssetMove
 
 // SetCiComplianceJSONRequestBody defines body for SetCiCompliance for application/json ContentType.
 type SetCiComplianceJSONRequestBody = CiCompliance
@@ -25048,6 +25685,12 @@ type CreateGroupJSONRequestBody = GroupCreate
 
 // UpdateGroupApplicationMergePatchPlusJSONRequestBody defines body for UpdateGroup for application/merge-patch+json ContentType.
 type UpdateGroupApplicationMergePatchPlusJSONRequestBody = GroupUpdate
+
+// StartCiCampaignJSONRequestBody defines body for StartCiCampaign for application/json ContentType.
+type StartCiCampaignJSONRequestBody = CiCampaignStart
+
+// DefineCiGroupJSONRequestBody defines body for DefineCiGroup for application/json ContentType.
+type DefineCiGroupJSONRequestBody = CiGroupDefine
 
 // CreateCiJSONRequestBody defines body for CreateCi for application/json ContentType.
 type CreateCiJSONRequestBody = ConfigurationItemCreate
@@ -25411,6 +26054,9 @@ type SearchItemsJSONRequestBody = ItemSearchQuery
 
 // DefineSlaPolicyJSONRequestBody defines body for DefineSlaPolicy for application/json ContentType.
 type DefineSlaPolicyJSONRequestBody = SlaPolicyDefine
+
+// DefineSoftwareAliasJSONRequestBody defines body for DefineSoftwareAlias for application/json ContentType.
+type DefineSoftwareAliasJSONRequestBody = SoftwareAliasDefine
 
 // UpdateSprintJSONRequestBody defines body for UpdateSprint for application/json ContentType.
 type UpdateSprintJSONRequestBody UpdateSprintJSONBody
@@ -29120,6 +29766,38 @@ type ClientInterface interface {
 	// An unknown token, a revoked one, a feed whose view has been deleted and a feed whose owner has lost the view all answer the same 404 with the same body. Distinguishing them would answer questions to whoever is trying tokens.
 	GetCalendarFeedDocument(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ReadCiCampaign A certification campaign with every CI asked
+	//
+	// Its score and each CI's verdict, who gave it and when. Needs READ on the hub.
+	//
+	// Corresponds with GET /ci-campaigns/{campaignId} (the `ReadCiCampaign` operationId).
+	ReadCiCampaign(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AttestCiWithBody Answer a campaign's question about a configuration item
+	//
+	// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /ci-campaigns/{campaignId}/cis/{ciId} (the `AttestCi` operationId).
+	AttestCiWithBody(ctx context.Context, campaignId openapi_types.UUID, ciId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AttestCi Answer a campaign's question about a configuration item
+	//
+	// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /ci-campaigns/{campaignId}/cis/{ciId} (the `AttestCi` operationId).
+	AttestCi(ctx context.Context, campaignId openapi_types.UUID, ciId openapi_types.UUID, body AttestCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CloseCiCampaign Stop a campaign taking answers
+	//
+	// Its score stays as it stood. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with POST /ci-campaigns/{campaignId}:close (the `CloseCiCampaign` operationId).
+	CloseCiCampaign(ctx context.Context, campaignId openapi_types.UUID, params *CloseCiCampaignParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ResolveCiDuplicateWithBody Merge a duplicate or call it distinct
 	//
 	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
@@ -29137,6 +29815,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /ci-duplicates/{duplicateId}:resolve (the `ResolveCiDuplicate` operationId).
 	ResolveCiDuplicate(ctx context.Context, duplicateId openapi_types.UUID, body ResolveCiDuplicateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCiGroupMembers The configuration items a group holds now
+	//
+	// Needs READ on the hub.
+	//
+	// Corresponds with GET /ci-groups/{groupId}/members (the `ListCiGroupMembers` operationId).
+	ListCiGroupMembers(ctx context.Context, groupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DismissCiHold Close a held item
 	//
@@ -29201,6 +29886,49 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
 	UpdateCi(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, body UpdateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadCiAsset A configuration item's asset record
+	//
+	// Not found when it has none. Needs READ on the hub.
+	//
+	// Corresponds with GET /cis/{ciId}/asset (the `ReadCiAsset` operationId).
+	ReadCiAsset(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RegisterCiAssetWithBody Write a configuration item's asset record
+	//
+	// Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /cis/{ciId}/asset (the `RegisterCiAsset` operationId).
+	RegisterCiAssetWithBody(ctx context.Context, ciId openapi_types.UUID, params *RegisterCiAssetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RegisterCiAsset Write a configuration item's asset record
+	//
+	// Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /cis/{ciId}/asset (the `RegisterCiAsset` operationId).
+	RegisterCiAsset(ctx context.Context, ciId openapi_types.UUID, params *RegisterCiAssetParams, body RegisterCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MoveCiAssetWithBody Move an asset through its life
+	//
+	// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
+	MoveCiAssetWithBody(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MoveCiAsset Move an asset through its life
+	//
+	// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
+	MoveCiAsset(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, body MoveCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListCiBacklinks What points at a configuration item
 	//
@@ -30404,6 +31132,13 @@ type ClientInterface interface {
 	// Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
 	UpdateGroupWithApplicationMergePatchPlusJSONBody(ctx context.Context, groupId GroupId, params *UpdateGroupParams, body UpdateGroupApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListCiAssets A hub's asset register
+	//
+	// In CI order after a cursor, narrowed to a state when given. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/assets (the `ListCiAssets` operationId).
+	ListCiAssets(ctx context.Context, hubId openapi_types.UUID, params *ListCiAssetsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListCiAlerts A hub's alerts
 	//
 	// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
@@ -30411,12 +31146,62 @@ type ClientInterface interface {
 	// Corresponds with GET /hubs/{hubId}/ci-alerts (the `ListCiAlerts` operationId).
 	ListCiAlerts(ctx context.Context, hubId openapi_types.UUID, params *ListCiAlertsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListCiCampaigns A hub's certification campaigns
+	//
+	// The latest first, each with its score. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/ci-campaigns (the `ListCiCampaigns` operationId).
+	ListCiCampaigns(ctx context.Context, hubId openapi_types.UUID, params *ListCiCampaignsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartCiCampaignWithBody Ask the owners of a hub's CIs to attest them
+	//
+	// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/ci-campaigns (the `StartCiCampaign` operationId).
+	StartCiCampaignWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartCiCampaign Ask the owners of a hub's CIs to attest them
+	//
+	// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/ci-campaigns (the `StartCiCampaign` operationId).
+	StartCiCampaign(ctx context.Context, hubId openapi_types.UUID, body StartCiCampaignJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListCiDuplicates Open duplicates
 	//
 	// Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-duplicates (the `ListCiDuplicates` operationId).
 	ListCiDuplicates(ctx context.Context, hubId openapi_types.UUID, params *ListCiDuplicatesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCiGroups A hub's CI groups
+	//
+	// Each with how many CIs it holds now. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/ci-groups (the `ListCiGroups` operationId).
+	ListCiGroups(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineCiGroupWithBody Define or change a CI group by its key
+	//
+	// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /hubs/{hubId}/ci-groups/{groupKey} (the `DefineCiGroup` operationId).
+	DefineCiGroupWithBody(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DefineCiGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineCiGroup Define or change a CI group by its key
+	//
+	// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /hubs/{hubId}/ci-groups/{groupKey} (the `DefineCiGroup` operationId).
+	DefineCiGroup(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DefineCiGroupParams, body DefineCiGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListCiHolds Items held for review
 	//
@@ -30549,6 +31334,20 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
 	CreatePage(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadServiceMap A hub's service map
+	//
+	// Its active services and offerings, everything whose failure they suffer and the members of the groups standing for them, in layers, with the relations carrying impact between them. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/service-map (the `ReadServiceMap` operationId).
+	ReadServiceMap(ctx context.Context, hubId openapi_types.UUID, params *ReadServiceMapParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListSoftwareProducts A hub's software, normalised
+	//
+	// Its software CIs grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/software (the `ListSoftwareProducts` operationId).
+	ListSoftwareProducts(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListTrashedPages A hub's trashed pages
 	//
@@ -30989,6 +31788,27 @@ type ClientInterface interface {
 	//
 	// Attaches a media object to the entry. Idempotent: an entry that already carries it succeeds. The object has to be READY, of usage ATTACHMENT and of this workspace, and the entry's type has to carry the ATTACHMENTS capability - an activity does not. Attaching raises the object's reference count; the bytes are shared, never copied.
 	AttachMedia(ctx context.Context, itemId ItemId, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListEntryCis The configuration items an entry names as affected
+	//
+	// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or a CI they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
+	//
+	// Corresponds with GET /items/{itemId}/cis (the `ListEntryCis` operationId).
+	ListEntryCis(ctx context.Context, itemId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UnaffectEntryCi Remove a configuration item from an entry's affected ones
+	//
+	// Needs WRITE_ITEMS on the entry.
+	//
+	// Corresponds with DELETE /items/{itemId}/cis/{ciId} (the `UnaffectEntryCi` operationId).
+	UnaffectEntryCi(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AffectEntryCi Name a configuration item as affected by an entry
+	//
+	// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the CI's hub.
+	//
+	// Corresponds with PUT /items/{itemId}/cis/{ciId} (the `AffectEntryCi` operationId).
+	AffectEntryCi(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListComments performs a GET /items/{itemId}/comments (the `ListComments` operationId) request.
 	ListComments(ctx context.Context, itemId ItemId, params *ListCommentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -33913,6 +34733,38 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /sla-report (the `ReportSla` operationId).
 	ReportSla(ctx context.Context, params *ReportSlaParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListSoftwareAliases The workspace's software aliases
+	//
+	// Needs READ on the workspace.
+	//
+	// Corresponds with GET /software-aliases (the `ListSoftwareAliases` operationId).
+	ListSoftwareAliases(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineSoftwareAliasWithBody Count what installations report as one product
+	//
+	// A product - and a publisher, or any when empty - as reported, folded, and the publisher and product it is counted as; the alias of the same match is changed. Needs STRUCTURE on the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /software-aliases (the `DefineSoftwareAlias` operationId).
+	DefineSoftwareAliasWithBody(ctx context.Context, params *DefineSoftwareAliasParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineSoftwareAlias Count what installations report as one product
+	//
+	// A product - and a publisher, or any when empty - as reported, folded, and the publisher and product it is counted as; the alias of the same match is changed. Needs STRUCTURE on the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /software-aliases (the `DefineSoftwareAlias` operationId).
+	DefineSoftwareAlias(ctx context.Context, params *DefineSoftwareAliasParams, body DefineSoftwareAliasJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveSoftwareAlias Remove a software alias
+	//
+	// What it matched is counted by its own folded names again. Needs STRUCTURE on the workspace.
+	//
+	// Corresponds with DELETE /software-aliases/{aliasId} (the `RemoveSoftwareAlias` operationId).
+	RemoveSoftwareAlias(ctx context.Context, aliasId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteSprint Delete a planned sprint
 	//
@@ -41305,6 +42157,78 @@ func (c *Client) GetCalendarFeedDocument(ctx context.Context, token string, reqE
 	return c.Client.Do(req)
 }
 
+// ReadCiCampaign A certification campaign with every CI asked
+//
+// Its score and each CI's verdict, who gave it and when. Needs READ on the hub.
+//
+// Corresponds with GET /ci-campaigns/{campaignId} (the `ReadCiCampaign` operationId).
+func (c *Client) ReadCiCampaign(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadCiCampaignRequest(c.Server, campaignId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AttestCiWithBody Answer a campaign's question about a configuration item
+//
+// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /ci-campaigns/{campaignId}/cis/{ciId} (the `AttestCi` operationId).
+func (c *Client) AttestCiWithBody(ctx context.Context, campaignId openapi_types.UUID, ciId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAttestCiRequestWithBody(c.Server, campaignId, ciId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AttestCi Answer a campaign's question about a configuration item
+//
+// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /ci-campaigns/{campaignId}/cis/{ciId} (the `AttestCi` operationId).
+func (c *Client) AttestCi(ctx context.Context, campaignId openapi_types.UUID, ciId openapi_types.UUID, body AttestCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAttestCiRequest(c.Server, campaignId, ciId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CloseCiCampaign Stop a campaign taking answers
+//
+// Its score stays as it stood. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with POST /ci-campaigns/{campaignId}:close (the `CloseCiCampaign` operationId).
+func (c *Client) CloseCiCampaign(ctx context.Context, campaignId openapi_types.UUID, params *CloseCiCampaignParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCloseCiCampaignRequest(c.Server, campaignId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ResolveCiDuplicateWithBody Merge a duplicate or call it distinct
 //
 // With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
@@ -41333,6 +42257,23 @@ func (c *Client) ResolveCiDuplicateWithBody(ctx context.Context, duplicateId ope
 // Corresponds with POST /ci-duplicates/{duplicateId}:resolve (the `ResolveCiDuplicate` operationId).
 func (c *Client) ResolveCiDuplicate(ctx context.Context, duplicateId openapi_types.UUID, body ResolveCiDuplicateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewResolveCiDuplicateRequest(c.Server, duplicateId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCiGroupMembers The configuration items a group holds now
+//
+// Needs READ on the hub.
+//
+// Corresponds with GET /ci-groups/{groupId}/members (the `ListCiGroupMembers` operationId).
+func (c *Client) ListCiGroupMembers(ctx context.Context, groupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiGroupMembersRequest(c.Server, groupId)
 	if err != nil {
 		return nil, err
 	}
@@ -41477,6 +42418,99 @@ func (c *Client) UpdateCiWithBody(ctx context.Context, ciId openapi_types.UUID, 
 // Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
 func (c *Client) UpdateCi(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, body UpdateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateCiRequest(c.Server, ciId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadCiAsset A configuration item's asset record
+//
+// Not found when it has none. Needs READ on the hub.
+//
+// Corresponds with GET /cis/{ciId}/asset (the `ReadCiAsset` operationId).
+func (c *Client) ReadCiAsset(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadCiAssetRequest(c.Server, ciId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RegisterCiAssetWithBody Write a configuration item's asset record
+//
+// Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /cis/{ciId}/asset (the `RegisterCiAsset` operationId).
+func (c *Client) RegisterCiAssetWithBody(ctx context.Context, ciId openapi_types.UUID, params *RegisterCiAssetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRegisterCiAssetRequestWithBody(c.Server, ciId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RegisterCiAsset Write a configuration item's asset record
+//
+// Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /cis/{ciId}/asset (the `RegisterCiAsset` operationId).
+func (c *Client) RegisterCiAsset(ctx context.Context, ciId openapi_types.UUID, params *RegisterCiAssetParams, body RegisterCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRegisterCiAssetRequest(c.Server, ciId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MoveCiAssetWithBody Move an asset through its life
+//
+// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
+func (c *Client) MoveCiAssetWithBody(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMoveCiAssetRequestWithBody(c.Server, ciId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MoveCiAsset Move an asset through its life
+//
+// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
+func (c *Client) MoveCiAsset(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, body MoveCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMoveCiAssetRequest(c.Server, ciId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -44249,6 +45283,23 @@ func (c *Client) UpdateGroupWithApplicationMergePatchPlusJSONBody(ctx context.Co
 	return c.Client.Do(req)
 }
 
+// ListCiAssets A hub's asset register
+//
+// In CI order after a cursor, narrowed to a state when given. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/assets (the `ListCiAssets` operationId).
+func (c *Client) ListCiAssets(ctx context.Context, hubId openapi_types.UUID, params *ListCiAssetsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiAssetsRequest(c.Server, hubId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListCiAlerts A hub's alerts
 //
 // The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
@@ -44266,6 +45317,61 @@ func (c *Client) ListCiAlerts(ctx context.Context, hubId openapi_types.UUID, par
 	return c.Client.Do(req)
 }
 
+// ListCiCampaigns A hub's certification campaigns
+//
+// The latest first, each with its score. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/ci-campaigns (the `ListCiCampaigns` operationId).
+func (c *Client) ListCiCampaigns(ctx context.Context, hubId openapi_types.UUID, params *ListCiCampaignsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiCampaignsRequest(c.Server, hubId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartCiCampaignWithBody Ask the owners of a hub's CIs to attest them
+//
+// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /hubs/{hubId}/ci-campaigns (the `StartCiCampaign` operationId).
+func (c *Client) StartCiCampaignWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartCiCampaignRequestWithBody(c.Server, hubId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartCiCampaign Ask the owners of a hub's CIs to attest them
+//
+// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /hubs/{hubId}/ci-campaigns (the `StartCiCampaign` operationId).
+func (c *Client) StartCiCampaign(ctx context.Context, hubId openapi_types.UUID, body StartCiCampaignJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartCiCampaignRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListCiDuplicates Open duplicates
 //
 // Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
@@ -44273,6 +45379,61 @@ func (c *Client) ListCiAlerts(ctx context.Context, hubId openapi_types.UUID, par
 // Corresponds with GET /hubs/{hubId}/ci-duplicates (the `ListCiDuplicates` operationId).
 func (c *Client) ListCiDuplicates(ctx context.Context, hubId openapi_types.UUID, params *ListCiDuplicatesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListCiDuplicatesRequest(c.Server, hubId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCiGroups A hub's CI groups
+//
+// Each with how many CIs it holds now. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/ci-groups (the `ListCiGroups` operationId).
+func (c *Client) ListCiGroups(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiGroupsRequest(c.Server, hubId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineCiGroupWithBody Define or change a CI group by its key
+//
+// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /hubs/{hubId}/ci-groups/{groupKey} (the `DefineCiGroup` operationId).
+func (c *Client) DefineCiGroupWithBody(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DefineCiGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineCiGroupRequestWithBody(c.Server, hubId, groupKey, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineCiGroup Define or change a CI group by its key
+//
+// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /hubs/{hubId}/ci-groups/{groupKey} (the `DefineCiGroup` operationId).
+func (c *Client) DefineCiGroup(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DefineCiGroupParams, body DefineCiGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineCiGroupRequest(c.Server, hubId, groupKey, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -44565,6 +45726,40 @@ func (c *Client) CreatePageWithBody(ctx context.Context, hubId openapi_types.UUI
 // Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
 func (c *Client) CreatePage(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreatePageRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadServiceMap A hub's service map
+//
+// Its active services and offerings, everything whose failure they suffer and the members of the groups standing for them, in layers, with the relations carrying impact between them. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/service-map (the `ReadServiceMap` operationId).
+func (c *Client) ReadServiceMap(ctx context.Context, hubId openapi_types.UUID, params *ReadServiceMapParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadServiceMapRequest(c.Server, hubId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListSoftwareProducts A hub's software, normalised
+//
+// Its software CIs grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/software (the `ListSoftwareProducts` operationId).
+func (c *Client) ListSoftwareProducts(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSoftwareProductsRequest(c.Server, hubId)
 	if err != nil {
 		return nil, err
 	}
@@ -45505,6 +46700,57 @@ func (c *Client) DetachMedia(ctx context.Context, itemId ItemId, mediaId MediaId
 // Attaches a media object to the entry. Idempotent: an entry that already carries it succeeds. The object has to be READY, of usage ATTACHMENT and of this workspace, and the entry's type has to carry the ATTACHMENTS capability - an activity does not. Attaching raises the object's reference count; the bytes are shared, never copied.
 func (c *Client) AttachMedia(ctx context.Context, itemId ItemId, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewAttachMediaRequest(c.Server, itemId, mediaId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListEntryCis The configuration items an entry names as affected
+//
+// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or a CI they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
+//
+// Corresponds with GET /items/{itemId}/cis (the `ListEntryCis` operationId).
+func (c *Client) ListEntryCis(ctx context.Context, itemId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListEntryCisRequest(c.Server, itemId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UnaffectEntryCi Remove a configuration item from an entry's affected ones
+//
+// Needs WRITE_ITEMS on the entry.
+//
+// Corresponds with DELETE /items/{itemId}/cis/{ciId} (the `UnaffectEntryCi` operationId).
+func (c *Client) UnaffectEntryCi(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUnaffectEntryCiRequest(c.Server, itemId, ciId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AffectEntryCi Name a configuration item as affected by an entry
+//
+// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the CI's hub.
+//
+// Corresponds with PUT /items/{itemId}/cis/{ciId} (the `AffectEntryCi` operationId).
+func (c *Client) AffectEntryCi(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAffectEntryCiRequest(c.Server, itemId, ciId)
 	if err != nil {
 		return nil, err
 	}
@@ -51699,6 +52945,78 @@ func (c *Client) DefineSlaPolicy(ctx context.Context, policyKey string, params *
 // Corresponds with GET /sla-report (the `ReportSla` operationId).
 func (c *Client) ReportSla(ctx context.Context, params *ReportSlaParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReportSlaRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListSoftwareAliases The workspace's software aliases
+//
+// Needs READ on the workspace.
+//
+// Corresponds with GET /software-aliases (the `ListSoftwareAliases` operationId).
+func (c *Client) ListSoftwareAliases(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSoftwareAliasesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineSoftwareAliasWithBody Count what installations report as one product
+//
+// A product - and a publisher, or any when empty - as reported, folded, and the publisher and product it is counted as; the alias of the same match is changed. Needs STRUCTURE on the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /software-aliases (the `DefineSoftwareAlias` operationId).
+func (c *Client) DefineSoftwareAliasWithBody(ctx context.Context, params *DefineSoftwareAliasParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineSoftwareAliasRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineSoftwareAlias Count what installations report as one product
+//
+// A product - and a publisher, or any when empty - as reported, folded, and the publisher and product it is counted as; the alias of the same match is changed. Needs STRUCTURE on the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /software-aliases (the `DefineSoftwareAlias` operationId).
+func (c *Client) DefineSoftwareAlias(ctx context.Context, params *DefineSoftwareAliasParams, body DefineSoftwareAliasJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDefineSoftwareAliasRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveSoftwareAlias Remove a software alias
+//
+// What it matched is counted by its own folded names again. Needs STRUCTURE on the workspace.
+//
+// Corresponds with DELETE /software-aliases/{aliasId} (the `RemoveSoftwareAlias` operationId).
+func (c *Client) RemoveSoftwareAlias(ctx context.Context, aliasId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveSoftwareAliasRequest(c.Server, aliasId)
 	if err != nil {
 		return nil, err
 	}
@@ -63479,6 +64797,143 @@ func NewGetCalendarFeedDocumentRequest(server string, token string) (*http.Reque
 	return req, nil
 }
 
+// NewReadCiCampaignRequest constructs an http.Request for the ReadCiCampaign method
+func NewReadCiCampaignRequest(server string, campaignId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "campaignId", campaignId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ci-campaigns/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAttestCiRequest calls the generic AttestCi builder with application/json body
+func NewAttestCiRequest(server string, campaignId openapi_types.UUID, ciId openapi_types.UUID, body AttestCiJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAttestCiRequestWithBody(server, campaignId, ciId, "application/json", bodyReader)
+}
+
+// NewAttestCiRequestWithBody constructs an http.Request for the AttestCi method, with any body, and a specified content type
+func NewAttestCiRequestWithBody(server string, campaignId openapi_types.UUID, ciId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "campaignId", campaignId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ci-campaigns/%s/cis/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCloseCiCampaignRequest constructs an http.Request for the CloseCiCampaign method
+func NewCloseCiCampaignRequest(server string, campaignId openapi_types.UUID, params *CloseCiCampaignParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "campaignId", campaignId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ci-campaigns/%s:close", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewResolveCiDuplicateRequest calls the generic ResolveCiDuplicate builder with application/json body
 func NewResolveCiDuplicateRequest(server string, duplicateId openapi_types.UUID, body ResolveCiDuplicateJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -63522,6 +64977,40 @@ func NewResolveCiDuplicateRequestWithBody(server string, duplicateId openapi_typ
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListCiGroupMembersRequest constructs an http.Request for the ListCiGroupMembers method
+func NewListCiGroupMembersRequest(server string, groupId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupId", groupId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ci-groups/%s/members", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -63740,6 +65229,164 @@ func NewUpdateCiRequestWithBody(server string, ciId openapi_types.UUID, params *
 	}
 
 	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewReadCiAssetRequest constructs an http.Request for the ReadCiAsset method
+func NewReadCiAssetRequest(server string, ciId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s/asset", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRegisterCiAssetRequest calls the generic RegisterCiAsset builder with application/json body
+func NewRegisterCiAssetRequest(server string, ciId openapi_types.UUID, params *RegisterCiAssetParams, body RegisterCiAssetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRegisterCiAssetRequestWithBody(server, ciId, params, "application/json", bodyReader)
+}
+
+// NewRegisterCiAssetRequestWithBody constructs an http.Request for the RegisterCiAsset method, with any body, and a specified content type
+func NewRegisterCiAssetRequestWithBody(server string, ciId openapi_types.UUID, params *RegisterCiAssetParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s/asset", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewMoveCiAssetRequest calls the generic MoveCiAsset builder with application/json body
+func NewMoveCiAssetRequest(server string, ciId openapi_types.UUID, params *MoveCiAssetParams, body MoveCiAssetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewMoveCiAssetRequestWithBody(server, ciId, params, "application/json", bodyReader)
+}
+
+// NewMoveCiAssetRequestWithBody constructs an http.Request for the MoveCiAsset method, with any body, and a specified content type
+func NewMoveCiAssetRequestWithBody(server string, ciId openapi_types.UUID, params *MoveCiAssetParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s/asset:move", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -68970,6 +70617,91 @@ func NewUpdateGroupRequestWithBody(server string, groupId GroupId, params *Updat
 	return req, nil
 }
 
+// NewListCiAssetsRequest constructs an http.Request for the ListCiAssets method
+func NewListCiAssetsRequest(server string, hubId openapi_types.UUID, params *ListCiAssetsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/assets", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.State != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "state", *params.State, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.After != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "after", *params.After, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListCiAlertsRequest constructs an http.Request for the ListCiAlerts method
 func NewListCiAlertsRequest(server string, hubId openapi_types.UUID, params *ListCiAlertsParams) (*http.Request, error) {
 	var err error
@@ -69043,6 +70775,114 @@ func NewListCiAlertsRequest(server string, hubId openapi_types.UUID, params *Lis
 	return req, nil
 }
 
+// NewListCiCampaignsRequest constructs an http.Request for the ListCiCampaigns method
+func NewListCiCampaignsRequest(server string, hubId openapi_types.UUID, params *ListCiCampaignsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/ci-campaigns", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewStartCiCampaignRequest calls the generic StartCiCampaign builder with application/json body
+func NewStartCiCampaignRequest(server string, hubId openapi_types.UUID, body StartCiCampaignJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewStartCiCampaignRequestWithBody(server, hubId, "application/json", bodyReader)
+}
+
+// NewStartCiCampaignRequestWithBody constructs an http.Request for the StartCiCampaign method, with any body, and a specified content type
+func NewStartCiCampaignRequestWithBody(server string, hubId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/ci-campaigns", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListCiDuplicatesRequest constructs an http.Request for the ListCiDuplicates method
 func NewListCiDuplicatesRequest(server string, hubId openapi_types.UUID, params *ListCiDuplicatesParams) (*http.Request, error) {
 	var err error
@@ -69099,6 +70939,109 @@ func NewListCiDuplicatesRequest(server string, hubId openapi_types.UUID, params 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListCiGroupsRequest constructs an http.Request for the ListCiGroups method
+func NewListCiGroupsRequest(server string, hubId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/ci-groups", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDefineCiGroupRequest calls the generic DefineCiGroup builder with application/json body
+func NewDefineCiGroupRequest(server string, hubId openapi_types.UUID, groupKey string, params *DefineCiGroupParams, body DefineCiGroupJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDefineCiGroupRequestWithBody(server, hubId, groupKey, params, "application/json", bodyReader)
+}
+
+// NewDefineCiGroupRequestWithBody constructs an http.Request for the DefineCiGroup method, with any body, and a specified content type
+func NewDefineCiGroupRequestWithBody(server string, hubId openapi_types.UUID, groupKey string, params *DefineCiGroupParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "groupKey", groupKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/ci-groups/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -69717,6 +71660,101 @@ func NewCreatePageRequestWithBody(server string, hubId openapi_types.UUID, conte
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadServiceMapRequest constructs an http.Request for the ReadServiceMap method
+func NewReadServiceMapRequest(server string, hubId openapi_types.UUID, params *ReadServiceMapParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/service-map", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.ServiceId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "service_id", *params.ServiceId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListSoftwareProductsRequest constructs an http.Request for the ListSoftwareProducts method
+func NewListSoftwareProductsRequest(server string, hubId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/software", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -71540,6 +73578,122 @@ func NewAttachMediaRequest(server string, itemId ItemId, mediaId MediaId) (*http
 	}
 
 	operationPath := fmt.Sprintf("/items/%s/attachments/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListEntryCisRequest constructs an http.Request for the ListEntryCis method
+func NewListEntryCisRequest(server string, itemId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/cis", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUnaffectEntryCiRequest constructs an http.Request for the UnaffectEntryCi method
+func NewUnaffectEntryCiRequest(server string, itemId openapi_types.UUID, ciId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/cis/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAffectEntryCiRequest constructs an http.Request for the AffectEntryCi method
+func NewAffectEntryCiRequest(server string, itemId openapi_types.UUID, ciId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/cis/%s", pathParam0, pathParam1)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -82111,6 +84265,122 @@ func NewReportSlaRequest(server string, params *ReportSlaParams) (*http.Request,
 	return req, nil
 }
 
+// NewListSoftwareAliasesRequest constructs an http.Request for the ListSoftwareAliases method
+func NewListSoftwareAliasesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/software-aliases")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDefineSoftwareAliasRequest calls the generic DefineSoftwareAlias builder with application/json body
+func NewDefineSoftwareAliasRequest(server string, params *DefineSoftwareAliasParams, body DefineSoftwareAliasJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDefineSoftwareAliasRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewDefineSoftwareAliasRequestWithBody constructs an http.Request for the DefineSoftwareAlias method, with any body, and a specified content type
+func NewDefineSoftwareAliasRequestWithBody(server string, params *DefineSoftwareAliasParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/software-aliases")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewRemoveSoftwareAliasRequest constructs an http.Request for the RemoveSoftwareAlias method
+func NewRemoveSoftwareAliasRequest(server string, aliasId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "aliasId", aliasId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/software-aliases/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewDeleteSprintRequest constructs an http.Request for the DeleteSprint method
 func NewDeleteSprintRequest(server string, sprintId SprintId) (*http.Request, error) {
 	var err error
@@ -90204,6 +92474,42 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	GetCalendarFeedDocumentWithResponse(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*GetCalendarFeedDocumentResult, error)
 
+	// ReadCiCampaignWithResponse A certification campaign with every CI asked
+	//
+	// Its score and each CI's verdict, who gave it and when. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /ci-campaigns/{campaignId} (the `ReadCiCampaign` operationId).
+	ReadCiCampaignWithResponse(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCiCampaignResult, error)
+
+	// AttestCiWithBodyWithResponse Answer a campaign's question about a configuration item
+	//
+	// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ci-campaigns/{campaignId}/cis/{ciId} (the `AttestCi` operationId).
+	AttestCiWithBodyWithResponse(ctx context.Context, campaignId openapi_types.UUID, ciId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AttestCiResult, error)
+
+	// AttestCiWithResponse Answer a campaign's question about a configuration item
+	//
+	// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ci-campaigns/{campaignId}/cis/{ciId} (the `AttestCi` operationId).
+	AttestCiWithResponse(ctx context.Context, campaignId openapi_types.UUID, ciId openapi_types.UUID, body AttestCiJSONRequestBody, reqEditors ...RequestEditorFn) (*AttestCiResult, error)
+
+	// CloseCiCampaignWithResponse Stop a campaign taking answers
+	//
+	// Its score stays as it stood. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /ci-campaigns/{campaignId}:close (the `CloseCiCampaign` operationId).
+	CloseCiCampaignWithResponse(ctx context.Context, campaignId openapi_types.UUID, params *CloseCiCampaignParams, reqEditors ...RequestEditorFn) (*CloseCiCampaignResult, error)
+
 	// ResolveCiDuplicateWithBodyWithResponse Merge a duplicate or call it distinct
 	//
 	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
@@ -90221,6 +92527,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /ci-duplicates/{duplicateId}:resolve (the `ResolveCiDuplicate` operationId).
 	ResolveCiDuplicateWithResponse(ctx context.Context, duplicateId openapi_types.UUID, body ResolveCiDuplicateJSONRequestBody, reqEditors ...RequestEditorFn) (*ResolveCiDuplicateResult, error)
+
+	// ListCiGroupMembersWithResponse The configuration items a group holds now
+	//
+	// Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /ci-groups/{groupId}/members (the `ListCiGroupMembers` operationId).
+	ListCiGroupMembersWithResponse(ctx context.Context, groupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiGroupMembersResult, error)
 
 	// DismissCiHoldWithResponse Close a held item
 	//
@@ -90293,6 +92608,51 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
 	UpdateCiWithResponse(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, body UpdateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCiResult, error)
+
+	// ReadCiAssetWithResponse A configuration item's asset record
+	//
+	// Not found when it has none. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /cis/{ciId}/asset (the `ReadCiAsset` operationId).
+	ReadCiAssetWithResponse(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCiAssetResult, error)
+
+	// RegisterCiAssetWithBodyWithResponse Write a configuration item's asset record
+	//
+	// Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /cis/{ciId}/asset (the `RegisterCiAsset` operationId).
+	RegisterCiAssetWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, params *RegisterCiAssetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RegisterCiAssetResult, error)
+
+	// RegisterCiAssetWithResponse Write a configuration item's asset record
+	//
+	// Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /cis/{ciId}/asset (the `RegisterCiAsset` operationId).
+	RegisterCiAssetWithResponse(ctx context.Context, ciId openapi_types.UUID, params *RegisterCiAssetParams, body RegisterCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*RegisterCiAssetResult, error)
+
+	// MoveCiAssetWithBodyWithResponse Move an asset through its life
+	//
+	// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
+	MoveCiAssetWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveCiAssetResult, error)
+
+	// MoveCiAssetWithResponse Move an asset through its life
+	//
+	// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
+	MoveCiAssetWithResponse(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, body MoveCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveCiAssetResult, error)
 
 	// ListCiBacklinksWithResponse What points at a configuration item
 	//
@@ -91622,6 +93982,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
 	UpdateGroupWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, groupId GroupId, params *UpdateGroupParams, body UpdateGroupApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateGroupResult, error)
 
+	// ListCiAssetsWithResponse A hub's asset register
+	//
+	// In CI order after a cursor, narrowed to a state when given. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/assets (the `ListCiAssets` operationId).
+	ListCiAssetsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiAssetsParams, reqEditors ...RequestEditorFn) (*ListCiAssetsResult, error)
+
 	// ListCiAlertsWithResponse A hub's alerts
 	//
 	// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
@@ -91631,6 +94000,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /hubs/{hubId}/ci-alerts (the `ListCiAlerts` operationId).
 	ListCiAlertsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiAlertsParams, reqEditors ...RequestEditorFn) (*ListCiAlertsResult, error)
 
+	// ListCiCampaignsWithResponse A hub's certification campaigns
+	//
+	// The latest first, each with its score. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/ci-campaigns (the `ListCiCampaigns` operationId).
+	ListCiCampaignsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiCampaignsParams, reqEditors ...RequestEditorFn) (*ListCiCampaignsResult, error)
+
+	// StartCiCampaignWithBodyWithResponse Ask the owners of a hub's CIs to attest them
+	//
+	// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/ci-campaigns (the `StartCiCampaign` operationId).
+	StartCiCampaignWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartCiCampaignResult, error)
+
+	// StartCiCampaignWithResponse Ask the owners of a hub's CIs to attest them
+	//
+	// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/ci-campaigns (the `StartCiCampaign` operationId).
+	StartCiCampaignWithResponse(ctx context.Context, hubId openapi_types.UUID, body StartCiCampaignJSONRequestBody, reqEditors ...RequestEditorFn) (*StartCiCampaignResult, error)
+
 	// ListCiDuplicatesWithResponse Open duplicates
 	//
 	// Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
@@ -91639,6 +94035,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-duplicates (the `ListCiDuplicates` operationId).
 	ListCiDuplicatesWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiDuplicatesParams, reqEditors ...RequestEditorFn) (*ListCiDuplicatesResult, error)
+
+	// ListCiGroupsWithResponse A hub's CI groups
+	//
+	// Each with how many CIs it holds now. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/ci-groups (the `ListCiGroups` operationId).
+	ListCiGroupsWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiGroupsResult, error)
+
+	// DefineCiGroupWithBodyWithResponse Define or change a CI group by its key
+	//
+	// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /hubs/{hubId}/ci-groups/{groupKey} (the `DefineCiGroup` operationId).
+	DefineCiGroupWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DefineCiGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineCiGroupResult, error)
+
+	// DefineCiGroupWithResponse Define or change a CI group by its key
+	//
+	// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /hubs/{hubId}/ci-groups/{groupKey} (the `DefineCiGroup` operationId).
+	DefineCiGroupWithResponse(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DefineCiGroupParams, body DefineCiGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCiGroupResult, error)
 
 	// ListCiHoldsWithResponse Items held for review
 	//
@@ -91783,6 +94206,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
 	CreatePageWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePageResult, error)
+
+	// ReadServiceMapWithResponse A hub's service map
+	//
+	// Its active services and offerings, everything whose failure they suffer and the members of the groups standing for them, in layers, with the relations carrying impact between them. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/service-map (the `ReadServiceMap` operationId).
+	ReadServiceMapWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ReadServiceMapParams, reqEditors ...RequestEditorFn) (*ReadServiceMapResult, error)
+
+	// ListSoftwareProductsWithResponse A hub's software, normalised
+	//
+	// Its software CIs grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/software (the `ListSoftwareProducts` operationId).
+	ListSoftwareProductsWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListSoftwareProductsResult, error)
 
 	// ListTrashedPagesWithResponse A hub's trashed pages
 	//
@@ -92273,6 +94714,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	AttachMediaWithResponse(ctx context.Context, itemId ItemId, mediaId MediaId, reqEditors ...RequestEditorFn) (*AttachMediaResult, error)
+
+	// ListEntryCisWithResponse The configuration items an entry names as affected
+	//
+	// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or a CI they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /items/{itemId}/cis (the `ListEntryCis` operationId).
+	ListEntryCisWithResponse(ctx context.Context, itemId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListEntryCisResult, error)
+
+	// UnaffectEntryCiWithResponse Remove a configuration item from an entry's affected ones
+	//
+	// Needs WRITE_ITEMS on the entry.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /items/{itemId}/cis/{ciId} (the `UnaffectEntryCi` operationId).
+	UnaffectEntryCiWithResponse(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnaffectEntryCiResult, error)
+
+	// AffectEntryCiWithResponse Name a configuration item as affected by an entry
+	//
+	// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the CI's hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /items/{itemId}/cis/{ciId} (the `AffectEntryCi` operationId).
+	AffectEntryCiWithResponse(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*AffectEntryCiResult, error)
 
 	// ListCommentsWithResponse performs a GET /items/{itemId}/comments (the `ListComments` operationId) request.
 	//
@@ -95487,6 +97955,42 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /sla-report (the `ReportSla` operationId).
 	ReportSlaWithResponse(ctx context.Context, params *ReportSlaParams, reqEditors ...RequestEditorFn) (*ReportSlaResult, error)
+
+	// ListSoftwareAliasesWithResponse The workspace's software aliases
+	//
+	// Needs READ on the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /software-aliases (the `ListSoftwareAliases` operationId).
+	ListSoftwareAliasesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListSoftwareAliasesResult, error)
+
+	// DefineSoftwareAliasWithBodyWithResponse Count what installations report as one product
+	//
+	// A product - and a publisher, or any when empty - as reported, folded, and the publisher and product it is counted as; the alias of the same match is changed. Needs STRUCTURE on the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /software-aliases (the `DefineSoftwareAlias` operationId).
+	DefineSoftwareAliasWithBodyWithResponse(ctx context.Context, params *DefineSoftwareAliasParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineSoftwareAliasResult, error)
+
+	// DefineSoftwareAliasWithResponse Count what installations report as one product
+	//
+	// A product - and a publisher, or any when empty - as reported, folded, and the publisher and product it is counted as; the alias of the same match is changed. Needs STRUCTURE on the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /software-aliases (the `DefineSoftwareAlias` operationId).
+	DefineSoftwareAliasWithResponse(ctx context.Context, params *DefineSoftwareAliasParams, body DefineSoftwareAliasJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineSoftwareAliasResult, error)
+
+	// RemoveSoftwareAliasWithResponse Remove a software alias
+	//
+	// What it matched is counted by its own folded names again. Needs STRUCTURE on the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /software-aliases/{aliasId} (the `RemoveSoftwareAlias` operationId).
+	RemoveSoftwareAliasWithResponse(ctx context.Context, aliasId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RemoveSoftwareAliasResult, error)
 
 	// DeleteSprintWithResponse Delete a planned sprint
 	//
@@ -106761,6 +109265,150 @@ func (r GetCalendarFeedDocumentResult) ContentType() string {
 	return ""
 }
 
+type ReadCiCampaignResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiCampaignDetail
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadCiCampaignResult) GetJSON200() *CiCampaignDetail {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadCiCampaignResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadCiCampaignResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadCiCampaignResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadCiCampaignResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadCiCampaignResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AttestCiResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiAttestation
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AttestCiResult) GetJSON200() *CiAttestation {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AttestCiResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AttestCiResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AttestCiResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AttestCiResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AttestCiResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CloseCiCampaignResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiCampaign
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CloseCiCampaignResult) GetJSON200() *CiCampaign {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CloseCiCampaignResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CloseCiCampaignResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CloseCiCampaignResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CloseCiCampaignResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CloseCiCampaignResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ResolveCiDuplicateResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -106803,6 +109451,54 @@ func (r ResolveCiDuplicateResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ResolveCiDuplicateResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListCiGroupMembersResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiGroupMembers
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiGroupMembersResult) GetJSON200() *CiGroupMembers {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiGroupMembersResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiGroupMembersResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiGroupMembersResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiGroupMembersResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiGroupMembersResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -107091,6 +109787,150 @@ func (r UpdateCiResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateCiResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadCiAssetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiAsset
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadCiAssetResult) GetJSON200() *CiAsset {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadCiAssetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadCiAssetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadCiAssetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadCiAssetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadCiAssetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RegisterCiAssetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiAsset
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RegisterCiAssetResult) GetJSON200() *CiAsset {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RegisterCiAssetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RegisterCiAssetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RegisterCiAssetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RegisterCiAssetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RegisterCiAssetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type MoveCiAssetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiAsset
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r MoveCiAssetResult) GetJSON200() *CiAsset {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r MoveCiAssetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r MoveCiAssetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r MoveCiAssetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MoveCiAssetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MoveCiAssetResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -112105,6 +114945,54 @@ func (r UpdateGroupResult) ContentType() string {
 	return ""
 }
 
+type ListCiAssetsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiAssetList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiAssetsResult) GetJSON200() *CiAssetList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiAssetsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiAssetsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiAssetsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiAssetsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiAssetsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListCiAlertsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -112153,6 +115041,102 @@ func (r ListCiAlertsResult) ContentType() string {
 	return ""
 }
 
+type ListCiCampaignsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiCampaignList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiCampaignsResult) GetJSON200() *CiCampaignList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiCampaignsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiCampaignsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiCampaignsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiCampaignsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiCampaignsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type StartCiCampaignResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiCampaign
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r StartCiCampaignResult) GetJSON200() *CiCampaign {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartCiCampaignResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r StartCiCampaignResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StartCiCampaignResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartCiCampaignResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartCiCampaignResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListCiDuplicatesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -112195,6 +115179,102 @@ func (r ListCiDuplicatesResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListCiDuplicatesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListCiGroupsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiGroupList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiGroupsResult) GetJSON200() *CiGroupList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiGroupsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiGroupsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiGroupsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiGroupsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiGroupsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DefineCiGroupResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiGroup
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DefineCiGroupResult) GetJSON200() *CiGroup {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DefineCiGroupResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DefineCiGroupResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DefineCiGroupResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DefineCiGroupResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DefineCiGroupResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -112723,6 +115803,102 @@ func (r CreatePageResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CreatePageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadServiceMapResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ServiceMap
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadServiceMapResult) GetJSON200() *ServiceMap {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadServiceMapResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadServiceMapResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadServiceMapResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadServiceMapResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadServiceMapResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListSoftwareProductsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SoftwareProductList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListSoftwareProductsResult) GetJSON200() *SoftwareProductList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListSoftwareProductsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListSoftwareProductsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSoftwareProductsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSoftwareProductsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListSoftwareProductsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -114458,6 +117634,150 @@ func (r AttachMediaResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r AttachMediaResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListEntryCisResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *EntryCis
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListEntryCisResult) GetJSON200() *EntryCis {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListEntryCisResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListEntryCisResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListEntryCisResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListEntryCisResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListEntryCisResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UnaffectEntryCiResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *EntryCis
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UnaffectEntryCiResult) GetJSON200() *EntryCis {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UnaffectEntryCiResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UnaffectEntryCiResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UnaffectEntryCiResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UnaffectEntryCiResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UnaffectEntryCiResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AffectEntryCiResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *EntryCis
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AffectEntryCiResult) GetJSON200() *EntryCis {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AffectEntryCiResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AffectEntryCiResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AffectEntryCiResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AffectEntryCiResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AffectEntryCiResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -125460,6 +128780,150 @@ func (r ReportSlaResult) ContentType() string {
 	return ""
 }
 
+type ListSoftwareAliasesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SoftwareAliasList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListSoftwareAliasesResult) GetJSON200() *SoftwareAliasList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListSoftwareAliasesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListSoftwareAliasesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSoftwareAliasesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSoftwareAliasesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListSoftwareAliasesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DefineSoftwareAliasResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SoftwareAlias
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DefineSoftwareAliasResult) GetJSON200() *SoftwareAlias {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DefineSoftwareAliasResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DefineSoftwareAliasResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DefineSoftwareAliasResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DefineSoftwareAliasResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DefineSoftwareAliasResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveSoftwareAliasResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SoftwareAliasRemoved
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RemoveSoftwareAliasResult) GetJSON200() *SoftwareAliasRemoved {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveSoftwareAliasResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveSoftwareAliasResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveSoftwareAliasResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveSoftwareAliasResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveSoftwareAliasResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type DeleteSprintResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -135347,6 +138811,66 @@ func (c *ClientWithResponses) GetCalendarFeedDocumentWithResponse(ctx context.Co
 	return ParseGetCalendarFeedDocumentResult(rsp)
 }
 
+// ReadCiCampaignWithResponse A certification campaign with every CI asked
+//
+// Its score and each CI's verdict, who gave it and when. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /ci-campaigns/{campaignId} (the `ReadCiCampaign` operationId).
+func (c *ClientWithResponses) ReadCiCampaignWithResponse(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCiCampaignResult, error) {
+	rsp, err := c.ReadCiCampaign(ctx, campaignId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadCiCampaignResult(rsp)
+}
+
+// AttestCiWithBodyWithResponse Answer a campaign's question about a configuration item
+//
+// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ci-campaigns/{campaignId}/cis/{ciId} (the `AttestCi` operationId).
+func (c *ClientWithResponses) AttestCiWithBodyWithResponse(ctx context.Context, campaignId openapi_types.UUID, ciId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AttestCiResult, error) {
+	rsp, err := c.AttestCiWithBody(ctx, campaignId, ciId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAttestCiResult(rsp)
+}
+
+// AttestCiWithResponse Answer a campaign's question about a configuration item
+//
+// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ci-campaigns/{campaignId}/cis/{ciId} (the `AttestCi` operationId).
+func (c *ClientWithResponses) AttestCiWithResponse(ctx context.Context, campaignId openapi_types.UUID, ciId openapi_types.UUID, body AttestCiJSONRequestBody, reqEditors ...RequestEditorFn) (*AttestCiResult, error) {
+	rsp, err := c.AttestCi(ctx, campaignId, ciId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAttestCiResult(rsp)
+}
+
+// CloseCiCampaignWithResponse Stop a campaign taking answers
+//
+// Its score stays as it stood. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /ci-campaigns/{campaignId}:close (the `CloseCiCampaign` operationId).
+func (c *ClientWithResponses) CloseCiCampaignWithResponse(ctx context.Context, campaignId openapi_types.UUID, params *CloseCiCampaignParams, reqEditors ...RequestEditorFn) (*CloseCiCampaignResult, error) {
+	rsp, err := c.CloseCiCampaign(ctx, campaignId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCloseCiCampaignResult(rsp)
+}
+
 // ResolveCiDuplicateWithBodyWithResponse Merge a duplicate or call it distinct
 //
 // With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
@@ -135375,6 +138899,21 @@ func (c *ClientWithResponses) ResolveCiDuplicateWithResponse(ctx context.Context
 		return nil, err
 	}
 	return ParseResolveCiDuplicateResult(rsp)
+}
+
+// ListCiGroupMembersWithResponse The configuration items a group holds now
+//
+// Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /ci-groups/{groupId}/members (the `ListCiGroupMembers` operationId).
+func (c *ClientWithResponses) ListCiGroupMembersWithResponse(ctx context.Context, groupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiGroupMembersResult, error) {
+	rsp, err := c.ListCiGroupMembers(ctx, groupId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiGroupMembersResult(rsp)
 }
 
 // DismissCiHoldWithResponse Close a held item
@@ -135495,6 +139034,81 @@ func (c *ClientWithResponses) UpdateCiWithResponse(ctx context.Context, ciId ope
 		return nil, err
 	}
 	return ParseUpdateCiResult(rsp)
+}
+
+// ReadCiAssetWithResponse A configuration item's asset record
+//
+// Not found when it has none. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /cis/{ciId}/asset (the `ReadCiAsset` operationId).
+func (c *ClientWithResponses) ReadCiAssetWithResponse(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCiAssetResult, error) {
+	rsp, err := c.ReadCiAsset(ctx, ciId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadCiAssetResult(rsp)
+}
+
+// RegisterCiAssetWithBodyWithResponse Write a configuration item's asset record
+//
+// Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /cis/{ciId}/asset (the `RegisterCiAsset` operationId).
+func (c *ClientWithResponses) RegisterCiAssetWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, params *RegisterCiAssetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RegisterCiAssetResult, error) {
+	rsp, err := c.RegisterCiAssetWithBody(ctx, ciId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRegisterCiAssetResult(rsp)
+}
+
+// RegisterCiAssetWithResponse Write a configuration item's asset record
+//
+// Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /cis/{ciId}/asset (the `RegisterCiAsset` operationId).
+func (c *ClientWithResponses) RegisterCiAssetWithResponse(ctx context.Context, ciId openapi_types.UUID, params *RegisterCiAssetParams, body RegisterCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*RegisterCiAssetResult, error) {
+	rsp, err := c.RegisterCiAsset(ctx, ciId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRegisterCiAssetResult(rsp)
+}
+
+// MoveCiAssetWithBodyWithResponse Move an asset through its life
+//
+// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
+func (c *ClientWithResponses) MoveCiAssetWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveCiAssetResult, error) {
+	rsp, err := c.MoveCiAssetWithBody(ctx, ciId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMoveCiAssetResult(rsp)
+}
+
+// MoveCiAssetWithResponse Move an asset through its life
+//
+// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
+func (c *ClientWithResponses) MoveCiAssetWithResponse(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, body MoveCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveCiAssetResult, error) {
+	rsp, err := c.MoveCiAsset(ctx, ciId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMoveCiAssetResult(rsp)
 }
 
 // ListCiBacklinksWithResponse What points at a configuration item
@@ -137761,6 +141375,21 @@ func (c *ClientWithResponses) UpdateGroupWithApplicationMergePatchPlusJSONBodyWi
 	return ParseUpdateGroupResult(rsp)
 }
 
+// ListCiAssetsWithResponse A hub's asset register
+//
+// In CI order after a cursor, narrowed to a state when given. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/assets (the `ListCiAssets` operationId).
+func (c *ClientWithResponses) ListCiAssetsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiAssetsParams, reqEditors ...RequestEditorFn) (*ListCiAssetsResult, error) {
+	rsp, err := c.ListCiAssets(ctx, hubId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiAssetsResult(rsp)
+}
+
 // ListCiAlertsWithResponse A hub's alerts
 //
 // The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
@@ -137776,6 +141405,51 @@ func (c *ClientWithResponses) ListCiAlertsWithResponse(ctx context.Context, hubI
 	return ParseListCiAlertsResult(rsp)
 }
 
+// ListCiCampaignsWithResponse A hub's certification campaigns
+//
+// The latest first, each with its score. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/ci-campaigns (the `ListCiCampaigns` operationId).
+func (c *ClientWithResponses) ListCiCampaignsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiCampaignsParams, reqEditors ...RequestEditorFn) (*ListCiCampaignsResult, error) {
+	rsp, err := c.ListCiCampaigns(ctx, hubId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiCampaignsResult(rsp)
+}
+
+// StartCiCampaignWithBodyWithResponse Ask the owners of a hub's CIs to attest them
+//
+// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/ci-campaigns (the `StartCiCampaign` operationId).
+func (c *ClientWithResponses) StartCiCampaignWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartCiCampaignResult, error) {
+	rsp, err := c.StartCiCampaignWithBody(ctx, hubId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartCiCampaignResult(rsp)
+}
+
+// StartCiCampaignWithResponse Ask the owners of a hub's CIs to attest them
+//
+// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/ci-campaigns (the `StartCiCampaign` operationId).
+func (c *ClientWithResponses) StartCiCampaignWithResponse(ctx context.Context, hubId openapi_types.UUID, body StartCiCampaignJSONRequestBody, reqEditors ...RequestEditorFn) (*StartCiCampaignResult, error) {
+	rsp, err := c.StartCiCampaign(ctx, hubId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartCiCampaignResult(rsp)
+}
+
 // ListCiDuplicatesWithResponse Open duplicates
 //
 // Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
@@ -137789,6 +141463,51 @@ func (c *ClientWithResponses) ListCiDuplicatesWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseListCiDuplicatesResult(rsp)
+}
+
+// ListCiGroupsWithResponse A hub's CI groups
+//
+// Each with how many CIs it holds now. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/ci-groups (the `ListCiGroups` operationId).
+func (c *ClientWithResponses) ListCiGroupsWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiGroupsResult, error) {
+	rsp, err := c.ListCiGroups(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiGroupsResult(rsp)
+}
+
+// DefineCiGroupWithBodyWithResponse Define or change a CI group by its key
+//
+// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /hubs/{hubId}/ci-groups/{groupKey} (the `DefineCiGroup` operationId).
+func (c *ClientWithResponses) DefineCiGroupWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DefineCiGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineCiGroupResult, error) {
+	rsp, err := c.DefineCiGroupWithBody(ctx, hubId, groupKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineCiGroupResult(rsp)
+}
+
+// DefineCiGroupWithResponse Define or change a CI group by its key
+//
+// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /hubs/{hubId}/ci-groups/{groupKey} (the `DefineCiGroup` operationId).
+func (c *ClientWithResponses) DefineCiGroupWithResponse(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DefineCiGroupParams, body DefineCiGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCiGroupResult, error) {
+	rsp, err := c.DefineCiGroup(ctx, hubId, groupKey, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineCiGroupResult(rsp)
 }
 
 // ListCiHoldsWithResponse Items held for review
@@ -138029,6 +141748,36 @@ func (c *ClientWithResponses) CreatePageWithResponse(ctx context.Context, hubId 
 		return nil, err
 	}
 	return ParseCreatePageResult(rsp)
+}
+
+// ReadServiceMapWithResponse A hub's service map
+//
+// Its active services and offerings, everything whose failure they suffer and the members of the groups standing for them, in layers, with the relations carrying impact between them. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/service-map (the `ReadServiceMap` operationId).
+func (c *ClientWithResponses) ReadServiceMapWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ReadServiceMapParams, reqEditors ...RequestEditorFn) (*ReadServiceMapResult, error) {
+	rsp, err := c.ReadServiceMap(ctx, hubId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadServiceMapResult(rsp)
+}
+
+// ListSoftwareProductsWithResponse A hub's software, normalised
+//
+// Its software CIs grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/software (the `ListSoftwareProducts` operationId).
+func (c *ClientWithResponses) ListSoftwareProductsWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListSoftwareProductsResult, error) {
+	rsp, err := c.ListSoftwareProducts(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSoftwareProductsResult(rsp)
 }
 
 // ListTrashedPagesWithResponse A hub's trashed pages
@@ -138819,6 +142568,51 @@ func (c *ClientWithResponses) AttachMediaWithResponse(ctx context.Context, itemI
 		return nil, err
 	}
 	return ParseAttachMediaResult(rsp)
+}
+
+// ListEntryCisWithResponse The configuration items an entry names as affected
+//
+// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or a CI they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /items/{itemId}/cis (the `ListEntryCis` operationId).
+func (c *ClientWithResponses) ListEntryCisWithResponse(ctx context.Context, itemId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListEntryCisResult, error) {
+	rsp, err := c.ListEntryCis(ctx, itemId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListEntryCisResult(rsp)
+}
+
+// UnaffectEntryCiWithResponse Remove a configuration item from an entry's affected ones
+//
+// Needs WRITE_ITEMS on the entry.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /items/{itemId}/cis/{ciId} (the `UnaffectEntryCi` operationId).
+func (c *ClientWithResponses) UnaffectEntryCiWithResponse(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnaffectEntryCiResult, error) {
+	rsp, err := c.UnaffectEntryCi(ctx, itemId, ciId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUnaffectEntryCiResult(rsp)
+}
+
+// AffectEntryCiWithResponse Name a configuration item as affected by an entry
+//
+// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the CI's hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /items/{itemId}/cis/{ciId} (the `AffectEntryCi` operationId).
+func (c *ClientWithResponses) AffectEntryCiWithResponse(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*AffectEntryCiResult, error) {
+	rsp, err := c.AffectEntryCi(ctx, itemId, ciId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAffectEntryCiResult(rsp)
 }
 
 // ListCommentsWithResponse performs a GET /items/{itemId}/comments (the `ListComments` operationId) request.
@@ -143995,6 +147789,66 @@ func (c *ClientWithResponses) ReportSlaWithResponse(ctx context.Context, params 
 		return nil, err
 	}
 	return ParseReportSlaResult(rsp)
+}
+
+// ListSoftwareAliasesWithResponse The workspace's software aliases
+//
+// Needs READ on the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /software-aliases (the `ListSoftwareAliases` operationId).
+func (c *ClientWithResponses) ListSoftwareAliasesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListSoftwareAliasesResult, error) {
+	rsp, err := c.ListSoftwareAliases(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSoftwareAliasesResult(rsp)
+}
+
+// DefineSoftwareAliasWithBodyWithResponse Count what installations report as one product
+//
+// A product - and a publisher, or any when empty - as reported, folded, and the publisher and product it is counted as; the alias of the same match is changed. Needs STRUCTURE on the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /software-aliases (the `DefineSoftwareAlias` operationId).
+func (c *ClientWithResponses) DefineSoftwareAliasWithBodyWithResponse(ctx context.Context, params *DefineSoftwareAliasParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineSoftwareAliasResult, error) {
+	rsp, err := c.DefineSoftwareAliasWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineSoftwareAliasResult(rsp)
+}
+
+// DefineSoftwareAliasWithResponse Count what installations report as one product
+//
+// A product - and a publisher, or any when empty - as reported, folded, and the publisher and product it is counted as; the alias of the same match is changed. Needs STRUCTURE on the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /software-aliases (the `DefineSoftwareAlias` operationId).
+func (c *ClientWithResponses) DefineSoftwareAliasWithResponse(ctx context.Context, params *DefineSoftwareAliasParams, body DefineSoftwareAliasJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineSoftwareAliasResult, error) {
+	rsp, err := c.DefineSoftwareAlias(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDefineSoftwareAliasResult(rsp)
+}
+
+// RemoveSoftwareAliasWithResponse Remove a software alias
+//
+// What it matched is counted by its own folded names again. Needs STRUCTURE on the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /software-aliases/{aliasId} (the `RemoveSoftwareAlias` operationId).
+func (c *ClientWithResponses) RemoveSoftwareAliasWithResponse(ctx context.Context, aliasId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RemoveSoftwareAliasResult, error) {
+	rsp, err := c.RemoveSoftwareAlias(ctx, aliasId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveSoftwareAliasResult(rsp)
 }
 
 // DeleteSprintWithResponse Delete a planned sprint
@@ -153200,6 +157054,105 @@ func ParseGetCalendarFeedDocumentResult(rsp *http.Response) (*GetCalendarFeedDoc
 	return response, nil
 }
 
+// ParseReadCiCampaignResult parses an HTTP response from a ReadCiCampaignWithResponse call
+func ParseReadCiCampaignResult(rsp *http.Response) (*ReadCiCampaignResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadCiCampaignResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiCampaignDetail
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAttestCiResult parses an HTTP response from a AttestCiWithResponse call
+func ParseAttestCiResult(rsp *http.Response) (*AttestCiResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AttestCiResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiAttestation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCloseCiCampaignResult parses an HTTP response from a CloseCiCampaignWithResponse call
+func ParseCloseCiCampaignResult(rsp *http.Response) (*CloseCiCampaignResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CloseCiCampaignResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiCampaign
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseResolveCiDuplicateResult parses an HTTP response from a ResolveCiDuplicateWithResponse call
 func ParseResolveCiDuplicateResult(rsp *http.Response) (*ResolveCiDuplicateResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -153216,6 +157169,39 @@ func ParseResolveCiDuplicateResult(rsp *http.Response) (*ResolveCiDuplicateResul
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest CiDuplicateResolved
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCiGroupMembersResult parses an HTTP response from a ListCiGroupMembersWithResponse call
+func ParseListCiGroupMembersResult(rsp *http.Response) (*ListCiGroupMembersResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiGroupMembersResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiGroupMembers
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -153414,6 +157400,105 @@ func ParseUpdateCiResult(rsp *http.Response) (*UpdateCiResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest ConfigurationItem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadCiAssetResult parses an HTTP response from a ReadCiAssetWithResponse call
+func ParseReadCiAssetResult(rsp *http.Response) (*ReadCiAssetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadCiAssetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiAsset
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRegisterCiAssetResult parses an HTTP response from a RegisterCiAssetWithResponse call
+func ParseRegisterCiAssetResult(rsp *http.Response) (*RegisterCiAssetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RegisterCiAssetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiAsset
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMoveCiAssetResult parses an HTTP response from a MoveCiAssetWithResponse call
+func ParseMoveCiAssetResult(rsp *http.Response) (*MoveCiAssetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MoveCiAssetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiAsset
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -157068,6 +161153,39 @@ func ParseUpdateGroupResult(rsp *http.Response) (*UpdateGroupResult, error) {
 	return response, nil
 }
 
+// ParseListCiAssetsResult parses an HTTP response from a ListCiAssetsWithResponse call
+func ParseListCiAssetsResult(rsp *http.Response) (*ListCiAssetsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiAssetsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiAssetList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListCiAlertsResult parses an HTTP response from a ListCiAlertsWithResponse call
 func ParseListCiAlertsResult(rsp *http.Response) (*ListCiAlertsResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -157101,6 +161219,72 @@ func ParseListCiAlertsResult(rsp *http.Response) (*ListCiAlertsResult, error) {
 	return response, nil
 }
 
+// ParseListCiCampaignsResult parses an HTTP response from a ListCiCampaignsWithResponse call
+func ParseListCiCampaignsResult(rsp *http.Response) (*ListCiCampaignsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiCampaignsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiCampaignList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartCiCampaignResult parses an HTTP response from a StartCiCampaignWithResponse call
+func ParseStartCiCampaignResult(rsp *http.Response) (*StartCiCampaignResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartCiCampaignResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiCampaign
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListCiDuplicatesResult parses an HTTP response from a ListCiDuplicatesWithResponse call
 func ParseListCiDuplicatesResult(rsp *http.Response) (*ListCiDuplicatesResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -157117,6 +161301,72 @@ func ParseListCiDuplicatesResult(rsp *http.Response) (*ListCiDuplicatesResult, e
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest CiDuplicateList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCiGroupsResult parses an HTTP response from a ListCiGroupsWithResponse call
+func ParseListCiGroupsResult(rsp *http.Response) (*ListCiGroupsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiGroupsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiGroupList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDefineCiGroupResult parses an HTTP response from a DefineCiGroupWithResponse call
+func ParseDefineCiGroupResult(rsp *http.Response) (*DefineCiGroupResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DefineCiGroupResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiGroup
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -157484,6 +161734,72 @@ func ParseCreatePageResult(rsp *http.Response) (*CreatePageResult, error) {
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadServiceMapResult parses an HTTP response from a ReadServiceMapWithResponse call
+func ParseReadServiceMapResult(rsp *http.Response) (*ReadServiceMapResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadServiceMapResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ServiceMap
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListSoftwareProductsResult parses an HTTP response from a ListSoftwareProductsWithResponse call
+func ParseListSoftwareProductsResult(rsp *http.Response) (*ListSoftwareProductsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSoftwareProductsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SoftwareProductList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -158699,6 +163015,105 @@ func ParseAttachMediaResult(rsp *http.Response) (*AttachMediaResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest ItemAttachments
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListEntryCisResult parses an HTTP response from a ListEntryCisWithResponse call
+func ParseListEntryCisResult(rsp *http.Response) (*ListEntryCisResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListEntryCisResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EntryCis
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUnaffectEntryCiResult parses an HTTP response from a UnaffectEntryCiWithResponse call
+func ParseUnaffectEntryCiResult(rsp *http.Response) (*UnaffectEntryCiResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UnaffectEntryCiResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EntryCis
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAffectEntryCiResult parses an HTTP response from a AffectEntryCiWithResponse call
+func ParseAffectEntryCiResult(rsp *http.Response) (*AffectEntryCiResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AffectEntryCiResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EntryCis
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -166551,6 +170966,105 @@ func ParseReportSlaResult(rsp *http.Response) (*ReportSlaResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest SlaReport
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListSoftwareAliasesResult parses an HTTP response from a ListSoftwareAliasesWithResponse call
+func ParseListSoftwareAliasesResult(rsp *http.Response) (*ListSoftwareAliasesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSoftwareAliasesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SoftwareAliasList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDefineSoftwareAliasResult parses an HTTP response from a DefineSoftwareAliasWithResponse call
+func ParseDefineSoftwareAliasResult(rsp *http.Response) (*DefineSoftwareAliasResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DefineSoftwareAliasResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SoftwareAlias
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveSoftwareAliasResult parses an HTTP response from a RemoveSoftwareAliasWithResponse call
+func ParseRemoveSoftwareAliasResult(rsp *http.Response) (*RemoveSoftwareAliasResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveSoftwareAliasResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SoftwareAliasRemoved
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

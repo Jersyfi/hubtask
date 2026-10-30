@@ -771,6 +771,86 @@ class Client:
         """What points at a configuration item"""
         return self._call("GET", "/cis/{ciId}/backlinks", {"ciId": ci_id}, None, {}, None, "none", None, "json")
 
+    def list_entry_cis(self, item_id: str) -> "EntryCis":
+        """The configuration items an entry names as affected"""
+        return self._call("GET", "/items/{itemId}/cis", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def affect_entry_ci(self, item_id: str, ci_id: str) -> "EntryCis":
+        """Name a configuration item as affected by an entry"""
+        return self._call("PUT", "/items/{itemId}/cis/{ciId}", {"itemId": item_id, "ciId": ci_id}, None, {}, None, "none", None, "json")
+
+    def unaffect_entry_ci(self, item_id: str, ci_id: str) -> "EntryCis":
+        """Remove a configuration item from an entry's affected ones"""
+        return self._call("DELETE", "/items/{itemId}/cis/{ciId}", {"itemId": item_id, "ciId": ci_id}, None, {}, None, "none", None, "json")
+
+    def list_ci_campaigns(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiCampaignList":
+        """A hub's certification campaigns"""
+        return self._call("GET", "/hubs/{hubId}/ci-campaigns", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def start_ci_campaign(self, hub_id: str, body: "CiCampaignStart") -> "CiCampaign":
+        """Ask the owners of a hub's CIs to attest them"""
+        return self._call("POST", "/hubs/{hubId}/ci-campaigns", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_ci_campaign(self, campaign_id: str) -> "CiCampaignDetail":
+        """A certification campaign with every CI asked"""
+        return self._call("GET", "/ci-campaigns/{campaignId}", {"campaignId": campaign_id}, None, {}, None, "none", None, "json")
+
+    def close_ci_campaign(self, campaign_id: str, *, if_match: str | None = None) -> "CiCampaign":
+        """Stop a campaign taking answers"""
+        return self._call("POST", "/ci-campaigns/{campaignId}:close", {"campaignId": campaign_id}, None, {"If-Match": if_match}, None, "none", None, "json")
+
+    def attest_ci(self, campaign_id: str, ci_id: str, body: "CiAttest") -> "CiAttestation":
+        """Answer a campaign's question about a configuration item"""
+        return self._call("PUT", "/ci-campaigns/{campaignId}/cis/{ciId}", {"campaignId": campaign_id, "ciId": ci_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_ci_groups(self, hub_id: str) -> "CiGroupList":
+        """A hub's CI groups"""
+        return self._call("GET", "/hubs/{hubId}/ci-groups", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def define_ci_group(self, hub_id: str, group_key: str, body: "CiGroupDefine", *, if_match: str | None = None) -> "CiGroup":
+        """Define or change a CI group by its key"""
+        return self._call("PUT", "/hubs/{hubId}/ci-groups/{groupKey}", {"hubId": hub_id, "groupKey": group_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_ci_group_members(self, group_id: str) -> "CiGroupMembers":
+        """The configuration items a group holds now"""
+        return self._call("GET", "/ci-groups/{groupId}/members", {"groupId": group_id}, None, {}, None, "none", None, "json")
+
+    def read_service_map(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "ServiceMap":
+        """A hub's service map"""
+        return self._call("GET", "/hubs/{hubId}/service-map", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def list_ci_assets(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiAssetList":
+        """A hub's asset register"""
+        return self._call("GET", "/hubs/{hubId}/assets", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def read_ci_asset(self, ci_id: str) -> "CiAsset":
+        """A configuration item's asset record"""
+        return self._call("GET", "/cis/{ciId}/asset", {"ciId": ci_id}, None, {}, None, "none", None, "json")
+
+    def register_ci_asset(self, ci_id: str, body: "CiAssetRegister", *, if_match: str | None = None) -> "CiAsset":
+        """Write a configuration item's asset record"""
+        return self._call("PUT", "/cis/{ciId}/asset", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def move_ci_asset(self, ci_id: str, body: "CiAssetMove", *, if_match: str | None = None) -> "CiAsset":
+        """Move an asset through its life"""
+        return self._call("POST", "/cis/{ciId}/asset:move", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_software_aliases(self) -> "SoftwareAliasList":
+        """The workspace's software aliases"""
+        return self._call("GET", "/software-aliases", {}, None, {}, None, "none", None, "json")
+
+    def define_software_alias(self, body: "SoftwareAliasDefine", *, if_match: str | None = None) -> "SoftwareAlias":
+        """Count what installations report as one product"""
+        return self._call("POST", "/software-aliases", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def remove_software_alias(self, alias_id: str) -> "SoftwareAliasRemoved":
+        """Remove a software alias"""
+        return self._call("DELETE", "/software-aliases/{aliasId}", {"aliasId": alias_id}, None, {}, None, "none", None, "json")
+
+    def list_software_products(self, hub_id: str) -> "SoftwareProductList":
+        """A hub's software, normalised"""
+        return self._call("GET", "/hubs/{hubId}/software", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
     def relate_cis(self, body: "CiRelate") -> "CiRelation":
         """Join two configuration items"""
         return self._call("POST", "/ci-relations", {}, None, {}, body, "json", "application/json", "json")

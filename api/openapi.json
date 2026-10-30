@@ -7486,6 +7486,872 @@
         }
       }
     },
+    "/items/{itemId}/cis": {
+      "parameters": [
+        {
+          "name": "itemId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "listEntryCis",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "item cis",
+        "summary": "The configuration items an entry names as affected",
+        "description": "Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or a CI they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.\n",
+        "responses": {
+          "200": {
+            "description": "The affected CIs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryCis"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/items/{itemId}/cis/{ciId}": {
+      "parameters": [
+        {
+          "name": "itemId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "name": "ciId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "affectEntryCi",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "item affect",
+        "summary": "Name a configuration item as affected by an entry",
+        "description": "At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the CI's hub.\n",
+        "responses": {
+          "200": {
+            "description": "The affected CIs as they now stand",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryCis"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "unaffectEntryCi",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "item unaffect",
+        "summary": "Remove a configuration item from an entry's affected ones",
+        "description": "Needs WRITE_ITEMS on the entry.",
+        "responses": {
+          "200": {
+            "description": "The affected CIs as they now stand",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryCis"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/hubs/{hubId}/ci-campaigns": {
+      "parameters": [
+        {
+          "name": "hubId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "listCiCampaigns",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "cmdb campaign ls",
+        "summary": "A hub's certification campaigns",
+        "description": "The latest first, each with its score. Needs READ on the hub.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The campaigns",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CiCampaignList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "startCiCampaign",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "cmdb campaign start",
+        "summary": "Ask the owners of a hub's CIs to attest them",
+        "description": "Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CiCampaignStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The campaign",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CiCampaign"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/ci-campaigns/{campaignId}": {
+      "parameters": [
+        {
+          "name": "campaignId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "readCiCampaign",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "cmdb campaign show",
+        "summary": "A certification campaign with every CI asked",
+        "description": "Its score and each CI's verdict, who gave it and when. Needs READ on the hub.",
+        "responses": {
+          "200": {
+            "description": "The campaign",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CiCampaignDetail"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/ci-campaigns/{campaignId}:close": {
+      "parameters": [
+        {
+          "name": "campaignId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "closeCiCampaign",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "cmdb campaign close",
+        "summary": "Stop a campaign taking answers",
+        "description": "Its score stays as it stood. Needs WRITE_ITEMS on the hub.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The campaign",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CiCampaign"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/ci-campaigns/{campaignId}/cis/{ciId}": {
+      "parameters": [
+        {
+          "name": "campaignId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "name": "ciId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "attestCi",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "ci attest",
+        "summary": "Answer a campaign's question about a configuration item",
+        "description": "CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CiAttest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The answer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CiAttestation"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/hubs/{hubId}/ci-groups": {
+      "parameters": [
+        {
+          "name": "hubId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "listCiGroups",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "cmdb group ls",
+        "summary": "A hub's CI groups",
+        "description": "Each with how many CIs it holds now. Needs READ on the hub.",
+        "responses": {
+          "200": {
+            "description": "The groups",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CiGroupList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/hubs/{hubId}/ci-groups/{groupKey}": {
+      "parameters": [
+        {
+          "name": "hubId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "name": "groupKey",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "defineCiGroup",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "groupKey": "key"
+        },
+        "x-hubtask-cli": "cmdb group define",
+        "summary": "Define or change a CI group by its key",
+        "description": "A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CiGroupDefine"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CiGroup"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/ci-groups/{groupId}/members": {
+      "parameters": [
+        {
+          "name": "groupId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "listCiGroupMembers",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "cmdb group members",
+        "summary": "The configuration items a group holds now",
+        "description": "Needs READ on the hub.",
+        "responses": {
+          "200": {
+            "description": "The members",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CiGroupMembers"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/hubs/{hubId}/service-map": {
+      "parameters": [
+        {
+          "name": "hubId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "readServiceMap",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "cmdb service-map",
+        "summary": "A hub's service map",
+        "description": "Its active services and offerings, everything whose failure they suffer and the members of the groups standing for them, in layers, with the relations carrying impact between them. Needs READ on the hub.\n",
+        "parameters": [
+          {
+            "name": "service_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The map",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceMap"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/hubs/{hubId}/assets": {
+      "parameters": [
+        {
+          "name": "hubId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "listCiAssets",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "cmdb asset ls",
+        "summary": "A hub's asset register",
+        "description": "In CI order after a cursor, narrowed to a state when given. Needs READ on the hub.",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "REQUESTED",
+                "ORDERED",
+                "IN_STOCK",
+                "DEPLOYED",
+                "RETIRED",
+                "DISPOSED"
+              ]
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The assets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CiAssetList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/cis/{ciId}/asset": {
+      "parameters": [
+        {
+          "name": "ciId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "readCiAsset",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "ci asset",
+        "summary": "A configuration item's asset record",
+        "description": "Not found when it has none. Needs READ on the hub.",
+        "responses": {
+          "200": {
+            "description": "The asset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CiAsset"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "registerCiAsset",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "ci asset register",
+        "summary": "Write a configuration item's asset record",
+        "description": "Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CiAssetRegister"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The asset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CiAsset"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/cis/{ciId}/asset:move": {
+      "parameters": [
+        {
+          "name": "ciId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "moveCiAsset",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "ci asset move",
+        "summary": "Move an asset through its life",
+        "description": "The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CiAssetMove"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The asset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CiAsset"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/software-aliases": {
+      "get": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "listSoftwareAliases",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "cmdb alias ls",
+        "summary": "The workspace's software aliases",
+        "description": "Needs READ on the workspace.",
+        "responses": {
+          "200": {
+            "description": "The aliases",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoftwareAliasList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "defineSoftwareAlias",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "cmdb alias define",
+        "summary": "Count what installations report as one product",
+        "description": "A product - and a publisher, or any when empty - as reported, folded, and the publisher and product it is counted as; the alias of the same match is changed. Needs STRUCTURE on the workspace.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SoftwareAliasDefine"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The alias",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoftwareAlias"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/software-aliases/{aliasId}": {
+      "parameters": [
+        {
+          "name": "aliasId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "removeSoftwareAlias",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "cmdb alias rm",
+        "summary": "Remove a software alias",
+        "description": "What it matched is counted by its own folded names again. Needs STRUCTURE on the workspace.",
+        "responses": {
+          "200": {
+            "description": "The alias removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoftwareAliasRemoved"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/hubs/{hubId}/software": {
+      "parameters": [
+        {
+          "name": "hubId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "listSoftwareProducts",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "cmdb software",
+        "summary": "A hub's software, normalised",
+        "description": "Its software CIs grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.\n",
+        "responses": {
+          "200": {
+            "description": "The products",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoftwareProductList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/ci-relations": {
       "post": {
         "tags": [
@@ -57795,6 +58661,1102 @@
           },
           "version": {
             "type": "integer"
+          }
+        }
+      },
+      "EntryCis": {
+        "type": "object",
+        "required": [
+          "item_id",
+          "cis",
+          "services",
+          "related",
+          "collisions"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cis": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "ci_id",
+                "hub_id",
+                "class",
+                "name",
+                "stage",
+                "added_at"
+              ],
+              "properties": {
+                "ci_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "hub_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "class": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "stage": {
+                  "type": "string"
+                },
+                "added_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "services": {
+            "type": "array",
+            "description": "The active services and offerings the affected CIs' failure reaches.",
+            "items": {
+              "type": "object",
+              "required": [
+                "ci_id",
+                "class",
+                "name"
+              ],
+              "properties": {
+                "ci_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "class": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "related": {
+            "type": "array",
+            "description": "The other open entries naming an affected CI or one it reaches.",
+            "items": {
+              "$ref": "#/components/schemas/EntryOnCi"
+            }
+          },
+          "collisions": {
+            "type": "array",
+            "description": "The entries planned on an affected CI, or one it reaches, in an overlapping window.",
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/EntryOnCi"
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "direct"
+                  ],
+                  "properties": {
+                    "direct": {
+                      "type": "boolean",
+                      "description": "Both entries name the CI itself."
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "EntryOnCi": {
+        "type": "object",
+        "required": [
+          "item_id",
+          "title",
+          "handle",
+          "number",
+          "entry_type",
+          "ci_id",
+          "start_at",
+          "due_at"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "number": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "entry_type": {
+            "type": "string"
+          },
+          "ci_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "start_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "due_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "CiCampaignStart": {
+        "type": "object",
+        "required": [
+          "name",
+          "due_on"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "classes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "due_by": {
+            "type": "string",
+            "format": "date"
+          },
+          "due_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "review_months": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 60
+          }
+        }
+      },
+      "CiCampaign": {
+        "type": "object",
+        "required": [
+          "id",
+          "hub_id",
+          "name",
+          "classes",
+          "due_by",
+          "due_on",
+          "review_months",
+          "started_by",
+          "started_at",
+          "closed_at",
+          "version",
+          "score"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "classes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "due_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "due_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "review_months": {
+            "type": "integer"
+          },
+          "started_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "closed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "object",
+            "required": [
+              "total",
+              "confirmed",
+              "disputed",
+              "pending",
+              "overdue",
+              "rate"
+            ],
+            "properties": {
+              "total": {
+                "type": "integer"
+              },
+              "confirmed": {
+                "type": "integer"
+              },
+              "disputed": {
+                "type": "integer"
+              },
+              "pending": {
+                "type": "integer"
+              },
+              "overdue": {
+                "type": "integer",
+                "description": "The pending ones once the due day passed."
+              },
+              "rate": {
+                "type": "number",
+                "description": "The share answered",
+                "0 to 1.": null
+              }
+            }
+          }
+        }
+      },
+      "CiCampaignList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CiCampaign"
+            }
+          }
+        }
+      },
+      "CiCampaignDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CiCampaign"
+          },
+          {
+            "type": "object",
+            "required": [
+              "attestations"
+            ],
+            "properties": {
+              "attestations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "ci_id",
+                    "name",
+                    "class",
+                    "owner_id",
+                    "verdict",
+                    "attested_by",
+                    "attested_at"
+                  ],
+                  "properties": {
+                    "ci_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "class": {
+                      "type": "string"
+                    },
+                    "owner_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    },
+                    "verdict": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING",
+                        "CONFIRMED",
+                        "DISPUTED"
+                      ]
+                    },
+                    "attested_by": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    },
+                    "attested_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "CiAttest": {
+        "type": "object",
+        "required": [
+          "verdict"
+        ],
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "CONFIRMED",
+              "DISPUTED"
+            ]
+          }
+        }
+      },
+      "CiAttestation": {
+        "type": "object",
+        "required": [
+          "campaign_id",
+          "ci_id",
+          "verdict",
+          "attested_by",
+          "attested_at",
+          "review_due"
+        ],
+        "properties": {
+          "campaign_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ci_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "CONFIRMED",
+              "DISPUTED"
+            ]
+          },
+          "attested_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "attested_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "review_due": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "CiGroupFilter": {
+        "type": "object",
+        "properties": {
+          "classes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "stages": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "PLANNED",
+                "ORDERED",
+                "IN_STOCK",
+                "IN_USE",
+                "MAINTENANCE",
+                "RETIRED",
+                "DISPOSED"
+              ]
+            }
+          },
+          "name_has": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CiGroupDefine": {
+        "type": "object",
+        "required": [
+          "name",
+          "filter"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "filter": {
+            "$ref": "#/components/schemas/CiGroupFilter"
+          },
+          "service_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "CiGroup": {
+        "type": "object",
+        "required": [
+          "id",
+          "hub_id",
+          "key",
+          "name",
+          "filter",
+          "service_id",
+          "updated_at",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "filter": {
+            "$ref": "#/components/schemas/CiGroupFilter"
+          },
+          "service_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "members": {
+            "type": "integer",
+            "description": "How many CIs it holds now."
+          }
+        }
+      },
+      "CiGroupList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CiGroup"
+            }
+          }
+        }
+      },
+      "CiGroupMembers": {
+        "type": "object",
+        "required": [
+          "group",
+          "data"
+        ],
+        "properties": {
+          "group": {
+            "$ref": "#/components/schemas/CiGroup"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "ci_id",
+                "class",
+                "name",
+                "stage"
+              ],
+              "properties": {
+                "ci_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "class": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "stage": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ServiceMap": {
+        "type": "object",
+        "required": [
+          "hub_id",
+          "nodes",
+          "edges",
+          "truncated"
+        ],
+        "properties": {
+          "hub_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "ci_id",
+                "class",
+                "name",
+                "stage",
+                "layer"
+              ],
+              "properties": {
+                "ci_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "class": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "stage": {
+                  "type": "string"
+                },
+                "layer": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 5,
+                  "description": "0 offerings, 1 services, 2 application services, 3 software and data, 4 virtual and cloud resources, 5 what they stand on."
+                }
+              }
+            }
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "source",
+                "target",
+                "type"
+              ],
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "target": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": {
+                  "type": "string",
+                  "description": "A relation type's key, or group:<key> for a group's member."
+                }
+              }
+            }
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "The map stopped at 2000 CIs."
+          }
+        }
+      },
+      "CiAssetRegister": {
+        "type": "object",
+        "properties": {
+          "asset_tag": {
+            "type": "string"
+          },
+          "cost_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "purchased_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "supplier": {
+            "type": "string"
+          },
+          "warranty_until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "contract_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "stockroom_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "assigned_to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "request_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "REQUESTED",
+              "ORDERED",
+              "IN_STOCK",
+              "DEPLOYED",
+              "RETIRED",
+              "DISPOSED"
+            ]
+          }
+        }
+      },
+      "CiAssetMove": {
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "REQUESTED",
+              "ORDERED",
+              "IN_STOCK",
+              "DEPLOYED",
+              "RETIRED",
+              "DISPOSED"
+            ]
+          },
+          "disposal": {
+            "type": "object",
+            "required": [
+              "method",
+              "certificate"
+            ],
+            "properties": {
+              "method": {
+                "type": "string",
+                "enum": [
+                  "WIPED",
+                  "DESTROYED",
+                  "RECYCLED",
+                  "RETURNED",
+                  "SOLD"
+                ]
+              },
+              "certificate": {
+                "type": "string",
+                "description": "The reference of the certificate that proves it."
+              }
+            }
+          }
+        }
+      },
+      "CiAsset": {
+        "type": "object",
+        "required": [
+          "ci_id",
+          "hub_id",
+          "asset_tag",
+          "cost_minor",
+          "currency",
+          "purchased_on",
+          "supplier",
+          "warranty_until",
+          "warranty_ended",
+          "contract_id",
+          "stockroom_id",
+          "assigned_to",
+          "request_id",
+          "state",
+          "disposal",
+          "updated_at",
+          "version"
+        ],
+        "properties": {
+          "ci_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "class": {
+            "type": "string"
+          },
+          "asset_tag": {
+            "type": "string"
+          },
+          "cost_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "purchased_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "supplier": {
+            "type": "string"
+          },
+          "warranty_until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "warranty_ended": {
+            "type": "boolean"
+          },
+          "contract_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "stockroom_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "assigned_to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "request_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "REQUESTED",
+              "ORDERED",
+              "IN_STOCK",
+              "DEPLOYED",
+              "RETIRED",
+              "DISPOSED"
+            ]
+          },
+          "disposal": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "required": [
+              "method",
+              "certificate",
+              "by",
+              "at"
+            ],
+            "properties": {
+              "method": {
+                "type": "string"
+              },
+              "certificate": {
+                "type": "string"
+              },
+              "by": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "CiAssetList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CiAsset"
+            }
+          }
+        }
+      },
+      "SoftwareAliasDefine": {
+        "type": "object",
+        "required": [
+          "match_product",
+          "product"
+        ],
+        "properties": {
+          "match_publisher": {
+            "type": "string"
+          },
+          "match_product": {
+            "type": "string"
+          },
+          "publisher": {
+            "type": "string"
+          },
+          "product": {
+            "type": "string"
+          }
+        }
+      },
+      "SoftwareAlias": {
+        "type": "object",
+        "required": [
+          "id",
+          "match_publisher",
+          "match_product",
+          "publisher",
+          "product",
+          "updated_at",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "match_publisher": {
+            "type": "string"
+          },
+          "match_product": {
+            "type": "string"
+          },
+          "publisher": {
+            "type": "string"
+          },
+          "product": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "SoftwareAliasList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SoftwareAlias"
+            }
+          }
+        }
+      },
+      "SoftwareAliasRemoved": {
+        "type": "object",
+        "required": [
+          "id",
+          "removed"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "removed": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SoftwareProductList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "publisher",
+                "product",
+                "aliased",
+                "versions",
+                "installations",
+                "ci_ids"
+              ],
+              "properties": {
+                "publisher": {
+                  "type": "string"
+                },
+                "product": {
+                  "type": "string"
+                },
+                "aliased": {
+                  "type": "boolean",
+                  "description": "An alias named it."
+                },
+                "versions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "version",
+                      "cis",
+                      "installations"
+                    ],
+                    "properties": {
+                      "version": {
+                        "type": "string"
+                      },
+                      "cis": {
+                        "type": "integer"
+                      },
+                      "installations": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                },
+                "installations": {
+                  "type": "integer"
+                },
+                "ci_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
           }
         }
       },

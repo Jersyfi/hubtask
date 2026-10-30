@@ -2691,6 +2691,90 @@ func (pending) ReadArticle(w http.ResponseWriter, r *http.Request, _ openapi.Pag
 	notAvailable(w, r)
 }
 
-func (pending) RateArticle(w http.ResponseWriter, r *http.Request, _ openapi.PageId) { notAvailable(w, r) }
+func (pending) RateArticle(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
 
-func (pending) AttachPageMedia(w http.ResponseWriter, r *http.Request, _ openapi.PageId) { notAvailable(w, r) }
+func (pending) AttachPageMedia(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) AffectEntryCi(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) AttestCi(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) CloseCiCampaign(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.CloseCiCampaignParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DefineCiGroup(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ string, _ openapi.DefineCiGroupParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DefineSoftwareAlias(w http.ResponseWriter, r *http.Request, _ openapi.DefineSoftwareAliasParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiAssets(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCiAssetsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiCampaigns(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCiCampaignsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiGroupMembers(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiGroups(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListEntryCis(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListSoftwareAliases(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ListSoftwareProducts(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) MoveCiAsset(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.MoveCiAssetParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadCiAsset(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadCiCampaign(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadServiceMap(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ReadServiceMapParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RegisterCiAsset(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.RegisterCiAssetParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveSoftwareAlias(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) StartCiCampaign(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) UnaffectEntryCi(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
