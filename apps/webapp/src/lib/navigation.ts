@@ -249,6 +249,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       // Voice assistants: Alexa puts things on lists by voice (ADR-0093).
       { id: 'voice', icon: 'mic', code: 'app.admin.voice', path: '/administration/voice', routes: ['voice'] },
       { id: 'ai', icon: 'sparkles', code: 'app.admin.ai', path: '/administration/ai', routes: ['ai'] },
+      { id: 'agents', icon: 'zap', code: 'app.agents.title', path: '/administration/agents', routes: ['agents'], module: 'AGENTS' },
     ],
   },
   {

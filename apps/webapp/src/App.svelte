@@ -40,6 +40,7 @@
   // and the doors before the frame is its own chunk, loaded when its route is first reached.
   const views = {
     AdministrationOverviewView: () => import('./views/AdministrationOverviewView.svelte'),
+    AgentsView: () => import('./views/AgentsView.svelte'),
     ArchiveView: () => import('./views/ArchiveView.svelte'),
     JumbleView: () => import('./views/JumbleView.svelte'),
     InstallationView: () => import('./views/InstallationView.svelte'),
@@ -352,6 +353,8 @@
     <LazyView load={views.LinkTypesView} />
   {:else if route.name === 'time-settings'}
     <LazyView load={views.TimeSettingsView} />
+  {:else if route.name === 'agents'}
+    <LazyView load={views.AgentsView} props={{ tab: route.query['tab'], onnavigate: (path: string) => router.replace(path) }} />
   {:else if route.name === 'cmdb'}
     <LazyView load={views.CmdbView} />
   {:else if route.name === 'changes'}

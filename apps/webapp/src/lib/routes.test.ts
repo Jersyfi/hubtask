@@ -37,6 +37,7 @@ test('the administration area is exactly these screens, by name', () => {
     .sort();
   assert.deepEqual(built, [
     'administration',
+    'agents',
     'ai',
     'apps',
     'audit',

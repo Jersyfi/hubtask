@@ -94,6 +94,7 @@
   import EntryList from '../lib/entries/EntryList.svelte';
   import LabelsPanel from '../lib/entries/LabelsPanel.svelte';
   import LinksSection from '../lib/entries/LinksSection.svelte';
+  import EntryProvenance from '../lib/entries/EntryProvenance.svelte';
   import EntryTimer from '../lib/time/EntryTimer.svelte';
   import EntryGoals from '../lib/goals/EntryGoals.svelte';
   import StepControl from '../lib/entries/StepControl.svelte';
@@ -1356,6 +1357,8 @@
         <!-- Links from both sides, backlinks and what the notes mention (UC-PLN-01). Keyed, so
              each entry reads its own. -->
         {#key item.id}<LinksSection {item} mayChange={isWritable} />{/key}
+        <!-- Which of its values came from AI, where any did (UC-AGT-05 check 5). -->
+        {#key item.id}<EntryProvenance itemId={item.id} />{/key}
         <!-- The goals the entry serves, where the goals module is on (UC-GOL-01 check 4). -->
         {#if manifest.value?.modules_on?.includes('GOALS')}
           {#key item.id}<EntryGoals itemId={item.id} />{/key}

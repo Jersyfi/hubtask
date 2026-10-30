@@ -195,7 +195,7 @@ test('the administration is grouped in the suite\u2019s six groups (configuratio
   assert.deepEqual(of('back'), ['back', 'overview']);
   assert.deepEqual(of('how'), ['workspace', 'presets', 'modules', 'entry-types', 'workflows', 'link-types', 'time-settings', 'cmdb', 'rules', 'runs']);
   assert.deepEqual(of('people'), ['people', 'sign-in-settings', 'legal', 'machines']);
-  assert.deepEqual(of('connections'), ['mail', 'webhooks', 'voice', 'ai']);
+  assert.deepEqual(of('connections'), ['mail', 'webhooks', 'voice', 'ai', 'agents']);
   assert.deepEqual(of('data'), ['private-hubs', 'backup', 'retention', 'restore', 'audit', 'privacy', 'quotas']);
   assert.deepEqual(of('changes'), ['changes']);
   for (const group of ADMINISTRATION) {
@@ -258,7 +258,7 @@ test('the private hubs row is drawn only where a private hub exists (UC-ID-16 ch
   const rowsOf = (groups: typeof ADMINISTRATION) => groups.flatMap((group) => group.rows).map((row) => row.id);
   assert.ok(rowsOf(administration({ hasPrivateHubs: true })).includes('private-hubs'));
   assert.ok(!rowsOf(administration({ hasPrivateHubs: false })).includes('private-hubs'));
-  const allOn = { modulesOn: ['WORKFLOWS', 'ASSETS', 'TIME'] };
+  const allOn = { modulesOn: ['WORKFLOWS', 'ASSETS', 'TIME', 'AGENTS'] };
   assert.equal(rowsOf(administration({ hasPrivateHubs: false, ...allOn })).length, rowsOf(ADMINISTRATION).length - 1, 'nothing else goes');
 });
 
