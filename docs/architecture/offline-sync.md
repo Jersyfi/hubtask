@@ -106,7 +106,7 @@ inventory, a CI with its relations and the catalogue from the copy, nothing writ
 written through the reconciliation, which needs the server. A goal period (`goal_period`) is
 workspace-wide and judged as a workspace-wide read; a goal (`goal`), a check-in (`goal_check_in`, with
 its goal's hub) and a dashboard (`dashboard`) are filed under their hub - none for the workspace's -,
-and a private dashboard reaches its owner alone. A goal travels as its definition and its manual key
+a private dashboard reaches its owner alone and one shared with groups their members besides. A goal travels as its definition and its manual key
 results' values, never a progress, a view's live value or a share of linked entries done, which
 differ per reader (P-05) and are asked for online; every write of these records them, a period's
 closing each graded goal, a goal's deletion the goals moved to its parent. They are written online

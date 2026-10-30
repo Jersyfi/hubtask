@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-13, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/goal/Goal_test.go, core/domain/model/view/Aggregate_test.go, core/application/service/work/AggregateItems_test.go, infrastructure/postgres/query/Aggregate_test.go, test/integration/query_aggregate_test.go, core/domain/model/goal/Digest_test.go, core/application/service/goal/Goal_test.go, core/application/service/goal/Digests_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts]
+checked_by: [core/domain/model/goal/Goal_test.go, core/domain/model/view/Aggregate_test.go, core/application/service/work/AggregateItems_test.go, infrastructure/postgres/query/Aggregate_test.go, test/integration/query_aggregate_test.go, core/domain/model/goal/Digest_test.go, core/application/service/goal/Goal_test.go, core/application/service/goal/Digests_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, apps/webapp/src/lib/data/xlsx.test.ts]
 ---
 
 # Put the numbers I watch on a dashboard
@@ -48,6 +48,13 @@ says he may not see it. Ana's own dashboard *Mine* is hers alone.
 11. A widget's summary measures cycle time - the first entry into an in-progress status to
     completion -, WIP age and time in status of the open entries from the status history, which
     is written from then on whichever door sets a status; an entry without history holds none.
+12. A widget's summary reads a measure's median, 85th or 95th percentile beside its mean, and the
+    digest writes each total with the subscriber's decimal separator.
+13. A widget's table, and a portfolio's, is handed over as CSV or as a spreadsheet, in which a
+    number stays a number and no text runs as a formula.
+14. A dashboard shared with groups is read by the members of those groups who read its place - on
+    every door and on their devices - and by nobody else but its owner; sharing it needs
+    `STRUCTURE` as sharing with the place does.
 
 ## Where it ends
 

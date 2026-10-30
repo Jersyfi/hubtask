@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-06, P-07, P-08, P-10, P-17]
 state: built
 tasks: []
-checked_by: [core/domain/model/module/Module_test.go, core/domain/model/module/Decisions_test.go, core/application/service/setting/Modules_test.go, core/application/service/admin/InstanceModules_test.go, cmd/hubctl/Module_test.go, apps/webapp/src/lib/data/modules.test.ts, apps/webapp/src/lib/navigation.test.ts]
+checked_by: [core/domain/model/module/Module_test.go, core/domain/model/module/Decisions_test.go, core/application/service/setting/Modules_test.go, core/application/service/sync/InitialSyncGoals_test.go, core/application/service/admin/InstanceModules_test.go, cmd/hubctl/Module_test.go, apps/webapp/src/lib/data/modules.test.ts, apps/webapp/src/lib/navigation.test.ts]
 ---
 
 # Switch a module on for the workspace, a hub, or a plan

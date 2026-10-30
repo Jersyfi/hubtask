@@ -960,8 +960,9 @@ and a health -, an owner, a health of its own and an optional parent portfolio (
 progress is the share of its projects' entries completed as `POST /items:aggregate` counts them for
 the reader, a project the reader may not read left out and kept when they change the portfolio. A
 **`StatusUpdate`** gives a health and a summary, becomes the portfolio's health and stays as history.
-A **`Dashboard`** at the workspace or in a hub is its owner's (`PRIVATE`) or read by everybody who
-reads its place (`SCOPE`, which needs `STRUCTURE`); its at most 24 **`Widget`**s on a twelve-column
+A **`Dashboard`** at the workspace or in a hub is its owner's (`PRIVATE`), read by everybody who
+reads its place (`SCOPE`), or by the members of up to twenty groups who read it (`GROUPS`, migration
+0274) - sharing either way needs `STRUCTURE`; its at most 24 **`Widget`**s on a twelve-column
 grid run a saved summary view, a stored `POST /items:aggregate` document or goals' progress, and
 their numbers are computed when read, for the reader, never stored.
 
